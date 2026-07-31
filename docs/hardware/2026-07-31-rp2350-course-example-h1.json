@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-07-31T04:39:17-07:00",
+  "evidence_type": "course-example-usb-non-motion-run",
+  "safety_tier": "H1-non-motion-partial",
+  "controller": {
+    "board": "SparkFun XRP Controller with RP2350",
+    "usb_vid": "0x1B4F",
+    "usb_pid": "0x0046",
+    "identity_sha256": "f7f1acadba8d6d7e5418b9f66f57965f19343ae82e9a8ddcdaa79f8649601e99",
+    "raw_serial_committed": false
+  },
+  "software": {
+    "micropython_version": "1.28.0",
+    "xrplib_version": "2026.07.1",
+    "ucsb_xrp_version": "0.1.0-dev",
+    "ucsb_xrp_source_sha256": "d16777ade128e0b365234c01c0a02a0e70b4ff9d591eea266e799447c9ebc34a",
+    "example": "vendor/current/examples/no_motion_sensor_read.py",
+    "example_sha256": "4344fc54f00f48cc087b35a62d5508d17187fb4327e3d05798ebe88c2a76e550"
+  },
+  "result": {
+    "state": "pass-with-safety-gate-pending",
+    "motion_locked": true,
+    "requested_motor_effort_values": [0.0],
+    "time_ms": 1306547,
+    "left_encoder_count": -1,
+    "right_encoder_count": -1,
+    "range_mm": 269.07216,
+    "button_pressed": false,
+    "finally_stop_completed": true,
+    "nonzero_motor_effort_issued": false
+  },
+  "limitations": [
+    "The board-switch-off, MOT-LED-off, near-zero-VIN isolation gate was not confirmed for this run.",
+    "Sensor values are point observations, not calibration evidence.",
+    "Zero-effort execution does not validate powered physical stopping."
+  ]
+}

@@ -1,0 +1,615 @@
+MOBILE ROBOTICS WITH THE XRP
+Course overview and ten-week schedule
+
+
+COURSE IN BRIEF
+
+Students begin by assembling an XRP robot and finding out how its two motors and
+encoders behave. They then make it drive a measured straight distance, turn and
+return, travel through world-coordinate destinations, plan around a known
+obstacle, and complete a delivery after observing whether part of the route is
+blocked.
+
+The course is organized around five robot challenges. A short lecture and one
+or more focused experiments provide the material needed for each challenge.
+Students work in pairs, with one XRP kit per pair. Tuesday and Thursday meetings
+combine lecture, programming, measurement, and robot runs. The laboratory is
+available between meetings.
+
+The course assumes one previous programming course. It does not assume previous
+Python or robotics experience. Python classes are introduced through concrete
+robot components whose inputs and outputs can be inspected directly.
+
+
+THE FIVE CHALLENGES
+
+
+CHALLENGE 1: STRAIGHT RUN
+
+Task
+
+The robot travels along an open straight course and stops at a specified
+distance. After producing a repeatable run, students increase the requested
+speed while retaining a controlled stop. For the challenge run, the robot must
+finish as close as possible to a specified target time T without finishing
+sooner.
+
+New student code
+
+SensorModel
+    The wheel-measurement portion converts encoder counts and timestamps into
+    left and right wheel position, wheel travel during the latest sample, and
+    wheel speed.
+
+WheelSpeedController
+    Converts requested and measured left and right wheel speeds into motor
+    efforts.
+
+The implementations must account for:
+
+- encoder scale and direction;
+- elapsed time between samples;
+- unequal left and right motor response;
+- the motor effort required to start each loaded wheel moving;
+- the difference between raised-wheel and floor measurements;
+- zero requested speed; and
+- the allowed motor-effort range.
+
+StraightLineController is supplied. It reduces the requested speed near the
+destination and stops the robot at the specified travel distance. The
+challenge therefore concentrates on measurement and wheel-speed control.
+
+
+CHALLENGE 2: TURN AND RETURN
+
+Task
+
+The robot travels to a designated turnaround point, turns through 180 degrees,
+returns to a marked region around its starting position, then turns to its
+original heading. The estimated final position and heading are compared with
+the measured result.
+
+New student code
+
+DifferentialDrive
+    Converts requested forward speed and turn rate into left and right wheel
+    speeds.
+
+Odometry
+    Uses left and right wheel travel to update the robot's estimated x
+    position, y position, and heading.
+
+The implementations must account for:
+
+- the wheel-speed difference required for a turn;
+- the effective distance between the wheels;
+- left-turn and right-turn signs;
+- simultaneous translation and rotation;
+- heading wraparound; and
+- accumulated error caused by wheel scale, track-width calibration, and slip.
+
+
+CHALLENGE 3: WAYPOINT COURIER
+
+Task
+
+The robot starts at a known pose, visits an ordered sequence of
+world-coordinate destinations, and reaches the final destination with a
+specified heading.
+
+New student code
+
+NavigationController
+    Stores the route, selects the current destination, and converts the current
+    Pose into a MotionCommand. Its internal state distinguishes turning toward
+    a destination, driving toward it, and aligning to a requested final
+    heading.
+
+The implementation must account for:
+
+- distance and bearing to the current destination;
+- shortest-direction heading error;
+- separate position and heading tolerances;
+- a useful turn-rate magnitude at small heading errors;
+- reduced speed near a destination;
+- transition to the next destination; and
+- a stopped command after the route is complete.
+
+
+CHALLENGE 4: MAPPED ROUTE
+
+Task
+
+The robot travels from a specified start pose to a destination while avoiding
+known obstacles. The course supplies a dimensioned ArenaMap. OccupancyGrid
+samples that map at a selected grid resolution. Students plan through the free
+cells, convert the grid path to world-coordinate destinations, and use the
+NavigationController completed in Challenge 3.
+
+New student code
+
+GridPlanner
+    Finds a path through free neighboring cells from a start cell to a
+    destination cell.
+
+The implementation must account for:
+
+- conversion of the world start and destination to grid cells;
+- blocked or out-of-map endpoints;
+- a search frontier and a record of visited cells;
+- one predecessor for each discovered cell;
+- reconstruction of the path in start-to-destination order;
+- adjacent free cells in the returned path; and
+- the result when no path exists.
+
+Breadth-first search is sufficient for the core challenge. Dijkstra's algorithm
+or A* can use the same GridPlanner interface.
+
+
+CHALLENGE 5: DELIVERY MISSION
+
+Task
+
+The robot begins at a known observation pose, obtains several forward-range
+readings while stationary, and determines whether a named feature in the
+dimensioned map is blocked. It then constructs the corresponding occupancy
+grid, plans a route, and completes the delivery.
+
+New student code
+
+SensorModel.estimate_range()
+    Reduces a short sequence of range samples to one usable distance estimate
+    or reports that the available samples are insufficient.
+
+No new motion or mission class is introduced. DeliveryMission is supplied and
+uses the student SensorModel, GridPlanner, and NavigationController.
+
+The range implementation and final integration must account for:
+
+- variation among repeated readings;
+- missing readings;
+- the minimum number of usable samples;
+- the measured distinction between the relevant open and blocked conditions;
+- changing only the named map feature associated with the observation;
+- the possibility that no route exists; and
+- reuse of the navigation and robot-control components from earlier
+  challenges.
+
+
+PRACTICAL CONTINUITY
+
+The challenges do not require five independent physical setups. Straight Run
+uses an open lane. Turn and Return and Waypoint Courier use the same open floor
+area with different marked coordinates. Mapped Route and Delivery Mission use
+the same supplied dimensioned map and shared arena; the delivery adds one
+observed map condition.
+
+The software develops in the same way. Each challenge keeps the student
+implementations from the preceding challenge and adds a small number of new
+methods or classes.
+
+
+COURSE CONTENT
+
+Python
+
+- values, expressions, conditionals, loops, functions, lists, and dictionaries;
+- classes, objects, methods, and instance variables;
+- modules and imports;
+- typed records with meaningful field names; and
+- tests using known inputs before a class is used on the robot.
+
+Mobile robotics
+
+- motor effort, load, wheel speed, and encoder measurement;
+- forward motion and wheel-speed feedback;
+- differential-drive steering;
+- planar pose and odometry;
+- navigation through world-coordinate destinations;
+- forward range sensing;
+- dimensioned arena maps and sampled occupancy grids; and
+- grid-based path planning with and without obstacles.
+
+
+THE CODE STUDENTS DEVELOP
+
+Six components have a reference implementation and a student implementation:
+
+- SensorModel;
+- WheelSpeedController;
+- DifferentialDrive;
+- Odometry;
+- NavigationController; and
+- GridPlanner.
+
+Both implementations have the same public methods. A student implementation
+inherits a supplied base class that fixes the method names, arguments, and
+return values. course_setup.py selects "reference" or "student" independently
+for each component.
+
+The supplied library services are XRPBot, Robot, StraightLineController,
+ArenaMap, OccupancyGrid, and DeliveryMission.
+
+The principal run-time sequence is:
+
+MotionCommand
+    -> DifferentialDrive
+    -> WheelSpeeds
+    -> WheelSpeedController
+    -> MotorEfforts
+    -> XRPBot
+
+XRPBot
+    -> RawSensors
+    -> SensorModel
+    -> Measurements
+    -> Odometry
+    -> Pose
+
+NavigationController uses the current Pose to produce a MotionCommand.
+GridPlanner produces a GridPath that can be converted to NavigationGoal values.
+
+
+PROJECT FILES
+
+main.py
+    Imports the current task, constructs the required objects, and runs the
+    standard control loop.
+
+robot_config.py
+    Contains measured robot dimensions, encoder scale, motor calibration,
+    sample period, and reusable controller settings.
+
+student_components.py
+    Contains the six student component implementations.
+
+course_setup.py
+    Contains the supplied factories and the implementation selections.
+
+challenge.py
+    Contains the current experiment or task values: requested motor effort and
+    duration, initial pose, destinations, dimensioned map, grid resolution, and
+    range-decision settings. Task values do not appear as numerical literals in
+    main.py.
+
+
+TEN-WEEK SCHEDULE
+
+
+WEEK 1: PYTHON OBJECTS AND THE XRP
+
+Tuesday
+
+- Demonstration of the five robot challenges.
+- Mobile-robot tasks: motion, position, sensing, mapping, and planning.
+- Python review: values, functions, conditionals, loops, and lists.
+- Pose represented as a record with named fields.
+
+Thursday
+
+- Assemble the XRP robot.
+- Connect the robot to the course IDE.
+- Run the supplied motor, encoder, button, and range tests.
+- Introduce classes, objects, methods, and instance variables.
+- Read RawSensors through XRPBot.
+
+Practical result
+
+Each pair has an assembled robot that passes the integrated tests and a Python
+program that reads its encoders.
+
+
+WEEK 2: MEASURE THE WHEELS
+
+Tuesday
+
+- Motor effort, wheel speed, load, and encoder counts.
+- Fixed-effort measurements with the wheels raised.
+- Comparison of the left and right motors.
+
+Thursday
+
+- Repeat selected measurements with the robot on the floor.
+- Convert counts and time to wheel travel and wheel speed.
+- Implement the wheel-measurement portion of SensorModel.
+- Test SensorModel with a recorded RawSensors sequence.
+
+Practical result
+
+SensorModel reports left and right wheel position, increment, and speed in
+physical units.
+
+
+WEEK 3: CONTROL STRAIGHT MOTION
+
+Tuesday
+
+- Open-loop motor response and closed-loop wheel-speed control.
+- Starting effort, speed estimate, speed error, and effort limits.
+- Implement and test WheelSpeedController.
+
+Thursday
+
+- Use StraightLineController with the student SensorModel and
+  WheelSpeedController.
+- Compare requested and measured wheel speeds.
+- Complete Challenge 1: Straight Run.
+
+Practical result
+
+The robot travels a requested straight distance with repeatable speed and stop
+position.
+
+
+WEEK 4: STEER WITH TWO WHEELS
+
+Tuesday
+
+- Forward speed, turn rate, and individual wheel speed.
+- Implement DifferentialDrive.
+- Test straight, curved, and in-place commands.
+
+Thursday
+
+- Wheel travel during a turn.
+- Measure repeated turns.
+- Refine the effective track-width value used by the robot model.
+
+Practical result
+
+DifferentialDrive produces consistent left and right wheel-speed requests for
+straight and turning motion.
+
+
+WEEK 5: ESTIMATE POSITION
+
+Tuesday
+
+- Robot coordinates, world coordinates, Pose, and heading wraparound.
+- Implement Odometry with known left and right wheel increments.
+- Test straight, curved, and in-place motion sequences.
+
+Thursday
+
+- Use live wheel increments to update Pose.
+- Compare estimated and measured final position and heading.
+- Complete Challenge 2: Turn and Return.
+
+Practical result
+
+RobotState contains a continuously updated odometry estimate.
+
+
+WEEK 6: TRAVEL THROUGH COORDINATES
+
+Tuesday
+
+- Distance and bearing from Pose to NavigationGoal.
+- Navigation states: turn, drive, and final heading.
+- Implement NavigationController for one destination.
+
+Thursday
+
+- Extend NavigationController to an ordered route.
+- Tune travel speed, approach speed, and arrival tolerances.
+- Complete Challenge 3: Waypoint Courier.
+
+Practical result
+
+NavigationController converts a route and successive Pose values into
+MotionCommand values.
+
+
+WEEK 7: RANGE SENSING AND DIMENSIONED MAPS
+
+Tuesday
+
+- Ultrasonic range measurement and surface-dependent variation.
+- Collect repeated readings at the observation pose used by the final mission.
+- Implement and test SensorModel.estimate_range().
+
+Thursday
+
+- ArenaMap as a dimensioned description in millimeters.
+- Grid resolution and sampling an ArenaMap into OccupancyGrid.
+- Convert world coordinates to cells and cell centers to world coordinates.
+- Compare coarse and fine grid representations of the same map.
+
+Practical result
+
+Students can produce a range estimate from repeated samples and relate the
+supplied dimensioned map to grid cells.
+
+
+WEEK 8: PLAN A GRID PATH
+
+Tuesday
+
+- Grid cells as graph vertices.
+- Free neighboring cells, a search frontier, visited cells, and predecessor
+  records.
+- Begin GridPlanner with small software-only maps.
+
+Thursday
+
+- Complete path reconstruction.
+- Test open maps, maps with obstacles, blocked endpoints, and maps with no
+  route.
+- Convert a GridPath to NavigationGoal values.
+
+Practical result
+
+GridPlanner returns a valid path or None.
+
+
+WEEK 9: EXECUTE THE PLANNED ROUTE
+
+Tuesday
+
+- Combine ArenaMap, OccupancyGrid, GridPlanner, and NavigationController.
+- Execute short planned routes.
+- Compare the grid path, estimated Pose, and physical robot path.
+
+Thursday
+
+- Complete Challenge 4: Mapped Route.
+- Introduce the supplied DeliveryMission sequence.
+- Test its range decision and planning stages with recorded data.
+
+Practical result
+
+The robot executes a route produced from the supplied dimensioned map.
+
+
+WEEK 10: COMPLETE THE DELIVERY
+
+Tuesday
+
+- Integrate the stationary range observation with the named map feature.
+- Rehearse each expected map condition.
+- Complete full delivery runs.
+
+Thursday
+
+- Complete Challenge 5: Delivery Mission.
+- Compare planned routes, estimated trajectories, and physical final
+  positions.
+- Identify the measurements and model parameters that most influenced each
+  result.
+
+Practical result
+
+The robot observes the relevant map condition, plans through the resulting
+occupancy grid, and completes the delivery.
+
+
+TECHNICAL THREAD
+
+The course follows one continuous sequence:
+
+- encoder counts and time become wheel position, increment, and speed;
+- a requested robot motion becomes left and right wheel-speed targets;
+- wheel-speed error changes motor effort;
+- left and right wheel travel update planar position and heading;
+- position and heading determine how the robot approaches a destination;
+- a dimensioned map becomes an occupancy grid at a chosen resolution; and
+- graph search connects the start cell to the destination cell.
+
+Distances use millimeters, linear speeds use millimeters per second, and angles
+use radians. These conventions are used consistently in the library, student
+components, task files, and robot data.
+
+
+WORKED SOLUTION: CHALLENGE 4, MAPPED ROUTE
+
+This solution places the search algorithm in GridPlanner. main.py constructs
+the supplied map and controllers, asks the planner for a path, and runs the
+existing NavigationController. All positions and grid settings come from
+challenge.py.
+
+student_components.py
+
+    from ucsb_xrp import GridPath
+    from ucsb_xrp.student_api import GridPlannerBase
+
+
+    class GridPlanner(GridPlannerBase):
+        def plan(self, grid, start, goal):
+            if start is None or goal is None:
+                return None
+
+            if grid.is_blocked(start) or grid.is_blocked(goal):
+                return None
+
+            frontier = [start]
+            next_index = 0
+            previous = {start: None}
+
+            while next_index < len(frontier):
+                current = frontier[next_index]
+                next_index += 1
+
+                if current == goal:
+                    break
+
+                for neighbor in grid.neighbors(current):
+                    if neighbor not in previous:
+                        previous[neighbor] = current
+                        frontier.append(neighbor)
+
+            if goal not in previous:
+                return None
+
+            cells = []
+            current = goal
+
+            while current is not None:
+                cells.append(current)
+                current = previous[current]
+
+            cells.reverse()
+            return GridPath(tuple(cells))
+
+
+main.py
+
+    from challenge import (
+        ARENA_MAP,
+        CLEARANCE_MM,
+        DESTINATION,
+        GRID_RESOLUTION_MM,
+        INITIAL_POSE,
+    )
+    from course_setup import (
+        make_grid_planner,
+        make_navigation_controller,
+        make_robot,
+    )
+    from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+    from ucsb_xrp import OccupancyGrid
+
+
+    grid = OccupancyGrid.from_arena(
+        arena=ARENA_MAP,
+        resolution_mm=GRID_RESOLUTION_MM,
+        clearance_mm=CLEARANCE_MM,
+    )
+
+    start = grid.world_to_cell(
+        INITIAL_POSE.x_mm,
+        INITIAL_POSE.y_mm,
+    )
+    goal = grid.world_to_cell(
+        DESTINATION.x_mm,
+        DESTINATION.y_mm,
+    )
+
+    planner = make_grid_planner()
+    path = planner.plan(grid, start, goal)
+
+    if path is None:
+        print("No route to the destination")
+    else:
+        navigation = make_navigation_controller(NAVIGATION_CONFIG)
+        navigation.start(
+            path.to_goals(
+                grid=grid,
+                final_heading_rad=DESTINATION.heading_rad,
+            )
+        )
+
+        robot = make_robot(ROBOT_CONFIG)
+
+        try:
+            state = robot.start(INITIAL_POSE)
+
+            while not navigation.is_complete():
+                command = navigation.update(state.pose)
+                state = robot.step(command)
+        finally:
+            robot.stop()
+
+
+Changing GridPlanner from "reference" to "student" in course_setup.py changes
+the planner used by main.py without changing the task, map, navigation, or robot
+code.

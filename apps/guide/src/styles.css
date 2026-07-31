@@ -1,0 +1,243 @@
+.guide-app {
+  min-height: 100vh;
+}
+
+.guide-header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  min-height: 53px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.45rem 0.75rem;
+  background: rgb(7 17 26 / 95%);
+  backdrop-filter: blur(18px);
+}
+
+.guide-header nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.guide-layout {
+  display: grid;
+  width: min(1180px, calc(100% - 2rem));
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 3rem;
+  margin: 0 auto;
+  padding: 3rem 0 6rem;
+}
+
+.guide-toc {
+  position: sticky;
+  top: 78px;
+  display: grid;
+  align-self: start;
+  gap: 0.55rem;
+  border-left: 1px solid var(--line);
+  padding-left: 0.85rem;
+}
+
+.guide-toc span {
+  margin-bottom: 0.2rem;
+  color: var(--quiet);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.guide-toc a {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.guide-toc a:hover {
+  color: var(--cyan);
+}
+
+.guide-content {
+  min-width: 0;
+}
+
+.guide-intro {
+  display: block;
+  max-width: 800px;
+  border: 0;
+  padding: 1rem 0 3.5rem;
+}
+
+.guide-intro h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5.8rem);
+  font-weight: 720;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.guide-intro > p:last-child {
+  max-width: 720px;
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.guide-content > section:not(.guide-intro) {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 1.25rem;
+  border-top: 1px solid var(--line);
+  padding: 2.3rem 0 2.8rem;
+  scroll-margin-top: 70px;
+}
+
+.section-number {
+  color: var(--cyan);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.68rem;
+}
+
+.guide-content h2 {
+  margin: -0.25rem 0 1rem;
+  font-size: 1.7rem;
+  letter-spacing: -0.025em;
+}
+
+.guide-content p,
+.procedure {
+  max-width: 780px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.72;
+}
+
+.guide-content strong {
+  color: var(--ink);
+}
+
+.guide-content a {
+  color: var(--cyan);
+}
+
+.guide-content code,
+kbd {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.08rem 0.28rem;
+  background: #0b1822;
+  color: #d5e2eb;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.82em;
+}
+
+.procedure {
+  display: grid;
+  gap: 0.7rem;
+  padding-left: 1.2rem;
+}
+
+.procedure li {
+  padding-left: 0.35rem;
+}
+
+.callout {
+  max-width: 780px;
+  margin-top: 1rem;
+  border-left: 3px solid var(--gold);
+  padding: 0.75rem 0.9rem;
+  background: #101d26;
+  color: #c6d3dd;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.signal-chain {
+  display: flex;
+  max-width: 850px;
+  align-items: center;
+  gap: 0.38rem;
+  overflow-x: auto;
+  margin: 1.2rem 0;
+  padding-bottom: 0.4rem;
+}
+
+.signal-chain span {
+  flex: 0 0 auto;
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  padding: 0.48rem 0.58rem;
+  background: #0b1822;
+  color: var(--ink);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.64rem;
+}
+
+.signal-chain b {
+  color: var(--quiet);
+  font-weight: 400;
+}
+
+.source-links {
+  display: grid;
+  max-width: 780px;
+  gap: 0.4rem;
+  margin-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.9rem;
+}
+
+.source-links a {
+  font-size: 0.7rem;
+  text-decoration: none;
+}
+
+table {
+  width: min(720px, 100%);
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.65rem 0.7rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+th {
+  color: var(--quiet);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td:first-child {
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .guide-layout {
+    grid-template-columns: 1fr;
+    padding-top: 1.5rem;
+  }
+
+  .guide-toc {
+    position: static;
+    display: none;
+  }
+
+  .guide-content > section:not(.guide-intro) {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+
+  .guide-header .brand {
+    min-width: auto;
+  }
+}

@@ -1,0 +1,449 @@
+USING THE UCSB-XRP LIBRARY
+User guide
+
+
+PURPOSE
+
+UCSB-XRP provides the common structure used by the course robot programs. It
+connects motion commands to the XRP motors, converts encoder readings to
+physical units, estimates pose, follows world-coordinate destinations, creates
+an occupancy grid from a dimensioned map, and plans a route through free cells.
+
+XRPBot is the only UCSB-XRP class that calls XRPLib directly. Most programs use
+Robot and the higher-level controllers rather than accessing XRPBot.
+
+
+THE LIBRARY IN ONE PAGE
+
+Lower-level motion
+
+MotionCommand
+    requested forward speed and turn rate
+
+DifferentialDrive
+    converts the MotionCommand to WheelSpeeds
+
+WheelSpeedController
+    converts target and measured WheelSpeeds to MotorEfforts
+
+XRPBot
+    sends MotorEfforts to the hardware
+
+Measurement and pose
+
+XRPBot
+    returns RawSensors
+
+SensorModel
+    converts RawSensors to Measurements
+
+Odometry
+    converts measured left and right wheel travel to Pose
+
+Navigation and planning
+
+NavigationController
+    converts Pose and the current NavigationGoal to a MotionCommand
+
+ArenaMap
+    stores the supplied dimensioned arena description
+
+OccupancyGrid
+    samples ArenaMap at a chosen resolution
+
+GridPlanner
+    converts start and destination GridCell values to a GridPath
+
+DeliveryMission
+    combines stationary range observation, map selection, planning, and
+    navigation for the final course task
+
+
+UNITS AND DIRECTIONS
+
+- Distance, position, wheel travel, map coordinates, and grid resolution use
+  millimeters.
+- Linear and wheel speed use millimeters per second.
+- Hardware timestamps use integer milliseconds.
+- Heading and heading change use radians.
+- Turn rate uses radians per second.
+- Motor effort is a normalized dimensionless value.
+
+World positive x normally points in the robot's initial forward direction.
+World positive y points to its left. Heading zero is world positive x, and
+positive heading is counterclockwise. Positive speed for either wheel means
+forward wheel motion.
+
+RobotConfig contains the motor and encoder signs that make these conventions
+independent of the physical wiring.
+
+
+PROJECT FILES
+
+main.py
+    Imports the current task, constructs objects, and runs the standard loop.
+
+robot_config.py
+    Contains RobotConfig and NavigationConfig values measured or selected for
+    one robot.
+
+student_components.py
+    Contains SensorModel, WheelSpeedController, DifferentialDrive, Odometry,
+    NavigationController, and GridPlanner.
+
+course_setup.py
+    Selects the reference or student implementation of each component and
+    provides the make_* factory functions.
+
+challenge.py
+    Contains the current experiment or task values, including requested motor
+    effort and duration, initial pose, destinations, map, grid resolution, and
+    range settings.
+
+Task values belong in challenge.py. Robot measurements and reusable controller
+settings belong in robot_config.py. Algorithms belong in
+student_components.py.
+
+
+REFERENCE AND STUDENT IMPLEMENTATIONS
+
+The six student components have the same methods as their supplied reference
+implementations. Code that uses a component obtains it from course_setup.py, so
+the rest of the program is unchanged when an implementation source changes.
+
+course_setup.py contains:
+
+    MODULE_SOURCE = {
+        "sensor_model": "reference",
+        "wheel_speed_controller": "reference",
+        "differential_drive": "reference",
+        "odometry": "reference",
+        "navigation_controller": "reference",
+        "grid_planner": "reference",
+    }
+
+Each value is exactly "reference" or "student". The file initially selects all
+reference implementations; students change one entry at a time as their
+implementations are completed.
+
+
+RUNNING A DIRECT MOTOR EXPERIMENT
+
+XRPBot is used directly for fixed-effort motor measurements. This short
+program applies the MotorEfforts value supplied by challenge.py, waits for the
+specified interval, and prints the encoder samples before and after the run.
+
+motor_experiment.py
+
+    from time import sleep_ms
+
+    from challenge import EXPERIMENT_EFFORTS, RUN_TIME_MS
+    from robot_config import ROBOT_CONFIG
+    from ucsb_xrp import XRPBot
+
+
+    bot = XRPBot(ROBOT_CONFIG)
+    bot.wait_for_button()
+    bot.reset_encoders()
+    start = bot.read()
+
+    try:
+        bot.set_efforts(EXPERIMENT_EFFORTS)
+        sleep_ms(RUN_TIME_MS)
+        finish = bot.read()
+    finally:
+        bot.stop()
+
+    print(start)
+    print(finish)
+
+EXPERIMENT_EFFORTS is a MotorEfforts value. The same program can be used with
+the wheels raised or with the robot on the floor. Motor characterization uses
+XRPBot; controlled motion uses Robot.
+
+
+STARTING AND STOPPING ROBOT
+
+make_robot() constructs Robot with the selected SensorModel,
+WheelSpeedController, DifferentialDrive, and Odometry implementations.
+
+Robot.start(initial_pose) waits for a USER-button press and release, resets the
+encoders and component state, and returns the first RobotState.
+
+Robot.step(command) runs one sample period and returns the next RobotState.
+
+Robot.stop() sends zero motor effort.
+
+A program that can command motion places Robot.stop() in a finally clause.
+
+
+READING ROBOTSTATE
+
+RobotState has two fields:
+
+state.measurements
+    The newest physical measurements.
+
+state.pose
+    The newest odometry estimate.
+
+Measurements provides:
+
+time_ms
+    Hardware timestamp.
+
+dt_s
+    Elapsed time since the preceding sensor update.
+
+left_position_mm, right_position_mm
+    Wheel travel relative to the latest SensorModel reset.
+
+left_increment_mm, right_increment_mm
+    Wheel travel during the latest sample.
+
+left_speed_mm_s, right_speed_mm_s
+    Average wheel speed during the latest sample.
+
+wheel_speeds
+    A WheelSpeeds value containing the two measured wheel speeds.
+
+range_mm
+    The range acquired during the current sample, or None.
+
+button_pressed
+    Current USER-button state.
+
+Pose provides x_mm, y_mm, and heading_rad.
+
+
+RUNNING A MEASURED STRAIGHT DISTANCE
+
+StraightLineController is supplied. It uses measured wheel positions to reduce
+speed near the requested distance and stop the robot.
+
+main.py
+
+    from challenge import INITIAL_POSE, TRAVEL_DISTANCE_MM
+    from course_setup import make_robot
+    from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+    from ucsb_xrp import StraightLineController
+
+
+    robot = make_robot(ROBOT_CONFIG)
+    straight = StraightLineController(NAVIGATION_CONFIG)
+
+    try:
+        state = robot.start(INITIAL_POSE)
+        straight.start(
+            measurements=state.measurements,
+            distance_mm=TRAVEL_DISTANCE_MM,
+        )
+
+        while not straight.is_complete():
+            command = straight.update(state.measurements)
+            state = robot.step(command)
+    finally:
+        robot.stop()
+
+TRAVEL_DISTANCE_MM comes from challenge.py. Cruise speed, approach speed,
+slowdown distance, and position tolerance come from NAVIGATION_CONFIG.
+
+
+FOLLOWING WORLD-COORDINATE DESTINATIONS
+
+NavigationController accepts an ordered sequence of NavigationGoal values. Each
+goal contains x and y coordinates and may contain a requested final heading.
+
+main.py
+
+    from challenge import INITIAL_POSE, ROUTE
+    from course_setup import make_navigation_controller, make_robot
+    from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+
+
+    robot = make_robot(ROBOT_CONFIG)
+    navigation = make_navigation_controller(NAVIGATION_CONFIG)
+    navigation.start(ROUTE)
+
+    try:
+        state = robot.start(INITIAL_POSE)
+
+        while not navigation.is_complete():
+            command = navigation.update(state.pose)
+            state = robot.step(command)
+    finally:
+        robot.stop()
+
+NavigationController.current_goal() returns the active goal.
+NavigationController.update(pose) returns the next MotionCommand.
+NavigationController.is_complete() reports completion of the final goal and any
+requested final heading.
+
+
+CREATING AN OCCUPANCY GRID
+
+ArenaMap is a dimensioned description expressed in millimeters. OccupancyGrid
+samples the map. resolution_mm specifies the side length of one grid cell.
+clearance_mm specifies how far a free cell center must be from an obstacle.
+
+planning_check.py
+
+    from challenge import (
+        ARENA_MAP,
+        CLEARANCE_MM,
+        DESTINATION,
+        GRID_RESOLUTION_MM,
+        INITIAL_POSE,
+    )
+    from course_setup import make_grid_planner
+    from ucsb_xrp import OccupancyGrid
+
+
+    grid = OccupancyGrid.from_arena(
+        arena=ARENA_MAP,
+        resolution_mm=GRID_RESOLUTION_MM,
+        clearance_mm=CLEARANCE_MM,
+    )
+
+    start = grid.world_to_cell(
+        INITIAL_POSE.x_mm,
+        INITIAL_POSE.y_mm,
+    )
+    goal = grid.world_to_cell(
+        DESTINATION.x_mm,
+        DESTINATION.y_mm,
+    )
+
+    planner = make_grid_planner()
+    path = planner.plan(grid, start, goal)
+    print(path)
+
+world_to_cell(x_mm, y_mm) returns the cell containing a world position or None
+when the position is outside the grid.
+
+cell_center(cell) returns the world coordinates at the center of a cell.
+
+is_blocked(cell) reports whether a cell is unavailable.
+
+neighbors(cell) returns the free four-neighbor cells used by GridPlanner.
+
+
+CONVERTING A GRID PATH TO NAVIGATION GOALS
+
+GridPlanner.plan() returns GridPath or None. A GridPath begins with the start
+cell and ends with the destination cell.
+
+GridPath.to_goals(grid, final_heading_rad) converts the path to
+world-coordinate NavigationGoal values. It retains the destination and the
+cells at which the path changes direction. Cells in the middle of a straight
+segment do not create additional navigation goals.
+
+The resulting goals are passed directly to NavigationController.start().
+
+
+RUNNING THE DELIVERY MISSION
+
+challenge.py supplies a DeliveryTask named DELIVERY_TASK. It contains the
+initial pose, dimensioned map, grid settings, destination, named map feature,
+and range-decision settings.
+
+DeliveryMission uses the SensorModel selected inside Robot, the selected
+GridPlanner, and the selected NavigationController. Its run() method performs
+the stationary observation, map selection, planning, and navigation sequence.
+
+main.py
+
+    from challenge import DELIVERY_TASK
+    from course_setup import (
+        make_grid_planner,
+        make_navigation_controller,
+        make_robot,
+    )
+    from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+    from ucsb_xrp import DeliveryMission
+
+
+    robot = make_robot(ROBOT_CONFIG)
+    navigation = make_navigation_controller(NAVIGATION_CONFIG)
+    planner = make_grid_planner()
+
+    mission = DeliveryMission(
+        task=DELIVERY_TASK,
+        navigation=navigation,
+        planner=planner,
+    )
+
+    final_state = mission.run(robot)
+    print(mission.result, final_state.pose)
+
+DeliveryMission.result is "delivered" after successful navigation or "no_path"
+when the selected map has no route to the destination.
+
+
+REQUESTING RANGE OUTSIDE DELIVERYMISSION
+
+Robot.step(command, read_range=True) requests a forward range reading at the end
+of that sample period. The robot may remain stationary by passing STOP_COMMAND.
+
+When range is not requested, Measurements.range_mm is None. It is also None
+when no usable reading is returned.
+
+Collect Measurements.range_mm from the requested samples, then call
+robot.estimate_range(samples, minimum_usable). Robot delegates the calculation
+to its selected SensorModel implementation. The method accepts a sequence
+containing numeric ranges and None values and returns one range estimate, or
+None when too few usable samples are present.
+
+
+CONFIGURATION
+
+RobotConfig contains:
+
+- sample period;
+- wheel diameter;
+- encoder counts per wheel revolution;
+- effective track width;
+- motor and encoder direction signs;
+- left and right motor starting effort;
+- left and right speed-to-effort calibration;
+- wheel-speed feedback gain; and
+- maximum motor effort.
+
+NavigationConfig contains:
+
+- cruise speed;
+- approach speed;
+- slowdown distance;
+- turn rate;
+- position tolerance;
+- heading tolerance; and
+- the heading error at which forward travel returns to turning.
+
+Component implementations read these named fields. Numerical values are not
+repeated inside the implementation methods.
+
+
+TESTING A STUDENT COMPONENT
+
+Each component can be tested without running a complete mission:
+
+- SensorModel uses recorded RawSensors sequences and range samples.
+- WheelSpeedController uses target and measured WheelSpeeds.
+- DifferentialDrive uses MotionCommand values.
+- Odometry uses a starting Pose and left and right wheel increments.
+- NavigationController uses NavigationGoal and Pose sequences.
+- GridPlanner uses small OccupancyGrid instances.
+
+The API reference gives the exact construction and method signatures. The
+component tests can be run before changing the corresponding MODULE_SOURCE
+entry to "student".
+
+
+WHERE TO LOOK
+
+Use this guide for the common program structures.
+
+Use the API reference for exact fields, method signatures, argument meanings,
+and return values.
+
+Use challenge.py for the values that define the current robot task.

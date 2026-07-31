@@ -1,0 +1,51 @@
+{
+  "name": "ucsb-xrp-course-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "overrides": {
+    "dompurify": "3.4.12"
+  },
+  "engines": {
+    "node": ">=24.17 <25"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "check": "npm run check:fast && npm run test:browser",
+    "check:fast": "npm run format:check && npm run test:python && npm run test:micropython && npm run test && npm run build",
+    "dev": "vite --host 127.0.0.1",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "pretest:browser": "npm run build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:micropython": "node scripts/prove-micropython.mjs",
+    "test:python": "python3 -m unittest discover -s tests/python -p 'test_*.py'",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@micropython/micropython-webassembly-pyscript": "1.28.0-6",
+    "@monaco-editor/react": "4.7.0",
+    "echarts": "6.1.0",
+    "monaco-editor": "0.56.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@types/three": "0.185.1",
+    "@vitejs/plugin-react": "6.0.5",
+    "jsdom": "30.0.1",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vite": "8.2.0",
+    "vitest": "4.1.10"
+  }
+}

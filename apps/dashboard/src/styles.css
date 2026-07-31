@@ -1,0 +1,164 @@
+.dashboard-grid {
+  display: grid;
+  min-height: calc(100vh - 53px);
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  grid-template-rows: minmax(360px, 1.45fr) minmax(250px, 1fr);
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.world-panel,
+.plot-panel,
+.values-panel,
+.logs-panel {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.world-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.plot-panel {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.values-panel {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.logs-panel {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.world-view,
+.signal-plot {
+  width: 100%;
+  min-height: 0;
+}
+
+.telemetry-placeholder {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  padding: 1rem;
+  color: var(--quiet);
+  background: #071019;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.world-view canvas {
+  display: block;
+}
+
+.live-values {
+  display: grid;
+  align-content: start;
+  margin: 0;
+  overflow: auto;
+}
+
+.live-values > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) auto;
+  gap: 1rem;
+  border-bottom: 1px solid rgb(33 54 71 / 70%);
+  padding: 0.72rem 0.85rem;
+}
+
+.live-values dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.live-values dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.dashboard-logs {
+  overflow: auto;
+  padding: 0.75rem 0.85rem;
+  background: #071019;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.logs-tools {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.logs-tools .panel-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-tools button {
+  flex: 0 0 auto;
+  padding: 0.18rem 0.38rem;
+  font-size: 0.62rem;
+}
+
+.log-placeholder {
+  color: var(--quiet);
+}
+
+.log-line {
+  display: grid;
+  grid-template-columns: 1rem 1fr;
+  color: #c6d3dd;
+}
+
+.log-line.stderr {
+  color: var(--red);
+}
+
+.log-line.system {
+  color: var(--gold);
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 420px 280px auto 230px;
+  }
+
+  .world-panel,
+  .plot-panel,
+  .values-panel,
+  .logs-panel {
+    grid-column: 1;
+  }
+
+  .world-panel {
+    grid-row: 1;
+  }
+
+  .plot-panel {
+    grid-row: 2;
+  }
+
+  .values-panel {
+    grid-row: 3;
+  }
+
+  .logs-panel {
+    grid-row: 4;
+  }
+}

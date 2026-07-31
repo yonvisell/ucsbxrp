@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-07-31T04:02:27-07:00",
+  "safety_tier": "H0",
+  "host": {
+    "os": "macOS 26.3.1 (25D771280a)",
+    "browser": "Google Chrome 150.0.7871.187"
+  },
+  "controller": {
+    "manufacturer": "SparkFun",
+    "product": "XRP Controller",
+    "processor": "RP2350",
+    "usb_vid": "0x1B4F",
+    "usb_pid": "0x0046",
+    "serial_path_at_observation": "/dev/cu.usbmodem2101",
+    "identity_sha256": "f5cffcd61ce0075662cd444b58eef6d83444857a5402a33351b9576834a50248"
+  },
+  "physical_assertions": {
+    "assembled_and_safe": true,
+    "usb_attached": true,
+    "motor_power_connected": false,
+    "source": "user"
+  },
+  "observed_runtime": {
+    "classification": "XRP-WPILib firmware",
+    "version": "2.1.0",
+    "normal_volume": "/Volumes/PICODISK",
+    "status_file": "XRP-Status.txt",
+    "wifi_mode": "AP",
+    "reported_address": "192.168.42.1",
+    "unique_ssid_committed": false,
+    "password_committed": false,
+    "micropython_repl_claimed": false
+  },
+  "selected_candidate_stack": {
+    "status": "verified upstream bytes; not yet installed",
+    "manifest_repository": "Open-STEM/XRP_Firmware",
+    "manifest_commit": "1914fd636d1d06425cdbec88ae4b998844d1501a",
+    "firmware": {
+      "board": "SPARKFUN_XRP_CONTROLLER",
+      "micropython_version": "1.28.0",
+      "asset": "SPARKFUN_XRP_CONTROLLER-20260406-v1.28.0.uf2",
+      "byte_size": 1725952,
+      "git_blob_sha1": "92bbd9d4b0817fe9775056e9425afe2c0a9cb626",
+      "sha256": "0a36d7e2bc20dfcde2dd1af9a673fd0a63248820a360723c3967751106610ed0"
+    },
+    "xrplib": {
+      "version": "2026.07.1",
+      "release_tag": "V2026.07.1",
+      "source_commit": "55abed4e219e061d32dd190199bc42d9a1b45366"
+    }
+  },
+  "checks": [
+    {
+      "id": "usb-enumeration",
+      "state": "pass",
+      "detail": "SparkFun XRP Controller and CDC serial endpoint observed"
+    },
+    {
+      "id": "runtime-classification",
+      "state": "pass",
+      "detail": "PICODISK status identifies XRP-WPILib 2.1.0"
+    },
+    {
+      "id": "candidate-firmware-bytes",
+      "state": "pass",
+      "detail": "Downloaded bytes match upstream Git blob and recorded SHA-256"
+    },
+    {
+      "id": "micropython-repl",
+      "state": "deferred",
+      "detail": "Current WPILib serial endpoint is not treated as a MicroPython REPL"
+    },
+    {
+      "id": "motor-behavior",
+      "state": "deferred",
+      "detail": "Motor power is intentionally disconnected"
+    },
+    {
+      "id": "wifi-browser-path",
+      "state": "deferred",
+      "detail": "Mac remains on development Wi-Fi; offline readiness precedes network switching"
+    }
+  ]
+}

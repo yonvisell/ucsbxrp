@@ -1,0 +1,2 @@
+# Host-only development and USB recovery tooling. This is not installed on the XRP.
+mpremote==1.28.0
