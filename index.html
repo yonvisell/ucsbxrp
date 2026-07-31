@@ -20,13 +20,18 @@
         XRP and the deterministic virtual robot.
       </p>
       <nav class="landing-actions" aria-label="Course tools">
-        <a class="primary-link" href="/ide/">Open IDE</a>
-        <a class="secondary-link" href="/dashboard/">Open XRP Monitor</a>
-        <a class="secondary-link" href="/guide/">Help &amp; robot setup</a>
+        <a class="primary-link" href="./ide/">Open IDE</a>
+        <a class="secondary-link" href="./dashboard/">Open XRP Monitor</a>
+        <a class="secondary-link" href="./guide/">Help &amp; robot setup</a>
       </nav>
       <p class="release-note">
         Stage 1 · Virtual target · Course release 0.1.0
       </p>
     </main>
+    <script type="module">
+      import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
+
+      registerOfflineShell();
+    </script>
   </body>
 </html>

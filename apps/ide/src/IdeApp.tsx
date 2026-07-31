@@ -14,13 +14,20 @@ import {
   type TargetRunState,
 } from "@ucsb-xrp/target";
 
+import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import {
   chooseWorkingFolder,
+  deleteProjectFile,
+  duplicateProjectFile,
   loadRecoveredProject,
   normalizedProjectPath,
   projectPathError,
   readProjectFolder,
+  removeProjectFolderFiles,
+  renameProjectFile,
+  setProjectEntrypoint,
   storeRecoveredProject,
+  suggestedDuplicatePath,
   supportsWorkingFolders,
   writeProjectFolder,
   type CourseDirectoryHandle,
@@ -39,6 +46,8 @@ interface IdeSettings {
   tabSize: 2 | 4;
   wordWrap: "off" | "on";
 }
+
+type PathOperation = "rename" | "duplicate";
 
 const settingsKey = "ucsb-xrp-ide-settings-v1";
 const defaultSettings: IdeSettings = {
@@ -147,6 +156,15 @@ export function IdeApp() {
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
   const [newFileError, setNewFileError] = useState("");
+  const [pathOperation, setPathOperation] = useState<PathOperation | null>(
+    null,
+  );
+  const [pathDraft, setPathDraft] = useState("");
+  const [pathOperationError, setPathOperationError] = useState("");
+  const [deletePath, setDeletePath] = useState<string | null>(null);
+  const [pendingFolderDeletions, setPendingFolderDeletions] = useState(
+    () => new Set<string>(),
+  );
   const nextConsoleId = useRef(1);
   const initializedProjectEffect = useRef(false);
 
@@ -200,6 +218,12 @@ export function IdeApp() {
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
   );
+  const replacementEntrypoint = projectFiles.find(
+    (path) => path !== activePath && path.endsWith(".py"),
+  );
+  const canDeleteActiveFile =
+    projectFiles.length > 1 &&
+    (activePath !== project.entrypoint || replacementEntrypoint !== undefined);
 
   const openFile = useCallback((path: string) => {
     setOpenPaths((paths) => (paths.includes(path) ? paths : [...paths, path]));
@@ -303,6 +327,7 @@ export function IdeApp() {
       setActivePath(result.project.entrypoint);
       setOpenPaths([result.project.entrypoint]);
       setFolderDirty(false);
+      setPendingFolderDeletions(new Set());
       setCheckOk(null);
       setCheckDetail("Not validated");
       setConsoleEntries([]);
@@ -321,20 +346,36 @@ export function IdeApp() {
   const saveProjectFiles = useCallback(async () => {
     try {
       const folder = workingFolder ?? (await chooseWorkingFolder());
+      let removedFiles = 0;
       setOperationDetail(`Saving ${Object.keys(project.files).length} files…`);
-      await writeProjectFolder(folder, project.files);
+      await writeProjectFolder(folder, project);
+      if (workingFolder && pendingFolderDeletions.size > 0) {
+        removedFiles = await removeProjectFolderFiles(
+          folder,
+          pendingFolderDeletions,
+        );
+      }
       if (!workingFolder) {
         setWorkingFolder(folder);
         setProject((current) => ({ ...current, name: folder.name }));
       }
       setFolderDirty(false);
-      setOperationDetail(`Saved all project files to ${folder.name}.`);
+      setPendingFolderDeletions(new Set());
+      setOperationDetail(
+        `Saved ${Object.keys(project.files).length} project file${
+          Object.keys(project.files).length === 1 ? "" : "s"
+        } to ${folder.name}${
+          removedFiles > 0
+            ? `; removed ${removedFiles} deleted file${removedFiles === 1 ? "" : "s"}`
+            : ""
+        }.`,
+      );
     } catch (error) {
       if (!wasCancelled(error)) {
         setOperationDetail(errorDetail(error));
       }
     }
-  }, [project.files, workingFolder]);
+  }, [pendingFolderDeletions, project, workingFolder]);
 
   const createFile = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -353,6 +394,11 @@ export function IdeApp() {
         ...current,
         files: { ...current.files, [path]: "" },
       }));
+      setPendingFolderDeletions((current) => {
+        const next = new Set(current);
+        next.delete(path);
+        return next;
+      });
       setFolderDirty(true);
       setNewFileOpen(false);
       setNewFilePath("");
@@ -365,8 +411,116 @@ export function IdeApp() {
     [newFilePath, openFile, project.files],
   );
 
+  const beginPathOperation = useCallback(
+    (operation: PathOperation) => {
+      setPathOperation(operation);
+      setPathDraft(
+        operation === "rename"
+          ? activePath
+          : suggestedDuplicatePath(activePath, project.files),
+      );
+      setPathOperationError("");
+    },
+    [activePath, project.files],
+  );
+
+  const applyPathOperation = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!pathOperation) {
+        return;
+      }
+      try {
+        const nextPath = normalizedProjectPath(pathDraft);
+        const nextProject =
+          pathOperation === "rename"
+            ? renameProjectFile(project, activePath, nextPath)
+            : duplicateProjectFile(project, activePath, nextPath);
+        setProject(nextProject);
+        setPendingFolderDeletions((current) => {
+          const next = new Set(current);
+          next.delete(nextPath);
+          if (pathOperation === "rename") {
+            next.add(activePath);
+          }
+          return next;
+        });
+        if (pathOperation === "rename") {
+          setOpenPaths((paths) =>
+            paths.map((path) => (path === activePath ? nextPath : path)),
+          );
+        } else {
+          setOpenPaths((paths) =>
+            paths.includes(nextPath) ? paths : [...paths, nextPath],
+          );
+        }
+        setActivePath(nextPath);
+        setFolderDirty(true);
+        setOperationDetail(
+          pathOperation === "rename"
+            ? `Renamed ${activePath} to ${nextPath}. Save files to update the working folder.`
+            : `Duplicated ${activePath} as ${nextPath}. Save files to write the copy.`,
+        );
+        setPathOperation(null);
+        setPathDraft("");
+        setPathOperationError("");
+      } catch (error) {
+        setPathOperationError(errorDetail(error));
+      }
+    },
+    [activePath, pathDraft, pathOperation, project],
+  );
+
+  const confirmDeleteFile = useCallback(() => {
+    if (!deletePath) {
+      return;
+    }
+    try {
+      const nextProject = deleteProjectFile(project, deletePath);
+      setProject(nextProject);
+      setPendingFolderDeletions((current) => new Set([...current, deletePath]));
+      setOpenPaths((paths) => {
+        const remaining = paths.filter((path) => path !== deletePath);
+        return remaining.length > 0 ? remaining : [nextProject.entrypoint];
+      });
+      if (activePath === deletePath) {
+        setActivePath(nextProject.entrypoint);
+      }
+      setFolderDirty(true);
+      setOperationDetail(
+        `${deletePath} removed from the project. Save files to remove it from the working folder.`,
+      );
+      setDeletePath(null);
+    } catch (error) {
+      setOperationDetail(errorDetail(error));
+      setDeletePath(null);
+    }
+  }, [activePath, deletePath, project]);
+
+  const useActiveFileAsEntrypoint = useCallback(() => {
+    try {
+      setProject((current) => setProjectEntrypoint(current, activePath));
+      setFolderDirty(true);
+      setOperationDetail(
+        `${activePath} is now the startup file. Save files to preserve this setting with the working folder.`,
+      );
+    } catch (error) {
+      setOperationDetail(errorDetail(error));
+    }
+  }, [activePath]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSettingsOpen(false);
+        setNewFileOpen(false);
+        setPathOperation(null);
+        setDeletePath(null);
+        return;
+      }
+      if (newFileOpen || pathOperation || deletePath) {
+        return;
+      }
       const command = event.metaKey || event.ctrlKey;
       if (command && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -380,14 +534,53 @@ export function IdeApp() {
       } else if (command && event.key === ",") {
         event.preventDefault();
         setSettingsOpen((open) => !open);
-      } else if (event.key === "Escape") {
-        setSettingsOpen(false);
-        setNewFileOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [runVirtual, saveProjectFiles, validateCode]);
+  }, [
+    deletePath,
+    newFileOpen,
+    pathOperation,
+    runVirtual,
+    saveProjectFiles,
+    validateCode,
+  ]);
+
+  useEffect(() => {
+    if (!newFileOpen && !pathOperation && !deletePath) {
+      return;
+    }
+    const keepFocusInDialog = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+      const dialog = document.querySelector<HTMLElement>(
+        '.modal-backdrop[aria-modal="true"]',
+      );
+      const controls = dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(
+              'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+            ),
+          )
+        : [];
+      if (controls.length === 0) {
+        return;
+      }
+      const first = controls[0]!;
+      const last = controls[controls.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", keepFocusInDialog);
+    return () => window.removeEventListener("keydown", keepFocusInDialog);
+  }, [deletePath, newFileOpen, pathOperation]);
 
   const storageDetail = workingFolder
     ? `${workingFolder.name}${folderDirty ? " · folder has unsaved changes" : " · folder current"}`
@@ -414,7 +607,7 @@ export function IdeApp() {
             className="primary-button"
             disabled={!canCommand || isRunning}
             onClick={runVirtual}
-            title="Run main.py on the virtual XRP (⌘/Ctrl+Enter)"
+            title={`Run ${project.entrypoint} on the virtual XRP (⌘/Ctrl+Enter)`}
           >
             Run virtual XRP
           </button>
@@ -431,7 +624,7 @@ export function IdeApp() {
           <div className="toolbar-spacer" />
           <a
             className="tool-link"
-            href="/dashboard/"
+            href="../dashboard/"
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -439,7 +632,7 @@ export function IdeApp() {
           </a>
           <a
             className="tool-link"
-            href="/guide/"
+            href="../guide/"
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -454,13 +647,18 @@ export function IdeApp() {
             Settings
           </button>
         </div>
-        <div
-          className="connection-pill"
-          data-testid="target-status"
-          title={targetDetail}
-        >
-          <span className={`status-dot ${targetState}`} />
-          <span>Virtual XRP · {targetState}</span>
+        <div className="header-statuses">
+          <OfflineReadiness />
+          <div
+            aria-live="polite"
+            className="connection-pill"
+            data-testid="target-status"
+            role="status"
+            title={targetDetail}
+          >
+            <span aria-hidden="true" className={`status-dot ${targetState}`} />
+            <span>Virtual XRP · {targetState}</span>
+          </div>
         </div>
       </header>
 
@@ -506,9 +704,57 @@ export function IdeApp() {
             <div className="project-name" title={project.name}>
               {project.name}
             </div>
+            <div
+              className="file-actions"
+              aria-label={`Actions for ${activePath}`}
+            >
+              <button onClick={() => beginPathOperation("rename")}>
+                Rename
+              </button>
+              <button onClick={() => beginPathOperation("duplicate")}>
+                Duplicate
+              </button>
+              <button
+                disabled={
+                  activePath === project.entrypoint ||
+                  !activePath.endsWith(".py")
+                }
+                onClick={useActiveFileAsEntrypoint}
+                title={
+                  !activePath.endsWith(".py")
+                    ? "Only Python files can be startup files"
+                    : activePath === project.entrypoint
+                      ? "This is already the startup file"
+                      : `Run ${activePath} when the project starts`
+                }
+              >
+                {activePath === project.entrypoint
+                  ? "Startup file"
+                  : "Use as startup"}
+              </button>
+              <button
+                className="danger-button"
+                disabled={!canDeleteActiveFile}
+                onClick={() => setDeletePath(activePath)}
+                title={
+                  canDeleteActiveFile
+                    ? `Delete ${activePath} from the project`
+                    : "A project must retain a Python startup file"
+                }
+              >
+                Delete
+              </button>
+            </div>
+            <div className="startup-file" title={project.entrypoint}>
+              Starts with <strong>{project.entrypoint}</strong>
+            </div>
             <div className="file-list">
               {projectFiles.map((path) => (
                 <button
+                  aria-label={`Open ${path}${
+                    path === project.entrypoint ? " (startup file)" : ""
+                  }`}
+                  aria-current={path === activePath ? "true" : undefined}
                   className={`file-row ${path === activePath ? "active" : ""}`}
                   key={path}
                   onClick={() => openFile(path)}
@@ -516,6 +762,9 @@ export function IdeApp() {
                 >
                   <span className="file-type-icon">{fileIcon(path)}</span>
                   <span className="file-path">{path}</span>
+                  {path === project.entrypoint ? (
+                    <span className="startup-badge">START</span>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -685,7 +934,9 @@ export function IdeApp() {
                         ? "Failed"
                         : "Not current"}
                   </strong>
-                  <small data-testid="check-result">{checkDetail}</small>
+                  <small aria-live="polite" data-testid="check-result">
+                    {checkDetail}
+                  </small>
                 </div>
                 <div>
                   <span>Project</span>
@@ -700,7 +951,7 @@ export function IdeApp() {
                   <strong>
                     {workingFolder ? workingFolder.name : "Recovery"}
                   </strong>
-                  <small>{operationDetail}</small>
+                  <small aria-live="polite">{operationDetail}</small>
                 </div>
               </div>
             ) : outputPanelOpen ? (
@@ -863,6 +1114,8 @@ export function IdeApp() {
             <h2 id="new-file-title">Create a file</h2>
             <label htmlFor="new-file-path">Project-relative path</label>
             <input
+              aria-describedby="new-file-help"
+              aria-invalid={newFileError ? "true" : undefined}
               autoFocus
               id="new-file-path"
               onChange={(event) => {
@@ -872,7 +1125,11 @@ export function IdeApp() {
               placeholder="controllers/straight_line.py"
               value={newFilePath}
             />
-            <small className={newFileError ? "dialog-error" : ""}>
+            <small
+              aria-live="polite"
+              className={newFileError ? "dialog-error" : ""}
+              id="new-file-help"
+            >
               {newFileError ||
                 "Folders in the path are created when the project is saved."}
             </small>
@@ -892,6 +1149,99 @@ export function IdeApp() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {pathOperation ? (
+        <div
+          aria-labelledby="file-operation-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <form className="new-file-dialog" onSubmit={applyPathOperation}>
+            <span className="dialog-kicker">PROJECT FILE</span>
+            <h2 id="file-operation-title">
+              {pathOperation === "rename" ? "Rename file" : "Duplicate file"}
+            </h2>
+            <p className="dialog-context">
+              {pathOperation === "rename"
+                ? `Choose a new path for ${activePath}.`
+                : `Choose a path for the copy of ${activePath}.`}
+            </p>
+            <label htmlFor="file-operation-path">Project-relative path</label>
+            <input
+              aria-describedby="file-operation-help"
+              aria-invalid={pathOperationError ? "true" : undefined}
+              autoFocus
+              id="file-operation-path"
+              onChange={(event) => {
+                setPathDraft(event.target.value);
+                setPathOperationError("");
+              }}
+              value={pathDraft}
+            />
+            <small
+              aria-live="polite"
+              className={pathOperationError ? "dialog-error" : ""}
+              id="file-operation-help"
+            >
+              {pathOperationError ||
+                "Use a path inside the project, such as student/controller.py."}
+            </small>
+            <div className="dialog-actions">
+              <button
+                onClick={() => {
+                  setPathOperation(null);
+                  setPathDraft("");
+                  setPathOperationError("");
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button className="primary-button" type="submit">
+                {pathOperation === "rename" ? "Rename file" : "Create copy"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {deletePath ? (
+        <div
+          aria-labelledby="delete-file-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="alertdialog"
+        >
+          <div className="new-file-dialog">
+            <span className="dialog-kicker">CONFIRM DELETION</span>
+            <h2 id="delete-file-title">Delete {deletePath}?</h2>
+            <p className="dialog-context">
+              This removes the file from browser recovery now. Select Save files
+              to remove the same file from the current working folder.
+              {deletePath === project.entrypoint && replacementEntrypoint
+                ? ` ${replacementEntrypoint} will become the startup file.`
+                : ""}
+            </p>
+            <div className="dialog-actions">
+              <button
+                autoFocus
+                onClick={() => setDeletePath(null)}
+                type="button"
+              >
+                Keep file
+              </button>
+              <button
+                className="danger-button confirm-danger"
+                onClick={confirmDeleteFile}
+                type="button"
+              >
+                Delete file
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

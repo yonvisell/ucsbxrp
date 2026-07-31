@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release_id": "2026.07-dev.1",
+  "release_id": "2026.07-dev.2",
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "under-review",
@@ -29,8 +29,30 @@
   "ucsb_xrp": {
     "version": "0.1.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
-    "source_file_count": 7,
-    "source_sha256": "d16777ade128e0b365234c01c0a02a0e70b4ff9d591eea266e799447c9ebc34a",
-    "reference_artifacts": []
+    "source_file_count": 8,
+    "source_sha256": "78637b538e41b1d7ed90f6511cba9376dcedbe5edc480048bcb97492336a1b0f",
+    "reference_compiler": {
+      "repository": "micropython/micropython",
+      "tag": "v1.28.0",
+      "commit": "e0e9fbb17ed6fd06bb76e266ae554784c9c80804",
+      "version_output": "MicroPython v1.28.0; mpy-cross emitting mpy v6.3",
+      "portable_abi": 774
+    },
+    "reference_artifacts": [
+      {
+        "path": "reference_mpy/ucsb_xrp_reference/__init__.mpy",
+        "source": "reference_source/ucsb_xrp_reference/__init__.py",
+        "source_sha256": "b9ab1735f1127817233a45531e2370a4522b545054160c8251977ec09bb46915",
+        "byte_size": 166,
+        "sha256": "f889f432acdacc96a7d0bb0ddcea220fd4d2415a24f5cb4c07c5faad31978696"
+      },
+      {
+        "path": "reference_mpy/ucsb_xrp_reference/challenge_1.mpy",
+        "source": "reference_source/ucsb_xrp_reference/challenge_1.py",
+        "source_sha256": "0e563c8c8ad7259de35f256c2c9d63a21126653069c4e9fc2f574d9e94f9e115",
+        "byte_size": 2308,
+        "sha256": "6dfceb6b927d3155fc0d290bda80687da7600b18cb3f22394514fc99ec331ca3"
+      }
+    ]
   }
 }

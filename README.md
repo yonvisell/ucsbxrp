@@ -37,6 +37,7 @@ npm run test:python
 npm run test:micropython
 npm test
 npm run build
+npm run test:offline
 npm run test:browser
 ```
 
@@ -52,13 +53,21 @@ folder. Open files appear in tabs. The working-folder handle is session-scoped,
 so the folder must be selected again after a browser restart even though the
 recovered project text remains available.
 
+The selected-file controls support **Rename**, **Duplicate**, and **Delete**.
+Deletion requires confirmation and affects the selected working folder only
+after **Save files**. The IDE deletes only the exact project file that it
+previously tracked; unrelated folder contents are preserved. Select a Python
+file and choose **Use as startup** to move the **START** marker. The IDE stores
+that choice in `.ucsb-xrp-project.json` when the project is saved and restores
+it when the folder is reopened.
+
 The Stage 1 commands have deliberately explicit meanings:
 
 - **Validate code** compiles every Python project file with MicroPython without
   running it. Documentation and configuration files remain part of the saved
   project but are not treated as Python.
-- **Run virtual XRP** runs `main.py` on the deterministic virtual target. It
-  does not transfer code to a physical robot.
+- **Run virtual XRP** runs the Python file marked **START** on the deterministic
+  virtual target. It does not transfer code to a physical robot.
 - **Stop program** terminates the program and commands zero motor effort.
 - **Reset virtual XRP** stops the program and resets virtual pose, speed,
   effort, and encoders.
@@ -76,6 +85,66 @@ The Stage 1 commands have deliberately explicit meanings:
 
 Monaco uses `Tab` for indentation; the indent width is selectable in the
 collapsible Settings panel.
+
+### Challenge 1 starter project
+
+The recovered default is a five-file project. The separation is deliberate so
+students can see which values, implementations, and choices they are changing:
+
+- `main.py` performs the initial motion-locked Challenge 1 data-flow check;
+- `robot_config.py` contains robot measurements and reusable controller
+  settings;
+- `student_components.py` contains the two Challenge 1 components students
+  implement;
+- `course_setup.py` explicitly selects the supplied or student implementation
+  for each component; and
+- `challenge.py` contains the Straight Run task values.
+
+The default run reads sensors and exercises the complete Challenge 1 component
+chain, but `RobotConfig.max_effort` remains zero and both requested motor
+efforts must remain exactly zero. It is not a physical Straight Run and should
+not be unlocked by changing that value alone. Physical motion waits for the H2
+raised-wheel safety and calibration session.
+
+The retained source under `vendor/current/reference_source/` is a provisional
+reference implementation, not a definition of the best or only design. The
+student release contains reproducibly built ordinary MicroPython `.mpy`
+artifacts instead of that private source. The exact same two artifacts import
+and pass the Challenge 1 public contract vector in browser MicroPython
+WebAssembly and on the RP2350.
+
+## XRP Monitor recording
+
+The XRP Monitor can record virtual telemetry independently of the visible
+plots. Use **Start recording**, **Stop recording**, **Export CSV**, and **Clear
+recording** in the Live values panel. Storage is bounded at 30,000 samples; if a
+run exceeds that bound, the oldest samples are dropped and the count is shown.
+The CSV contains sequence and time, pose, left/right effort, wheel speeds,
+encoder counts, and collision state, with units in the column names.
+
+## Offline readiness
+
+The IDE and XRP Monitor headers show the current course release and its cache
+state. A development server intentionally reports **cache disabled** so that
+stale service-worker files cannot mask code changes. This is not an error.
+
+For offline use, build and serve the production application:
+
+```sh
+npm run build
+npm run preview
+```
+
+Load the production application while online and wait for **offline ready**
+before changing networks. That state means the complete public release has
+been cached: the IDE, Monitor, guide, workers, MicroPython WebAssembly runtime,
+canonical course package, starter, and reference bytecode. The private retained
+reference source is deliberately excluded.
+
+The production bundle has passed local automated offline reload and execution
+tests, including the Challenge 1 no-motion run. Deployment on an HTTPS origin,
+connection to the XRP's RM2 network, browser Local Network Access permission,
+and physical transport/reconnect acceptance remain separate pending gates.
 
 ## Current examples
 
@@ -106,7 +175,12 @@ verified `SPARKFUN_XRP_CONTROLLER` MicroPython 1.28.0 image with XRPLib
 2026.07.1, installed and checked over USB. The battery pack is disconnected,
 but USB-C can energize motor-driver VIN when the board power switch is on;
 XRPLib measured about 5.4 V and reported motor power available. No nonzero
-effort has been issued.
+effort has been issued. A later H1 artifact run installed and hash-checked all
+eight canonical source files and the two reference `.mpy` files. Those exact
+bytecode files passed the same public contract vector in the browser and on the
+RP2350. The exact five-file Challenge 1 starter also ran against physical
+XRPLib, remained motion-locked, calculated zero effort on both motors, and
+stopped in `finally`.
 
 The physical workflow is:
 
@@ -118,26 +192,34 @@ The physical workflow is:
    Open-STEM manifest, then install XRPLib 2026.07.1 and the course bundle;
 5. verify the USB REPL, runtime identity, imports, reset recovery, non-motion
    peripherals, and zero-before/after cleanup without issuing nonzero effort;
-6. install and explicitly start the private course supervisory service;
-7. prove the application and course bundle offline, then later join the XRP
-   access point for browser Local Network Access and transport acceptance;
+6. build, install, and explicitly start the still-pending private course
+   supervisory service;
+7. use the locally accepted production offline bundle, then join the XRP access
+   point for the still-pending deployed-HTTPS, browser Local Network Access,
+   transport, and reconnect acceptance tests;
 8. perform powered raised-wheel motor acceptance only under the separate
    explicit motion gate.
 
 The original and post-flash evidence are recorded in
 `docs/hardware/2026-07-31-rp2350-usb-baseline.json` and
-`docs/hardware/2026-07-31-rp2350-micropython-h1.json`. Firmware must not be
+`docs/hardware/2026-07-31-rp2350-micropython-h1.json`; Challenge 1 package and
+bytecode evidence is in
+`docs/hardware/2026-07-31-rp2350-challenge-one-h1.json`. Firmware must not be
 copied to the normal `PICODISK` status volume.
 
 ## Current boundary
 
 The browser plumbing workflow is operational: multi-file editing,
-working-folder save, MicroPython validation, run, motion and telemetry, output,
-wheel-speed plotting, cross-tab stop/reset, and fail-to-zero after loss of the
-run-owning IDE. Browser MicroPython and the physical RP2350 load the same
-canonical `vendor/current/ucsb_xrp` sources; only XRPLib is simulated in the
-browser. The physical-target interface remains intentionally provisional and
-hidden until correlated command replies, atomic whole-project transfer, and
-independent target supervision are implemented. See `STATUS.md`,
+working-folder project operations, startup-file metadata, MicroPython
+validation, run, motion and telemetry, bounded recording and CSV export,
+cross-tab stop/reset, and fail-to-zero after loss of the run-owning IDE. The
+five-file starter, canonical source package, and supplied reference bytecode
+have exercised the same Challenge 1 contracts in browser MicroPython and on the
+physical RP2350. The production release has passed local offline acceptance.
+
+The physical-target interface remains intentionally provisional and hidden
+until correlated command replies, atomic whole-project transfer, independent
+target supervision, deployed HTTPS/RM2 networking, Local Network Access, and
+reconnect behavior are implemented and accepted. See `STATUS.md`,
 `IMPLEMENTATION_PLAN.md`, `docs/VALIDATION_PLAN.md`, and
 `docs/STAGE1_TECHNICAL_FINDINGS.md`.

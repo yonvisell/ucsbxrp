@@ -8,3 +8,4 @@ test-results/
 .vite/
 .venv/
 .hardware-private/
+.git-archives/

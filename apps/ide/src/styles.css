@@ -54,6 +54,36 @@
   white-space: nowrap;
 }
 
+.file-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.35rem 0.45rem;
+}
+
+.file-actions button {
+  min-width: 0;
+  padding: 0.3rem 0.25rem;
+  font-size: 0.66rem;
+}
+
+.startup-file {
+  overflow: hidden;
+  padding: 0.4rem 0.5rem;
+  color: var(--quiet);
+  font-size: 0.58rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.startup-file strong {
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-weight: 600;
+}
+
 .file-list {
   min-height: 0;
   overflow: auto;
@@ -74,7 +104,8 @@
 }
 
 .file-row.active {
-  border-color: #25465c;
+  border-color: var(--line-bright);
+  border-left: 3px solid var(--cyan);
   background: #142a3a;
 }
 
@@ -92,6 +123,15 @@
   font-size: 0.68rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.startup-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--cyan);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .project-storage,
@@ -535,6 +575,17 @@
 
 .new-file-dialog small.dialog-error {
   color: var(--red);
+}
+
+.new-file-dialog input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+
+.dialog-context {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
 }
 
 .dialog-actions {

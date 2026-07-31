@@ -34,14 +34,19 @@ The repository's `vendor/current` folder holds the files the IDE needs:
 
 The applications and course files are published together. The IDE shows a clear update action when a robot has an older course release. A complete course bundle can also be downloaded for backup or manual recovery.
 
-The applications explicitly cache the release shell, workers, WebAssembly
-runtime, local guide/API material, and current course bundle so they remain
-available after the computer joins a robot access point without internet
-access. A preflight reports whether that offline set is complete. A
-capacity-appropriate IndexedDB-backed storage adapter protects project versions
-and reports recovery failures truthfully. Where supported, students can open
-and save an ordinary local project folder; explicit Save, Save As, ZIP import,
-and ZIP export remain available.
+The production build now emits a deterministic manifest and versioned service
+worker that cache the complete application shell, workers, WebAssembly runtime,
+local guide/API material, and public course bundle. The applications report
+**offline ready** only after every manifest entry is present in browser storage;
+development builds report that the cache is disabled. A warm production build
+has been exercised offline at both the site root and a repository subpath. This
+is a warm-cache capability: the first load still requires the deployed site,
+and browser storage can be evicted.
+
+Students can open and save an ordinary local project folder. Browser recovery
+currently uses `localStorage`. A capacity-appropriate IndexedDB version store,
+downloadable recovery ZIP, and ZIP import/export remain planned and must report
+storage or recovery failures truthfully.
 
 ## 3. Browser IDE
 
@@ -60,12 +65,16 @@ values. Physical connection is always initiated by an explicit user action.
 Low-level endpoint or port fields belong under diagnostics; normal selection is
 by `Virtual XRP` or a discovered, human-readable robot identity.
 
-Monaco is the preferred editor unless a clearly better maintained choice is available when implementation begins. It supplies syntax highlighting, search and replace, adjustable font size, keyboard commands, multiple open files, and source navigation. The application adds:
+The implemented editor uses Monaco 0.56 with pinned local assets and local
+editor workers, so editing has no CDN dependency and participates in the
+offline shell. It supplies syntax highlighting, search and replace, adjustable
+font size, keyboard commands, multiple open files, and source navigation. The
+application adds:
 
 - autosave and crash recovery;
-- explicit Save and Save As;
-- files and subfolders;
-- recent projects and starter projects;
+- explicit folder open and save; a separate Save As workflow remains planned;
+- files, subfolders, and tabs, including rename, duplicate, and confirmed delete;
+- persisted startup-file selection and starter projects; recent projects remain planned;
 - Python formatting when it is dependable for MicroPython;
 - a Check action that catches syntax and import problems without driving the robot;
 - error messages that open the relevant source line;
@@ -96,12 +105,14 @@ The virtual target appears in the same target selector. Running it starts the br
 
 ## 4. XRP Monitor
 
-The XRP Monitor opens independently from the IDE and can connect to either target. Its header contains target selection, connection state, recording controls, replay, and export. A collapsible sidebar selects the panels currently shown.
+The XRP Monitor opens independently from the IDE and can connect to either target. Its header contains target selection and connection state. The current virtual-target slice also provides explicit start, stop, and clear controls for a bounded in-memory telemetry recording, with a drop count and deliberate CSV export. Replay and persisted recordings remain planned. A collapsible sidebar selects the panels currently shown.
 
 Before receiving a first valid sample, the Monitor shows no data rather than a
-synthetic zero. It distinguishes valid zero, stale data, paused display,
-replay, and disconnection. Acquisition continues independently of which panels
-are mounted, uses bounded buffers, and exposes drop/throttle metrics.
+synthetic zero and preserves a valid zero as data. Explicit stale, paused,
+replay, and disconnected states, a dynamically discovered channel catalog, and
+general acquisition independent of mounted panels remain to be implemented.
+All acquisition and recording buffers must remain bounded and expose relevant
+drop or throttle metrics.
 
 The core panels are:
 
@@ -127,7 +138,12 @@ Program output, exceptions, course events, and enabled debug channels, with simp
 
 The layout is responsive by default. Panel reordering and resizing may be included through a dependable layout library if they remain simple to use. Layouts can be saved and reopened.
 
-Recordings preserve received telemetry, events, and logs for replay. Numerical data exports as CSV, logs and events as text or CSV, and individual plots as PNG. The exact browser storage mechanism should sit behind a small storage interface and be chosen after testing realistic recording sizes.
+The first recorder preserves a bounded sequence of numerical telemetry samples
+and exports it explicitly as CSV. The mature recording model must additionally
+preserve events and logs for replay, export logs and events as text or CSV, and
+export individual plots as PNG. Its persistent browser storage mechanism should
+sit behind a small interface and be selected after testing realistic recording
+sizes.
 
 ## 5. Telemetry, debugging, and target control
 
@@ -143,7 +159,13 @@ Standard address families are:
 /system/...
 ```
 
-Samples include `t_ms`, the elapsed program time in milliseconds, and `seq`, an increasing sample number. Course channels are registered by `ucsb_xrp`; project channels can register themselves through the same small API. On connection, the target provides the available channel names and basic value types. The XRP Monitor can enable debug channels and select practical update rates. Disabled debug channels should avoid unnecessary formatting and transmission work.
+Samples include `t_ms`, the elapsed program time in milliseconds, and `seq`, an
+increasing sample number. The current virtual slice uses a fixed telemetry
+sample shape. The intended protocol lets `ucsb_xrp` and projects register
+channels through one small API, and lets a target announce available channel
+names and basic value types when it connects. The XRP Monitor can then enable
+debug channels and select practical update rates. Disabled debug channels
+should avoid unnecessary formatting and transmission work.
 
 Commands, replies, console output, and telemetry share the target connection
 where practical. Each command has a request ID, correlated reply, timeout, and
@@ -228,11 +250,18 @@ Monitor tab remains connected.
 
 Environment files describe only the physical world and task setup: arena size, starting pose, obstacles, landmarks, regions, goals, and optional model variations. The same environment information should be usable by the supplied `ArenaMap`; the simulator does not plan paths, estimate pose, build a map, navigate, or execute missions.
 
-Reference modules distributed as MicroPython bytecode must be tested in the WebAssembly runtime immediately. If one bytecode artifact cannot serve both processor targets, produce the physical and virtual artifacts from the same reference source and verify them against the same public tests.
+One exact portable, non-native `.mpy` artifact set has passed the same public
+behavior vector in browser MicroPython and on the RP2350. Reference bytecode
+continues to be generated from the shared source and checked against the same
+public contracts on both targets. Introduce target-specific artifacts only if
+future evidence shows that one portable set cannot serve both runtimes.
 
 ## 8. Implementation baseline
 
-The preferred browser stack is TypeScript, React, Vite, Monaco, Apache ECharts, and Three.js. Use a workspace layout with shared packages for the target interface, OSC codec, course release support, recording format, and deterministic simulation core. Keep shared packages few and purposeful.
+The browser stack is TypeScript, React, Vite, locally pinned Monaco, Apache
+ECharts, and Three.js. Use a workspace layout with shared packages for the
+target interface, OSC codec, course release support, recording format, and
+deterministic simulation core. Keep shared packages few and purposeful.
 
 Use public-contract tests for Python components, artifact parity tests for
 reference source and `.mpy`, unit tests for target messages, OSC encoding,

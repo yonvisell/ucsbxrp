@@ -111,20 +111,20 @@ The six student components have the same methods as their supplied reference
 implementations. Code that uses a component obtains it from course_setup.py, so
 the rest of the program is unchanged when an implementation source changes.
 
-course_setup.py contains:
+course_setup.py contains one explicit Boolean per component:
 
-    MODULE_SOURCE = {
-        "sensor_model": "reference",
-        "wheel_speed_controller": "reference",
-        "differential_drive": "reference",
-        "odometry": "reference",
-        "navigation_controller": "reference",
-        "grid_planner": "reference",
-    }
+    USE_STUDENT_SENSOR_MODEL = False
+    USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
+    USE_STUDENT_DIFFERENTIAL_DRIVE = False
+    USE_STUDENT_ODOMETRY = False
+    USE_STUDENT_NAVIGATION_CONTROLLER = False
+    USE_STUDENT_GRID_PLANNER = False
 
-Each value is exactly "reference" or "student". The file initially selects all
-reference implementations; students change one entry at a time as their
-implementations are completed.
+False selects the supplied implementation and True selects the student's
+implementation. The file initially selects all supplied implementations;
+students change one named flag at a time after its component passes the
+software tests. Early challenge starters contain only the flags for components
+introduced so far.
 
 
 RUNNING A DIRECT MOTOR EXPERIMENT
@@ -435,8 +435,8 @@ Each component can be tested without running a complete mission:
 - GridPlanner uses small OccupancyGrid instances.
 
 The API reference gives the exact construction and method signatures. The
-component tests can be run before changing the corresponding MODULE_SOURCE
-entry to "student".
+component tests can be run before setting the corresponding USE_STUDENT_* flag
+to True.
 
 
 WHERE TO LOOK

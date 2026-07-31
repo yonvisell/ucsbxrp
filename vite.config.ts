@@ -5,8 +5,21 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const requestedBasePath = process.env.COURSE_BASE_PATH?.trim() ?? "/";
+if (
+  requestedBasePath.includes(":") ||
+  requestedBasePath.includes("?") ||
+  requestedBasePath.includes("#")
+) {
+  throw new Error("COURSE_BASE_PATH must be a URL path, not a full URL");
+}
+const basePath =
+  requestedBasePath === "/"
+    ? "/"
+    : `/${requestedBasePath.replace(/^\/+|\/+$/g, "")}/`;
 
 export default defineConfig({
+  base: basePath,
   plugins: [react()],
   assetsInclude: ["**/*.wasm"],
   optimizeDeps: {

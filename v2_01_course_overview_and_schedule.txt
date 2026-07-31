@@ -224,8 +224,9 @@ Six components have a reference implementation and a student implementation:
 
 Both implementations have the same public methods. A student implementation
 inherits a supplied base class that fixes the method names, arguments, and
-return values. course_setup.py selects "reference" or "student" independently
-for each component.
+return values. course_setup.py contains one explicit USE_STUDENT_* Boolean for
+each component. Each flag independently selects the student implementation
+when true and the supplied implementation when false.
 
 The supplied library services are XRPBot, Robot, StraightLineController,
 ArenaMap, OccupancyGrid, and DeliveryMission.

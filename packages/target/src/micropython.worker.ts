@@ -3,7 +3,7 @@
 import { loadMicroPython } from "@micropython/micropython-webassembly-pyscript";
 import micropythonWasmUrl from "@micropython/micropython-webassembly-pyscript/micropython.wasm?url";
 
-import { COURSE_PACKAGE_FILES } from "./course-python";
+import { COURSE_PACKAGE_FILES, COURSE_REFERENCE_FILES } from "./course-python";
 import { prepareProject } from "./project-validation";
 import { SIMULATED_XRPLIB_FILES } from "./simulated-python";
 import type {
@@ -67,6 +67,18 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
       const path = unsafePath;
       createDirectories(runtime.FS, path, createdDirectories);
       runtime.FS.writeFile(`/${path}`, content);
+    }
+    for (const [unsafePath, url] of Object.entries(COURSE_REFERENCE_FILES)) {
+      const path = unsafePath.replace(/^reference_mpy\//, "");
+      createDirectories(runtime.FS, path, createdDirectories);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Reference artifact could not be loaded: ${path}`);
+      }
+      runtime.FS.writeFile(
+        `/${path}`,
+        new Uint8Array(await response.arrayBuffer()),
+      );
     }
 
     runtime.runPython(`

@@ -12,6 +12,7 @@ from .records import (
     STOP_COMMAND,
     WheelSpeeds,
 )
+from .straight_line import StraightLineController
 from .utils import (
     bearing_to_goal,
     clamp,
@@ -34,6 +35,7 @@ __all__ = (
     "RawSensors",
     "RobotState",
     "STOP_COMMAND",
+    "StraightLineController",
     "WheelSpeeds",
     "XRPBot",
     "bearing_to_goal",

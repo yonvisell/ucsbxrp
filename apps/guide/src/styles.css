@@ -122,6 +122,9 @@
 
 .guide-content a {
   color: var(--cyan);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 .guide-content code,
@@ -193,7 +196,6 @@ kbd {
 
 .source-links a {
   font-size: 0.7rem;
-  text-decoration: none;
 }
 
 table {

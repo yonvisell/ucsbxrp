@@ -4,198 +4,225 @@ Last updated: 2026-07-31
 
 ## Current slice
 
-Slices 0R and the software portion of 1A have produced a reviewed plan, a
-repeatable USB harness, and a known RP2350 MicroPython runtime. Slice 1B is in
-progress: one minimal canonical `ucsb_xrp` package now executes on CPython,
-browser MicroPython, and the physical XRP, and its first two safe examples are
-tested. The Challenge 1 components, five-file starter, and reference bytecode
-are not complete.
+Slices 0R, 1A, and 1B are complete. The repository has a reviewed plan and
+hardware harness, a known RP2350 MicroPython/XRPLib runtime, one authentic
+Challenge 1 package and five-file starter, and reproducible supplied-component
+bytecode proven in browser MicroPython and on the physical controller.
 
-The physical H1 record is intentionally classified as partial. All attempted
-non-motion software checks passed, but the required board-switch-off,
-MOT-LED-off, near-zero-VIN motor-rail isolation gate was not confirmed. No
-nonzero motor effort was issued.
+The production portion of Slice 1D is also complete: the IDE, XRP Monitor,
+guide, workers, WebAssembly runtime, and student course release form one
+deterministic offline shell with visible readiness. Small complete vertical
+slices also added practical IDE project operations and bounded Monitor CSV
+recording. Slice 1C, the supervised physical-target service and protocol, is
+the next implementation dependency.
+
+The physical H1 record remains intentionally partial. All attempted
+non-motion software checks passed, including the exact Challenge 1 starter,
+but the required same-session SW1-off, MOT-LED-off, indicator-circuit-intact,
+reviewed-near-zero-VIN gate has not been confirmed. No nonzero motor effort
+was issued.
 
 ## Completed
 
-- Created `docs/COURSE_AND_LIBRARY_SUMMARY.md` and reworked
-  `IMPLEMENTATION_PLAN.md` into evidence-gated vertical slices. The three
-  active `v2_` documents and the initial library reference are design inputs,
-  not immutable contracts.
+- Created `docs/COURSE_AND_LIBRARY_SUMMARY.md`, reviewed the three active `v2_`
+  documents together, and reworked `IMPLEMENTATION_PLAN.md` into
+  evidence-gated vertical slices. The course documents and first reference
+  implementation are design inputs rather than immutable contracts.
 - Added `docs/API_DESIGN_REVIEW.md` and `docs/VALIDATION_PLAN.md`, including
-  public-contract testing, correlated target outcomes, atomic project transfer,
-  run-owner supervision, and H0-H3 hardware safety tiers.
-- Preserved a machine-readable H0 record of the controller's original
-  XRP-WPILib 2.1.0 state without committing its serial number or network
-  credentials.
-- Verified and intentionally flashed the official board-specific
-  `SPARKFUN_XRP_CONTROLLER-20260406-v1.28.0.uf2` image. The recorded image is
-  1,725,952 bytes with SHA-256
-  `0a36d7e2bc20dfcde2dd1af9a673fd0a63248820a360723c3967751106610ed0`.
-- Installed MicroPython 1.28.0, XRPLib 2026.07.1, its dependencies and examples,
-  and the canonical development `ucsb_xrp` package with pinned `mpremote`
-  1.28.0. Representative XRPLib hashes and all seven course-package source
-  hashes match their recorded host sources.
-- Added the non-motion USB harness, runtime/H1/course-package probes, structured
-  hardware evidence, and deterministic course-release hashing and verification.
-- Created a minimal canonical `vendor/current/ucsb_xrp` package containing
-  validated records, a motion-locked `RobotConfig` default, utilities, narrow
-  student interfaces, and a defensive XRPLib `XRPBot` boundary. This package is
-  an executable design checkpoint, not the final course library.
-- Removed the browser-only `ucsb_xrp` stub. Browser MicroPython now loads the
-  exact canonical package files and replaces only XRPLib with a simulated
-  hardware adapter.
-- Made project validation type-aware at the file boundary: it requires a safe
-  Python entrypoint and compiles only `.py` files. Other project files remain in
-  the project and transfer set rather than being miscompiled as Python.
+  public-contract tests, correlated target outcomes, atomic project transfer,
+  independent run supervision, and H0-H3 hardware safety tiers.
+- Preserved an H0 record of the controller's original XRP-WPILib 2.1.0 state,
+  then verified and intentionally installed the official board-specific
+  `SPARKFUN_XRP_CONTROLLER-20260406-v1.28.0.uf2` image, XRPLib 2026.07.1, its
+  dependencies, and examples.
+- Built the canonical `ucsb_xrp` development package around validated records,
+  a motion-locked `RobotConfig` default, utilities, narrow student interfaces,
+  a defensive XRPLib `XRPBot` boundary, and `StraightLineController`.
+- Added a separate provisional `ucsb_xrp_reference` source tree for
+  `SensorModel` and `WheelSpeedController`; it is retained build input, not a
+  declaration that its first algorithms are definitive.
+- Added the exact five-file Challenge 1 project: `main.py`, `robot_config.py`,
+  `student_components.py`, `course_setup.py`, and `challenge.py`. Two explicit
+  Boolean choices select supplied or student components without magic module
+  names. The initial program is motion-locked and always stops in `finally`.
+- Generated two deterministic `.mpy` artifacts with official MicroPython
+  1.28.0 `mpy-cross` at the recorded commit. Release metadata records source
+  and artifact hashes, sizes, compiler identity, and ABI evidence. Verification
+  rejects missing, modified, symlinked, or unexpected generated files.
+- Removed the browser-only `ucsb_xrp` stub. Browser MicroPython loads the exact
+  canonical sources and exact supplied `.mpy` artifacts; only XRPLib is
+  replaced by a simulated hardware adapter.
 - Added a virtual run-owner lease. Owner loss or disconnect terminates the
   disposable MicroPython runtime, invalidates the run, and converges commanded
-  effort to zero even while a Monitor tab remains connected.
-- Added strict recovery migration for the two exact generated prototype
-  starters that predated required `RobotConfig`; arbitrary student source is
-  preserved byte-for-byte.
-- Made the project drawer usable as a narrow-screen overlay, made Status/Details
-  output collapsible with command-triggered reopening, and clarified Help and
-  physical-target guidance. The Monitor now distinguishes no first sample from
-  a valid zero sample.
-- Added a hardware-free records/units example and a motion-locked physical
-  sensor example. Both compile under the ordinary Python harness; the latter's
-  tests prove that normal and exceptional paths write zero only.
-- Corrected virtual stop semantics so zero effort continues deterministic
-  coast-down physics to an exact finite rest instead of freezing nonzero wheel
-  speeds after a program exits.
+  effort to zero while the Monitor remains connected.
+- Made validation type-aware at the project boundary: only Python files are
+  compiled, while documentation and configuration remain part of the project
+  and transfer set.
+- Completed IDE rename, duplicate, confirmation-based delete, and startup-file
+  selection. Startup metadata persists in `.ucsb-xrp-project.json`; browser
+  recovery remains continuous. The project drawer, settings, tabs, Status and
+  Details output, and commands remain usable on a narrow screen.
+- Added keyboard-contained dialogs, safe destructive-action focus, live status
+  semantics, invalid-input semantics, reduced-motion and forced-color support,
+  underlined inline links, and non-color plot-trace differentiation.
+- Enforced tested color thresholds of at least 4.5:1 for ordinary text and
+  3:1 for control boundaries and focus indicators. Button and console sizing
+  remain compact and the commands use explicit functional labels.
+- Added a bounded 30,000-sample telemetry ring buffer with start, stop, clear,
+  drop count, immutable snapshots, and CSV export using stable explicit Stage 1
+  columns.
+- Fixed the Three.js canvas intrinsic-size feedback defect that could expand
+  the Monitor world view far beyond its layout bounds.
+- Added a deterministic production service worker and manifest. The current
+  shell contains 52 payload files (7.12 MiB), including local Monaco 0.56,
+  both workers, MicroPython WebAssembly, the public course release, starter,
+  examples, and supplied bytecode; retained reference source is excluded.
+- Added a visible course-release/offline-readiness indicator to the IDE and
+  Monitor. `offline ready` is reported only after every manifest URL exists in
+  Cache Storage; development explicitly reports `cache disabled`.
+- Added root- and subpath-safe deployment through `COURSE_BASE_PATH`, precise
+  route fallbacks, atomic cache activation, and retention of one preceding
+  shell for tabs opened before an update.
+- Added a fail-closed H1 power-gate wrapper. It requires an exact port, a fresh
+  set of four physical confirmations, a reviewed threshold no greater than the
+  tool's 1.0 V hard ceiling, append-only output, and two zero-effort cleanup
+  results. It contains no nonzero-effort capability.
+- Added detailed setup and remaining-work instructions in
+  `docs/REMAINING_HARDWARE_AND_NETWORK_SETUP.md`.
 
 ## Demonstrated
 
 - The physical controller re-enumerated after the verified flash as a SparkFun
   XRP Controller with RP2350 running MicroPython 1.28.0 with `_mpy == 7942`.
-- USB probes verified the filesystem, XRPLib import, soft-reset recovery, status
-  LED command, released USER-button input, IMU, rangefinder, readable encoders,
-  and zero-effort cleanup. A physical button transition and manual encoder
-  movement were not exercised.
-- The canonical `ucsb_xrp` package imported on the RP2350, retained its
-  `max_effort == 0` motion lock, read hardware through `XRPBot`, and completed
-  zero-effort cleanup. A measured float32 boundary discrepancy at `+pi` was
-  corrected and rerun on both CPython and the device.
-- The virtual IDE runs the same package under MicroPython 1.28.0, shares
-  deterministic target state with the XRP Monitor, and supports normal
-  completion, Stop, Reset, and owner-loss fail-to-zero behavior.
-- The production browser workflow has exercised multi-file validation, virtual
-  execution, shared Monitor state, and closing the run-owning IDE while the
-  Monitor remains open.
-- The exact student-facing no-motion sensor example ran successfully over USB
-  against the installed package and XRPLib. It read the encoders, rangefinder,
-  and button, remained motion-locked, wrote zero only, and completed its
-  `finally` stop; this does not close the physical motor-rail isolation gate.
-- An independent pass in the 319-pixel-wide in-app browser verified migration
-  of the generated obsolete starter, the responsive project drawer, output
-  collapse/reopen, MicroPython validation, virtual execution, and zero effort
-  on normal completion. That pass exposed and led to correction of the frozen
-  residual-speed defect.
+- USB probes verified the filesystem, XRPLib import, soft-reset recovery,
+  status LED command, released USER-button input, IMU, rangefinder, readable
+  encoders, and zero-effort cleanup. A physical button transition and manual
+  encoder movement were not exercised.
+- All eight installed canonical `ucsb_xrp` source hashes match release
+  `2026.07-dev.2` on the controller. The aggregate source identity is
+  `78637b538e41b1d7ed90f6511cba9376dcedbe5edc480048bcb97492336a1b0f`.
+- The exact two supplied `.mpy` artifacts have matching host/device hashes.
+  The browser runtime reports `_mpy == 774`; the physical runtime reports
+  `_mpy == 7942`; their portable ABI bits agree. The same ordinary non-native
+  bytecode passed the public SensorModel/WheelSpeedController vector on both.
+- The exact five-file Challenge 1 starter ran over USB from a temporary mount
+  against physical XRPLib and the installed bytecode. It retained
+  `max_effort == 0`, applied only `0.0 / 0.0`, and completed final cleanup.
+- The production browser workflow exercises the default five-file project,
+  MicroPython validation and execution, shared Monitor state, bounded
+  recording/CSV export, Stop, Reset, and owner-loss fail-to-zero behavior.
+- Production offline reload and virtual execution pass with all external
+  requests blocked at both `/` and `/course-tools/` deployment paths.
+- Visual browser inspection verified the compact responsive IDE, modal and
+  project operations, Monitor controls, bounded world-view canvas, high-
+  contrast states, and the updated getting-started guide.
 
 ## Automated checks
 
 At this checkpoint, every constituent check passes:
 
-- Prettier formatting;
-- 31 Python tests covering course-package contracts, examples, release hashing,
-  and the no-motion hardware harness;
+- Prettier formatting and repository whitespace checks;
+- 52 Python tests covering package contracts, Challenge 1 algorithms and
+  starter, examples, release hashing, exact bytecode artifacts, and zero-only
+  hardware harnesses;
 - an exact-source MicroPython 1.28 parity run covering package import,
-  motion-lock behavior, hardware-boundary clamping/signs, range conversion, and
-  the single-precision angle boundary;
-- 36 Vitest tests across project recovery/files, OSC, simulation, project
-  validation, and run-owner lease behavior;
-- TypeScript type checking and the Vite production build;
-- three stable-Chrome production workflows covering the complete virtual path,
-  owner-loss fail-to-zero, and narrow-screen drawer/output behavior.
+  motion-lock behavior, hardware-boundary clamping and signs, angle behavior,
+  and the supplied `.mpy` public contract vector;
+- 64 Vitest tests covering project files and recovery, offline state and
+  manifests, theme contrast, OSC, deterministic simulation, recording,
+  validation, and the run-owner lease;
+- TypeScript checking, production build, and deterministic offline-manifest
+  verification;
+- five stable-Chrome production workflows covering the complete virtual path,
+  owner-loss fail-to-zero, narrow-screen behavior, recording/CSV export, and
+  fully offline execution; and
+- a separate stable-Chrome offline workflow for `/course-tools/` deployment.
 
-The build retains one non-failing warning for the approximately 1.65 MB
-uncompressed Monitor entry chunk; code splitting remains a release-hardening
-task.
+The build retains non-failing size warnings for the approximately 1.65 MiB
+Monitor entry, 0.79 MiB IDE entry, and 2.66 MiB Monaco API chunk. The complete
+offline payload is bounded and verified, but code splitting remains release
+hardening work.
 
 ## Physical XRP checks
 
 - **H0 passed:** USB identity, original firmware classification, immutable
   candidate-firmware identity, and baseline preservation are recorded.
-- **H1 partial:** the intended MicroPython/XRPLib/course stack is installed and
-  every attempted no-motion software check passed.
+- **H1 partial:** the intended MicroPython/XRPLib/course stack, exact source and
+  bytecode artifacts, and every attempted no-motion software check passed.
 - USB-C was observed supplying motor-driver VIN with the board switch on;
   XRPLib reported approximately 5.4 V. A disconnected battery therefore does
   not establish an unpowered motor rail, and `are_motors_powered()` is a VIN
-  diagnostic rather than a battery-source or motion-authorization test.
-- H1 is not complete until the board switch is off, a person confirms the MOT
-  LED is off, and reported VIN is near zero. Any disagreement fails closed.
+  diagnostic rather than motion authorization.
+- H1 is not complete until one fresh session records SW1 off, MOT LED off,
+  indicator circuitry intact, and corrected VIN below a reviewed near-zero
+  limit. Any disagreement fails closed.
 - XRPLib's upstream installation-check program must not be run automatically
-  because its procedure progresses to motor motion.
-- No nonzero effort was issued. Motor motion, motor/encoder signs under drive,
+  because it progresses to motor motion.
+- No nonzero effort was issued. Motor identity/sign, encoder sign under drive,
   physical stopping, calibration, and floor behavior remain deferred to
-  explicit H2/H3 sessions.
-- RM2 behavior and the Wi-Fi/browser path remain deferred while development
-  continues over USB and the ordinary Wi-Fi connection.
+  separately authorized H2/H3 sessions.
+- RM2 behavior and the Wi-Fi/browser physical path remain deferred while
+  development continues over USB and ordinary Wi-Fi.
 
 ## Review findings incorporated
 
-- `MotorEfforts` is retained provisionally because it exposes the two-wheel
-  controller output as a validated value before the hardware write. Its name
-  and surrounding API remain open to evidence from course implementation and
-  student use.
-- `RobotConfig()` is deliberately motion-locked by default. Publishing physical
-  calibration values waits for H2/H3 evidence rather than promoting nominal
-  dimensions or effort limits to verified constants.
+- `MotorEfforts` remains provisional because it usefully exposes the validated
+  two-wheel controller output before the hardware write. Its name and nearby
+  API remain open to course and student evidence.
+- `RobotConfig()` is motion-locked by default. Publishing physical calibration
+  values waits for H2/H3 evidence rather than promoting nominal dimensions or
+  effort limits to verified constants.
 - `XRPBot` remains the sole course-package boundary to XRPLib. The physical
-  connection/supervisory service is separate infrastructure, not part of the
-  student API.
-- Physical controls remain absent from the IDE because capability discovery,
-  correlated command replies, atomic whole-project synchronization,
-  independent supervision, and Wi-Fi/Local Network Access acceptance are not
-  implemented. USB bring-up and exact package installation are already
-  recorded and are not the reason those controls are hidden.
-- Validation now compiles only Python files, but it remains compile-only: import
-  resolution and Monaco-linked structured diagnostics are still required.
-- Browser recovery remains based on capacity-limited `localStorage`; it is not
-  yet a complete durable multi-project workflow.
+  connection and supervisory service are private infrastructure, not student
+  APIs.
+- Physical controls remain absent because capability discovery, correlated
+  command replies, atomic whole-project synchronization, independent
+  supervision, and Wi-Fi/Local Network Access acceptance are not implemented.
+- Local production offline readiness is implemented and tested. A deployed
+  HTTPS origin, same-profile warm-cache acceptance, and RM2 network acceptance
+  are still required before physical browser control.
+- Validation is compile-only. Import resolution and Monaco-linked structured
+  diagnostics remain required.
 
 ## Known limitations
 
-- Every repository file remains untracked; there is no reviewed Git baseline
-  commit.
-- The canonical library currently covers only records, configuration,
-  utilities, first student interfaces, and the hardware boundary. Control-loop
-  scheduling, Challenge 1 algorithms/orchestration, and all later-challenge
-  components remain to be implemented and reviewed.
-- The five-file course starter, retained reference source tree, reproducible
-  `.mpy` artifacts, and source/bytecode parity tests do not yet exist. The two
-  current examples cover only records/units and safe sensor reading.
-- The physical device service and its atomic, correlated protocol do not yet
-  exist; `PhysicalTargetClient` remains provisional and inaccessible in the UI.
-- The IDE still lacks import-aware validation, source-linked diagnostics,
-  durable project/version storage, Save As, rename/delete, entrypoint selection,
-  ZIP fallback, and physical target selection.
-- The XRP Monitor remains a fixed Stage 1 view without a dynamic channel
-  catalog, explicit no-data/stale states, bounded recording, replay/export,
-  rate control, or target selection.
-- Offline application caching is not implemented.
-- The simulator remains a narrow motor/encoder proof; the full sensor, geometry,
-  collision, and course-environment model is pending.
-- H1 motor-rail isolation, all H2/H3 motion evidence, RM2 behavior, and the
-  deployed HTTPS Local Network Access workflow remain unverified.
+- Slice 1C's physical device service and atomic, correlated protocol do not
+  exist; `PhysicalTargetClient` remains provisional and inaccessible in the
+  UI.
+- Challenge 1 still needs the supplied, testable timed `Robot` loop, overrun
+  behavior, motion-enabled per-robot configuration, H2/H3 measurements, and
+  physical/virtual response comparison.
+- Browser recovery uses capacity-limited `localStorage`; IndexedDB project
+  versions, Save As, ZIP import/export, and external-file conflict handling
+  remain pending.
+- Validation does not yet resolve imports against the selected release or link
+  structured diagnostics to source locations.
+- The Monitor recorder has fixed Stage 1 columns. Dynamic channel discovery,
+  truthful stale/paused states, replay, log/event recording, plot export, and
+  configurable rates remain pending.
+- The simulator remains a narrow motor/encoder proof without the complete
+  range, IMU, geometry, collision, environment, and course-task model.
+- Browser storage can be evicted, and downloadable offline recovery remains
+  pending even though the deterministic production shell is complete.
+- Deployed-HTTPS acceptance, RM2 behavior, Local Network Access, the final H1
+  isolation record, and all H2/H3 motion evidence remain unverified.
 
 ## Next slice
 
-1. Complete the H1 record during a safe USB session with the board switch off,
-   MOT LED visually confirmed off, and near-zero VIN; continue to prohibit
-   nonzero effort.
-2. Complete Slice 1B's Challenge 1 library path, five-file starter, examples,
-   reference source/artifacts, and source/bytecode contract parity without
-   treating the first reference implementation as normative.
-3. Implement the device supervisory service and one versioned target protocol
-   with capabilities, correlated outcomes, atomic project synchronization,
-   independent watchdog behavior, and recovery tests against both targets.
-4. Replace browser `localStorage` recovery with a durable storage adapter and
-   complete import-aware, source-linked diagnostics and project operations.
-5. Replace the fixed Monitor sample with a typed dynamic channel catalog,
-   truthful no-data/stale states, bounded storage, and the first useful
-   recording/export slice.
-6. Implement and verify offline caching before a bounded RM2 Wi-Fi and browser
-   Local Network Access acceptance session. Reserve all motor motion for the
-   separately authorized, raised-wheel H2 gate.
+1. Close H1 only after the user provides the fresh physical confirmations and
+   a reviewed near-zero VIN criterion; continue to prohibit nonzero effort.
+2. Implement Slice 1C's private supervisory service and one versioned target
+   protocol with capability discovery, correlated outcomes, atomic project
+   synchronization, independent watchdog behavior, and recovery tests. Install
+   and exercise it over USB before requesting an RM2 network switch.
+3. Add the Challenge 1 timed `Robot` loop with injected/testable timing,
+   overrun reporting, explicit stop behavior, and virtual acceptance while
+   retaining the motion lock.
+4. Add import-aware diagnostics and durable versioned project storage before
+   broadening physical IDE controls.
+5. Extend the Monitor from the fixed recorder to dynamic typed channels,
+   stale-state handling, log/events, and replay.
+6. Deploy the exact production release to HTTPS, repeat the offline-readiness
+   gate in the intended Chrome profile, then conduct bounded RM2/Local Network
+   Access acceptance. Reserve all motor motion for a separately reviewed and
+   authorized raised-wheel H2 harness.

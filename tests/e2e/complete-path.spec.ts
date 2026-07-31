@@ -1,26 +1,49 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 function numericValue(text: string | null): number {
   return Number.parseFloat(text ?? "NaN");
+}
+
+const boundedVirtualMotionProgram = `from time import sleep_ms
+from ucsb_xrp import MotorEfforts, RobotConfig, XRPBot
+
+bot = XRPBot(RobotConfig(max_effort=0.65))
+try:
+    bot.set_efforts(MotorEfforts(0.58, 0.52))
+    sleep_ms(1800)
+finally:
+    bot.stop()
+
+print("Virtual run complete")
+`;
+
+function collectBrowserErrors(page: Page, errors: string[] = []): string[] {
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text());
+    }
+  });
+  return errors;
 }
 
 test("edits a multi-file project and completes the virtual XRP workflow", async ({
   context,
   page: ide,
 }) => {
-  const browserErrors: string[] = [];
-  const recordErrors = (page: typeof ide) => {
-    page.on("pageerror", (error) => browserErrors.push(error.message));
-    page.on("console", (message) => {
-      if (message.type() === "error") {
-        browserErrors.push(message.text());
-      }
-    });
-  };
-  recordErrors(ide);
+  const browserErrors = collectBrowserErrors(ide);
 
-  await ide.addInitScript(() => {
+  await ide.addInitScript((program: string) => {
     const savedFiles: Record<string, string> = {};
+
+    localStorage.setItem(
+      "ucsb-xrp-course-project-v1",
+      JSON.stringify({
+        name: "virtual-browser-check",
+        entrypoint: "main.py",
+        files: { "main.py": program },
+      }),
+    );
 
     class FakeFileHandle {
       readonly kind = "file";
@@ -82,6 +105,14 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       async getFileHandle(name: string) {
         return new FakeFileHandle(name, `${this.prefix}${name}`);
       }
+
+      async removeEntry(name: string) {
+        const path = `${this.prefix}${name}`;
+        if (!(path in savedFiles)) {
+          throw new DOMException("File not found", "NotFoundError");
+        }
+        delete savedFiles[path];
+      }
     }
 
     Object.defineProperty(window, "__savedCourseFiles", {
@@ -90,11 +121,11 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     Object.defineProperty(window, "showDirectoryPicker", {
       value: async () => new FakeDirectoryHandle("browser-course-project"),
     });
-  });
+  }, boundedVirtualMotionProgram);
 
   await ide.goto("/ide/");
   const dashboard = await context.newPage();
-  recordErrors(dashboard);
+  collectBrowserErrors(dashboard, browserErrors);
   await dashboard.goto("/dashboard/");
 
   const ideStatus = ide.getByTestId("target-status");
@@ -102,6 +133,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(ideStatus).toContainText("Virtual XRP · ready");
   await expect(dashboardStatus).toContainText("Virtual XRP · ready");
   await expect(dashboard.getByRole("log")).toContainText("No run yet");
+  const worldDimensions = await dashboard
+    .getByTestId("world-view")
+    .evaluate((element) => ({
+      canvasWidth: element.querySelector("canvas")?.clientWidth ?? 0,
+      hostWidth: element.clientWidth,
+    }));
+  expect(worldDimensions.hostWidth).toBeGreaterThan(100);
+  expect(worldDimensions.hostWidth).toBeLessThan(1_500);
+  expect(worldDimensions.canvasWidth).toBe(worldDimensions.hostWidth);
 
   await ide.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(ide.getByTestId("settings-panel")).toBeVisible();
@@ -118,13 +158,12 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     ide.getByRole("tab", { name: "straight_line_controller.py" }),
   ).toBeVisible();
   await ide
-    .getByRole("button", { name: /main\.py/ })
-    .first()
+    .getByRole("button", { name: "Open main.py (startup file)" })
     .click();
 
   await ide.getByRole("button", { name: "Validate code" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    "2 Python files compiled with MicroPython",
+    "Python files compiled with MicroPython",
   );
 
   await ide.getByRole("button", { name: "Run virtual XRP" }).click();
@@ -169,7 +208,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await ide.getByRole("button", { name: "Save files" }).click();
   await ide.getByRole("tab", { name: "Status" }).click();
   await expect(
-    ide.getByText("Saved all project files to browser-course-project."),
+    ide.getByText(/Saved \d+ project files to browser-course-project\./),
   ).toBeVisible();
   const savedController = await ide.evaluate(
     () =>
@@ -182,11 +221,70 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   expect(savedController).toBe("");
   await ide.getByRole("button", { name: "Open folder" }).click();
   await expect(
-    ide.getByText("Opened browser-course-project: 2 supported files."),
+    ide.getByText(
+      /Opened browser-course-project: \d+ supported files(?:; \d+ items? skipped)?\./,
+    ),
   ).toBeVisible();
 
+  await ide
+    .getByRole("button", {
+      name: "Open student/straight_line_controller.py",
+    })
+    .click();
+  await ide.getByRole("button", { name: "Duplicate", exact: true }).click();
+  await expect(ide.getByLabel("Project-relative path")).toHaveValue(
+    "student/straight_line_controller_copy.py",
+  );
+  await ide.getByRole("button", { name: "Create copy" }).click();
+  await ide.getByRole("button", { name: "Rename", exact: true }).click();
+  await ide
+    .getByLabel("Project-relative path")
+    .fill("student/controller_experiment.py");
+  await ide.getByRole("button", { name: "Rename file" }).click();
+  await ide.getByRole("button", { name: "Use as startup" }).click();
+  await expect(ide.getByText("Starts with")).toContainText(
+    "student/controller_experiment.py",
+  );
+  await ide.getByRole("button", { name: "Open main.py" }).click();
+  await ide.getByRole("button", { name: "Use as startup" }).click();
+  await ide.getByRole("button", { name: "Save files" }).click();
+  await ide
+    .getByRole("button", { name: "Open student/controller_experiment.py" })
+    .click();
+  await ide.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(
+    ide.getByRole("heading", {
+      name: "Delete student/controller_experiment.py?",
+    }),
+  ).toBeVisible();
+  const keepFileButton = ide.getByRole("button", { name: "Keep file" });
+  const deleteFileButton = ide.getByRole("button", { name: "Delete file" });
+  await expect(keepFileButton).toBeFocused();
+  await keepFileButton.press("Shift+Tab");
+  await expect(deleteFileButton).toBeFocused();
+  await deleteFileButton.press("Tab");
+  await expect(keepFileButton).toBeFocused();
+  await deleteFileButton.click();
+  await ide.getByRole("button", { name: "Save files" }).click();
+  const savedProjectState = await ide.evaluate(() => {
+    const saved = (
+      window as unknown as {
+        __savedCourseFiles: Record<string, string>;
+      }
+    ).__savedCourseFiles;
+    return {
+      deletedCopy: saved["student/controller_experiment.py"],
+      metadata: saved[".ucsb-xrp-project.json"],
+    };
+  });
+  expect(savedProjectState.deletedCopy).toBeUndefined();
+  expect(savedProjectState.metadata).toBeDefined();
+  expect(JSON.parse(savedProjectState.metadata!)).toEqual({
+    entrypoint: "main.py",
+  });
+
   const guide = await context.newPage();
-  recordErrors(guide);
+  collectBrowserErrors(guide, browserErrors);
   await guide.goto("/guide/");
   await expect(
     guide.getByRole("heading", {
@@ -202,6 +300,7 @@ test("abandons a virtual run safely when its IDE owner disappears", async ({
   context,
   page: ide,
 }) => {
+  const browserErrors = collectBrowserErrors(ide);
   await ide.addInitScript(() => {
     localStorage.setItem(
       "ucsb-xrp-course-project-v1",
@@ -225,7 +324,9 @@ while True:
 
   await ide.goto("/ide/");
   const monitor = await context.newPage();
+  collectBrowserErrors(monitor, browserErrors);
   await monitor.goto("/dashboard/");
+  expect(browserErrors).toEqual([]);
 
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -258,13 +359,16 @@ while True:
   await expect(monitor.getByRole("log")).toContainText(
     "motor effort set to zero",
   );
+  expect(browserErrors).toEqual([]);
 });
 
 test("keeps project and output controls usable on a narrow screen", async ({
   page: ide,
 }) => {
+  const browserErrors = collectBrowserErrors(ide);
   await ide.setViewportSize({ width: 375, height: 800 });
   await ide.goto("/ide/");
+  expect(browserErrors).toEqual([]);
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -294,4 +398,5 @@ test("keeps project and output controls usable on a narrow screen", async ({
 
   const helpLink = ide.getByRole("link", { name: /Help & robot setup/ });
   await expect(helpLink).toHaveAttribute("rel", "noopener noreferrer");
+  expect(browserErrors).toEqual([]);
 });

@@ -1,7 +1,7 @@
 declare module "@micropython/micropython-webassembly-pyscript" {
   export interface MicroPythonFileSystem {
     mkdir(path: string): void;
-    writeFile(path: string, data: string): void;
+    writeFile(path: string, data: string | Uint8Array): void;
   }
 
   export interface MicroPythonRuntime {

@@ -55,9 +55,11 @@ Six components have interchangeable reference and student implementations:
 
 Each student component has the same public methods and return types as its
 reference counterpart. Student templates inherit the corresponding base class
-from `ucsb_xrp.student_api`. In `course_setup.py`, `MODULE_SOURCE` selects
-`"reference"` or `"student"` independently for each component, allowing one
-student component to be exercised while the others remain supplied.
+from `ucsb_xrp.student_api`. In `course_setup.py`, one named
+`USE_STUDENT_*` Boolean independently selects each component. A flag starts as
+`False` for the supplied implementation and changes to `True` only after that
+student component passes its software tests. Early starters include only the
+flags for components introduced so far.
 
 Students concentrate their code in `student_components.py`. Robot-specific
 measurements and reusable controller settings belong in `robot_config.py`;

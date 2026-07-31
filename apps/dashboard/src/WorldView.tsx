@@ -28,6 +28,8 @@ export function WorldView({ sample }: WorldViewProps) {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
     host.appendChild(renderer.domElement);
 
     const ambient = new THREE.AmbientLight("#dcecff", 1.6);

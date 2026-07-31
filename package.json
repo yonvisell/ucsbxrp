@@ -13,9 +13,9 @@
     "node": ">=24.17 <25"
   },
   "scripts": {
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/offline-build.mjs",
     "check": "npm run check:fast && npm run test:browser",
-    "check:fast": "npm run format:check && npm run test:python && npm run test:micropython && npm run test && npm run build",
+    "check:fast": "npm run format:check && npm run test:python && npm run test:micropython && npm run test && npm run build && npm run test:offline",
     "dev": "vite --host 127.0.0.1",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -23,6 +23,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:micropython": "node scripts/prove-micropython.mjs",
+    "test:offline": "node scripts/verify-offline-build.mjs",
     "test:python": "python3 -m unittest discover -s tests/python -p 'test_*.py'",
     "test:browser": "playwright test"
   },

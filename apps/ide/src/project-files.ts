@@ -28,6 +28,7 @@ export interface CourseDirectoryHandle {
     name: string,
     options?: { create?: boolean },
   ): Promise<CourseFileHandle>;
+  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
 }
 
 interface FolderReadResult {
@@ -37,6 +38,7 @@ interface FolderReadResult {
 
 const projectRecoveryKey = "ucsb-xrp-course-project-v1";
 const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
+const projectMetadataFile = ".ucsb-xrp-project.json";
 const originalStageOneStarterSource = `from time import sleep_ms
 from ucsb_xrp import MotorEfforts, XRPBot
 
@@ -145,6 +147,7 @@ function migrateOriginalStageOneStarter(
   return {
     ...project,
     files: {
+      ...STAGE_ONE_PROJECT.files,
       ...project.files,
       "main.py": currentStarterSource,
     },
@@ -195,6 +198,9 @@ export function projectPathError(path: string): string | null {
   if (/[\0:*?"<>|]/.test(normalized)) {
     return "The file name contains a character that cannot be saved.";
   }
+  if (normalized === projectMetadataFile) {
+    return "That name is reserved for the project's startup-file setting.";
+  }
   return null;
 }
 
@@ -207,7 +213,17 @@ function fileExtension(name: string): string {
   return dot < 0 ? "" : name.slice(dot).toLowerCase();
 }
 
-function selectEntrypoint(files: Record<string, string>): string {
+function selectEntrypoint(
+  files: Record<string, string>,
+  preferredEntrypoint?: string,
+): string {
+  if (
+    preferredEntrypoint &&
+    preferredEntrypoint.endsWith(".py") &&
+    preferredEntrypoint in files
+  ) {
+    return preferredEntrypoint;
+  }
   if ("main.py" in files) {
     return "main.py";
   }
@@ -216,6 +232,122 @@ function selectEntrypoint(files: Record<string, string>): string {
       .sort()
       .find((path) => path.endsWith(".py")) ?? Object.keys(files).sort()[0]!
   );
+}
+
+function checkedDestinationPath(
+  project: ProjectSnapshot,
+  requestedPath: string,
+  originalPath?: string,
+): string {
+  const error = projectPathError(requestedPath);
+  if (error) {
+    throw new Error(error);
+  }
+  const path = normalizedProjectPath(requestedPath);
+  if (path === originalPath) {
+    throw new Error("Enter a different file path.");
+  }
+  if (path in project.files) {
+    throw new Error("A file already uses that path.");
+  }
+  return path;
+}
+
+export function renameProjectFile(
+  project: ProjectSnapshot,
+  sourcePath: string,
+  requestedPath: string,
+): ProjectSnapshot {
+  const content = project.files[sourcePath];
+  if (content === undefined) {
+    throw new Error(`${sourcePath} is not in the project.`);
+  }
+  const path = checkedDestinationPath(project, requestedPath, sourcePath);
+  if (project.entrypoint === sourcePath && !path.endsWith(".py")) {
+    throw new Error("The startup file must keep a .py extension.");
+  }
+  const files = { ...project.files };
+  delete files[sourcePath];
+  files[path] = content;
+  return {
+    ...project,
+    entrypoint: project.entrypoint === sourcePath ? path : project.entrypoint,
+    files,
+  };
+}
+
+export function duplicateProjectFile(
+  project: ProjectSnapshot,
+  sourcePath: string,
+  requestedPath: string,
+): ProjectSnapshot {
+  const content = project.files[sourcePath];
+  if (content === undefined) {
+    throw new Error(`${sourcePath} is not in the project.`);
+  }
+  const path = checkedDestinationPath(project, requestedPath, sourcePath);
+  return {
+    ...project,
+    files: { ...project.files, [path]: content },
+  };
+}
+
+export function deleteProjectFile(
+  project: ProjectSnapshot,
+  path: string,
+): ProjectSnapshot {
+  if (!(path in project.files)) {
+    throw new Error(`${path} is not in the project.`);
+  }
+  if (Object.keys(project.files).length === 1) {
+    throw new Error("A project must contain at least one file.");
+  }
+  const files = { ...project.files };
+  delete files[path];
+  let entrypoint = project.entrypoint;
+  if (path === project.entrypoint) {
+    const replacement = Object.keys(files)
+      .sort()
+      .find((candidate) => candidate.endsWith(".py"));
+    if (!replacement) {
+      throw new Error(
+        "Create another Python file before deleting the only startup file.",
+      );
+    }
+    entrypoint = replacement;
+  }
+  return { ...project, entrypoint, files };
+}
+
+export function setProjectEntrypoint(
+  project: ProjectSnapshot,
+  path: string,
+): ProjectSnapshot {
+  if (!(path in project.files)) {
+    throw new Error(`${path} is not in the project.`);
+  }
+  if (!path.endsWith(".py")) {
+    throw new Error("Only a Python file can be the startup file.");
+  }
+  return { ...project, entrypoint: path };
+}
+
+export function suggestedDuplicatePath(
+  sourcePath: string,
+  files: Record<string, string>,
+): string {
+  const dot = sourcePath.lastIndexOf(".");
+  const slash = sourcePath.lastIndexOf("/");
+  const hasExtension = dot > slash;
+  const base = hasExtension ? sourcePath.slice(0, dot) : sourcePath;
+  const extension = hasExtension ? sourcePath.slice(dot) : "";
+  let candidate = `${base}_copy${extension}`;
+  let number = 2;
+  while (candidate in files) {
+    candidate = `${base}_copy_${number}${extension}`;
+    number += 1;
+  }
+  return candidate;
 }
 
 export function supportsWorkingFolders(): boolean {
@@ -251,6 +383,7 @@ export async function readProjectFolder(
 ): Promise<FolderReadResult> {
   const files: Record<string, string> = {};
   let skipped = 0;
+  let preferredEntrypoint: string | undefined;
 
   const visit = async (
     directory: CourseDirectoryHandle,
@@ -263,6 +396,20 @@ export async function readProjectFolder(
           continue;
         }
         await visit(handle, `${prefix}${name}/`);
+        continue;
+      }
+      if (prefix === "" && name === projectMetadataFile) {
+        try {
+          const file = await handle.getFile();
+          const metadata = JSON.parse(await file.text()) as unknown;
+          if (isRecord(metadata) && typeof metadata.entrypoint === "string") {
+            preferredEntrypoint = metadata.entrypoint;
+          } else {
+            skipped += 1;
+          }
+        } catch {
+          skipped += 1;
+        }
         continue;
       }
       if (
@@ -290,7 +437,7 @@ export async function readProjectFolder(
   return {
     project: {
       name: root.name,
-      entrypoint: selectEntrypoint(files),
+      entrypoint: selectEntrypoint(files, preferredEntrypoint),
       files,
     },
     skipped,
@@ -312,9 +459,9 @@ async function directoryForPath(
 
 export async function writeProjectFolder(
   root: CourseDirectoryHandle,
-  files: Record<string, string>,
+  project: ProjectSnapshot,
 ): Promise<void> {
-  for (const [path, content] of Object.entries(files)) {
+  for (const [path, content] of Object.entries(project.files)) {
     const error = projectPathError(path);
     if (error) {
       throw new Error(`${path}: ${error}`);
@@ -325,4 +472,46 @@ export async function writeProjectFolder(
     await writable.write(content);
     await writable.close();
   }
+  const metadata = await root.getFileHandle(projectMetadataFile, {
+    create: true,
+  });
+  const writable = await metadata.createWritable();
+  await writable.write(
+    `${JSON.stringify({ entrypoint: project.entrypoint }, null, 2)}\n`,
+  );
+  await writable.close();
+}
+
+export async function removeProjectFolderFiles(
+  root: CourseDirectoryHandle,
+  paths: Iterable<string>,
+): Promise<number> {
+  let removed = 0;
+  for (const path of paths) {
+    const error = projectPathError(path);
+    if (error) {
+      throw new Error(`${path}: ${error}`);
+    }
+    const parts = path.split("/");
+    const name = parts.pop()!;
+    let directory = root;
+    try {
+      for (const part of parts) {
+        directory = await directory.getDirectoryHandle(part);
+      }
+      await directory.removeEntry(name);
+      removed += 1;
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "name" in error &&
+        error.name === "NotFoundError"
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  return removed;
 }

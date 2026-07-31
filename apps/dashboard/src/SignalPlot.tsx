@@ -75,14 +75,14 @@ export function SignalPlot({ sample }: SignalPlotProps) {
         xAxis: {
           type: "value",
           name: "time (s)",
-          nameTextStyle: { color: "#64798a" },
-          axisLabel: { color: "#64798a" },
+          nameTextStyle: { color: "#768b9c" },
+          axisLabel: { color: "#768b9c" },
           axisLine: { lineStyle: { color: "#345066" } },
           splitLine: { lineStyle: { color: "#172a39" } },
         },
         yAxis: {
           type: "value",
-          axisLabel: { color: "#64798a" },
+          axisLabel: { color: "#768b9c" },
           axisLine: { show: true, lineStyle: { color: "#345066" } },
           splitLine: { lineStyle: { color: "#172a39" } },
         },
@@ -98,7 +98,7 @@ export function SignalPlot({ sample }: SignalPlotProps) {
             name: "Right",
             type: "line",
             showSymbol: false,
-            lineStyle: { color: "#f5ba57", width: 2 },
+            lineStyle: { color: "#f5ba57", type: "dashed", width: 2 },
             data: data.time.map((time, index) => [time, data.right[index]]),
           },
         ],
@@ -109,9 +109,11 @@ export function SignalPlot({ sample }: SignalPlotProps) {
 
   return (
     <div
+      aria-label="Wheel-speed history: solid cyan is left, dashed gold is right"
       className="signal-plot"
       data-testid="wheel-speed-plot"
       ref={elementRef}
+      role="img"
     />
   );
 }

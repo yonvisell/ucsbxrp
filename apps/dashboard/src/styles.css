@@ -39,7 +39,9 @@
 .world-view,
 .signal-plot {
   width: 100%;
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .telemetry-placeholder {
@@ -64,6 +66,51 @@
   align-content: start;
   margin: 0;
   overflow: auto;
+}
+
+.values-content {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.recording-bar {
+  display: grid;
+  gap: 0.55rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.65rem 0.75rem;
+  background: #0a1721;
+}
+
+.recording-summary {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.recording-summary strong {
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.recording-summary strong.active {
+  color: var(--cyan);
+}
+
+.recording-summary span {
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.64rem;
+}
+
+.recording-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.recording-actions button {
+  padding: 0.28rem 0.42rem;
+  font-size: 0.66rem;
 }
 
 .live-values > div {
