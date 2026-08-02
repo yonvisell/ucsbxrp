@@ -20,6 +20,7 @@ let latestStatus: TargetEvent = {
   detail: "Physical XRP disconnected",
 };
 let latestTelemetry: TargetEvent | null = null;
+let latestProject: TargetEvent = { type: "project", project: null };
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -34,6 +35,8 @@ function broadcast(event: TargetEvent): void {
     latestStatus = event;
   } else if (event.type === "telemetry") {
     latestTelemetry = event;
+  } else if (event.type === "project") {
+    latestProject = event;
   } else if (event.type === "console") {
     consoleHistory.push(event);
     if (consoleHistory.length > 200) {
@@ -50,6 +53,7 @@ function sendCurrentState(port: MessagePort): void {
   if (latestTelemetry) {
     send(port, { type: "event", event: latestTelemetry });
   }
+  send(port, { type: "event", event: latestProject });
   for (const event of consoleHistory) {
     send(port, { type: "event", event });
   }
@@ -69,6 +73,7 @@ async function connectTarget(endpoint: string): Promise<void> {
   targetEndpoint = endpoint;
   consoleHistory.length = 0;
   latestTelemetry = null;
+  latestProject = { type: "project", project: null };
   nextTarget.subscribe(broadcast);
   const pendingConnection = nextTarget.connect();
   connection = pendingConnection;
@@ -104,6 +109,7 @@ async function handleCommand(
       targetEndpoint = null;
       connection = null;
       latestTelemetry = null;
+      latestProject = { type: "project", project: null };
       consoleHistory.length = 0;
     }
     return;
@@ -127,6 +133,10 @@ async function handleCommand(
       await target.synchronize(command.project);
     } else if (command.type === "run") {
       await target.run(command.project);
+    } else if (command.type === "run-current") {
+      await target.runCurrent();
+    } else if (command.type === "mark-project-stale") {
+      await target.markProjectStale(command.project);
     } else if (command.type === "stop") {
       await target.stop();
     } else if (command.type === "reset") {

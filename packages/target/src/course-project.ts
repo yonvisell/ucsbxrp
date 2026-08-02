@@ -50,7 +50,7 @@ const metadata = [
   },
 ] as const;
 
-function projectFor(starterId: string): CourseProject {
+function projectFor(starterId: string, name: string): CourseProject {
   const marker = `/starters/${starterId}/`;
   const files = Object.fromEntries(
     Object.entries(rawStarterFiles)
@@ -61,6 +61,7 @@ function projectFor(starterId: string): CourseProject {
     throw new Error(`${starterId} must contain a complete Python project`);
   }
   return Object.freeze({
+    name,
     entrypoint: "main.py",
     files: Object.freeze(files),
   });
@@ -68,7 +69,10 @@ function projectFor(starterId: string): CourseProject {
 
 export const COURSE_STARTERS: readonly CourseStarter[] = Object.freeze(
   metadata.map((starter) =>
-    Object.freeze({ ...starter, project: projectFor(starter.id) }),
+    Object.freeze({
+      ...starter,
+      project: projectFor(starter.id, starter.shortLabel),
+    }),
   ),
 );
 

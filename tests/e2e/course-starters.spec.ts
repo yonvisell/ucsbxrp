@@ -30,7 +30,7 @@ for (const starter of starters) {
     await expect(page.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
     );
-    await page.getByRole("button", { name: "Run virtual XRP" }).click();
+    await page.getByRole("button", { name: "Run", exact: true }).click();
     await expect(page.getByRole("log")).toContainText(starter.completion, {
       timeout: 40_000,
     });
@@ -72,7 +72,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
   );
   await ide.getByLabel("Course starter").selectOption("challenge_5");
   await ide.getByRole("button", { name: "Load starter" }).click();
-  await ide.getByRole("button", { name: "Run virtual XRP" }).click();
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText(
     "Challenge 5 result: delivered",
     { timeout: 50_000 },

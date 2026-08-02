@@ -165,17 +165,27 @@ adjustable at wide and narrow laptop sizes.
 
 ### Refinement 2 — Shared Run/Stop lifecycle
 
-Status: next.
+Status: implemented and validated in virtual and physical Stable Chrome.
 
 - Retain the synchronized project name, content identity, and revision in the
   shared target boundary.
 - Let the IDE or Monitor start that current project and present one reliable
   Run/Stop state control, including completion, exception, tab-loss, and reset
   recovery.
+- Mark the retained revision stale as soon as IDE files change, so the Monitor
+  cannot silently start older code. A new IDE run or synchronization atomically
+  makes the edited revision current again.
+- Discover the retained physical project after boot and preserve it through
+  stop/reset cycles. Derive the same SHA-256 revision in the browser, CPython
+  harness, and RP2350 MicroPython service.
+
+Usable result: both applications show the same named project state and can run
+or stop the same verified revision without duplicated controls or hidden
+transfers.
 
 ### Refinement 3 — IDE workspace and project catalog
 
-Status: planned.
+Status: next.
 
 - Apply the flat visual system to the IDE; compact the tree, tabs, toolbar,
   settings, and output while retaining the adjustable 8 px minimum editor type.

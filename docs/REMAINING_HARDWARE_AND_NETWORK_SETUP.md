@@ -15,7 +15,7 @@ Nothing else needs to be configured for the present raised-wheel setup. Open:
 
 Select **Physical XRP** in the IDE. The Monitor follows the same target and
 address automatically. The normal sequence is **Validate code**, **Sync
-project**, then **Run on XRP**.
+project**, then **Run**.
 
 ## Configure another course XRP
 

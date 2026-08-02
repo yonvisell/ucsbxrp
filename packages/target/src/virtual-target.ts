@@ -7,9 +7,11 @@ import type { SimulationScenario } from "@ucsb-xrp/simulator";
 import type {
   CheckResult,
   CourseProject,
+  SynchronizedProject,
   TargetClient,
   TargetEvent,
 } from "./types";
+import { describeProject } from "./project-identity";
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -20,6 +22,8 @@ interface PendingRequest {
 interface PreparedRun {
   runId: number;
   scenario: SimulationScenario;
+  project: CourseProject;
+  descriptor: SynchronizedProject;
 }
 
 function errorDetail(error: unknown): string {
@@ -122,10 +126,27 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   async run(project: CourseProject): Promise<void> {
+    const descriptor = await describeProject(project);
+    await this.startRun({ type: "prepare-run", project, descriptor });
+  }
+
+  async runCurrent(): Promise<void> {
+    await this.startRun({ type: "prepare-run" });
+  }
+
+  private async startRun(
+    command:
+      | { type: "prepare-run" }
+      | {
+          type: "prepare-run";
+          project: CourseProject;
+          descriptor: SynchronizedProject;
+        },
+  ): Promise<void> {
     this.terminateRuntime();
-    const { runId, scenario } = (await this.request({
-      type: "prepare-run",
-    })) as PreparedRun;
+    const { runId, scenario, project } = (await this.request(
+      command,
+    )) as PreparedRun;
     let runtimeWorker: Worker;
     try {
       runtimeWorker = this.createMicroPythonWorker(
@@ -169,10 +190,20 @@ export class VirtualTargetClient implements TargetClient {
     if (!result.ok) {
       throw new Error(result.detail);
     }
+    const descriptor = await describeProject(project);
+    await this.request({ type: "store-project", project, descriptor });
     this.emit({
       type: "console",
       stream: "system",
       line: "Project prepared for the virtual XRP",
+    });
+  }
+
+  async markProjectStale(project: CourseProject): Promise<void> {
+    const descriptor = await describeProject(project);
+    await this.request({
+      type: "mark-project-stale",
+      revision: descriptor.revision,
     });
   }
 
@@ -198,7 +229,17 @@ export class VirtualTargetClient implements TargetClient {
   private request(
     command:
       | { type: "connect" }
-      | { type: "prepare-run" }
+      | {
+          type: "prepare-run";
+          project?: CourseProject;
+          descriptor?: SynchronizedProject;
+        }
+      | {
+          type: "store-project";
+          project: CourseProject;
+          descriptor: SynchronizedProject;
+        }
+      | { type: "mark-project-stale"; revision: string }
       | { type: "set-scenario"; scenario: SimulationScenario }
       | { type: "stop" }
       | { type: "reset" },

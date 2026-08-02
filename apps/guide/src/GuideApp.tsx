@@ -59,14 +59,15 @@ export function GuideApp() {
                 </li>
                 <li>
                   Open the <a href="../dashboard/">XRP Monitor</a> in another
-                  tab and select <strong>Run virtual XRP</strong> in the IDE.
+                  tab and select <strong>Run</strong> in the IDE.
                 </li>
               </ol>
               <p>
                 Program output, wheel motion, encoders, range, IMU values, and
                 pose come from the same deterministic simulation.{" "}
-                <strong>Stop program</strong> and{" "}
-                <strong>Reset virtual XRP</strong> are available in both apps.
+                <strong>Stop</strong> and <strong>Reset</strong> are available
+                in both apps. After an IDE run, the Monitor can run that same
+                project directly.
               </p>
             </div>
           </section>
@@ -142,9 +143,9 @@ export function GuideApp() {
                 </li>
                 <li>
                   Use <strong>Validate code</strong>,{" "}
-                  <strong>Sync project</strong>, and <strong>Run on XRP</strong>
-                  . Run automatically synchronizes changed files, so Sync is
-                  optional during ordinary work.
+                  <strong>Sync project</strong>, and <strong>Run</strong>. Run
+                  automatically synchronizes changed files, so Sync is optional
+                  during ordinary work.
                 </li>
               </ol>
               <p>

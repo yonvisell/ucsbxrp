@@ -33,6 +33,20 @@ class XrpServiceProbeTest(unittest.TestCase):
         self.assertIn("finally:\n    robot.stop()", pose_source)
         self.assertNotIn("self._bot.reset_encoders()", pose_source)
 
+    def test_project_revision_matches_the_browser_and_device_protocol(self):
+        project = {
+            "name": "Display name is excluded",
+            "entrypoint": "main.py",
+            "files": {
+                "main.py": "print('ok')\n",
+                "lib/a.py": "VALUE = 1\n",
+            },
+        }
+        self.assertEqual(
+            SERVICE_PROBE.project_revision(project),
+            "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

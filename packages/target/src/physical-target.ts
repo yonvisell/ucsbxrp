@@ -1,6 +1,7 @@
 import type {
   CheckResult,
   CourseProject,
+  SynchronizedProject,
   TargetClient,
   TargetEvent,
   TargetRunState,
@@ -10,6 +11,15 @@ import type {
   PhysicalWorkerCommand,
   PhysicalWorkerMessage,
 } from "./physical-worker-protocol";
+import { describeProject } from "./project-identity";
+
+interface PhysicalProjectManifest {
+  name: string;
+  entrypoint: string;
+  revision?: string;
+  files?: string[];
+  bytes?: number;
+}
 
 interface PhysicalInfo {
   protocol: number;
@@ -19,6 +29,7 @@ interface PhysicalInfo {
   robotName: string;
   address: string;
   capabilities: string[];
+  project?: PhysicalProjectManifest | null;
 }
 
 interface PhysicalLog {
@@ -34,6 +45,7 @@ interface PhysicalState {
   runId: number;
   logs: PhysicalLog[];
   sample?: TelemetrySample;
+  project?: PhysicalProjectManifest | null;
 }
 
 interface CommandReply<T> {
@@ -74,13 +86,6 @@ export function normalizePhysicalEndpoint(value: string): string {
   return url.toString().replace(/\/$/, "");
 }
 
-function projectFingerprint(project: CourseProject): string {
-  return JSON.stringify({
-    entrypoint: project.entrypoint,
-    files: Object.entries(project.files).sort(([a], [b]) => a.localeCompare(b)),
-  });
-}
-
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -101,7 +106,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private bootId: string | null = null;
   private lastRunId = 0;
   private lastLeaseAt = 0;
-  private lastSyncedFingerprint: string | null = null;
+  private currentProject: SynchronizedProject | null = null;
+  private projectStateKnown = false;
   private info: PhysicalInfo | null = null;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
@@ -153,6 +159,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       "ready",
       `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
     );
+    this.consumeProjectManifest(info.project);
     this.schedulePoll(0);
   }
 
@@ -181,15 +188,45 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async synchronize(project: CourseProject): Promise<void> {
-    const result = await this.command<{ detail: string }>("sync", { project });
-    this.lastSyncedFingerprint = projectFingerprint(project);
+    const descriptor = await describeProject(project);
+    const result = await this.command<{
+      detail: string;
+      project?: PhysicalProjectManifest;
+    }>("sync", { project });
+    this.setCurrentProject({
+      ...descriptor,
+      revision: result.project?.revision ?? descriptor.revision,
+      name: result.project?.name ?? descriptor.name,
+      entrypoint: result.project?.entrypoint ?? descriptor.entrypoint,
+      stale: false,
+    });
     this.emit({ type: "console", stream: "system", line: result.detail });
   }
 
   async run(project: CourseProject): Promise<void> {
-    const fingerprint = projectFingerprint(project);
-    if (fingerprint !== this.lastSyncedFingerprint) {
+    const descriptor = await describeProject(project);
+    if (
+      !this.currentProject ||
+      this.currentProject.stale ||
+      descriptor.revision !== this.currentProject.revision
+    ) {
       await this.synchronize(project);
+    }
+    await this.runCurrent();
+  }
+
+  async runCurrent(): Promise<void> {
+    if (!this.currentProject) {
+      throw new PhysicalTargetError(
+        "no_project",
+        "No project is ready. Run or synchronize a project in the IDE first.",
+      );
+    }
+    if (this.currentProject.stale) {
+      throw new PhysicalTargetError(
+        "stale_project",
+        "The IDE project has changed. Run or synchronize it in the IDE first.",
+      );
     }
     const result = await this.command<{ detail: string; runId: number }>(
       "run",
@@ -198,6 +235,17 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.lastRunId = result.runId;
     this.lastLeaseAt = 0;
     this.emitStatus("running", result.detail);
+  }
+
+  async markProjectStale(project: CourseProject): Promise<void> {
+    const descriptor = await describeProject(project);
+    if (
+      this.currentProject &&
+      descriptor.revision !== this.currentProject.revision &&
+      !this.currentProject.stale
+    ) {
+      this.setCurrentProject({ ...this.currentProject, stale: true });
+    }
   }
 
   async stop(): Promise<void> {
@@ -224,7 +272,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
         detail: string;
         reconnecting: boolean;
       }>("reset", {});
-      this.lastSyncedFingerprint = null;
       this.emitStatus("connecting", `${result.detail}; reconnecting…`);
       await this.reconnectAfterReset();
     } finally {
@@ -369,6 +416,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       this.lastLogSeq = 0;
     }
     this.lastRunId = state.runId;
+    this.consumeProjectManifest(state.project);
     this.emitStatus(state.state, state.detail);
     if (state.sample) {
       this.emit({ type: "telemetry", sample: state.sample });
@@ -398,6 +446,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           "ready",
           `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
         );
+        this.consumeProjectManifest(info.project);
         return;
       } catch (error) {
         lastError = error;
@@ -411,6 +460,49 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   private emitStatus(state: TargetRunState, detail: string): void {
     this.emit({ type: "status", state, detail });
+  }
+
+  private consumeProjectManifest(
+    manifest: PhysicalProjectManifest | null | undefined,
+  ): void {
+    if (manifest === undefined) {
+      return;
+    }
+    if (manifest === null) {
+      this.setCurrentProject(null);
+      return;
+    }
+    if (!manifest.revision) {
+      if (!this.projectStateKnown) {
+        this.setCurrentProject(null);
+      }
+      return;
+    }
+    const stale =
+      this.currentProject?.revision === manifest.revision
+        ? this.currentProject.stale
+        : false;
+    this.setCurrentProject({
+      name: manifest.name || manifest.entrypoint,
+      entrypoint: manifest.entrypoint,
+      revision: manifest.revision,
+      stale,
+    });
+  }
+
+  private setCurrentProject(project: SynchronizedProject | null): void {
+    if (
+      this.projectStateKnown &&
+      this.currentProject?.revision === project?.revision &&
+      this.currentProject?.stale === project?.stale &&
+      this.currentProject?.name === project?.name &&
+      this.currentProject?.entrypoint === project?.entrypoint
+    ) {
+      return;
+    }
+    this.projectStateKnown = true;
+    this.currentProject = project;
+    this.emit({ type: "project", project });
   }
 
   private emit(event: TargetEvent): void {
@@ -513,6 +605,22 @@ export class PhysicalTargetClient implements TargetClient {
     await this.request({ type: "run", project });
   }
 
+  async runCurrent(): Promise<void> {
+    if (this.direct) {
+      await this.direct.runCurrent();
+      return;
+    }
+    await this.request({ type: "run-current" });
+  }
+
+  async markProjectStale(project: CourseProject): Promise<void> {
+    if (this.direct) {
+      await this.direct.markProjectStale(project);
+      return;
+    }
+    await this.request({ type: "mark-project-stale", project });
+  }
+
   async stop(): Promise<void> {
     if (this.direct) {
       await this.direct.stop();
@@ -548,6 +656,8 @@ export class PhysicalTargetClient implements TargetClient {
       | { type: "check"; project: CourseProject }
       | { type: "sync"; project: CourseProject }
       | { type: "run"; project: CourseProject }
+      | { type: "run-current" }
+      | { type: "mark-project-stale"; project: CourseProject }
       | { type: "stop" }
       | { type: "reset" },
   ): Promise<unknown> {

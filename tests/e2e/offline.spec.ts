@@ -112,7 +112,7 @@ test("reloads the complete production course shell without a network", async ({
     "Saved for offline use",
   );
 
-  await ide.getByRole("button", { name: "Run virtual XRP" }).click();
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
     timeout: 20_000,
   });

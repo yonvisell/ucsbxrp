@@ -39,10 +39,11 @@ def provision(
             "XRP did not join {} ({})".format(ssid, wifi.get("status", "unknown"))
         )
     installed = install_xrp_service.install(selected_port)
-    service = install_xrp_service.wait_for_service(wifi["address"])
+    address = installed["address"]
+    service = install_xrp_service.wait_for_service(address)
     return {
         "robot": service["robotName"],
-        "address": wifi["address"],
+        "address": address,
         "network": ssid,
         "addressMode": wifi["address_mode"],
         "courseRelease": service["courseRelease"],

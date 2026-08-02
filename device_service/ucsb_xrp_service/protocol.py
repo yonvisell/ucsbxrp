@@ -1,7 +1,7 @@
 """Small, MicroPython-compatible validation for the target protocol."""
 
 PROTOCOL_VERSION = 1
-SERVICE_VERSION = "2026.08-dev.1"
+SERVICE_VERSION = "2026.08-dev.2"
 MAX_PROJECT_FILES = 48
 MAX_PROJECT_BYTES = 256 * 1024
 MAX_FILE_BYTES = 96 * 1024
@@ -121,6 +121,29 @@ def validate_project(value):
         "files": normalized_files,
         "bytes": total_bytes,
     }
+
+
+def project_revision(project):
+    """Return the browser-compatible identity of validated project text."""
+    try:
+        import hashlib
+    except ImportError:
+        import uhashlib as hashlib
+
+    digest = hashlib.sha256()
+
+    def update_part(value):
+        body = value.encode("utf-8")
+        digest.update(str(len(body)).encode("ascii"))
+        digest.update(b":")
+        digest.update(body)
+        digest.update(b";")
+
+    update_part(project["entrypoint"])
+    for path in sorted(project["files"]):
+        update_part(path)
+        update_part(project["files"][path])
+    return "".join("{:02x}".format(value) for value in digest.digest())
 
 
 def reply(request_id, ok=True, result=None, error=None):

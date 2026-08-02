@@ -20,6 +20,7 @@ import {
   type TargetRunState,
   type TelemetrySample,
   type SimulationScenario,
+  type SynchronizedProject,
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
@@ -173,6 +174,8 @@ export function DashboardApp() {
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
   const [targetDetail, setTargetDetail] = useState("Not connected");
+  const [currentProject, setCurrentProject] =
+    useState<SynchronizedProject | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [recordingActive, setRecordingActive] = useState(false);
   const [recordedSamples, setRecordedSamples] = useState(0);
@@ -207,6 +210,7 @@ export function DashboardApp() {
 
   useEffect(() => {
     setConsoleEntries([]);
+    setCurrentProject(null);
     nextConsoleId.current = 1;
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
@@ -235,7 +239,9 @@ export function DashboardApp() {
       } else if (event.type === "status") {
         setTargetState(event.state);
         setTargetDetail(event.detail);
-      } else {
+      } else if (event.type === "project") {
+        setCurrentProject(event.project);
+      } else if (event.type === "console") {
         setConsoleEntries((entries) => [
           ...entries.slice(-99),
           {
@@ -277,6 +283,19 @@ export function DashboardApp() {
     try {
       await target.reset();
       setConsoleEntries([]);
+    } catch (error: unknown) {
+      setTargetState("error");
+      setTargetDetail(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const runOrStop = async () => {
+    try {
+      if (targetState === "running" || targetState === "loading") {
+        await target.stop();
+      } else {
+        await target.runCurrent();
+      }
     } catch (error: unknown) {
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
@@ -358,6 +377,11 @@ export function DashboardApp() {
   const bottomRegionStyle = {
     "--monitor-primary-width": `${monitorSettings.layout.plotsWidthPercent}%`,
   } as CSSProperties;
+  const isRunning = targetState === "running" || targetState === "loading";
+  const canRunCurrent =
+    (targetState === "ready" || targetState === "error") &&
+    currentProject !== null &&
+    !currentProject.stale;
 
   return (
     <div className="app-shell">
@@ -368,12 +392,20 @@ export function DashboardApp() {
         </div>
         <div className="toolbar">
           <button
-            className="danger-button"
-            disabled={targetState !== "running" && targetState !== "loading"}
-            onClick={() => target.stop()}
-            title="Stop the running program and command zero drive."
+            className={isRunning ? "danger-button" : "primary-button"}
+            disabled={!isRunning && !canRunCurrent}
+            onClick={runOrStop}
+            title={
+              isRunning
+                ? "Stop the running program."
+                : currentProject?.stale
+                  ? "The IDE project changed. Run or synchronize it in the IDE first."
+                  : currentProject
+                    ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                    : "Run or synchronize a project in the IDE first."
+            }
           >
-            Stop
+            {isRunning ? "Stop" : "Run"}
           </button>
           <button
             disabled={
@@ -384,6 +416,18 @@ export function DashboardApp() {
           >
             Reset
           </button>
+          <span
+            className={`current-project ${currentProject?.stale ? "stale" : ""}`}
+            title={
+              currentProject
+                ? `${currentProject.entrypoint} · revision ${currentProject.revision.slice(0, 8)}${currentProject.stale ? " · changed in IDE" : " · ready"}`
+                : "No project has been run or synchronized."
+            }
+          >
+            {currentProject
+              ? `${currentProject.name} · ${currentProject.stale ? "changed" : "ready"}`
+              : "No project ready"}
+          </span>
           <div className="toolbar-spacer" />
           <nav aria-label="Application links" className="header-nav">
             <a className="tool-link" href="../ide/" title="Open the code IDE.">

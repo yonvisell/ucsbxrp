@@ -55,6 +55,22 @@ class DeviceServiceProtocolTest(unittest.TestCase):
                 {"entrypoint": "main.py", "files": {"other.py": "pass\n"}}
             )
 
+    def test_project_revision_matches_the_browser_protocol(self):
+        project = PROTOCOL.validate_project(
+            {
+                "name": "Display name is excluded",
+                "entrypoint": "main.py",
+                "files": {
+                    "main.py": "print('ok')\n",
+                    "lib/a.py": "VALUE = 1\n",
+                },
+            }
+        )
+        self.assertEqual(
+            PROTOCOL.project_revision(project),
+            "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3",
+        )
+
     def test_rejects_unsupported_request_id(self):
         self.assertEqual(PROTOCOL.validate_request_id("ide-42.1"), "ide-42.1")
         for value in (None, "", "spaces are not allowed", "x" * 81):

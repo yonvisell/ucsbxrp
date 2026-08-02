@@ -20,7 +20,7 @@ from phew import server
 
 from .protocol import LineLogWriter, PROTOCOL_VERSION, SERVICE_VERSION, ProtocolError
 from .protocol import reply as protocol_reply
-from .protocol import validate_project, validate_request_id
+from .protocol import project_revision, validate_project, validate_request_id
 
 
 COURSE_RELEASE = "2026.08-dev.1"
@@ -178,6 +178,16 @@ def _read_manifest():
         return _active_manifest
     try:
         _active_manifest = json.load(open(_active_slot_path() + "/.project.json"))
+        if "revision" not in _active_manifest:
+            files = {}
+            for path in _active_manifest["files"]:
+                files[path] = open(_active_slot_path() + "/" + path).read()
+            _active_manifest["revision"] = project_revision(
+                {
+                    "entrypoint": _active_manifest["entrypoint"],
+                    "files": files,
+                }
+            )
         return _active_manifest
     except Exception:
         return None
@@ -202,6 +212,7 @@ def _write_project(project):
             "entrypoint": project["entrypoint"],
             "files": sorted(project["files"].keys()),
             "bytes": project["bytes"],
+            "revision": project_revision(project),
         }
         with open(slot_path + "/.project.json", "w") as handle:
             json.dump(manifest, handle)
@@ -549,9 +560,11 @@ def info(request):
             "bootId": _boot_id,
             "robotName": network.hostname(),
             "address": wlan.ifconfig()[0] if wlan.isconnected() else None,
+            "project": _read_manifest(),
             "capabilities": [
                 "project.check",
                 "project.sync",
+                "project.current",
                 "program.run",
                 "program.stop",
                 "target.reset",

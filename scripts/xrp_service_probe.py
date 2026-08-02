@@ -2,6 +2,7 @@
 """Exercise the physical target service with projects that command zero output."""
 
 import argparse
+import hashlib
 import json
 import sys
 import time
@@ -11,6 +12,23 @@ from urllib.request import Request, urlopen
 
 class ProbeError(RuntimeError):
     pass
+
+
+def project_revision(project):
+    digest = hashlib.sha256()
+
+    def update_part(value):
+        body = value.encode("utf-8")
+        digest.update(str(len(body)).encode("ascii"))
+        digest.update(b":")
+        digest.update(body)
+        digest.update(b";")
+
+    update_part(project["entrypoint"])
+    for path in sorted(project["files"]):
+        update_part(path)
+        update_part(project["files"][path])
+    return digest.hexdigest()
 
 
 def request_json(base_url, path, method="GET", body=None, timeout=5.0):
@@ -174,6 +192,8 @@ def run_probe(address):
     evidence = {"address": address, "operations": []}
 
     info = wait_for_service(base_url)
+    if "project.current" not in info.get("capabilities", []):
+        raise ProbeError("service does not advertise retained-project discovery")
     evidence["service"] = info
 
     preflight = Request(
@@ -194,7 +214,15 @@ def run_probe(address):
     project = zero_output_project()
     check = command(base_url, "check", 1, project=project)
     sync = command(base_url, "sync", 2, project=project)
+    expected_revision = project_revision(project)
+    if sync.get("project", {}).get("revision") != expected_revision:
+        raise ProbeError("synchronized project revision did not match its source")
+    retained_info, _ = request_json(base_url, "/api/v1/info")
+    if retained_info.get("project", {}).get("revision") != expected_revision:
+        raise ProbeError("service discovery did not retain the synchronized project")
     evidence["operations"].extend([check["detail"], sync["detail"]])
+    evidence["operations"].append("project revision retained")
+    evidence["projectRevision"] = expected_revision
 
     run = command(base_url, "run", 3)
     deadline = time.monotonic() + 8.0
@@ -246,18 +274,26 @@ def run_probe(address):
     evidence["poseTelemetry"] = sample
 
     long_project = zero_output_project(wait_forever=True)
-    command(base_url, "sync", 7, project=long_project)
+    long_sync = command(base_url, "sync", 7, project=long_project)
+    long_revision = project_revision(long_project)
+    if long_sync.get("project", {}).get("revision") != long_revision:
+        raise ProbeError("long-running project revision did not match its source")
     command(base_url, "run", 8)
     time.sleep(0.4)
     before_stop, _ = request_json(base_url, "/api/v1/info")
     command(base_url, "stop", 9)
     after_stop = wait_for_new_boot(base_url, before_stop)
+    if after_stop.get("project", {}).get("revision") != long_revision:
+        raise ProbeError("stop restart did not retain the current project")
     evidence["serviceAfterStop"] = after_stop
     evidence["operations"].append("stop and restart")
 
     before_reset = after_stop
     command(base_url, "reset", 10)
-    evidence["serviceAfterReset"] = wait_for_new_boot(base_url, before_reset)
+    after_reset = wait_for_new_boot(base_url, before_reset)
+    if after_reset.get("project", {}).get("revision") != long_revision:
+        raise ProbeError("target reset did not retain the current project")
+    evidence["serviceAfterReset"] = after_reset
     evidence["operations"].append("reset and reconnect")
     return evidence
 

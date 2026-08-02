@@ -45,6 +45,22 @@ class InstallXrpServiceTest(unittest.TestCase):
     def test_main_is_written_last(self):
         self.assertEqual(list(INSTALLER.installation_files())[-1], "/main.py")
 
+    def test_parses_only_a_usable_post_restart_address(self):
+        self.assertEqual(
+            INSTALLER.parse_device_address(
+                b"boot log\r\nUCSB_XRP_ADDRESS=192.168.7.32\r\n"
+            ),
+            "192.168.7.32",
+        )
+        self.assertIsNone(INSTALLER.parse_device_address(b"\r\n"))
+        self.assertIsNone(INSTALLER.parse_device_address("0.0.0.0"))
+
+    def test_post_restart_address_code_reads_saved_credentials_at_runtime(self):
+        code = INSTALLER.device_address_code(5000)
+        self.assertIn("/xrp_wifi.json", code)
+        self.assertIn("UCSB_XRP_ADDRESS=", code)
+        self.assertNotIn("password-value", code)
+
 
 if __name__ == "__main__":
     unittest.main()

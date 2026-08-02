@@ -18,6 +18,7 @@ import {
   type TargetEvent,
   type TargetKind,
   type TargetRunState,
+  type SynchronizedProject,
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
@@ -158,6 +159,8 @@ export function IdeApp() {
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
   const [targetDetail, setTargetDetail] = useState("Not connected");
+  const [currentProject, setCurrentProject] =
+    useState<SynchronizedProject | null>(null);
   const [checkDetail, setCheckDetail] = useState("Not validated");
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
   const [syncDetail, setSyncDetail] = useState("Not synchronized");
@@ -186,6 +189,7 @@ export function IdeApp() {
   );
   const nextConsoleId = useRef(1);
   const initializedProjectEffect = useRef(false);
+  const projectRef = useRef(project);
 
   useEffect(() => {
     const unsubscribe = target.subscribe((event: TargetEvent) => {
@@ -201,13 +205,19 @@ export function IdeApp() {
             line: event.line,
           },
         ]);
+      } else if (event.type === "project") {
+        setCurrentProject(event.project);
       }
     });
     setTargetState("connecting");
-    target.connect().catch((error: unknown) => {
-      setTargetState("error");
-      setTargetDetail(errorDetail(error));
-    });
+    setCurrentProject(null);
+    target
+      .connect()
+      .then(() => target.markProjectStale(projectRef.current))
+      .catch((error: unknown) => {
+        setTargetState("error");
+        setTargetDetail(errorDetail(error));
+      });
     return () => {
       unsubscribe();
       target.disconnect();
@@ -215,12 +225,23 @@ export function IdeApp() {
   }, [target]);
 
   useEffect(() => {
+    projectRef.current = project;
     storeRecoveredProject(project);
     if (initializedProjectEffect.current) {
       setCheckOk(null);
       setCheckDetail("Changes not validated");
       setSyncOk(null);
       setSyncDetail("Changes not synchronized");
+      if (
+        currentProject &&
+        !currentProject.stale &&
+        targetState !== "disconnected" &&
+        targetState !== "connecting"
+      ) {
+        void target.markProjectStale(project).catch(() => {
+          // Editing remains local if the target connection changes mid-update.
+        });
+      }
     } else {
       initializedProjectEffect.current = true;
     }
@@ -244,8 +265,10 @@ export function IdeApp() {
     return () => window.removeEventListener("storage", updateFromOtherApp);
   }, []);
 
-  const canCommand = targetState === "ready" || targetState === "running";
+  const isConnected =
+    targetState !== "disconnected" && targetState !== "connecting";
   const isRunning = targetState === "running" || targetState === "loading";
+  const canCommand = targetState === "ready" || targetState === "error";
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -361,14 +384,14 @@ export function IdeApp() {
   }, [isRunning, target]);
 
   const resetTarget = useCallback(async () => {
-    if (!canCommand) {
+    if (!isConnected) {
       return;
     }
     setOutputPanelOpen(true);
     setConsoleTab("status");
     await target.reset();
     setConsoleEntries([]);
-  }, [canCommand, target]);
+  }, [isConnected, target]);
 
   const openWorkingFolder = useCallback(async () => {
     try {
@@ -708,23 +731,32 @@ export function IdeApp() {
             </button>
           ) : null}
           <button
-            className="primary-button"
-            disabled={!canCommand || isRunning}
-            onClick={runTarget}
-            title={`Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`}
+            className={isRunning ? "danger-button" : "primary-button"}
+            disabled={!isRunning && !canCommand}
+            onClick={isRunning ? stopProgram : runTarget}
+            title={
+              isRunning
+                ? "Stop the running program."
+                : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+            }
           >
-            {target.kind === "virtual" ? "Run virtual XRP" : "Run on XRP"}
+            {isRunning ? "Stop" : "Run"}
           </button>
-          <button
-            className="danger-button"
-            disabled={!isRunning}
-            onClick={stopProgram}
+          <button disabled={!isConnected} onClick={resetTarget}>
+            Reset
+          </button>
+          <span
+            className={`current-project ${currentProject?.stale ? "stale" : ""}`}
+            title={
+              currentProject
+                ? `${currentProject.entrypoint} · revision ${currentProject.revision.slice(0, 8)}${currentProject.stale ? " · changed in editor" : " · ready"}`
+                : "Run or synchronize this project to make it available in the Monitor."
+            }
           >
-            Stop program
-          </button>
-          <button disabled={!canCommand} onClick={resetTarget}>
-            {target.kind === "virtual" ? "Reset virtual XRP" : "Reset XRP"}
-          </button>
+            {currentProject
+              ? `${currentProject.name} · ${currentProject.stale ? "changed" : "ready"}`
+              : "No project ready"}
+          </span>
           <div className="toolbar-spacer" />
           <a
             className="tool-link"

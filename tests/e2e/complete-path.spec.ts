@@ -187,7 +187,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     "Python files compiled with MicroPython",
   );
 
-  await ide.getByRole("button", { name: "Run virtual XRP" }).click();
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ideStatus).toContainText("Virtual XRP · running");
   await expect(dashboardStatus).toContainText("Virtual XRP · running");
   await expect
@@ -214,7 +214,18 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     )
     .toBeLessThan(0.1);
 
-  await ide.getByRole("button", { name: "Run virtual XRP" }).click();
+  const monitorRun = dashboard
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true });
+  await expect(monitorRun).toBeEnabled();
+
+  await ide.getByRole("button", { name: "New file", exact: true }).click();
+  await ide.getByLabel("Project-relative path").fill("notes.md");
+  await ide.getByRole("button", { name: "Create file" }).click();
+  await expect(monitorRun).toBeDisabled();
+  await expect(dashboard.locator(".current-project")).toContainText("changed");
+
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(dashboardStatus).toContainText("Virtual XRP · running");
   await dashboard
     .locator(".app-header")
@@ -223,6 +234,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(ide.getByRole("log")).toContainText(
     "Run stopped; motor effort set to zero",
   );
+  await expect(ideStatus).toContainText("Virtual XRP · ready");
+
+  await expect(monitorRun).toBeEnabled();
+  await monitorRun.click();
+  await expect(ideStatus).toContainText("Virtual XRP · running");
+  await dashboard
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
   await expect(ideStatus).toContainText("Virtual XRP · ready");
 
   await dashboard
@@ -363,7 +383,7 @@ while True:
     "1 Python file compiled with MicroPython",
   );
 
-  await ide.getByRole("button", { name: "Run virtual XRP" }).click();
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
   );

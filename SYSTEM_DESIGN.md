@@ -35,13 +35,18 @@ The IDE is the programming surface. It provides:
   metadata;
 - a selectable five-challenge starter catalog;
 - local Monaco workers and MicroPython syntax validation;
-- explicit validate, synchronize, run, stop, and reset operations;
+- explicit validate and synchronize operations plus one stateful Run/Stop
+  control and Reset;
 - virtual/physical target selection and a physical address setting;
 - compact collapsible project, settings, and output panels; and
 - separate concise Status and verbose Details output.
 
-Project state is represented as `{entrypoint, files}` at every execution
-boundary. Paths are normalized and Python sources are compiled before a run.
+Project state is represented as `{name, entrypoint, files}` at every execution
+boundary. A canonical length-prefixed SHA-256 identity covers the entrypoint
+and sorted path/content pairs but excludes the display name. The shared target
+publishes only `{name, entrypoint, revision, stale}` to the UI; source remains
+inside the target boundary. Paths are normalized and Python sources are
+compiled before synchronization or execution.
 Folder access remains explicit because browser file-system permissions do not
 survive every browser restart; recovered text does.
 
@@ -84,9 +89,10 @@ operation rather than relying on ambiguous verbs.
 ## 3. Shared target contract
 
 `TargetClient` exposes `connect`, `disconnect`, `check`, `synchronize`, `run`,
-`stop`, `reset`, and event subscription. The virtual target additionally
-accepts a named simulation scenario. Events are typed as status, console, or
-telemetry; samples carry source, sequence/time, pose availability, motion,
+`runCurrent`, `markProjectStale`, `stop`, `reset`, and event subscription. The
+virtual target additionally accepts a named simulation scenario. Events are
+typed as status, synchronized-project state, console, or telemetry; samples
+carry source, sequence/time, pose availability, motion,
 encoders, collision, range, button, IMU, temperature, battery, and sensor-error
 fields.
 
@@ -106,12 +112,15 @@ A `SharedWorker` owns the target state shared by IDE and Monitor tabs:
 
 - simulation scenario and latest plant state;
 - target status, console history, and telemetry fan-out;
+- the current complete project and its public revision descriptor;
 - active run identity and owner lease; and
 - cross-tab stop/reset and runtime termination.
 
-The IDE creates a disposable dedicated worker for each MicroPython run. That
-worker loads official MicroPython 1.28 WebAssembly, the canonical `ucsb_xrp`
-source, exact reference `.mpy` files, the project, and a simulated XRPLib. It
+The tab that starts a virtual run creates its disposable dedicated worker. The
+shared target returns the exact retained project to that owner, so the Monitor
+can start code prepared by the IDE without duplicating editor state. The worker
+loads official MicroPython 1.28 WebAssembly, the canonical `ucsb_xrp` source,
+exact reference `.mpy` files, the project, and a simulated XRPLib. It
 compiles every project file, runs the selected entrypoint, and forwards output
 and authoritative simulator state. Terminating the worker stops non-yielding
 student code without freezing either application.
@@ -127,13 +136,14 @@ clock and one physical state.
 ## 5. Physical XRP service
 
 The RP2350 joins the ordinary course LAN and runs a private MicroPython HTTP
-service at boot. The current development unit is `ucsb-xrp` at
-`192.168.7.30`. USB is retained for initial configuration, deterministic file
-installation, and recovery.
+service at boot. The current development unit is `ucsb-xrp`; its current DHCP
+address is reported by the provisioner rather than fixed in the applications.
+USB is retained for initial configuration, deterministic file installation,
+and recovery.
 
 The versioned JSON API provides:
 
-- identity, release, and capabilities;
+- identity, release, capabilities, and the retained project descriptor;
 - MicroPython compilation;
 - atomic whole-project synchronization using alternating slots and an active
   pointer;
@@ -149,6 +159,12 @@ cursors when sequence numbers restart. The client uses request deadlines,
 bounded polling, one shared connection, and short repeated discovery probes
 after an intentional reboot; an in-flight telemetry timeout cannot replace the
 reconnecting status.
+
+The transactional project manifest includes the same canonical revision used
+by the browser. Discovery and telemetry repeat that descriptor after every
+boot, allowing either application to run the retained revision and allowing an
+IDE edit to mark it stale locally without changing the device until the next
+explicit run or synchronization.
 
 Student code runs on the second RP2350 core. The service resolves course
 packages and XRPLib singletons before starting that thread, identifies the
@@ -175,7 +191,10 @@ board's memory manager, I2C, encoder, and motor drivers.
 Provisioning reads the selected Wi-Fi password only on the instructor Mac,
 writes the device configuration over USB, and never prints or commits the
 secret. Every installed course/service/reference file is read back byte for
-byte before reset, then the tool waits for the LAN discovery reply.
+byte. After reset, the tool restores the saved network configuration through
+USB, reads the actual post-reboot DHCP address, restarts the normal service,
+and waits for discovery at that address. It does not assume that a pre-reset
+lease remains valid.
 
 ## 6. Course library and release
 

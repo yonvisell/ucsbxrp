@@ -13,7 +13,12 @@ import type {
   TargetWorkerCommand,
   TargetWorkerMessage,
 } from "./worker-protocol";
-import type { TargetEvent, TargetRunState } from "./types";
+import type {
+  CourseProject,
+  SynchronizedProject,
+  TargetEvent,
+  TargetRunState,
+} from "./types";
 
 declare const self: SharedWorkerGlobalScope;
 
@@ -26,6 +31,8 @@ const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
 let activeRunId = 0;
 let currentState: TargetRunState = "ready";
 let currentDetail = "Virtual target ready";
+let currentProject: CourseProject | null = null;
+let currentProjectDescriptor: SynchronizedProject | null = null;
 
 function send(port: MessagePort, message: TargetWorkerMessage): void {
   port.postMessage(message);
@@ -111,7 +118,42 @@ function invalidateRun(detail: string): void {
   status("error", detail);
 }
 
-function prepareRuntime(port: MessagePort, requestId: string): void {
+function storeProject(
+  project: CourseProject,
+  descriptor: SynchronizedProject,
+): void {
+  currentProject = project;
+  currentProjectDescriptor = { ...descriptor, stale: false };
+  broadcast({ type: "project", project: currentProjectDescriptor });
+}
+
+function prepareRuntime(
+  port: MessagePort,
+  command: Extract<TargetWorkerCommand, { type: "prepare-run" }>,
+): void {
+  if (command.project && command.descriptor) {
+    storeProject(command.project, command.descriptor);
+  }
+  if (!currentProject || !currentProjectDescriptor) {
+    send(port, {
+      type: "response",
+      requestId: command.requestId,
+      ok: false,
+      error:
+        "No project is ready. Run or synchronize a project in the IDE first.",
+    });
+    return;
+  }
+  if (currentProjectDescriptor.stale) {
+    send(port, {
+      type: "response",
+      requestId: command.requestId,
+      ok: false,
+      error:
+        "The IDE project has changed. Run or synchronize it in the IDE first.",
+    });
+    return;
+  }
   const previousRunId = activeRunId;
   activeRunId += 1;
   if (previousRunId > 0) {
@@ -128,9 +170,14 @@ function prepareRuntime(port: MessagePort, requestId: string): void {
   status("loading", "Loading MicroPython 1.28");
   send(port, {
     type: "response",
-    requestId,
+    requestId: command.requestId,
     ok: true,
-    result: { runId: activeRunId, scenario: currentScenario },
+    result: {
+      runId: activeRunId,
+      scenario: currentScenario,
+      project: currentProject,
+      descriptor: currentProjectDescriptor,
+    },
   });
 }
 
@@ -196,11 +243,28 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       },
     });
     send(port, { type: "event", event: telemetryEvent() });
+    send(port, {
+      type: "event",
+      event: { type: "project", project: currentProjectDescriptor },
+    });
     for (const event of consoleHistory) {
       send(port, { type: "event", event });
     }
   } else if (command.type === "prepare-run") {
-    prepareRuntime(port, command.requestId);
+    prepareRuntime(port, command);
+  } else if (command.type === "store-project") {
+    storeProject(command.project, command.descriptor);
+    send(port, { type: "response", requestId: command.requestId, ok: true });
+  } else if (command.type === "mark-project-stale") {
+    if (
+      currentProjectDescriptor &&
+      currentProjectDescriptor.revision !== command.revision &&
+      !currentProjectDescriptor.stale
+    ) {
+      currentProjectDescriptor = { ...currentProjectDescriptor, stale: true };
+      broadcast({ type: "project", project: currentProjectDescriptor });
+    }
+    send(port, { type: "response", requestId: command.requestId, ok: true });
   } else if (command.type === "set-scenario") {
     if (currentState === "loading" || currentState === "running") {
       send(port, {

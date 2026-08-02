@@ -20,6 +20,145 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe("physical target", () => {
+  it("discovers and runs the retained project without another transfer", async () => {
+    const revision =
+      "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3";
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        if (!init || init.method === "GET") {
+          return response({
+            protocol: 1,
+            serviceVersion: "test",
+            courseRelease: "test",
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: {
+              name: "Retained project",
+              entrypoint: "main.py",
+              revision,
+            },
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        const body = JSON.parse(String(init.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Running main.py", runId: 2 },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await target.runCurrent();
+
+    expect(events).toContainEqual({
+      type: "project",
+      project: {
+        name: "Retained project",
+        entrypoint: "main.py",
+        revision,
+        stale: false,
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    target.disconnect();
+  });
+
+  it("blocks a retained revision after an IDE edit until synchronization", async () => {
+    const retained = {
+      ...project,
+      name: "Retained project",
+    };
+    const changed = {
+      ...retained,
+      files: { "main.py": "print('changed')\n" },
+    };
+    const retainedRevision =
+      "f8ecfeb351b02819619f5bd6fd842977da0a01e5ef682f2b58a3db6f0ae7df27";
+    let postCount = 0;
+    const fetchMock = vi.fn(
+      async (_input: URL | RequestInfo, init?: RequestInit) => {
+        if (!init || init.method === "GET") {
+          return response({
+            protocol: 1,
+            serviceVersion: "test",
+            courseRelease: "test",
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: {
+              name: retained.name,
+              entrypoint: retained.entrypoint,
+              revision: retainedRevision,
+            },
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        const body = JSON.parse(String(init.body)) as { requestId: string };
+        postCount += 1;
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result:
+            postCount === 1
+              ? { detail: "Project synchronized" }
+              : { detail: "Running main.py", runId: 3 },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await target.markProjectStale(changed);
+    await expect(target.runCurrent()).rejects.toThrow(/changed/i);
+    expect(postCount).toBe(0);
+
+    await target.synchronize(changed);
+    await target.runCurrent();
+    expect(postCount).toBe(2);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "project",
+        project: expect.objectContaining({ stale: true }),
+      }),
+    );
+    expect(events).toContainEqual({
+      type: "status",
+      state: "running",
+      detail: "Running main.py",
+    });
+    target.disconnect();
+  });
+
   it("does not start polling after disconnecting during discovery", async () => {
     let resolveDiscovery: ((value: Response) => void) | undefined;
     const fetchMock = vi.fn(

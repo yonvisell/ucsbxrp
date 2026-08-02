@@ -19,6 +19,7 @@ export {
   milligravityToMetersPerSecondSquared,
 } from "./telemetry-units";
 export { VirtualTargetClient } from "./virtual-target";
+export { describeProject, projectRevision } from "./project-identity";
 export {
   COURSE_STARTERS,
   STAGE_ONE_PROJECT,
@@ -35,6 +36,7 @@ export type { TargetKind, TargetPreference } from "./target-preference";
 export type {
   CheckResult,
   CourseProject,
+  SynchronizedProject,
   TargetClient,
   TargetEvent,
   TargetRunState,

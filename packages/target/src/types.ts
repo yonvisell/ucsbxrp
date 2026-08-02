@@ -1,6 +1,14 @@
 export interface CourseProject {
   files: Record<string, string>;
   entrypoint: string;
+  name?: string;
+}
+
+export interface SynchronizedProject {
+  name: string;
+  entrypoint: string;
+  revision: string;
+  stale: boolean;
 }
 
 export interface CheckResult {
@@ -46,6 +54,10 @@ export type TargetEvent =
       sample: TelemetrySample;
     }
   | {
+      type: "project";
+      project: SynchronizedProject | null;
+    }
+  | {
       type: "console";
       stream: "stdout" | "stderr" | "system";
       line: string;
@@ -58,6 +70,8 @@ export interface TargetClient {
   check(project: CourseProject): Promise<CheckResult>;
   synchronize(project: CourseProject): Promise<void>;
   run(project: CourseProject): Promise<void>;
+  runCurrent(): Promise<void>;
+  markProjectStale(project: CourseProject): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;
   setSimulationScenario?(scenario: SimulationScenario): Promise<void>;

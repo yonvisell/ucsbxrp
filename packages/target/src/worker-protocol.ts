@@ -3,12 +3,28 @@ import type {
   XrpSimulatorState,
 } from "@ucsb-xrp/simulator";
 
-import type { CourseProject, TargetEvent } from "./types";
+import type { CourseProject, SynchronizedProject, TargetEvent } from "./types";
 
 export type TargetWorkerCommand =
   | { type: "connect"; requestId: string }
   | { type: "disconnect" }
-  | { type: "prepare-run"; requestId: string }
+  | {
+      type: "prepare-run";
+      requestId: string;
+      project?: CourseProject;
+      descriptor?: SynchronizedProject;
+    }
+  | {
+      type: "store-project";
+      requestId: string;
+      project: CourseProject;
+      descriptor: SynchronizedProject;
+    }
+  | {
+      type: "mark-project-stale";
+      requestId: string;
+      revision: string;
+    }
   | {
       type: "set-scenario";
       requestId: string;
@@ -30,7 +46,12 @@ export type TargetWorkerMessage =
       type: "response";
       requestId: string;
       ok: true;
-      result?: { runId?: number; scenario?: SimulationScenario };
+      result?: {
+        runId?: number;
+        scenario?: SimulationScenario;
+        project?: CourseProject;
+        descriptor?: SynchronizedProject;
+      };
     }
   | {
       type: "response";

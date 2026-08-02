@@ -24,7 +24,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
 
   await monitor.getByRole("button", { name: "Record", exact: true }).click();
   await expect(monitor.getByText("Recording telemetry")).toBeVisible();
-  await ide.getByRole("button", { name: "Run virtual XRP" }).click();
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
 
   await expect
     .poll(

@@ -6,6 +6,12 @@ export type PhysicalWorkerCommand =
   | { type: "check"; requestId: string; project: CourseProject }
   | { type: "sync"; requestId: string; project: CourseProject }
   | { type: "run"; requestId: string; project: CourseProject }
+  | { type: "run-current"; requestId: string }
+  | {
+      type: "mark-project-stale";
+      requestId: string;
+      project: CourseProject;
+    }
   | { type: "stop"; requestId: string }
   | { type: "reset"; requestId: string };
 

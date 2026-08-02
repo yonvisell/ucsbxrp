@@ -35,9 +35,9 @@ normal editor tabs.
 - **Validate code** compiles every Python file with MicroPython without running
   it.
 - **Sync project** atomically transfers the complete project to a physical XRP.
-- **Run virtual XRP** or **Run on XRP** executes the selected startup file.
-- **Stop program** stops execution and commands zero motor effort.
-- **Reset virtual XRP** or **Reset XRP** returns the target to a known state.
+- **Run** executes the selected startup file; while active it becomes **Stop**.
+- **Stop** ends execution and commands zero motor effort.
+- **Reset** returns the selected target to its initial state.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
 Settings are collapsible and include editor/output font size (9 px default,

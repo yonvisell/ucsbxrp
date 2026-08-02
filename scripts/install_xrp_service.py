@@ -17,6 +17,7 @@ COURSE_SOURCE = ROOT / "vendor/current/ucsb_xrp"
 REFERENCE_SOURCE = ROOT / "vendor/current/reference_mpy/ucsb_xrp_reference"
 EXPECTED_VID = 0x1B4F
 EXPECTED_PID = 0x0046
+ADDRESS_PREFIX = "UCSB_XRP_ADDRESS="
 
 
 class InstallError(RuntimeError):
@@ -65,6 +66,78 @@ def file_sha256(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def parse_device_address(output):
+    text = (
+        output.decode("utf-8", errors="replace")
+        if isinstance(output, bytes)
+        else str(output)
+    )
+    address = None
+    for line in text.splitlines():
+        if line.startswith(ADDRESS_PREFIX):
+            address = line[len(ADDRESS_PREFIX) :].strip()
+            break
+    if address is None and len(text.splitlines()) <= 1:
+        address = text.strip()
+    return address if address and address != "0.0.0.0" else None
+
+
+def device_address_code(timeout_ms):
+    return """
+import json, network, time
+config = json.load(open('/xrp_wifi.json'))
+network.hostname(config['hostname'])
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+if config.get('ifconfig'):
+    wlan.ifconfig(tuple(config['ifconfig']))
+if not wlan.isconnected() and wlan.status() not in (network.STAT_CONNECTING, 2):
+    wlan.connect(config['ssid'], config['password'])
+deadline = time.ticks_add(time.ticks_ms(), {timeout_ms})
+while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
+    time.sleep_ms(100)
+print({prefix!r} + (wlan.ifconfig()[0] if wlan.isconnected() else ''))
+""".format(timeout_ms=int(timeout_ms), prefix=ADDRESS_PREFIX)
+
+
+def read_address_after_restart(port, timeout_s=25.0):
+    """Read the post-reboot DHCP address, then restart the course service."""
+    try:
+        from mpremote.transport_serial import SerialTransport
+    except ImportError as exc:
+        raise InstallError(
+            "mpremote is unavailable; run this with the repository .venv"
+        ) from exc
+
+    deadline = time.monotonic() + timeout_s
+    last_error = None
+    time.sleep(1.5)
+    while time.monotonic() < deadline:
+        transport = None
+        try:
+            remaining = max(1.0, deadline - time.monotonic())
+            transport = SerialTransport(port, timeout=remaining + 5)
+            enter_raw_repl(transport)
+            output = transport.exec(device_address_code(remaining * 1000))
+            address = parse_device_address(output)
+            transport.exec_raw_no_follow("import machine; machine.reset()")
+            if address:
+                return address
+            last_error = "XRP has not received a Wi-Fi address"
+        except Exception as exc:
+            last_error = str(exc)
+        finally:
+            if transport is not None:
+                try:
+                    transport.close()
+                except OSError:
+                    pass
+        time.sleep(0.4)
+    raise InstallError(
+        "could not read the XRP Wi-Fi address after restart: {}".format(last_error)
+    )
+
+
 def _ensure_remote_dirs(transport):
     transport.exec(
         "import os\n"
@@ -87,16 +160,9 @@ def install(port):
         raise InstallError("service or course release files are incomplete")
 
     transport = SerialTransport(port, timeout=12)
-    address = None
     installed = []
     try:
         enter_raw_repl(transport)
-        address_output = transport.exec(
-            "import network\n"
-            "w=network.WLAN(network.STA_IF)\n"
-            "print(w.ifconfig()[0] if w.isconnected() else '')"
-        )
-        address = address_output.decode("utf-8", errors="replace").strip() or None
         _ensure_remote_dirs(transport)
         for destination, source in sources.items():
             data = source.read_bytes()
@@ -124,7 +190,7 @@ def install(port):
             # Readback has already completed and the LAN check below confirms
             # that the new service booted.
             pass
-    return {"address": address, "files": installed}
+    return {"address": read_address_after_restart(port), "files": installed}
 
 
 def wait_for_service(address, timeout_s=45.0):
