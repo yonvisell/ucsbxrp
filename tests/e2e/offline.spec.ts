@@ -57,7 +57,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Web tools work offline",
+    "Saved for offline use",
   );
 
   const manifest = await ide.evaluate(async (manifestPath) => {
@@ -91,7 +91,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Web tools work offline",
+    "Saved for offline use",
   );
 
   await ide.getByRole("button", { name: "Validate code" }).click();
@@ -109,7 +109,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Web tools work offline",
+    "Saved for offline use",
   );
 
   await ide.getByRole("button", { name: "Run virtual XRP" }).click();

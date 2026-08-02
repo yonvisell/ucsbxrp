@@ -8,14 +8,21 @@ import {
 } from "@ucsb-xrp/target";
 
 interface WorldViewProps {
+  onScenarioChange?: (scenario: SimulationScenario) => void;
+  poseLabel: string;
   sample: TelemetrySample;
   scenario: SimulationScenario | null;
+  scenarioDisabled?: boolean;
 }
 
+const WORLD_WIDTH_MM = 2_400;
+const WORLD_HEIGHT_MM = 1_800;
 const WORLD_VERTICAL_SPAN_MM = 1_950;
-const WORLD_RULER_MM = 500;
-// Official Open-STEM V1.3 chassis mesh bounds and SparkFun controller drawing;
-// wheel geometry remains the measured course configuration.
+const MINOR_GRID_MM = 100;
+const MAJOR_GRID_MM = 500;
+
+// Official Open-STEM V1.3 chassis bounds and SparkFun controller drawing;
+// wheel geometry uses the measured course configuration.
 const XRP_CHASSIS_LENGTH_MM = 192.5;
 const XRP_CHASSIS_WIDTH_MM = 190.5;
 const XRP_CONTROLLER_LENGTH_MM = 63.5;
@@ -23,16 +30,263 @@ const XRP_CONTROLLER_WIDTH_MM = 54;
 const XRP_TRACK_WIDTH_MM = 155;
 const XRP_WHEEL_DIAMETER_MM = 60;
 
-export function WorldView({ sample, scenario }: WorldViewProps) {
+function addSegments(
+  scene: THREE.Scene,
+  points: THREE.Vector3[],
+  color: string,
+  z: number,
+): void {
+  const line = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color }),
+  );
+  line.position.z = z;
+  scene.add(line);
+}
+
+function textSprite(text: string, widthMm = 176): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 64;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("World label canvas is unavailable");
+  }
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.font = "650 40px system-ui, sans-serif";
+  context.lineWidth = 7;
+  context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+  context.strokeText(text, canvas.width / 2, canvas.height / 2);
+  context.fillStyle = "#34444d";
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      depthTest: false,
+      map: texture,
+      transparent: true,
+    }),
+  );
+  sprite.scale.set(widthMm, 42, 1);
+  sprite.renderOrder = 5;
+  return sprite;
+}
+
+function addBoundedGrid(scene: THREE.Scene): void {
+  const halfWidth = WORLD_WIDTH_MM / 2;
+  const halfHeight = WORLD_HEIGHT_MM / 2;
+  const minor: THREE.Vector3[] = [];
+  const major: THREE.Vector3[] = [];
+
+  for (let x = -halfWidth + MINOR_GRID_MM; x < halfWidth; x += MINOR_GRID_MM) {
+    const points = x % MAJOR_GRID_MM === 0 ? major : minor;
+    points.push(
+      new THREE.Vector3(x, -halfHeight, 0),
+      new THREE.Vector3(x, halfHeight, 0),
+    );
+  }
+  for (
+    let y = -halfHeight + MINOR_GRID_MM;
+    y < halfHeight;
+    y += MINOR_GRID_MM
+  ) {
+    const points = y % MAJOR_GRID_MM === 0 ? major : minor;
+    points.push(
+      new THREE.Vector3(-halfWidth, y, 0),
+      new THREE.Vector3(halfWidth, y, 0),
+    );
+  }
+
+  addSegments(scene, minor, "#d5dadd", -9);
+  addSegments(scene, major, "#aeb8bd", -8);
+  addSegments(
+    scene,
+    [
+      new THREE.Vector3(-halfWidth, 0, 0),
+      new THREE.Vector3(halfWidth, 0, 0),
+      new THREE.Vector3(0, -halfHeight, 0),
+      new THREE.Vector3(0, halfHeight, 0),
+    ],
+    "#687a84",
+    -7,
+  );
+
+  const border = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-halfWidth, -halfHeight, -6),
+      new THREE.Vector3(halfWidth, -halfHeight, -6),
+      new THREE.Vector3(halfWidth, halfHeight, -6),
+      new THREE.Vector3(-halfWidth, halfHeight, -6),
+    ]),
+    new THREE.LineBasicMaterial({ color: "#596a73" }),
+  );
+  scene.add(border);
+
+  for (let x = -1_000; x <= 1_000; x += MAJOR_GRID_MM) {
+    const label = textSprite(String(x), 190);
+    label.position.set(x, -864, 4);
+    scene.add(label);
+  }
+  for (const y of [-500, 500]) {
+    const label = textSprite(String(y), 165);
+    label.position.set(-1_105, y, 4);
+    scene.add(label);
+  }
+  const xAxisLabel = textSprite("x (mm)", 160);
+  xAxisLabel.position.set(1_105, -816, 4);
+  scene.add(xAxisLabel);
+  const yAxisLabel = textSprite("y (mm)", 160);
+  yAxisLabel.position.set(-1_105, 816, 4);
+  scene.add(yAxisLabel);
+}
+
+function addRobotModel(scene: THREE.Scene): THREE.Group {
+  const robot = new THREE.Group();
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    color: "#d9dde0",
+    metalness: 0.08,
+    roughness: 0.72,
+  });
+  const frameDarkMaterial = new THREE.MeshStandardMaterial({
+    color: "#8a949a",
+    metalness: 0.05,
+    roughness: 0.76,
+  });
+
+  for (const side of [-1, 1]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(XRP_CHASSIS_LENGTH_MM - 8, 17, 11),
+      frameMaterial,
+    );
+    rail.position.set(0, side * (XRP_CHASSIS_WIDTH_MM / 2 - 10), 10);
+    robot.add(rail);
+  }
+  for (const x of [-82, 54]) {
+    const crossMember = new THREE.Mesh(
+      new THREE.BoxGeometry(17, XRP_CHASSIS_WIDTH_MM - 34, 10),
+      frameDarkMaterial,
+    );
+    crossMember.position.set(x, 0, 9);
+    robot.add(crossMember);
+  }
+
+  const wheelMaterial = new THREE.MeshStandardMaterial({
+    color: "#20262a",
+    roughness: 0.9,
+  });
+  for (const side of [-1, 1]) {
+    const wheel = new THREE.Mesh(
+      new THREE.BoxGeometry(XRP_WHEEL_DIAMETER_MM, 18, 31),
+      wheelMaterial,
+    );
+    wheel.position.set(-29, side * (XRP_TRACK_WIDTH_MM / 2), 18);
+    robot.add(wheel);
+
+    const hub = new THREE.Mesh(
+      new THREE.CylinderGeometry(10, 10, 19, 24),
+      new THREE.MeshStandardMaterial({ color: "#aeb5b9", roughness: 0.68 }),
+    );
+    hub.rotation.x = Math.PI / 2;
+    hub.position.set(-29, side * (XRP_TRACK_WIDTH_MM / 2), 19);
+    robot.add(hub);
+  }
+
+  const caster = new THREE.Mesh(
+    new THREE.SphereGeometry(13, 24, 16),
+    new THREE.MeshStandardMaterial({ color: "#66737a", roughness: 0.48 }),
+  );
+  caster.position.set(76, 0, 11);
+  robot.add(caster);
+
+  const battery = new THREE.Mesh(
+    new THREE.BoxGeometry(61, 58, 22),
+    new THREE.MeshStandardMaterial({ color: "#333a3e", roughness: 0.8 }),
+  );
+  battery.position.set(-57, 0, 28);
+  robot.add(battery);
+
+  const controller = new THREE.Mesh(
+    new THREE.BoxGeometry(XRP_CONTROLLER_LENGTH_MM, XRP_CONTROLLER_WIDTH_MM, 6),
+    new THREE.MeshStandardMaterial({ color: "#b83b35", roughness: 0.62 }),
+  );
+  controller.position.set(10, 0, 27);
+  robot.add(controller);
+
+  const radio = new THREE.Mesh(
+    new THREE.BoxGeometry(23, 18, 5),
+    new THREE.MeshStandardMaterial({ color: "#22292d", roughness: 0.72 }),
+  );
+  radio.position.set(14, 0, 33);
+  robot.add(radio);
+
+  for (const side of [-1, 1]) {
+    const header = new THREE.Mesh(
+      new THREE.BoxGeometry(53, 4, 6),
+      new THREE.MeshStandardMaterial({ color: "#2f3539", roughness: 0.68 }),
+    );
+    header.position.set(10, side * 18, 33);
+    robot.add(header);
+  }
+
+  const sensorBoard = new THREE.Mesh(
+    new THREE.BoxGeometry(9, 40, 6),
+    new THREE.MeshStandardMaterial({ color: "#b83b35", roughness: 0.64 }),
+  );
+  sensorBoard.position.set(89, 0, 28);
+  robot.add(sensorBoard);
+  for (const side of [-1, 1]) {
+    const transducer = new THREE.Mesh(
+      new THREE.CylinderGeometry(7, 7, 6, 28),
+      new THREE.MeshStandardMaterial({ color: "#d5dadd", roughness: 0.52 }),
+    );
+    transducer.rotation.x = Math.PI / 2;
+    transducer.position.set(94, side * 11, 30);
+    robot.add(transducer);
+  }
+
+  const heading = new THREE.Mesh(
+    new THREE.ConeGeometry(5, 17, 3),
+    new THREE.MeshBasicMaterial({ color: "#003660" }),
+  );
+  heading.rotation.z = -Math.PI / 2;
+  heading.position.set(107, 0, 12);
+  robot.add(heading);
+
+  scene.add(robot);
+  return robot;
+}
+
+function disposeMaterial(material: THREE.Material): void {
+  const mapped = material as THREE.Material & { map?: THREE.Texture | null };
+  mapped.map?.dispose();
+  material.dispose();
+}
+
+export function WorldView({
+  onScenarioChange,
+  poseLabel,
+  sample,
+  scenario,
+  scenarioDisabled = false,
+}: WorldViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
   const robotRef = useRef<THREE.Group | null>(null);
   const trailRef = useRef<THREE.Line | null>(null);
   const rangeRef = useRef<THREE.Line | null>(null);
+  const resizeRef = useRef<(() => void) | null>(null);
   const trailPoints = useRef<THREE.Vector3[]>([]);
   const lastSequence = useRef(-1);
-  const [rulerWidthPx, setRulerWidthPx] = useState(80);
   const [viewZoom, setViewZoom] = useState<1 | 3>(1);
+  const viewZoomRef = useRef<1 | 3>(viewZoom);
+  viewZoomRef.current = viewZoom;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -41,16 +295,17 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#f5f7f8");
+    scene.background = new THREE.Color("#f7f8f8");
+    sceneRef.current = scene;
     const camera = new THREE.OrthographicCamera(
-      -1200,
-      1200,
+      -1_200,
+      1_200,
       900,
       -900,
       1,
-      4000,
+      4_000,
     );
-    camera.position.set(sample.xMm, sample.yMm - 40, 2200);
+    camera.position.set(sample.xMm, sample.yMm, 2_200);
     camera.lookAt(sample.xMm, sample.yMm, 0);
     cameraRef.current = camera;
 
@@ -58,41 +313,25 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.width = "100%";
     renderer.domElement.style.height = "100%";
+    rendererRef.current = renderer;
     host.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight("#ffffff", 1.8);
-    scene.add(ambient);
-    const key = new THREE.DirectionalLight("#ffffff", 2.2);
+    scene.add(new THREE.AmbientLight("#ffffff", 1.8));
+    const key = new THREE.DirectionalLight("#ffffff", 2.1);
     key.position.set(-300, -250, 700);
     scene.add(key);
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(2400, 1800),
+      new THREE.PlaneGeometry(WORLD_WIDTH_MM, WORLD_HEIGHT_MM),
       new THREE.MeshStandardMaterial({
-        color: "#edf0f1",
-        roughness: 0.92,
+        color: "#eef1f2",
         metalness: 0,
+        roughness: 0.94,
       }),
     );
     floor.position.z = -12;
     scene.add(floor);
-
-    const grid = new THREE.GridHelper(2400, 24, "#98a6ae", "#d4dadd");
-    grid.rotation.x = Math.PI / 2;
-    grid.position.z = -10;
-    scene.add(grid);
-
-    const borderGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-1200, -900, -8),
-      new THREE.Vector3(1200, -900, -8),
-      new THREE.Vector3(1200, 900, -8),
-      new THREE.Vector3(-1200, 900, -8),
-    ]);
-    const border = new THREE.LineLoop(
-      borderGeometry,
-      new THREE.LineBasicMaterial({ color: "#6f7e86" }),
-    );
-    scene.add(border);
+    addBoundedGrid(scene);
 
     const obstacles = scenario ? SIMULATION_SCENARIOS[scenario].obstacles : [];
     for (const obstacle of obstacles) {
@@ -101,9 +340,9 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(width, height, 26),
         new THREE.MeshStandardMaterial({
-          color: "#bd544d",
-          roughness: 0.72,
+          color: "#a7423c",
           metalness: 0,
+          roughness: 0.74,
         }),
       );
       mesh.position.set(
@@ -114,121 +353,10 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
       scene.add(mesh);
     }
 
-    const robot = new THREE.Group();
-    const chassisMaterial = new THREE.MeshStandardMaterial({
-      color: "#aeb5b9",
-      roughness: 0.82,
-      metalness: 0,
-    });
-    const crossMemberMaterial = new THREE.MeshStandardMaterial({
-      color: "#858e93",
-      roughness: 0.8,
-      metalness: 0,
-    });
-    for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(
-        new THREE.BoxGeometry(XRP_CHASSIS_LENGTH_MM, 18, 18),
-        chassisMaterial,
-      );
-      rail.position.set(0, side * (XRP_CHASSIS_WIDTH_MM / 2 - 9), 11);
-      robot.add(rail);
-    }
-    for (const x of [-87, 20]) {
-      const crossMember = new THREE.Mesh(
-        new THREE.BoxGeometry(18, XRP_CHASSIS_WIDTH_MM - 18, 18),
-        crossMemberMaterial,
-      );
-      crossMember.position.set(x, 0, 11);
-      robot.add(crossMember);
-    }
-
-    const wheelMaterial = new THREE.MeshStandardMaterial({
-      color: "#20262a",
-      roughness: 0.8,
-    });
-    for (const side of [-1, 1]) {
-      const wheel = new THREE.Mesh(
-        new THREE.BoxGeometry(XRP_WHEEL_DIAMETER_MM, 17, 30),
-        wheelMaterial,
-      );
-      wheel.position.set(-37, side * (XRP_TRACK_WIDTH_MM / 2), 18);
-      robot.add(wheel);
-
-      const casterPod = new THREE.Mesh(
-        new THREE.CylinderGeometry(16, 16, 20, 28),
-        chassisMaterial,
-      );
-      casterPod.rotation.x = Math.PI / 2;
-      casterPod.position.set(76, side * 73, 14);
-      robot.add(casterPod);
-    }
-
-    const battery = new THREE.Mesh(
-      new THREE.BoxGeometry(56, 56, 18),
-      new THREE.MeshStandardMaterial({ color: "#333a3e", roughness: 0.76 }),
-    );
-    battery.position.set(-52, 0, 28);
-    robot.add(battery);
-
-    const controller = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        XRP_CONTROLLER_LENGTH_MM,
-        XRP_CONTROLLER_WIDTH_MM,
-        5,
-      ),
-      new THREE.MeshStandardMaterial({ color: "#b83b35", roughness: 0.6 }),
-    );
-    controller.position.set(2, 0, 32);
-    robot.add(controller);
-
-    const electronicsMaterial = new THREE.MeshStandardMaterial({
-      color: "#242a2e",
-      roughness: 0.62,
-    });
-    for (const side of [-1, 1]) {
-      const header = new THREE.Mesh(
-        new THREE.BoxGeometry(54, 5, 6),
-        electronicsMaterial,
-      );
-      header.position.set(2, side * 18, 37);
-      robot.add(header);
-    }
-    const processor = new THREE.Mesh(
-      new THREE.BoxGeometry(18, 16, 5),
-      electronicsMaterial,
-    );
-    processor.position.set(7, 0, 37);
-    robot.add(processor);
-
-    const rangeBoard = new THREE.Mesh(
-      new THREE.BoxGeometry(9, 37, 5),
-      new THREE.MeshStandardMaterial({ color: "#b83b35", roughness: 0.65 }),
-    );
-    rangeBoard.position.set(91, 0, 29);
-    robot.add(rangeBoard);
-    for (const side of [-1, 1]) {
-      const transducer = new THREE.Mesh(
-        new THREE.CylinderGeometry(7, 7, 5, 24),
-        new THREE.MeshStandardMaterial({ color: "#d8dde0", roughness: 0.5 }),
-      );
-      transducer.rotation.x = Math.PI / 2;
-      transducer.position.set(95, side * 10, 31);
-      robot.add(transducer);
-    }
-
-    const heading = new THREE.Mesh(
-      new THREE.ConeGeometry(5, 16, 3),
-      new THREE.MeshBasicMaterial({ color: "#27333b" }),
-    );
-    heading.rotation.z = -Math.PI / 2;
-    heading.position.set(108, 0, 12);
-    robot.add(heading);
-    scene.add(robot);
-    robotRef.current = robot;
-
+    robotRef.current = addRobotModel(scene);
     const trail = new THREE.Line(
       new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({ color: "#08736b" }),
+      new THREE.LineBasicMaterial({ color: "#006c64" }),
     );
     trail.position.z = 1;
     scene.add(trail);
@@ -236,7 +364,7 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
 
     const range = new THREE.Line(
       new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({ color: "#a66b08" }),
+      new THREE.LineBasicMaterial({ color: "#765000" }),
     );
     range.position.z = 3;
     scene.add(range);
@@ -245,7 +373,7 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
-      const vertical = WORLD_VERTICAL_SPAN_MM / viewZoom;
+      const vertical = WORLD_VERTICAL_SPAN_MM / viewZoomRef.current;
       const horizontal = vertical * (width / height);
       camera.left = -horizontal / 2;
       camera.right = horizontal / 2;
@@ -253,71 +381,76 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
       camera.bottom = -vertical / 2;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
-      setRulerWidthPx((WORLD_RULER_MM * height) / vertical);
       renderer.render(scene, camera);
     };
+    resizeRef.current = resize;
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
     resize();
 
-    let animationFrame = 0;
-    const render = () => {
-      renderer.render(scene, camera);
-      animationFrame = requestAnimationFrame(render);
-    };
-    render();
-
     return () => {
-      cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       scene.traverse((object) => {
         const disposable = object as THREE.Mesh | THREE.Line;
         disposable.geometry?.dispose();
         const material = disposable.material;
         if (Array.isArray(material)) {
-          material.forEach((item) => item.dispose());
-        } else {
-          material?.dispose();
+          material.forEach(disposeMaterial);
+        } else if (material) {
+          disposeMaterial(material);
         }
       });
       renderer.dispose();
       host.removeChild(renderer.domElement);
       cameraRef.current = null;
+      rendererRef.current = null;
+      sceneRef.current = null;
       robotRef.current = null;
       trailRef.current = null;
       rangeRef.current = null;
+      resizeRef.current = null;
       trailPoints.current = [];
       lastSequence.current = -1;
     };
-  }, [scenario, viewZoom]);
+  }, [scenario]);
 
   useEffect(() => {
     const robot = robotRef.current;
     const camera = cameraRef.current;
     const trail = trailRef.current;
     const range = rangeRef.current;
-    if (!robot || !trail || !range || sample.seq === lastSequence.current) {
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    if (!robot || !trail || !range || !camera || !renderer || !scene) {
       return;
     }
-    if (sample.seq === 0 && lastSequence.current > 0) {
-      trailPoints.current = [];
+    if (sample.seq !== lastSequence.current) {
+      if (sample.seq === 0 && lastSequence.current > 0) {
+        trailPoints.current = [];
+      }
+      lastSequence.current = sample.seq;
+      trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
+      if (trailPoints.current.length > 1_200) {
+        trailPoints.current.shift();
+      }
+      trail.geometry.dispose();
+      trail.geometry = new THREE.BufferGeometry().setFromPoints(
+        trailPoints.current,
+      );
     }
-    lastSequence.current = sample.seq;
+
     robot.position.set(sample.xMm, sample.yMm, 0);
     robot.rotation.z = sample.headingRad;
-    if (camera && viewZoom > 1) {
+    if (viewZoom > 1) {
       camera.position.x = sample.xMm;
       camera.position.y = sample.yMm - 40;
       camera.lookAt(sample.xMm, sample.yMm, 0);
+    } else {
+      camera.position.x = 0;
+      camera.position.y = 0;
+      camera.lookAt(0, 0, 0);
     }
-    trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
-    if (trailPoints.current.length > 1200) {
-      trailPoints.current.shift();
-    }
-    trail.geometry.dispose();
-    trail.geometry = new THREE.BufferGeometry().setFromPoints(
-      trailPoints.current,
-    );
+
     range.geometry.dispose();
     if (sample.rangeMm === null) {
       range.visible = false;
@@ -336,52 +469,61 @@ export function WorldView({ sample, scenario }: WorldViewProps) {
         ),
       ]);
     }
+    resizeRef.current?.();
+    renderer.render(scene, camera);
   }, [sample, viewZoom]);
 
   return (
     <div
-      aria-label="Top-down virtual XRP world"
+      aria-describedby="world-grid-description"
+      aria-label="Top-down XRP world with millimeter grid"
       className="world-view"
+      data-arena-mm={`${WORLD_WIDTH_MM} × ${WORLD_HEIGHT_MM}`}
       data-testid="world-view"
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
       ref={hostRef}
     >
-      <div className={`world-overlay ${sample.collision ? "collision" : ""}`}>
-        {scenario ? <span>{SIMULATION_SCENARIOS[scenario].label}</span> : null}
+      <span className="visually-hidden" id="world-grid-description">
+        The arena spans x from −1200 to 1200 millimeters and y from −900 to 900
+        millimeters. Major grid lines and values are labeled every 500
+        millimeters.
+      </span>
+      <div className="world-overlay">
+        {scenario && onScenarioChange ? (
+          <select
+            aria-label="Virtual scene"
+            disabled={scenarioDisabled}
+            onChange={(event) =>
+              onScenarioChange(event.target.value as SimulationScenario)
+            }
+            title="Choose the virtual arena condition. Changing it resets the virtual XRP."
+            value={scenario}
+          >
+            {Object.entries(SIMULATION_SCENARIOS).map(
+              ([scenarioId, configuration]) => (
+                <option key={scenarioId} value={scenarioId}>
+                  {configuration.label}
+                </option>
+              ),
+            )}
+          </select>
+        ) : null}
+        <span>{poseLabel}</span>
         <span>
           range{" "}
           {sample.rangeMm === null ? "—" : `${sample.rangeMm.toFixed(0)} mm`}
         </span>
-        {sample.collision ? <strong>collision</strong> : null}
+        {sample.collision ? <strong>Contact</strong> : null}
       </div>
       <button
         aria-pressed={viewZoom > 1}
         className="world-view-toggle"
         onClick={() => setViewZoom((current) => (current === 1 ? 3 : 1))}
+        title="Switch between the full arena and a closer robot view."
         type="button"
       >
-        {viewZoom === 1 ? "Inspect XRP" : "Show arena"}
+        {viewZoom === 1 ? "Zoom XRP" : "Fit world"}
       </button>
-      <div
-        aria-label={`${WORLD_RULER_MM} millimeter world ruler`}
-        className="world-ruler"
-        data-testid="world-ruler"
-        style={{ width: `${rulerWidthPx}px` }}
-      >
-        <div className="world-ruler-line">
-          <i />
-          <i />
-          <i />
-        </div>
-        <div className="world-ruler-labels">
-          <span>0</span>
-          <span>250</span>
-          <span>500 mm</span>
-        </div>
-      </div>
-      <div aria-hidden="true" className="world-axes">
-        +x →&nbsp;&nbsp; +y ↑
-      </div>
     </div>
   );
 }

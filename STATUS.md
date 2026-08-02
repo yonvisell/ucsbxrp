@@ -11,6 +11,13 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
+Refinement slice 1 is complete. The Monitor now uses flat, independently
+resizable regions; a bounded arena grid with labeled millimeter coordinates;
+compact signal and recording controls; precise drive-command and yaw-rate
+labels; a closer dimensioned XRP view; and a narrow top-sheet control layout.
+Production tabs also reload once when a newer complete offline shell activates,
+preventing a long-open page from silently displaying the previous build.
+
 The attached RP2350 was provisioned on `Pink` at `192.168.7.30`. Stationary
 sensors, project transfer, compilation, execution, logs, course pose telemetry,
 stop/reset/reconnect, simultaneous IDE/Monitor use, recording, and raised-wheel
@@ -60,30 +67,33 @@ raised-wheel check verified both motors, both encoders, and paired response.
 
 ### XRP Monitor
 
-- Shared virtual/physical target, dimensioned top-down XRP and trail, accurate
-  world ruler, arena/XRP inspection views, obstacle and range ray, collision
-  state, pose, encoders, efforts, range, button, IMU, temperature, battery, and
-  program output.
-- A compact collapsible left sidebar for target/environment selection,
-  2–30 second scrolling plots, and recording controls.
-- Independently selectable wheel-speed, normalized motor-command, forward-range,
-  acceleration, and angular-rate strips with consistent line/color encoding.
+- Shared virtual/physical target, dimensioned top-down XRP and trail, bounded
+  2,400 × 1,800 mm grid with labeled x/y values, arena/XRP zoom views, obstacle
+  and range ray, contact state, pose, encoders, drive command, range, button,
+  IMU, temperature, battery, and program output.
+- A 176 px collapsible sidebar for signal selection and recording; the virtual
+  scene is selected directly in the world, while target settings remain shared
+  from the IDE.
+- Independently selectable wheel-speed, drive-command, forward-range,
+  acceleration, and yaw-rate strips with labels and units inside each plot.
+- Persistent pointer- and keyboard-adjustable separators independently size
+  world/values, plots/output, and upper/lower regions.
 - Bounded 30,000-sample recording, dropped-sample reporting, and deterministic
   25-column CSV export with explicit seconds, m/s², rad/s, millimeters, and
   blank unavailable values.
 
 ### Visual system
 
-- One restrained system-sans interface; monospace is reserved for code and
-  verbose program output.
-- Light neutral surfaces, dark high-contrast text, compact square controls,
-  sentence-case labels, and semantic teal, gold, red, and blue.
+- One system-sans interface; monospace is reserved for code and program output.
+- White work surfaces, neutral separators and controls, UCSB navy branding,
+  high-contrast text, compact square controls, and color reserved for state or
+  signal identity.
 - The wide Monitor keeps controls in a side rail and fits the world, values,
-  output, and scrolling plots in one viewport. Narrow layouts use the same
-  collapsible rail as an overlay.
-- The guide and landing page use the same compact visual language. Further
-  aesthetic tuning can follow instructor review without changing behavior or
-  application structure.
+  output, and plots in one viewport. Narrow layouts use a compact top sheet and
+  a vertically scrolling content order.
+- Status text is no longer styled like a button. Offline readiness is labeled
+  **Saved for offline use** and explicitly distinguishes the web copy from the
+  robot connection.
 
 ### Virtual and physical targets
 
@@ -124,20 +134,22 @@ The latest complete software pass includes:
 - 82 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 86 Vitest tests for project handling, target clients and lifecycle,
+- 87 Vitest tests for project handling, target clients and lifecycle,
   simulator, telemetry, offline state, plot data, and measured contrast;
 - a production build and verification of the exact 84-file offline manifest;
   and
-- 11 stable-Chrome workflows covering all starters, blocked-gate replanning,
+- 12 stable-Chrome workflows covering all starters, blocked-gate replanning,
   two-app target sharing, run-owner loss, narrow layout, selectable/collapsed
   Monitor controls, recording/CSV export, and a network-blocked offline reload.
 
-Direct Chrome inspection covered the compact and wide IDE and Monitor after
-the current visual rebuild. It included the settings panel, 9 px editor,
-collapsed and expanded Monitor controls, thin sliders, arena ruler, and the
-dimensioned XRP inspection view. The browser consoles were empty. Ordinary
-text is tested at 4.5:1 or better; control boundaries and focus indicators are
-tested at 3:1 or better.
+The current Monitor pass includes a direct narrow Chrome inspection and an
+original-size 1,440 × 900 Stable Chrome capture. It covered the bounded labeled
+grid, XRP zoom, expanded/collapsed controls, thin slider, live values, plots,
+output, and responsive top sheet. Wide and narrow interaction tests exercised
+the splitters and controls. Browser consoles were empty. Ordinary text is
+tested at 4.5:1 or better; control boundaries and focus indicators are tested
+at 3:1 or better. Earlier claims of comprehensive IDE visual inspection do not
+apply to the pending IDE refinement slice.
 
 ## Physical evidence
 
@@ -158,10 +170,17 @@ the superseded timeout that prompted the final client lifecycle correction.
 
 ## Remaining work
 
-1. On the final course surface, measure wheel-speed response, effective wheel
+1. Implement the shared synchronized-project identity and one Run/Stop lifecycle
+   in both IDE and Monitor.
+2. Complete the IDE workspace/template redesign, folder autosave and recovery,
+   coordinated course-runtime/API clarification, and structured watches/live
+   parameters in the active refinement plan.
+3. Red-team and repeat integrated virtual, Chrome, offline-update, persistence,
+   and physical-target validation after those slices.
+4. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.
-2. Run each complete challenge on the floor after calibration. These empirical
+5. Run each complete challenge on the floor after calibration. These empirical
    results should refine configuration, not create another student workflow or
    target protocol.
 

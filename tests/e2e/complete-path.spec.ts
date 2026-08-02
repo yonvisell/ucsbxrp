@@ -132,7 +132,9 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   const dashboardStatus = dashboard.getByTestId("target-status");
   await expect(ideStatus).toContainText("Virtual XRP · ready");
   await expect(dashboardStatus).toContainText("Virtual XRP · ready");
-  await expect(dashboard.getByRole("log")).toContainText("No run yet");
+  await expect(dashboard.getByRole("log")).toContainText(
+    "Program output appears here",
+  );
   const worldDimensions = await dashboard
     .getByTestId("world-view")
     .evaluate((element) => ({
@@ -146,25 +148,18 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     "data-xrp-footprint-mm",
     "192.5 × 190.5",
   );
-  await expect(dashboard.getByTestId("world-ruler")).toContainText("500 mm");
-  const arenaRulerWidth = await dashboard
-    .getByTestId("world-ruler")
-    .evaluate((element) => Number.parseFloat(getComputedStyle(element).width));
-  expect(arenaRulerWidth).toBeGreaterThan(40);
-  await dashboard.getByRole("button", { name: "Inspect XRP" }).click();
+  await expect(dashboard.getByTestId("world-view")).toHaveAttribute(
+    "data-arena-mm",
+    "2400 × 1800",
+  );
   await expect(
-    dashboard.getByRole("button", { name: "Show arena" }),
+    dashboard.getByText(/Major grid lines and values are labeled/),
+  ).toContainText("500 millimeters");
+  await dashboard.getByRole("button", { name: "Zoom XRP" }).click();
+  await expect(
+    dashboard.getByRole("button", { name: "Fit world" }),
   ).toBeVisible();
-  await expect
-    .poll(() =>
-      dashboard
-        .getByTestId("world-ruler")
-        .evaluate((element) =>
-          Number.parseFloat(getComputedStyle(element).width),
-        ),
-    )
-    .toBeGreaterThan(arenaRulerWidth * 2.5);
-  await dashboard.getByRole("button", { name: "Show arena" }).click();
+  await dashboard.getByRole("button", { name: "Fit world" }).click();
 
   await ide.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(ide.getByTestId("settings-panel")).toBeVisible();
@@ -221,13 +216,19 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
 
   await ide.getByRole("button", { name: "Run virtual XRP" }).click();
   await expect(dashboardStatus).toContainText("Virtual XRP · running");
-  await dashboard.getByRole("button", { name: "Stop program" }).click();
+  await dashboard
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
   await expect(ide.getByRole("log")).toContainText(
     "Run stopped; motor effort set to zero",
   );
   await expect(ideStatus).toContainText("Virtual XRP · ready");
 
-  await dashboard.getByRole("button", { name: "Reset virtual XRP" }).click();
+  await dashboard
+    .locator(".app-header")
+    .getByRole("button", { name: "Reset", exact: true })
+    .click();
   await expect(dashboard.getByTestId("x-mm")).toHaveText("0.0 mm");
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 

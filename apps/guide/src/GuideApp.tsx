@@ -162,18 +162,21 @@ export function GuideApp() {
               <h2>Monitor motion, sensors, and program output</h2>
               <p>
                 The Monitor shares the IDE target selection. It displays pose
-                when available, wheel speed, normalized motor command, encoder
-                counts, range, USER button, supply voltage, IMU data, and the
-                program log. Physical projects using <code>Robot</code> publish
-                their estimated pose automatically; raw-sensor programs still
-                show their live sensors without inventing a pose. The world view
-                uses the production XRP footprint and includes a 500 mm ruler.
+                when available, wheel speed, drive command, encoder counts,
+                range, USER button, supply voltage, IMU data, and the program
+                log. Physical projects using <code>Robot</code> publish their
+                estimated pose automatically; raw-sensor programs still show
+                their live sensors without inventing a pose. The world view uses
+                the production XRP footprint and a bounded millimeter grid with
+                labeled x and y values.
               </p>
               <p>
-                Use the collapsible left sidebar to choose the target and course
-                environment. Its signal controls show any combination of
-                scrolling wheel-speed, motor-command, range, acceleration, and
-                angular-rate plots over a 2–30 second window.
+                Use the collapsible sidebar to choose signal histories and
+                control recordings. The virtual scene is selected directly in
+                the world view. Plots can show wheel speed, drive command,
+                range, acceleration, and yaw rate over a 2–30 second window.
+                Drag the separators to give the world, values, plots, or output
+                more room; the arrow keys adjust a focused separator.
               </p>
               <p>
                 Recording stores up to 30,000 telemetry samples. Start and stop
@@ -305,7 +308,7 @@ export function GuideApp() {
                 <li>
                   <strong>Offline use:</strong> open the production course site
                   while online and wait for{" "}
-                  <strong>Web tools work offline</strong> before changing
+                  <strong>Saved for offline use</strong> before changing
                   networks. Development servers instead show{" "}
                   <strong>Development build</strong> and do not save an offline
                   browser copy.

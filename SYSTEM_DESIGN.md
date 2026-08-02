@@ -51,10 +51,11 @@ The Monitor is the observation surface. It subscribes to the same target as the
 IDE and presents only available data. It contains:
 
 - target and run state;
-- a dimensioned top-down world view with robot pose, heading, trail, range ray,
-  obstacle, collision state, an accurate ruler, and arena/XRP inspection views;
-- a collapsible control sidebar with a selectable 2–30 second history of wheel
-  speed, normalized motor command, forward range, acceleration, and angular
+- a dimensioned top-down world view with bounded 100 mm grid lines, labeled
+  500 mm x/y values, robot pose, heading, trail, range ray, obstacle, contact
+  state, and arena/XRP zoom views;
+- a compact collapsible sidebar with selectable 2–30 second histories of wheel
+  speed, dimensionless drive command, forward range, acceleration, and yaw
   rate;
 - live pose, efforts, encoders, range, button, IMU, temperature, and battery
   values;
@@ -63,11 +64,14 @@ IDE and presents only available data. It contains:
   convert hardware-native acceleration and angular-rate values to m/s² and
   rad/s; course geometry remains in millimeters.
 
-The virtual environment control currently exposes the course-relevant open and
-blocked-gate scenes. Environment selection resets virtual state and is disabled
-while a project is running. A physical target shows a world pose only when the
-course `Robot` loop publishes an estimate; stationary device sensors remain
-visible without a pose.
+The world/values, plots/output, and upper/lower allocations have independent
+pointer- and keyboard-operable separators whose positions persist locally.
+The virtual scene control sits in the world itself; target selection and the
+physical endpoint remain shared IDE settings rather than duplicated Monitor
+controls. Environment selection resets virtual state and is disabled while a
+project is running. A physical target shows a world pose only when the course
+`Robot` loop publishes an estimate; stationary device sensors remain visible
+without a pose.
 
 ### Guide and visual system
 
@@ -206,9 +210,11 @@ Five cumulative starters separate:
 
 The production service worker caches the complete public release—application
 shells, workers, MicroPython WebAssembly, course source, starters, and reference
-bytecode—and exposes a visible readiness state. Development disables caching
-to prevent stale bundles from masking changes. Private reference source and
-instructor credentials are not web assets.
+bytecode—and exposes a visible readiness state. When a newer complete shell
+activates, a long-open tab reloads once for that build so an older interface
+does not remain in memory. Development disables caching to prevent stale
+bundles from masking changes. Private reference source and instructor
+credentials are not web assets.
 
 Telemetry recording stores at most 30,000 copied samples and reports dropped
 older samples. CSV export is explicit and self-describing; it preserves blanks

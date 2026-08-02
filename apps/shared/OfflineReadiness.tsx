@@ -10,8 +10,8 @@ import {
 
 const stateText: Record<OfflineShellState, string> = {
   development: "Development build",
-  installing: "Saving web tools",
-  ready: "Web tools work offline",
+  installing: "Saving offline copy",
+  ready: "Saved for offline use",
   unsupported: "Offline copy unavailable",
   error: "Offline copy incomplete",
 };
@@ -31,7 +31,7 @@ export function OfflineReadiness() {
   const stateLabel = stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `The IDE, Monitor, MicroPython runtime, starters, and library are saved in this browser and can reopen without internet. Course release ${courseRelease.release_id}.`
+      ? `The web apps and course release are saved in this browser. Robot connectivity is separate. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
       : status.state === "development"
         ? `Course release ${courseRelease.release_id}; this development build does not save an offline browser copy.`
         : (status.message ??

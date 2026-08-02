@@ -17,7 +17,7 @@ interface SignalSeriesDefinition {
   value: (sample: TelemetrySample) => number | null;
 }
 
-interface SignalPlotDefinition {
+export interface SignalPlotDefinition {
   id: SignalPlotId;
   label: string;
   unit: string;
@@ -48,9 +48,9 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   },
   {
     id: "motor-effort",
-    label: "Motor command",
-    unit: "normalized",
-    description: "Commanded left and right motor output from -1 to 1",
+    label: "Drive command u",
+    unit: "−1…+1",
+    description: "Dimensionless left and right drive commands from −1 to +1",
     fixedRange: [-1, 1],
     series: [
       {
@@ -115,31 +115,13 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   },
   {
     id: "angular-rate",
-    label: "Angular rate",
+    label: "Yaw rate ωz",
     unit: "rad/s",
-    description: "IMU angular rate about the x, y, and z axes",
+    description: "IMU angular rate about the vertical z axis",
     series: [
       {
-        label: "x",
-        color: "#08736b",
-        value: (sample) =>
-          sample.angularRateMdps
-            ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[0])
-            : null,
-      },
-      {
-        label: "y",
-        color: "#a66b08",
-        dash: "dashed",
-        value: (sample) =>
-          sample.angularRateMdps
-            ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[1])
-            : null,
-      },
-      {
-        label: "z",
-        color: "#a02d27",
-        dash: "dotted",
+        label: "ωz",
+        color: "#205f99",
         value: (sample) =>
           sample.angularRateMdps
             ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[2])
@@ -209,13 +191,24 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
       {
         animation: false,
         backgroundColor: "transparent",
-        grid: { left: 42, right: 8, top: 18, bottom: 25 },
+        title: {
+          left: 5,
+          top: 2,
+          text: `${definition.label} · ${definition.unit}`,
+          textStyle: {
+            color: "#17232b",
+            fontFamily: "system-ui, sans-serif",
+            fontSize: 9,
+            fontWeight: 600,
+          },
+        },
+        grid: { left: 36, right: 6, top: 18, bottom: 21 },
         legend: {
           top: 1,
-          right: 8,
+          right: 6,
           textStyle: { color: "#3f4d55", fontSize: 8 },
           itemHeight: 2,
-          itemWidth: 13,
+          itemWidth: 11,
         },
         tooltip: {
           trigger: "axis",
@@ -228,11 +221,11 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
           min: -timeWindowS,
           max: 0,
           name: "time (s)",
-          nameGap: 15,
+          nameGap: 12,
           nameTextStyle: { color: "#56636c", fontSize: 8 },
           axisLabel: { color: "#56636c", fontSize: 8 },
-          axisLine: { lineStyle: { color: "#737f88" } },
-          splitLine: { lineStyle: { color: "#dce1e4" } },
+          axisLine: { lineStyle: { color: "#737f88", width: 1 } },
+          splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
         },
         yAxis: {
           type: "value",
@@ -241,7 +234,7 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
           scale: definition.fixedRange === undefined,
           axisLabel: { color: "#56636c", fontSize: 8 },
           axisLine: { show: true, lineStyle: { color: "#737f88" } },
-          splitLine: { lineStyle: { color: "#dce1e4" } },
+          splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
         },
         series: definition.series.map((series, index) => ({
           name: series.label,

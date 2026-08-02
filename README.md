@@ -135,7 +135,7 @@ npm run build
 npm run preview
 ```
 
-Load each production application once and wait for **Web tools work offline**.
+Load each production application once and wait for **Saved for offline use**.
 The saved release includes the applications, workers, MicroPython WebAssembly,
 course package, starters, and reference bytecode; private reference source is
 excluded. Local development deliberately reports **Development build** and

@@ -62,7 +62,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
     "Virtual XRP · ready",
   );
   await monitor
-    .getByLabel("Virtual environment")
+    .getByLabel("Virtual scene")
     .selectOption("delivery-gate-blocked");
   await expect(monitor.getByTestId("range-mm")).toContainText("280.0 mm");
 

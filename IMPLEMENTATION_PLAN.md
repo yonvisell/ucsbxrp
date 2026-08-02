@@ -140,3 +140,83 @@ diameter, track width, stopping distance, motion-induced IMU/range behavior,
 and each complete physical challenge. Feed those measurements into
 `robot_config.py`, simulator comparison envelopes, and instructor examples;
 the student workflow and network architecture should not change.
+
+## Active refinement slices — 2026-08-01
+
+Instructor review of the complete release identified visual inconsistencies,
+missing cross-application lifecycle behavior, weak project persistence, and
+opportunities to reduce student-facing boilerplate. The following slices refine
+the release without weakening the physical/virtual target boundary.
+
+### Refinement 1 — Monitor structure and visual system
+
+Status: implemented and validated.
+
+- Replace nested cards with flat regions and persistent, accessible splitters.
+- Bound and label the arena grid directly in world coordinates; remove the
+  detached ruler and improve the dimensioned XRP representation.
+- Compact live values, plots, output, controls, header, typography, and status
+  presentation; use precise signal names and SI units where appropriate.
+- Detect a newly activated offline build and reload a long-open tab once so UI
+  validation cannot silently exercise an older bundle.
+
+Usable result: the Monitor is dense, high-contrast, responsive, and directly
+adjustable at wide and narrow laptop sizes.
+
+### Refinement 2 — Shared Run/Stop lifecycle
+
+Status: next.
+
+- Retain the synchronized project name, content identity, and revision in the
+  shared target boundary.
+- Let the IDE or Monitor start that current project and present one reliable
+  Run/Stop state control, including completion, exception, tab-loss, and reset
+  recovery.
+
+### Refinement 3 — IDE workspace and project catalog
+
+Status: planned.
+
+- Apply the flat visual system to the IDE; compact the tree, tabs, toolbar,
+  settings, and output while retaining the adjustable 8 px minimum editor type.
+- Treat challenges, robot demos, and a staged MicroPython tutorial as project
+  templates that become ordinary editable folders after loading.
+- Add the range-triggered forward/left-turn demo and clear hover/focus help.
+
+### Refinement 4 — Folder persistence and automatic recovery
+
+Status: planned.
+
+- Persist and recover the selected folder permission where the browser permits.
+- Autosave source and per-run telemetry/output with four rotating automatic
+  versions without rotating explicit user exports.
+
+### Refinement 5 — Course runtime and public vocabulary
+
+Status: planned.
+
+- Replace ambiguous motor-effort terminology with drive-command terminology
+  through one coordinated compatibility-preserving change.
+- Move sample scheduling out of student starter code, use absolute wrap-safe
+  deadlines, and organize student code by literal course component.
+- Update source, reference bytecode, examples, starters, tests, and all active
+  course documents together.
+
+### Refinement 6 — Structured watches and live parameters
+
+Status: planned.
+
+- Add structured watched values and typed numeric, Boolean, and enumerated live
+  parameters; apply validated updates atomically at sample boundaries.
+- Prove virtual-runtime message delivery before exposing these controls, then
+  exercise the same behavior on the attached XRP.
+
+### Refinement 7 — Integrated red-team validation
+
+Status: planned.
+
+- Exercise service-worker upgrades, multi-tab ownership, stale projects,
+  invalid live values, interrupted writes, permission loss, telemetry load,
+  every virtual project, and the available physical target operations.
+- Finish with truthful status, a clean commit/archive, and the production
+  applications running on port 4174.

@@ -22,7 +22,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   );
   await expect(monitor.getByTestId("x-mm")).toBeVisible();
 
-  await monitor.getByRole("button", { name: "Start recording" }).click();
+  await monitor.getByRole("button", { name: "Record", exact: true }).click();
   await expect(monitor.getByText("Recording telemetry")).toBeVisible();
   await ide.getByRole("button", { name: "Run virtual XRP" }).click();
 
@@ -36,7 +36,10 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
     )
     .toBeGreaterThan(3);
 
-  await monitor.getByRole("button", { name: "Stop recording" }).click();
+  await monitor
+    .locator(".monitor-controls")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
   await expect(monitor.getByText("Recording stopped")).toBeVisible();
 
   const downloadPromise = monitor.waitForEvent("download");
@@ -55,7 +58,10 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   expect(rows.length).toBeGreaterThan(4);
   expect(rows[1]?.split(",")).toHaveLength(25);
 
-  await monitor.getByRole("button", { name: "Clear recording" }).click();
+  await monitor
+    .locator(".monitor-controls")
+    .getByRole("button", { name: "Clear", exact: true })
+    .click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
     "0 / 30,000 samples",
   );
@@ -75,22 +81,29 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(page.getByTestId("monitor-controls")).toBeVisible();
   await expect(page.getByTestId("wheel-speed-plot")).toBeVisible();
   await expect(page.getByTestId("strip-chart-motor-effort")).toBeVisible();
-
   const controlsBox = await page.getByTestId("monitor-controls").boundingBox();
   const dashboardBox = await page.locator(".dashboard-grid").boundingBox();
   const sliderBox = await page
     .getByLabel("Strip chart time window")
     .boundingBox();
-  expect(controlsBox?.width).toBeGreaterThan(180);
-  expect(controlsBox?.width).toBeLessThan(230);
+  expect(controlsBox?.width).toBeGreaterThan(165);
+  expect(controlsBox?.width).toBeLessThan(185);
   expect(dashboardBox?.x).toBeGreaterThanOrEqual(
     (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0) - 1,
   );
   expect(sliderBox?.height).toBeLessThanOrEqual(16);
 
+  const worldValuesSeparator = page.getByRole("separator", {
+    name: "Resize world and live values",
+  });
+  await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "82");
+  await worldValuesSeparator.focus();
+  await worldValuesSeparator.press("ArrowLeft");
+  await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "80");
+
   await page.getByRole("checkbox", { name: /Forward range/ }).check();
   await expect(page.getByTestId("strip-chart-range")).toBeVisible();
-  await page.getByRole("checkbox", { name: /Motor command/ }).uncheck();
+  await page.getByRole("checkbox", { name: /Drive command/ }).uncheck();
   await expect(page.getByTestId("strip-chart-motor-effort")).toHaveCount(0);
 
   await page.getByLabel("Strip chart time window").fill("6");
@@ -101,5 +114,37 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Open monitor controls" }).click();
-  await expect(page.getByRole("group", { name: "Target" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Signals", exact: true }),
+  ).toBeVisible();
+});
+
+test("keeps the Monitor compact and operable at laptop-narrow width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 691, height: 752 });
+  await page.goto("/dashboard/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  const headerBox = await page.locator(".app-header").boundingBox();
+  expect(headerBox?.height).toBeLessThanOrEqual(36);
+  await expect(
+    page.getByRole("button", { name: "Open monitor controls" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Open monitor controls" }).click();
+
+  const panelBox = await page.locator(".monitor-controls-panel").boundingBox();
+  expect(panelBox?.y).toBeGreaterThanOrEqual((headerBox?.height ?? 34) - 1);
+  expect(panelBox?.width).toBeLessThanOrEqual(691);
+  await expect(
+    page.getByRole("heading", { name: "Signals", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Recording", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Collapse monitor controls" }).click();
+  await expect(page.getByTestId("world-view")).toBeVisible();
 });

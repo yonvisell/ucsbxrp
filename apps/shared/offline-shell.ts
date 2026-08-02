@@ -14,6 +14,8 @@ interface OfflineManifest {
 }
 
 export const OFFLINE_SHELL_EVENT = "ucsb-xrp:offline-shell-state";
+const offlineShellVersionKey = "ucsb-xrp-offline-shell-version-v1";
+const offlineShellReloadKey = "ucsb-xrp-offline-shell-reload-v1";
 
 export function initialOfflineShellState(
   production: boolean,
@@ -23,6 +25,18 @@ export function initialOfflineShellState(
     return "development";
   }
   return supported ? "installing" : "unsupported";
+}
+
+export function offlineShellUpdateNeedsReload(
+  previousVersion: string | null,
+  currentVersion: string,
+  lastReloadedVersion: string | null,
+): boolean {
+  return (
+    previousVersion !== null &&
+    previousVersion !== currentVersion &&
+    lastReloadedVersion !== currentVersion
+  );
 }
 
 function publishState(
@@ -162,7 +176,23 @@ async function installOfflineShell(basePath: string) {
   }
   await navigator.serviceWorker.ready;
   const manifest = await verifyPrecache(manifestUrl);
+  const previousVersion = window.localStorage.getItem(offlineShellVersionKey);
+  window.localStorage.setItem(offlineShellVersionKey, manifest.version);
   publishState("ready", { version: manifest.version });
+
+  // A newly activated worker cannot replace JavaScript already executing in
+  // this tab. Reload once per build so a long-open classroom tab does not keep
+  // presenting an older interface after the offline shell has updated.
+  if (
+    offlineShellUpdateNeedsReload(
+      previousVersion,
+      manifest.version,
+      window.sessionStorage.getItem(offlineShellReloadKey),
+    )
+  ) {
+    window.sessionStorage.setItem(offlineShellReloadKey, manifest.version);
+    window.location.reload();
+  }
 }
 
 export function registerOfflineShell() {

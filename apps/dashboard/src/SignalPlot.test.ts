@@ -84,10 +84,6 @@ describe("monitor signal plots", () => {
     expect(acceleration.map((series) => series.values[0]?.[1])).toEqual([
       0.00980665, 0.0196133, 9.80665,
     ]);
-    expect(angularRate.map((series) => series.values[0]?.[1])).toEqual([
-      Math.PI,
-      -Math.PI / 2,
-      0,
-    ]);
+    expect(angularRate.map((series) => series.values[0]?.[1])).toEqual([0]);
   });
 });
