@@ -11,12 +11,19 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1 and 2 are complete. The Monitor now uses flat, independently
+Refinement slices 1–3 are complete. The Monitor now uses flat, independently
 resizable regions; a bounded arena grid with labeled millimeter coordinates;
 compact signal and recording controls; precise drive-command and yaw-rate
 labels; a closer dimensioned XRP view; and a narrow top-sheet control layout.
 Production tabs also reload once when a newer complete offline shell activates,
 preventing a long-open page from silently displaying the previous build.
+
+The IDE now applies the same flat, high-contrast visual system: a white 188 px
+file rail, thin separators, compact 10 px controls, 9 px default code, no
+redundant file-type badges, literal startup-file state, and unclipped toolbar
+and folder controls. One grouped template menu loads all five challenges, a
+range-triggered obstacle/left-turn/obstacle demo, or seven staged MicroPython
+lessons as an ordinary editable project.
 
 The IDE and Monitor now share one named runnable project revision and one
 stateful Run/Stop control. The target publishes a source-free revision
@@ -63,13 +70,16 @@ raised-wheel check verified both motors, both encoders, and paired response.
 ### IDE
 
 - Local working-folder open/save plus continuously recovered browser state.
-- Create, rename, duplicate, delete, and tab among project files; select the
-  startup file and load any course starter.
+- Create, rename, copy, delete, and tab among project files; select the startup
+  file and load any challenge, robot demo, or tutorial template.
 - Explicit **Validate code** and **Sync project** operations, one stateful
   **Run/Stop** control, and **Reset** for virtual or physical targets.
 - A compact project rail, collapsible project/settings/output panels, 9 px
   default editor and output type, an 8 px selectable minimum, optional code
   overview, clear labels, and documented shortcuts.
+- A sensor-feedback obstacle-turn demo and a seven-lesson MicroPython project;
+  both are editable, folder-saveable, MicroPython-validated, and runnable in
+  the virtual target.
 - Separate Status and Details views, physical-address editing, local Monaco
   workers, and MicroPython compilation.
 
@@ -130,10 +140,10 @@ raised-wheel check verified both motors, both encoders, and paired response.
 
 ### Offline and guidance
 
-- The production service worker verifies all 84 public payload files,
+- The production service worker verifies all 97 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
-  starters, and supplied bytecode. The interface says **Saved for offline
-  use**; robot connectivity remains a separate status.
+  starters, demo/tutorial templates, and supplied bytecode. The interface says
+  **Saved for offline use**; robot connectivity remains a separate status.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
   later physical calibration.
@@ -143,16 +153,18 @@ raised-wheel check verified both motors, both encoders, and paired response.
 The latest complete software pass includes:
 
 - Prettier, TypeScript, and repository whitespace checks;
-- 86 CPython contract and harness tests;
+- 87 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 92 Vitest tests for project identity and handling, target clients and lifecycle,
-  simulator, telemetry, offline state, plot data, and measured contrast;
-- a production build and verification of the exact 84-file offline manifest;
+- 93 Vitest tests for project identity and handling, target clients and
+  lifecycle, simulator, telemetry, offline state, plot data, and measured
+  contrast;
+- a production build and verification of the exact 97-file offline manifest;
   and
-- 12 stable-Chrome software workflows covering all starters, blocked-gate replanning,
-  two-app target sharing, run-owner loss, narrow layout, selectable/collapsed
-  Monitor controls, recording/CSV export, and a network-blocked offline reload;
+- 15 Stable Chrome software workflows covering all starters, both new project
+  templates, flat IDE geometry, blocked-gate replanning, two-app target
+  sharing, run-owner loss, narrow layouts, selectable/collapsed Monitor
+  controls, recording/CSV export, and a network-blocked offline reload;
   plus one opt-in Stable Chrome hardware workflow covering the shared physical
   project lifecycle, which passed against the attached XRP.
 
@@ -162,8 +174,10 @@ grid, XRP zoom, expanded/collapsed controls, thin slider, live values, plots,
 output, and responsive top sheet. Wide and narrow interaction tests exercised
 the splitters and controls. Browser consoles were empty. Ordinary text is
 tested at 4.5:1 or better; control boundaries and focus indicators are tested
-at 3:1 or better. Earlier claims of comprehensive IDE visual inspection do not
-apply to the pending IDE refinement slice.
+at 3:1 or better. The IDE was directly inspected in Chrome at 1,382 × 752 in
+both challenge and tutorial states. Measured header, toolbar, project rail,
+folder controls, and all interactive labels had no horizontal text overflow;
+the responsive Stable Chrome workflow separately exercised the 375 px layout.
 
 ## Physical evidence
 
@@ -187,9 +201,9 @@ Run/Stop refinement proof.
 
 ## Remaining work
 
-1. Complete the IDE workspace/template redesign, folder autosave and recovery,
-   coordinated course-runtime/API clarification, and structured watches/live
-   parameters in the active refinement plan.
+1. Complete folder autosave and recovery, coordinated course-runtime/API
+   clarification, and structured watches/live parameters in the active
+   refinement plan.
 2. Red-team and repeat integrated virtual, Chrome, offline-update, persistence,
    and physical-target validation after those slices.
 3. On the final course surface, measure wheel-speed response, effective wheel

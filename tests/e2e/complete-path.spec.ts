@@ -278,7 +278,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       name: "Open student/straight_line_controller.py",
     })
     .click();
-  await ide.getByRole("button", { name: "Duplicate", exact: true }).click();
+  await ide.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(ide.getByLabel("Project-relative path")).toHaveValue(
     "student/straight_line_controller_copy.py",
   );
@@ -288,12 +288,12 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     .getByLabel("Project-relative path")
     .fill("student/controller_experiment.py");
   await ide.getByRole("button", { name: "Rename file" }).click();
-  await ide.getByRole("button", { name: "Use as startup" }).click();
-  await expect(ide.getByText("Starts with")).toContainText(
+  await ide.getByRole("button", { name: "Set startup" }).click();
+  await expect(ide.getByText(/Startup:/)).toContainText(
     "student/controller_experiment.py",
   );
   await ide.getByRole("button", { name: "Open main.py" }).click();
-  await ide.getByRole("button", { name: "Use as startup" }).click();
+  await ide.getByRole("button", { name: "Set startup" }).click();
   await ide.getByRole("button", { name: "Save files" }).click();
   await ide
     .getByRole("button", { name: "Open student/controller_experiment.py" })
@@ -443,7 +443,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
   ).toBeVisible();
   await expect(ide.getByTestId("check-result")).toBeVisible();
 
-  const helpLink = ide.getByRole("link", { name: /Help & robot setup/ });
+  const helpLink = ide.getByRole("link", { name: /Guide/ });
   await expect(helpLink).toHaveAttribute("rel", "noopener noreferrer");
   expect(browserErrors).toEqual([]);
 });

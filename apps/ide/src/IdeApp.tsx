@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import {
-  COURSE_STARTERS,
+  COURSE_PROJECT_TEMPLATES,
   PhysicalTargetClient,
   VirtualTargetClient,
   loadTargetPreference,
@@ -19,6 +19,7 @@ import {
   type TargetKind,
   type TargetRunState,
   type SynchronizedProject,
+  type CourseProjectKind,
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
@@ -102,19 +103,6 @@ function wasCancelled(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-function fileIcon(path: string): string {
-  if (path.endsWith(".py")) {
-    return "PY";
-  }
-  if (path.endsWith(".json")) {
-    return "{}";
-  }
-  if (path.endsWith(".md")) {
-    return "MD";
-  }
-  return "TXT";
-}
-
 function editorLanguage(path: string): string {
   if (path.endsWith(".py")) {
     return "python";
@@ -127,6 +115,15 @@ function editorLanguage(path: string): string {
   }
   return "plaintext";
 }
+
+const templateGroups: readonly {
+  kind: CourseProjectKind;
+  label: string;
+}[] = [
+  { kind: "challenge", label: "Course challenges" },
+  { kind: "demo", label: "Robot demos" },
+  { kind: "tutorial", label: "Tutorials" },
+];
 
 function initiallyShowProjectPanel(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) {
@@ -172,8 +169,8 @@ export function IdeApp() {
     initiallyShowProjectPanel,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selectedStarterId, setSelectedStarterId] = useState(
-    COURSE_STARTERS[0]!.id,
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    COURSE_PROJECT_TEMPLATES[0]!.id,
   );
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
@@ -453,17 +450,17 @@ export function IdeApp() {
     }
   }, [pendingFolderDeletions, project, workingFolder]);
 
-  const loadCourseStarter = useCallback(() => {
-    const starter = COURSE_STARTERS.find(
-      (candidate) => candidate.id === selectedStarterId,
+  const loadProjectTemplate = useCallback(() => {
+    const template = COURSE_PROJECT_TEMPLATES.find(
+      (candidate) => candidate.id === selectedTemplateId,
     );
-    if (!starter) {
+    if (!template) {
       return;
     }
     const snapshot: ProjectSnapshot = {
-      name: starter.id.replace("_", "-"),
-      entrypoint: starter.project.entrypoint,
-      files: { ...starter.project.files },
+      name: template.project.name ?? template.id.replaceAll("_", "-"),
+      entrypoint: template.project.entrypoint,
+      files: { ...template.project.files },
     };
     setProject(snapshot);
     setActivePath(snapshot.entrypoint);
@@ -477,9 +474,9 @@ export function IdeApp() {
     setSyncDetail("Not synchronized");
     setConsoleEntries([]);
     setOperationDetail(
-      `${starter.label} loaded. Choose Save files to create its working folder.`,
+      `${template.label} loaded. Choose Save files to create its working folder.`,
     );
-  }, [selectedStarterId]);
+  }, [selectedTemplateId]);
 
   const createFile = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -709,6 +706,7 @@ export function IdeApp() {
                 kind: event.target.value as TargetKind,
               }))
             }
+            title="Choose whether Run uses the simulator or the configured physical XRP."
             value={targetPreference.kind}
           >
             <option value="virtual">Virtual XRP</option>
@@ -742,7 +740,11 @@ export function IdeApp() {
           >
             {isRunning ? "Stop" : "Run"}
           </button>
-          <button disabled={!isConnected} onClick={resetTarget}>
+          <button
+            disabled={!isConnected}
+            onClick={resetTarget}
+            title="Reset the selected XRP and clear its current motion state."
+          >
             Reset
           </button>
           <span
@@ -763,16 +765,18 @@ export function IdeApp() {
             href="../dashboard/"
             rel="noopener noreferrer"
             target="_blank"
+            title="Open the XRP Monitor in a new tab."
           >
-            XRP Monitor ↗
+            Monitor ↗
           </a>
           <a
             className="tool-link"
             href="../guide/"
             rel="noopener noreferrer"
             target="_blank"
+            title="Open course guidance and robot setup in a new tab."
           >
-            Help &amp; robot setup ↗
+            Guide ↗
           </a>
           <button
             aria-expanded={settingsOpen}
@@ -807,7 +811,7 @@ export function IdeApp() {
         {projectPanelOpen ? (
           <aside className="project-rail panel" aria-label="Project files">
             <div className="panel-header project-heading">
-              <h2 className="panel-title">Project files</h2>
+              <h2 className="panel-title">Files</h2>
               <button
                 aria-label="Collapse project files"
                 className="icon-button"
@@ -818,30 +822,39 @@ export function IdeApp() {
               </button>
             </div>
             <div className="project-actions">
-              <div className="starter-actions">
+              <div className="template-actions">
                 <select
-                  aria-label="Course starter"
-                  onChange={(event) => setSelectedStarterId(event.target.value)}
-                  value={selectedStarterId}
+                  aria-label="Project template"
+                  onChange={(event) =>
+                    setSelectedTemplateId(event.target.value)
+                  }
+                  title="Choose a complete challenge, demo, or tutorial project."
+                  value={selectedTemplateId}
                 >
-                  {COURSE_STARTERS.map((starter) => (
-                    <option key={starter.id} value={starter.id}>
-                      {starter.shortLabel}
-                    </option>
+                  {templateGroups.map((group) => (
+                    <optgroup key={group.kind} label={group.label}>
+                      {COURSE_PROJECT_TEMPLATES.filter(
+                        (template) => template.kind === group.kind,
+                      ).map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.shortLabel}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <button
-                  onClick={loadCourseStarter}
-                  title="Start a fresh browser-recovered project from this course challenge"
+                  onClick={loadProjectTemplate}
+                  title="Load this template as a new editable browser project."
                 >
-                  Load starter
+                  Load
                 </button>
               </div>
               <button
                 className="open-folder-button"
                 disabled={!supportsWorkingFolders()}
                 onClick={openWorkingFolder}
-                title="Open a local folder with read and write access"
+                title="Replace the browser project with files from a local folder."
               >
                 Open folder
               </button>
@@ -850,6 +863,7 @@ export function IdeApp() {
                   setNewFileOpen(true);
                   setNewFileError("");
                 }}
+                title="Create a new text file inside this project."
               >
                 New file
               </button>
@@ -860,18 +874,27 @@ export function IdeApp() {
                 Save files
               </button>
             </div>
-            <div className="project-name" title={project.name}>
-              {project.name}
+            <div className="project-summary">
+              <strong title={project.name}>{project.name}</strong>
+              <span title={`The Run command starts ${project.entrypoint}.`}>
+                Startup: {project.entrypoint}
+              </span>
             </div>
             <div
               className="file-actions"
               aria-label={`Actions for ${activePath}`}
             >
-              <button onClick={() => beginPathOperation("rename")}>
+              <button
+                onClick={() => beginPathOperation("rename")}
+                title={`Rename ${activePath}.`}
+              >
                 Rename
               </button>
-              <button onClick={() => beginPathOperation("duplicate")}>
-                Duplicate
+              <button
+                onClick={() => beginPathOperation("duplicate")}
+                title={`Create an editable copy of ${activePath}.`}
+              >
+                Copy
               </button>
               <button
                 disabled={
@@ -887,9 +910,7 @@ export function IdeApp() {
                       : `Run ${activePath} when the project starts`
                 }
               >
-                {activePath === project.entrypoint
-                  ? "Startup file"
-                  : "Use as startup"}
+                {activePath === project.entrypoint ? "Startup" : "Set startup"}
               </button>
               <button
                 className="danger-button"
@@ -904,9 +925,6 @@ export function IdeApp() {
                 Delete
               </button>
             </div>
-            <div className="startup-file" title={project.entrypoint}>
-              Starts with <strong>{project.entrypoint}</strong>
-            </div>
             <div className="file-list">
               {projectFiles.map((path) => (
                 <button
@@ -917,12 +935,12 @@ export function IdeApp() {
                   className={`file-row ${path === activePath ? "active" : ""}`}
                   key={path}
                   onClick={() => openFile(path)}
+                  title={`Open ${path}.`}
                   type="button"
                 >
-                  <span className="file-type-icon">{fileIcon(path)}</span>
                   <span className="file-path">{path}</span>
                   {path === project.entrypoint ? (
-                    <span className="startup-badge">START</span>
+                    <span className="startup-badge">startup</span>
                   ) : null}
                 </button>
               ))}
@@ -969,7 +987,6 @@ export function IdeApp() {
                     role="tab"
                     title={path}
                   >
-                    <span className="file-type-icon">{fileIcon(path)}</span>
                     <span>{path.split("/").at(-1)}</span>
                   </button>
                   <button
@@ -1033,6 +1050,7 @@ export function IdeApp() {
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
+                  title="Show concise target, validation, project, and file status."
                 >
                   Status
                 </button>
@@ -1044,6 +1062,7 @@ export function IdeApp() {
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
+                  title="Show program output and detailed service messages."
                 >
                   Details
                   {consoleEntries.length > 0
@@ -1057,6 +1076,7 @@ export function IdeApp() {
                     className="clear-output"
                     disabled={consoleEntries.length === 0}
                     onClick={() => setConsoleEntries([])}
+                    title="Clear the visible program and service output."
                   >
                     Clear output
                   </button>
@@ -1065,6 +1085,11 @@ export function IdeApp() {
                   aria-expanded={outputPanelOpen}
                   className="output-toggle"
                   onClick={() => setOutputPanelOpen((open) => !open)}
+                  title={
+                    outputPanelOpen
+                      ? "Collapse run information."
+                      : "Expand run information."
+                  }
                 >
                   {outputPanelOpen ? "Collapse output" : "Expand output"}
                 </button>

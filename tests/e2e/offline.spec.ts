@@ -52,7 +52,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   expect(
     await ide
-      .getByRole("link", { name: /Help & robot setup/ })
+      .getByRole("link", { name: /Guide/ })
       .evaluate((link) => (link as HTMLAnchorElement).href),
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);

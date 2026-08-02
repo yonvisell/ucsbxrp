@@ -5,9 +5,27 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 STARTERS = ROOT / "vendor" / "current" / "starters"
+TEMPLATES = ROOT / "vendor" / "current" / "templates"
 
 
 class CourseStarterTests(unittest.TestCase):
+    def test_demo_and_tutorial_templates_are_complete_compilable_projects(self):
+        directories = sorted(path for path in TEMPLATES.iterdir() if path.is_dir())
+        self.assertEqual(
+            [path.name for path in directories],
+            ["demo_obstacle_turn", "micropython_tutorial"],
+        )
+        for directory in directories:
+            self.assertTrue((directory / "README.md").is_file())
+            python_files = sorted(directory.glob("*.py"))
+            self.assertGreaterEqual(len(python_files), 3)
+            for path in python_files:
+                with self.subTest(template=directory.name, file=path.name):
+                    compile(path.read_text(encoding="utf-8"), str(path), "exec")
+
+        lessons = sorted((TEMPLATES / "micropython_tutorial").glob("[1-7]_*.py"))
+        self.assertEqual([path.name[0] for path in lessons], list("1234567"))
+
     def test_all_five_starters_are_complete_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())
         self.assertEqual(

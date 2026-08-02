@@ -21,11 +21,17 @@ export {
 export { VirtualTargetClient } from "./virtual-target";
 export { describeProject, projectRevision } from "./project-identity";
 export {
+  COURSE_PROJECT_TEMPLATES,
   COURSE_STARTERS,
   STAGE_ONE_PROJECT,
+  courseProjectTemplate,
   courseStarter,
 } from "./course-project";
-export type { CourseStarter } from "./course-project";
+export type {
+  CourseProjectKind,
+  CourseProjectTemplate,
+  CourseStarter,
+} from "./course-project";
 export {
   DEFAULT_TARGET_PREFERENCE,
   TARGET_PREFERENCE_KEY,

@@ -50,8 +50,7 @@ export function GuideApp() {
                   <strong>Virtual XRP</strong>.
                 </li>
                 <li>
-                  Choose a course starter, then select{" "}
-                  <strong>Load starter</strong>.
+                  Choose a project template, then select <strong>Load</strong>.
                 </li>
                 <li>
                   Select <strong>Validate code</strong>. Every Python file is
@@ -90,6 +89,14 @@ export function GuideApp() {
                 selected. Component selection stays explicit in{" "}
                 <code>course_setup.py</code>; task values stay in{" "}
                 <code>challenge.py</code>.
+              </p>
+              <p>
+                The same template menu includes a sensor-driven obstacle-turn
+                demo and a seven-lesson MicroPython foundations project.
+                Templates are not a special project type: after loading, every
+                file is editable and can be saved as a normal local folder.
+                Tutorial lessons can be made runnable with{" "}
+                <strong>Set startup</strong>.
               </p>
               <p>
                 Later starters retain every component introduced so far. Bring

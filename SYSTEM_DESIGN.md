@@ -31,14 +31,16 @@ One Vite production build contains three entry points and shared packages.
 The IDE is the programming surface. It provides:
 
 - local-folder open and save with browser recovery;
-- multi-file creation, rename, duplicate, delete, tabs, and startup-file
+- multi-file creation, rename, copy, delete, tabs, and startup-file
   metadata;
-- a selectable five-challenge starter catalog;
+- one grouped project catalog containing the five cumulative challenges, a
+  sensor-driven obstacle-turn demo, and a staged MicroPython tutorial;
 - local Monaco workers and MicroPython syntax validation;
 - explicit validate and synchronize operations plus one stateful Run/Stop
   control and Reset;
 - virtual/physical target selection and a physical address setting;
-- compact collapsible project, settings, and output panels; and
+- a flat white workspace with compact collapsible project, settings, and
+  output regions, literal file names, and concise hover/focus help; and
 - separate concise Status and verbose Details output.
 
 Project state is represented as `{name, entrypoint, files}` at every execution
@@ -47,6 +49,9 @@ and sorted path/content pairs but excludes the display name. The shared target
 publishes only `{name, entrypoint, revision, stale}` to the UI; source remains
 inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
+Catalog entries are complete `CourseProject` values, not a persistent special
+mode. Loading one creates the same editable browser project used by a local
+folder, and any Python file can be selected as its startup file.
 Folder access remains explicit because browser file-system permissions do not
 survive every browser restart; recovered text does.
 
@@ -80,7 +85,7 @@ without a pose.
 
 ### Guide and visual system
 
-The guide covers the first virtual run, projects and starters, physical setup,
+The guide covers the first virtual run, projects and templates, physical setup,
 normal operation, data, shortcuts, and recovery. It is opened in a new tab.
 All applications use the same high-contrast theme, compact controls, visible
 focus, semantic labels, and responsive layout. Control labels describe the
@@ -228,8 +233,8 @@ Five cumulative starters separate:
 ## 7. Offline release and data
 
 The production service worker caches the complete public release—application
-shells, workers, MicroPython WebAssembly, course source, starters, and reference
-bytecode—and exposes a visible readiness state. When a newer complete shell
+shells, workers, MicroPython WebAssembly, course source, starters, templates,
+and reference bytecode—and exposes a visible readiness state. When a newer complete shell
 activates, a long-open tab reloads once for that build so an older interface
 does not remain in memory. Development disables caching to prevent stale
 bundles from masking changes. Private reference source and instructor
