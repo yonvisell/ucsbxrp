@@ -74,13 +74,14 @@ export function GuideApp() {
           <section id="projects">
             <div className="section-number">02</div>
             <div>
-              <h2>Projects, files, and course starters</h2>
+              <h2>Projects, files, and templates</h2>
               <p>
                 Browser recovery preserves edits continuously. Select{" "}
-                <strong>Save files</strong> to create or update a normal local
-                project folder; use <strong>Open folder</strong> to resume it.
-                The IDE supports nested files, multiple editor tabs, rename,
-                duplicate, delete, and selection of the startup Python file.
+                <strong>Save now</strong> to choose a normal local project
+                folder; after that, edits save there automatically. Use{" "}
+                <strong>Open folder</strong> to resume another project. The IDE
+                supports nested files, multiple editor tabs, rename, copy,
+                delete, and selection of the startup Python file.
               </p>
               <p>
                 Five starters cover Straight Run, Turn and Return, Waypoint
@@ -105,8 +106,11 @@ export function GuideApp() {
                 software tests pass.
               </p>
               <div className="callout">
-                Loading a starter creates a fresh browser-recovered project.
-                Save work you want to keep in its local folder first.
+                Loading a starter creates a fresh browser-recovered project. The
+                four previous folder states are kept as readable JSON in{" "}
+                <code>UCSB_XRP_Autosaves</code>. If Chrome cannot restore folder
+                permission after a restart, select <strong>Reconnect</strong>;
+                browser recovery remains available meanwhile.
               </div>
             </div>
           </section>
@@ -192,6 +196,13 @@ export function GuideApp() {
                 in the column names. IMU exports use m/s² and rad/s; course
                 distances may remain in millimetres. If the limit is reached,
                 the oldest samples are replaced and the dropped count is shown.
+              </p>
+              <p>
+                Once a project or data folder is connected, every monitored run
+                automatically saves its program output, metadata, and
+                unit-labeled telemetry CSV. Four aligned generations rotate
+                newest to oldest in <code>UCSB_XRP_Autosaves</code>. Manual CSV
+                exports remain separate and are never rotated.
               </p>
             </div>
           </section>

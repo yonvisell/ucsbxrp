@@ -52,8 +52,13 @@ compiled before synchronization or execution.
 Catalog entries are complete `CourseProject` values, not a persistent special
 mode. Loading one creates the same editable browser project used by a local
 folder, and any Python file can be selected as its startup file.
-Folder access remains explicit because browser file-system permissions do not
-survive every browser restart; recovered text does.
+The selected native folder handle is retained in IndexedDB when the browser
+permits structured handle storage. If read/write permission survives, the IDE
+reattaches it; otherwise one explicit Reconnect gesture restores access.
+Browser recovery remains independent. Folder writes are debounced, serialized,
+and revision/epoch checked so an older queued snapshot cannot overwrite a newer
+edit or explicit save. Before overwriting source, the previous complete project
+is rotated through four JSON generations in `UCSB_XRP_Autosaves`.
 
 ### XRP Monitor
 
@@ -242,9 +247,12 @@ credentials are not web assets.
 
 Telemetry recording stores at most 30,000 copied samples and reports dropped
 older samples. CSV export is explicit and self-describing; it preserves blanks
-for unavailable physical values rather than inventing zero. Current recordings
-are intentionally session-local. Persistent replay should be added only when a
-course activity requires it and after realistic storage-size testing.
+for unavailable physical values rather than inventing zero. Manual recordings
+remain session-local until exported. Independently, the Monitor captures every
+run and rotates four aligned output-text, metadata-JSON, and telemetry-CSV
+generations into the selected course folder. A Web Lock plus a compact run
+fingerprint prevents duplicate archives when multiple Monitor tabs observe the
+same run. Explicit exports are never included in rotation.
 
 ## 8. Failure and maintenance model
 

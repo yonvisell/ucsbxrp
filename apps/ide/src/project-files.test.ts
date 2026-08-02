@@ -11,6 +11,7 @@ import {
   readProjectFolder,
   removeProjectFolderFiles,
   renameProjectFile,
+  saveProjectFolderWithAutosave,
   setProjectEntrypoint,
   storeRecoveredProject,
   suggestedDuplicatePath,
@@ -521,6 +522,37 @@ describe("working-folder reads", () => {
     });
     const reopened = await readProjectFolder(root);
     expect(reopened.project).toEqual(project);
+    expect(reopened.skipped).toBe(0);
+  });
+
+  it("retains the four prior complete project states before automatic overwrite", async () => {
+    const files = new Map<string, string>([["main.py", "print('original')\n"]]);
+    const root = new WritableDirectoryHandle("course-project", files);
+
+    for (let revision = 1; revision <= 5; revision += 1) {
+      await saveProjectFolderWithAutosave(root, {
+        name: "course-project",
+        entrypoint: "main.py",
+        files: { "main.py": `print('revision ${revision}')\n` },
+      });
+    }
+
+    const savedSources = [1, 2, 3, 4].map((generation) => {
+      const backup = JSON.parse(
+        files.get(`UCSB_XRP_Autosaves/project-${generation}.json`) ?? "{}",
+      ) as { project?: { files?: Record<string, string> } };
+      return backup.project?.files?.["main.py"];
+    });
+    expect(savedSources).toEqual([
+      "print('revision 4')\n",
+      "print('revision 3')\n",
+      "print('revision 2')\n",
+      "print('revision 1')\n",
+    ]);
+    const reopened = await readProjectFolder(root);
+    expect(reopened.project.files).toEqual({
+      "main.py": "print('revision 5')\n",
+    });
     expect(reopened.skipped).toBe(0);
   });
 });

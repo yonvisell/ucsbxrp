@@ -200,11 +200,17 @@ and run on the virtual XRP; every loaded template remains an ordinary project.
 
 ### Refinement 4 — Folder persistence and automatic recovery
 
-Status: planned.
+Status: implemented and validated in Stable Chrome.
 
 - Persist and recover the selected folder permission where the browser permits.
 - Autosave source and per-run telemetry/output with four rotating automatic
   versions without rotating explicit user exports.
+
+Usable result: selecting a folder once enables serialized, debounced source
+saves and four recoverable pre-overwrite project states. The Monitor writes an
+aligned output log, metadata record, and unit-labeled telemetry CSV for every
+run. Native handles persist in IndexedDB when Chrome permits; a concise
+Reconnect action restores permission without weakening browser recovery.
 
 ### Refinement 5 — Course runtime and public vocabulary
 

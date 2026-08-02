@@ -11,7 +11,7 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–3 are complete. The Monitor now uses flat, independently
+Refinement slices 1–4 are complete. The Monitor now uses flat, independently
 resizable regions; a bounded arena grid with labeled millimeter coordinates;
 compact signal and recording controls; precise drive-command and yaw-rate
 labels; a closer dimensioned XRP view; and a narrow top-sheet control layout.
@@ -24,6 +24,14 @@ redundant file-type badges, literal startup-file state, and unclipped toolbar
 and folder controls. One grouped template menu loads all five challenges, a
 range-triggered obstacle/left-turn/obstacle demo, or seven staged MicroPython
 lessons as an ordinary editable project.
+
+Folder work is now low-friction and recoverable. Save now selects a normal
+project folder once; subsequent edits are serialized and written automatically
+after a short pause. Chrome retains the native handle where permitted and
+otherwise exposes one Reconnect action. Four complete pre-overwrite project
+states rotate in `UCSB_XRP_Autosaves`. The Monitor independently stores four
+aligned generations of output text, run metadata, and unit-labeled telemetry
+for every observed run; manual CSV exports remain explicit and unrotated.
 
 The IDE and Monitor now share one named runnable project revision and one
 stateful Run/Stop control. The target publishes a source-free revision
@@ -69,7 +77,9 @@ raised-wheel check verified both motors, both encoders, and paired response.
 
 ### IDE
 
-- Local working-folder open/save plus continuously recovered browser state.
+- Local project-folder open, Save now, debounced automatic writes, persisted
+  handle recovery, concise permission reconnect, four prior project states,
+  and continuously recovered browser state.
 - Create, rename, copy, delete, and tab among project files; select the startup
   file and load any challenge, robot demo, or tutorial template.
 - Explicit **Validate code** and **Sync project** operations, one stateful
@@ -99,6 +109,8 @@ raised-wheel check verified both motors, both encoders, and paired response.
 - Bounded 30,000-sample recording, dropped-sample reporting, and deterministic
   25-column CSV export with explicit seconds, m/s², rad/s, millimeters, and
   blank unavailable values.
+- Automatic per-run output, metadata, and telemetry archives in the connected
+  folder, with four aligned generations and cross-tab de-duplication.
 
 ### Visual system
 
@@ -156,15 +168,16 @@ The latest complete software pass includes:
 - 87 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 93 Vitest tests for project identity and handling, target clients and
+- 96 Vitest tests for project identity and handling, folder rotation, target clients and
   lifecycle, simulator, telemetry, offline state, plot data, and measured
   contrast;
 - a production build and verification of the exact 97-file offline manifest;
   and
-- 15 Stable Chrome software workflows covering all starters, both new project
-  templates, flat IDE geometry, blocked-gate replanning, two-app target
-  sharing, run-owner loss, narrow layouts, selectable/collapsed Monitor
-  controls, recording/CSV export, and a network-blocked offline reload;
+- 17 Stable Chrome software workflows covering all starters, both new project
+  templates, flat IDE geometry, four-generation source autosave, per-run
+  telemetry/output autosave, blocked-gate replanning, two-app target sharing,
+  run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
+  recording/CSV export, and a network-blocked offline reload;
   plus one opt-in Stable Chrome hardware workflow covering the shared physical
   project lifecycle, which passed against the attached XRP.
 
@@ -178,6 +191,8 @@ at 3:1 or better. The IDE was directly inspected in Chrome at 1,382 × 752 in
 both challenge and tutorial states. Measured header, toolbar, project rail,
 folder controls, and all interactive labels had no horizontal text overflow;
 the responsive Stable Chrome workflow separately exercised the 375 px layout.
+The Monitor folder/run controls were then directly inspected at 1,382 × 752;
+the 175 px scrolling sidebar fit without vertical or horizontal overflow.
 
 ## Physical evidence
 
@@ -201,9 +216,8 @@ Run/Stop refinement proof.
 
 ## Remaining work
 
-1. Complete folder autosave and recovery, coordinated course-runtime/API
-   clarification, and structured watches/live parameters in the active
-   refinement plan.
+1. Complete coordinated course-runtime/API clarification and structured
+   watches/live parameters in the active refinement plan.
 2. Red-team and repeat integrated virtual, Chrome, offline-update, persistence,
    and physical-target validation after those slices.
 3. On the final course surface, measure wheel-speed response, effective wheel

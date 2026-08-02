@@ -189,6 +189,12 @@
   text-overflow: ellipsis;
 }
 
+.folder-reconnect {
+  justify-self: start;
+  padding: 2px 5px;
+  font-size: var(--font-xs);
+}
+
 .project-reopen {
   flex: 0 0 auto;
   border: 0;

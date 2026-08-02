@@ -1,34 +1,18 @@
 import { STAGE_ONE_PROJECT, type CourseProject } from "@ucsb-xrp/target";
 
+import {
+  autosaveDirectoryName,
+  chooseCourseFolder,
+  supportsCourseFolders,
+  withCourseFolderWriteLock,
+  writeRotatingTextBundle,
+  type CourseDirectoryHandle,
+} from "../../shared/course-folder";
+
+export type { CourseDirectoryHandle } from "../../shared/course-folder";
+
 export interface ProjectSnapshot extends CourseProject {
   name: string;
-}
-
-interface CourseFileHandle {
-  readonly kind: "file";
-  readonly name: string;
-  getFile(): Promise<File>;
-  createWritable(): Promise<{
-    write(data: string): Promise<void>;
-    close(): Promise<void>;
-  }>;
-}
-
-export interface CourseDirectoryHandle {
-  readonly kind: "directory";
-  readonly name: string;
-  entries(): AsyncIterableIterator<
-    [string, CourseFileHandle | CourseDirectoryHandle]
-  >;
-  getDirectoryHandle(
-    name: string,
-    options?: { create?: boolean },
-  ): Promise<CourseDirectoryHandle>;
-  getFileHandle(
-    name: string,
-    options?: { create?: boolean },
-  ): Promise<CourseFileHandle>;
-  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
 }
 
 interface FolderReadResult {
@@ -86,6 +70,7 @@ const ignoredDirectories = new Set([
   ".git",
   ".idea",
   ".vscode",
+  autosaveDirectoryName,
   "dist",
   "node_modules",
 ]);
@@ -351,31 +336,11 @@ export function suggestedDuplicatePath(
 }
 
 export function supportsWorkingFolders(): boolean {
-  return (
-    "showDirectoryPicker" in window &&
-    typeof (
-      window as Window & {
-        showDirectoryPicker?: unknown;
-      }
-    ).showDirectoryPicker === "function"
-  );
+  return supportsCourseFolders();
 }
 
 export async function chooseWorkingFolder(): Promise<CourseDirectoryHandle> {
-  const picker = (
-    window as Window & {
-      showDirectoryPicker?: (options: {
-        id: string;
-        mode: "readwrite";
-      }) => Promise<CourseDirectoryHandle>;
-    }
-  ).showDirectoryPicker;
-  if (!picker) {
-    throw new Error(
-      "Folder access requires a current Chromium browser on localhost or HTTPS.",
-    );
-  }
-  return picker({ id: "ucsb-xrp-course-project", mode: "readwrite" });
+  return chooseCourseFolder();
 }
 
 export async function readProjectFolder(
@@ -391,6 +356,9 @@ export async function readProjectFolder(
   ): Promise<void> => {
     for await (const [name, handle] of directory.entries()) {
       if (handle.kind === "directory") {
+        if (name === autosaveDirectoryName) {
+          continue;
+        }
         if (name.startsWith(".") || ignoredDirectories.has(name)) {
           skipped += 1;
           continue;
@@ -514,4 +482,79 @@ export async function removeProjectFolderFiles(
     }
   }
   return removed;
+}
+
+function sameProjectContents(
+  first: ProjectSnapshot,
+  second: ProjectSnapshot,
+): boolean {
+  if (first.entrypoint !== second.entrypoint) {
+    return false;
+  }
+  const firstPaths = Object.keys(first.files).sort();
+  const secondPaths = Object.keys(second.files).sort();
+  return (
+    firstPaths.length === secondPaths.length &&
+    firstPaths.every(
+      (path, index) =>
+        path === secondPaths[index] && first.files[path] === second.files[path],
+    )
+  );
+}
+
+export interface ProjectFolderSaveResult {
+  changed: boolean;
+  removedFiles: number;
+}
+
+async function saveProjectFolderWithAutosaveUnlocked(
+  root: CourseDirectoryHandle,
+  project: ProjectSnapshot,
+  deletedPaths: Iterable<string> = [],
+): Promise<ProjectFolderSaveResult> {
+  let previous: ProjectSnapshot | null = null;
+  try {
+    previous = (await readProjectFolder(root)).project;
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes("no supported text project files")
+    ) {
+      throw error;
+    }
+  }
+
+  const changed = previous === null || !sameProjectContents(previous, project);
+  if (!changed) {
+    return { changed: false, removedFiles: 0 };
+  }
+  if (previous) {
+    await writeRotatingTextBundle(root, [
+      {
+        baseName: "project",
+        extension: "json",
+        content: `${JSON.stringify(
+          {
+            savedAt: new Date().toISOString(),
+            project: previous,
+          },
+          null,
+          2,
+        )}\n`,
+      },
+    ]);
+  }
+  await writeProjectFolder(root, project);
+  const removedFiles = await removeProjectFolderFiles(root, deletedPaths);
+  return { changed: true, removedFiles };
+}
+
+export async function saveProjectFolderWithAutosave(
+  root: CourseDirectoryHandle,
+  project: ProjectSnapshot,
+  deletedPaths: Iterable<string> = [],
+): Promise<ProjectFolderSaveResult> {
+  return withCourseFolderWriteLock("project", () =>
+    saveProjectFolderWithAutosaveUnlocked(root, project, deletedPaths),
+  );
 }

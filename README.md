@@ -27,11 +27,15 @@ and enable each named `USE_STUDENT_*` switch independently.
 
 ## IDE workflow
 
-The IDE keeps a recoverable browser copy of the project. **Open folder** grants
-access to a local working folder; **Save files** writes the complete project
-back. New, renamed, duplicated, and deleted files remain project-relative, and
-the selected startup file is saved in `.ucsb-xrp-project.json`. Open files use
-normal editor tabs.
+The IDE keeps a recoverable browser copy of the project. **Open folder** resumes
+a local project; **Save now** selects or immediately updates its folder. After
+a folder is selected, edits save there automatically after a short pause. The
+visible `UCSB_XRP_Autosaves` subfolder retains the four prior complete project
+states before overwrite. New, renamed, copied, and deleted files remain
+project-relative, and the selected startup file is saved in
+`.ucsb-xrp-project.json`. Chrome remembers the folder handle when permitted and
+otherwise offers a one-click reconnect; browser recovery never depends on that
+permission.
 
 - **Validate code** compiles every Python file with MicroPython without running
   it.
@@ -47,7 +51,7 @@ the physical XRP address. Status and verbose details are separate output tabs.
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
-| Save project files | `Command-S` | `Ctrl-S` |
+| Save now | `Command-S` | `Ctrl-S` |
 | Validate code | `Command-Shift-Enter` | `Ctrl-Shift-Enter` |
 | Run | `Command-Enter` | `Ctrl-Enter` |
 | Open settings | `Command-,` | `Ctrl-,` |
@@ -61,7 +65,7 @@ and program output. For the virtual XRP, choose **Open field** or **Delivery
 gate blocked**; the second scene exercises Challenge 5 observation and
 replanning. The world uses the production XRP's dimensioned footprint and a
 500 mm ruler. The compact left sidebar collapses to a narrow rail and selects a
-2–30 second scrolling history for wheel speed, normalized motor command,
+2–30 second scrolling history for wheel speed, normalized drive command,
 forward range,
 acceleration, or angular rate. Signals can be combined or hidden for the
 current experiment.
@@ -71,6 +75,9 @@ pose availability, motion, encoders, collision, range, button, IMU,
 temperature, battery, and sensor errors with units in the column names. It uses
 seconds, radians, metres per second squared, and radians per second; course
 distances and wheel speeds remain in millimetres and millimetres per second.
+When a folder is connected, every monitored run also writes aligned
+`run-1.txt`, `run-1.json`, and `telemetry-1.csv` automatic copies. Generations
+1–4 rotate newest to oldest; explicit CSV downloads are never rotated.
 
 ## Configure the physical XRP
 

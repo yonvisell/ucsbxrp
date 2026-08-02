@@ -24,6 +24,12 @@ import {
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import {
+  courseFolderPermission,
+  loadRememberedCourseFolder,
+  rememberCourseFolder,
+  requestCourseFolderPermission,
+} from "../../shared/course-folder";
+import {
   chooseWorkingFolder,
   deleteProjectFile,
   duplicateProjectFile,
@@ -31,13 +37,12 @@ import {
   normalizedProjectPath,
   projectPathError,
   readProjectFolder,
-  removeProjectFolderFiles,
   renameProjectFile,
+  saveProjectFolderWithAutosave,
   setProjectEntrypoint,
   storeRecoveredProject,
   suggestedDuplicatePath,
   supportsWorkingFolders,
-  writeProjectFolder,
   type CourseDirectoryHandle,
   type ProjectSnapshot,
 } from "./project-files";
@@ -149,9 +154,14 @@ export function IdeApp() {
   const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
   const [workingFolder, setWorkingFolder] =
     useState<CourseDirectoryHandle | null>(null);
+  const [rememberedFolder, setRememberedFolder] =
+    useState<CourseDirectoryHandle | null>(null);
+  const [folderSaveState, setFolderSaveState] = useState<
+    "browser" | "pending" | "saving" | "current" | "permission" | "error"
+  >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
   const [operationDetail, setOperationDetail] = useState(
-    "Browser recovery is active. Choose Open folder to work in a local project folder.",
+    "Browser recovery is active. Choose Save now to select a project folder, or Open folder to resume one.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -187,6 +197,19 @@ export function IdeApp() {
   const nextConsoleId = useRef(1);
   const initializedProjectEffect = useRef(false);
   const projectRef = useRef(project);
+  const projectVersion = useRef(0);
+  const folderWriteQueue = useRef<Promise<void>>(Promise.resolve());
+  const folderWriteEpoch = useRef(0);
+  const pendingFolderDeletionsRef = useRef(new Set<string>());
+
+  const replacePendingFolderDeletions = useCallback(
+    (update: (current: Set<string>) => Set<string>) => {
+      const next = update(pendingFolderDeletionsRef.current);
+      pendingFolderDeletionsRef.current = next;
+      setPendingFolderDeletions(next);
+    },
+    [],
+  );
 
   useEffect(() => {
     const unsubscribe = target.subscribe((event: TargetEvent) => {
@@ -223,6 +246,7 @@ export function IdeApp() {
 
   useEffect(() => {
     projectRef.current = project;
+    projectVersion.current += 1;
     storeRecoveredProject(project);
     if (initializedProjectEffect.current) {
       setCheckOk(null);
@@ -243,6 +267,42 @@ export function IdeApp() {
       initializedProjectEffect.current = true;
     }
   }, [project]);
+
+  useEffect(() => {
+    let disposed = false;
+    const restoreFolder = async () => {
+      const folder = await loadRememberedCourseFolder();
+      if (
+        disposed ||
+        folder === null ||
+        folder.name !== projectRef.current.name
+      ) {
+        return;
+      }
+      setRememberedFolder(folder);
+      const permission = await courseFolderPermission(folder);
+      if (disposed) {
+        return;
+      }
+      if (permission === "granted") {
+        setWorkingFolder(folder);
+        setFolderDirty(true);
+        setFolderSaveState("pending");
+        setOperationDetail(
+          `Restored ${folder.name}. Recovered edits will save automatically.`,
+        );
+      } else {
+        setFolderSaveState("permission");
+        setOperationDetail(
+          `Reconnect ${folder.name} once to resume automatic folder saves.`,
+        );
+      }
+    };
+    void restoreFolder();
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(settingsKey, JSON.stringify(settings));
@@ -304,14 +364,17 @@ export function IdeApp() {
 
   const updateActiveFile = useCallback(
     (content: string) => {
-      setProject((current) => ({
+      const current = projectRef.current;
+      const nextProject = {
         ...current,
         files: { ...current.files, [activePath]: content },
-      }));
+      };
+      projectRef.current = nextProject;
+      setProject(nextProject);
       setFolderDirty(true);
       setOperationDetail(
         workingFolder
-          ? "Changes are recovered in this browser. Save files to update the working folder."
+          ? "Changes are recovered in this browser and will save to the project folder automatically."
           : "Changes are recovered in this browser.",
       );
     },
@@ -396,11 +459,15 @@ export function IdeApp() {
       setOperationDetail(`Reading ${folder.name}…`);
       const result = await readProjectFolder(folder);
       setWorkingFolder(folder);
+      setRememberedFolder(folder);
+      setFolderSaveState("current");
+      void rememberCourseFolder(folder);
+      projectRef.current = result.project;
       setProject(result.project);
       setActivePath(result.project.entrypoint);
       setOpenPaths([result.project.entrypoint]);
       setFolderDirty(false);
-      setPendingFolderDeletions(new Set());
+      replacePendingFolderDeletions(() => new Set());
       setCheckOk(null);
       setCheckDetail("Not validated");
       setConsoleEntries([]);
@@ -414,29 +481,70 @@ export function IdeApp() {
         setOperationDetail(errorDetail(error));
       }
     }
-  }, []);
+  }, [replacePendingFolderDeletions]);
+
+  const reconnectWorkingFolder = useCallback(async () => {
+    if (!rememberedFolder) {
+      return;
+    }
+    try {
+      const permission = await requestCourseFolderPermission(rememberedFolder);
+      if (permission !== "granted") {
+        setFolderSaveState("permission");
+        setOperationDetail(
+          `Folder access was not granted. Browser recovery remains current.`,
+        );
+        return;
+      }
+      setWorkingFolder(rememberedFolder);
+      setFolderDirty(true);
+      setFolderSaveState("pending");
+      setOperationDetail(
+        `Reconnected ${rememberedFolder.name}. Recovered edits will save automatically.`,
+      );
+    } catch (error) {
+      if (!wasCancelled(error)) {
+        setFolderSaveState("error");
+        setOperationDetail(errorDetail(error));
+      }
+    }
+  }, [rememberedFolder]);
 
   const saveProjectFiles = useCallback(async () => {
     try {
+      folderWriteEpoch.current += 1;
       const folder = workingFolder ?? (await chooseWorkingFolder());
-      let removedFiles = 0;
-      setOperationDetail(`Saving ${Object.keys(project.files).length} files…`);
-      await writeProjectFolder(folder, project);
-      if (workingFolder && pendingFolderDeletions.size > 0) {
-        removedFiles = await removeProjectFolderFiles(
-          folder,
-          pendingFolderDeletions,
-        );
-      }
+      const currentProjectSnapshot = projectRef.current;
+      const savedProject =
+        workingFolder || currentProjectSnapshot.name === folder.name
+          ? currentProjectSnapshot
+          : { ...currentProjectSnapshot, name: folder.name };
+      const deletedPaths = new Set(pendingFolderDeletionsRef.current);
+      setOperationDetail(
+        `Saving ${Object.keys(savedProject.files).length} files…`,
+      );
+      setFolderSaveState("saving");
+      const queued = folderWriteQueue.current.then(() =>
+        saveProjectFolderWithAutosave(folder, savedProject, deletedPaths),
+      );
+      folderWriteQueue.current = queued.then(
+        () => undefined,
+        () => undefined,
+      );
+      const { removedFiles } = await queued;
       if (!workingFolder) {
         setWorkingFolder(folder);
-        setProject((current) => ({ ...current, name: folder.name }));
+        setRememberedFolder(folder);
+        projectRef.current = savedProject;
+        setProject(savedProject);
+        void rememberCourseFolder(folder);
       }
       setFolderDirty(false);
-      setPendingFolderDeletions(new Set());
+      setFolderSaveState("current");
+      replacePendingFolderDeletions(() => new Set());
       setOperationDetail(
-        `Saved ${Object.keys(project.files).length} project file${
-          Object.keys(project.files).length === 1 ? "" : "s"
+        `Saved ${Object.keys(savedProject.files).length} project file${
+          Object.keys(savedProject.files).length === 1 ? "" : "s"
         } to ${folder.name}${
           removedFiles > 0
             ? `; removed ${removedFiles} deleted file${removedFiles === 1 ? "" : "s"}`
@@ -445,10 +553,89 @@ export function IdeApp() {
       );
     } catch (error) {
       if (!wasCancelled(error)) {
+        setFolderSaveState("error");
         setOperationDetail(errorDetail(error));
       }
     }
-  }, [pendingFolderDeletions, project, workingFolder]);
+  }, [replacePendingFolderDeletions, workingFolder]);
+
+  useEffect(() => {
+    if (!workingFolder || !folderDirty) {
+      return;
+    }
+    const folder = workingFolder;
+    const snapshot = project;
+    const deletedPaths = new Set(pendingFolderDeletionsRef.current);
+    const version = projectVersion.current;
+    const writeEpoch = folderWriteEpoch.current;
+    setFolderSaveState("pending");
+    const timer = window.setTimeout(() => {
+      setFolderSaveState("saving");
+      const queued = folderWriteQueue.current.then(async () => {
+        if (
+          projectVersion.current !== version ||
+          folderWriteEpoch.current !== writeEpoch
+        ) {
+          return null;
+        }
+        const permission = await courseFolderPermission(folder);
+        if (permission !== "granted") {
+          throw new DOMException(
+            "Reconnect the project folder to resume automatic saves.",
+            "NotAllowedError",
+          );
+        }
+        return saveProjectFolderWithAutosave(folder, snapshot, deletedPaths);
+      });
+      folderWriteQueue.current = queued.then(
+        () => undefined,
+        () => undefined,
+      );
+      void queued
+        .then(() => {
+          if (
+            projectVersion.current !== version ||
+            folderWriteEpoch.current !== writeEpoch
+          ) {
+            return;
+          }
+          setFolderDirty(false);
+          setFolderSaveState("current");
+          replacePendingFolderDeletions((current) => {
+            const remaining = new Set(current);
+            for (const path of deletedPaths) {
+              remaining.delete(path);
+            }
+            return remaining;
+          });
+          setOperationDetail(
+            `Autosaved ${Object.keys(snapshot.files).length} project file${
+              Object.keys(snapshot.files).length === 1 ? "" : "s"
+            } to ${folder.name}.`,
+          );
+        })
+        .catch((error: unknown) => {
+          if (
+            error instanceof DOMException &&
+            error.name === "NotAllowedError"
+          ) {
+            setWorkingFolder(null);
+            setRememberedFolder(folder);
+            setFolderSaveState("permission");
+          } else {
+            setFolderSaveState("error");
+          }
+          setOperationDetail(errorDetail(error));
+        });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [
+    folderDirty,
+    pendingFolderDeletions,
+    project,
+    replacePendingFolderDeletions,
+    workingFolder,
+  ]);
 
   const loadProjectTemplate = useCallback(() => {
     const template = COURSE_PROJECT_TEMPLATES.find(
@@ -462,21 +649,24 @@ export function IdeApp() {
       entrypoint: template.project.entrypoint,
       files: { ...template.project.files },
     };
+    projectRef.current = snapshot;
     setProject(snapshot);
     setActivePath(snapshot.entrypoint);
     setOpenPaths([snapshot.entrypoint]);
     setWorkingFolder(null);
-    setPendingFolderDeletions(new Set());
+    setRememberedFolder(null);
+    replacePendingFolderDeletions(() => new Set());
     setFolderDirty(true);
+    setFolderSaveState("browser");
     setCheckOk(null);
     setCheckDetail("Not validated");
     setSyncOk(null);
     setSyncDetail("Not synchronized");
     setConsoleEntries([]);
     setOperationDetail(
-      `${template.label} loaded. Choose Save files to create its working folder.`,
+      `${template.label} loaded. Choose Save now to select its project folder.`,
     );
-  }, [selectedTemplateId]);
+  }, [replacePendingFolderDeletions, selectedTemplateId]);
 
   const createFile = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -491,11 +681,14 @@ export function IdeApp() {
         setNewFileError("That file already exists.");
         return;
       }
-      setProject((current) => ({
+      const current = projectRef.current;
+      const nextProject = {
         ...current,
         files: { ...current.files, [path]: "" },
-      }));
-      setPendingFolderDeletions((current) => {
+      };
+      projectRef.current = nextProject;
+      setProject(nextProject);
+      replacePendingFolderDeletions((current) => {
         const next = new Set(current);
         next.delete(path);
         return next;
@@ -505,11 +698,19 @@ export function IdeApp() {
       setNewFilePath("");
       setNewFileError("");
       setOperationDetail(
-        `${path} created in browser recovery. Save files to write it to the working folder.`,
+        workingFolder
+          ? `${path} created. Automatic folder save pending.`
+          : `${path} created in browser recovery.`,
       );
       openFile(path);
     },
-    [newFilePath, openFile, project.files],
+    [
+      newFilePath,
+      openFile,
+      project.files,
+      replacePendingFolderDeletions,
+      workingFolder,
+    ],
   );
 
   const beginPathOperation = useCallback(
@@ -537,8 +738,9 @@ export function IdeApp() {
           pathOperation === "rename"
             ? renameProjectFile(project, activePath, nextPath)
             : duplicateProjectFile(project, activePath, nextPath);
+        projectRef.current = nextProject;
         setProject(nextProject);
-        setPendingFolderDeletions((current) => {
+        replacePendingFolderDeletions((current) => {
           const next = new Set(current);
           next.delete(nextPath);
           if (pathOperation === "rename") {
@@ -559,8 +761,8 @@ export function IdeApp() {
         setFolderDirty(true);
         setOperationDetail(
           pathOperation === "rename"
-            ? `Renamed ${activePath} to ${nextPath}. Save files to update the working folder.`
-            : `Duplicated ${activePath} as ${nextPath}. Save files to write the copy.`,
+            ? `Renamed ${activePath} to ${nextPath}.${workingFolder ? " Automatic folder save pending." : ""}`
+            : `Copied ${activePath} as ${nextPath}.${workingFolder ? " Automatic folder save pending." : ""}`,
         );
         setPathOperation(null);
         setPathDraft("");
@@ -569,7 +771,14 @@ export function IdeApp() {
         setPathOperationError(errorDetail(error));
       }
     },
-    [activePath, pathDraft, pathOperation, project],
+    [
+      activePath,
+      pathDraft,
+      pathOperation,
+      project,
+      replacePendingFolderDeletions,
+      workingFolder,
+    ],
   );
 
   const confirmDeleteFile = useCallback(() => {
@@ -578,8 +787,11 @@ export function IdeApp() {
     }
     try {
       const nextProject = deleteProjectFile(project, deletePath);
+      projectRef.current = nextProject;
       setProject(nextProject);
-      setPendingFolderDeletions((current) => new Set([...current, deletePath]));
+      replacePendingFolderDeletions(
+        (current) => new Set([...current, deletePath]),
+      );
       setOpenPaths((paths) => {
         const remaining = paths.filter((path) => path !== deletePath);
         return remaining.length > 0 ? remaining : [nextProject.entrypoint];
@@ -589,26 +801,34 @@ export function IdeApp() {
       }
       setFolderDirty(true);
       setOperationDetail(
-        `${deletePath} removed from the project. Save files to remove it from the working folder.`,
+        `${deletePath} removed from the project.${workingFolder ? " Automatic folder save pending." : ""}`,
       );
       setDeletePath(null);
     } catch (error) {
       setOperationDetail(errorDetail(error));
       setDeletePath(null);
     }
-  }, [activePath, deletePath, project]);
+  }, [
+    activePath,
+    deletePath,
+    project,
+    replacePendingFolderDeletions,
+    workingFolder,
+  ]);
 
   const useActiveFileAsEntrypoint = useCallback(() => {
     try {
-      setProject((current) => setProjectEntrypoint(current, activePath));
+      const nextProject = setProjectEntrypoint(projectRef.current, activePath);
+      projectRef.current = nextProject;
+      setProject(nextProject);
       setFolderDirty(true);
       setOperationDetail(
-        `${activePath} is now the startup file. Save files to preserve this setting with the working folder.`,
+        `${activePath} is now the startup file.${workingFolder ? " Automatic folder save pending." : ""}`,
       );
     } catch (error) {
       setOperationDetail(errorDetail(error));
     }
-  }, [activePath]);
+  }, [activePath, workingFolder]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -684,10 +904,20 @@ export function IdeApp() {
   }, [deletePath, newFileOpen, pathOperation]);
 
   const storageDetail = workingFolder
-    ? `${workingFolder.name}${folderDirty ? " · folder has unsaved changes" : " · folder current"}`
-    : folderDirty
-      ? "Browser recovery only · choose Save files to select a folder"
-      : "Browser recovery only";
+    ? `${workingFolder.name} · ${
+        folderSaveState === "error"
+          ? "autosave failed"
+          : folderSaveState === "saving"
+            ? "saving…"
+            : folderDirty
+              ? "autosave pending"
+              : "autosaved"
+      }`
+    : rememberedFolder
+      ? `${rememberedFolder.name} · reconnect to resume autosave`
+      : folderDirty
+        ? "Browser recovery · choose Save now to select a folder"
+        : "Browser recovery";
 
   return (
     <div className="app-shell ide-app">
@@ -869,9 +1099,9 @@ export function IdeApp() {
               </button>
               <button
                 onClick={saveProjectFiles}
-                title="Save all files to the working folder (⌘/Ctrl+S)"
+                title="Save all files now and enable automatic folder saves (⌘/Ctrl+S)"
               >
-                Save files
+                Save now
               </button>
             </div>
             <div className="project-summary">
@@ -946,8 +1176,17 @@ export function IdeApp() {
               ))}
             </div>
             <div className="project-storage">
-              <span>WORKING FOLDER</span>
+              <span>PROJECT FOLDER</span>
               <strong title={storageDetail}>{storageDetail}</strong>
+              {!workingFolder && rememberedFolder ? (
+                <button
+                  className="folder-reconnect"
+                  onClick={reconnectWorkingFolder}
+                  title={`Restore write access to ${rememberedFolder.name}.`}
+                >
+                  Reconnect
+                </button>
+              ) : null}
             </div>
             <div className="course-release">
               <span>COURSE RELEASE</span>
@@ -1001,7 +1240,15 @@ export function IdeApp() {
                 </div>
               ))}
               <span className="autosave-label">
-                {folderDirty ? "Recovered · folder not saved" : "Recovered"}
+                {workingFolder
+                  ? folderSaveState === "error"
+                    ? "Save failed"
+                    : folderSaveState === "saving"
+                      ? "Saving…"
+                      : folderDirty
+                        ? "Autosave pending"
+                        : "Autosaved"
+                  : "Browser recovery"}
               </span>
             </div>
             <div className="editor-frame" data-testid="python-editor">
@@ -1340,7 +1587,7 @@ export function IdeApp() {
             <h3>Shortcuts</h3>
             <dl>
               <div>
-                <dt>Save files</dt>
+                <dt>Save now</dt>
                 <dd>⌘/Ctrl+S</dd>
               </div>
               <div>
@@ -1477,8 +1724,8 @@ export function IdeApp() {
             <span className="dialog-kicker">CONFIRM DELETION</span>
             <h2 id="delete-file-title">Delete {deletePath}?</h2>
             <p className="dialog-context">
-              This removes the file from browser recovery now. Select Save files
-              to remove the same file from the current working folder.
+              This removes the file from browser recovery now. A connected
+              project folder updates automatically.
               {deletePath === project.entrypoint && replacementEntrypoint
                 ? ` ${replacementEntrypoint} will become the startup file.`
                 : ""}

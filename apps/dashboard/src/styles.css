@@ -203,6 +203,26 @@
   font-size: var(--font-xs);
 }
 
+.run-autosave-summary {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.run-autosave-summary span {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
+.run-autosave-summary button {
+  justify-self: start;
+  min-height: 21px;
+  padding: 2px 5px;
+  font-size: var(--font-xs);
+}
+
 .header-nav {
   display: flex;
   align-items: center;

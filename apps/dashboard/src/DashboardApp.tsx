@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -25,6 +26,17 @@ import {
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
+import {
+  chooseCourseFolder,
+  courseFolderChangedKey,
+  courseFolderPermission,
+  loadRememberedCourseFolder,
+  rememberCourseFolder,
+  requestCourseFolderPermission,
+  withCourseFolderWriteLock,
+  writeRotatingTextBundle,
+  type CourseDirectoryHandle,
+} from "../../shared/course-folder";
 import { SIGNAL_PLOTS, SignalPlot, type SignalPlotId } from "./SignalPlot";
 import { WorldView } from "./WorldView";
 
@@ -37,6 +49,15 @@ interface ConsoleEntry {
 const simulationScenarioKey = "ucsb-xrp-simulation-scenario-v1";
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v2";
 const maximumPlotSamples = 1_200;
+const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
+
+function isActiveRunState(state: TargetRunState): boolean {
+  return state === "loading" || state === "running";
+}
+
+function wasCancelled(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
 
 interface MonitorSettings {
   timeWindowS: number;
@@ -167,6 +188,7 @@ export function DashboardApp() {
     [targetPreference.kind, targetPreference.physicalEndpoint],
   );
   const recorder = useMemo(() => new TelemetryRecorder(), []);
+  const automaticRecorder = useMemo(() => new TelemetryRecorder(), []);
   const [sample, setSample] = useState<TelemetrySample | null>(null);
   const [plotSamples, setPlotSamples] = useState<readonly TelemetrySample[]>(
     [],
@@ -180,7 +202,21 @@ export function DashboardApp() {
   const [recordingActive, setRecordingActive] = useState(false);
   const [recordedSamples, setRecordedSamples] = useState(0);
   const [droppedSamples, setDroppedSamples] = useState(0);
+  const [autosaveFolder, setAutosaveFolder] =
+    useState<CourseDirectoryHandle | null>(null);
+  const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
+    useState<CourseDirectoryHandle | null>(null);
+  const [runAutosaveDetail, setRunAutosaveDetail] = useState(
+    "Choose a project folder in the IDE, or choose a data folder here.",
+  );
   const nextConsoleId = useRef(1);
+  const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const currentProjectRef = useRef<SynchronizedProject | null>(null);
+  const automaticRunActive = useRef(false);
+  const automaticRunStartedAt = useRef("");
+  const automaticRunProject = useRef<SynchronizedProject | null>(null);
+  const automaticRunOutput = useRef<ConsoleEntry[]>([]);
+  const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     storeTargetPreference(targetPreference);
@@ -197,6 +233,149 @@ export function DashboardApp() {
       JSON.stringify(monitorSettings),
     );
   }, [monitorSettings]);
+
+  useEffect(() => {
+    autosaveFolderRef.current = autosaveFolder;
+  }, [autosaveFolder]);
+
+  useEffect(() => {
+    let disposed = false;
+    const refreshFolder = async () => {
+      const folder = await loadRememberedCourseFolder();
+      if (disposed || folder === null) {
+        return;
+      }
+      setRememberedAutosaveFolder(folder);
+      const permission = await courseFolderPermission(folder);
+      if (disposed) {
+        return;
+      }
+      if (permission === "granted") {
+        setAutosaveFolder(folder);
+        setRunAutosaveDetail(`Runs auto-save to ${folder.name}.`);
+      } else {
+        setAutosaveFolder(null);
+        setRunAutosaveDetail(
+          `Reconnect ${folder.name} once to resume run auto-save.`,
+        );
+      }
+    };
+    const folderChanged = (event: StorageEvent) => {
+      if (event.key === courseFolderChangedKey) {
+        void refreshFolder();
+      }
+    };
+    void refreshFolder();
+    window.addEventListener("storage", folderChanged);
+    return () => {
+      disposed = true;
+      window.removeEventListener("storage", folderChanged);
+    };
+  }, []);
+
+  const archiveAutomaticRun = useCallback(
+    (finalState: TargetRunState, finalDetail: string) => {
+      if (!automaticRunActive.current) {
+        return;
+      }
+      automaticRunActive.current = false;
+      const recording = automaticRecorder.stop();
+      const folder = autosaveFolderRef.current;
+      const startedAt = automaticRunStartedAt.current;
+      const finishedAt = new Date().toISOString();
+      const projectAtStart = automaticRunProject.current;
+      const output = automaticRunOutput.current;
+      automaticRunOutput.current = [];
+      if (!folder) {
+        setRunAutosaveDetail(
+          "Run finished; browser data remains visible, but no auto-save folder is connected.",
+        );
+        return;
+      }
+
+      const firstSample = recording.samples[0];
+      const lastSample = recording.samples.at(-1);
+      const fingerprint = JSON.stringify({
+        source: target.kind,
+        revision: projectAtStart?.revision ?? null,
+        first: firstSample ? [firstSample.seq, firstSample.tMs] : null,
+        last: lastSample ? [lastSample.seq, lastSample.tMs] : null,
+        outputCount: output.length,
+        firstOutput: output[0]?.line ?? null,
+        lastOutput: output.at(-1)?.line ?? null,
+      });
+      const metadata = {
+        schemaVersion: 1,
+        startedAt,
+        finishedAt,
+        target: target.kind,
+        finalState,
+        finalDetail,
+        project: projectAtStart,
+        telemetrySamples: recording.samples.length,
+        droppedTelemetrySamples: recording.droppedSamples,
+      };
+      const outputText = [
+        "UCSB XRP monitored run",
+        `Started: ${startedAt}`,
+        `Finished: ${finishedAt}`,
+        `Target: ${target.kind}`,
+        `Project: ${projectAtStart?.name ?? "unavailable"}`,
+        `Result: ${finalState} · ${finalDetail}`,
+        "",
+        ...output.map((entry) => `[${entry.stream}] ${entry.line}`),
+        "",
+      ].join("\n");
+
+      const writeArchive = async () => {
+        try {
+          if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
+            return;
+          }
+        } catch {
+          // The folder write remains useful when localStorage is unavailable.
+        }
+        await writeRotatingTextBundle(folder, [
+          { baseName: "run", extension: "txt", content: outputText },
+          {
+            baseName: "telemetry",
+            extension: "csv",
+            content: telemetryRecordingToCsv(recording),
+          },
+          {
+            baseName: "run",
+            extension: "json",
+            content: `${JSON.stringify(metadata, null, 2)}\n`,
+          },
+        ]);
+        try {
+          localStorage.setItem(lastArchivedRunKey, fingerprint);
+        } catch {
+          // The files are already complete.
+        }
+      };
+
+      const queued = runArchiveQueue.current.then(async () => {
+        await withCourseFolderWriteLock("run", writeArchive);
+      });
+      runArchiveQueue.current = queued.then(
+        () => undefined,
+        () => undefined,
+      );
+      void queued
+        .then(() => {
+          setRunAutosaveDetail(
+            `Saved ${recording.samples.length} telemetry samples and program output to ${folder.name}.`,
+          );
+        })
+        .catch((error: unknown) => {
+          setRunAutosaveDetail(
+            `Run auto-save failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+    },
+    [automaticRecorder, target.kind],
+  );
 
   useEffect(() => {
     const updateFromOtherApp = (event: StorageEvent) => {
@@ -232,29 +411,57 @@ export function DashboardApp() {
           return [...retained, event.sample];
         });
         recorder.capture(event.sample);
+        automaticRecorder.capture(event.sample);
         if (recorder.isRecording) {
           setRecordedSamples(recorder.sampleCount);
           setDroppedSamples(recorder.droppedSampleCount);
         }
       } else if (event.type === "status") {
+        const nextRunActive = isActiveRunState(event.state);
+        if (nextRunActive && !automaticRunActive.current) {
+          automaticRunActive.current = true;
+          automaticRunStartedAt.current = new Date().toISOString();
+          automaticRunProject.current = currentProjectRef.current;
+          automaticRunOutput.current = [];
+          automaticRecorder.start();
+          setRunAutosaveDetail(
+            autosaveFolderRef.current
+              ? `Capturing this run for ${autosaveFolderRef.current.name}…`
+              : "Capturing this run in the Monitor; no auto-save folder is connected.",
+          );
+        } else if (!nextRunActive && automaticRunActive.current) {
+          archiveAutomaticRun(event.state, event.detail);
+        }
         setTargetState(event.state);
         setTargetDetail(event.detail);
       } else if (event.type === "project") {
+        currentProjectRef.current = event.project;
+        if (
+          automaticRunActive.current &&
+          automaticRunProject.current === null
+        ) {
+          automaticRunProject.current = event.project;
+        }
         setCurrentProject(event.project);
       } else if (event.type === "console") {
-        setConsoleEntries((entries) => [
-          ...entries.slice(-99),
-          {
-            id: nextConsoleId.current++,
-            stream: event.stream,
-            line: event.line,
-          },
-        ]);
+        const entry = {
+          id: nextConsoleId.current++,
+          stream: event.stream,
+          line: event.line,
+        };
+        if (automaticRunActive.current) {
+          automaticRunOutput.current = [
+            ...automaticRunOutput.current.slice(-1_999),
+            entry,
+          ];
+        }
+        setConsoleEntries((entries) => [...entries.slice(-99), entry]);
       }
     });
     setTargetState("connecting");
     setSample(null);
     setPlotSamples([]);
+    currentProjectRef.current = null;
     let disposed = false;
     const connect = async () => {
       try {
@@ -274,10 +481,13 @@ export function DashboardApp() {
     void connect();
     return () => {
       disposed = true;
+      if (automaticRunActive.current) {
+        archiveAutomaticRun("disconnected", "Target connection changed");
+      }
       unsubscribe();
       target.disconnect();
     };
-  }, [recorder, target]);
+  }, [archiveAutomaticRun, automaticRecorder, recorder, target]);
 
   const reset = async () => {
     try {
@@ -309,6 +519,49 @@ export function DashboardApp() {
     } catch (error: unknown) {
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const chooseRunAutosaveFolder = async () => {
+    try {
+      const folder = await chooseCourseFolder();
+      setRememberedAutosaveFolder(folder);
+      setAutosaveFolder(folder);
+      setRunAutosaveDetail(`Runs auto-save to ${folder.name}.`);
+      void rememberCourseFolder(folder);
+    } catch (error: unknown) {
+      if (!wasCancelled(error)) {
+        setRunAutosaveDetail(
+          `Folder selection failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  };
+
+  const reconnectRunAutosaveFolder = async () => {
+    if (!rememberedAutosaveFolder) {
+      return;
+    }
+    try {
+      const permission = await requestCourseFolderPermission(
+        rememberedAutosaveFolder,
+      );
+      if (permission !== "granted") {
+        setRunAutosaveDetail(
+          `Folder access was not granted. Run data remains in this browser session.`,
+        );
+        return;
+      }
+      setAutosaveFolder(rememberedAutosaveFolder);
+      setRunAutosaveDetail(
+        `Runs auto-save to ${rememberedAutosaveFolder.name}.`,
+      );
+    } catch (error: unknown) {
+      if (!wasCancelled(error)) {
+        setRunAutosaveDetail(
+          `Folder reconnection failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
   };
 
@@ -579,6 +832,29 @@ export function DashboardApp() {
                       title="Discard the current in-browser recording."
                     >
                       Clear
+                    </button>
+                  </div>
+                  <div className="run-autosave-summary">
+                    <span data-testid="run-autosave-status" role="status">
+                      {runAutosaveDetail}
+                    </span>
+                    <button
+                      onClick={
+                        !autosaveFolder && rememberedAutosaveFolder
+                          ? reconnectRunAutosaveFolder
+                          : chooseRunAutosaveFolder
+                      }
+                      title={
+                        !autosaveFolder && rememberedAutosaveFolder
+                          ? `Restore write access to ${rememberedAutosaveFolder.name}.`
+                          : "Choose where monitored run telemetry and output are saved."
+                      }
+                    >
+                      {!autosaveFolder && rememberedAutosaveFolder
+                        ? "Reconnect folder"
+                        : autosaveFolder
+                          ? "Change folder"
+                          : "Choose folder"}
                     </button>
                   </div>
                 </section>
