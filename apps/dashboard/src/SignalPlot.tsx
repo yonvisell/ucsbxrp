@@ -163,6 +163,25 @@ interface SignalPlotProps {
   timeWindowS: number;
 }
 
+export function signalXAxis(timeWindowS: number) {
+  return {
+    type: "value" as const,
+    min: -timeWindowS,
+    max: 0,
+    name: "time (s)",
+    nameGap: 12,
+    nameTextStyle: { color: "#56636c", fontSize: 8 },
+    axisLabel: { color: "#56636c", fontSize: 8 },
+    axisLine: { lineStyle: { color: "#737f88", width: 1 } },
+    splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
+    minorTick: { show: false, splitNumber: 2 },
+    minorSplitLine: {
+      show: true,
+      lineStyle: { color: "#eceff0", width: 1 },
+    },
+  };
+}
+
 export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -216,17 +235,7 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
           borderColor: "#737f88",
           textStyle: { color: "#182128", fontSize: 9 },
         },
-        xAxis: {
-          type: "value",
-          min: -timeWindowS,
-          max: 0,
-          name: "time (s)",
-          nameGap: 12,
-          nameTextStyle: { color: "#56636c", fontSize: 8 },
-          axisLabel: { color: "#56636c", fontSize: 8 },
-          axisLine: { lineStyle: { color: "#737f88", width: 1 } },
-          splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
-        },
+        xAxis: signalXAxis(timeWindowS),
         yAxis: {
           type: "value",
           min: definition.fixedRange?.[0],

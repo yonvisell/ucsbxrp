@@ -1,9 +1,23 @@
 import { readFile } from "node:fs/promises";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 function recordedCount(text: string | null): number {
   return Number.parseInt((text ?? "").replaceAll(",", ""), 10);
+}
+
+async function visiblePlotHeights(page: Page): Promise<Record<string, number>> {
+  return page
+    .locator(".strip-chart-stack")
+    .evaluate((stack) =>
+      Object.fromEntries(
+        [...stack.querySelectorAll<HTMLElement>(".strip-chart")].map((plot) => [
+          plot.querySelector<HTMLElement>("[data-testid]")?.dataset.testid ??
+            "unknown",
+          plot.getBoundingClientRect().height,
+        ]),
+      ),
+    );
 }
 
 test("records a bounded telemetry window and exports explicit CSV columns", async ({
@@ -126,6 +140,9 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   const ideLink = page.getByRole("link", { name: "IDE ↗", exact: true });
   await expect(ideLink).toHaveAttribute("target", "_blank");
   await expect(ideLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(
+    page.locator(".header-nav").getByText("|", { exact: true }),
+  ).toBeVisible();
   const monitorRun = page.locator(".monitor-run-button");
   await expect(monitorRun).toHaveCSS("background-color", "rgb(0, 88, 138)");
   expect(
@@ -143,6 +160,10 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(page.getByTestId("offline-readiness")).toBeVisible();
   await expect(page.getByTestId("wheel-speed-plot")).toBeVisible();
   await expect(page.getByTestId("strip-chart-motor-effort")).toBeVisible();
+  expect(await visiblePlotHeights(page)).toEqual({
+    "wheel-speed-plot": 180,
+    "strip-chart-motor-effort": 180,
+  });
   const controlsBox = await page.getByTestId("monitor-controls").boundingBox();
   const dashboardBox = await page.locator(".dashboard-grid").boundingBox();
   const sliderBox = await page
@@ -171,8 +192,17 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
 
   await page.getByRole("checkbox", { name: /Forward range/ }).check();
   await expect(page.getByTestId("strip-chart-range")).toBeVisible();
+  expect(await visiblePlotHeights(page)).toEqual({
+    "wheel-speed-plot": 180,
+    "strip-chart-motor-effort": 180,
+    "strip-chart-range": 180,
+  });
   await page.getByRole("checkbox", { name: /Drive command/ }).uncheck();
   await expect(page.getByTestId("strip-chart-motor-effort")).toHaveCount(0);
+  expect(await visiblePlotHeights(page)).toEqual({
+    "wheel-speed-plot": 180,
+    "strip-chart-range": 180,
+  });
 
   await page.getByLabel("Strip chart time window").fill("6");
   await expect(page.getByText("6 s", { exact: true })).toBeVisible();
@@ -216,4 +246,36 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
 
   await page.getByRole("button", { name: "Collapse monitor controls" }).click();
   await expect(page.getByTestId("world-view")).toBeVisible();
+});
+
+test("keeps a centered world preview visible without a published physical pose", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "ucsb-xrp-target-v1",
+      JSON.stringify({
+        kind: "physical",
+        physicalEndpoint: "http://127.0.0.1:9",
+      }),
+    );
+  });
+  await page.goto("/dashboard/");
+
+  const world = page.getByTestId("world-view");
+  await expect(world).toBeVisible();
+  await expect(world).toHaveAttribute("data-pose-state", "centered-preview");
+  await expect(
+    page.getByText("centered preview · no pose", { exact: true }),
+  ).toBeVisible();
+  const worldGeometry = await world.evaluate((element) => ({
+    canvasHeight: element.querySelector("canvas")?.clientHeight ?? 0,
+    canvasWidth: element.querySelector("canvas")?.clientWidth ?? 0,
+    hostHeight: element.clientHeight,
+    hostWidth: element.clientWidth,
+  }));
+  expect(worldGeometry.canvasWidth).toBe(worldGeometry.hostWidth);
+  expect(worldGeometry.canvasHeight).toBe(worldGeometry.hostHeight);
+  expect(worldGeometry.hostWidth).toBeGreaterThan(100);
+  expect(worldGeometry.hostHeight).toBeGreaterThan(100);
 });

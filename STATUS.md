@@ -11,7 +11,7 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–10 are complete in software. The Monitor now uses flat,
+Refinement slices 1–11 are complete in software. The Monitor now uses flat,
 independently resizable regions; a bounded arena grid with labeled millimeter
 coordinates; compact signal and recording controls; precise drive-command and
 yaw-rate labels; a closer dimensioned XRP view; and a narrow top-sheet control
@@ -129,7 +129,8 @@ restore pass with this correction.
 - Shared virtual/physical target, dimensioned top-down XRP and trail, bounded
   2,400 × 1,800 mm grid with labeled x/y values, arena/XRP zoom views, obstacle
   and range ray, contact state, pose, encoders, drive command, range, button,
-  IMU, temperature, battery, and program output.
+  IMU, temperature, battery, and program output. Without a published pose, the
+  map remains present with a labeled XRP preview centered at the origin.
 - A 176 px collapsible sidebar for signal selection and recording; the virtual
   scene is selected directly in the world, while target settings remain shared
   from the IDE.
@@ -140,6 +141,8 @@ restore pass with this correction.
   controls disable when the program is not running.
 - Independently selectable wheel-speed, drive-command, forward-range,
   acceleration, and yaw-rate strips with labels and units inside each plot.
+  Every plot retains a 180 px row as signals are added or removed; the stack
+  scrolls, and one unlabeled minor time line divides each pair of labeled lines.
 - Persistent pointer- and keyboard-adjustable separators independently size
   world/values, plots/output, and upper/lower regions.
 - Bounded 30,000-sample recording, dropped-sample reporting, and deterministic
@@ -210,12 +213,12 @@ The latest complete software pass includes:
 - 106 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 103 Vitest tests for project identity and handling, folder rotation, target
+- 104 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, plot data, and
   measured contrast;
 - a production build and verification of the exact 117-file offline manifest;
   and
-- 17 Stable Chrome software workflows covering all starters, both new project
+- 18 Stable Chrome software workflows covering all starters, both new project
   templates, flat IDE geometry, four-generation source autosave, per-run
   telemetry/output autosave, blocked-gate replanning, two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
@@ -249,9 +252,17 @@ header. The IDE calls the selected entrypoint **Main file** and its Status view
 now separates only Target, Code check, Robot files, and Project files. The
 constrained pass found and corrected multiline toolbar clipping by making the
 middle command region single-line and horizontally scrollable. Direct Chrome
-reported no console warnings or errors. The final production build is
-`18568e85438cd928e9ea`; all 17 software Chrome workflows pass and the physical
-opt-in workflow is intentionally skipped.
+reported no console warnings or errors.
+
+The fixed-plot/world-preview refinement was then inspected directly in
+1,382 × 797 production Chrome. Four enabled plots each remained exactly 180 px
+inside a 287 px viewport, producing a 720 px scrollable stack; one unlabeled
+x-grid line appeared between adjacent labeled values. XRP zoom confirmed one
+dark gray chassis shade, and the Monitor header displayed `IDE ↗ |`. A separate
+Stable Chrome path used an unreachable physical endpoint and verified that the
+full-size map and centered, explicitly non-pose XRP preview remained visible.
+The final production build is `b0d248054ecaeeb5ad7a`; all 18 software Chrome
+workflows pass and the physical opt-in workflow is intentionally skipped.
 
 ## Physical evidence
 

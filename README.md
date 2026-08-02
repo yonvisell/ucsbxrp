@@ -68,7 +68,11 @@ replanning. The world uses the production XRP's dimensioned footprint and a
 2–30 second scrolling history for wheel speed, normalized drive command,
 forward range,
 acceleration, or angular rate. Signals can be combined or hidden for the
-current experiment.
+current experiment. Each strip chart keeps the same vertical scale area as
+signals are added or removed; additional charts scroll instead of shrinking.
+One unlabeled grid line divides each pair of labeled time lines. When no pose
+has been published, the world remains visible with a clearly labeled XRP
+preview centered at the origin.
 
 **Live controls** appears below the time window when code declares controls with
 `ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use

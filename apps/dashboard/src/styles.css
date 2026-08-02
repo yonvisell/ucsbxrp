@@ -438,6 +438,11 @@
   gap: 7px;
 }
 
+.header-link-separator {
+  color: var(--line-bright);
+  font-size: var(--font-sm);
+}
+
 .dashboard-grid {
   display: grid;
   min-width: 0;
@@ -632,7 +637,7 @@
 .strip-chart-stack {
   display: grid;
   min-height: 0;
-  grid-auto-rows: minmax(92px, 1fr);
+  grid-auto-rows: 180px;
   overflow-y: auto;
   background: var(--panel);
   scrollbar-width: thin;
@@ -640,8 +645,7 @@
 
 .strip-chart {
   display: grid;
-  height: auto;
-  min-height: 92px;
+  height: 180px;
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
   border-bottom: 1px solid var(--line);
@@ -650,11 +654,6 @@
 
 .strip-chart:last-child {
   border-bottom: 0;
-}
-
-.strip-chart:only-child {
-  height: 100%;
-  min-height: 120px;
 }
 
 .values-content {

@@ -180,15 +180,20 @@ export function GuideApp() {
                 estimated pose automatically; raw-sensor programs still show
                 their live sensors without inventing a pose. The world view uses
                 the production XRP footprint and a bounded millimeter grid with
-                labeled x and y values.
+                labeled x and y values. Before a pose is published, it remains
+                visible with a clearly labeled XRP preview centered at the
+                origin.
               </p>
               <p>
                 Use the collapsible sidebar to choose signal histories and
                 control recordings. The virtual scene is selected directly in
                 the world view. Plots can show wheel speed, drive command,
                 range, acceleration, and yaw rate over a 2–30 second window.
-                Drag the separators to give the world, values, plots, or output
-                more room; the arrow keys adjust a focused separator.
+                Every selected plot retains the same height; additional plots
+                scroll rather than compressing their y axes. Unlabeled midpoint
+                grid lines make time intervals easier to read. Drag the
+                separators to give the world, values, plots, or output more
+                room; the arrow keys adjust a focused separator.
               </p>
               <p>
                 A program can declare bounded controls with{" "}
@@ -336,8 +341,9 @@ export function GuideApp() {
                 </li>
                 <li>
                   <strong>No physical world pose:</strong> sensor telemetry is
-                  still valid. A pose appears when the project uses the supplied{" "}
-                  <code>Robot</code> loop.
+                  still valid. The centered XRP is a labeled preview until the
+                  project uses the supplied <code>Robot</code> loop and
+                  publishes a pose.
                 </li>
                 <li>
                   <strong>Offline use:</strong> open the production course site

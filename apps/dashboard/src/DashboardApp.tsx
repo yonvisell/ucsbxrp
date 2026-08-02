@@ -175,6 +175,34 @@ function vector(
     : "—";
 }
 
+function centeredWorldPreview(
+  source: TelemetrySample["source"],
+): TelemetrySample {
+  return {
+    tMs: 0,
+    seq: 0,
+    source,
+    poseAvailable: false,
+    xMm: 0,
+    yMm: 0,
+    headingRad: 0,
+    leftEffort: 0,
+    rightEffort: 0,
+    leftWheelSpeedMmS: 0,
+    rightWheelSpeedMmS: 0,
+    leftEncoderCount: 0,
+    rightEncoderCount: 0,
+    collision: false,
+    rangeMm: null,
+    buttonPressed: false,
+    accelerationMg: null,
+    angularRateMdps: null,
+    temperatureC: null,
+    batteryV: null,
+    sensorError: null,
+  };
+}
+
 export function DashboardApp() {
   const [targetPreference, setTargetPreference] =
     useState(loadTargetPreference);
@@ -729,6 +757,11 @@ export function DashboardApp() {
     (targetState === "ready" || targetState === "error") &&
     currentProject !== null &&
     !currentProject.stale;
+  const worldPreviewSample = useMemo(
+    () => centeredWorldPreview(target.kind),
+    [target.kind],
+  );
+  const worldSample = sample?.poseAvailable ? sample : worldPreviewSample;
 
   return (
     <div className="app-shell">
@@ -774,6 +807,9 @@ export function DashboardApp() {
             >
               IDE ↗
             </a>
+            <span aria-hidden="true" className="header-link-separator">
+              |
+            </span>
           </nav>
         </div>
         <div className="header-statuses">
@@ -1109,37 +1145,26 @@ export function DashboardApp() {
         <main className="dashboard-grid" style={layoutStyle}>
           <div className="dashboard-region top-region" style={topRegionStyle}>
             <section className="world-panel dashboard-pane">
-              {sample?.poseAvailable ? (
-                <WorldView
-                  onScenarioChange={
-                    target.kind === "virtual"
-                      ? (nextScenario) =>
-                          void changeSimulationScenario(nextScenario)
-                      : undefined
-                  }
-                  poseLabel={
-                    sample.source === "virtual"
+              <WorldView
+                onScenarioChange={
+                  target.kind === "virtual"
+                    ? (nextScenario) =>
+                        void changeSimulationScenario(nextScenario)
+                    : undefined
+                }
+                poseLabel={
+                  sample?.poseAvailable
+                    ? sample.source === "virtual"
                       ? "virtual pose"
                       : "estimated pose"
-                  }
-                  sample={sample}
-                  scenario={
-                    target.kind === "virtual" ? simulationScenario : null
-                  }
-                  scenarioDisabled={
-                    targetState === "loading" || targetState === "running"
-                  }
-                />
-              ) : sample ? (
-                <div className="telemetry-placeholder" role="status">
-                  Physical sensors are live. The map appears when a running
-                  project publishes pose.
-                </div>
-              ) : (
-                <div className="telemetry-placeholder" role="status">
-                  Waiting for telemetry…
-                </div>
-              )}
+                    : "centered preview · no pose"
+                }
+                sample={worldSample}
+                scenario={target.kind === "virtual" ? simulationScenario : null}
+                scenarioDisabled={
+                  targetState === "loading" || targetState === "running"
+                }
+              />
             </section>
 
             <ResizableSeparator

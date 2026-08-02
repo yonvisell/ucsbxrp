@@ -311,3 +311,24 @@ Chrome.
 Usable result: students see one literal project-entrypoint concept, four
 non-overlapping run-status questions, and a denser interface whose fixed header
 ends remain legible at both wide and constrained laptop widths.
+
+### Refinement 11 — Stable signal geometry and persistent world context
+
+Status: implemented and validated in Stable Chrome and direct production
+Chrome.
+
+- Give every selected signal a fixed 180 px plot row and scroll the stack when
+  it exceeds the available region, so adding or removing signals never changes
+  another plot's y-axis height.
+- Add exactly one unlabeled minor x-grid line between adjacent labeled time
+  lines.
+- Keep the world view mounted before pose publication or while a physical XRP
+  is unreachable, using an explicitly labeled XRP preview centered at the
+  origin rather than implying measured pose.
+- Render the chassis rails and crossmembers in one dark gray and terminate the
+  Monitor's `IDE ↗` title-bar link with a visible separator.
+- Exercise plot add/remove geometry, the no-pose physical state, header
+  semantics, wide and narrow layouts, and the full course workflow suite.
+
+Usable result: signal comparisons retain a stable visual scale and the spatial
+features remain discoverable without presenting a preview pose as telemetry.

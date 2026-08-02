@@ -147,13 +147,8 @@ function addBoundedGrid(scene: THREE.Scene): void {
 
 function addRobotModel(scene: THREE.Scene): THREE.Group {
   const robot = new THREE.Group();
-  const frameMaterial = new THREE.MeshStandardMaterial({
-    color: "#d9dde0",
-    metalness: 0.08,
-    roughness: 0.72,
-  });
-  const frameDarkMaterial = new THREE.MeshStandardMaterial({
-    color: "#8a949a",
+  const chassisMaterial = new THREE.MeshStandardMaterial({
+    color: "#68747b",
     metalness: 0.05,
     roughness: 0.76,
   });
@@ -161,7 +156,7 @@ function addRobotModel(scene: THREE.Scene): THREE.Group {
   for (const side of [-1, 1]) {
     const rail = new THREE.Mesh(
       new THREE.BoxGeometry(XRP_CHASSIS_LENGTH_MM - 8, 17, 11),
-      frameMaterial,
+      chassisMaterial,
     );
     rail.position.set(0, side * (XRP_CHASSIS_WIDTH_MM / 2 - 10), 10);
     robot.add(rail);
@@ -169,7 +164,7 @@ function addRobotModel(scene: THREE.Scene): THREE.Group {
   for (const x of [-82, 54]) {
     const crossMember = new THREE.Mesh(
       new THREE.BoxGeometry(17, XRP_CHASSIS_WIDTH_MM - 34, 10),
-      frameDarkMaterial,
+      chassisMaterial,
     );
     crossMember.position.set(x, 0, 9);
     robot.add(crossMember);
@@ -479,6 +474,7 @@ export function WorldView({
       aria-label="Top-down XRP world with millimeter grid"
       className="world-view"
       data-arena-mm={`${WORLD_WIDTH_MM} × ${WORLD_HEIGHT_MM}`}
+      data-pose-state={sample.poseAvailable ? "published" : "centered-preview"}
       data-testid="world-view"
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
       ref={hostRef}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
-import { SIGNAL_PLOTS, signalPlotData } from "./SignalPlot";
+import { SIGNAL_PLOTS, signalPlotData, signalXAxis } from "./SignalPlot";
 
 function sample(
   tMs: number,
@@ -85,5 +85,14 @@ describe("monitor signal plots", () => {
       0.00980665, 0.0196133, 9.80665,
     ]);
     expect(angularRate.map((series) => series.values[0]?.[1])).toEqual([0]);
+  });
+
+  it("adds one unlabeled minor x-grid line between adjacent labeled lines", () => {
+    const xAxis = signalXAxis(10);
+
+    expect(xAxis.min).toBe(-10);
+    expect(xAxis.max).toBe(0);
+    expect(xAxis.minorTick).toEqual({ show: false, splitNumber: 2 });
+    expect(xAxis.minorSplitLine.show).toBe(true);
   });
 });
