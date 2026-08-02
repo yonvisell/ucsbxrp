@@ -210,6 +210,80 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 });
 
+test("runs the expanding spiral with two live controls and obstacle stopping", async ({
+  context,
+  page: ide,
+}) => {
+  test.setTimeout(60_000);
+  const monitor = await context.newPage();
+  await monitor.goto("/dashboard/");
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  await ide.getByLabel("Project template").selectOption("demo_spiral");
+  await ide.getByRole("button", { name: "Load", exact: true }).click();
+  await ide.getByRole("button", { name: "Validate code" }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
+    "3 Python files compiled with MicroPython",
+  );
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+
+  await expect(monitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
+  const liveControls = monitor.locator(".live-program-group");
+  await expect(liveControls).toContainText("2 controls");
+
+  const speed = liveControls.getByRole("slider", { name: "Forward speed" });
+  await speed.fill("100");
+  const speedControl = liveControls.locator(
+    '[data-runtime-parameter="forward_speed_mm_s"]',
+  );
+  await expect(speedControl).toHaveAttribute("data-runtime-value", "100", {
+    timeout: 5_000,
+  });
+  await expect(speedControl).toHaveAttribute("data-pending", "false");
+
+  const winding = liveControls.getByRole("slider", {
+    name: "Spiral winding rate",
+  });
+  await winding.fill("1");
+  const windingControl = liveControls.locator(
+    '[data-runtime-parameter="spiral_winding_turns_per_m"]',
+  );
+  await expect(windingControl).toHaveAttribute("data-runtime-value", "1", {
+    timeout: 5_000,
+  });
+  await expect(windingControl).toHaveAttribute("data-pending", "false");
+
+  await monitor.getByTitle("Stop the running program.").click();
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+
+  await monitor
+    .getByLabel("Virtual scene")
+    .selectOption("delivery-gate-blocked");
+  await expect(monitor.getByTestId("range-mm")).toContainText("280.0 mm");
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+
+  await expect(ide.getByRole("log")).toContainText(
+    "Obstacle detected; spiral stopped",
+    { timeout: 15_000 },
+  );
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(monitor.getByTestId("world-view")).toHaveAttribute(
+    "data-pose-state",
+    "published",
+  );
+  await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+});
+
 test("Challenge 5 observes a blocked gate and routes around it", async ({
   context,
 }) => {

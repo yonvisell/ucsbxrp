@@ -192,12 +192,15 @@ Status: implemented and validated in Stable Chrome and direct Chrome.
   settings, and output while retaining the adjustable 8 px minimum editor type.
 - Treat challenges, robot demos, and a staged MicroPython tutorial as project
   templates that become ordinary editable folders after loading.
-- Add the range-triggered forward/left-turn demo and clear hover/focus help.
+- Add the range-triggered forward/left-turn demo, an expanding-spiral demo with
+  two live parameters and forward-obstacle stopping, and clear hover/focus
+  help.
 
 Usable result: the IDE is a compact flat workspace with unclipped 10 px
 controls, 9 px default code, an 8 px minimum, literal file labels, and one
-grouped template menu. The obstacle-turn demo and seven-lesson tutorial compile
-and run on the virtual XRP; every loaded template remains an ordinary project.
+grouped template menu. The obstacle-turn demo, expanding-spiral demo, and
+seven-lesson tutorial compile and run on the virtual XRP; every loaded template
+remains an ordinary project.
 
 ### Refinement 4 — Folder persistence and automatic recovery
 

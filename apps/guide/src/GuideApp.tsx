@@ -92,11 +92,11 @@ export function GuideApp() {
                 <code>challenge.py</code>.
               </p>
               <p>
-                The same template menu includes a sensor-driven obstacle-turn
-                demo and a seven-lesson MicroPython foundations project.
-                Templates are not a special project type: after loading, every
-                file is editable and can be saved as a normal local folder.
-                Tutorial lessons can be made runnable with{" "}
+                The same template menu includes sensor-driven obstacle-turn and
+                expanding-spiral demos, plus a seven-lesson MicroPython
+                foundations project. Templates are not a special project type:
+                after loading, every file is editable and can be saved as a
+                normal local folder. Tutorial lessons can be made runnable with{" "}
                 <strong>Make main</strong>.
               </p>
               <p>

@@ -19,12 +19,13 @@ npm run dev
 - Getting started: `http://127.0.0.1:5173/guide/`
 
 The IDE starts with Challenge 1. The **Project template** menu loads the five
-challenges, a sensor-driven robot demo, or a staged MicroPython tutorial as an
-ordinary editable project. Select **Virtual XRP** for immediate use or
-**Physical XRP** for a robot hotspot or an existing local network. Later
-starters retain all components introduced so far; students carry their
-completed methods forward and enable each named `USE_STUDENT_*` switch
-independently.
+challenges, two sensor-driven robot demos, or a staged MicroPython tutorial as
+an ordinary editable project. The demos cover obstacle-triggered turning and
+an expanding spiral with two live parameters. Select **Virtual XRP** for
+immediate use or **Physical XRP** for a robot hotspot or an existing local
+network. Later starters retain all components introduced so far; students
+carry their completed methods forward and enable each named `USE_STUDENT_*`
+switch independently.
 
 ## IDE workflow
 

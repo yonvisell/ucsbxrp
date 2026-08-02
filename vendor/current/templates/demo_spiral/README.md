@@ -1,0 +1,16 @@
+# Expanding spiral demo
+
+The XRP drives forward while its turn rate gradually decreases, producing an
+outward spiral. The forward range sensor is checked every control sample; the
+robot stops when an obstacle is within 260 mm. A bounded travel limit also
+stops the program if no obstacle is detected.
+
+Open **Monitor → Live controls** while the program runs to adjust exactly two
+parameters:
+
+- **Forward speed** changes how quickly the XRP travels along the spiral.
+- **Spiral winding rate** changes how tightly the spiral winds.
+
+The same project runs on the virtual or physical XRP. On a physical XRP, press
+and release USER when prompted. Motor output always returns to zero through the
+`finally` block.

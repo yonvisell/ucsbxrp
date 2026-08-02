@@ -33,8 +33,9 @@ The IDE is the programming surface. It provides:
 - local-folder open and save with browser recovery;
 - multi-file creation, rename, copy, delete, tabs, and main-file
   metadata;
-- one grouped project catalog containing the five cumulative challenges, a
-  sensor-driven obstacle-turn demo, and a staged MicroPython tutorial;
+- one grouped project catalog containing the five cumulative challenges,
+  sensor-driven obstacle-turn and expanding-spiral demos, and a staged
+  MicroPython tutorial;
 - local Monaco workers and MicroPython syntax validation;
 - explicit validate and synchronize operations plus one stateful Run/Stop
   control and Reset;

@@ -22,9 +22,11 @@ displaying the previous build.
 The IDE now applies the same flat, high-contrast visual system: a white 188 px
 file rail, thin separators, compact 10 px controls, 9 px default code, no
 redundant file-type badges, literal main-file state, and unclipped toolbar
-and folder controls. One grouped template menu loads all five challenges, a
-range-triggered obstacle/left-turn/obstacle demo, or seven staged MicroPython
-lessons as an ordinary editable project.
+and folder controls. One grouped template menu loads all five challenges, two
+sensor-driven robot demos, or seven staged MicroPython lessons as an ordinary
+editable project. The new expanding-spiral demo exposes only forward speed and
+spiral winding rate, checks forward range on every sample, stops within 260 mm,
+and retains a bounded-travel fallback plus unconditional final zero drive.
 
 Both application headers are now 29 px high and use a contiguous `UCSBXRP`
 wordmark: UCSB blue and a restrained grey-red product name share the same type,
@@ -129,9 +131,9 @@ restore pass with this correction.
 - A compact project rail, collapsible project/settings/output panels, 9 px
   default editor and output type, an 8 px selectable minimum, optional code
   overview, clear labels, and documented shortcuts.
-- A sensor-feedback obstacle-turn demo and a seven-lesson MicroPython project;
-  both are editable, folder-saveable, MicroPython-validated, and runnable in
-  the virtual target.
+- Sensor-feedback obstacle-turn and expanding-spiral demos plus a seven-lesson
+  MicroPython project; all are editable, folder-saveable,
+  MicroPython-validated, and runnable in the virtual target.
 - Separate Status and Details views, grouped XRP-hotspot/existing-Wi-Fi
   selection and station-address editing, local Monaco workers, and MicroPython
   compilation.
@@ -209,7 +211,7 @@ restore pass with this correction.
 
 ### Offline and guidance
 
-- The production service worker verifies all 150 public payload files,
+- The production service worker verifies all 154 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, supplied bytecode, and dependency license
   notices. The interface says
@@ -231,11 +233,12 @@ The latest complete software pass includes:
 - 109 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, plot data, and
   measured contrast;
-- a production build and verification of the exact 150-file offline manifest;
+- a production build and verification of the exact 154-file offline manifest;
   and
-- 19 Stable Chrome software workflows covering all starters, both new project
-  templates, flat IDE geometry, four-generation source autosave, per-run
-  telemetry/output autosave, blocked-gate replanning, two-app target sharing,
+- 20 passing Stable Chrome software workflows covering all starters, the two
+  robot demos and tutorial project, flat IDE geometry, four-generation source
+  autosave, per-run telemetry/output autosave, blocked-gate replanning,
+  two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   typed live parameter updates and named watches, recording/CSV export, and a
   network-blocked offline reload, and XRP-hotspot/existing-Wi-Fi selection;
@@ -276,7 +279,7 @@ x-grid line appeared between adjacent labeled values. XRP zoom confirmed one
 dark gray chassis shade, and the Monitor header displayed `IDE ↗ |`. A separate
 Stable Chrome path used an unreachable physical endpoint and verified that the
 full-size map and centered, explicitly non-pose XRP preview remained visible.
-All 19 software Chrome workflows pass and the physical opt-in workflow is
+All 20 software Chrome workflows pass and the physical opt-in workflow is
 intentionally skipped.
 
 The conservative efficiency/distribution refinement then removed the unused
@@ -285,6 +288,13 @@ Minified Monitor JavaScript decreased from 1,687,014 to 1,081,536 bytes; gzip
 size decreased from 511,939 to approximately 318 kB in the current build. The
 complete static payload is 7,181,907 bytes including third-party license and
 notice files.
+The expanding-spiral slice was also inspected directly in production Chrome.
+The IDE showed its four plainly named files and simple main program; the
+Monitor showed the outward-curving trail, exactly two enabled live sliders,
+range and drive telemetry, and clean program output. Stop returned the virtual
+target to ready with zero drive, and neither application reported a console
+warning or error.
+
 The GitHub Pages workflow uses the deployment base path reported by Pages and
 publishes the verified `dist` artifact. An HTTPS physical connection now primes
 Chrome's local-network permission in the document before starting the shared
@@ -294,7 +304,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The final local
-production build is `6ad069d35ca5a20f8086` with 150 verified payload files.
+production build is `2359e77a89396071c342` with 154 verified payload files.
 
 ## Physical evidence
 

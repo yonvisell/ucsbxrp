@@ -13,7 +13,7 @@ class CourseStarterTests(unittest.TestCase):
         directories = sorted(path for path in TEMPLATES.iterdir() if path.is_dir())
         self.assertEqual(
             [path.name for path in directories],
-            ["demo_obstacle_turn", "micropython_tutorial"],
+            ["demo_obstacle_turn", "demo_spiral", "micropython_tutorial"],
         )
         for directory in directories:
             self.assertTrue((directory / "README.md").is_file())

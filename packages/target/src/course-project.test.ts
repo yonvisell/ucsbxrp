@@ -32,7 +32,7 @@ describe("course starter catalog", () => {
     );
   });
 
-  it("groups challenges, a sensor-driven demo, and a staged tutorial", () => {
+  it("groups challenges, two sensor-driven demos, and a staged tutorial", () => {
     expect(COURSE_PROJECT_TEMPLATES.map((template) => template.kind)).toEqual([
       "challenge",
       "challenge",
@@ -40,12 +40,18 @@ describe("course starter catalog", () => {
       "challenge",
       "challenge",
       "demo",
+      "demo",
       "tutorial",
     ]);
     const demo = courseProjectTemplate("demo_obstacle_turn");
     expect(demo.project.files["main.py"]).toContain("drive_until_close");
     expect(demo.project.files["main.py"]).toContain("turn_quarter_turn");
     expect(demo.project.files["main.py"]).toContain("live.number");
+    const spiral = courseProjectTemplate("demo_spiral");
+    expect(spiral.project.files["main.py"]).toContain(
+      "spiral_winding_turns_per_m",
+    );
+    expect(spiral.project.files["main.py"]).toContain("OBSTACLE_STOP_MM");
     const tutorial = courseProjectTemplate("micropython_tutorial");
     expect(tutorial.project.entrypoint).toBe("1_values_and_functions.py");
     expect(tutorial.project.files["7_finite_state_machine.py"]).toContain(

@@ -106,6 +106,15 @@ const additionalTemplates = [
     entrypoint: "main.py",
   },
   {
+    id: "demo_spiral",
+    kind: "demo",
+    label: "Demo · Expanding Spiral",
+    shortLabel: "Expanding spiral",
+    summary:
+      "Drive an expanding spiral and stop when the forward range sensor detects a nearby obstacle.",
+    entrypoint: "main.py",
+  },
+  {
     id: "micropython_tutorial",
     kind: "tutorial",
     label: "Tutorial · MicroPython Foundations",
