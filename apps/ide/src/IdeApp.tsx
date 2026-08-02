@@ -168,9 +168,13 @@ export function IdeApp() {
   const [targetDetail, setTargetDetail] = useState("Not connected");
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
-  const [checkDetail, setCheckDetail] = useState("Not validated");
+  const [checkDetail, setCheckDetail] = useState(
+    "Current files have not been checked.",
+  );
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
-  const [syncDetail, setSyncDetail] = useState("Not synchronized");
+  const [syncDetail, setSyncDetail] = useState(
+    "Current files have not been sent to the XRP.",
+  );
   const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [consoleTab, setConsoleTab] = useState<"status" | "details">("status");
@@ -250,9 +254,9 @@ export function IdeApp() {
     storeRecoveredProject(project);
     if (initializedProjectEffect.current) {
       setCheckOk(null);
-      setCheckDetail("Changes not validated");
+      setCheckDetail("Files changed since the last code check.");
       setSyncOk(null);
-      setSyncDetail("Changes not synchronized");
+      setSyncDetail("Files changed since the last synchronization.");
       if (
         currentProject &&
         !currentProject.stale &&
@@ -469,7 +473,7 @@ export function IdeApp() {
       setFolderDirty(false);
       replacePendingFolderDeletions(() => new Set());
       setCheckOk(null);
-      setCheckDetail("Not validated");
+      setCheckDetail("Current files have not been checked.");
       setConsoleEntries([]);
       setOperationDetail(
         `Opened ${folder.name}: ${Object.keys(result.project.files).length} supported file${
@@ -659,9 +663,9 @@ export function IdeApp() {
     setFolderDirty(true);
     setFolderSaveState("browser");
     setCheckOk(null);
-    setCheckDetail("Not validated");
+    setCheckDetail("Current files have not been checked.");
     setSyncOk(null);
-    setSyncDetail("Not synchronized");
+    setSyncDetail("Current files have not been sent to the XRP.");
     setConsoleEntries([]);
     setOperationDetail(
       `${template.label} loaded. Choose Save now to select its project folder.`,
@@ -823,7 +827,7 @@ export function IdeApp() {
       setProject(nextProject);
       setFolderDirty(true);
       setOperationDetail(
-        `${activePath} is now the startup file.${workingFolder ? " Automatic folder save pending." : ""}`,
+        `${activePath} is now the main file.${workingFolder ? " Automatic folder save pending." : ""}`,
       );
     } catch (error) {
       setOperationDetail(errorDetail(error));
@@ -996,17 +1000,8 @@ export function IdeApp() {
           >
             Guide ↗
           </a>
-          <button
-            aria-expanded={settingsOpen}
-            className="quiet-button"
-            onClick={() => setSettingsOpen((open) => !open)}
-            title="IDE settings (⌘/Ctrl+,)"
-          >
-            Settings
-          </button>
         </div>
         <div className="header-statuses">
-          <OfflineReadiness />
           <div
             aria-live="polite"
             className="connection-pill"
@@ -1020,6 +1015,14 @@ export function IdeApp() {
               {targetState}
             </span>
           </div>
+          <button
+            aria-expanded={settingsOpen}
+            className="quiet-button settings-button"
+            onClick={() => setSettingsOpen((open) => !open)}
+            title="IDE settings (⌘/Ctrl+,)"
+          >
+            Settings
+          </button>
         </div>
       </header>
 
@@ -1094,8 +1097,8 @@ export function IdeApp() {
             </div>
             <div className="project-summary">
               <strong title={project.name}>{project.name}</strong>
-              <span title={`The Run command starts ${project.entrypoint}.`}>
-                Startup: {project.entrypoint}
+              <span title={`Run executes ${project.entrypoint} first.`}>
+                Main file: {project.entrypoint}
               </span>
             </div>
             <div
@@ -1122,13 +1125,13 @@ export function IdeApp() {
                 onClick={useActiveFileAsEntrypoint}
                 title={
                   !activePath.endsWith(".py")
-                    ? "Only Python files can be startup files"
+                    ? "Only a Python file can be the main file"
                     : activePath === project.entrypoint
-                      ? "This is already the startup file"
-                      : `Run ${activePath} when the project starts`
+                      ? "Run already executes this file first"
+                      : `Make ${activePath} the file Run executes first`
                 }
               >
-                {activePath === project.entrypoint ? "Startup" : "Set startup"}
+                {activePath === project.entrypoint ? "Main file" : "Make main"}
               </button>
               <button
                 className="danger-button"
@@ -1137,7 +1140,7 @@ export function IdeApp() {
                 title={
                   canDeleteActiveFile
                     ? `Delete ${activePath} from the project`
-                    : "A project must retain a Python startup file"
+                    : "A project must retain a Python main file"
                 }
               >
                 Delete
@@ -1147,7 +1150,7 @@ export function IdeApp() {
               {projectFiles.map((path) => (
                 <button
                   aria-label={`Open ${path}${
-                    path === project.entrypoint ? " (startup file)" : ""
+                    path === project.entrypoint ? " (main file)" : ""
                   }`}
                   aria-current={path === activePath ? "true" : undefined}
                   className={`file-row ${path === activePath ? "active" : ""}`}
@@ -1158,7 +1161,7 @@ export function IdeApp() {
                 >
                   <span className="file-path">{path}</span>
                   {path === project.entrypoint ? (
-                    <span className="startup-badge">startup</span>
+                    <span className="startup-badge">main</span>
                   ) : null}
                 </button>
               ))}
@@ -1179,6 +1182,9 @@ export function IdeApp() {
             <div className="course-release">
               <span>COURSE RELEASE</span>
               <strong>UCSB-XRP 0.4.0-dev</strong>
+            </div>
+            <div className="ide-offline-status">
+              <OfflineReadiness />
             </div>
           </aside>
         ) : null}
@@ -1338,7 +1344,7 @@ export function IdeApp() {
                   <small>{targetDetail}</small>
                 </div>
                 <div>
-                  <span>Validation</span>
+                  <span>Code check</span>
                   <strong
                     className={
                       checkOk === true
@@ -1352,7 +1358,7 @@ export function IdeApp() {
                       ? "Passed"
                       : checkOk === false
                         ? "Failed"
-                        : "Not current"}
+                        : "Not checked"}
                   </strong>
                   <small aria-live="polite" data-testid="check-result">
                     {checkDetail}
@@ -1360,7 +1366,7 @@ export function IdeApp() {
                 </div>
                 {target.kind === "physical" ? (
                   <div>
-                    <span>Physical project</span>
+                    <span>Robot files</span>
                     <strong
                       className={
                         syncOk === true
@@ -1371,26 +1377,19 @@ export function IdeApp() {
                       }
                     >
                       {syncOk === true
-                        ? "Synchronized"
+                        ? "Current"
                         : syncOk === false
                           ? "Sync failed"
-                          : "Not current"}
+                          : "Needs sync"}
                     </strong>
                     <small aria-live="polite">{syncDetail}</small>
                   </div>
                 ) : null}
                 <div>
-                  <span>Project</span>
+                  <span>Project files</span>
                   <strong>
                     {projectFiles.length} file
                     {projectFiles.length === 1 ? "" : "s"}
-                  </strong>
-                  <small>{storageDetail}</small>
-                </div>
-                <div>
-                  <span>File operation</span>
-                  <strong>
-                    {workingFolder ? workingFolder.name : "Recovery"}
                   </strong>
                   <small aria-live="polite">{operationDetail}</small>
                 </div>
@@ -1715,7 +1714,7 @@ export function IdeApp() {
               This removes the file from browser recovery now. A connected
               project folder updates automatically.
               {deletePath === project.entrypoint && replacementEntrypoint
-                ? ` ${replacementEntrypoint} will become the startup file.`
+                ? ` ${replacementEntrypoint} will become the main file.`
                 : ""}
             </p>
             <div className="dialog-actions">

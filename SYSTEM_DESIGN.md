@@ -31,7 +31,7 @@ One Vite production build contains three entry points and shared packages.
 The IDE is the programming surface. It provides:
 
 - local-folder open and save with browser recovery;
-- multi-file creation, rename, copy, delete, tabs, and startup-file
+- multi-file creation, rename, copy, delete, tabs, and main-file
   metadata;
 - one grouped project catalog containing the five cumulative challenges, a
   sensor-driven obstacle-turn demo, and a staged MicroPython tutorial;
@@ -51,7 +51,7 @@ inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
 Catalog entries are complete `CourseProject` values, not a persistent special
 mode. Loading one creates the same editable browser project used by a local
-folder, and any Python file can be selected as its startup file.
+folder, and any Python file can be selected as its main file (entrypoint).
 The selected native folder handle is retained in IndexedDB when the browser
 permits structured handle storage. If read/write permission survives, the IDE
 reattaches it; otherwise one explicit Reconnect gesture restores access.

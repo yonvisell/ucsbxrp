@@ -184,7 +184,7 @@ export function projectPathError(path: string): string | null {
     return "The file name contains a character that cannot be saved.";
   }
   if (normalized === projectMetadataFile) {
-    return "That name is reserved for the project's startup-file setting.";
+    return "That name is reserved for the project's main-file setting.";
   }
   return null;
 }
@@ -249,7 +249,7 @@ export function renameProjectFile(
   }
   const path = checkedDestinationPath(project, requestedPath, sourcePath);
   if (project.entrypoint === sourcePath && !path.endsWith(".py")) {
-    throw new Error("The startup file must keep a .py extension.");
+    throw new Error("The main file must keep a .py extension.");
   }
   const files = { ...project.files };
   delete files[sourcePath];
@@ -296,7 +296,7 @@ export function deleteProjectFile(
       .find((candidate) => candidate.endsWith(".py"));
     if (!replacement) {
       throw new Error(
-        "Create another Python file before deleting the only startup file.",
+        "Create another Python file before deleting the only main file.",
       );
     }
     entrypoint = replacement;
@@ -312,7 +312,7 @@ export function setProjectEntrypoint(
     throw new Error(`${path} is not in the project.`);
   }
   if (!path.endsWith(".py")) {
-    throw new Error("Only a Python file can be the startup file.");
+    throw new Error("Only a Python file can be the main file.");
   }
   return { ...project, entrypoint: path };
 }

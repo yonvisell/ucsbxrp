@@ -71,12 +71,27 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
 });
 
 test("selects scrolling signals from a collapsible monitor sidebar", async ({
+  context,
   page,
 }) => {
+  const ide = await context.newPage();
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(
+    ide.getByRole("button", { name: "Stop", exact: true }),
+  ).toBeVisible();
+  await ide.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(
+    ide.getByRole("button", { name: "Run", exact: true }),
+  ).toBeVisible();
   await page.goto("/dashboard/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await expect(page.locator(".monitor-run-button")).toBeEnabled();
 
   const brand = page.locator(".brand");
   await expect(brand).toHaveAttribute("aria-label", "UCSBXRP Monitor");
@@ -103,7 +118,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
     };
   });
   expect(Math.abs(brandStyle.gap)).toBeLessThanOrEqual(0.5);
-  expect(brandStyle.markColor).toBe("rgb(0, 98, 155)");
+  expect(brandStyle.markColor).toBe("rgb(0, 88, 138)");
   expect(brandStyle.nameColor).toBe("rgb(118, 84, 94)");
   expect(brandStyle.typography.slice(0, 3)).toEqual(
     brandStyle.typography.slice(3),
@@ -111,6 +126,13 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   const ideLink = page.getByRole("link", { name: "IDE ↗", exact: true });
   await expect(ideLink).toHaveAttribute("target", "_blank");
   await expect(ideLink).toHaveAttribute("rel", "noopener noreferrer");
+  const monitorRun = page.locator(".monitor-run-button");
+  await expect(monitorRun).toHaveCSS("background-color", "rgb(0, 88, 138)");
+  expect(
+    await monitorRun.evaluate(
+      (button) => button.getBoundingClientRect().height,
+    ),
+  ).toBe(21);
 
   await expect(page.getByTestId("monitor-controls")).toBeVisible();
   await expect(
@@ -176,7 +198,7 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   );
 
   const headerBox = await page.locator(".app-header").boundingBox();
-  expect(headerBox?.height).toBeLessThanOrEqual(33);
+  expect(headerBox?.height).toBeLessThanOrEqual(31);
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();

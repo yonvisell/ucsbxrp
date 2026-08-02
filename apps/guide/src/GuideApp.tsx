@@ -81,7 +81,7 @@ export function GuideApp() {
                 folder; after that, edits save there automatically. Use{" "}
                 <strong>Open folder</strong> to resume another project. The IDE
                 supports nested files, multiple editor tabs, rename, copy,
-                delete, and selection of the startup Python file.
+                delete, and selection of the main Python file.
               </p>
               <p>
                 Five starters cover Straight Run, Turn and Return, Waypoint
@@ -97,7 +97,7 @@ export function GuideApp() {
                 Templates are not a special project type: after loading, every
                 file is editable and can be saved as a normal local folder.
                 Tutorial lessons can be made runnable with{" "}
-                <strong>Set startup</strong>.
+                <strong>Make main</strong>.
               </p>
               <p>
                 Later starters retain every component introduced so far. Bring

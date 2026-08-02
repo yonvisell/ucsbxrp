@@ -32,7 +32,7 @@ a local project; **Save now** selects or immediately updates its folder. After
 a folder is selected, edits save there automatically after a short pause. The
 visible `UCSB_XRP_Autosaves` subfolder retains the four prior complete project
 states before overwrite. New, renamed, copied, and deleted files remain
-project-relative, and the selected startup file is saved in
+project-relative, and the selected main Python file is saved in
 `.ucsb-xrp-project.json`. Chrome remembers the folder handle when permitted and
 otherwise offers a one-click reconnect; browser recovery never depends on that
 permission.
@@ -40,7 +40,7 @@ permission.
 - **Validate code** compiles every Python file with MicroPython without running
   it.
 - **Sync project** atomically transfers the complete project to a physical XRP.
-- **Run** executes the selected startup file; while active it becomes **Stop**.
+- **Run** executes the selected main file; while active it becomes **Stop**.
 - **Stop** ends execution and commands zero drive input.
 - **Reset** returns the selected target to its initial state.
 - **XRP Monitor** opens live telemetry and the world view in another tab.

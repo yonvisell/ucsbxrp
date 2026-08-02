@@ -383,18 +383,18 @@ describe("project file operations", () => {
     },
   };
 
-  it("renames a file and updates the startup path when necessary", () => {
+  it("renames a file and updates the main-file path when necessary", () => {
     const renamed = renameProjectFile(project, "main.py", "run_course.py");
 
     expect(renamed.entrypoint).toBe("run_course.py");
     expect(renamed.files["run_course.py"]).toBe("print('run')\n");
     expect(renamed.files).not.toHaveProperty("main.py");
     expect(() => renameProjectFile(project, "main.py", "README.md")).toThrow(
-      "startup file must keep a .py extension",
+      "main file must keep a .py extension",
     );
   });
 
-  it("duplicates contents without changing the startup file", () => {
+  it("duplicates contents without changing the main file", () => {
     const duplicated = duplicateProjectFile(
       project,
       "student/controller.py",
@@ -407,7 +407,7 @@ describe("project file operations", () => {
     );
   });
 
-  it("selects a Python startup file and rejects non-Python files", () => {
+  it("selects a Python main file and rejects non-Python files", () => {
     expect(
       setProjectEntrypoint(project, "student/controller.py").entrypoint,
     ).toBe("student/controller.py");
@@ -416,14 +416,14 @@ describe("project file operations", () => {
     );
   });
 
-  it("deletes a file and chooses another Python startup file", () => {
+  it("deletes a file and chooses another Python main file", () => {
     const deleted = deleteProjectFile(project, "main.py");
 
     expect(deleted.entrypoint).toBe("student/controller.py");
     expect(deleted.files).not.toHaveProperty("main.py");
   });
 
-  it("protects the only usable startup file", () => {
+  it("protects the only usable main file", () => {
     const onePythonFile = {
       ...project,
       files: { "main.py": "pass\n", "notes.md": "notes\n" },
@@ -496,7 +496,7 @@ describe("working-folder reads", () => {
     );
   });
 
-  it("persists the startup file and removes only explicitly deleted files", async () => {
+  it("persists the main file and removes only explicitly deleted files", async () => {
     const files = new Map<string, string>([
       ["main.py", "print('old')\n"],
       ["obsolete.py", "print('remove me')\n"],

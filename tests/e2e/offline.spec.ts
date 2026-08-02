@@ -59,6 +59,23 @@ test("reloads the complete production course shell without a network", async ({
   await expect(ide.getByTestId("offline-readiness")).toContainText(
     "Saved for offline use",
   );
+  await expect(
+    ide.locator(".app-header").getByTestId("offline-readiness"),
+  ).toHaveCount(0);
+  const ideOfflineBox = await ide
+    .locator(".ide-offline-status")
+    .getByTestId("offline-readiness")
+    .boundingBox();
+  const projectRailBox = await ide.locator(".project-rail").boundingBox();
+  expect(ideOfflineBox?.x).toBeGreaterThanOrEqual(projectRailBox?.x ?? 0);
+  expect(
+    (ideOfflineBox?.x ?? 0) + (ideOfflineBox?.width ?? 0),
+  ).toBeLessThanOrEqual(
+    (projectRailBox?.x ?? 0) + (projectRailBox?.width ?? 0),
+  );
+  expect(ideOfflineBox?.y).toBeGreaterThan(
+    (projectRailBox?.y ?? 0) + (projectRailBox?.height ?? 0) * 0.8,
+  );
 
   const manifest = await ide.evaluate(async (manifestPath) => {
     const response = await fetch(manifestPath);

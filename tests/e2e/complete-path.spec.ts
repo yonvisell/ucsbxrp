@@ -143,13 +143,65 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   const dashboardStatus = dashboard.getByTestId("target-status");
   await expect(ideStatus).toContainText("Virtual XRP · ready");
   await expect(dashboardStatus).toContainText("Virtual XRP · ready");
-  const [targetSelectBox, ideRunBox, ideHeaderBox] = await Promise.all([
+  const [
+    targetSelectBox,
+    ideRunBox,
+    ideHeaderBox,
+    ideBrandBox,
+    settingsBox,
+    targetStatusBox,
+  ] = await Promise.all([
     ide.getByLabel("Execution target").boundingBox(),
     ide.getByRole("button", { name: "Run", exact: true }).boundingBox(),
     ide.locator(".app-header").boundingBox(),
+    ide.locator(".brand").boundingBox(),
+    ide.getByRole("button", { name: "Settings", exact: true }).boundingBox(),
+    ide.getByTestId("target-status").boundingBox(),
   ]);
   expect(targetSelectBox?.height).toBe(ideRunBox?.height);
-  expect(ideHeaderBox?.height).toBeLessThanOrEqual(33);
+  expect(targetSelectBox?.height).toBe(21);
+  expect(ideHeaderBox?.height).toBeLessThanOrEqual(31);
+  expect(
+    (targetSelectBox?.x ?? 0) -
+      (ideBrandBox?.x ?? 0) -
+      (ideBrandBox?.width ?? 0),
+  ).toBeGreaterThanOrEqual(9);
+  expect(settingsBox?.x).toBeGreaterThan(
+    (targetStatusBox?.x ?? 0) + (targetStatusBox?.width ?? 0) - 1,
+  );
+  expect(
+    (ideHeaderBox?.width ?? 0) -
+      ((settingsBox?.x ?? 0) + (settingsBox?.width ?? 0)),
+  ).toBeLessThanOrEqual(8);
+  const ideHeaderColors = await ide
+    .locator(".app-header")
+    .evaluate((header) => {
+      const mark = header.querySelector<HTMLElement>(".brand-mark")!;
+      const run = [
+        ...header.querySelectorAll<HTMLButtonElement>("button"),
+      ].find((button) => button.textContent?.trim() === "Run")!;
+      return {
+        mark: getComputedStyle(mark).color,
+        run: getComputedStyle(run).backgroundColor,
+      };
+    });
+  expect(ideHeaderColors).toEqual({
+    mark: "rgb(0, 88, 138)",
+    run: "rgb(0, 88, 138)",
+  });
+  const conciseStatus = ide.locator(".status-grid");
+  await expect(
+    conciseStatus.getByText("Code check", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    conciseStatus.getByText("Not checked", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    conciseStatus.getByText("Project files", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    conciseStatus.getByText("File operation", { exact: true }),
+  ).toHaveCount(0);
   await expect(dashboard.getByRole("log")).toContainText(
     "Program output appears here",
   );
@@ -196,9 +248,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(
     ide.getByRole("tab", { name: "straight_line_controller.py" }),
   ).toBeVisible();
-  await ide
-    .getByRole("button", { name: "Open main.py (startup file)" })
-    .click();
+  await ide.getByRole("button", { name: "Open main.py (main file)" }).click();
 
   await ide.getByRole("button", { name: "Validate code" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
@@ -308,12 +358,12 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     .getByLabel("Project-relative path")
     .fill("student/controller_experiment.py");
   await ide.getByRole("button", { name: "Rename file" }).click();
-  await ide.getByRole("button", { name: "Set startup" }).click();
-  await expect(ide.getByText(/Startup:/)).toContainText(
+  await ide.getByRole("button", { name: "Make main" }).click();
+  await expect(ide.getByText(/Main file:/)).toContainText(
     "student/controller_experiment.py",
   );
   await ide.getByRole("button", { name: "Open main.py" }).click();
-  await ide.getByRole("button", { name: "Set startup" }).click();
+  await ide.getByRole("button", { name: "Make main" }).click();
   await ide.getByRole("button", { name: "Save now" }).click();
   await ide
     .getByRole("button", { name: "Open student/controller_experiment.py" })
@@ -475,6 +525,24 @@ test("keeps project and output controls usable on a narrow screen", async ({
     "UCSBXRP IDE",
   );
   await expect(ide.locator(".brand")).toHaveText("UCSBXRP IDE");
+  const [narrowHeaderBox, narrowToolbarBox, narrowTargetBox] =
+    await Promise.all([
+      ide.locator(".app-header").boundingBox(),
+      ide.locator(".toolbar").boundingBox(),
+      ide.getByLabel("Execution target").boundingBox(),
+    ]);
+  expect(narrowToolbarBox?.height).toBeLessThanOrEqual(
+    narrowHeaderBox?.height ?? 29,
+  );
+  expect(narrowTargetBox?.y).toBeGreaterThanOrEqual(narrowHeaderBox?.y ?? 0);
+  expect(
+    (narrowTargetBox?.y ?? 0) + (narrowTargetBox?.height ?? 0),
+  ).toBeLessThanOrEqual(
+    (narrowHeaderBox?.y ?? 0) + (narrowHeaderBox?.height ?? 29),
+  );
+  await expect(
+    ide.getByRole("button", { name: "Settings", exact: true }),
+  ).toBeVisible();
   const monitorLink = ide.getByRole("link", { name: "Monitor ↗" });
   await expect(monitorLink).toHaveAttribute("target", "_blank");
   await expect(monitorLink).toHaveAttribute("rel", "noopener noreferrer");

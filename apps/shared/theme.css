@@ -17,15 +17,15 @@
   --line: #adb5ba;
   --line-bright: #737f88;
   --brand: #003660;
-  --ucsb-blue: #00629b;
+  --ucsb-blue: #00588a;
   --wordmark-secondary: #76545e;
   --cyan: #006c64;
   --cyan-deep: #005f58;
   --gold: #765000;
   --red: #a02d27;
   --blue: #205f99;
-  --primary-bg: #003660;
-  --primary-hover: #002b4d;
+  --primary-bg: #00588a;
+  --primary-hover: #00466f;
   --on-accent: #ffffff;
   --disabled-bg: #f1f3f4;
   --disabled-ink: #5f6c74;
@@ -35,7 +35,7 @@
   --font-sm: 10px;
   --font-ui: 11px;
   --font-title: 12px;
-  --app-header-height: 31px;
+  --app-header-height: 29px;
   background: var(--page);
   color: var(--ink);
 }
@@ -80,7 +80,7 @@ textarea:focus-visible {
 button {
   border: 1px solid var(--line-bright);
   border-radius: 3px;
-  padding: 0.26rem 0.44rem;
+  padding: 0.2rem 0.44rem;
   background: #eef0f2;
   color: var(--ink);
   cursor: pointer;
@@ -174,15 +174,23 @@ button:disabled {
 
 .toolbar {
   display: flex;
+  min-width: 0;
   flex: 1;
   align-items: center;
   gap: 0.35rem;
 }
 
+.toolbar > button,
+.toolbar > select,
+.toolbar > a {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .target-select {
   min-width: 100px;
   border: 1px solid var(--line-bright);
-  height: 23px;
+  height: 21px;
   border-radius: 3px;
   padding: 0 1.45rem 0 0.42rem;
   background: var(--panel);
@@ -192,8 +200,8 @@ button:disabled {
 
 .app-header button,
 .app-header select {
-  min-height: 23px;
-  height: 23px;
+  min-height: 21px;
+  height: 21px;
 }
 
 .app-header button {
@@ -342,12 +350,12 @@ button:disabled {
 
 .panel-header {
   display: flex;
-  min-height: 28px;
+  min-height: 26px;
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
   border-bottom: 1px solid var(--line);
-  padding: 0.25rem 0.45rem;
+  padding: 0.19rem 0.45rem;
   background: var(--panel-raised);
 }
 
@@ -503,6 +511,11 @@ input[type="range"]:disabled {
     width: auto;
     flex: 1;
     overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .toolbar::-webkit-scrollbar {
+    display: none;
   }
 
   .header-statuses {

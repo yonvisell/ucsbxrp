@@ -11,7 +11,7 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–9 are complete in software. The Monitor now uses flat,
+Refinement slices 1–10 are complete in software. The Monitor now uses flat,
 independently resizable regions; a bounded arena grid with labeled millimeter
 coordinates; compact signal and recording controls; precise drive-command and
 yaw-rate labels; a closer dimensioned XRP view; and a narrow top-sheet control
@@ -21,19 +21,23 @@ displaying the previous build.
 
 The IDE now applies the same flat, high-contrast visual system: a white 188 px
 file rail, thin separators, compact 10 px controls, 9 px default code, no
-redundant file-type badges, literal startup-file state, and unclipped toolbar
+redundant file-type badges, literal main-file state, and unclipped toolbar
 and folder controls. One grouped template menu loads all five challenges, a
 range-triggered obstacle/left-turn/obstacle demo, or seven staged MicroPython
 lessons as an ordinary editable project.
 
-Both application headers are now 31 px high and use a contiguous `UCSBXRP`
+Both application headers are now 29 px high and use a contiguous `UCSBXRP`
 wordmark: UCSB blue and a restrained grey-red product name share the same type,
-size, and weight. The IDE selector and command buttons are all 23 px high; the
-redundant retained-project label is gone. IDE and Monitor links carry a visible
-diagonal arrow and open a separate tab in both directions. In the Monitor,
-Signals and Time window precede Live controls, named watches appear below Live
-values in the right panel, and `Guide | • Saved for offline use` occupies the
-bottom of the controls sidebar only while that sidebar is open.
+size, and weight. The UCSB mark and enabled Run control use the same darker
+`#00588a` blue. Header selectors and buttons are 21 px high; the IDE command
+region remains one line and scrolls horizontally when necessary, while target
+state and Settings stay fixed at the far right. IDE and Monitor links carry a
+visible diagonal arrow and open a separate tab in both directions. In the
+Monitor, Signals and Time window precede Live controls, named watches appear
+below Live values in the right panel, and `Guide | • Saved for offline use`
+occupies the bottom of the controls sidebar only while that sidebar is open.
+In the IDE, offline readiness occupies the lower-left edge of the file rail
+only while the rail is open.
 
 Folder work is now low-friction and recoverable. Save now selects a normal
 project folder once; subsequent edits are serialized and written automatically
@@ -107,7 +111,7 @@ restore pass with this correction.
 - Local project-folder open, Save now, debounced automatic writes, persisted
   handle recovery, concise permission reconnect, four prior project states,
   and continuously recovered browser state.
-- Create, rename, copy, delete, and tab among project files; select the startup
+- Create, rename, copy, delete, and tab among project files; select the main
   file and load any challenge, robot demo, or tutorial template.
 - Explicit **Validate code** and **Sync project** operations, one stateful
   **Run/Stop** control, and **Reset** for virtual or physical targets.
@@ -166,7 +170,7 @@ restore pass with this correction.
   uses a disposable MicroPython worker and an owner lease so browser loss also
   terminates non-yielding code and converges the drive command to zero.
 - The shared target retains the exact current project and publishes its name,
-  startup file, revision, and changed/current state. Either app can start that
+  main file, revision, and changed/current state. Either app can start that
   revision; the Monitor cannot start code made stale by IDE edits.
 - A separate shared worker gives all open web-app tabs one physical polling
   connection and broadcasts the same state, telemetry, runtime controls, and
@@ -235,19 +239,19 @@ visually inspected at 1,382 × 752; the IDE header, toolbar, project rail,
 folder controls, tabs, editor, and output had no clipping. The responsive
 Stable Chrome workflow separately exercised the 375 px layout.
 
-The final header/hierarchy refinement was then inspected again in direct
-1,382 px-wide production Chrome. Measurements confirmed 31 px headers; matching
-23 px IDE selector and command heights; zero spacing and identical typography
-between the two colored wordmark spans; Live controls below Time window; Guide,
-separator, and offline state at the sidebar bottom; and no offline state when
-the sidebar was collapsed. Both cross-app links opened distinct tabs. A live
-virtual obstacle demo exposed five controls in the left rail and Phase, Range,
-and Travel watches below the sensor values in the right panel. The run was
-stopped and the saved target restored to the ready physical XRP. The final
-production build is `39ad4525f10a23f4a545`; all 17 software Chrome workflows
-pass, the physical opt-in workflow is intentionally skipped, and the
-asynchronous live-control interaction also passed three consecutive focused
-repetitions.
+The final header/status refinement was inspected again at 1,382 × 752 and
+1,152 × 720 in direct production Chrome, with a separate 691 px constrained
+inspection. Measurements confirmed 29 px headers; 21 px header controls; 22 px
+project controls; a 6 px right inset for Settings; exact matching
+`rgb(0, 88, 138)` UCSB-mark and enabled-Run colors; a lower-left offline status
+whose bottom edge matches the open file rail; and no offline status in either
+header. The IDE calls the selected entrypoint **Main file** and its Status view
+now separates only Target, Code check, Robot files, and Project files. The
+constrained pass found and corrected multiline toolbar clipping by making the
+middle command region single-line and horizontally scrollable. Direct Chrome
+reported no console warnings or errors. The final production build is
+`18568e85438cd928e9ea`; all 17 software Chrome workflows pass and the physical
+opt-in workflow is intentionally skipped.
 
 ## Physical evidence
 

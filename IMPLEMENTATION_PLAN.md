@@ -38,7 +38,7 @@ the final post-reset regression.
   loaded by competing browser loops.
 
 Usable result: the IDE and Monitor can use the physical XRP at
-`http://192.168.7.30` or the virtual XRP with the same project.
+`http://192.168.7.32` or the virtual XRP with the same project.
 
 ## Slice 2 — Straight Run
 
@@ -109,13 +109,12 @@ new obstruction.
 
 ## Slice 7 — Course release and validation
 
-Status: implemented and fully software-validated. Earlier two-app physical
-workflows passed; the latest repetition exposed a second-launch VM hang. Its
-deferred-launch, quiet-window, and hardware-watchdog correction is software-
-validated and awaits one reset/install/repetition on the attached controller.
+Status: implemented and fully validated in software and on the attached XRP.
+The deferred-launch, quiet-window, and hardware-watchdog corrections pass the
+strict repeated-launch and two-app physical lifecycle.
 
 - Keep the IDE compact and high contrast; retain folders, multi-file projects,
-  tabs, recovery storage, startup-file selection, clear commands, adjustable
+  tabs, recovery storage, main-file selection, clear commands, adjustable
   8 px-and-up code/output type, optional code overview, shortcuts, starter
   selection, physical endpoint, and help in a new tab. Use one restrained
   visual language and reserve monospace for code and logs.
@@ -276,7 +275,7 @@ Chrome.
 
 - Use one compact `UCSBXRP` wordmark treatment in both applications, with
   contiguous matching type, UCSB blue, and a restrained grey-red product name.
-- Reduce both headers to 31 px, align the IDE target selector with 23 px command
+- Reduce both headers to 29 px, align the IDE target selector with 21 px command
   buttons, remove the redundant retained-project label, and make both cross-app
   links explicit new-tab actions.
 - Put signal selection and the time window before Live controls; place program
@@ -288,3 +287,27 @@ Chrome.
 Usable result: the IDE and Monitor retain all project and target behavior while
 using less header space, clearer navigation, and a more coherent separation of
 commands, sensor values, and student-declared watches.
+
+### Refinement 10 — Entrypoint language and final control density
+
+Status: implemented and validated in Stable Chrome and direct production
+Chrome.
+
+- Call the Python entrypoint **Main file** throughout the student interface,
+  help, and errors; make its role explicit as the file Run executes first.
+- Consolidate IDE Status into distinct target, code-check, robot-file, and
+  project-file questions instead of overlapping validation and file-operation
+  summaries.
+- Keep Settings at the far-right end of the IDE header and offline readiness at
+  the lower-left edge of the open file rail. Preserve one-line commands in a
+  horizontally scrollable middle region at constrained widths.
+- Use the same darker `#00588a` blue for the UCSB mark and enabled Run control,
+  and remove approximately 2 px from header, button, selector, panel-bar, and
+  representative Monitor-control heights.
+- Assert the final hierarchy, 29/21 px header geometry, lower-left placement,
+  compact controls, settled enabled state, and narrow no-clipping behavior in
+  the Chrome harness.
+
+Usable result: students see one literal project-entrypoint concept, four
+non-overlapping run-status questions, and a denser interface whose fixed header
+ends remain legible at both wide and constrained laptop widths.
