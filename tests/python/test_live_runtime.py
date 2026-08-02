@@ -1,5 +1,6 @@
 import json
 import pathlib
+import struct
 import sys
 import unittest
 
@@ -92,6 +93,20 @@ class LiveRuntimeTests(unittest.TestCase):
         live.toggle("enabled", True)
         with self.assertRaisesRegex(ValueError, "already exists"):
             live.toggle("enabled", False)
+
+    def test_accepts_decimal_steps_after_rp2350_float_rounding(self):
+        def float32(value):
+            return struct.unpack("f", struct.pack("f", value))[0]
+
+        winding = live.number(
+            "spiral_winding_turns_per_m",
+            float32(0.8),
+            minimum=float32(0.4),
+            maximum=float32(1.2),
+            step=float32(0.1),
+        )
+
+        self.assertAlmostEqual(winding.value, 0.8, places=6)
 
 
 if __name__ == "__main__":

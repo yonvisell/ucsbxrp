@@ -78,7 +78,7 @@ through `ucsb_xrp.live`. The Monitor renders compact controls, and `Robot`
 applies queued values and publishes staged watches once per measured boundary.
 
 The attached RP2350 is provisioned on `Pink` at `192.168.7.34`. Release
-`2026.08-dev.4` is installed. Its device-specific `UCSB-XRP-9EDE` hotspot,
+`2026.08-dev.5` is installed. Its device-specific `UCSB-XRP-9EDE` hotspot,
 fixed `192.168.42.1` address, Pink station association, and failed-station
 hotspot fallback all pass on the physical radio. Its strict browser-preflight,
 compile, atomic sync, zero-output run, stdout, stationary and course-pose
@@ -100,6 +100,13 @@ service and throughout Wi-Fi association; the installer feeds it before and
 after every transfer/readback operation. A complete 22-file USB install,
 service restart, DHCP discovery, strict physical probe, and retained-project
 restore pass with this correction.
+
+Dev.5 corrects an over-exact live numeric-range validator. It accepts ordinary
+floating-point representation error across runtimes while still rejecting
+genuinely incompatible steps. The retained expanding-spiral project now starts
+on the physical controller, registers both `60–130 by 10` and `0.4–1.2 by 0.1`
+controls, and waits for USER with zero drive. The focused probe ended with the
+service ready and both drive outputs at zero.
 
 ## Delivered course release
 
@@ -229,7 +236,7 @@ restore pass with this correction.
 The latest complete software pass includes:
 
 - Prettier, TypeScript, and repository whitespace checks;
-- 116 CPython contract and harness tests;
+- 117 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
 - 109 Vitest tests for project identity and handling, folder rotation, target
@@ -248,6 +255,10 @@ The latest complete software pass includes:
   previously failing second launch, physical live-parameter update,
   stop/reconnect, read-verified USB repair, and strict post-reset lifecycle now
   pass on release `2026.08-dev.4`.
+
+The subsequent dev.5 physical regression directly exercises the decimal range
+that failed only in the physical runtime. Both spiral controls were published
+by the running device service before any motor command.
 
 The current Monitor pass includes the original-size 1,440 × 900 Stable Chrome
 capture plus a direct 1,382 × 752 Chrome inspection of the complete production
@@ -308,7 +319,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The final local
-production build is `f185e26054e220e6096f` with 154 verified payload files.
+production build is `a31d291fc25ed0489914` with 154 verified payload files.
 
 ## Physical evidence
 
