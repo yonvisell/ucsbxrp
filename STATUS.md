@@ -48,7 +48,7 @@ The web release is now explicitly local-first: after one verified online load,
 all application and course assets execute from browser-local storage without
 further exchange with the web host. Physical traffic uses either a default
 device-specific XRP hotspot at `192.168.42.1` or an optional existing Wi-Fi
-network. IDE Settings groups project sync, controls, telemetry, and address
+network. IDE Settings groups project flashing, controls, telemetry, and address
 under **XRP Wi-Fi** while identifying USB as the firmware, setup, and repair
 path. Station-only preferences migrate without losing their saved endpoint.
 
@@ -63,7 +63,7 @@ for every observed run; manual CSV exports remain explicit and unrotated.
 The IDE and Monitor now share one named runnable project revision and one
 stateful Run/Stop control. The target publishes a source-free revision
 descriptor; IDE edits mark it changed, disable Monitor Run, and become current
-again only through an IDE run or synchronization. The browser, CPython probe,
+again only through an IDE run or **Flash project**. The browser, CPython probe,
 and RP2350 service compute the same project identity. The physical service
 discovers the retained project after boot and preserves it through stop/reset.
 
@@ -101,12 +101,18 @@ after every transfer/readback operation. A complete 22-file USB install,
 service restart, DHCP discovery, strict physical probe, and retained-project
 restore pass with this correction.
 
-Dev.5 corrects an over-exact live numeric-range validator. It accepts ordinary
-floating-point representation error across runtimes while still rejecting
-genuinely incompatible steps. The retained expanding-spiral project now starts
-on the physical controller, registers both `60–130 by 10` and `0.4–1.2 by 0.1`
-controls, and waits for USER with zero drive. The focused probe ended with the
-service ready and both drive outputs at zero.
+Dev.5 is the currently installed physical release and accepts ordinary
+floating-point representation error across runtimes. Dev.6 removes the
+unnecessary requirement that an entire numeric range contain an exact integer
+number of steps. Its spiral demo defaults to 1.2 turns/m over an expanded
+0.4–2.0 turns/m range, and a fresh IDE opens that demo without replacing
+recovered student work. Browser-managed virtual and physical launches bypass
+the USER wait; directly executed standalone programs retain it. Active
+physical telemetry polls at 60 ms, while idle polling remains 250 ms. The IDE
+calls persistent transfer **Flash project** and distinguishes connected,
+flashed, and flash-needed states. Dev.6 passes the complete software, build,
+offline, and focused Stable Chrome spiral checks; physical installation awaits
+the XRP reappearing as a USB or Pink-network device.
 
 ## Delivered course release
 
@@ -135,7 +141,7 @@ service ready and both drive outputs at zero.
   and continuously recovered browser state.
 - Create, rename, copy, delete, and tab among project files; select the main
   file and load any challenge, robot demo, or tutorial template.
-- Explicit **Validate code** and **Sync project** operations, one stateful
+- Explicit **Validate code** and **Flash project** operations, one stateful
   **Run/Stop** control, and **Reset** for virtual or physical targets.
 - A compact project rail, collapsible project/settings/output panels, 9 px
   default editor and output type, an 8 px selectable minimum, optional code
@@ -236,21 +242,22 @@ service ready and both drive outputs at zero.
 The latest complete software pass includes:
 
 - Prettier, TypeScript, and repository whitespace checks;
-- 117 CPython contract and harness tests;
+- 120 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 109 Vitest tests for project identity and handling, folder rotation, target
+- 111 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, plot data, and
   measured contrast;
 - a production build and verification of the exact 154-file offline manifest;
   and
-- 20 passing Stable Chrome software workflows covering all starters, the two
+- 21 passing Stable Chrome software workflows covering all starters, the two
   robot demos and tutorial project, flat IDE geometry, four-generation source
   autosave, per-run telemetry/output autosave, blocked-gate replanning,
   two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   typed live parameter updates and named watches, recording/CSV export, and a
-  network-blocked offline reload, and XRP-hotspot/existing-Wi-Fi selection;
+  network-blocked offline reload, XRP-hotspot/existing-Wi-Fi selection, and the
+  fresh-browser spiral default;
   plus direct Chrome and harness repetitions on the attached RP2350. The
   previously failing second launch, physical live-parameter update,
   stop/reconnect, read-verified USB repair, and strict post-reset lifecycle now
@@ -319,7 +326,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The final local
-production build is `a31d291fc25ed0489914` with 154 verified payload files.
+production build is `87af7af40a2034c3c30b` with 154 verified payload files.
 
 ## Physical evidence
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { STAGE_ONE_PROJECT } from "@ucsb-xrp/target";
+import { STAGE_ONE_PROJECT, courseProjectTemplate } from "@ucsb-xrp/target";
 
 import {
   deleteProjectFile,
@@ -247,6 +247,15 @@ describe("project recovery", () => {
     vi.unstubAllGlobals();
   });
 
+  it("opens the spiral demo for a new browser", () => {
+    const recovered = loadRecoveredProject();
+    const spiral = courseProjectTemplate("demo_spiral").project;
+
+    expect(recovered.name).toBe(spiral.name);
+    expect(recovered.entrypoint).toBe(spiral.entrypoint);
+    expect(recovered.files).toEqual(spiral.files);
+  });
+
   it("migrates only the exact original Stage 1 starter", () => {
     storage.setItem(
       projectRecoveryKey,
@@ -307,7 +316,10 @@ describe("project recovery", () => {
     const userSource = "from ucsb_xrp import XRPBot\n\nbot = XRPBot()\n";
     storage.setItem(legacyRecoveryKey, userSource);
 
-    expect(loadRecoveredProject().files["main.py"]).toBe(userSource);
+    const recovered = loadRecoveredProject();
+
+    expect(recovered.name).toBe("Recovered project");
+    expect(recovered.files["main.py"]).toBe(userSource);
   });
 
   it("stores and recovers a valid project without changing user files", () => {
@@ -325,7 +337,7 @@ describe("project recovery", () => {
     expect(loadRecoveredProject()).toEqual(project);
   });
 
-  it("falls back to the current starter when recovery is malformed", () => {
+  it("falls back to the spiral demo when recovery is malformed", () => {
     storage.setItem(
       projectRecoveryKey,
       JSON.stringify({
@@ -336,9 +348,10 @@ describe("project recovery", () => {
     );
 
     const recovered = loadRecoveredProject();
+    const spiral = courseProjectTemplate("demo_spiral").project;
 
-    expect(recovered.entrypoint).toBe(STAGE_ONE_PROJECT.entrypoint);
-    expect(recovered.files).toEqual(STAGE_ONE_PROJECT.files);
+    expect(recovered.entrypoint).toBe(spiral.entrypoint);
+    expect(recovered.files).toEqual(spiral.files);
   });
 });
 

@@ -75,8 +75,9 @@ Algorithms and task-specific numerical values are not duplicated in `main.py`.
 `DeliveryMission` are supplied.
 
 `XRPBot` is the only UCSB-XRP class that accesses XRPLib directly. It reads raw
-sensors, resets encoders, waits for the USER button, applies normalized drive
-commands, and stops the motors. `Robot` assembles the selected lower-level
+sensors, resets encoders, supports a direct-launch USER-button wait, applies
+normalized drive commands, and stops the motors. IDE-managed runs begin
+immediately. `Robot` assembles the selected lower-level
 components and performs the recurring sample cycle. Programs obtain assembled
 objects from:
 

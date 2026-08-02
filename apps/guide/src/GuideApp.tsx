@@ -154,9 +154,9 @@ export function GuideApp() {
                 </li>
                 <li>
                   Use <strong>Validate code</strong>,{" "}
-                  <strong>Sync project</strong>, and <strong>Run</strong>. Run
-                  automatically synchronizes changed files, so Sync is optional
-                  during ordinary work.
+                  <strong>Flash project</strong>, and <strong>Run</strong>. Run
+                  automatically flashes changed files, so the separate flash
+                  step is optional during ordinary work.
                 </li>
               </ol>
               <p>

@@ -93,7 +93,6 @@ def turn_quarter_turn():
 
 
 try:
-    print("Press and release USER to start the obstacle-turn demo")
     state = robot.start(Pose(0.0, 0.0, 0.0))
     drive_until_close()
     turn_quarter_turn()

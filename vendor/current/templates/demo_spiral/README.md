@@ -11,6 +11,7 @@ parameters:
 - **Forward speed** changes how quickly the XRP travels along the spiral.
 - **Spiral winding rate** changes how tightly the spiral winds.
 
-The same project runs on the virtual or physical XRP. On a physical XRP, press
-and release USER when prompted. Motor output always returns to zero through the
+The same project runs on the virtual or physical XRP. IDE Run starts it
+immediately on either target; a copy launched directly outside the course
+service waits for USER. Motor output always returns to zero through the
 `finally` block.

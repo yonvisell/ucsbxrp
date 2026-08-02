@@ -243,13 +243,7 @@ def number(name, default, minimum, maximum, step, unit="", label=None):
         raise ValueError("maximum must be greater than minimum")
     if step <= 0 or step > maximum - minimum:
         raise ValueError("step must be positive and no larger than the range")
-    step_count = (maximum - minimum) / step
-    encoded_maximum = int(round(step_count))
-    # RP2350 MicroPython uses single-precision floats. Allow the small rounding
-    # error from otherwise exact decimal slider ranges such as 0.4..1.2 by 0.1.
-    step_tolerance = 1e-5
-    if abs(step_count - encoded_maximum) > step_tolerance:
-        raise ValueError("minimum to maximum must contain a whole number of steps")
+    encoded_maximum = int(round((maximum - minimum) / step))
     if encoded_maximum > MAX_ENCODED_VALUE:
         raise ValueError("numeric parameter declares too many steps")
     parameter = LiveParameter(

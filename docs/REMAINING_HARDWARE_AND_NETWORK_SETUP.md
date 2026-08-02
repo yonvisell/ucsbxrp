@@ -28,7 +28,7 @@ the selected network is unavailable, the XRP starts its own recoverable hotspot
 until reset. Rerun either command to change mode or repair the installation.
 
 The current development robot was last restored to `Pink` at `192.168.7.34` on
-course release `2026.08-dev.5`. The default hotspot was validated as
+course release `2026.08-dev.6`. The default hotspot was validated as
 `UCSB-XRP-9EDE` at `192.168.42.1`.
 
 ## Remaining floor-dependent work

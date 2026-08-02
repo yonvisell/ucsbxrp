@@ -1,4 +1,8 @@
-import { STAGE_ONE_PROJECT, type CourseProject } from "@ucsb-xrp/target";
+import {
+  STAGE_ONE_PROJECT,
+  courseProjectTemplate,
+  type CourseProject,
+} from "@ucsb-xrp/target";
 
 import {
   autosaveDirectoryName,
@@ -76,12 +80,14 @@ const ignoredDirectories = new Set([
 ]);
 const maximumFiles = 250;
 const maximumFileBytes = 1024 * 1024;
+export const defaultProjectTemplateId = "demo_spiral";
 
 function defaultProject(): ProjectSnapshot {
+  const project = courseProjectTemplate(defaultProjectTemplateId).project;
   return {
-    name: "straight-run-proof",
-    entrypoint: STAGE_ONE_PROJECT.entrypoint,
-    files: { ...STAGE_ONE_PROJECT.files },
+    name: project.name ?? "Expanding spiral",
+    entrypoint: project.entrypoint,
+    files: { ...project.files },
   };
 }
 
@@ -151,7 +157,8 @@ export function loadRecoveredProject(): ProjectSnapshot {
     const legacySource = localStorage.getItem(legacyRecoveryKey);
     if (legacySource !== null) {
       return migrateOriginalStageOneStarter({
-        ...defaultProject(),
+        name: "Recovered project",
+        entrypoint: "main.py",
         files: { "main.py": legacySource },
       });
     }

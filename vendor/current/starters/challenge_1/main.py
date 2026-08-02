@@ -9,7 +9,6 @@ from ucsb_xrp import StraightLineController
 robot = make_robot(ROBOT_CONFIG)
 straight = StraightLineController(STRAIGHT_CONFIG)
 try:
-    print("Press and release USER to start Challenge 1")
     state = robot.start(INITIAL_POSE)
     straight.start(state.measurements, TRAVEL_DISTANCE_MM)
 

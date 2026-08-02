@@ -776,10 +776,10 @@ export function DashboardApp() {
               isRunning
                 ? "Stop the running program."
                 : currentProject?.stale
-                  ? "The IDE project changed. Run or synchronize it in the IDE first."
+                  ? "The IDE project changed. Run or flash it in the IDE first."
                   : currentProject
                     ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                    : "Run or synchronize a project in the IDE first."
+                    : "Run or flash a project in the IDE first."
             }
           >
             {isRunning ? "Stop" : "Run"}
@@ -922,6 +922,11 @@ export function DashboardApp() {
                             parameter.pendingValue ??
                             parameter.value;
                           if (parameter.kind === "number") {
+                            const shownNumber = Number(shownValue);
+                            const shownText = shownNumber.toLocaleString(
+                              undefined,
+                              { maximumFractionDigits: 4 },
+                            );
                             return (
                               <label
                                 className="runtime-number"
@@ -930,18 +935,15 @@ export function DashboardApp() {
                                   runtimeDrafts[parameter.name] !== undefined
                                 }
                                 data-runtime-parameter={parameter.name}
-                                data-runtime-value={String(shownValue)}
+                                data-runtime-value={shownText}
                                 key={parameter.name}
                                 title={`Adjust ${parameter.label.toLowerCase()} while the program runs. The value is applied at its next sample boundary.`}
                               >
                                 <span>{parameter.label}</span>
-                                <output>
-                                  {Number(shownValue).toLocaleString(
-                                    undefined,
-                                    {
-                                      maximumFractionDigits: 4,
-                                    },
-                                  )}
+                                <output
+                                  aria-label={`${parameter.label} ${shownText}${parameter.unit ? ` ${parameter.unit}` : ""}`}
+                                >
+                                  {shownText}
                                   {parameter.unit ? ` ${parameter.unit}` : ""}
                                 </output>
                                 <input
@@ -958,7 +960,7 @@ export function DashboardApp() {
                                   }
                                   step={parameter.step}
                                   type="range"
-                                  value={Number(shownValue)}
+                                  value={shownNumber}
                                 />
                               </label>
                             );

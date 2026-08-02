@@ -41,7 +41,7 @@ permission.
 
 - **Validate code** compiles every Python file with MicroPython without running
   it.
-- **Sync project** atomically transfers the complete project to a physical XRP.
+- **Flash project** atomically writes the complete project to a physical XRP.
 - **Run** executes the selected main file; while active it becomes **Stop**.
 - **Stop** ends execution and commands zero drive input.
 - **Reset** returns the selected target to its initial state.

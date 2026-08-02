@@ -84,8 +84,6 @@ class LiveRuntimeTests(unittest.TestCase):
     def test_rejects_ambiguous_or_unrenderable_parameters(self):
         with self.assertRaisesRegex(ValueError, "step"):
             live.number("speed", 101, 0, 200, 10)
-        with self.assertRaisesRegex(ValueError, "whole number"):
-            live.number("gain", 0.0, 0.0, 1.0, 0.3)
         with self.assertRaisesRegex(ValueError, "letters, digits"):
             live.toggle("not valid", True)
         with self.assertRaisesRegex(ValueError, "2 to 6"):
@@ -94,19 +92,27 @@ class LiveRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already exists"):
             live.toggle("enabled", False)
 
+    def test_allows_a_range_that_ends_between_slider_steps(self):
+        gain = live.number("gain", 0.0, 0.0, 1.0, 0.3)
+
+        live.queue_update("gain", 0.9)
+        live.apply_updates()
+
+        self.assertAlmostEqual(gain.value, 0.9)
+
     def test_accepts_decimal_steps_after_rp2350_float_rounding(self):
         def float32(value):
             return struct.unpack("f", struct.pack("f", value))[0]
 
         winding = live.number(
             "spiral_winding_turns_per_m",
-            float32(0.8),
+            float32(1.2),
             minimum=float32(0.4),
-            maximum=float32(1.2),
+            maximum=float32(2.0),
             step=float32(0.1),
         )
 
-        self.assertAlmostEqual(winding.value, 0.8, places=6)
+        self.assertAlmostEqual(winding.value, 1.2, places=6)
 
 
 if __name__ == "__main__":

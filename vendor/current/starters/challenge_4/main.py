@@ -25,7 +25,6 @@ else:
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
-        print("Press and release USER to start Challenge 4")
         state = robot.start(INITIAL_POSE)
         navigation.start(path.to_goals(grid, DESTINATION.heading_rad))
         while not navigation.is_complete():

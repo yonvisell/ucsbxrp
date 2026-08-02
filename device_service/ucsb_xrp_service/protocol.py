@@ -1,7 +1,7 @@
 """Small, MicroPython-compatible validation for the target protocol."""
 
 PROTOCOL_VERSION = 1
-SERVICE_VERSION = "2026.08-dev.5"
+SERVICE_VERSION = "2026.08-dev.6"
 MAX_PROJECT_FILES = 48
 MAX_PROJECT_BYTES = 256 * 1024
 MAX_FILE_BYTES = 96 * 1024

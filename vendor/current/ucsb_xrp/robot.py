@@ -26,6 +26,15 @@ from .records import DriveCommand, MotionCommand, Pose, RobotState
 from .live import apply_updates
 
 
+_managed_start = False
+
+
+def _set_managed_start(enabled):
+    """Let a course runtime start immediately after its Run command."""
+    global _managed_start
+    _managed_start = bool(enabled)
+
+
 class Robot:
     """Assemble selected components into one explicit measure/control loop."""
 
@@ -109,7 +118,8 @@ class Robot:
     def start(self, initial_pose):
         if not isinstance(initial_pose, Pose):
             raise TypeError("initial_pose must be a Pose")
-        self._bot.wait_for_button()
+        if not _managed_start:
+            self._bot.wait_for_button()
         self._bot.reset_encoders()
         raw = self._bot.read(include_range=False)
         measurements = self._sensor_model.reset(raw)

@@ -153,8 +153,7 @@ function prepareRuntime(
       type: "response",
       requestId: command.requestId,
       ok: false,
-      error:
-        "No project is ready. Run or synchronize a project in the IDE first.",
+      error: "No project is ready. Run or flash a project in the IDE first.",
     });
     return;
   }
@@ -163,8 +162,7 @@ function prepareRuntime(
       type: "response",
       requestId: command.requestId,
       ok: false,
-      error:
-        "The IDE project has changed. Run or synchronize it in the IDE first.",
+      error: "The IDE project has changed. Run or flash it in the IDE first.",
     });
     return;
   }

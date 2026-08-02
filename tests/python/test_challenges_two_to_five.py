@@ -38,6 +38,7 @@ from ucsb_xrp_reference import (  # noqa: E402
     WheelSpeedController,
 )
 from ucsb_xrp._telemetry import clear_state, state_snapshot  # noqa: E402
+from ucsb_xrp.robot import _set_managed_start  # noqa: E402
 
 
 def navigation_config():
@@ -258,6 +259,17 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertGreater(published["leftEffort"], 0)
         robot.stop()
         self.assertEqual(state_snapshot()["leftEffort"], 0)
+
+    def test_managed_run_starts_without_waiting_for_user_button(self):
+        robot, bot = self.make_robot()
+
+        _set_managed_start(True)
+        try:
+            robot.start(Pose(0, 0, 0))
+        finally:
+            _set_managed_start(False)
+
+        self.assertEqual(bot.events[:2], ["reset", "read"])
 
     def test_robot_uses_absolute_wrap_safe_sample_deadlines(self):
         config = RobotConfig(sample_period_ms=20, max_drive_command=0.5)

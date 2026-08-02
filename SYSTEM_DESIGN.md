@@ -35,10 +35,11 @@ The IDE is the programming surface. It provides:
   metadata;
 - one grouped project catalog containing the five cumulative challenges,
   sensor-driven obstacle-turn and expanding-spiral demos, and a staged
-  MicroPython tutorial;
+  MicroPython tutorial; a fresh browser opens the spiral demo while recovered
+  student work remains authoritative;
 - local Monaco workers and MicroPython syntax validation;
-- explicit validate and synchronize operations plus one stateful Run/Stop
-  control and Reset;
+- explicit **Validate code** and **Flash project** operations plus one stateful
+  Run/Stop control and Reset;
 - virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
   and an existing-Wi-Fi address setting;
 - a flat white workspace with compact collapsible project, settings, and
@@ -112,6 +113,10 @@ telemetry; samples
 carry source, sequence/time, pose availability, motion,
 encoders, collision, range, button, IMU, temperature, battery, and sensor-error
 fields.
+`synchronize` is the internal transactional transfer operation; the interface
+calls it **Flash project** because it writes the complete project to persistent
+XRP storage. Connection state and current/stale project identity are shown
+separately, so a connected robot cannot be mistaken for a flashed one.
 
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
 descriptors and 16 watch values. The virtual target stores encoded parameter
@@ -192,6 +197,8 @@ cursors when sequence numbers restart. The client uses request deadlines,
 bounded polling, one shared connection, and short repeated discovery probes
 after an intentional reboot; an in-flight telemetry timeout cannot replace the
 reconnecting status.
+The shared client polls active-run telemetry every 60 ms and returns to 250 ms
+when idle. This improves live plots without multiplying idle sensor-bus reads.
 
 The transactional project manifest includes the same canonical revision used
 by the browser. Discovery and telemetry repeat that descriptor after every
@@ -206,7 +213,9 @@ then reports `loading`; core 1 starts only after that reply has left, while the
 browser finishes any in-flight telemetry request and holds polling for 500 ms.
 This keeps HTTP response allocation out of the project-import boundary without
 constraining ordinary student imports. The active project manifest remains in
-RAM. A 7 s hardware watchdog is fed by the service event loop, so a future
+RAM. A browser Run marks the launch as managed, so `Robot.start()` begins
+immediately; a directly executed standalone program retains the explicit USER
+button wait. A 7 s hardware watchdog is fed by the service event loop, so a future
 shared-VM deadlock reboots the controller instead of requiring a physical
 reset. A renewable run lease is owned outside the student program; expiration
 also resets the target. Normal completion and exceptions stop on the program

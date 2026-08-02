@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.5"
+COURSE_RELEASE = "2026.08-dev.6"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -310,11 +310,16 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
     inserted_path = False
     outcome_state = "ready"
     outcome_detail = "Program completed"
+    managed_start = None
     try:
         os.chdir(slot_path)
         if not sys.path or sys.path[0] != slot_path:
             sys.path.insert(0, slot_path)
             inserted_path = True
+        from ucsb_xrp.robot import _set_managed_start
+
+        managed_start = _set_managed_start
+        managed_start(True)
         # Keep the HTTP handler paused while the student core performs its
         # first project imports. RP2350 flash reads are then isolated from
         # response allocation on the service core.
@@ -337,6 +342,8 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
         outcome_state = "error"
         outcome_detail = "Program stopped after an exception"
     finally:
+        if managed_start is not None:
+            managed_start(False)
         _stop_motors()
         stdout.flush()
         if inserted_path:
@@ -660,12 +667,12 @@ def check(request):
 def sync(request):
     def operation(body):
         if _thread_active or _launch_pending:
-            raise ProtocolError("target_busy", "stop the program before synchronizing")
+            raise ProtocolError("target_busy", "stop the program before flashing")
         project = validate_project(body.get("project"))
         checked = _compile_project(project)
         manifest = _write_project(project)
-        _set_state("ready", "Project synchronized")
-        return {"detail": "Project synchronized", "checked": checked, "project": manifest}
+        _set_state("ready", "Project flashed")
+        return {"detail": "Project flashed", "checked": checked, "project": manifest}
 
     return _command(request, operation)
 
@@ -678,7 +685,7 @@ def run_project(request):
             raise ProtocolError("target_busy", "a program is already running")
         manifest = _read_manifest()
         if manifest is None:
-            raise ProtocolError("no_project", "synchronize a project before running")
+            raise ProtocolError("no_project", "flash a project before running")
         slot_path = _active_slot_path()
         entrypoint = manifest["entrypoint"]
         with open(slot_path + "/" + entrypoint) as handle:

@@ -618,6 +618,63 @@ describe("physical target", () => {
     vi.useRealTimers();
   });
 
+  it("polls running telemetry four times faster without raising the idle rate", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).includes("/api/v1/telemetry")) {
+        telemetryRequests += 1;
+        return response({
+          bootId: "boot-a",
+          state: telemetryRequests === 1 ? "running" : "ready",
+          detail:
+            telemetryRequests === 1 ? "Running main.py" : "Program completed",
+          runId: 1,
+          logs: [],
+        });
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: "test",
+        courseRelease: "test",
+        bootId: "boot-a",
+        robotName: "xrp-test",
+        address: "192.168.7.30",
+        project: null,
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+    });
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(59);
+      expect(telemetryRequests).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(telemetryRequests).toBe(2);
+
+      await vi.advanceTimersByTimeAsync(249);
+      expect(telemetryRequests).toBe(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(telemetryRequests).toBe(3);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("discovers, checks, synchronizes, and runs with correlated replies", async () => {
     let requestCount = 0;
     const fetchMock = vi.fn(

@@ -8,7 +8,6 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 try:
-    print("Press and release USER to start Challenge 3")
     state = robot.start(INITIAL_POSE)
     navigation.start(ROUTE)
     while not navigation.is_complete():

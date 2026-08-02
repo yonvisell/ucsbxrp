@@ -53,6 +53,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         cls.server = FakeServer()
         cls.thread_calls = []
         cls.live_updates = []
+        cls.managed_start_updates = []
 
         fake_thread = types.ModuleType("_thread")
         fake_thread.start_new_thread = lambda function, args: cls.thread_calls.append(
@@ -82,6 +83,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         fake_course_live.queue_update = lambda name, value: cls.live_updates.append(
             (name, value)
         )
+        fake_course_robot = types.ModuleType("ucsb_xrp.robot")
+        fake_course_robot._set_managed_start = (
+            lambda enabled: cls.managed_start_updates.append(enabled)
+        )
         fake_ucsb_xrp = types.ModuleType("ucsb_xrp")
         fake_ucsb_xrp.__path__ = []
 
@@ -103,6 +108,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "ucsb_xrp": fake_ucsb_xrp,
                 "ucsb_xrp._telemetry": fake_course_telemetry,
                 "ucsb_xrp.live": fake_course_live,
+                "ucsb_xrp.robot": fake_course_robot,
                 "ucsb_xrp_service": package,
                 "ucsb_xrp_service.protocol": protocol,
             },
@@ -139,6 +145,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.server.loop.tasks.clear()
         self.thread_calls.clear()
         self.live_updates.clear()
+        self.managed_start_updates.clear()
         self.service._thread_active = False
         self.service._launch_pending = False
         self.service._run_id = 0
@@ -173,6 +180,20 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             asyncio.run(self.server.loop.tasks.pop())
             self.assertEqual(self.service._state, "running")
             self.assertEqual(len(self.thread_calls), 1)
+
+    def test_project_runner_bypasses_then_restores_user_button_start(self):
+        with tempfile.TemporaryDirectory() as project_dir:
+            self.service._stop_motors = lambda: None
+
+            self.service._project_runner(
+                project_dir,
+                "main.py",
+                compile("pass\n", "main.py", "exec"),
+                [],
+                0,
+            )
+
+        self.assertEqual(self.managed_start_updates, [True, False])
 
     def test_watchdog_interval_fits_the_rp2350_limit(self):
         self.assertGreaterEqual(self.service.SERVICE_WATCHDOG_MS, 5000)

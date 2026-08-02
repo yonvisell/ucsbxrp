@@ -6,9 +6,11 @@ so the project runs before student work begins. Students implement
 `wheel_speed_controller.py`, test each
 component, then change its corresponding flag in `course_setup.py`.
 
-`main.py` waits for the USER button, drives the distance in `challenge.py`, and
-always stops in `finally`. `robot_config.py` contains nominal virtual-XRP values;
-physical-robot measurements can be entered there without changing program code.
+IDE Run starts `main.py` immediately; a copy launched directly outside the
+course service waits for USER. It drives the distance in `challenge.py` and
+always stops in `finally`. `robot_config.py` contains nominal virtual-XRP
+values; physical-robot measurements can be entered there without changing
+program code.
 
 The retained reference source is an initial clear implementation, not a
 prescribed internal solution.

@@ -6,12 +6,12 @@ This project demonstrates a complete sensor-driven sequence:
 2. turn left by 90 degrees using odometry; and
 3. drive forward until the next nearby obstacle.
 
-The same files run on the virtual or physical XRP. In the virtual scene, Run
-starts immediately. On the physical XRP, press and release USER when prompted.
-The program filters several range samples and bounds each motion. The robot
-always stops in the `finally` block, including after an exception.
+The same files run on the virtual or physical XRP. IDE Run starts immediately
+on either target; a copy launched directly outside the course service waits
+for USER. The program filters several range samples and bounds each motion.
+The robot always stops in the `finally` block, including after an exception.
 
-While it runs, open **Monitor → Live program** to adjust the bounded speeds,
+While it runs, open **Monitor → Live controls** to adjust the bounded speeds,
 obstacle distance, turn direction, and second approach. Updates take effect
 together at a measured sample boundary. The same section shows named internal
 values without adding diagnostic `print` statements to the control loop.

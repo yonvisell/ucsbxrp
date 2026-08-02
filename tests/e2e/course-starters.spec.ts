@@ -7,6 +7,13 @@ const starters = [
   { option: "challenge_5", completion: "Challenge 5 result: delivered" },
 ];
 
+test("opens the spiral demo by default in a new browser", async ({ page }) => {
+  await page.goto("/ide/");
+
+  await expect(page.getByLabel("Project template")).toHaveValue("demo_spiral");
+  await expect(page.getByTitle("Expanding spiral")).toBeVisible();
+});
+
 for (const starter of starters) {
   test(`${starter.option} validates and completes on the virtual XRP`, async ({
     page,
@@ -250,6 +257,11 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   const winding = liveControls.getByRole("slider", {
     name: "Spiral winding rate",
   });
+  await expect(winding).toHaveValue("1.2");
+  await expect(winding).toHaveAttribute("max", "2");
+  await expect(ide.getByRole("log")).not.toContainText(
+    "Press and release USER",
+  );
   await winding.fill("1");
   const windingControl = liveControls.locator(
     '[data-runtime-parameter="spiral_winding_turns_per_m"]',

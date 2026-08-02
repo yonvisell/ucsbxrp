@@ -69,6 +69,7 @@ interface CommandReply<T> {
 
 export interface PhysicalTargetOptions {
   fetch?: typeof fetch;
+  activePollIntervalMs?: number;
   pollIntervalMs?: number;
   requestTimeoutMs?: number;
 }
@@ -124,6 +125,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   readonly kind = "physical" as const;
   readonly endpoint: string;
   private readonly fetchImplementation: typeof fetch;
+  private readonly activePollIntervalMs: number;
   private readonly pollIntervalMs: number;
   private readonly requestTimeoutMs: number;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
@@ -148,6 +150,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.fetchImplementation =
       options.fetch ?? ((input, init) => globalThis.fetch(input, init));
     this.pollIntervalMs = options.pollIntervalMs ?? 250;
+    this.activePollIntervalMs =
+      options.activePollIntervalMs ?? options.pollIntervalMs ?? 60;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 8_000;
   }
 
@@ -266,13 +270,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (!this.currentProject) {
       throw new PhysicalTargetError(
         "no_project",
-        "No project is ready. Run or synchronize a project in the IDE first.",
+        "No project is ready. Run or flash a project in the IDE first.",
       );
     }
     if (this.currentProject.stale) {
       throw new PhysicalTargetError(
         "stale_project",
-        "The IDE project has changed. Run or synchronize it in the IDE first.",
+        "The IDE project has changed. Run or flash it in the IDE first.",
       );
     }
     // Let any current telemetry request finish, then leave the RP2350 service
@@ -492,7 +496,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.lastLeaseAt = performance.now();
         await this.command("lease", { runId: state.runId });
       }
-      this.schedulePoll();
+      this.schedulePoll(
+        state.state === "running"
+          ? this.activePollIntervalMs
+          : this.pollIntervalMs,
+      );
     } catch (error) {
       if (this.connected && !this.reconnecting) {
         this.emitStatus("error", errorDetail(error));

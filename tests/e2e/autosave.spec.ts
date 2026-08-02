@@ -165,6 +165,8 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await ide.getByLabel("Project template").selectOption("challenge_1");
+  await ide.getByRole("button", { name: "Load", exact: true }).click();
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
     timeout: 20_000,

@@ -69,9 +69,9 @@ test("IDE and Monitor share the retained physical XRP project lifecycle", async 
   const monitorRun = monitor
     .locator(".app-header")
     .getByRole("button", { name: "Run", exact: true });
-  await ide.getByRole("button", { name: "Sync project" }).click();
+  await ide.getByRole("button", { name: "Flash project" }).click();
   await expect(
-    ide.getByText("The complete project is current on the XRP."),
+    ide.getByText("The complete project is flashed and ready on the XRP."),
   ).toBeVisible({ timeout: 20_000 });
   await expect(monitorRun).toBeEnabled();
   await monitorRun.click();
@@ -92,9 +92,9 @@ test("IDE and Monitor share the retained physical XRP project lifecycle", async 
   await expect(monitorRun).toBeDisabled();
   await expect(monitorRun).toHaveAttribute("title", /IDE project changed/);
 
-  await ide.getByRole("button", { name: "Sync project" }).click();
+  await ide.getByRole("button", { name: "Flash project" }).click();
   await expect(
-    ide.getByText("The complete project is current on the XRP."),
+    ide.getByText("The complete project is flashed and ready on the XRP."),
   ).toBeVisible({
     timeout: 20_000,
   });

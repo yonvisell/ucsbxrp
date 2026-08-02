@@ -12,7 +12,7 @@ test("selects robot hotspot or existing Wi-Fi without losing either endpoint", a
 
   const wifi = settings.getByRole("group", { name: "XRP Wi-Fi" });
   await expect(wifi).toContainText(
-    "Project sync, controls, and telemetry use Wi-Fi",
+    "Project flashing, controls, and telemetry use Wi-Fi",
   );
   const connection = wifi.getByLabel("Network", { exact: true });
   await expect(connection).toHaveValue("access_point");

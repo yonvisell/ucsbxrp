@@ -24,7 +24,6 @@ def drive_straight(distance_mm):
 
 
 try:
-    print("Press and release USER to start Challenge 2")
     state = robot.start(INITIAL_POSE)
     drive_straight(OUTBOUND_DISTANCE_MM)
 

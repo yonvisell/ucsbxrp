@@ -33,6 +33,7 @@ import {
 } from "../../shared/course-folder";
 import {
   chooseWorkingFolder,
+  defaultProjectTemplateId,
   deleteProjectFile,
   duplicateProjectFile,
   loadRecoveredProject,
@@ -181,7 +182,7 @@ export function IdeApp() {
   );
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
   const [syncDetail, setSyncDetail] = useState(
-    "Current files have not been sent to the XRP.",
+    "Current files have not been flashed to the XRP.",
   );
   const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
@@ -192,7 +193,7 @@ export function IdeApp() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(
-    COURSE_PROJECT_TEMPLATES[0]!.id,
+    defaultProjectTemplateId,
   );
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
@@ -242,6 +243,7 @@ export function IdeApp() {
       }
     });
     setTargetState("connecting");
+    setTargetDetail(`Connecting to ${target.kind} XRP…`);
     setCurrentProject(null);
     target
       .connect()
@@ -264,7 +266,7 @@ export function IdeApp() {
       setCheckOk(null);
       setCheckDetail("Files changed since the last code check.");
       setSyncOk(null);
-      setSyncDetail("Files changed since the last synchronization.");
+      setSyncDetail("Files changed since the last flash.");
       if (
         currentProject &&
         !currentProject.stale &&
@@ -410,19 +412,19 @@ export function IdeApp() {
     }
   }, [canCommand, isRunning, project, target]);
 
-  const synchronizeProject = useCallback(async () => {
+  const flashProject = useCallback(async () => {
     if (!canCommand || isRunning) {
       return;
     }
     setOutputPanelOpen(true);
     setConsoleTab("status");
-    setSyncDetail("Synchronizing the complete project…");
+    setSyncDetail("Flashing the complete project…");
     try {
       await target.synchronize(project);
       setSyncOk(true);
       setSyncDetail(
         target.kind === "physical"
-          ? "The complete project is current on the XRP."
+          ? "The complete project is flashed and ready on the XRP."
           : "The project is ready for the virtual XRP.",
       );
     } catch (error) {
@@ -930,6 +932,18 @@ export function IdeApp() {
       : folderDirty
         ? "Browser recovery · choose Save now to select a folder"
         : "Browser recovery";
+  const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
+  const flashState =
+    syncOk === false
+      ? "Flash failed"
+      : projectIsFlashed
+        ? "Flashed"
+        : "Flash needed";
+  const physicalStatus = projectIsFlashed ? "flashed" : "flash needed";
+  const targetStatusTitle =
+    target.kind === "physical"
+      ? `${targetDetail}. Project ${physicalStatus}.`
+      : targetDetail;
 
   return (
     <div className="app-shell ide-app">
@@ -964,10 +978,10 @@ export function IdeApp() {
           {target.kind === "physical" ? (
             <button
               disabled={!canCommand || isRunning}
-              onClick={synchronizeProject}
-              title="Transfer the complete project to the physical XRP"
+              onClick={flashProject}
+              title="Write the complete project to the physical XRP"
             >
-              Sync project
+              Flash project
             </button>
           ) : null}
           <button
@@ -1015,12 +1029,13 @@ export function IdeApp() {
             className="connection-pill"
             data-testid="target-status"
             role="status"
-            title={targetDetail}
+            title={targetStatusTitle}
           >
             <span aria-hidden="true" className={`status-dot ${targetState}`} />
             <span>
               {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} ·{" "}
               {targetState}
+              {target.kind === "physical" ? ` · ${physicalStatus}` : ""}
             </span>
           </div>
           <button
@@ -1374,21 +1389,17 @@ export function IdeApp() {
                 </div>
                 {target.kind === "physical" ? (
                   <div>
-                    <span>Robot files</span>
+                    <span>Robot project</span>
                     <strong
                       className={
-                        syncOk === true
+                        projectIsFlashed
                           ? "pass"
                           : syncOk === false
                             ? "fail"
                             : ""
                       }
                     >
-                      {syncOk === true
-                        ? "Current"
-                        : syncOk === false
-                          ? "Sync failed"
-                          : "Needs sync"}
+                      {flashState}
                     </strong>
                     <small aria-live="polite">{syncDetail}</small>
                   </div>
@@ -1475,7 +1486,7 @@ export function IdeApp() {
             <fieldset className="xrp-wifi-settings">
               <legend>XRP Wi-Fi</legend>
               <p className="xrp-wifi-summary">
-                Project sync, controls, and telemetry use Wi-Fi. USB handles
+                Project flashing, controls, and telemetry use Wi-Fi. USB handles
                 firmware, setup, and repair.
               </p>
               <label className="setting-row">
@@ -1608,7 +1619,7 @@ export function IdeApp() {
             <h3>Physical workflow</h3>
             <p>
               Virtual and physical targets use the same project. On a physical
-              XRP, validate, synchronize the complete project, then run.
+              XRP, validate, flash the complete project, then run.
             </p>
           </section>
           <section className="settings-note shortcuts-note">

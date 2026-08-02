@@ -6,7 +6,6 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import DeliveryMission
 
 
-print("Press and release USER to start Challenge 5")
 mission = DeliveryMission(
     DELIVERY_TASK,
     make_navigation_controller(NAVIGATION_CONFIG),

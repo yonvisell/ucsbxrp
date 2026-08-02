@@ -232,6 +232,8 @@ def __ucsb_simulated_sleep_ms(duration_ms):
 time.sleep_ms = __ucsb_simulated_sleep_ms
 
 sys.path.insert(0, "/project")
+from ucsb_xrp.robot import _set_managed_start
+_set_managed_start(True)
 __ucsb_entrypoint = "/project/${entrypoint}"
 exec(
     compile(

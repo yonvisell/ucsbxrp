@@ -18,9 +18,9 @@ FORWARD_SPEED = live.number(
 )
 WINDING_RATE = live.number(
     "spiral_winding_turns_per_m",
-    0.8,
+    1.2,
     minimum=0.4,
-    maximum=1.2,
+    maximum=2.0,
     step=0.1,
     unit="turns/m",
     label="Spiral winding rate",
@@ -35,7 +35,6 @@ state = None
 result = "Spiral travel limit reached"
 
 try:
-    print("Press and release USER to start the spiral demo")
     state = robot.start(Pose(0.0, 0.0, 0.0))
 
     # Check the range once before applying a moving command.
