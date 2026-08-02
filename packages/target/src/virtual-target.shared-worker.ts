@@ -289,21 +289,21 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     }
     send(port, { type: "response", requestId: command.requestId, ok: true });
   } else if (command.type === "set-scenario") {
-    if (currentState === "loading" || currentState === "running") {
-      send(port, {
-        type: "response",
-        requestId: command.requestId,
-        ok: false,
-        error: "Stop the program before changing the virtual environment",
-      });
-      return;
-    }
     if (command.scenario === currentScenario) {
       send(port, {
         type: "response",
         requestId: command.requestId,
         ok: true,
         result: { scenario: currentScenario },
+      });
+      return;
+    }
+    if (currentState === "loading" || currentState === "running") {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: "Stop the program before changing the virtual environment",
       });
       return;
     }

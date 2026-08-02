@@ -26,7 +26,9 @@ and folder controls. One grouped template menu loads all five challenges, two
 sensor-driven robot demos, or seven staged MicroPython lessons as an ordinary
 editable project. The new expanding-spiral demo exposes only forward speed and
 spiral winding rate, checks forward range on every sample, stops within 260 mm,
-and retains a bounded-travel fallback plus unconditional final zero drive.
+and retains a bounded-travel fallback plus unconditional final zero drive. A
+Monitor opened after the IDE starts a virtual run now attaches to that active
+run without treating its unchanged scene preference as a forbidden change.
 
 Both application headers are now 29 px high and use a contiguous `UCSBXRP`
 wordmark: UCSB blue and a restrained grey-red product name share the same type,
@@ -293,7 +295,9 @@ The IDE showed its four plainly named files and simple main program; the
 Monitor showed the outward-curving trail, exactly two enabled live sliders,
 range and drive telemetry, and clean program output. Stop returned the virtual
 target to ready with zero drive, and neither application reported a console
-warning or error.
+warning or error. The focused regression opens the Monitor only after the IDE
+starts the run, then verifies the running state, both live parameters, range
+stopping, and final zero drive.
 
 The GitHub Pages workflow uses the deployment base path reported by Pages and
 publishes the verified `dist` artifact. An HTTPS physical connection now primes
@@ -304,7 +308,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The final local
-production build is `2359e77a89396071c342` with 154 verified payload files.
+production build is `f185e26054e220e6096f` with 154 verified payload files.
 
 ## Physical evidence
 

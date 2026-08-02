@@ -215,8 +215,6 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   page: ide,
 }) => {
   test.setTimeout(60_000);
-  const monitor = await context.newPage();
-  await monitor.goto("/dashboard/");
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -230,6 +228,9 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
 
+  // Opening the Monitor after Run is the natural path from the IDE link.
+  const monitor = await context.newPage();
+  await monitor.goto("/dashboard/");
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
   );
