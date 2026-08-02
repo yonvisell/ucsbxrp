@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-08-02T03:50:40-07:00",
+  "purpose": "Close the repeated-launch regression and validate release 2026.08-dev.4 from instructor provisioning through Chrome and the attached RP2350.",
+  "source": {
+    "gitParent": "90b254dfe06314578f08465475a12d675e2e9a5c",
+    "courseRelease": "2026.08-dev.4",
+    "serviceVersion": "2026.08-dev.4",
+    "courseApi": "ucsb_xrp 0.4.0-dev",
+    "productionBuild": "561b798407c36d8c8473"
+  },
+  "controller": {
+    "board": "SPARKFUN_XRP_CONTROLLER",
+    "processor": "RP2350",
+    "micropython": "1.28.0",
+    "xrplib": "2026.07.1",
+    "usbPort": "/dev/cu.usbmodem2101",
+    "usbVid": "0x1B4F",
+    "usbPid": "0x0046",
+    "identitySha256": "f7f1acadba8d6d7e5418b9f66f57965f19343ae82e9a8ddcdaa79f8649601e99",
+    "network": "Pink",
+    "address": "192.168.7.32"
+  },
+  "provisioning": {
+    "command": ".venv/bin/python scripts/provision_xrp.py --port /dev/cu.usbmodem2101",
+    "result": "passed",
+    "addressMode": "dhcp",
+    "installedFiles": 22,
+    "passwordPrinted": false,
+    "criticalReadbackSha256": {
+      "/main.py": "68b1640b363572cd26508382022df16374ef7944e7c87aeec58d1a7f730dd2c6",
+      "/lib/ucsb_xrp_service/protocol.py": "b6b24da200f18f0a6d3a280980211189e71106de19867a79b31d4b0fcd5ad57b",
+      "/lib/ucsb_xrp_service/service.py": "d7a9c65457355cc9cb33d8367df9dfb7980d19b85f4b72e80b6b49d60edbc3b8",
+      "/lib/ucsb_xrp/live.py": "f9b4b66d27ed675dc107ae0eb3fcf5acee5187bb7bc4445ee7f01df28a8f8d21",
+      "/lib/ucsb_xrp/robot.py": "fb739127306031c10b9e73d7ffb91b0fef83cc887a8b242025c106022ec33382",
+      "/lib/ucsb_xrp/xrpbot.py": "6843bca4a8881679f4a13abef04cb58e0cb433a38ce6d4e2d3660ac09bf3de16"
+    }
+  },
+  "maintenanceRegression": {
+    "observation": "Interrupting a service that had already enabled the RP2350 watchdog could reset the controller during a long USB write/readback cycle.",
+    "observedError": "USB service installation failed: read failed: [Errno 6] Device not configured",
+    "correction": [
+      "Start and feed the watchdog before importing the service.",
+      "Feed it during driver initialization and Wi-Fi association.",
+      "Feed it before and after each USB write/readback and during post-reset address discovery.",
+      "Retry transport-level Wi-Fi and installation failures up to three times; do not retry logical, authentication, or readback-mismatch failures."
+    ],
+    "postCorrectionEvidence": [
+      "Complete 22-file USB installation and readback passed.",
+      "The one-command instructor provision path passed without user intervention.",
+      "The service restarted on Pink and reported dev.4 at 192.168.7.32."
+    ],
+    "installerSourceSha256": "eb7529263fc46b6d96991c02c9e7e332f44bcee900fa3e47d9940cc47b722bec",
+    "wifiSetupSourceSha256": "5ae2c3c456cd155947041a730a933b2c4ad471a4f8fb71e8946f850ed044033c",
+    "provisionerSourceSha256": "8c1ac1febd1f7601ad1ced2cdcfaa904b0a8df7ef299489f985262d224d1dcda"
+  },
+  "strictPhysicalProbe": {
+    "result": "passed",
+    "operations": [
+      "browser preflight",
+      "MicroPython compile",
+      "atomic project synchronization",
+      "retained project revision",
+      "zero-output execution",
+      "stdout capture",
+      "course pose telemetry",
+      "stop and restart",
+      "reset and reconnect"
+    ],
+    "bootIds": {
+      "initial": "ad2710f1dbdd",
+      "afterStop": "0229ff6201c7",
+      "afterReset": "ebc6e2aae612"
+    },
+    "telemetry": {
+      "leftWheelSpeedMmS": 0.0,
+      "rightWheelSpeedMmS": 0.0,
+      "leftDriveCommand": 0.0,
+      "rightDriveCommand": 0.0,
+      "leftEncoderCount": 1,
+      "rightEncoderCount": 0,
+      "rangeMm": 297.59448,
+      "buttonPressed": false,
+      "batteryV": 6.546905,
+      "temperatureC": 34.410156,
+      "sensorError": null
+    },
+    "poseTelemetry": {
+      "poseAvailable": true,
+      "xMm": 125.0,
+      "yMm": -50.0,
+      "headingRad": 0.25,
+      "leftDriveCommand": 0.0,
+      "rightDriveCommand": 0.0
+    }
+  },
+  "chromePhysicalWorkflow": {
+    "browser": "user Chrome through the connected browser extension",
+    "apps": ["http://127.0.0.1:4174/ide/", "http://127.0.0.1:4174/dashboard/"],
+    "offlineLabel": "The web apps and course release are saved in this browser. Robot connectivity is separate. Course release 2026.08-dev.4; build 561b798407c36d8c8473.",
+    "project": {
+      "name": "Obstacle, left, obstacle",
+      "entrypoint": "main.py",
+      "files": 4,
+      "revision": "34b56faeb64484ba75dc6b9155aa67b601cf89463781971c830a8afa7ebca20e"
+    },
+    "ide": {
+      "pythonFilesCompiled": 3,
+      "projectSync": "passed",
+      "errors": []
+    },
+    "monitor": {
+      "secondLaunchRegression": "passed",
+      "stateSequence": ["ready", "running", "ready"],
+      "headerSequence": ["Run", "Stop", "Run"],
+      "programOutput": [
+        "Starting main.py",
+        "Running main.py",
+        "Press and release USER to start the obstacle-turn demo"
+      ],
+      "liveControls": 5,
+      "liveWatchesBeforeMotion": 0,
+      "forwardSpeedInitialMmS": 120,
+      "forwardSpeedPendingMmS": 150,
+      "parameterUpdateErrors": [],
+      "finalPhysicalState": "ready",
+      "finalWheelSpeedMmS": [0.0, 0.0],
+      "finalDriveCommand": [0.0, 0.0],
+      "finalEncoderCounts": [1, 0],
+      "finalRangeMm": 310.8,
+      "finalButton": "released",
+      "finalMotorSupplyV": 6.55
+    },
+    "physicalMovementInThisWorkflow": false
+  },
+  "softwareValidation": {
+    "pythonTests": 106,
+    "vitestTests": 103,
+    "micropythonParity": "passed",
+    "offlinePayloadFiles": 117,
+    "offlineVerification": "passed",
+    "stableChrome": {
+      "passed": 17,
+      "skippedOptInPhysical": 1
+    }
+  },
+  "finalRetainedState": {
+    "bootId": "c9ad3ca2be18",
+    "serviceState": "ready",
+    "project": "Obstacle, left, obstacle",
+    "projectRevision": "34b56faeb64484ba75dc6b9155aa67b601cf89463781971c830a8afa7ebca20e",
+    "driveCommand": [0.0, 0.0],
+    "wheelSpeedMmS": [0.0, 0.0],
+    "rangeMm": 310.65292,
+    "batteryV": 6.543487,
+    "buttonPressed": false,
+    "sensorError": null
+  },
+  "remainingEvidence": [
+    "Final-surface wheel and geometry calibration",
+    "Motion-induced IMU and range comparison",
+    "Complete floor runs for the five course challenges"
+  ]
+}

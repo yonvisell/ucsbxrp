@@ -215,8 +215,7 @@ Reconnect action restores permission without weakening browser recovery.
 
 ### Refinement 5 — Course runtime and public vocabulary
 
-Status: implemented and software-validated; final corrected-service hardware
-repetition awaits the attached controller's reset.
+Status: implemented and validated in software and on the attached RP2350.
 
 - Replace ambiguous motor-effort terminology with drive-command terminology
   through one coordinated compatibility-preserving change.
@@ -229,7 +228,7 @@ repetition awaits the attached controller's reset.
 
 ### Refinement 6 — Structured watches and live parameters
 
-Status: implemented and software-validated; attached-XRP repetition pending.
+Status: implemented and validated in software and on the attached RP2350.
 
 - Add structured watched values and typed numeric, Boolean, and enumerated live
   parameters; apply validated updates atomically at sample boundaries.
@@ -243,11 +242,29 @@ periodic print logging or target-specific program code.
 
 ### Refinement 7 — Integrated red-team validation
 
-Status: software-complete; current-release physical repetition pending USB
-enumeration.
+Status: complete in software, Chrome, and the attached-RP2350 repetition.
 
 - Exercise service-worker upgrades, multi-tab ownership, stale projects,
   invalid live values, interrupted writes, permission loss, telemetry load,
   every virtual project, and the available physical target operations.
 - Finish with truthful status, a clean commit/archive, and the production
   applications running on port 4174.
+
+### Refinement 8 — Watchdog-safe boot and USB repair
+
+Status: implemented and validated on the attached RP2350.
+
+Direct USB maintenance after refinement 7 showed that the service watchdog can
+remain active after the HTTP loop is interrupted and reset the controller
+during a long read-verified installation. This changed the final dependency
+order: repair robustness had to precede the final physical archive.
+
+- Feed the RP2350 watchdog before the service import, during device-driver
+  initialization, and throughout Wi-Fi association.
+- Feed it before and after each USB write and readback operation, and while the
+  provisioner discovers the post-reset network address.
+- Repeat the complete install, strict physical lifecycle, two-app Chrome run,
+  live parameter update, and retained student-project restoration.
+
+Usable result: the ordinary one-command provision/repair path completes even
+when the previous course service had already enabled the hardware watchdog.

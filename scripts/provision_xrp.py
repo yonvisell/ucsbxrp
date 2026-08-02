@@ -23,7 +23,7 @@ def provision(
     selected_port = xrp_wifi.choose_port(port)
     credentials_path = xrp_wifi.choose_credentials_path(credentials)
     password = xrp_wifi.read_password(credentials_path, ssid)
-    wifi = xrp_wifi.configure(
+    wifi = xrp_wifi.configure_with_usb_retry(
         selected_port,
         ssid,
         password,
@@ -38,7 +38,7 @@ def provision(
         raise xrp_wifi.WifiSetupError(
             "XRP did not join {} ({})".format(ssid, wifi.get("status", "unknown"))
         )
-    installed = install_xrp_service.install(selected_port)
+    installed = install_xrp_service.install_with_usb_retry(selected_port)
     address = installed["address"]
     service = install_xrp_service.wait_for_service(address)
     return {

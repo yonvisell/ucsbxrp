@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 
 ## Current result
 
@@ -51,23 +51,27 @@ to 16 bounded numeric, Boolean, or choice parameters and 16 named watch values
 through `ucsb_xrp.live`. The Monitor renders compact controls, and `Robot`
 applies queued values and publishes staged watches once per measured boundary.
 
-The attached RP2350 was previously provisioned on `Pink`; its latest DHCP
-address was `192.168.7.32`. Stationary sensors, project transfer, compilation,
-execution, logs, course pose telemetry, stop/reset/reconnect, simultaneous
-IDE/Monitor use, recording, and raised-wheel motor response were exercised on
-the preceding release. The user observed the left, right, and paired wheel
-motion expected by the encoder evidence.
+The attached RP2350 is provisioned on `Pink` at `192.168.7.32`. Release
+`2026.08-dev.4` is installed. Its strict browser-preflight, compile, atomic
+sync, zero-output run, stdout, stationary and course-pose telemetry,
+stop/restart, and reset/reconnect probe passes. Final readings include zero
+drive command, zero wheel speed, approximately 6.55 V motor supply, 298 mm
+forward range, released USER button, live IMU, and retained project identity.
 
-The 0.3 package and service passed the strict
-compile/sync/run/telemetry/stop/reset probe. The following two-app Stable Chrome
-repetition passed its first run, stop/reboot, edit, and resynchronization, then
-found a controller-level hang at the second `/run`. The corrected service now
-returns its run reply before core-1 launch, the physical client leaves a 500 ms
-startup polling interval, and a 7 s hardware watchdog makes any future VM
-deadlock self-recovering. Release `2026.08-dev.3` adds the completed live
-program protocol and passes the complete software suite. In the latest probe
-the controller enumerated on neither USB nor its last LAN address, so this
-release could not yet be installed or repeated.
+The two-app Chrome repetition now passes the previously failing second launch.
+The IDE validated three Python files and synchronized the four-file obstacle
+demo; the Monitor received the same physical project and live telemetry,
+changed Run to Stop and back, and accepted a live Forward speed update from
+120 to 150 mm/s while the program waited for USER. No motion command was issued
+in this repetition, and the final physical readings remained 0.00 / 0.00.
+
+USB maintenance exposed a separate recovery weakness: an already-active RP2350
+watchdog could reset the controller during a long read-verified installation.
+The dev.4 boot path now starts and feeds the watchdog before importing the
+service and throughout Wi-Fi association; the installer feeds it before and
+after every transfer/readback operation. A complete 22-file USB install,
+service restart, DHCP discovery, strict physical probe, and retained-project
+restore pass with this correction.
 
 ## Delivered course release
 
@@ -189,7 +193,7 @@ release could not yet be installed or repeated.
 The latest complete software pass includes:
 
 - Prettier, TypeScript, and repository whitespace checks;
-- 98 CPython contract and harness tests;
+- 106 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
 - 103 Vitest tests for project identity and handling, folder rotation, target
@@ -203,10 +207,10 @@ The latest complete software pass includes:
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   typed live parameter updates and named watches, recording/CSV export, and a
   network-blocked offline reload;
-  plus one opt-in Stable Chrome hardware repetition. Its first complete
-  lifecycle passed; the second launch exposed the RP2350 hang described above.
-  The resulting watchdog/deferred-launch correction is software-validated but
-  not yet installed on the currently frozen controller.
+  plus direct Chrome and harness repetitions on the attached RP2350. The
+  previously failing second launch, physical live-parameter update,
+  stop/reconnect, read-verified USB repair, and strict post-reset lifecycle now
+  pass on release `2026.08-dev.4`.
 
 The current Monitor pass includes the original-size 1,440 × 900 Stable Chrome
 capture plus a direct 1,382 × 752 Chrome inspection of the complete production
@@ -250,17 +254,17 @@ diagnosis, corrected source identities, automatic-recovery design, complete
 software validation, and pending reset/install/repetition. The passing probe is
 not erased, and the failed repetition is not reported as passing.
 
+`docs/hardware/2026-08-02-dev4-physical-browser-validation.json` closes that
+regression with the installed dev.4 identities, strict physical lifecycle,
+two-app Chrome evidence, live parameter update, final zero-command telemetry,
+and the watchdog-safe USB maintenance correction.
+
 ## Remaining work
 
-1. Restore normal USB enumeration with one complete controller power cycle,
-   run `scripts/provision_xrp.py` to install `2026.08-dev.3`, and repeat the
-   strict physical probe, live-parameter demo, and two-run Chrome lifecycle.
-   If normal reconnection still produces no serial port, reflash the current
-   RP2350 MicroPython UF2 first. GPIO15 is not a hardware-reset substitute.
-2. On the final course surface, measure wheel-speed response, effective wheel
+1. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.
-3. Run each complete challenge on the floor after calibration. These empirical
+2. Run each complete challenge on the floor after calibration. These empirical
    results should refine configuration, not create another student workflow or
    target protocol.
 

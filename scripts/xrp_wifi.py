@@ -21,6 +21,8 @@ DEVICE_CONFIG = "/xrp_wifi.json"
 RESULT_PREFIX = "UCSB_XRP_WIFI="
 EXPECTED_VID = 0x1B4F
 EXPECTED_PID = 0x0046
+WIFI_WATCHDOG_MS = 8388
+USB_WIFI_ATTEMPTS = 3
 
 
 class WifiSetupError(RuntimeError):
@@ -121,7 +123,9 @@ def parse_result(output):
 
 def device_connect_code(timeout_ms):
     return """
-import json, network, time
+import json, machine, network, time
+watchdog = machine.WDT(timeout={watchdog_ms})
+watchdog.feed()
 config = json.load(open({config_path!r}))
 network.hostname(config['hostname'])
 wlan = network.WLAN(network.STA_IF)
@@ -132,7 +136,9 @@ if not wlan.isconnected() and wlan.status() not in (network.STAT_CONNECTING, 2):
     wlan.connect(config['ssid'], config['password'])
 deadline = time.ticks_add(time.ticks_ms(), {timeout_ms})
 while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
+    watchdog.feed()
     time.sleep_ms(100)
+watchdog.feed()
 status_names = {{
     network.STAT_IDLE: 'idle',
     network.STAT_CONNECTING: 'connecting',
@@ -155,6 +161,7 @@ print({prefix!r} + json.dumps(result))
         config_path=DEVICE_CONFIG,
         timeout_ms=int(timeout_ms),
         prefix=RESULT_PREFIX,
+        watchdog_ms=WIFI_WATCHDOG_MS,
     )
 
 
@@ -201,21 +208,51 @@ def configure(
         ),
         separators=(",", ":"),
     ).encode("utf-8")
-    transport = SerialTransport(port, timeout=max(5, timeout_s + 5))
+    transport = None
     try:
+        transport = SerialTransport(port, timeout=max(5, timeout_s + 5))
         enter_raw_repl(transport, soft_reset=True)
+        transport.exec(
+            "import machine\n"
+            "machine.WDT(timeout={}).feed()".format(WIFI_WATCHDOG_MS)
+        )
         transport.fs_writefile(DEVICE_CONFIG, config_bytes)
+        transport.exec(
+            "import machine\n"
+            "machine.WDT(timeout={}).feed()".format(WIFI_WATCHDOG_MS)
+        )
         return execute_device_connect(transport, timeout_s)
     except Exception as exc:
         if isinstance(exc, WifiSetupError):
             raise
         raise WifiSetupError("USB Wi-Fi setup failed: {}".format(exc)) from exc
     finally:
+        if transport is not None:
+            try:
+                transport.exit_raw_repl()
+            except Exception:
+                pass
+            try:
+                transport.close()
+            except OSError:
+                pass
+
+
+def configure_with_usb_retry(*args, attempts=USB_WIFI_ATTEMPTS, **kwargs):
+    """Retry transient USB loss without hiding Wi-Fi configuration errors."""
+    if attempts < 1:
+        raise ValueError("attempts must be at least 1")
+    last_error = None
+    for attempt in range(attempts):
         try:
-            transport.exit_raw_repl()
-        except Exception:
-            pass
-        transport.close()
+            return configure(*args, **kwargs)
+        except WifiSetupError as exc:
+            last_error = exc
+            if not str(exc).startswith("USB Wi-Fi setup failed:"):
+                raise
+            if attempt + 1 < attempts:
+                time.sleep(1.0)
+    raise last_error
 
 
 def make_parser():
@@ -238,7 +275,7 @@ def main(argv=None):
         port = choose_port(args.port)
         credentials = choose_credentials_path(args.credentials)
         password = read_password(credentials, args.ssid)
-        result = configure(
+        result = configure_with_usb_retry(
             port,
             args.ssid,
             password,

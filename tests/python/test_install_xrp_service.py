@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +43,20 @@ class InstallXrpServiceTest(unittest.TestCase):
         self.assertIn("/lib/ucsb_xrp_reference/__init__.mpy", files)
         self.assertTrue(all(path.is_file() for path in files.values()))
 
+    def test_install_feed_uses_the_rp2350_watchdog_limit(self):
+        class Transport:
+            def __init__(self):
+                self.code = []
+
+            def exec(self, value):
+                self.code.append(value)
+
+        transport = Transport()
+        INSTALLER.feed_install_watchdog(transport)
+
+        self.assertEqual(INSTALLER.INSTALL_WATCHDOG_MS, 8388)
+        self.assertIn("machine.WDT(timeout=8388).feed()", transport.code[0])
+
     def test_main_is_written_last(self):
         self.assertEqual(list(INSTALLER.installation_files())[-1], "/main.py")
 
@@ -59,7 +74,49 @@ class InstallXrpServiceTest(unittest.TestCase):
         code = INSTALLER.device_address_code(5000)
         self.assertIn("/xrp_wifi.json", code)
         self.assertIn("UCSB_XRP_ADDRESS=", code)
+        self.assertIn("machine.WDT(timeout=8388)", code)
+        self.assertIn("watchdog.feed()", code)
         self.assertNotIn("password-value", code)
+
+    def test_main_feeds_watchdog_before_importing_the_service(self):
+        code = (ROOT / "device_service" / "main.py").read_text()
+        self.assertLess(
+            code.index("_watchdog.feed()"),
+            code.index("from ucsb_xrp_service"),
+        )
+        self.assertIn("run(_watchdog)", code)
+
+    def test_transient_usb_install_failure_retries_without_user_action(self):
+        expected = {"address": "192.168.7.32", "files": []}
+        with (
+            patch.object(
+                INSTALLER,
+                "install",
+                side_effect=[
+                    INSTALLER.InstallError(
+                        "USB service installation failed: device re-enumerated"
+                    ),
+                    expected,
+                ],
+            ) as install,
+            patch.object(INSTALLER.time, "sleep") as sleep,
+        ):
+            result = INSTALLER.install_with_usb_retry("/dev/test")
+
+        self.assertEqual(result, expected)
+        self.assertEqual(install.call_count, 2)
+        sleep.assert_called_once_with(1.0)
+
+    def test_readback_mismatch_is_not_retried(self):
+        with patch.object(
+            INSTALLER,
+            "install",
+            side_effect=INSTALLER.InstallError("readback mismatch for /main.py"),
+        ) as install:
+            with self.assertRaisesRegex(INSTALLER.InstallError, "readback mismatch"):
+                INSTALLER.install_with_usb_retry("/dev/test")
+
+        install.assert_called_once_with("/dev/test")
 
 
 if __name__ == "__main__":

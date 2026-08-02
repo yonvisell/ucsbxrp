@@ -23,7 +23,7 @@ from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
 
 
-COURSE_RELEASE = "2026.08-dev.3"
+COURSE_RELEASE = "2026.08-dev.4"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -803,7 +803,7 @@ async def _feed_service_watchdog(watchdog):
         await uasyncio.sleep_ms(500)
 
 
-def _connect_wifi(timeout_ms=20000):
+def _connect_wifi(timeout_ms=20000, watchdog=None):
     config = json.load(open(CONFIG_PATH))
     network.hostname(config["hostname"])
     wlan = network.WLAN(network.STA_IF)
@@ -814,37 +814,49 @@ def _connect_wifi(timeout_ms=20000):
         wlan.connect(config["ssid"], config["password"])
     deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
     while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
+        if watchdog is not None:
+            watchdog.feed()
         time.sleep_ms(100)
+    if watchdog is not None:
+        watchdog.feed()
     if not wlan.isconnected():
         raise RuntimeError("Wi-Fi connection failed with status {}".format(wlan.status()))
     return wlan.ifconfig()[0]
 
 
-def run():
+def run(watchdog=None):
+    if watchdog is None:
+        watchdog = machine.WDT(timeout=SERVICE_WATCHDOG_MS)
+    watchdog.feed()
     _stop_motors()
+    watchdog.feed()
     # MicroPython filesystem imports are not reliable when first performed on
     # the second core. Load the shared course packages once on the service core;
     # student threads then reuse the normal module cache.
     import ucsb_xrp
     import ucsb_xrp_reference
+    watchdog.feed()
     from XRPLib.board import Board
     from XRPLib.encoded_motor import EncodedMotor
     from XRPLib.imu import IMU
     from XRPLib.rangefinder import Rangefinder
+    watchdog.feed()
 
     # Resolve the singleton drivers before the student thread begins. In
     # addition to avoiding second-core filesystem imports, this gives service
     # telemetry and course code the same XRPLib device instances.
     Board.get_default_board()
+    watchdog.feed()
     EncodedMotor.get_default_encoded_motor(index=1)
     EncodedMotor.get_default_encoded_motor(index=2)
+    watchdog.feed()
     IMU.get_default_imu()
     Rangefinder.get_default_rangefinder()
+    watchdog.feed()
 
-    address = _connect_wifi()
+    address = _connect_wifi(watchdog=watchdog)
     _append_log("system", "Course service {} at {}".format(SERVICE_VERSION, address))
     print("UCSB XRP course service at http://{}".format(address))
-    watchdog = machine.WDT(timeout=SERVICE_WATCHDOG_MS)
     server.loop.create_task(_feed_service_watchdog(watchdog))
     server.loop.create_task(_watch_run_lease())
     server.run(host="0.0.0.0", port=80)

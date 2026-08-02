@@ -10,7 +10,13 @@ telemetry, stop, restart, and reset/reconnect lifecycle on the attached RP2350.
 `2026-08-01-runtime-launch-regression.json` records the subsequent second-run
 VM hang found by the two-app browser harness, the localized evidence, the
 deferred-launch/quiet-window/watchdog correction, its complete software proof,
-and the one pending reset/install/repetition.
+and the then-pending reset/install/repetition.
+
+`2026-08-02-dev4-physical-browser-validation.json` closes that pending work.
+It records the installed dev.4 service, strict zero-output lifecycle, passing
+second Chrome launch, physical live-parameter update, final zero-command
+telemetry, restored student demo, and the watchdog-safe USB repair correction
+found during the same repetition.
 
 The 2026-07-31 records preserve the original XRP-WPILib 2.1.0 identity, the
 transition to the official board-specific MicroPython 1.28.0 firmware and

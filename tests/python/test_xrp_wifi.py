@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -93,6 +94,8 @@ class XrpWifiTest(unittest.TestCase):
         self.assertNotIn("password-value", code)
         self.assertIn("UCSB_XRP_WIFI=", code)
         self.assertIn("waiting_for_ip", code)
+        self.assertIn("machine.WDT(timeout=8388)", code)
+        self.assertIn("watchdog.feed()", code)
 
     def test_device_execution_waits_longer_than_the_association_deadline(self):
         class Transport:
@@ -108,6 +111,42 @@ class XrpWifiTest(unittest.TestCase):
 
         self.assertEqual(transport.timeout, 25)
         self.assertEqual(result["address"], "1.2.3.4")
+
+    def test_transient_usb_wifi_failure_retries_without_user_action(self):
+        expected = {"connected": True, "address": "192.168.7.32"}
+        with (
+            patch.object(
+                XRP_WIFI,
+                "configure",
+                side_effect=[
+                    XRP_WIFI.WifiSetupError(
+                        "USB Wi-Fi setup failed: device re-enumerated"
+                    ),
+                    expected,
+                ],
+            ) as configure,
+            patch.object(XRP_WIFI.time, "sleep") as sleep,
+        ):
+            result = XRP_WIFI.configure_with_usb_retry(
+                "/dev/test", "Pink", "secret", "ucsb-xrp"
+            )
+
+        self.assertEqual(result, expected)
+        self.assertEqual(configure.call_count, 2)
+        sleep.assert_called_once_with(1.0)
+
+    def test_wifi_authentication_failure_is_not_retried(self):
+        with patch.object(
+            XRP_WIFI,
+            "configure",
+            side_effect=XRP_WIFI.WifiSetupError("XRP Wi-Fi setup failed: wrong password"),
+        ) as configure:
+            with self.assertRaisesRegex(XRP_WIFI.WifiSetupError, "wrong password"):
+                XRP_WIFI.configure_with_usb_retry(
+                    "/dev/test", "Pink", "secret", "ucsb-xrp"
+                )
+
+        configure.assert_called_once()
 
 
 if __name__ == "__main__":

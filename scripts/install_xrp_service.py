@@ -18,6 +18,8 @@ REFERENCE_SOURCE = ROOT / "vendor/current/reference_mpy/ucsb_xrp_reference"
 EXPECTED_VID = 0x1B4F
 EXPECTED_PID = 0x0046
 ADDRESS_PREFIX = "UCSB_XRP_ADDRESS="
+INSTALL_WATCHDOG_MS = 8388
+USB_INSTALL_ATTEMPTS = 3
 
 
 class InstallError(RuntimeError):
@@ -29,6 +31,14 @@ def enter_raw_repl(transport):
     transport.serial.write(b"\r\x03\x03\x03")
     time.sleep(0.15)
     transport.enter_raw_repl(soft_reset=False)
+
+
+def feed_install_watchdog(transport):
+    """Keep an already-running RP2350 watchdog alive during USB transfer."""
+    transport.exec(
+        "import machine\n"
+        "machine.WDT(timeout={}).feed()".format(INSTALL_WATCHDOG_MS)
+    )
 
 
 def choose_port(explicit=None):
@@ -84,7 +94,9 @@ def parse_device_address(output):
 
 def device_address_code(timeout_ms):
     return """
-import json, network, time
+import json, machine, network, time
+watchdog = machine.WDT(timeout={watchdog_ms})
+watchdog.feed()
 config = json.load(open('/xrp_wifi.json'))
 network.hostname(config['hostname'])
 wlan = network.WLAN(network.STA_IF)
@@ -95,9 +107,15 @@ if not wlan.isconnected() and wlan.status() not in (network.STAT_CONNECTING, 2):
     wlan.connect(config['ssid'], config['password'])
 deadline = time.ticks_add(time.ticks_ms(), {timeout_ms})
 while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
+    watchdog.feed()
     time.sleep_ms(100)
+watchdog.feed()
 print({prefix!r} + (wlan.ifconfig()[0] if wlan.isconnected() else ''))
-""".format(timeout_ms=int(timeout_ms), prefix=ADDRESS_PREFIX)
+""".format(
+        timeout_ms=int(timeout_ms),
+        prefix=ADDRESS_PREFIX,
+        watchdog_ms=INSTALL_WATCHDOG_MS,
+    )
 
 
 def read_address_after_restart(port, timeout_s=25.0):
@@ -159,17 +177,23 @@ def install(port):
     if not sources or any(not path.is_file() for path in sources.values()):
         raise InstallError("service or course release files are incomplete")
 
-    transport = SerialTransport(port, timeout=12)
+    transport = None
     installed = []
     try:
+        transport = SerialTransport(port, timeout=12)
         enter_raw_repl(transport)
+        feed_install_watchdog(transport)
         _ensure_remote_dirs(transport)
+        feed_install_watchdog(transport)
         for destination, source in sources.items():
             data = source.read_bytes()
+            feed_install_watchdog(transport)
             transport.fs_writefile(destination, data)
+            feed_install_watchdog(transport)
             actual = transport.fs_readfile(destination)
             if actual != data:
                 raise InstallError("readback mismatch for " + destination)
+            feed_install_watchdog(transport)
             installed.append(
                 {
                     "path": destination,
@@ -177,20 +201,42 @@ def install(port):
                     "sha256": file_sha256(data),
                 }
             )
-        transport.exec_raw_no_follow("import machine; machine.reset()")
+        transport.exec_raw_no_follow(
+            "import machine; "
+            "machine.WDT(timeout={}).feed(); "
+            "machine.reset()".format(INSTALL_WATCHDOG_MS)
+        )
     except InstallError:
         raise
     except Exception as exc:
         raise InstallError("USB service installation failed: {}".format(exc)) from exc
     finally:
-        try:
-            transport.close()
-        except OSError:
-            # A hard reset can re-enumerate USB before pyserial lowers DTR.
-            # Readback has already completed and the LAN check below confirms
-            # that the new service booted.
-            pass
+        if transport is not None:
+            try:
+                transport.close()
+            except OSError:
+                # A hard reset can re-enumerate USB before pyserial lowers DTR.
+                # Readback has already completed and the LAN check below confirms
+                # that the new service booted.
+                pass
     return {"address": read_address_after_restart(port), "files": installed}
+
+
+def install_with_usb_retry(port, attempts=USB_INSTALL_ATTEMPTS):
+    """Retry only transient USB transport loss; logical failures stay immediate."""
+    if attempts < 1:
+        raise ValueError("attempts must be at least 1")
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            return install(port)
+        except InstallError as exc:
+            last_error = exc
+            if not str(exc).startswith("USB service installation failed:"):
+                raise
+            if attempt + 1 < attempts:
+                time.sleep(1.0)
+    raise last_error
 
 
 def wait_for_service(address, timeout_s=45.0):
@@ -228,7 +274,7 @@ def make_parser():
 def main(argv=None):
     args = make_parser().parse_args(argv)
     try:
-        result = install(choose_port(args.port))
+        result = install_with_usb_retry(choose_port(args.port))
         if not args.skip_network_check:
             result["service"] = wait_for_service(result["address"])
     except InstallError as exc:
