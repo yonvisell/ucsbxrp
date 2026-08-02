@@ -52,7 +52,8 @@ Both targets run the same conformance cases:
 - synchronize a whole project transactionally so an interrupted upload keeps
   the preceding runnable project;
 - validate, run, stop, and reset as separate operations;
-- reconnect without inventing a successful state;
+- reconnect without inventing a successful state, retain reconnecting through
+  intentional reboots, and restart log cursors when the boot identifier changes;
 - reject malformed, duplicate, incompatible, and oversized input cleanly;
 - preserve typed channel names, units, timestamps, sequence numbers, logs, and
   events; and
@@ -75,8 +76,9 @@ target or Monitor defects. Cover:
   same browser fetch receiver used by stable Chrome;
 - cancellation of unfinished physical discovery and ordered shared-worker
   disconnect, so rapid React remounts cannot leave a hidden poller;
-- world/sensor views, blocked-gate replanning, selectable scrolling signal
-  plots, and the collapsible Monitor controls;
+- dimensioned world/XRP views, ruler scaling, SI sensor labels, blocked-gate
+  replanning, selectable scrolling signal plots, and the collapsible Monitor
+  controls;
 - bounded recordings and deterministic export;
 - root and deployment-subpath offline reloads; and
 - desktop and narrow layouts, semantic control names, keyboard-contained
@@ -97,8 +99,9 @@ concise:
 - project synchronization and file inventory;
 - check, start, stop, reset, reconnect, logs, and telemetry;
 - USER button, IMU, range, encoder, and power readings;
-- short, bounded, raised-wheel motor pulses with encoder response and zero
-  cleanup; and
+- short, bounded, raised-wheel motor pulses with encoder count deltas and zero
+  cleanup, without reinitializing RP2350 PIO encoders from the program core;
+  and
 - the exact behaviors that remain untested because they require floor motion.
 
 Credentials, device serial numbers, and unique identifiers are not committed.

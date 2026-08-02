@@ -85,24 +85,40 @@ Direct reads resume only after the program thread completes. Project manifests
 are retained in RAM and project imports are evicted before each run, avoiding
 flash reads from the program core while the HTTP core is active.
 
-With those corrections installed, two strict boot-aware probes passed the
-complete lifecycle and course pose telemetry. Stable Chrome then validated a
-full five-file Challenge 1 run while IDE and Monitor simultaneously displayed
-the same physical state; stop from Monitor reset the controller and returned
-both applications to ready. A final probe repetition later found the board
-unresponsive after rapid browser target remounts. This motivated the client
-teardown correction above. Its software regression tests pass, but the board
-requires a manual reset before that last hardware repetition can be made; the
-failure is not recast as a pass.
+With those corrections installed, the final strict boot-aware probe passed the
+complete lifecycle and course pose telemetry after the user reset the board.
+Stable Chrome then validated a full five-file Challenge 1 run while IDE and
+Monitor simultaneously displayed the same physical state. Intentional stop and
+reset now remain visibly in the reconnecting state, use short repeated
+discovery attempts, and reset the log cursor from the service boot identifier;
+neither path exposes the expected reboot as an application error.
+
+The first repeated motor harness run exposed a separate harness defect:
+calling `reset_encoder_position()` from the program core attempted to
+reinitialize an RP2350 PIO encoder already owned by XRPLib and raised
+`ValueError: bad typecode`. Encoder zeroing was unnecessary for a delta test.
+The revised harness samples the existing counts, applies the same short motor
+pulses, and compares count differences. It then passed left, right, and paired
+motor/encoder response and ended at zero commanded effort.
 
 ## Simulator and Monitor
 
 The deterministic fixed-step plant owns differential-drive pose, effort
 response, wheel speed, encoder quantization, collision, forward range, IMU,
 temperature, battery, and button state. Course algorithms remain in Python.
-The Monitor renders this state, records a bounded copy, and exports a typed CSV.
-The open and blocked-gate scenes exercise both branches of Delivery Mission;
-the blocked scene has been run across simultaneous IDE and Monitor tabs.
+The Monitor renders this state with a dimensioned XRP model, arena/XRP views,
+and a true-scale world ruler. Hardware-native `mg` and `mdps` are converted to
+m/s² and rad/s for display and CSV; millimeters remain the course geometry unit.
+It records a bounded copy and exports a typed CSV. The open and blocked-gate
+scenes exercise both branches of Delivery Mission; the blocked scene has been
+run across simultaneous IDE and Monitor tabs.
+
+Visual geometry is traceable rather than estimated from a screenshot. The
+[official Open-STEM V1.3 chassis mesh](https://github.com/Open-STEM/V1.0-XRP-3D-Printing-Files)
+has a 192.5 × 190.5 mm plan footprint, and the
+[SparkFun controller drawing](https://cdn.sparkfun.com/assets/c/1/5/6/c/SparkFun_XRP_Controller-Dimensions.jpg)
+specifies 2.5 × 2.125 inches (63.5 × 54.0 mm). Wheel diameter and track
+width use the course robot configuration.
 
 ## Remaining empirical work
 

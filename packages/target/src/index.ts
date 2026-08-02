@@ -14,6 +14,10 @@ export {
   telemetryRecordingToCsv,
 } from "./telemetry-recording";
 export type { TelemetryRecordingSnapshot } from "./telemetry-recording";
+export {
+  millidegreesPerSecondToRadiansPerSecond,
+  milligravityToMetersPerSecondSquared,
+} from "./telemetry-units";
 export { VirtualTargetClient } from "./virtual-target";
 export {
   COURSE_STARTERS,

@@ -39,8 +39,6 @@ result = {
 }
 try:
     zero()
-    left.reset_encoder_position()
-    right.reset_encoder_position()
     time.sleep_ms(150)
     result["initial_counts"] = counts()
 

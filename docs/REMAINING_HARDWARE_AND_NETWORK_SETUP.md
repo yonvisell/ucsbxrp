@@ -1,107 +1,63 @@
 # XRP setup and remaining physical work
 
-This is the complete setup model for the current SparkFun XRP Controller with
-RP2350. It replaces the earlier multi-tier checklist.
+## Current development robot
 
-## Normal course setup
+The SparkFun RP2350 XRP is fully configured. It joins `Pink` at
+`192.168.7.30`; the current firmware, XRPLib, UCSB library, reference bytecode,
+and browser service are installed. USB can remain connected, but normal IDE and
+Monitor traffic uses `Pink`.
 
-1. Connect the XRP to the instructor Mac by USB-C.
-2. From this repository, run:
+Nothing else needs to be configured for the present raised-wheel setup. Open:
 
-   ```sh
-   .venv/bin/python scripts/provision_xrp.py
-   ```
+- IDE: `http://127.0.0.1:4174/ide/`
+- XRP Monitor: `http://127.0.0.1:4174/dashboard/`
+- Guide: `http://127.0.0.1:4174/guide/`
 
-   It detects the board, reads the `Pink` password from the instructor details
-   file without printing it, joins the network, installs or repairs the course
-   library and connection service, verifies each copied file, and reports the
-   robot name and LAN address.
+Select **Physical XRP** in the IDE. The Monitor follows the same target and
+address automatically. The normal sequence is **Validate code**, **Sync
+project**, then **Run on XRP**.
 
-   If the router reports `waiting_for_ip` instead of issuing a DHCP lease, use
-   one known-free address on the same subnet. For the current `Pink` setup:
+## Configure another course XRP
 
-   ```sh
-   .venv/bin/python scripts/provision_xrp.py \
-     --static-address 192.168.7.30 --gateway 192.168.7.1
-   ```
-3. Open IDE Settings, enter the address printed by setup, and select
-   **Physical XRP**. XRP Monitor uses the same saved target automatically.
-4. Use **Validate code**, **Sync project**, and **Run on XRP**. Open **XRP
-   Monitor** for telemetry, plots, logs, recordings, and the world view.
-
-Wi-Fi credentials are read from a local instructor file during setup. They are
-not copied into the repository, browser storage, logs, screenshots, or evidence
-files. USB remains useful for firmware recovery; routine project work uses the
-LAN shared by the Mac and robot.
-
-## Current verified controller state
-
-- SparkFun XRP Controller with RP2350, observed as USB VID/PID
-  `0x1B4F:0x0046`.
-- Board-specific MicroPython 1.28.0 firmware and XRPLib 2026.07.1 are installed.
-- The USB REPL, filesystem, reset recovery, LED, released USER button, IMU,
-  rangefinder, encoders, and zero motor output have been exercised.
-- The canonical Challenge 1 package and supplied bytecode were hash-checked and
-  executed on the controller.
-- Detailed historical observations are retained under `docs/hardware/`.
-
-## Resume the current development robot
-
-The Mac and XRP use `Pink`; the XRP is configured at `192.168.7.30`. Pink
-accepted the Wi-Fi association but did not issue a DHCP lease during the latest
-repair, so setup retained that previously used address with gateway/DNS
-`192.168.7.1`.
-
-The current service build is already installed. The controller stopped
-responding during the final repetition after the physical browser connection
-lifecycle changed. Tap **RESET** once, or briefly disconnect and reconnect USB
-power, then run:
+Connect the controller by USB-C and run:
 
 ```sh
-.venv/bin/python scripts/xrp_service_probe.py --address 192.168.7.30
+.venv/bin/python scripts/provision_xrp.py
 ```
 
-This performs the complete no-motion service lifecycle: browser preflight,
-compile, transactional sync, run/output/telemetry, stop/restart, reset, and
-reconnect. If the service does not return after the reset, repair it with:
+The command reads the instructor's local `Pink` credential without printing
+it, installs or repairs the complete device release, verifies every file,
+restarts the controller, and prints its LAN address. Enter that address once in
+IDE Settings. Students then use the same IDE/Monitor workflow for the virtual
+and physical XRP.
+
+`Pink` did not supply a DHCP lease during the present setup, so this robot uses
+the known-free address `192.168.7.30`. If another controller has the same
+network behavior, assign it a distinct free address:
 
 ```sh
 .venv/bin/python scripts/provision_xrp.py \
-  --static-address 192.168.7.30 --gateway 192.168.7.1
+  --static-address 192.168.7.31 --gateway 192.168.7.1
 ```
 
-The final browser repetition then consists of selecting **Physical XRP** in
-the IDE, validating and running Challenge 1, watching the same state in XRP
-Monitor, and stopping from either app. No firmware, router, or credential
-change is expected.
+## If the robot is not reachable
 
-Raised-wheel motor and encoder response has already passed. It can be repeated
-when calibration work resumes with:
+Press **RESET** once and wait for it to rejoin `Pink`. If it still does not
+appear, rerun `scripts/provision_xrp.py`; this is both the setup and repair
+command. UF2 recovery is only relevant if the controller no longer enumerates
+as MicroPython over USB.
 
-```sh
-.venv/bin/python scripts/xrp_motor_check.py --address 192.168.7.30
-```
+## Remaining floor-dependent work
 
-The check uses short 0.22-effort pulses, commands zero before and after every
-pulse, and records both encoders. Floor motion and calibration runs remain
-separate because those results depend on the final course surface and robot.
+The software, virtual XRP, stationary sensors, Wi-Fi path, five-file physical
+project path, raised-wheel motors, and encoders are validated. The remaining
+work requires placing the wheels on the final course surface:
 
-## If the robot is not found
+1. measure wheel-speed response, effective wheel diameter and track width, and
+   stopping distance;
+2. compare moving IMU and range observations with the simulator; and
+3. run the five complete challenges in their course arenas.
 
-1. Leave USB connected and rerun setup; it reports the current Wi-Fi state and
-   corrects the saved network configuration.
-2. Confirm that the Mac and robot are on the same network and that client
-   isolation is not enabled on the access point.
-3. Use the IP address printed by setup in the IDE's compact connection
-   diagnostics. Students should not normally need this fallback.
-4. If MicroPython does not enumerate, use the documented UF2 recovery path and
-   rerun setup. Do not copy a firmware image to the normal `PICODISK` status
-   volume.
-
-## Work deferred until floor trials
-
-The remaining physical work is wheel-speed calibration, effective wheel
-diameter and track-width calibration, motion-induced IMU/range comparisons,
-and full floor trials for the five challenges. Those measurements should update
-`robot_config.py` and simulator comparison envelopes; they do not require a new
-student workflow or a second network configuration.
+Use those measurements to refine `robot_config.py` and the simulator's
+comparison envelopes. No additional network mode, student handoff, or browser
+workflow is needed.

@@ -142,10 +142,36 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   expect(worldDimensions.hostWidth).toBeGreaterThan(100);
   expect(worldDimensions.hostWidth).toBeLessThan(1_500);
   expect(worldDimensions.canvasWidth).toBe(worldDimensions.hostWidth);
+  await expect(dashboard.getByTestId("world-view")).toHaveAttribute(
+    "data-xrp-footprint-mm",
+    "192.5 × 190.5",
+  );
+  await expect(dashboard.getByTestId("world-ruler")).toContainText("500 mm");
+  const arenaRulerWidth = await dashboard
+    .getByTestId("world-ruler")
+    .evaluate((element) => Number.parseFloat(getComputedStyle(element).width));
+  expect(arenaRulerWidth).toBeGreaterThan(40);
+  await dashboard.getByRole("button", { name: "Inspect XRP" }).click();
+  await expect(
+    dashboard.getByRole("button", { name: "Show arena" }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      dashboard
+        .getByTestId("world-ruler")
+        .evaluate((element) =>
+          Number.parseFloat(getComputedStyle(element).width),
+        ),
+    )
+    .toBeGreaterThan(arenaRulerWidth * 2.5);
+  await dashboard.getByRole("button", { name: "Show arena" }).click();
 
   await ide.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(ide.getByTestId("settings-panel")).toBeVisible();
-  await expect(ide.getByLabel(/Editor font size/)).toHaveValue("11");
+  await expect(ide.getByLabel(/Editor font size/)).toHaveValue("9");
+  await expect(ide.getByLabel(/Editor font size/)).toHaveAttribute("min", "8");
+  await expect(ide.getByLabel(/Output font size/)).toHaveAttribute("min", "8");
+  await expect(ide.getByLabel("Code overview")).toHaveValue("off");
   await ide.getByLabel(/Editor font size/).fill("12");
   await ide.getByRole("button", { name: "Close settings" }).click();
 

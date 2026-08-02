@@ -281,6 +281,170 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("restarts log polling at sequence zero after an unannounced reboot", async () => {
+    vi.useFakeTimers();
+    const telemetryReplies = [
+      {
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [{ seq: 10, stream: "stdout", line: "before reboot" }],
+      },
+      {
+        bootId: "boot-b",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [],
+      },
+      {
+        bootId: "boot-b",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [{ seq: 1, stream: "system", line: "after reboot" }],
+      },
+    ];
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: "test",
+          courseRelease: "test",
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response(
+        telemetryReplies.shift() ??
+          telemetryReplies.at(-1) ?? {
+            bootId: "boot-b",
+            state: "ready",
+            detail: "Physical XRP ready",
+            runId: 0,
+            logs: [],
+          },
+      );
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(35);
+
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=10",
+      );
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0",
+      );
+      expect(events).toContainEqual({
+        type: "console",
+        stream: "system",
+        line: "after reboot",
+      });
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("suppresses a stale polling error while an intentional stop reboots the XRP", async () => {
+    let rejectTelemetry: ((reason: Error) => void) | undefined;
+    let telemetryRequests = 0;
+    let bootId = "boot-a";
+    const info = () => ({
+      protocol: 1,
+      serviceVersion: "test",
+      courseRelease: "test",
+      bootId,
+      robotName: "xrp-test",
+      address: "192.168.7.30",
+      capabilities: [
+        "project.check",
+        "project.sync",
+        "program.run",
+        "program.stop",
+        "target.reset",
+        "telemetry.poll",
+      ],
+    });
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response(info());
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          telemetryRequests += 1;
+          if (telemetryRequests === 1) {
+            return new Promise<Response>((_resolve, reject) => {
+              rejectTelemetry = reject;
+            });
+          }
+          return response({
+            bootId,
+            state: "ready",
+            detail: "Physical XRP ready",
+            runId: 0,
+            logs: [],
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        bootId = "boot-b";
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Program stopped", reconnecting: true },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 1,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await vi.waitFor(() => expect(rejectTelemetry).toBeDefined());
+    const stopping = target.stop();
+    await vi.waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([, init]) => init?.method === "POST"),
+      ).toBe(true),
+    );
+    rejectTelemetry?.(new Error("stale telemetry request failed"));
+    await stopping;
+
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "status", state: "error" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "status", state: "ready" }),
+    );
+    target.disconnect();
+  });
+
   it("rejects an uncorrelated command reply", async () => {
     const fetchMock = vi.fn(
       async (_input: URL | RequestInfo, init?: RequestInit) => {

@@ -51,14 +51,17 @@ The Monitor is the observation surface. It subscribes to the same target as the
 IDE and presents only available data. It contains:
 
 - target and run state;
-- a top-down world view with robot pose, heading, trail, range ray, obstacle,
-  and collision state;
+- a dimensioned top-down world view with robot pose, heading, trail, range ray,
+  obstacle, collision state, an accurate ruler, and arena/XRP inspection views;
 - a collapsible control sidebar with a selectable 2–30 second history of wheel
-  speed, motor effort, forward range, acceleration, and angular rate;
+  speed, normalized motor command, forward range, acceleration, and angular
+  rate;
 - live pose, efforts, encoders, range, button, IMU, temperature, and battery
   values;
 - program and service output; and
-- bounded telemetry recording and deterministic CSV export.
+- bounded telemetry recording and deterministic CSV export. Display and export
+  convert hardware-native acceleration and angular-rate values to m/s² and
+  rad/s; course geometry remains in millimeters.
 
 The virtual environment control currently exposes the course-relevant open and
 blocked-gate scenes. Environment selection resets virtual state and is disabled
@@ -137,18 +140,23 @@ The versioned JSON API provides:
 Commands carry bounded request IDs and return correlated, cached replies so a
 retry does not repeat a state-changing operation. Inputs have explicit file,
 path, and byte limits. Browser CORS and Private Network Access preflights are
-answered by the device. The client uses request deadlines, bounded polling,
-log sequence cursors, and reconnect after reset.
+answered by the device. Each boot has an identifier, so clients reset log
+cursors when sequence numbers restart. The client uses request deadlines,
+bounded polling, one shared connection, and short repeated discovery probes
+after an intentional reboot; an in-flight telemetry timeout cannot replace the
+reconnecting status.
 
-Student code runs on the second RP2350 core. The service resolves filesystem
-modules and XRPLib singletons before starting that thread. The active project
-manifest is retained in RAM, and project imports are evicted before a new run,
-so the program core does not first resolve them from flash while the service
-core is allocating network objects. A renewable run lease is owned outside the
-student program; expiration resets the target. Normal completion and
-exceptions stop on the program core, while stop, reset, and lease loss use the
-controller reset path. All converge to zero motor output. Program output is
-line-buffered into the same bounded log stream used by the applications.
+Student code runs on the second RP2350 core. The service resolves course
+packages and XRPLib singletons before starting that thread, identifies the
+entrypoint's project imports, and pauses HTTP work while the student core loads
+that project graph. The active project manifest is retained in RAM, and prior
+project modules are evicted before a new run. This avoids concurrent flash
+reads and network allocation during startup without constraining ordinary
+student imports. A renewable run lease is owned outside the student program;
+expiration resets the target. Normal completion and exceptions stop on the
+program core, while stop, reset, and lease loss use the controller reset path.
+All converge to zero motor output. Program output is line-buffered into the
+same bounded log stream used by the applications.
 
 XRPLib peripheral drivers are not accessed simultaneously from both RP2350
 cores. Before and after a run, the service reads hardware directly. During a

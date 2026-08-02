@@ -72,4 +72,22 @@ describe("monitor signal plots", () => {
       [0, 240],
     ]);
   });
+
+  it("presents hardware-native IMU samples in SI units", () => {
+    const acceleration = signalPlotData([sample(0)], "acceleration", 5);
+    const angularRate = signalPlotData(
+      [sample(0, { angularRateMdps: [180_000, -90_000, 0] })],
+      "angular-rate",
+      5,
+    );
+
+    expect(acceleration.map((series) => series.values[0]?.[1])).toEqual([
+      0.00980665, 0.0196133, 9.80665,
+    ]);
+    expect(angularRate.map((series) => series.values[0]?.[1])).toEqual([
+      Math.PI,
+      -Math.PI / 2,
+      0,
+    ]);
+  });
 });

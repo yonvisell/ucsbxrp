@@ -29,6 +29,7 @@ PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
 SLOTS = ("a", "b")
 LEASE_MS = 2600
+STARTUP_TIMEOUT_MS = 4000
 LOG_LIMIT = 160
 
 _boot_ms = time.ticks_ms()
@@ -47,6 +48,9 @@ _sample_seq = 0
 _last_sample = None
 _last_hardware = None
 _active_manifest = None
+_last_project_module_names = []
+_startup_state = "idle"
+_startup_detail = ""
 _last_reply_by_id = {}
 _reply_order = []
 
@@ -225,6 +229,40 @@ def _compile_project(project):
     return checked
 
 
+def _project_module_names(manifest):
+    names = []
+    entrypoint = manifest["entrypoint"]
+    for path in manifest["files"]:
+        if path == entrypoint or not path.endswith(".py"):
+            continue
+        module_name = path[:-3].replace("/", ".")
+        if module_name.endswith(".__init__"):
+            module_name = module_name[: -len(".__init__")]
+        if module_name and module_name not in names:
+            names.append(module_name)
+    return names
+
+
+def _entrypoint_project_imports(manifest, source):
+    """Find project modules imported at the entrypoint's top level."""
+    candidates = _project_module_names(manifest)
+    imported = []
+    for line in source.splitlines():
+        if not line or line != line.lstrip():
+            continue
+        stripped = line.strip()
+        names = []
+        if stripped.startswith("from ") and " import " in stripped:
+            names.append(stripped[5:].split(" import ", 1)[0].lstrip("."))
+        elif stripped.startswith("import "):
+            for value in stripped[7:].split(","):
+                names.append(value.strip().split(" ", 1)[0])
+        for name in names:
+            if name in candidates and name not in imported:
+                imported.append(name)
+    return imported
+
+
 def _clear_project_modules(manifest):
     """Discard imports owned by the previous project before another run.
 
@@ -233,23 +271,24 @@ def _clear_project_modules(manifest):
     before that core starts. Keeping the manifest in memory also prevents the
     service core from reading the flash filesystem while those imports occur.
     """
-    entrypoint = manifest["entrypoint"]
-    for path in manifest["files"]:
-        if path == entrypoint or not path.endswith(".py"):
-            continue
-        module_name = path[:-3].replace("/", ".")
-        if module_name.endswith(".__init__"):
-            module_name = module_name[: -len(".__init__")]
-        if not module_name:
-            continue
+    global _last_project_module_names
+    current_names = _project_module_names(manifest)
+    names = list(_last_project_module_names)
+    for module_name in current_names:
+        if module_name not in names:
+            names.append(module_name)
+    # Remove children first so a package cannot retain an old child attribute.
+    names.sort(key=lambda value: value.count("."), reverse=True)
+    for module_name in names:
         try:
             del sys.modules[module_name]
         except KeyError:
             pass
+    _last_project_module_names = current_names
 
 
-def _project_runner(slot_path, entrypoint, run_id):
-    global _thread_active, _lease_deadline
+def _project_runner(slot_path, entrypoint, source, startup_modules, run_id):
+    global _thread_active, _lease_deadline, _startup_state, _startup_detail
     previous_cwd = os.getcwd()
     stdout = LineLogWriter("stdout", _append_log)
     inserted_path = False
@@ -260,13 +299,20 @@ def _project_runner(slot_path, entrypoint, run_id):
         if not sys.path or sys.path[0] != slot_path:
             sys.path.insert(0, slot_path)
             inserted_path = True
-        source = open(entrypoint).read()
+        # Keep the HTTP handler paused while the student core performs its
+        # first project imports. RP2350 flash reads are then isolated from
+        # response allocation on the service core.
+        for module_name in startup_modules:
+            __import__(module_name)
+        entry_code = compile(source, entrypoint, "exec")
+        _startup_detail = "Project startup loaded"
+        _startup_state = "ready"
         globals_value = {
             "__name__": "__main__",
             "__file__": entrypoint,
             "print": stdout.print,
         }
-        exec(compile(source, entrypoint, "exec"), globals_value, globals_value)
+        exec(entry_code, globals_value, globals_value)
     except BaseException as exc:
         buffer = io.StringIO()
         try:
@@ -274,6 +320,9 @@ def _project_runner(slot_path, entrypoint, run_id):
             detail = buffer.getvalue().strip()
         except Exception:
             detail = type(exc).__name__ + ": " + str(exc)
+        if _startup_state == "loading":
+            _startup_detail = detail
+            _startup_state = "error"
         _append_log("stderr", detail)
         outcome_state = "error"
         outcome_detail = "Program stopped after an exception"
@@ -438,6 +487,7 @@ def _hardware_sample():
 
 def _state_result(after_log_seq=0):
     return {
+        "bootId": _boot_id,
         "state": _state,
         "detail": _detail,
         "runId": _run_id,
@@ -560,11 +610,16 @@ def sync(request):
 def run_project(request):
     def operation(body):
         global _run_id, _thread_active, _lease_deadline
+        global _startup_state, _startup_detail
         if _thread_active:
             raise ProtocolError("target_busy", "a program is already running")
         manifest = _read_manifest()
         if manifest is None:
             raise ProtocolError("no_project", "synchronize a project before running")
+        slot_path = _active_slot_path()
+        entrypoint = manifest["entrypoint"]
+        source = open(slot_path + "/" + entrypoint).read()
+        startup_modules = _entrypoint_project_imports(manifest, source)
         _clear_project_modules(manifest)
         _stop_motors()
         from ucsb_xrp._telemetry import clear_state
@@ -575,18 +630,37 @@ def run_project(request):
         # request objects can stall RP2350 MicroPython.
         gc.collect()
         _run_id += 1
+        _startup_state = "loading"
+        _startup_detail = "Loading project startup"
         _thread_active = True
-        _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
-        _set_state("running", "Running " + manifest["entrypoint"])
+        _lease_deadline = None
+        _set_state("running", "Running " + entrypoint)
         try:
             _thread.start_new_thread(
                 _project_runner,
-                (_active_slot_path(), manifest["entrypoint"], _run_id),
+                (slot_path, entrypoint, source, startup_modules, _run_id),
             )
         except Exception:
             _thread_active = False
             _lease_deadline = None
+            _startup_state = "error"
             raise
+        deadline = time.ticks_add(time.ticks_ms(), STARTUP_TIMEOUT_MS)
+        while (
+            _startup_state == "loading"
+            and time.ticks_diff(deadline, time.ticks_ms()) > 0
+        ):
+            time.sleep_ms(5)
+        if _startup_state == "loading":
+            _startup_state = "error"
+            _startup_detail = "Project startup timed out; restarting target service"
+            _set_state("error", _startup_detail)
+            _schedule_reset()
+            raise ProtocolError("startup_timeout", _startup_detail)
+        if _startup_state == "error":
+            raise ProtocolError("startup_error", _startup_detail)
+        if _thread_active:
+            _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
         return {"detail": _detail, "runId": _run_id}
 
     return _command(request, operation)

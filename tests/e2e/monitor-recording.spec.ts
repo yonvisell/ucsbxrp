@@ -50,7 +50,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   const csv = await readFile(path!, "utf8");
   const rows = csv.trimEnd().split("\n");
   expect(rows[0]).toBe(
-    "source,pose_available,seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_mg,acceleration_y_mg,acceleration_z_mg,angular_rate_x_mdps,angular_rate_y_mdps,angular_rate_z_mdps,temperature_c,battery_v,sensor_error",
+    "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error",
   );
   expect(rows.length).toBeGreaterThan(4);
   expect(rows[1]?.split(",")).toHaveLength(25);
@@ -76,13 +76,25 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(page.getByTestId("wheel-speed-plot")).toBeVisible();
   await expect(page.getByTestId("strip-chart-motor-effort")).toBeVisible();
 
+  const controlsBox = await page.getByTestId("monitor-controls").boundingBox();
+  const dashboardBox = await page.locator(".dashboard-grid").boundingBox();
+  const sliderBox = await page
+    .getByLabel("Strip chart time window")
+    .boundingBox();
+  expect(controlsBox?.width).toBeGreaterThan(180);
+  expect(controlsBox?.width).toBeLessThan(230);
+  expect(dashboardBox?.x).toBeGreaterThanOrEqual(
+    (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0) - 1,
+  );
+  expect(sliderBox?.height).toBeLessThanOrEqual(16);
+
   await page.getByRole("checkbox", { name: /Forward range/ }).check();
   await expect(page.getByTestId("strip-chart-range")).toBeVisible();
-  await page.getByRole("checkbox", { name: /Motor effort/ }).uncheck();
+  await page.getByRole("checkbox", { name: /Motor command/ }).uncheck();
   await expect(page.getByTestId("strip-chart-motor-effort")).toHaveCount(0);
 
   await page.getByLabel("Strip chart time window").fill("6");
-  await expect(page.getByText("2 shown · 6 s")).toBeVisible();
+  await expect(page.getByText("6 s", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Collapse monitor controls" }).click();
   await expect(

@@ -1,4 +1,8 @@
 import type { TelemetrySample } from "./types";
+import {
+  millidegreesPerSecondToRadiansPerSecond,
+  milligravityToMetersPerSecondSquared,
+} from "./telemetry-units";
 
 export interface TelemetryRecordingSnapshot {
   readonly schemaVersion: 2;
@@ -86,7 +90,7 @@ const csvColumns = [
   "source",
   "pose_available",
   "seq",
-  "t_ms",
+  "t_s",
   "x_mm",
   "y_mm",
   "heading_rad",
@@ -99,12 +103,12 @@ const csvColumns = [
   "collision",
   "range_mm",
   "button_pressed",
-  "acceleration_x_mg",
-  "acceleration_y_mg",
-  "acceleration_z_mg",
-  "angular_rate_x_mdps",
-  "angular_rate_y_mdps",
-  "angular_rate_z_mdps",
+  "acceleration_x_m_s2",
+  "acceleration_y_m_s2",
+  "acceleration_z_m_s2",
+  "angular_rate_x_rad_s",
+  "angular_rate_y_rad_s",
+  "angular_rate_z_rad_s",
   "temperature_c",
   "battery_v",
   "sensor_error",
@@ -139,7 +143,7 @@ export function telemetryRecordingToCsv(
       sample.source,
       sample.poseAvailable,
       sample.seq,
-      sample.tMs,
+      sample.tMs / 1_000,
       sample.xMm,
       sample.yMm,
       sample.headingRad,
@@ -152,12 +156,24 @@ export function telemetryRecordingToCsv(
       sample.collision,
       sample.rangeMm,
       sample.buttonPressed,
-      sample.accelerationMg?.[0] ?? null,
-      sample.accelerationMg?.[1] ?? null,
-      sample.accelerationMg?.[2] ?? null,
-      sample.angularRateMdps?.[0] ?? null,
-      sample.angularRateMdps?.[1] ?? null,
-      sample.angularRateMdps?.[2] ?? null,
+      sample.accelerationMg
+        ? milligravityToMetersPerSecondSquared(sample.accelerationMg[0])
+        : null,
+      sample.accelerationMg
+        ? milligravityToMetersPerSecondSquared(sample.accelerationMg[1])
+        : null,
+      sample.accelerationMg
+        ? milligravityToMetersPerSecondSquared(sample.accelerationMg[2])
+        : null,
+      sample.angularRateMdps
+        ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[0])
+        : null,
+      sample.angularRateMdps
+        ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[1])
+        : null,
+      sample.angularRateMdps
+        ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[2])
+        : null,
       sample.temperatureC,
       sample.batteryV,
       sample.sensorError,

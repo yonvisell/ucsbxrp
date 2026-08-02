@@ -40,9 +40,9 @@ normal editor tabs.
 - **Reset virtual XRP** or **Reset XRP** returns the target to a known state.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
-Settings are collapsible and include editor/console font size, indentation,
-word wrap, minimap, target selection, and the physical XRP address. Status and
-verbose details are separate output tabs.
+Settings are collapsible and include editor/output font size (9 px default,
+8 px minimum), indentation, word wrap, code overview, target selection, and
+the physical XRP address. Status and verbose details are separate output tabs.
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
@@ -58,14 +58,18 @@ shows connection/run state, pose and trail when available, wheel speed,
 efforts, encoders, range, USER button, IMU, temperature, battery, collision,
 and program output. For the virtual XRP, choose **Open field** or **Delivery
 gate blocked**; the second scene exercises Challenge 5 observation and
-replanning. The compact left sidebar collapses to a narrow rail and selects a
-2–30 second scrolling history for wheel speed, motor effort, forward range,
+replanning. The world uses the production XRP's dimensioned footprint and a
+500 mm ruler. The compact left sidebar collapses to a narrow rail and selects a
+2–30 second scrolling history for wheel speed, normalized motor command,
+forward range,
 acceleration, or angular rate. Signals can be combined or hidden for the
 current experiment.
 
 Recording is bounded to 30,000 samples. The exported CSV includes source,
 pose availability, motion, encoders, collision, range, button, IMU,
-temperature, battery, and sensor errors with units in the column names.
+temperature, battery, and sensor errors with units in the column names. It uses
+seconds, radians, metres per second squared, and radians per second; course
+distances and wheel speeds remain in millimetres and millimetres per second.
 
 ## Configure the physical XRP
 

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-08-02T04:08:34Z",
+  "release": "2026.08-dev.1",
+  "controller": {
+    "model": "SparkFun XRP Controller",
+    "processor": "RP2350",
+    "micropython": "1.28.0",
+    "xrplib": "2026.07.1",
+    "address": "192.168.7.30"
+  },
+  "installedService": {
+    "version": "2026.08-dev.1",
+    "source": "device_service/ucsb_xrp_service/service.py",
+    "sha256": "e6a19281171575f9e66fdef988d99c99ab8246843b74d1aff2e5b281d2400423",
+    "installedSha256": "e6a19281171575f9e66fdef988d99c99ab8246843b74d1aff2e5b281d2400423"
+  },
+  "softwareValidation": {
+    "cpPythonTests": 82,
+    "microPythonContract": "pass",
+    "vitestTests": 86,
+    "stableChromeWorkflows": 11,
+    "offlinePayloadFiles": 84,
+    "offlineShell": "2fe6ec6504fdbe04d964",
+    "browserResults": [
+      "five-file editing, validation, persistence, and virtual execution",
+      "all cumulative course starters and blocked-gate replanning",
+      "shared IDE and Monitor target state",
+      "working-folder and project-file operations",
+      "selectable plots, telemetry recording, and SI-labeled CSV export",
+      "responsive layouts and complete network-blocked reload"
+    ]
+  },
+  "physicalLifecycle": {
+    "harness": {
+      "path": "scripts/xrp_service_probe.py",
+      "sha256": "a7f1081f43bd14b1aea13e75088483fff7d0f4bc4a609f38483b54034110d002"
+    },
+    "result": "pass",
+    "operations": [
+      "browser private-network preflight",
+      "MicroPython compile",
+      "transactional project synchronization",
+      "zero-effort execution and stdout",
+      "stationary telemetry",
+      "course pose telemetry",
+      "stop and new-boot reconnect",
+      "reset and new-boot reconnect"
+    ],
+    "bootIds": {
+      "initial": "1f88be1752bd",
+      "afterStop": "1b64dedaea55",
+      "afterReset": "02312f4c348f"
+    },
+    "stationaryTelemetry": {
+      "motorEffort": [0.0, 0.0],
+      "wheelSpeedMmS": [0.0, 0.0],
+      "encoderCount": [720, 644],
+      "rangeMm": 183.33334,
+      "batteryV": 6.5810848,
+      "sensorError": null
+    },
+    "poseTelemetry": {
+      "poseAvailable": true,
+      "xMm": 125.0,
+      "yMm": -50.0,
+      "headingRad": 0.25,
+      "motorEffort": [0.0, 0.0]
+    }
+  },
+  "physicalBrowser": {
+    "result": "pass",
+    "project": "five-file Challenge 1 starter",
+    "observed": [
+      "five Python files compiled",
+      "complete project synchronized",
+      "main.py reached the USER-button prompt",
+      "IDE and Monitor displayed the same hardware state and output",
+      "a new boot reset the log cursor and exposed the new service log",
+      "intentional stop and reset stayed in connecting state without a transient error"
+    ]
+  },
+  "motorAndEncoder": {
+    "result": "pass",
+    "safetyTier": "bounded-raised-wheel",
+    "harness": {
+      "path": "scripts/xrp_motor_check.py",
+      "sha256": "6b69b4d6c2b7aee3373550c69bae24e9b5dba668d43e3bfcd894222a02a52ecc"
+    },
+    "effort": 0.22,
+    "singleWheelDurationMs": 350,
+    "pairedDurationMs": 400,
+    "encoderDeltas": {
+      "leftPulse": [303, 0],
+      "rightPulse": [7, 291],
+      "pairedPulse": [399, 351]
+    },
+    "batteryV": 6.536651,
+    "finalEffort": [0.0, 0.0],
+    "harnessRevision": "Measures count deltas without reinitializing RP2350 PIO encoders from the student core."
+  },
+  "notValidated": [
+    "loaded-wheel response on the final course surface",
+    "effective wheel diameter and track-width calibration",
+    "stopping distance and motion-induced range or IMU comparison",
+    "complete physical arena runs"
+  ]
+}

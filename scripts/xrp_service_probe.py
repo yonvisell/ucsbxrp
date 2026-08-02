@@ -136,7 +136,9 @@ class ImmediateStartBot:
     def read(self, include_range=False):
         return self._bot.read(include_range)
     def reset_encoders(self):
-        self._bot.reset_encoders()
+        # Pose-channel validation only needs a coherent starting sample. Avoid
+        # reinitializing XRPLib's RP2350 PIO encoders from the student core.
+        pass
     def wait_for_button(self):
         pass
     def set_efforts(self, efforts):

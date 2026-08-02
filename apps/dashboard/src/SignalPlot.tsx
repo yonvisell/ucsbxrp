@@ -1,7 +1,11 @@
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef } from "react";
 
-import type { TelemetrySample } from "@ucsb-xrp/target";
+import {
+  millidegreesPerSecondToRadiansPerSecond,
+  milligravityToMetersPerSecondSquared,
+  type TelemetrySample,
+} from "@ucsb-xrp/target";
 
 export type SignalPlotId =
   "wheel-speed" | "motor-effort" | "range" | "acceleration" | "angular-rate";
@@ -44,9 +48,9 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   },
   {
     id: "motor-effort",
-    label: "Motor effort",
+    label: "Motor command",
     unit: "normalized",
-    description: "Commanded left and right motor effort",
+    description: "Commanded left and right motor output from -1 to 1",
     fixedRange: [-1, 1],
     series: [
       {
@@ -78,50 +82,68 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   {
     id: "acceleration",
     label: "Acceleration",
-    unit: "mg",
+    unit: "m/s²",
     description: "IMU acceleration along the x, y, and z axes",
     series: [
       {
         label: "x",
         color: "#08736b",
-        value: (sample) => sample.accelerationMg?.[0] ?? null,
+        value: (sample) =>
+          sample.accelerationMg
+            ? milligravityToMetersPerSecondSquared(sample.accelerationMg[0])
+            : null,
       },
       {
         label: "y",
         color: "#a66b08",
         dash: "dashed",
-        value: (sample) => sample.accelerationMg?.[1] ?? null,
+        value: (sample) =>
+          sample.accelerationMg
+            ? milligravityToMetersPerSecondSquared(sample.accelerationMg[1])
+            : null,
       },
       {
         label: "z",
         color: "#a02d27",
         dash: "dotted",
-        value: (sample) => sample.accelerationMg?.[2] ?? null,
+        value: (sample) =>
+          sample.accelerationMg
+            ? milligravityToMetersPerSecondSquared(sample.accelerationMg[2])
+            : null,
       },
     ],
   },
   {
     id: "angular-rate",
     label: "Angular rate",
-    unit: "mdps",
+    unit: "rad/s",
     description: "IMU angular rate about the x, y, and z axes",
     series: [
       {
         label: "x",
         color: "#08736b",
-        value: (sample) => sample.angularRateMdps?.[0] ?? null,
+        value: (sample) =>
+          sample.angularRateMdps
+            ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[0])
+            : null,
       },
       {
         label: "y",
         color: "#a66b08",
         dash: "dashed",
-        value: (sample) => sample.angularRateMdps?.[1] ?? null,
+        value: (sample) =>
+          sample.angularRateMdps
+            ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[1])
+            : null,
       },
       {
         label: "z",
         color: "#a02d27",
         dash: "dotted",
-        value: (sample) => sample.angularRateMdps?.[2] ?? null,
+        value: (sample) =>
+          sample.angularRateMdps
+            ? millidegreesPerSecondToRadiansPerSecond(sample.angularRateMdps[2])
+            : null,
       },
     ],
   },
@@ -187,11 +209,11 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
       {
         animation: false,
         backgroundColor: "transparent",
-        grid: { left: 47, right: 12, top: 22, bottom: 31 },
+        grid: { left: 42, right: 8, top: 18, bottom: 25 },
         legend: {
           top: 1,
           right: 8,
-          textStyle: { color: "#3f4d55", fontSize: 9 },
+          textStyle: { color: "#3f4d55", fontSize: 8 },
           itemHeight: 2,
           itemWidth: 13,
         },
@@ -199,16 +221,16 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
           trigger: "axis",
           backgroundColor: "#ffffff",
           borderColor: "#737f88",
-          textStyle: { color: "#182128", fontSize: 10 },
+          textStyle: { color: "#182128", fontSize: 9 },
         },
         xAxis: {
           type: "value",
           min: -timeWindowS,
           max: 0,
           name: "time (s)",
-          nameGap: 18,
-          nameTextStyle: { color: "#56636c", fontSize: 9 },
-          axisLabel: { color: "#56636c", fontSize: 9 },
+          nameGap: 15,
+          nameTextStyle: { color: "#56636c", fontSize: 8 },
+          axisLabel: { color: "#56636c", fontSize: 8 },
           axisLine: { lineStyle: { color: "#737f88" } },
           splitLine: { lineStyle: { color: "#dce1e4" } },
         },
@@ -217,7 +239,7 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
           min: definition.fixedRange?.[0],
           max: definition.fixedRange?.[1],
           scale: definition.fixedRange === undefined,
-          axisLabel: { color: "#56636c", fontSize: 9 },
+          axisLabel: { color: "#56636c", fontSize: 8 },
           axisLine: { show: true, lineStyle: { color: "#737f88" } },
           splitLine: { lineStyle: { color: "#dce1e4" } },
         },
@@ -229,7 +251,7 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
           lineStyle: {
             color: series.color,
             type: series.dash,
-            width: 1.7,
+            width: 1.4,
           },
           data: data[index]?.values ?? [],
         })),

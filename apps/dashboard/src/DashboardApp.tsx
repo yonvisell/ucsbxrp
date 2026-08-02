@@ -6,6 +6,8 @@ import {
   TelemetryRecorder,
   VirtualTargetClient,
   loadTargetPreference,
+  millidegreesPerSecondToRadiansPerSecond,
+  milligravityToMetersPerSecondSquared,
   storeTargetPreference,
   telemetryRecordingToCsv,
   type TargetClient,
@@ -88,8 +90,14 @@ function value(value: number | null, digits = 1): string {
   return value !== null && Number.isFinite(value) ? value.toFixed(digits) : "—";
 }
 
-function vector(values: [number, number, number] | null, digits = 0): string {
-  return values ? values.map((item) => value(item, digits)).join(" / ") : "—";
+function vector(
+  values: [number, number, number] | null,
+  convert: (value: number) => number,
+  digits: number,
+): string {
+  return values
+    ? values.map((item) => value(convert(item), digits)).join(" / ")
+    : "—";
 }
 
 export function DashboardApp() {
@@ -152,6 +160,8 @@ export function DashboardApp() {
   }, []);
 
   useEffect(() => {
+    setConsoleEntries([]);
+    nextConsoleId.current = 1;
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
         setSample(event.sample);
@@ -520,7 +530,9 @@ export function DashboardApp() {
               <h2 className="panel-title">World</h2>
               <span className="panel-meta">
                 {sample?.poseAvailable
-                  ? `${sample.source === "virtual" ? "ground truth" : "estimated pose"} · millimeters`
+                  ? sample.source === "virtual"
+                    ? "virtual pose"
+                    : "estimated pose"
                   : "waiting for a pose channel"}
               </span>
             </div>
@@ -541,13 +553,8 @@ export function DashboardApp() {
             )}
           </section>
 
-          <section className="plots-panel panel">
-            <div className="panel-header">
-              <h2 className="panel-title">Scrolling signals</h2>
-              <span className="panel-meta">
-                {visiblePlots.length} shown · {monitorSettings.timeWindowS} s
-              </span>
-            </div>
+          <section aria-label="Scrolling signals" className="plots-panel panel">
+            <h2 className="visually-hidden">Scrolling signals</h2>
             {sample && visiblePlots.length > 0 ? (
               <div className="strip-chart-stack">
                 {visiblePlots.map((plot) => (
@@ -576,9 +583,6 @@ export function DashboardApp() {
           <section className="values-panel panel">
             <div className="panel-header">
               <h2 className="panel-title">Live values</h2>
-              <span className="panel-meta">
-                {sample ? `seq ${sample.seq}` : "awaiting telemetry"}
-              </span>
             </div>
             <div className="values-content">
               {sample ? (
@@ -610,8 +614,8 @@ export function DashboardApp() {
                     <dd>{value(sample.rightWheelSpeedMmS)} mm/s</dd>
                   </div>
                   <div>
-                    <dt title="Normalized left and right motor commands">
-                      motor effort L/R
+                    <dt title="Dimensionless left and right motor commands">
+                      motor command L/R
                     </dt>
                     <dd data-testid="motor-effort">
                       {value(sample.leftEffort, 2)} /{" "}
@@ -648,13 +652,27 @@ export function DashboardApp() {
                     <dt title="Accelerometer x, y, and z axes">
                       acceleration x/y/z
                     </dt>
-                    <dd>{vector(sample.accelerationMg)} mg</dd>
+                    <dd>
+                      {vector(
+                        sample.accelerationMg,
+                        milligravityToMetersPerSecondSquared,
+                        2,
+                      )}{" "}
+                      m/s²
+                    </dd>
                   </div>
                   <div>
                     <dt title="Gyroscope x, y, and z axes">
                       angular rate x/y/z
                     </dt>
-                    <dd>{vector(sample.angularRateMdps)} mdps</dd>
+                    <dd>
+                      {vector(
+                        sample.angularRateMdps,
+                        millidegreesPerSecondToRadiansPerSecond,
+                        3,
+                      )}{" "}
+                      rad/s
+                    </dd>
                   </div>
                   <div>
                     <dt>collision</dt>
@@ -683,7 +701,6 @@ export function DashboardApp() {
             <div className="panel-header">
               <h2 className="panel-title">Program output</h2>
               <div className="logs-tools">
-                <span className="panel-meta">{targetDetail}</span>
                 <button
                   disabled={consoleEntries.length === 0}
                   onClick={() => setConsoleEntries([])}

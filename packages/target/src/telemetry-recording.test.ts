@@ -90,16 +90,39 @@ describe("telemetryRecordingToCsv", () => {
 
     const csv = telemetryRecordingToCsv(recorder.stop());
     expect(csv.split("\n")[0]).toBe(
-      "source,pose_available,seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_mg,acceleration_y_mg,acceleration_z_mg,angular_rate_x_mdps,angular_rate_y_mdps,angular_rate_z_mdps,temperature_c,battery_v,sensor_error",
+      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error",
     );
-    expect(csv).toContain("virtual,1,3,60,4.5,-3,0.30000000000000004");
+    expect(csv).toContain("virtual,1,3,0.06,4.5,-3,0.30000000000000004");
     expect(csv).toContain(",1,,0,,,,,,,,,");
+  });
+
+  it("converts hardware-native IMU values to SI units", () => {
+    const recorder = new TelemetryRecorder();
+    recorder.start();
+    recorder.capture({
+      ...sample(1),
+      accelerationMg: [1_000, -500, 0],
+      angularRateMdps: [180_000, -90_000, 0],
+    });
+
+    const values = telemetryRecordingToCsv(recorder.stop())
+      .trimEnd()
+      .split("\n")[1]!
+      .split(",");
+    expect(values.slice(16, 22).map(Number)).toEqual([
+      9.80665,
+      -4.903325,
+      0,
+      Math.PI,
+      -Math.PI / 2,
+      0,
+    ]);
   });
 
   it("exports a header-only file for an empty recording", () => {
     const recorder = new TelemetryRecorder();
     expect(telemetryRecordingToCsv(recorder.snapshot()).split("\n")).toEqual([
-      "source,pose_available,seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_mg,acceleration_y_mg,acceleration_z_mg,angular_rate_x_mdps,angular_rate_y_mdps,angular_rate_z_mdps,temperature_c,battery_v,sensor_error",
+      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error",
       "",
     ]);
   });

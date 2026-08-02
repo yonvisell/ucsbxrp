@@ -6,7 +6,7 @@
 .ide-workspace {
   display: grid;
   min-height: 0;
-  grid-template-columns: 184px minmax(0, 1fr);
+  grid-template-columns: 170px minmax(0, 1fr);
   gap: 0.34rem;
   padding: 0.34rem;
 }
@@ -39,7 +39,7 @@
 .project-actions button {
   min-width: 0;
   padding: 0.28rem 0.16rem;
-  font-size: 0.61rem;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 
@@ -58,11 +58,11 @@
   padding: 0.22rem 0.28rem;
   background: var(--panel);
   color: var(--ink);
-  font-size: 0.61rem;
+  font-size: var(--font-sm);
 }
 
 .starter-actions button {
-  font-size: 0.61rem;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 
@@ -70,7 +70,7 @@
   overflow: hidden;
   padding: 0.4rem 0.45rem 0.26rem;
   color: var(--ink);
-  font-size: 0.62rem;
+  font-size: var(--font-sm);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -87,14 +87,14 @@
 .file-actions button {
   min-width: 0;
   padding: 0.25rem 0.18rem;
-  font-size: 0.6rem;
+  font-size: var(--font-sm);
 }
 
 .startup-file {
   overflow: hidden;
   padding: 0.3rem 0.4rem;
   color: var(--quiet);
-  font-size: 0.57rem;
+  font-size: var(--font-xs);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,19 +127,19 @@
 .file-row.active {
   border-color: var(--line-bright);
   border-left: 3px solid var(--cyan);
-  background: #e7f2f1;
+  background: #eef1f2;
 }
 
 .file-type-icon {
   flex: 0 0 auto;
-  color: var(--gold);
-  font-size: 0.53rem;
+  color: var(--muted);
+  font-size: var(--font-xs);
   font-weight: 800;
 }
 
 .file-path {
   overflow: hidden;
-  font-size: 0.63rem;
+  font-size: var(--font-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -147,8 +147,8 @@
 .startup-badge {
   flex: 0 0 auto;
   margin-left: auto;
-  color: var(--cyan);
-  font-size: 0.46rem;
+  color: var(--muted);
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
@@ -168,7 +168,7 @@
 .project-storage span,
 .course-release span {
   color: var(--quiet);
-  font-size: 0.52rem;
+  font-size: var(--font-xs);
   font-weight: 800;
   letter-spacing: 0.03em;
 }
@@ -177,7 +177,7 @@
 .course-release strong {
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: var(--font-xs);
   font-weight: 500;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -190,7 +190,7 @@
   border-radius: 0;
   padding: 0 0.6rem;
   background: #eef1f2;
-  font-size: 0.68rem;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 
@@ -198,18 +198,18 @@
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: minmax(300px, 1fr) 152px;
+  grid-template-rows: minmax(300px, 1fr) 136px;
   gap: 0.34rem;
 }
 
 .editor-stack.output-collapsed {
-  grid-template-rows: minmax(300px, 1fr) 30px;
+  grid-template-rows: minmax(300px, 1fr) 28px;
 }
 
 .editor-panel {
   display: grid;
   min-height: 0;
-  grid-template-rows: 30px minmax(0, 1fr);
+  grid-template-rows: 28px minmax(0, 1fr);
 }
 
 .editor-tabbar {
@@ -227,7 +227,7 @@
   align-items: stretch;
   border-right: 1px solid var(--line);
   color: var(--muted);
-  font-size: 0.63rem;
+  font-size: var(--font-sm);
 }
 
 .editor-tab.active {
@@ -278,7 +278,7 @@
   margin-left: auto;
   padding: 0 0.6rem;
   color: var(--quiet);
-  font-size: 0.6rem;
+  font-size: var(--font-xs);
   white-space: nowrap;
 }
 
@@ -290,11 +290,11 @@
 .console-panel {
   display: grid;
   min-height: 0;
-  grid-template-rows: 30px minmax(0, 1fr);
+  grid-template-rows: 28px minmax(0, 1fr);
 }
 
 .console-panel.collapsed {
-  grid-template-rows: 30px;
+  grid-template-rows: 28px;
 }
 
 .console-header {
@@ -314,7 +314,7 @@
   padding: 0 0.7rem;
   background: transparent;
   color: var(--quiet);
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 700;
 }
 
@@ -331,7 +331,7 @@
 .clear-output {
   margin: 0.25rem 0.35rem;
   padding: 0.15rem 0.4rem;
-  font-size: 0.62rem;
+  font-size: var(--font-sm);
 }
 
 .console-actions {
@@ -343,14 +343,14 @@
 .output-toggle {
   margin: 0.25rem 0.35rem 0.25rem 0;
   padding: 0.15rem 0.4rem;
-  font-size: 0.62rem;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 
 .status-grid {
   display: grid;
   min-height: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   overflow: auto;
   background: var(--panel);
 }
@@ -370,14 +370,14 @@
 
 .status-grid span {
   color: var(--quiet);
-  font-size: 0.54rem;
+  font-size: var(--font-xs);
   font-weight: 650;
 }
 
 .status-grid strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 0.72rem;
+  font-size: var(--font-ui);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -395,7 +395,7 @@
   display: -webkit-box;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: var(--font-sm);
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -424,7 +424,7 @@
 }
 
 .console-line.system {
-  color: var(--gold);
+  color: var(--muted);
 }
 
 .console-marker {
@@ -464,7 +464,7 @@
 .settings-heading span,
 .dialog-kicker {
   color: var(--cyan);
-  font-size: 0.55rem;
+  font-size: var(--font-xs);
   font-weight: 800;
   letter-spacing: 0.04em;
 }
@@ -472,7 +472,7 @@
 .settings-heading h2,
 .new-file-dialog h2 {
   margin: 0.16rem 0 0;
-  font-size: 1rem;
+  font-size: 14px;
 }
 
 .setting-row {
@@ -481,7 +481,7 @@
   border-top: 1px solid var(--line);
   padding: 0.56rem 0;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--font-sm);
 }
 
 .setting-row > span {
@@ -502,18 +502,17 @@
   padding: 0.34rem 0.42rem;
   background: var(--panel);
   color: var(--ink);
-  font-size: 0.68rem;
+  font-size: var(--font-sm);
 }
 
 .setting-row small {
   color: var(--quiet);
-  font-size: 0.62rem;
+  font-size: var(--font-sm);
   line-height: 1.4;
 }
 
 .setting-row input[type="range"] {
   width: 100%;
-  accent-color: var(--cyan);
 }
 
 .settings-note {
@@ -617,25 +616,12 @@
 
 @media (max-width: 1080px) {
   .ide-app {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
+    height: 100vh;
+    overflow: hidden;
   }
 
   .ide-workspace {
     grid-template-columns: 165px minmax(0, 1fr);
-  }
-
-  .status-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .status-grid > div:nth-child(2) {
-    border-right: 0;
-  }
-
-  .status-grid > div:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--line);
   }
 }
 
@@ -656,20 +642,15 @@
   }
 
   .editor-stack {
-    min-height: 720px;
-    grid-template-rows: minmax(400px, 1fr) 240px;
+    min-height: 0;
+    grid-template-rows: minmax(300px, 1fr) 150px;
   }
 
   .editor-stack.output-collapsed {
-    grid-template-rows: minmax(400px, 1fr) 30px;
+    grid-template-rows: minmax(300px, 1fr) 28px;
   }
 
   .status-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .status-grid > div {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   }
 }

@@ -23,8 +23,8 @@ implementation.
 
 ## Slice 1 — One working target path
 
-Status: implemented and exercised on the attached XRP; one final regression
-repeat follows the next controller reset.
+Status: implemented and repeatedly exercised on the attached XRP, including
+the final post-reset regression.
 
 - Detect the RP2350 over USB; configure `Pink` without exposing its password;
   install the current package, bytecode, and boot service; report its LAN
@@ -109,18 +109,19 @@ new obstruction.
 
 ## Slice 7 — Course release and validation
 
-Status: implemented and fully software-validated. The corrected service and
-two-app physical workflow passed; the latest browser connection-lifecycle
-change awaits one post-reset hardware repetition.
+Status: implemented and fully software-validated. The corrected service,
+reboot-aware client, two-app physical workflow, and post-reset hardware
+repetition passed.
 
 - Keep the IDE compact and high contrast; retain folders, multi-file projects,
-  tabs, recovery storage, startup-file selection, clear commands, settings,
-  shortcuts, starter selection, physical endpoint, and help in a new tab. Use
-  one restrained visual language and reserve monospace for code and logs.
-- Keep the Monitor focused on target state, world view, live sensor values,
-  selectable scrolling signal plots, program output, bounded recordings, and
-  deterministic CSV export. Group those controls in a compact collapsible
-  sidebar and add controls only when they support a course task.
+  tabs, recovery storage, startup-file selection, clear commands, adjustable
+  8 px-and-up code/output type, optional code overview, shortcuts, starter
+  selection, physical endpoint, and help in a new tab. Use one restrained
+  visual language and reserve monospace for code and logs.
+- Keep the Monitor focused on target state, a dimensioned world/ruler, live
+  sensor values, selectable scrolling signal plots, program output, bounded
+  recordings, and unit-explicit CSV export. Group those controls in a compact
+  collapsible sidebar and add controls only when they support a course task.
 - Run Python contracts, reference-artifact verification, browser MicroPython
   parity, TypeScript/unit checks, production/offline builds, stable-Chrome
   workflows, visual inspection, LAN service checks, and the raised-wheel motor

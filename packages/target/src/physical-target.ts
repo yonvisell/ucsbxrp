@@ -15,6 +15,7 @@ interface PhysicalInfo {
   protocol: number;
   serviceVersion: string;
   courseRelease: string;
+  bootId: string;
   robotName: string;
   address: string;
   capabilities: string[];
@@ -27,6 +28,7 @@ interface PhysicalLog {
 }
 
 interface PhysicalState {
+  bootId: string;
   state: TargetRunState;
   detail: string;
   runId: number;
@@ -92,9 +94,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private connected = false;
+  private reconnecting = false;
   private connectGeneration = 0;
   private nextRequest = 1;
   private lastLogSeq = 0;
+  private bootId: string | null = null;
   private lastRunId = 0;
   private lastLeaseAt = 0;
   private lastSyncedFingerprint: string | null = null;
@@ -143,6 +147,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       );
     }
     this.info = info;
+    this.bootId = info.bootId;
     this.connected = true;
     this.emitStatus(
       "ready",
@@ -196,22 +201,36 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async stop(): Promise<void> {
-    const result = await this.command<{
-      detail: string;
-      reconnecting: boolean;
-    }>("stop", {});
-    this.emitStatus("connecting", `${result.detail}; reconnecting…`);
-    await this.reconnectAfterReset();
+    this.reconnecting = true;
+    this.stopPolling();
+    try {
+      const result = await this.command<{
+        detail: string;
+        reconnecting: boolean;
+      }>("stop", {});
+      this.emitStatus("connecting", `${result.detail}; reconnecting…`);
+      await this.reconnectAfterReset();
+    } finally {
+      this.reconnecting = false;
+      this.schedulePoll(0);
+    }
   }
 
   async reset(): Promise<void> {
-    const result = await this.command<{
-      detail: string;
-      reconnecting: boolean;
-    }>("reset", {});
-    this.lastSyncedFingerprint = null;
-    this.emitStatus("connecting", `${result.detail}; reconnecting…`);
-    await this.reconnectAfterReset();
+    this.reconnecting = true;
+    this.stopPolling();
+    try {
+      const result = await this.command<{
+        detail: string;
+        reconnecting: boolean;
+      }>("reset", {});
+      this.lastSyncedFingerprint = null;
+      this.emitStatus("connecting", `${result.detail}; reconnecting…`);
+      await this.reconnectAfterReset();
+    } finally {
+      this.reconnecting = false;
+      this.schedulePoll(0);
+    }
   }
 
   subscribe(listener: (event: TargetEvent) => void): () => void {
@@ -250,13 +269,20 @@ export class DirectPhysicalTargetClient implements TargetClient {
     return reply.result;
   }
 
-  private async getJson<T>(path: string): Promise<T> {
-    return this.fetchJson<T>(path, { method: "GET" });
+  private async getJson<T>(
+    path: string,
+    timeoutMs = this.requestTimeoutMs,
+  ): Promise<T> {
+    return this.fetchJson<T>(path, { method: "GET" }, timeoutMs);
   }
 
-  private async fetchJson<T>(path: string, init: RequestInit): Promise<T> {
+  private async fetchJson<T>(
+    path: string,
+    init: RequestInit,
+    timeoutMs = this.requestTimeoutMs,
+  ): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetchImplementation(this.endpoint + path, {
         ...init,
@@ -282,7 +308,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new PhysicalTargetError(
           "timeout",
-          `XRP did not reply within ${this.requestTimeoutMs / 1000} seconds`,
+          `XRP did not reply within ${timeoutMs / 1000} seconds`,
         );
       }
       throw new PhysicalTargetError(
@@ -310,13 +336,16 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   private async poll(): Promise<void> {
-    if (!this.connected) {
+    if (!this.connected || this.reconnecting) {
       return;
     }
     try {
       const state = await this.getJson<PhysicalState>(
         `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}`,
       );
+      if (!this.connected || this.reconnecting) {
+        return;
+      }
       this.consumeState(state);
       if (
         state.state === "running" &&
@@ -327,7 +356,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       }
       this.schedulePoll();
     } catch (error) {
-      if (this.connected) {
+      if (this.connected && !this.reconnecting) {
         this.emitStatus("error", errorDetail(error));
         this.schedulePoll(900);
       }
@@ -335,6 +364,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   private consumeState(state: PhysicalState): void {
+    if (state.bootId !== this.bootId) {
+      this.bootId = state.bootId;
+      this.lastLogSeq = 0;
+    }
     this.lastRunId = state.runId;
     this.emitStatus(state.state, state.detail);
     if (state.sample) {
@@ -357,14 +390,14 @@ export class DirectPhysicalTargetClient implements TargetClient {
     while (performance.now() < deadline && this.connected) {
       await new Promise((resolve) => setTimeout(resolve, 450));
       try {
-        const info = await this.getJson<PhysicalInfo>("/api/v1/info");
+        const info = await this.getJson<PhysicalInfo>("/api/v1/info", 1_500);
         this.info = info;
+        this.bootId = info.bootId;
         this.lastLogSeq = 0;
         this.emitStatus(
           "ready",
           `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
         );
-        this.schedulePoll(0);
         return;
       } catch (error) {
         lastError = error;

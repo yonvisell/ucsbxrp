@@ -31,6 +31,7 @@ class XrpServiceProbeTest(unittest.TestCase):
         pose_source = projects[-1]["files"]["main.py"]
         self.assertIn("robot.step(STOP_COMMAND)", pose_source)
         self.assertIn("finally:\n    robot.stop()", pose_source)
+        self.assertNotIn("self._bot.reset_encoders()", pose_source)
 
 
 if __name__ == "__main__":

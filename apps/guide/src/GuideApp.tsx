@@ -162,23 +162,25 @@ export function GuideApp() {
               <h2>Monitor motion, sensors, and program output</h2>
               <p>
                 The Monitor shares the IDE target selection. It displays pose
-                when available, wheel speed, motor effort, encoder counts,
-                range, USER button, supply voltage, IMU data, and the program
-                log. Physical projects using <code>Robot</code> publish their
-                estimated pose automatically; raw-sensor programs still show
-                their live sensors without inventing a pose.
+                when available, wheel speed, normalized motor command, encoder
+                counts, range, USER button, supply voltage, IMU data, and the
+                program log. Physical projects using <code>Robot</code> publish
+                their estimated pose automatically; raw-sensor programs still
+                show their live sensors without inventing a pose. The world view
+                uses the production XRP footprint and includes a 500 mm ruler.
               </p>
               <p>
                 Use the collapsible left sidebar to choose the target and course
                 environment. Its signal controls show any combination of
-                scrolling wheel-speed, motor-effort, range, acceleration, and
+                scrolling wheel-speed, motor-command, range, acceleration, and
                 angular-rate plots over a 2–30 second window.
               </p>
               <p>
                 Recording stores up to 30,000 telemetry samples. Start and stop
                 recording independently of a run, then export a CSV with units
-                in the column names. If the limit is reached, the oldest samples
-                are replaced and the dropped count is shown.
+                in the column names. IMU exports use m/s² and rad/s; course
+                distances may remain in millimetres. If the limit is reached,
+                the oldest samples are replaced and the dropped count is shown.
               </p>
             </div>
           </section>

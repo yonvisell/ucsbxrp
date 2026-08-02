@@ -51,16 +51,18 @@ interface IdeSettings {
   consoleFontSize: number;
   tabSize: 2 | 4;
   wordWrap: "off" | "on";
+  minimap: boolean;
 }
 
 type PathOperation = "rename" | "duplicate";
 
-const settingsKey = "ucsb-xrp-ide-settings-v1";
+const settingsKey = "ucsb-xrp-ide-settings-v2";
 const defaultSettings: IdeSettings = {
-  editorFontSize: 11,
-  consoleFontSize: 11,
+  editorFontSize: 9,
+  consoleFontSize: 9,
   tabSize: 4,
   wordWrap: "off",
+  minimap: false,
 };
 function loadSettings(): IdeSettings {
   try {
@@ -72,18 +74,19 @@ function loadSettings(): IdeSettings {
     return {
       editorFontSize:
         typeof value.editorFontSize === "number" &&
-        value.editorFontSize >= 10 &&
+        value.editorFontSize >= 8 &&
         value.editorFontSize <= 20
           ? value.editorFontSize
           : defaultSettings.editorFontSize,
       consoleFontSize:
         typeof value.consoleFontSize === "number" &&
-        value.consoleFontSize >= 9 &&
+        value.consoleFontSize >= 8 &&
         value.consoleFontSize <= 16
           ? value.consoleFontSize
           : defaultSettings.consoleFontSize,
       tabSize: value.tabSize === 2 ? 2 : 4,
       wordWrap: value.wordWrap === "on" ? "on" : "off",
+      minimap: value.minimap === true,
     };
   } catch {
     return defaultSettings;
@@ -964,7 +967,7 @@ export function IdeApp() {
                   fontSize: settings.editorFontSize,
                   insertSpaces: true,
                   lineHeight: Math.round(settings.editorFontSize * 1.65),
-                  minimap: { enabled: false },
+                  minimap: { enabled: settings.minimap },
                   padding: { top: 5 },
                   renderLineHighlight: "gutter",
                   scrollBeyondLastLine: false,
@@ -1195,7 +1198,7 @@ export function IdeApp() {
             </span>
             <input
               max="20"
-              min="10"
+              min="8"
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
@@ -1212,7 +1215,7 @@ export function IdeApp() {
             </span>
             <input
               max="16"
-              min="9"
+              min="8"
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
@@ -1251,6 +1254,21 @@ export function IdeApp() {
             >
               <option value="off">Scroll horizontally</option>
               <option value="on">Wrap in editor</option>
+            </select>
+          </label>
+          <label className="setting-row">
+            <span>Code overview</span>
+            <select
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  minimap: event.target.value === "on",
+                }))
+              }
+              value={settings.minimap ? "on" : "off"}
+            >
+              <option value="off">Hide minimap</option>
+              <option value="on">Show minimap</option>
             </select>
           </label>
           <section className="settings-note">

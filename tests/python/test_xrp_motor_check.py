@@ -19,6 +19,7 @@ class XrpMotorCheckTest(unittest.TestCase):
         compile(source, "main.py", "exec")
         self.assertIn('"effort": 0.22', source)
         self.assertIn("finally:\n    zero()", source)
+        self.assertNotIn("reset_encoder_position", source)
         self.assertNotIn("while True", source)
 
     def test_encoder_differences_preserve_wheel_order(self):
