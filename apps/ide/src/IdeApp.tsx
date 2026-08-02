@@ -922,7 +922,7 @@ export function IdeApp() {
   return (
     <div className="app-shell ide-app">
       <header className="app-header">
-        <div className="brand" aria-label="UCSB XRP IDE">
+        <div className="brand" aria-label="UCSBXRP IDE">
           <span className="brand-mark">UCSB</span>
           <span className="brand-name">XRP IDE</span>
         </div>
@@ -977,18 +977,6 @@ export function IdeApp() {
           >
             Reset
           </button>
-          <span
-            className={`current-project ${currentProject?.stale ? "stale" : ""}`}
-            title={
-              currentProject
-                ? `${currentProject.entrypoint} · revision ${currentProject.revision.slice(0, 8)}${currentProject.stale ? " · changed in editor" : " · ready"}`
-                : "Run or synchronize this project to make it available in the Monitor."
-            }
-          >
-            {currentProject
-              ? `${currentProject.name} · ${currentProject.stale ? "changed" : "ready"}`
-              : "No project ready"}
-          </span>
           <div className="toolbar-spacer" />
           <a
             className="tool-link"

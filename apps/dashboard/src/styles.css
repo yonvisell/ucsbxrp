@@ -1,7 +1,7 @@
 .monitor-workspace {
   display: grid;
   width: 100%;
-  height: calc(100vh - 34px);
+  height: calc(100vh - var(--app-header-height));
   min-width: 0;
   min-height: 0;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -27,7 +27,11 @@
   display: grid;
   height: 100%;
   min-height: 0;
-  grid-template-rows: 24px minmax(0, 1fr);
+  grid-template-rows: 24px minmax(0, 1fr) 25px;
+}
+
+.monitor-run-button {
+  margin-left: 3px;
 }
 
 .monitor-controls-cap {
@@ -62,6 +66,52 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.monitor-controls-footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border-top: 1px solid var(--line);
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.monitor-controls-footer > a {
+  flex: 0 0 auto;
+  color: var(--ink);
+  font-size: var(--font-xs);
+  text-decoration: none;
+}
+
+.monitor-controls-footer > a:hover {
+  color: var(--cyan);
+}
+
+.monitor-controls-footer .footer-separator {
+  color: var(--line-bright);
+  font-size: var(--font-xs);
+}
+
+.monitor-controls-footer .offline-readiness {
+  min-width: 0;
+  gap: 3px;
+  padding: 0;
+  overflow: hidden;
+  font-size: var(--font-xs);
+}
+
+.monitor-controls-footer .offline-readiness-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+}
+
+.monitor-controls-footer .offline-readiness > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .monitor-controls-restore {
@@ -248,11 +298,6 @@
   color: var(--muted);
   cursor: pointer;
   font-size: var(--font-xs);
-}
-
-.runtime-watches {
-  border-top: 1px solid var(--line);
-  padding-top: 4px;
 }
 
 .runtime-watches > div {
@@ -614,14 +659,13 @@
 
 .values-content {
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .live-values {
   display: grid;
   align-content: start;
   margin: 0;
-  overflow: auto;
 }
 
 .live-values > div {
@@ -653,6 +697,23 @@
 
 .live-values dd.alert-value {
   color: var(--red);
+}
+
+.watch-values {
+  border-top: 1px solid var(--line-bright);
+  padding: 4px 5px 5px;
+}
+
+.watch-values h3 {
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.watch-values .runtime-watches > div {
+  min-height: 17px;
+  align-items: center;
 }
 
 .dashboard-logs {
@@ -691,12 +752,12 @@
   .monitor-controls-panel {
     position: fixed;
     z-index: 30;
-    top: 34px;
+    top: var(--app-header-height);
     left: 0;
     width: min(100vw, 520px);
     height: auto;
     max-height: min(58vh, 430px);
-    grid-template-rows: 24px minmax(0, 1fr);
+    grid-template-rows: 24px minmax(0, 1fr) 25px;
     border-right: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
     background: var(--panel);
@@ -764,10 +825,6 @@
 }
 
 @media (max-width: 460px) {
-  .brand-name {
-    display: none;
-  }
-
   .monitor-controls-panel {
     width: 100vw;
   }

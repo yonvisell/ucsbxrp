@@ -268,3 +268,23 @@ order: repair robustness had to precede the final physical archive.
 
 Usable result: the ordinary one-command provision/repair path completes even
 when the previous course service had already enabled the hardware watchdog.
+
+### Refinement 9 — Compact application navigation and Monitor hierarchy
+
+Status: implemented and validated in Stable Chrome and direct production
+Chrome.
+
+- Use one compact `UCSBXRP` wordmark treatment in both applications, with
+  contiguous matching type, UCSB blue, and a restrained grey-red product name.
+- Reduce both headers to 31 px, align the IDE target selector with 23 px command
+  buttons, remove the redundant retained-project label, and make both cross-app
+  links explicit new-tab actions.
+- Put signal selection and the time window before Live controls; place program
+  watches below Live values in the right panel; keep Guide and offline readiness
+  together in a sidebar-only footer.
+- Assert the exact hierarchy, geometry, typography, collapsed visibility, and
+  asynchronous live-control acknowledgements in the Chrome harness.
+
+Usable result: the IDE and Monitor retain all project and target behavior while
+using less header space, clearer navigation, and a more coherent separation of
+commands, sensor values, and student-declared watches.

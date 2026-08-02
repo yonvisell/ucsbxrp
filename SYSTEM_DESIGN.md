@@ -74,8 +74,9 @@ IDE and presents only available data. It contains:
   rate;
 - live pose, drive commands, encoders, range, button, IMU, temperature, and battery
   values;
-- an expandable Live program region for bounded numeric, Boolean, and choice
-  parameters plus named program watch values;
+- an expandable Live controls region below the history window for bounded
+  numeric, Boolean, and choice parameters;
+- named program watch values below the sensor values in the right panel;
 - program and service output; and
 - bounded telemetry recording and deterministic CSV export. Display and export
   convert hardware-native acceleration and angular-rate values to m/s² and

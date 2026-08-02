@@ -159,14 +159,14 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   const direction = liveProgram.locator(
     '[data-runtime-parameter="turn_direction"]',
   );
-  await direction.getByLabel("right", { exact: true }).check();
+  await direction.getByLabel("right", { exact: true }).click();
   await expect(direction).toHaveAttribute("data-runtime-value", "right", {
     timeout: 5_000,
   });
   await expect(direction).toHaveAttribute("data-pending", "false", {
     timeout: 5_000,
   });
-  await direction.getByLabel("left", { exact: true }).check();
+  await direction.getByLabel("left", { exact: true }).click();
   await expect(direction).toHaveAttribute("data-pending", "false", {
     timeout: 5_000,
   });
@@ -174,7 +174,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   const secondApproach = liveProgram.getByRole("checkbox", {
     name: "Drive after turn",
   });
-  await secondApproach.uncheck();
+  await secondApproach.click();
   const secondApproachControl = liveProgram.locator(
     '[data-runtime-parameter="second_approach"]',
   );
@@ -186,7 +186,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
     timeout: 5_000,
   });
-  await secondApproach.check();
+  await secondApproach.click();
   await expect(secondApproachControl).toHaveAttribute(
     "data-runtime-value",
     "true",
@@ -195,7 +195,10 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
     timeout: 5_000,
   });
-  await expect(liveProgram.getByText("Phase")).toBeVisible();
+  await expect(liveProgram.getByText("Phase")).toHaveCount(0);
+  await expect(
+    monitor.getByLabel("Program watch values").getByText("Phase"),
+  ).toBeVisible();
   await expect(ide.getByRole("log")).toContainText(
     "Obstacle-turn demo complete",
     { timeout: 40_000 },

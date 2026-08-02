@@ -460,7 +460,7 @@
 .settings-drawer {
   position: fixed;
   z-index: 20;
-  top: 39px;
+  top: var(--app-header-height);
   right: 0;
   bottom: 0;
   width: min(292px, 94vw);
@@ -650,7 +650,7 @@
   .project-rail {
     position: fixed;
     z-index: 12;
-    top: 34px;
+    top: var(--app-header-height);
     bottom: 0;
     left: 0;
     display: flex;

@@ -11,7 +11,7 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–6 are complete in software. The Monitor now uses flat,
+Refinement slices 1–9 are complete in software. The Monitor now uses flat,
 independently resizable regions; a bounded arena grid with labeled millimeter
 coordinates; compact signal and recording controls; precise drive-command and
 yaw-rate labels; a closer dimensioned XRP view; and a narrow top-sheet control
@@ -25,6 +25,15 @@ redundant file-type badges, literal startup-file state, and unclipped toolbar
 and folder controls. One grouped template menu loads all five challenges, a
 range-triggered obstacle/left-turn/obstacle demo, or seven staged MicroPython
 lessons as an ordinary editable project.
+
+Both application headers are now 31 px high and use a contiguous `UCSBXRP`
+wordmark: UCSB blue and a restrained grey-red product name share the same type,
+size, and weight. The IDE selector and command buttons are all 23 px high; the
+redundant retained-project label is gone. IDE and Monitor links carry a visible
+diagonal arrow and open a separate tab in both directions. In the Monitor,
+Signals and Time window precede Live controls, named watches appear below Live
+values in the right panel, and `Guide | • Saved for offline use` occupies the
+bottom of the controls sidebar only while that sidebar is open.
 
 Folder work is now low-friction and recoverable. Save now selects a normal
 project folder once; subsequent edits are serialized and written automatically
@@ -120,10 +129,11 @@ restore pass with this correction.
 - A 176 px collapsible sidebar for signal selection and recording; the virtual
   scene is selected directly in the world, while target settings remain shared
   from the IDE.
-- An expandable Live program region renders declared numeric parameters as
-  thin sliders, Booleans as checkboxes, short choices as radio controls, and
-  named watch values as a compact table. Pending and applied values are shared
-  across tabs and controls disable when the program is not running.
+- An expandable Live controls region below Time window renders declared numeric
+  parameters as thin sliders, Booleans as checkboxes, and short choices as
+  radio controls. Named watch values form a compact table below Live values in
+  the right panel. Pending and applied values are shared across tabs and
+  controls disable when the program is not running.
 - Independently selectable wheel-speed, drive-command, forward-range,
   acceleration, and yaw-rate strips with labels and units inside each plot.
 - Persistent pointer- and keyboard-adjustable separators independently size
@@ -224,6 +234,20 @@ and focus indicators are tested at 3:1 or better. The IDE and guide were also
 visually inspected at 1,382 × 752; the IDE header, toolbar, project rail,
 folder controls, tabs, editor, and output had no clipping. The responsive
 Stable Chrome workflow separately exercised the 375 px layout.
+
+The final header/hierarchy refinement was then inspected again in direct
+1,382 px-wide production Chrome. Measurements confirmed 31 px headers; matching
+23 px IDE selector and command heights; zero spacing and identical typography
+between the two colored wordmark spans; Live controls below Time window; Guide,
+separator, and offline state at the sidebar bottom; and no offline state when
+the sidebar was collapsed. Both cross-app links opened distinct tabs. A live
+virtual obstacle demo exposed five controls in the left rail and Phase, Range,
+and Travel watches below the sensor values in the right panel. The run was
+stopped and the saved target restored to the ready physical XRP. The final
+production build is `39ad4525f10a23f4a545`; all 17 software Chrome workflows
+pass, the physical opt-in workflow is intentionally skipped, and the
+asynchronous live-control interaction also passed three consecutive focused
+repetitions.
 
 ## Physical evidence
 

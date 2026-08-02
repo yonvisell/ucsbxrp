@@ -70,12 +70,13 @@ forward range,
 acceleration, or angular rate. Signals can be combined or hidden for the
 current experiment.
 
-**Live program** appears in that sidebar when code declares controls with
+**Live controls** appears below the time window when code declares controls with
 `ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use
 checkboxes, and short choices use radio controls. Updates are validated and
 applied together at the next `Robot` sample boundary. Named `live.watch()`
-values expose current modes, estimates, and error terms without periodic debug
-printing; telemetry remains the time-history mechanism.
+values appear below **Live values** in the right panel, exposing current modes,
+estimates, and error terms without periodic debug printing; telemetry remains
+the time-history mechanism.
 
 Recording is bounded to 30,000 samples. The exported CSV includes source,
 pose availability, motion, encoders, collision, range, button, IMU,

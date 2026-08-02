@@ -733,13 +733,13 @@ export function DashboardApp() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand" aria-label="UCSB XRP Monitor">
+        <div className="brand" aria-label="UCSBXRP Monitor">
           <span className="brand-mark">UCSB</span>
           <span className="brand-name">XRP Monitor</span>
         </div>
         <div className="toolbar">
           <button
-            className={isRunning ? "danger-button" : "primary-button"}
+            className={`monitor-run-button ${isRunning ? "danger-button" : "primary-button"}`}
             disabled={!isRunning && !canRunCurrent}
             onClick={runOrStop}
             title={
@@ -763,36 +763,20 @@ export function DashboardApp() {
           >
             Reset
           </button>
-          <span
-            className={`current-project ${currentProject?.stale ? "stale" : ""}`}
-            title={
-              currentProject
-                ? `${currentProject.entrypoint} · revision ${currentProject.revision.slice(0, 8)}${currentProject.stale ? " · changed in IDE" : " · ready"}`
-                : "No project has been run or synchronized."
-            }
-          >
-            {currentProject
-              ? `${currentProject.name} · ${currentProject.stale ? "changed" : "ready"}`
-              : "No project ready"}
-          </span>
           <div className="toolbar-spacer" />
           <nav aria-label="Application links" className="header-nav">
-            <a className="tool-link" href="../ide/" title="Open the code IDE.">
-              IDE
-            </a>
             <a
               className="tool-link"
-              href="../guide/"
+              href="../ide/"
               rel="noopener noreferrer"
               target="_blank"
-              title="Open course and robot guidance in a new tab."
+              title="Open the IDE in a new tab."
             >
-              Guide ↗
+              IDE ↗
             </a>
           </nav>
         </div>
         <div className="header-statuses">
-          <OfflineReadiness />
           <div
             aria-live="polite"
             className="connection-pill"
@@ -820,7 +804,7 @@ export function DashboardApp() {
           {controlsOpen ? (
             <div className="monitor-controls-panel">
               <div className="monitor-controls-cap">
-                <strong>Display &amp; data</strong>
+                <strong>Controls</strong>
                 <button
                   aria-label="Collapse monitor controls"
                   className="monitor-controls-collapse"
@@ -831,6 +815,53 @@ export function DashboardApp() {
                 </button>
               </div>
               <div className="monitor-controls-scroll">
+                <section
+                  aria-labelledby="signal-controls-title"
+                  className="monitor-control-group"
+                >
+                  <h2 id="signal-controls-title">Signals</h2>
+                  <div className="signal-choices">
+                    {SIGNAL_PLOTS.map((plot) => (
+                      <label
+                        className="check-row"
+                        key={plot.id}
+                        title={plot.description}
+                      >
+                        <input
+                          checked={monitorSettings.plots[plot.id]}
+                          onChange={(event) =>
+                            setPlotVisible(plot.id, event.target.checked)
+                          }
+                          type="checkbox"
+                        />
+                        <span>{plot.label}</span>
+                        <small>{plot.unit}</small>
+                      </label>
+                    ))}
+                  </div>
+                  <label className="monitor-field time-window-field">
+                    <span>Time window</span>
+                    <span className="time-window-value">
+                      {monitorSettings.timeWindowS} s
+                    </span>
+                    <input
+                      aria-label="Strip chart time window"
+                      max="30"
+                      min="2"
+                      onChange={(event) =>
+                        setMonitorSettings((current) => ({
+                          ...current,
+                          timeWindowS: Number(event.target.value),
+                        }))
+                      }
+                      step="1"
+                      title="Set the amount of recent telemetry visible in each plot."
+                      type="range"
+                      value={monitorSettings.timeWindowS}
+                    />
+                  </label>
+                </section>
+
                 <details
                   className="monitor-control-group live-program-group"
                   onToggle={(event) =>
@@ -838,24 +869,18 @@ export function DashboardApp() {
                   }
                   open={liveProgramOpen}
                 >
-                  <summary title="Adjust declared program parameters and inspect named intermediate values.">
-                    <span>Live program</span>
-                    <small>
-                      {runtimeState.parameters.length} controls ·{" "}
-                      {runtimeState.watches.length} watches
-                    </small>
+                  <summary title="Adjust parameters declared by the running program.">
+                    <span>Live controls</span>
+                    <small>{runtimeState.parameters.length} controls</small>
                   </summary>
                   <div className="live-program-content">
-                    {runtimeState.parameters.length === 0 &&
-                    runtimeState.watches.length === 0 ? (
+                    {runtimeState.parameters.length === 0 ? (
                       <p className="live-program-empty">
-                        A running project can declare compact controls and named
-                        watch values here.
+                        A running project can declare compact controls here.
                       </p>
-                    ) : null}
-                    {runtimeState.parameters.length > 0 ? (
+                    ) : (
                       <div
-                        aria-label="Live program parameters"
+                        aria-label="Live control parameters"
                         className="runtime-parameters"
                       >
                         {runtimeState.parameters.map((parameter) => {
@@ -969,30 +994,7 @@ export function DashboardApp() {
                           );
                         })}
                       </div>
-                    ) : null}
-                    {runtimeState.watches.length > 0 ? (
-                      <dl
-                        aria-label="Program watch values"
-                        className="runtime-watches"
-                      >
-                        {runtimeState.watches.map((watch) => (
-                          <div
-                            key={watch.name}
-                            title={`Current ${watch.label}`}
-                          >
-                            <dt>{watch.label}</dt>
-                            <dd>
-                              {typeof watch.value === "number"
-                                ? watch.value.toLocaleString(undefined, {
-                                    maximumFractionDigits: 4,
-                                  })
-                                : String(watch.value)}
-                              {watch.unit ? ` ${watch.unit}` : ""}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                    ) : null}
+                    )}
                     {runtimeUpdateError ? (
                       <p className="runtime-update-error" role="alert">
                         {runtimeUpdateError}
@@ -1000,52 +1002,6 @@ export function DashboardApp() {
                     ) : null}
                   </div>
                 </details>
-                <section
-                  aria-labelledby="signal-controls-title"
-                  className="monitor-control-group"
-                >
-                  <h2 id="signal-controls-title">Signals</h2>
-                  <div className="signal-choices">
-                    {SIGNAL_PLOTS.map((plot) => (
-                      <label
-                        className="check-row"
-                        key={plot.id}
-                        title={plot.description}
-                      >
-                        <input
-                          checked={monitorSettings.plots[plot.id]}
-                          onChange={(event) =>
-                            setPlotVisible(plot.id, event.target.checked)
-                          }
-                          type="checkbox"
-                        />
-                        <span>{plot.label}</span>
-                        <small>{plot.unit}</small>
-                      </label>
-                    ))}
-                  </div>
-                  <label className="monitor-field time-window-field">
-                    <span>Time window</span>
-                    <span className="time-window-value">
-                      {monitorSettings.timeWindowS} s
-                    </span>
-                    <input
-                      aria-label="Strip chart time window"
-                      max="30"
-                      min="2"
-                      onChange={(event) =>
-                        setMonitorSettings((current) => ({
-                          ...current,
-                          timeWindowS: Number(event.target.value),
-                        }))
-                      }
-                      step="1"
-                      title="Set the amount of recent telemetry visible in each plot."
-                      type="range"
-                      value={monitorSettings.timeWindowS}
-                    />
-                  </label>
-                </section>
 
                 <section
                   aria-labelledby="recording-controls-title"
@@ -1121,6 +1077,20 @@ export function DashboardApp() {
                     </button>
                   </div>
                 </section>
+              </div>
+              <div className="monitor-controls-footer">
+                <a
+                  href="../guide/"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  title="Open course and robot guidance in a new tab."
+                >
+                  Guide ↗
+                </a>
+                <span aria-hidden="true" className="footer-separator">
+                  |
+                </span>
+                <OfflineReadiness />
               </div>
             </div>
           ) : (
@@ -1281,6 +1251,32 @@ export function DashboardApp() {
                     No telemetry received. Unavailable values remain blank.
                   </div>
                 )}
+                {runtimeState.watches.length > 0 ? (
+                  <section
+                    aria-labelledby="watch-values-title"
+                    className="watch-values"
+                  >
+                    <h3 id="watch-values-title">Watch values</h3>
+                    <dl
+                      aria-label="Program watch values"
+                      className="runtime-watches"
+                    >
+                      {runtimeState.watches.map((watch) => (
+                        <div key={watch.name} title={`Current ${watch.label}`}>
+                          <dt>{watch.label}</dt>
+                          <dd>
+                            {typeof watch.value === "number"
+                              ? watch.value.toLocaleString(undefined, {
+                                  maximumFractionDigits: 4,
+                                })
+                              : String(watch.value)}
+                            {watch.unit ? ` ${watch.unit}` : ""}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+                ) : null}
               </div>
             </section>
           </div>
@@ -1317,7 +1313,7 @@ export function DashboardApp() {
               ) : (
                 <div className="telemetry-placeholder" role="status">
                   {sample
-                    ? "Choose at least one signal in Display & data."
+                    ? "Choose at least one signal in Controls."
                     : "Signal histories appear when telemetry connects."}
                 </div>
               )}

@@ -143,6 +143,13 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   const dashboardStatus = dashboard.getByTestId("target-status");
   await expect(ideStatus).toContainText("Virtual XRP · ready");
   await expect(dashboardStatus).toContainText("Virtual XRP · ready");
+  const [targetSelectBox, ideRunBox, ideHeaderBox] = await Promise.all([
+    ide.getByLabel("Execution target").boundingBox(),
+    ide.getByRole("button", { name: "Run", exact: true }).boundingBox(),
+    ide.locator(".app-header").boundingBox(),
+  ]);
+  expect(targetSelectBox?.height).toBe(ideRunBox?.height);
+  expect(ideHeaderBox?.height).toBeLessThanOrEqual(33);
   await expect(dashboard.getByRole("log")).toContainText(
     "Program output appears here",
   );
@@ -236,7 +243,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await ide.getByLabel("Project-relative path").fill("notes.md");
   await ide.getByRole("button", { name: "Create file" }).click();
   await expect(monitorRun).toBeDisabled();
-  await expect(dashboard.locator(".current-project")).toContainText("changed");
+  await expect(monitorRun).toHaveAttribute("title", /IDE project changed/);
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(dashboardStatus).toContainText("Virtual XRP · running");
@@ -463,5 +470,13 @@ test("keeps project and output controls usable on a narrow screen", async ({
 
   const helpLink = ide.getByRole("link", { name: /Guide/ });
   await expect(helpLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(ide.locator(".brand")).toHaveAttribute(
+    "aria-label",
+    "UCSBXRP IDE",
+  );
+  await expect(ide.locator(".brand")).toHaveText("UCSBXRP IDE");
+  const monitorLink = ide.getByRole("link", { name: "Monitor ↗" });
+  await expect(monitorLink).toHaveAttribute("target", "_blank");
+  await expect(monitorLink).toHaveAttribute("rel", "noopener noreferrer");
   expect(browserErrors).toEqual([]);
 });

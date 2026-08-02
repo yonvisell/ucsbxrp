@@ -73,7 +73,6 @@ test("IDE and Monitor share the retained physical XRP project lifecycle", async 
   await expect(
     ide.getByText("The complete project is current on the XRP."),
   ).toBeVisible({ timeout: 20_000 });
-  await expect(monitor.locator(".current-project")).toContainText("ready");
   await expect(monitorRun).toBeEnabled();
   await monitorRun.click();
   await expect(ideStatus).toContainText("Physical XRP · running", {
@@ -91,7 +90,7 @@ test("IDE and Monitor share the retained physical XRP project lifecycle", async 
   await ide.getByLabel("Project-relative path").fill("notes.md");
   await ide.getByRole("button", { name: "Create file" }).click();
   await expect(monitorRun).toBeDisabled();
-  await expect(monitor.locator(".current-project")).toContainText("changed");
+  await expect(monitorRun).toHaveAttribute("title", /IDE project changed/);
 
   await ide.getByRole("button", { name: "Sync project" }).click();
   await expect(

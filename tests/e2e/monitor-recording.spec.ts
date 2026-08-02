@@ -78,7 +78,47 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
     "Virtual XRP · ready",
   );
 
+  const brand = page.locator(".brand");
+  await expect(brand).toHaveAttribute("aria-label", "UCSBXRP Monitor");
+  await expect(brand).toHaveText("UCSBXRP Monitor");
+  const brandStyle = await brand.evaluate((element) => {
+    const mark = element.children[0] as HTMLElement;
+    const name = element.children[1] as HTMLElement;
+    const markStyle = getComputedStyle(mark);
+    const nameStyle = getComputedStyle(name);
+    const markBox = mark.getBoundingClientRect();
+    const nameBox = name.getBoundingClientRect();
+    return {
+      gap: nameBox.left - markBox.right,
+      markColor: markStyle.color,
+      nameColor: nameStyle.color,
+      typography: [
+        markStyle.fontFamily,
+        markStyle.fontSize,
+        markStyle.fontWeight,
+        nameStyle.fontFamily,
+        nameStyle.fontSize,
+        nameStyle.fontWeight,
+      ],
+    };
+  });
+  expect(Math.abs(brandStyle.gap)).toBeLessThanOrEqual(0.5);
+  expect(brandStyle.markColor).toBe("rgb(0, 98, 155)");
+  expect(brandStyle.nameColor).toBe("rgb(118, 84, 94)");
+  expect(brandStyle.typography.slice(0, 3)).toEqual(
+    brandStyle.typography.slice(3),
+  );
+  const ideLink = page.getByRole("link", { name: "IDE ↗", exact: true });
+  await expect(ideLink).toHaveAttribute("target", "_blank");
+  await expect(ideLink).toHaveAttribute("rel", "noopener noreferrer");
+
   await expect(page.getByTestId("monitor-controls")).toBeVisible();
+  await expect(
+    page.locator(".monitor-controls-cap").getByText("Controls", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByTestId("offline-readiness")).toBeVisible();
   await expect(page.getByTestId("wheel-speed-plot")).toBeVisible();
   await expect(page.getByTestId("strip-chart-motor-effort")).toBeVisible();
   const controlsBox = await page.getByTestId("monitor-controls").boundingBox();
@@ -92,6 +132,12 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
     (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0) - 1,
   );
   expect(sliderBox?.height).toBeLessThanOrEqual(16);
+  const liveControlsBox = await page
+    .locator(".live-program-group")
+    .boundingBox();
+  expect(liveControlsBox?.y).toBeGreaterThan(
+    (sliderBox?.y ?? 0) + (sliderBox?.height ?? 0),
+  );
 
   const worldValuesSeparator = page.getByRole("separator", {
     name: "Resize world and live values",
@@ -110,6 +156,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(page.getByText("6 s", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Collapse monitor controls" }).click();
+  await expect(page.getByTestId("offline-readiness")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();
@@ -129,7 +176,7 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   );
 
   const headerBox = await page.locator(".app-header").boundingBox();
-  expect(headerBox?.height).toBeLessThanOrEqual(36);
+  expect(headerBox?.height).toBeLessThanOrEqual(33);
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();
