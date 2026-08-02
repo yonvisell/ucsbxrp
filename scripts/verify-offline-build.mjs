@@ -46,6 +46,11 @@ for (const requiredPath of [
   "dashboard/index.html",
   "guide/index.html",
   "favicon.svg",
+  "third-party-licenses/README.txt",
+  "third-party-licenses/echarts/LICENSE",
+  "third-party-licenses/echarts/NOTICE",
+  "third-party-licenses/echarts/licenses/LICENSE-d3",
+  "third-party-licenses/micropython--micropython-webassembly-pyscript/LICENSE",
   `${COURSE_RELEASE_OUTPUT_PATH}/release.json`,
   `${COURSE_RELEASE_OUTPUT_PATH}/ucsb_xrp/__init__.py`,
 ]) {

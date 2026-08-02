@@ -74,7 +74,7 @@ IDE and presents only available data. It contains:
   rate;
 - live pose, drive commands, encoders, range, button, IMU, temperature, and battery
   values;
-- an expandable Live controls region below the history window for bounded
+- a permanently open Live controls region below the history window for bounded
   numeric, Boolean, and choice parameters;
 - named program watch values below the sensor values in the right panel;
 - program and service output; and
@@ -260,11 +260,19 @@ Five cumulative starters separate:
 
 The production service worker caches the complete public release—application
 shells, workers, MicroPython WebAssembly, course source, starters, templates,
-and reference bytecode—and exposes a visible readiness state. When a newer complete shell
-activates, a long-open tab reloads once for that build so an older interface
-does not remain in memory. Development disables caching to prevent stale
-bundles from masking changes. Private reference source and instructor
-credentials are not web assets.
+reference bytecode, and third-party notices—and exposes a visible readiness
+state. One GitHub Pages artifact workflow obtains either the root or project
+base path from Pages and publishes the same static release. When a newer
+complete shell activates, a long-open tab reloads once for that build so an
+older interface does not remain in memory. Development disables caching to
+prevent stale bundles from masking changes. Private reference source and
+instructor credentials are not web assets.
+
+When an HTTPS Pages origin connects to the XRP's HTTP service, the document
+first triggers Chrome's local-network permission before handing polling to the
+shared worker. Requests identify the target address space as local. This keeps
+one physical poller across tabs while satisfying the browser's worker
+permission boundary.
 
 Telemetry recording stores at most 30,000 copied samples and reports dropped
 older samples. CSV export is explicit and self-describing; it preserves blanks

@@ -74,8 +74,8 @@ One unlabeled grid line divides each pair of labeled time lines. When no pose
 has been published, the world remains visible with a clearly labeled XRP
 preview centered at the origin.
 
-**Live controls** appears below the time window when code declares controls with
-`ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use
+**Live controls** remains open below the time window and shows controls declared
+with `ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use
 checkboxes, and short choices use radio controls. Updates are validated and
 applied together at the next `Robot` sample boundary. Named `live.watch()`
 values appear below **Live values** in the right panel, exposing current modes,
@@ -176,3 +176,7 @@ Narrower commands are `npm run test:python`, `npm run test:micropython`,
 `npm test`, `npm run build`, `npm run test:offline`, and
 `npm run test:browser`. See `docs/VALIDATION_PLAN.md` for the boundaries and
 `STATUS.md` for current measured results.
+
+For the self-contained GitHub Pages artifact, deployment workflow, license
+packaging, and conservative resource audit, see
+`docs/DISTRIBUTION_AND_EFFICIENCY.md`.

@@ -241,7 +241,6 @@ export function DashboardApp() {
     Record<string, RuntimeParameterValue>
   >({});
   const [runtimeUpdateError, setRuntimeUpdateError] = useState("");
-  const [liveProgramOpen, setLiveProgramOpen] = useState(false);
   const [recordedSamples, setRecordedSamples] = useState(0);
   const [droppedSamples, setDroppedSamples] = useState(0);
   const [autosaveFolder, setAutosaveFolder] =
@@ -262,7 +261,6 @@ export function DashboardApp() {
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
-  const openedLiveProgram = useRef(false);
 
   useEffect(() => {
     storeTargetPreference(targetPreference);
@@ -505,14 +503,6 @@ export function DashboardApp() {
         setCurrentProject(event.project);
       } else if (event.type === "runtime") {
         setRuntimeState(event.state);
-        if (
-          !openedLiveProgram.current &&
-          (event.state.parameters.length > 0 || event.state.watches.length > 0)
-        ) {
-          openedLiveProgram.current = true;
-          setRuntimeUpdateError("");
-          setLiveProgramOpen(true);
-        }
       } else if (event.type === "console") {
         const entry = {
           id: nextConsoleId.current++,
@@ -898,17 +888,17 @@ export function DashboardApp() {
                   </label>
                 </section>
 
-                <details
+                <section
+                  aria-labelledby="live-controls-title"
                   className="monitor-control-group live-program-group"
-                  onToggle={(event) =>
-                    setLiveProgramOpen(event.currentTarget.open)
-                  }
-                  open={liveProgramOpen}
                 >
-                  <summary title="Adjust parameters declared by the running program.">
-                    <span>Live controls</span>
+                  <div
+                    className="live-program-heading"
+                    title="Adjust parameters declared by the running program."
+                  >
+                    <h2 id="live-controls-title">Live controls</h2>
                     <small>{runtimeState.parameters.length} controls</small>
-                  </summary>
+                  </div>
                   <div className="live-program-content">
                     {runtimeState.parameters.length === 0 ? (
                       <p className="live-program-empty">
@@ -1037,7 +1027,7 @@ export function DashboardApp() {
                       </p>
                     ) : null}
                   </div>
-                </details>
+                </section>
 
                 <section
                   aria-labelledby="recording-controls-title"

@@ -3,6 +3,8 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { generateThirdPartyNotices } from "./third-party-notices.mjs";
+
 export const MANIFEST_FILENAME = "offline-manifest.json";
 export const SERVICE_WORKER_FILENAME = "service-worker.js";
 export const COURSE_RELEASE_OUTPUT_PATH = "course/current";
@@ -231,6 +233,9 @@ export async function generateOfflineBuild({
   courseReleaseDirectory,
 }) {
   const normalizedBasePath = normalizeBasePath(basePath);
+  const projectRoot = path.dirname(
+    path.dirname(fileURLToPath(import.meta.url)),
+  );
   if (courseReleaseDirectory !== undefined) {
     const releaseOutputDirectory = path.join(
       outputDirectory,
@@ -254,6 +259,7 @@ export async function generateOfflineBuild({
       },
     });
   }
+  await generateThirdPartyNotices({ projectRoot, outputDirectory });
   const assets = await collectBuildAssets(outputDirectory, normalizedBasePath);
   const manifest = createOfflineManifest(assets, normalizedBasePath);
   const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;

@@ -91,6 +91,23 @@ export function normalizePhysicalEndpoint(value: string): string {
   return url.toString().replace(/\/$/, "");
 }
 
+type LocalNetworkRequestInit = RequestInit & {
+  targetAddressSpace?: "local";
+};
+
+export function localNetworkRequestInit(
+  endpoint: string,
+  init: RequestInit,
+  sourceProtocol = typeof globalThis.location === "undefined"
+    ? undefined
+    : globalThis.location.protocol,
+): LocalNetworkRequestInit {
+  if (sourceProtocol === "https:" && new URL(endpoint).protocol === "http:") {
+    return { ...init, targetAddressSpace: "local" };
+  }
+  return { ...init };
+}
+
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -371,10 +388,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetchImplementation(this.endpoint + path, {
-        ...init,
+        ...localNetworkRequestInit(this.endpoint, init),
         cache: "no-store",
         signal: controller.signal,
-      });
+      } as LocalNetworkRequestInit);
       const value = (await response.json()) as unknown;
       if (!response.ok) {
         const candidate = value as {
@@ -604,6 +621,7 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private readonly pending = new Map<string, PendingWorkerRequest>();
   private nextRequest = 1;
+  private localNetworkPermissionPrimed = false;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -621,6 +639,7 @@ export class PhysicalTargetClient implements TargetClient {
     if (this.worker) {
       return;
     }
+    await this.primeLocalNetworkPermission();
     try {
       this.worker = new SharedWorker(
         new URL("./physical-target.shared-worker.ts", import.meta.url),
@@ -728,6 +747,47 @@ export class PhysicalTargetClient implements TargetClient {
       this.direct.subscribe((event) => this.emit(event));
     }
     return this.direct;
+  }
+
+  private async primeLocalNetworkPermission(): Promise<void> {
+    if (
+      this.localNetworkPermissionPrimed ||
+      typeof window === "undefined" ||
+      window.location.protocol !== "https:" ||
+      new URL(this.endpoint).protocol !== "http:"
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutMs = this.options.requestTimeoutMs ?? 8_000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      await globalThis.fetch(
+        `${this.endpoint}/api/v1/info`,
+        localNetworkRequestInit(
+          this.endpoint,
+          {
+            cache: "no-store",
+            method: "GET",
+            signal: controller.signal,
+          },
+          window.location.protocol,
+        ),
+      );
+      this.localNetworkPermissionPrimed = true;
+    } catch (error) {
+      const detail =
+        error instanceof DOMException && error.name === "AbortError"
+          ? `XRP did not reply within ${timeoutMs / 1_000} seconds`
+          : `Cannot reach ${this.endpoint}: ${errorDetail(error)}`;
+      throw new PhysicalTargetError(
+        "network_error",
+        `${detail}. Allow this page to access devices on the local network, then reconnect.`,
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private request(

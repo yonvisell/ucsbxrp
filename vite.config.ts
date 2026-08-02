@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
-const requestedBasePath = process.env.COURSE_BASE_PATH?.trim() ?? "/";
+const requestedBasePath = process.env.COURSE_BASE_PATH?.trim() || "/";
 if (
   requestedBasePath.includes(":") ||
   requestedBasePath.includes("?") ||

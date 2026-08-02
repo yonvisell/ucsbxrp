@@ -181,6 +181,11 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   expect(liveControlsBox?.y).toBeGreaterThan(
     (sliderBox?.y ?? 0) + (sliderBox?.height ?? 0),
   );
+  await expect(page.locator("details.live-program-group")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Live controls", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".live-program-group summary")).toHaveCount(0);
 
   const worldValuesSeparator = page.getByRole("separator", {
     name: "Resize world and live values",

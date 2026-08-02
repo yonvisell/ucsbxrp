@@ -165,40 +165,21 @@
   display: block;
 }
 
-.live-program-group > summary {
+.live-program-heading {
   display: grid;
-  grid-template-columns: 9px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px;
   color: var(--ink);
-  cursor: pointer;
   font-size: var(--font-sm);
   font-weight: 650;
-  list-style: none;
 }
 
-.live-program-group > summary::-webkit-details-marker {
-  display: none;
-}
-
-.live-program-group > summary::before {
-  color: var(--muted);
-  content: "›";
-  font-size: 13px;
-  line-height: 1;
-}
-
-.live-program-group[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-.live-program-group > summary span {
-  grid-column: 2;
+.live-program-heading h2 {
   justify-self: start;
 }
 
-.live-program-group > summary small {
-  grid-column: 3;
+.live-program-heading small {
   color: var(--quiet);
   font-size: 8px;
   font-weight: 500;

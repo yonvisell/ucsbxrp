@@ -11,7 +11,7 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–11 are complete in software. The Monitor now uses flat,
+Refinement slices 1–12 are complete in software. The Monitor now uses flat,
 independently resizable regions; a bounded arena grid with labeled millimeter
 coordinates; compact signal and recording controls; precise drive-command and
 yaw-rate labels; a closer dimensioned XRP view; and a narrow top-sheet control
@@ -33,9 +33,10 @@ size, and weight. The UCSB mark and enabled Run control use the same darker
 region remains one line and scrolls horizontally when necessary, while target
 state and Settings stay fixed at the far right. IDE and Monitor links carry a
 visible diagonal arrow and open a separate tab in both directions. In the
-Monitor, Signals and Time window precede Live controls, named watches appear
-below Live values in the right panel, and `Guide | • Saved for offline use`
-occupies the bottom of the controls sidebar only while that sidebar is open.
+Monitor, Signals and Time window precede permanently open Live controls, named
+watches appear below Live values in the right panel, and
+`Guide | • Saved for offline use` occupies the bottom of the controls sidebar
+only while that sidebar is open.
 In the IDE, offline readiness occupies the lower-left edge of the file rail
 only while the rail is open.
 
@@ -134,9 +135,9 @@ restore pass with this correction.
 - A 176 px collapsible sidebar for signal selection and recording; the virtual
   scene is selected directly in the world, while target settings remain shared
   from the IDE.
-- An expandable Live controls region below Time window renders declared numeric
-  parameters as thin sliders, Booleans as checkboxes, and short choices as
-  radio controls. Named watch values form a compact table below Live values in
+- A permanently open Live controls region below Time window renders declared
+  numeric parameters as thin sliders, Booleans as checkboxes, and short choices
+  as radio controls. Named watch values form a compact table below Live values in
   the right panel. Pending and applied values are shared across tabs and
   controls disable when the program is not running.
 - Independently selectable wheel-speed, drive-command, forward-range,
@@ -195,9 +196,10 @@ restore pass with this correction.
 
 ### Offline and guidance
 
-- The production service worker verifies all 117 public payload files,
+- The production service worker verifies all 150 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
-  starters, demo/tutorial templates, and supplied bytecode. The interface says
+  starters, demo/tutorial templates, supplied bytecode, and dependency license
+  notices. The interface says
   **Saved for offline use**; robot connectivity remains a separate status.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
@@ -213,10 +215,10 @@ The latest complete software pass includes:
 - 106 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 104 Vitest tests for project identity and handling, folder rotation, target
+- 106 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, plot data, and
   measured contrast;
-- a production build and verification of the exact 117-file offline manifest;
+- a production build and verification of the exact 150-file offline manifest;
   and
 - 18 Stable Chrome software workflows covering all starters, both new project
   templates, flat IDE geometry, four-generation source autosave, per-run
@@ -261,8 +263,23 @@ x-grid line appeared between adjacent labeled values. XRP zoom confirmed one
 dark gray chassis shade, and the Monitor header displayed `IDE ↗ |`. A separate
 Stable Chrome path used an unreachable physical endpoint and verified that the
 full-size map and centered, explicitly non-pose XRP preview remained visible.
-The final production build is `b0d248054ecaeeb5ad7a`; all 18 software Chrome
-workflows pass and the physical opt-in workflow is intentionally skipped.
+All 18 software Chrome workflows pass and the physical opt-in workflow is
+intentionally skipped.
+
+The conservative efficiency/distribution refinement then removed the unused
+ECharts modules from the Monitor bundle while retaining the same chart options.
+Minified Monitor JavaScript decreased from 1,687,014 to 1,081,536 bytes; gzip
+size decreased from 511,939 to 315,685 bytes. The complete static payload is
+7,178,887 bytes including 43,325 bytes of third-party license and notice files.
+The GitHub Pages workflow uses the deployment base path reported by Pages and
+publishes the verified `dist` artifact. An HTTPS physical connection now primes
+Chrome's local-network permission in the document before starting the shared
+worker and marks device fetches as local traffic. Root and `/ucsb-xrp/` builds,
+the exact offline manifest, a network-blocked subpath reload, and the focused
+Monitor/course workflow pass. The XRP is currently disconnected, so final
+origin-specific Pages-to-device validation remains a deployment check rather
+than a claim from this slice. The final root production build is
+`0328bc0d994332be1b8d`.
 
 ## Physical evidence
 

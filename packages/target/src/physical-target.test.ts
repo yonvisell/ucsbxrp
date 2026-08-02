@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   DirectPhysicalTargetClient,
+  localNetworkRequestInit,
   PhysicalTargetClient,
   normalizePhysicalEndpoint,
 } from "./physical-target";
@@ -20,6 +21,88 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe("physical target", () => {
+  it("marks HTTPS-to-HTTP device requests as local-network traffic", () => {
+    expect(
+      localNetworkRequestInit(
+        "http://192.168.7.30",
+        { method: "GET" },
+        "https:",
+      ),
+    ).toEqual({ method: "GET", targetAddressSpace: "local" });
+    expect(
+      localNetworkRequestInit(
+        "http://192.168.7.30",
+        { method: "GET" },
+        "http:",
+      ),
+    ).toEqual({ method: "GET" });
+    expect(
+      localNetworkRequestInit(
+        "https://xrp.example.test",
+        { method: "GET" },
+        "https:",
+      ),
+    ).toEqual({ method: "GET" });
+  });
+
+  it("primes local-network permission in the document before starting the shared worker", async () => {
+    const operations: string[] = [];
+    const fetchMock = vi.fn(async () => {
+      operations.push("fetch");
+      return response({ ok: true });
+    });
+
+    class FakeMessagePort {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+
+      start(): void {}
+
+      postMessage(command: { requestId?: string; type: string }): void {
+        if (command.type !== "connect" || command.requestId === undefined) {
+          return;
+        }
+        operations.push("worker");
+        queueMicrotask(() =>
+          this.onmessage?.({
+            data: {
+              type: "response",
+              requestId: command.requestId,
+              ok: true,
+            },
+          } as MessageEvent),
+        );
+      }
+
+      close(): void {}
+    }
+
+    class FakeSharedWorker {
+      readonly port = new FakeMessagePort();
+    }
+
+    vi.stubGlobal("window", { location: { protocol: "https:" } });
+    vi.stubGlobal("location", { protocol: "https:" });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+
+    const target = new PhysicalTargetClient("192.168.7.30");
+    try {
+      await target.connect();
+      expect(operations).toEqual(["fetch", "worker"]);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "http://192.168.7.30/api/v1/info",
+        expect.objectContaining({
+          cache: "no-store",
+          method: "GET",
+          targetAddressSpace: "local",
+        }),
+      );
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("discovers and applies physical live parameters with runtime feedback", async () => {
     const paths: string[] = [];
     const bodies: Array<Record<string, unknown>> = [];

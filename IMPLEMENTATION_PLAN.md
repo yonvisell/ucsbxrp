@@ -332,3 +332,30 @@ Chrome.
 
 Usable result: signal comparisons retain a stable visual scale and the spatial
 features remain discoverable without presenting a preview pose as telemetry.
+
+### Refinement 12 — Conservative efficiency and static distribution
+
+Status: implemented and validated in unit, production-build, deployment-path,
+offline, and Stable Chrome checks.
+
+- Keep Live controls permanently open in its existing Monitor position; remove
+  the disclosure state without changing the controls or their lifecycle.
+- Replace the complete ECharts import with only the line-chart, grid, title,
+  legend, tooltip, and canvas modules used by the Monitor. Preserve every chart
+  option and verify the resulting bundle reduction before retaining it.
+- Package every installed production dependency's license and notice files,
+  while continuing to exclude private reference source and machine-local
+  configuration.
+- Add one GitHub Pages artifact workflow whose base path comes from Pages, so
+  the identical build works at the account root or a repository subpath.
+- Prime Chrome's local-network permission from the HTTPS document before its
+  physical-target SharedWorker connects, then annotate HTTP device requests as
+  local-network traffic.
+- Audit unused and historical resources without moving them merely for
+  tidiness; retain hardware evidence and rollback archives, and defer legacy
+  OSC/design-document archival because it has no shipped-runtime benefit.
+
+Usable result: the Monitor downloads substantially less JavaScript, the static
+release is license-complete and deployable through GitHub Pages, the HTTPS
+physical-target path follows the current browser permission model, and no
+course workflow or rendered application feature changes.

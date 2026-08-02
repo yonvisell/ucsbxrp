@@ -1,4 +1,12 @@
-import * as echarts from "echarts";
+import { LineChart } from "echarts/charts";
+import {
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  TooltipComponent,
+} from "echarts/components";
+import * as echarts from "echarts/core";
+import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useMemo, useRef } from "react";
 
 import {
@@ -6,6 +14,15 @@ import {
   milligravityToMetersPerSecondSquared,
   type TelemetrySample,
 } from "@ucsb-xrp/target";
+
+echarts.use([
+  LineChart,
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  TooltipComponent,
+  CanvasRenderer,
+]);
 
 export type SignalPlotId =
   "wheel-speed" | "motor-effort" | "range" | "acceleration" | "angular-rate";

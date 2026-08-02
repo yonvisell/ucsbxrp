@@ -144,8 +144,9 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
     "Virtual XRP · running",
   );
   const liveProgram = monitor.locator(".live-program-group");
-  await expect(liveProgram).toHaveAttribute("open", "");
-  await expect(liveProgram.locator("summary")).toContainText("5 controls");
+  await expect(liveProgram).toBeVisible();
+  await expect(liveProgram.locator("summary")).toHaveCount(0);
+  await expect(liveProgram).toContainText("5 controls");
   const speed = liveProgram.getByRole("slider", { name: "Forward speed" });
   await speed.fill("180");
   const speedControl = liveProgram.locator(

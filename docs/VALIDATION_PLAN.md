@@ -80,7 +80,8 @@ target or Monitor defects. Cover:
   replanning, selectable scrolling signal plots, and the collapsible Monitor
   controls;
 - bounded recordings and deterministic export;
-- root and deployment-subpath offline reloads; and
+- root and deployment-subpath offline reloads, complete third-party notices,
+  and the HTTPS document-to-local-device permission handoff; and
 - desktop and narrow layouts, semantic control names, keyboard-contained
   dialogs, reduced-motion/forced-color fallbacks, and measured contrast.
 
