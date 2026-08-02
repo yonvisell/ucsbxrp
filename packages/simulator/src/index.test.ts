@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { XrpSimulator } from "./index";
+import { XrpSimulator, simulatorConfigForScenario } from "./index";
 
 describe("deterministic XRP planar simulator", () => {
   it("repeats exactly for the same fixed-step input", () => {
@@ -86,5 +86,64 @@ describe("deterministic XRP planar simulator", () => {
     expect(simulator.state.pose.xMm).toBeGreaterThan(xAtZeroCommand);
     expect(simulator.state.leftWheelSpeedMmS).toBe(0);
     expect(simulator.state.rightWheelSpeedMmS).toBe(0);
+  });
+
+  it("reports range to the nearest obstacle and updates it with pose", () => {
+    const simulator = new XrpSimulator({
+      rangeSensorOffsetMm: 0,
+      worldBounds: {
+        minimumXmm: -500,
+        minimumYmm: -500,
+        maximumXmm: 500,
+        maximumYmm: 500,
+      },
+      obstacles: [
+        {
+          minimumXmm: 200,
+          minimumYmm: -50,
+          maximumXmm: 250,
+          maximumYmm: 50,
+        },
+      ],
+    });
+
+    expect(simulator.state.rangeMm).toBeCloseTo(200, 9);
+    simulator.reset({ xMm: 0, yMm: 0, headingRad: Math.PI / 2 });
+    expect(simulator.state.rangeMm).toBeCloseTo(500, 9);
+  });
+
+  it("prevents penetration while encoders continue to represent wheel travel", () => {
+    const simulator = new XrpSimulator({
+      rightResponseScale: 1,
+      rightStartEffort: 0.12,
+      obstacles: [
+        {
+          minimumXmm: 150,
+          minimumYmm: -100,
+          maximumXmm: 250,
+          maximumYmm: 100,
+        },
+      ],
+    });
+    simulator.setMotorEffort("left", 0.8);
+    simulator.setMotorEffort("right", 0.8);
+    for (let index = 0; index < 100; index += 1) {
+      simulator.step();
+    }
+
+    expect(simulator.state.collision).toBe(true);
+    expect(simulator.state.pose.xMm).toBeLessThanOrEqual(65);
+    expect(simulator.state.leftEncoderCount).toBeGreaterThan(0);
+    expect(simulator.state.accelerationMg[2]).toBe(1000);
+    expect(simulator.state.batteryV).toBeGreaterThan(0);
+  });
+
+  it("provides a named delivery-gate observation scenario", () => {
+    const simulator = new XrpSimulator(
+      simulatorConfigForScenario("delivery-gate-blocked"),
+    );
+
+    expect(simulator.state.rangeMm).toBeCloseTo(280, 9);
+    expect(simulator.config.obstacles).toHaveLength(1);
   });
 });

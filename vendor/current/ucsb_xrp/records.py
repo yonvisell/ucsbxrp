@@ -319,5 +319,84 @@ class NavigationGoal(_ValueRecord):
         return self._heading_rad
 
 
-STOP_COMMAND = MotionCommand(0.0, 0.0)
+class GridCell(_ValueRecord):
+    """Integer occupancy-grid coordinate."""
 
+    __slots__ = ("_column", "_row")
+    _field_names = ("column", "row")
+
+    def __init__(self, column, row):
+        self._column = require_int("column", column)
+        self._row = require_int("row", row)
+
+    @property
+    def column(self):
+        return self._column
+
+    @property
+    def row(self):
+        return self._row
+
+    def __hash__(self):
+        return hash((self.column, self.row))
+
+
+class GridPath(_ValueRecord):
+    """Ordered adjacent cells from a planning start through its goal."""
+
+    __slots__ = ("_cells",)
+    _field_names = ("cells",)
+
+    def __init__(self, cells):
+        if not isinstance(cells, (tuple, list)):
+            raise TypeError("cells must be a tuple or list of GridCell values")
+        cells = tuple(cells)
+        if not cells:
+            raise ValueError("cells must contain at least one GridCell")
+        previous = None
+        for cell in cells:
+            if not isinstance(cell, GridCell):
+                raise TypeError("cells must contain only GridCell values")
+            if previous is not None:
+                step = abs(cell.column - previous.column) + abs(cell.row - previous.row)
+                if step != 1:
+                    raise ValueError("successive path cells must be four-neighbors")
+            previous = cell
+        self._cells = cells
+
+    @property
+    def cells(self):
+        return self._cells
+
+    def to_goals(self, grid, final_heading_rad=None):
+        if final_heading_rad is not None:
+            final_heading_rad = wrap_angle_rad(final_heading_rad)
+        selected = []
+        if len(self.cells) == 1:
+            selected.append(self.cells[0])
+        else:
+            for index in range(1, len(self.cells) - 1):
+                previous = self.cells[index - 1]
+                current = self.cells[index]
+                following = self.cells[index + 1]
+                before = (
+                    current.column - previous.column,
+                    current.row - previous.row,
+                )
+                after = (
+                    following.column - current.column,
+                    following.row - current.row,
+                )
+                if before != after:
+                    selected.append(current)
+            selected.append(self.cells[-1])
+
+        goals = []
+        for index, cell in enumerate(selected):
+            x_mm, y_mm = grid.cell_center(cell)
+            heading = final_heading_rad if index == len(selected) - 1 else None
+            goals.append(NavigationGoal(x_mm, y_mm, heading))
+        return tuple(goals)
+
+
+STOP_COMMAND = MotionCommand(0.0, 0.0)

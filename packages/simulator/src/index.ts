@@ -4,6 +4,45 @@ export interface Pose2d {
   headingRad: number;
 }
 
+export interface AxisAlignedRectangle {
+  minimumXmm: number;
+  minimumYmm: number;
+  maximumXmm: number;
+  maximumYmm: number;
+}
+
+export type SimulationScenario = "open" | "delivery-gate-blocked";
+
+export const SIMULATION_SCENARIOS: Readonly<
+  Record<
+    SimulationScenario,
+    { label: string; obstacles: readonly AxisAlignedRectangle[] }
+  >
+> = Object.freeze({
+  open: Object.freeze({ label: "Open field", obstacles: Object.freeze([]) }),
+  "delivery-gate-blocked": Object.freeze({
+    label: "Delivery gate blocked",
+    obstacles: Object.freeze([
+      Object.freeze({
+        minimumXmm: 350,
+        minimumYmm: -100,
+        maximumXmm: 450,
+        maximumYmm: 100,
+      }),
+    ]),
+  }),
+});
+
+export function simulatorConfigForScenario(
+  scenario: SimulationScenario = "open",
+): Partial<XrpSimulatorConfig> {
+  const preset = SIMULATION_SCENARIOS[scenario];
+  if (!preset) {
+    throw new Error(`Unknown simulation scenario '${scenario}'`);
+  }
+  return { obstacles: preset.obstacles };
+}
+
 export interface XrpSimulatorConfig {
   fixedStepMs: number;
   wheelDiameterMm: number;
@@ -15,6 +54,13 @@ export interface XrpSimulatorConfig {
   rightStartEffort: number;
   leftResponseScale: number;
   rightResponseScale: number;
+  robotRadiusMm: number;
+  rangeSensorOffsetMm: number;
+  maximumRangeMm: number;
+  batteryV: number;
+  temperatureC: number;
+  worldBounds: AxisAlignedRectangle;
+  obstacles: readonly AxisAlignedRectangle[];
 }
 
 export interface XrpSimulatorState {
@@ -28,6 +74,12 @@ export interface XrpSimulatorState {
   leftEncoderCount: number;
   rightEncoderCount: number;
   collision: boolean;
+  rangeMm: number | null;
+  buttonPressed: boolean;
+  accelerationMg: [number, number, number];
+  angularRateMdps: [number, number, number];
+  temperatureC: number;
+  batteryV: number;
 }
 
 export const DEFAULT_XRP_SIMULATOR_CONFIG: XrpSimulatorConfig = {
@@ -41,6 +93,18 @@ export const DEFAULT_XRP_SIMULATOR_CONFIG: XrpSimulatorConfig = {
   rightStartEffort: 0.13,
   leftResponseScale: 1,
   rightResponseScale: 0.97,
+  robotRadiusMm: 85,
+  rangeSensorOffsetMm: 70,
+  maximumRangeMm: 2000,
+  batteryV: 6.2,
+  temperatureC: 27,
+  worldBounds: {
+    minimumXmm: -1200,
+    minimumYmm: -900,
+    maximumXmm: 1200,
+    maximumYmm: 900,
+  },
+  obstacles: [],
 };
 
 const stoppedWheelSpeedMmS = 0.01;
@@ -71,31 +135,112 @@ function targetWheelSpeed(
   );
 }
 
+function validRectangle(rectangle: AxisAlignedRectangle): boolean {
+  return (
+    Number.isFinite(rectangle.minimumXmm) &&
+    Number.isFinite(rectangle.minimumYmm) &&
+    Number.isFinite(rectangle.maximumXmm) &&
+    Number.isFinite(rectangle.maximumYmm) &&
+    rectangle.maximumXmm > rectangle.minimumXmm &&
+    rectangle.maximumYmm > rectangle.minimumYmm
+  );
+}
+
+function pointInsideExpandedRectangle(
+  xMm: number,
+  yMm: number,
+  rectangle: AxisAlignedRectangle,
+  expansionMm: number,
+): boolean {
+  return (
+    xMm >= rectangle.minimumXmm - expansionMm &&
+    xMm <= rectangle.maximumXmm + expansionMm &&
+    yMm >= rectangle.minimumYmm - expansionMm &&
+    yMm <= rectangle.maximumYmm + expansionMm
+  );
+}
+
+function rayRectangleDistance(
+  originX: number,
+  originY: number,
+  directionX: number,
+  directionY: number,
+  rectangle: AxisAlignedRectangle,
+): number | null {
+  let entry = -Infinity;
+  let exit = Infinity;
+  const axes: readonly [number, number, number, number][] = [
+    [originX, directionX, rectangle.minimumXmm, rectangle.maximumXmm],
+    [originY, directionY, rectangle.minimumYmm, rectangle.maximumYmm],
+  ];
+  for (const [origin, direction, minimum, maximum] of axes) {
+    if (Math.abs(direction) < 1e-12) {
+      if (origin < minimum || origin > maximum) {
+        return null;
+      }
+      continue;
+    }
+    const first = (minimum - origin) / direction;
+    const second = (maximum - origin) / direction;
+    entry = Math.max(entry, Math.min(first, second));
+    exit = Math.min(exit, Math.max(first, second));
+    if (exit < entry) {
+      return null;
+    }
+  }
+  if (exit < 0) {
+    return null;
+  }
+  return entry >= 0 ? entry : exit;
+}
+
 export class XrpSimulator {
   readonly config: XrpSimulatorConfig;
   private leftDistanceMm = 0;
   private rightDistanceMm = 0;
+  private previousCenterSpeedMmS = 0;
   private currentState: XrpSimulatorState;
 
   constructor(config: Partial<XrpSimulatorConfig> = {}) {
-    this.config = { ...DEFAULT_XRP_SIMULATOR_CONFIG, ...config };
+    this.config = {
+      ...DEFAULT_XRP_SIMULATOR_CONFIG,
+      ...config,
+      worldBounds: {
+        ...DEFAULT_XRP_SIMULATOR_CONFIG.worldBounds,
+        ...config.worldBounds,
+      },
+      obstacles: (
+        config.obstacles ?? DEFAULT_XRP_SIMULATOR_CONFIG.obstacles
+      ).map((obstacle) => ({ ...obstacle })),
+    };
+    if (!validRectangle(this.config.worldBounds)) {
+      throw new Error("Simulator world bounds must form a valid rectangle");
+    }
+    if (this.config.obstacles.some((obstacle) => !validRectangle(obstacle))) {
+      throw new Error("Every simulator obstacle must form a valid rectangle");
+    }
     this.currentState = this.initialState();
+    this.updateRange();
   }
 
   get state(): XrpSimulatorState {
     return {
       ...this.currentState,
       pose: { ...this.currentState.pose },
+      accelerationMg: [...this.currentState.accelerationMg],
+      angularRateMdps: [...this.currentState.angularRateMdps],
     };
   }
 
   reset(pose: Pose2d = { xMm: 0, yMm: 0, headingRad: 0 }): XrpSimulatorState {
     this.leftDistanceMm = 0;
     this.rightDistanceMm = 0;
+    this.previousCenterSpeedMmS = 0;
     this.currentState = {
       ...this.initialState(),
       pose: { ...pose, headingRad: wrapAngle(pose.headingRad) },
     };
+    this.updateRange();
     return this.state;
   }
 
@@ -143,11 +288,11 @@ export class XrpSimulator {
     if (rightTarget === 0 && Math.abs(rightSpeed) < stoppedWheelSpeedMmS) {
       rightSpeed = 0;
     }
+
     const leftIncrementMm = leftSpeed * dtS;
     const rightIncrementMm = rightSpeed * dtS;
     this.leftDistanceMm += leftIncrementMm;
     this.rightDistanceMm += rightIncrementMm;
-
     const centerIncrementMm = (leftIncrementMm + rightIncrementMm) / 2;
     const headingIncrementRad =
       (rightIncrementMm - leftIncrementMm) / this.config.trackWidthMm;
@@ -165,24 +310,89 @@ export class XrpSimulator {
       yMm -= radiusMm * (Math.cos(nextHeading) - Math.cos(pose.headingRad));
     }
 
+    const proposedPose = {
+      xMm,
+      yMm,
+      headingRad: wrapAngle(pose.headingRad + headingIncrementRad),
+    };
+    const collision = !this.poseIsFree(proposedPose);
+    const centerSpeedMmS = (leftSpeed + rightSpeed) / 2;
+    const longitudinalAccelerationMmS2 =
+      (centerSpeedMmS - this.previousCenterSpeedMmS) / dtS;
+    this.previousCenterSpeedMmS = centerSpeedMmS;
     const millimetersPerCount =
       (Math.PI * this.config.wheelDiameterMm) /
       this.config.encoderCountsPerRevolution;
+
     this.currentState = {
       ...this.currentState,
       tMs: this.currentState.tMs + stepMs,
       seq: this.currentState.seq + 1,
-      pose: {
-        xMm,
-        yMm,
-        headingRad: wrapAngle(pose.headingRad + headingIncrementRad),
-      },
+      pose: collision ? pose : proposedPose,
       leftWheelSpeedMmS: leftSpeed,
       rightWheelSpeedMmS: rightSpeed,
       leftEncoderCount: Math.round(this.leftDistanceMm / millimetersPerCount),
       rightEncoderCount: Math.round(this.rightDistanceMm / millimetersPerCount),
+      collision,
+      accelerationMg: [longitudinalAccelerationMmS2 / 9.80665, 0, 1000],
+      angularRateMdps: [
+        0,
+        0,
+        ((rightSpeed - leftSpeed) / this.config.trackWidthMm) *
+          (180 / Math.PI) *
+          1000,
+      ],
     };
+    this.updateRange();
     return this.state;
+  }
+
+  private poseIsFree(pose: Pose2d): boolean {
+    const bounds = this.config.worldBounds;
+    const radius = this.config.robotRadiusMm;
+    if (
+      pose.xMm < bounds.minimumXmm + radius ||
+      pose.xMm > bounds.maximumXmm - radius ||
+      pose.yMm < bounds.minimumYmm + radius ||
+      pose.yMm > bounds.maximumYmm - radius
+    ) {
+      return false;
+    }
+    return !this.config.obstacles.some((obstacle) =>
+      pointInsideExpandedRectangle(pose.xMm, pose.yMm, obstacle, radius),
+    );
+  }
+
+  private updateRange(): void {
+    const pose = this.currentState.pose;
+    const directionX = Math.cos(pose.headingRad);
+    const directionY = Math.sin(pose.headingRad);
+    const originX = pose.xMm + directionX * this.config.rangeSensorOffsetMm;
+    const originY = pose.yMm + directionY * this.config.rangeSensorOffsetMm;
+    const distances = this.config.obstacles
+      .map((obstacle) =>
+        rayRectangleDistance(
+          originX,
+          originY,
+          directionX,
+          directionY,
+          obstacle,
+        ),
+      )
+      .filter((value): value is number => value !== null && value >= 0);
+    const boundaryDistance = rayRectangleDistance(
+      originX,
+      originY,
+      directionX,
+      directionY,
+      this.config.worldBounds,
+    );
+    if (boundaryDistance !== null) {
+      distances.push(boundaryDistance);
+    }
+    const closest = distances.length > 0 ? Math.min(...distances) : Infinity;
+    this.currentState.rangeMm =
+      closest <= this.config.maximumRangeMm ? closest : null;
   }
 
   private initialState(): XrpSimulatorState {
@@ -197,6 +407,12 @@ export class XrpSimulator {
       leftEncoderCount: 0,
       rightEncoderCount: 0,
       collision: false,
+      rangeMm: null,
+      buttonPressed: false,
+      accelerationMg: [0, 0, 1000],
+      angularRateMdps: [0, 0, 0],
+      temperatureC: this.config.temperatureC,
+      batteryV: this.config.batteryV,
     };
   }
 }

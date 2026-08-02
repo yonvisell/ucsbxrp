@@ -124,7 +124,13 @@ import math
 import sys
 
 from ucsb_xrp import (
+    ArenaMap,
+    GridCell,
     MotorEfforts,
+    MotionCommand,
+    NavigationConfig,
+    NavigationGoal,
+    OccupancyGrid,
     Pose,
     RawSensors,
     RobotConfig,
@@ -132,11 +138,16 @@ from ucsb_xrp import (
     XRPBot,
     wrap_angle_rad,
 )
-from ucsb_xrp_reference import SensorModel, WheelSpeedController
+from ucsb_xrp_reference import (
+    DifferentialDrive,
+    GridPlanner,
+    NavigationController,
+    Odometry,
+    SensorModel,
+    WheelSpeedController,
+)
 
-locked = XRPBot(RobotConfig())
-locked.set_efforts(MotorEfforts(1.0, -1.0))
-assert locked.config.is_motion_locked
+assert RobotConfig().max_effort == 1.0
 
 configured = XRPBot(
     RobotConfig(
@@ -176,6 +187,27 @@ component_efforts = wheel_controller.update(
 )
 assert abs(component_efforts.left - 0.31) < 0.0001
 assert abs(component_efforts.right + 0.26) < 0.0001
+
+drive = DifferentialDrive(RobotConfig(track_width_mm=100.0))
+wheel_speeds = drive.wheel_speeds(MotionCommand(200.0, 1.0))
+assert wheel_speeds == WheelSpeeds(150.0, 250.0)
+
+odometry = Odometry(RobotConfig(track_width_mm=100.0))
+odometry.reset(Pose(0, 0, 0))
+assert odometry.update(20, 20) == Pose(20, 0, 0)
+
+arena = ArenaMap((0, 0, 300, 200), obstacles=((100, 0, 200, 100),))
+grid = OccupancyGrid.from_arena(arena, 100)
+path = GridPlanner().plan(grid, GridCell(0, 0), GridCell(2, 1))
+assert path is not None
+assert path.cells[0] == GridCell(0, 0)
+assert path.cells[-1] == GridCell(2, 1)
+
+navigation = NavigationController(
+    NavigationConfig(120, 45, 150, 0.8, 10, 0.08, 0.25)
+)
+navigation.start((NavigationGoal(200, 0, 0),))
+assert navigation.update(Pose(0, 0, 0)).forward_speed_mm_s == 120
 
 print("MicroPython", ".".join(str(part) for part in sys.implementation.version[:3]))
 print("MicroPython _mpy", getattr(sys.implementation, "_mpy", None))

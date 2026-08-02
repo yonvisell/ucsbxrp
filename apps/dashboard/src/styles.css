@@ -1,14 +1,253 @@
+.monitor-workspace {
+  display: grid;
+  width: 100%;
+  height: calc(100vh - 39px);
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: 34px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--page);
+}
+
+.monitor-workspace.controls-open {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.monitor-controls {
+  position: relative;
+  z-index: 8;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.monitor-controls-panel {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: 29px minmax(0, 1fr);
+}
+
+.monitor-controls-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0.22rem 0 0.5rem;
+  background: var(--panel-raised);
+}
+
+.monitor-controls-cap strong {
+  color: var(--ink);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.monitor-controls-collapse {
+  width: 23px;
+  height: 22px;
+  border-color: transparent;
+  padding: 0;
+  background: transparent;
+  font-size: 0.9rem;
+}
+
+.monitor-controls-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.monitor-controls-restore {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.42rem;
+  border: 0;
+  border-radius: 0;
+  padding: 0.52rem 0 0;
+  background: var(--panel);
+}
+
+.monitor-controls-restore:hover:not(:disabled) {
+  border: 0;
+  background: #edf5f4;
+}
+
+.monitor-controls-restore span {
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 650;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.monitor-controls-restore b {
+  color: var(--cyan);
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+.monitor-control-group {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0.62rem 0.5rem;
+}
+
+.monitor-control-group legend {
+  width: 100%;
+  padding: 0;
+  color: var(--ink);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.monitor-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+  color: var(--muted);
+  font-size: 0.63rem;
+}
+
+.monitor-field select,
+.monitor-field input[type="url"] {
+  width: 100%;
+  min-width: 0;
+  height: 25px;
+  border: 1px solid var(--line-bright);
+  border-radius: 3px;
+  padding: 0.18rem 0.34rem;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.64rem;
+}
+
+.monitor-control-detail,
+.monitor-control-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.59rem;
+  line-height: 1.4;
+}
+
+.monitor-control-detail {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.signal-choices {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.check-row {
+  display: grid;
+  min-height: 23px;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.34rem;
+  border-radius: 3px;
+  padding: 0.12rem 0.22rem;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.63rem;
+}
+
+.check-row:hover {
+  background: #edf5f4;
+}
+
+.check-row input {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: var(--cyan-deep);
+}
+
+.check-row small {
+  color: var(--quiet);
+  font-size: 0.55rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-window-field {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 0.42rem;
+}
+
+.time-window-field input {
+  width: 100%;
+  height: 14px;
+  grid-column: 1 / -1;
+  margin: 0;
+  accent-color: var(--cyan-deep);
+}
+
+.time-window-value {
+  color: var(--ink);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.recording-summary {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.recording-summary strong {
+  color: var(--ink);
+  font-size: 0.63rem;
+}
+
+.recording-summary strong.active {
+  color: var(--cyan);
+}
+
+.recording-summary span {
+  color: var(--muted);
+  font-size: 0.57rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.recording-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.24rem;
+}
+
+.recording-actions button {
+  min-width: 0;
+  padding: 0.25rem 0.18rem;
+  font-size: 0.59rem;
+}
+
 .dashboard-grid {
   display: grid;
-  min-height: calc(100vh - 53px);
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
-  grid-template-rows: minmax(360px, 1.45fr) minmax(250px, 1fr);
-  gap: 0.5rem;
-  padding: 0.5rem;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.7fr) minmax(238px, 0.72fr);
+  grid-template-rows: minmax(250px, 1.2fr) minmax(190px, 0.8fr);
+  gap: 0.34rem;
+  padding: 0.34rem;
 }
 
 .world-panel,
-.plot-panel,
+.plots-panel,
 .values-panel,
 .logs-panel {
   display: grid;
@@ -21,7 +260,7 @@
   grid-row: 1;
 }
 
-.plot-panel {
+.plots-panel {
   grid-column: 1;
   grid-row: 2;
 }
@@ -44,21 +283,96 @@
   overflow: hidden;
 }
 
+.world-view {
+  position: relative;
+}
+
+.world-overlay {
+  position: absolute;
+  z-index: 2;
+  top: 0.4rem;
+  left: 0.4rem;
+  display: flex;
+  gap: 0.42rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.2rem 0.32rem;
+  background: rgb(255 255 255 / 92%);
+  color: var(--ink);
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.world-overlay.collision {
+  border-color: var(--red);
+}
+
+.world-overlay strong {
+  color: var(--red);
+}
+
 .telemetry-placeholder {
   display: grid;
   min-height: 0;
   place-items: center;
-  padding: 1rem;
-  color: var(--quiet);
-  background: #071019;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 0.68rem;
+  padding: 0.8rem;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.64rem;
   line-height: 1.5;
   text-align: center;
 }
 
 .world-view canvas {
   display: block;
+}
+
+.strip-chart-stack {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 0.3rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+  background: var(--panel);
+  scrollbar-width: thin;
+}
+
+.strip-chart {
+  display: grid;
+  height: 150px;
+  min-height: 150px;
+  grid-template-rows: 24px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.strip-chart:only-child {
+  height: 100%;
+  min-height: 180px;
+}
+
+.strip-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0.42rem;
+  background: var(--panel-raised);
+}
+
+.strip-chart-header h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.61rem;
+  font-weight: 650;
+}
+
+.strip-chart-header span {
+  color: var(--quiet);
+  font-size: 0.55rem;
 }
 
 .live-values {
@@ -69,85 +383,49 @@
 }
 
 .values-content {
-  display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.recording-bar {
-  display: grid;
-  gap: 0.55rem;
-  border-bottom: 1px solid var(--line);
-  padding: 0.65rem 0.75rem;
-  background: #0a1721;
-}
-
-.recording-summary {
-  display: grid;
-  gap: 0.18rem;
-}
-
-.recording-summary strong {
-  color: var(--ink);
-  font-size: 0.72rem;
-}
-
-.recording-summary strong.active {
-  color: var(--cyan);
-}
-
-.recording-summary span {
-  color: var(--muted);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 0.64rem;
-}
-
-.recording-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.recording-actions button {
-  padding: 0.28rem 0.42rem;
-  font-size: 0.66rem;
+  overflow: hidden;
 }
 
 .live-values > div {
   display: grid;
-  grid-template-columns: minmax(100px, 1fr) auto;
-  gap: 1rem;
-  border-bottom: 1px solid rgb(33 54 71 / 70%);
-  padding: 0.72rem 0.85rem;
+  grid-template-columns: minmax(96px, 1fr) auto;
+  gap: 0.65rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.42rem 0.55rem;
 }
 
 .live-values dt {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.65rem;
 }
 
 .live-values dd {
   margin: 0;
   color: var(--ink);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 0.76rem;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.live-values dd.alert-value {
+  color: var(--red);
 }
 
 .dashboard-logs {
   overflow: auto;
-  padding: 0.75rem 0.85rem;
-  background: #071019;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 0.72rem;
-  line-height: 1.6;
+  padding: 0.5rem 0.58rem;
+  background: var(--panel);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.61rem;
+  line-height: 1.5;
 }
 
 .logs-tools {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.3rem;
 }
 
 .logs-tools .panel-meta {
@@ -158,18 +436,18 @@
 
 .logs-tools button {
   flex: 0 0 auto;
-  padding: 0.18rem 0.38rem;
-  font-size: 0.62rem;
+  padding: 0.12rem 0.3rem;
+  font-size: 0.57rem;
 }
 
 .log-placeholder {
-  color: var(--quiet);
+  color: var(--muted);
 }
 
 .log-line {
   display: grid;
   grid-template-columns: 1rem 1fr;
-  color: #c6d3dd;
+  color: var(--ink);
 }
 
 .log-line.stderr {
@@ -180,14 +458,21 @@
   color: var(--gold);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
+  .monitor-workspace,
+  .monitor-workspace.controls-open {
+    height: auto;
+    min-height: calc(100vh - 39px);
+    overflow: visible;
+  }
+
   .dashboard-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: 420px 280px auto 230px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 380px minmax(285px, 42vh) auto 210px;
   }
 
   .world-panel,
-  .plot-panel,
+  .plots-panel,
   .values-panel,
   .logs-panel {
     grid-column: 1;
@@ -197,7 +482,7 @@
     grid-row: 1;
   }
 
-  .plot-panel {
+  .plots-panel {
     grid-row: 2;
   }
 
@@ -207,5 +492,36 @@
 
   .logs-panel {
     grid-row: 4;
+  }
+}
+
+@media (max-width: 900px) {
+  .monitor-workspace,
+  .monitor-workspace.controls-open {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .monitor-controls-panel {
+    position: fixed;
+    z-index: 30;
+    inset: 0 auto 0 0;
+    width: min(236px, calc(100vw - 42px));
+    height: 100vh;
+    border-right: 1px solid var(--line-bright);
+    background: var(--panel);
+    box-shadow: 12px 0 30px rgb(24 33 40 / 18%);
+  }
+
+  .monitor-controls-restore {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+
+@media (max-width: 760px) {
+  .monitor-workspace,
+  .monitor-workspace.controls-open {
+    min-height: calc(100vh - 76px);
   }
 }

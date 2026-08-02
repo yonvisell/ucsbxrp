@@ -146,14 +146,14 @@ class WheelSpeedControllerContractTests(unittest.TestCase):
         self.assertEqual(result.left, 0.0)
         self.assertNotEqual(result.right, 0.0)
 
-    def test_output_is_limited_and_motion_lock_dominates_calculation(self):
+    def test_output_is_limited_and_zero_calibration_returns_zero(self):
         controller = self.make_controller()
         saturated = controller.update(WheelSpeeds(1000, -1000), WheelSpeeds(0, 0))
         self.assertEqual(saturated.left, 0.5)
         self.assertEqual(saturated.right, -0.5)
 
-        locked = WheelSpeedController(RobotConfig())
-        result = locked.update(WheelSpeeds(200, -200), WheelSpeeds(0, 0))
+        uncalibrated = WheelSpeedController(RobotConfig())
+        result = uncalibrated.update(WheelSpeeds(200, -200), WheelSpeeds(0, 0))
         self.assertEqual(result.left, 0.0)
         self.assertEqual(result.right, 0.0)
 

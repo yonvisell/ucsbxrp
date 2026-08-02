@@ -14,6 +14,8 @@ export type TargetRunState =
 export interface TelemetrySample {
   tMs: number;
   seq: number;
+  source: "virtual" | "physical";
+  poseAvailable: boolean;
   xMm: number;
   yMm: number;
   headingRad: number;
@@ -24,6 +26,13 @@ export interface TelemetrySample {
   leftEncoderCount: number;
   rightEncoderCount: number;
   collision: boolean;
+  rangeMm: number | null;
+  buttonPressed: boolean;
+  accelerationMg: [number, number, number] | null;
+  angularRateMdps: [number, number, number] | null;
+  temperatureC: number | null;
+  batteryV: number | null;
+  sensorError: string | null;
 }
 
 export type TargetEvent =
@@ -47,8 +56,11 @@ export interface TargetClient {
   connect(): Promise<void>;
   disconnect(): void;
   check(project: CourseProject): Promise<CheckResult>;
+  synchronize(project: CourseProject): Promise<void>;
   run(project: CourseProject): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;
+  setSimulationScenario?(scenario: SimulationScenario): Promise<void>;
   subscribe(listener: (event: TargetEvent) => void): () => void;
 }
+import type { SimulationScenario } from "@ucsb-xrp/simulator";

@@ -288,7 +288,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await guide.goto("/guide/");
   await expect(
     guide.getByRole("heading", {
-      name: "Verified RP2350 state and safe next steps",
+      name: "Use a physical RP2350 XRP",
     }),
   ).toBeVisible();
   await expect(guide.getByText("MotorEfforts(left, right)")).toBeVisible();

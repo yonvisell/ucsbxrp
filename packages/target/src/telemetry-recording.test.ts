@@ -10,6 +10,8 @@ function sample(seq: number): TelemetrySample {
   return {
     tMs: seq * 20,
     seq,
+    source: "virtual",
+    poseAvailable: true,
     xMm: seq * 1.5,
     yMm: -seq,
     headingRad: 0.1 * seq,
@@ -20,6 +22,13 @@ function sample(seq: number): TelemetrySample {
     leftEncoderCount: seq * 4,
     rightEncoderCount: seq * 4 - 1,
     collision: seq === 3,
+    rangeMm: null,
+    buttonPressed: false,
+    accelerationMg: null,
+    angularRateMdps: null,
+    temperatureC: null,
+    batteryV: null,
+    sensorError: null,
   };
 }
 
@@ -66,7 +75,7 @@ describe("TelemetryRecorder", () => {
     expect(recorder.sampleCount).toBe(0);
     recorder.clear();
     expect(recorder.snapshot()).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       samples: [],
       droppedSamples: 0,
     });
@@ -81,16 +90,16 @@ describe("telemetryRecordingToCsv", () => {
 
     const csv = telemetryRecordingToCsv(recorder.stop());
     expect(csv.split("\n")[0]).toBe(
-      "seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision",
+      "source,pose_available,seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_mg,acceleration_y_mg,acceleration_z_mg,angular_rate_x_mdps,angular_rate_y_mdps,angular_rate_z_mdps,temperature_c,battery_v,sensor_error",
     );
-    expect(csv).toContain("3,60,4.5,-3,0.30000000000000004");
-    expect(csv.trimEnd().endsWith(",1")).toBe(true);
+    expect(csv).toContain("virtual,1,3,60,4.5,-3,0.30000000000000004");
+    expect(csv).toContain(",1,,0,,,,,,,,,");
   });
 
   it("exports a header-only file for an empty recording", () => {
     const recorder = new TelemetryRecorder();
     expect(telemetryRecordingToCsv(recorder.snapshot()).split("\n")).toEqual([
-      "seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision",
+      "source,pose_available,seq,t_ms,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_mg,acceleration_y_mg,acceleration_z_mg,angular_rate_x_mdps,angular_rate_y_mdps,angular_rate_z_mdps,temperature_c,battery_v,sensor_error",
       "",
     ]);
   });

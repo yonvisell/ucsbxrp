@@ -1,320 +1,141 @@
-# Staged implementation and validation plan
+# Implementation plan
 
-The work proceeds in vertical slices. Each slice must leave a runnable result,
-exercise the same contract across the library, target, simulator, IDE, and XRP
-Monitor where those parts are relevant, and end with recorded evidence in
-`STATUS.md`.
+Development proceeds in complete course slices. Each slice joins the public
+Python API, supplied bytecode, student starter, simulator, IDE, Monitor, and
+physical target where the available setup can exercise the behavior. The three
+active `v2_` documents define the learning progression, not an immutable first
+implementation.
 
-The three active `v2_` documents define the current course concept and are
-design inputs, not immutable software contracts. Preserve the five-challenge
-learning progression, physical conventions, and separation between supplied
-and student work. Change a name, signature, ownership boundary, or workflow
-when the change measurably reduces student friction or makes behavior safer or
-clearer; update the course documents, implementation, examples, and tests as
-one coordinated change.
+## Design rules
 
-## Governing principles
+- Student projects contain ordinary, short MicroPython files and select a
+  virtual or physical XRP without target-specific code.
+- `ucsb_xrp` owns course abstractions and algorithms. The simulator supplies
+  hardware and world behavior only; Three.js is a view of that state.
+- One canonical course package and one set of ordinary `.mpy` reference
+  artifacts run in browser and RP2350 MicroPython.
+- USB is the instructor setup and repair path. Normal project work and
+  telemetry use the LAN already shared by the computer and XRP.
+- Tests constrain public results, units, geometry, termination, and recovery,
+  while allowing different sound student algorithms and internal structures.
+- The normal workflow has no staged acceptance process. A short setup command,
+  visible target state, and actionable failures are sufficient.
 
-- Keep one canonical `ucsb_xrp` source tree. Run those exact files on physical
-  MicroPython and browser MicroPython; replace only XRPLib with a virtual
-  hardware adapter.
-- `XRPBot` is the sole course-library boundary to XRPLib. The device-side
-  supervisory service is infrastructure, not part of the student API.
-- Make Validate, Synchronize project, Run, Stop, and Reset distinct operations.
-  A sent command is not success; success requires a correlated target reply.
-- The deterministic simulator owns physics and sensor truth. It must not
-  implement student odometry, control, mapping, navigation, or planning.
-- All physical tests declare a safety tier. The default hardware suite cannot
-  issue nonzero motor effort.
-- Wi-Fi and browser Local Network Access are a deferred physical-browser gate,
-  not a blocker for USB, library, simulator, or application work.
-- Prefer capability discovery over student-facing port and protocol settings.
-  Expose low-level settings only in a diagnostic disclosure.
-- Add a UI control only with its working behavior, failure state, and test.
+## Slice 1 — One working target path
 
-The active dependency order is deliberately asymmetric. Software work may
-continue over USB and the virtual XRP while the user-dependent H1 isolation
-observation is pending. The physical browser session waits for both the
-supervisory service and a deployed offline-ready HTTPS build. H2 motor motion
-is a separate authorization gate and is not a prerequisite for implementing or
-testing the service, simulator, IDE, or Monitor at zero effort.
+Status: implemented and exercised on the attached XRP; one final regression
+repeat follows the next controller reset.
 
-## Slice 0R — Rebaseline and review
+- Detect the RP2350 over USB; configure `Pink` without exposing its password;
+  install the current package, bytecode, and boot service; report its LAN
+  address.
+- Discover target identity and capabilities; validate and atomically
+  synchronize a multi-file project; run, stop, reset, reconnect, collect output,
+  and poll telemetry.
+- Give virtual and physical clients the same target operations, correlated
+  replies, timeouts, structured errors, and run ownership. Share one physical
+  poller across open IDE and Monitor tabs so the small HTTP service is not
+  loaded by competing browser loops.
 
-1. Record the attached controller, USB identity, mounted firmware evidence,
-   motor-power state, and limits of what has actually been verified.
-2. Remove the unsupported claim that the course documents pin XRPLib 2.0.1.
-   Establish a machine-readable compatibility manifest from current official
-   firmware sources and observed device data.
-3. Audit the draft public API against the course learning outcomes. Resolve at
-   least:
-   - whether `MotorEfforts` should be retained, renamed, or removed;
-   - how configuration defaults and per-robot calibration avoid a long,
-     error-prone constructor;
-   - whether waiting for the USER button is separate from resetting a run;
-   - how the real-time sample cadence, overruns, and stop behavior are defined;
-   - how reference and student implementations are selected without magic
-     strings or hidden imports;
-   - which records are immutable and which validation occurs at construction.
-4. Replace product claims with an acceptance matrix for the library, device
-   service, IDE, XRP Monitor, virtual target, USB hardware, powered motors, and
-   Wi-Fi/browser path.
-5. Establish a recoverable source-control baseline before overlapping
-   implementation branches or destructive repository operations.
+Usable result: the IDE and Monitor can use the physical XRP at
+`http://192.168.7.30` or the virtual XRP with the same project.
 
-**Result:** accurate governing documents and explicit acceptance boundaries.
+## Slice 2 — Straight Run
 
-## Slice 1A — USB baseline and non-motion acceptance
+Status: implemented; virtual workflow and physical software path exercised.
 
-The battery pack is disconnected, but the RP2350 controller can feed its motor
-rail from USB-C when the board power switch is on. The current safe boundary is
-therefore behavioral: no nonzero effort commands, explicit zero-before/after
-cleanup, and no claim that absence of the battery makes the motors unpowered.
-For subsequent H1 runs, switch the board off and confirm the MOT LED is off;
-USB continues to power the RP2350 through its independent system rail.
+- Implement sensor conversion, wheel-speed feedback, the straight-line task,
+  the `XRPBot` boundary, and the reusable `Robot` sample loop.
+- Supply the five-file starter, selectable student/reference components,
+  deterministic tests, browser MicroPython execution, telemetry, recording,
+  and CSV export.
+- Measure the attached robot's stationary sensors and use a short raised-wheel
+  motor/encoder check before floor calibration.
 
-1. Provide a small host harness with explicit operations:
-   `probe`, `backup`, `install`, `run`, `collect`, and `recover`. Discovery is
-   read-only. Installation and recovery require a verified board-specific
-   manifest. No command in the default path can produce nonzero motor effort.
-2. Preserve non-secret device evidence and query, when the runtime permits:
-   `sys.implementation`, `os.uname()`, filesystem inventory, XRPLib import and
-   version evidence, board power state, RM2-visible information, and reset
-   recovery.
-3. Classify the observed runtime before using its serial port. The attached
-   baseline is XRP-WPILib 2.1.0, not a MicroPython REPL.
-4. Verify the official RP2350 MicroPython image by immutable upstream identity,
-   byte size, and SHA-256 before flashing. Enter the RP2350 UF2 bootloader only
-   through a documented method; never copy firmware to the normal `PICODISK`
-   status volume.
-5. Install the compatible XRPLib bundle, then verify the REPL, imports,
-   filesystem, soft-reset recovery, LED, USER button, IMU, range sensor, and
-   encoder changes from safe manual wheel motion where practical.
-6. Exercise only zero-effort and no-motion failure cleanup. Treat XRPLib's
-   `are_motors_powered()` result as a VIN diagnostic, not a battery detector or
-   authorization gate. Record motor motion, motor signs, and physical stopping
-   as untested until the explicit H2 gate.
+Usable result: students can develop Challenge 1 virtually, then run the same
+project on a configured XRP.
 
-**Result:** repeatable USB development and non-motion hardware evidence without
-changing the Mac's Wi-Fi network.
+## Slice 3 — Turn and Return
 
-## Slice 1B — Authentic course package and reference artifacts
+Status: implemented and exercised in browser MicroPython.
 
-1. Create the real `ucsb_xrp` package, five-file student project template,
-   examples, test fixtures, and `vendor/current/release.json` compatibility
-   manifest.
-2. Implement the smallest reviewed API needed for the first experiments:
-   validated records and configuration, time/angle utilities, `XRPBot`, sensor
-   conversion, wheel-speed control, and the supplied straight-distance
-   controller needed by Challenge 1. Do not replicate the draft blindly.
-   Differential-drive conversion and odometry first become necessary in
-   Challenge 2 and should not be published early as placeholders.
-3. Load the same package sources into CPython tests, WebAssembly MicroPython,
-   and the physical RP2350. Simulated XRPLib implements the upstream calls used
-   by `XRPBot`; no browser-only `ucsb_xrp` stub remains.
-4. Build reference `.mpy` modules from one reference source tree using the
-   MicroPython-compatible `mpy-cross`. Run the same public-behavior contracts
-   against reference source, student exemplars, and the distributable bytecode.
-   Ordinary non-native bytecode may use one artifact only after that exact file
-   imports and passes the contracts on both measured runtimes. Produce
-   target-specific artifacts only if native code or measured ABI evidence
-   requires them.
-5. Keep source, generated artifacts, license metadata, and compatibility
-   identifiers traceable. Never hand-edit generated bytecode.
+- Implement and test `DifferentialDrive` and exact-arc `Odometry` for straight,
+  curved, and in-place motion.
+- Model drivetrain response, encoder quantization, arena bounds, collision,
+  range, IMU, temperature, and battery state.
+- Show ground-truth or estimated pose, heading, trail, efforts, wheel speeds,
+  encoders, and sensors in the Monitor.
 
-**Result:** physical and virtual runtimes execute one authentic course package.
+Usable result: Challenge 2 runs end to end on the virtual XRP and uses the same
+imports and lifecycle on the physical target.
 
-## Slice 1C — Trustworthy target protocol and supervision
+## Slice 4 — Waypoint Courier
 
-1. Replace the provisional physical interface with versioned capability and
-   release discovery; separate connection state from program state.
-2. Define correlated request/reply messages with request IDs, timeouts,
-   structured errors, idempotent stop, and explicit outcomes for validation,
-   staging, commit, start, stop, reset, and file inventory.
-3. Make whole-project transfer atomic through staging plus commit or equivalent
-   dual slots. An interrupted transfer must leave the previous runnable project
-   intact.
-4. Replace the fixed telemetry object with a versioned channel catalog,
-   timestamped typed samples, logs, and events. Retain conventional channel
-   names for wheel, pose, range, and virtual ground truth.
-5. Prove recovery from a Python exception, malformed project, partial transfer,
-   reconnect, soft reset, hard reset, and a non-yielding program. Select a
-   measured supervision mechanism; do not assume code in the same interpreter
-   can stop a tight infinite loop.
-6. Run one protocol-conformance suite against both virtual and physical
-   adapters.
+Status: implemented and exercised in browser MicroPython.
 
-**Result:** physical and virtual controls have truthful, testable semantics.
+- Implement ordered-goal progression, turn/drive/realign behavior, final
+  heading, termination, and invalid-input handling.
+- Supply the accumulated starter and run it through the IDE, shared target,
+  simulator, and Monitor.
 
-## Slice 1D — Offline application shell and deferred network gate
+Usable result: Challenge 3 completes without target-specific student code.
 
-1. Cache the production application shell, workers, WebAssembly runtime, and
-   current course bundle for offline use. Show the cache/course release state.
-2. Test cold and warm production loads, deployment base paths, and a warm-cache
-   load after network access is disabled.
-3. Provide a downloadable recovery bundle for manual use; the precached public
-   course tree is not by itself a student-facing download workflow.
-4. In a later bounded Wi-Fi session, join the XRP access point and validate the
-   deployment HTTPS origin, explicit Local Network Access permission,
-   transport round trip, reconnect, transfer, run, stop, reset, and telemetry.
-5. Retain the USB harness for setup and recovery. Do not maintain a second
-   ordinary student transport unless measured classroom benefit justifies it.
+## Slice 5 — Mapped Route
 
-**Result:** network switching no longer blocks development or ordinary offline
-use, while Wi-Fi remains a required release gate.
+Status: implemented and exercised in browser MicroPython.
 
-## Slice 2 — Course foundation and Challenge 1: straight motion
+- Implement dimensioned arena maps, occupancy-grid conversion, clearance,
+  coordinate conversion, free-cell neighbors, and shortest four-neighbor path
+  planning.
+- Supply a focused starter and validate endpoint, adjacency, collision, and
+  minimum-length properties without fixing one arbitrary tie break.
 
-### Library and hardware
+Usable result: Challenge 4 plans and executes a mapped route.
 
-- Finalize the reviewed records, configuration, hardware boundary, robot loop,
-  sensor conversion, wheel-speed controller, and supplied straight-distance
-  controller.
-- Make sample timing explicit, monotonic across timestamp wrap, observable on
-  overrun, and deterministic under an injected test clock.
-- Supply compact no-motion diagnostics and the actual course starter.
-- With motion testing still disabled, validate imports, peripheral reads, reset,
-  encoder conversion from manual wheel motion, and cleanup paths.
-- In the later powered gate: wheels raised, bound duration and effort, verify
-  signs and stop, then estimate start effort and speed/effort response; only
-  after that run floor tests.
+## Slice 6 — Delivery Mission
 
-### Virtual XRP
+Status: implemented and exercised with both open and blocked virtual scenes.
 
-- Run the real Challenge 1 project and package.
-- Model effort saturation, start threshold, left/right response, acceleration,
-  deceleration, encoder quantization, button state, and deterministic timing.
-- Compare virtual and later physical traces by justified qualitative behavior
-  and envelopes, not a fit to one robot.
+- Implement robust range estimation, conditional named features, replanning,
+  navigation, and explicit `delivered`/`no_path` outcomes.
+- Let the Monitor select a course environment and render its obstacle, range
+  ray, collision state, and robot path while the IDE runs the mission.
+- Exercise the blocked-gate workflow across two browser applications sharing
+  one virtual target.
 
-### IDE
+Usable result: all five challenges have runnable starters and supplied
+reference components, including a delivery that observes and routes around a
+new obstruction.
 
-- Add explicit Virtual XRP and Physical XRP target selection.
-- Keep Validate local and motion-free; add separate project synchronization and
-  target run actions.
-- Validate only Python as Python, parse supported data formats separately,
-  resolve imports without running student top-level code, and return structured
-  file/line/column diagnostics linked to Monaco markers.
-- Add starter selection, Save As, rename/delete/duplicate, entrypoint selection,
-  dirty-project replacement protection, and ZIP fallback.
+## Slice 7 — Course release and validation
 
-### XRP Monitor
+Status: implemented and fully software-validated. The corrected service and
+two-app physical workflow passed; the latest browser connection-lifecycle
+change awaits one post-reset hardware repetition.
 
-- Consume the dynamic channel catalog.
-- Provide Challenge 1 live values, selectable wheel traces, Status/Details,
-  minimal recording/replay, and CSV/log export.
-- Label target identity, connection, program state, recording state, and stale
-  data unambiguously.
+- Keep the IDE compact and high contrast; retain folders, multi-file projects,
+  tabs, recovery storage, startup-file selection, clear commands, settings,
+  shortcuts, starter selection, physical endpoint, and help in a new tab. Use
+  one restrained visual language and reserve monospace for code and logs.
+- Keep the Monitor focused on target state, world view, live sensor values,
+  selectable scrolling signal plots, program output, bounded recordings, and
+  deterministic CSV export. Group those controls in a compact collapsible
+  sidebar and add controls only when they support a course task.
+- Run Python contracts, reference-artifact verification, browser MicroPython
+  parity, TypeScript/unit checks, production/offline builds, stable-Chrome
+  workflows, visual inspection, LAN service checks, and the raised-wheel motor
+  check.
+- Leave a concise student guide, one-command instructor setup, truthful status,
+  local Git commit/archive, and production preview.
 
-**Result:** Challenge 1 is complete virtually and is accepted on hardware to
-the maximum safe tier available.
+Usable result: a coherent development release that an instructor can open and
+operate without reconstructing the implementation history.
 
-## Slice 3 — Challenge 2: differential drive and odometry
+## Later physical calibration slice
 
-- Implement and contract-test differential-drive kinematics and odometry with
-  analytic straight, arc, and in-place-turn cases.
-- Add footprint, arena bounds, collision events, and IMU truth to the simulator.
-- Show ground-truth and estimated pose, heading, and paths in the monitor.
-- Add Challenge 2 starter, examples, source diagnostics, and a curated monitor
-  layout.
-- Later verify turn signs, effective track width, heading wrapping, and stop
-  behavior on powered hardware.
-
-**Result:** students can implement pose estimation while comparing estimates
-with virtual truth and inspecting the same channels on the robot.
-
-## Slice 4 — Challenge 3: waypoint navigation
-
-- Implement and contract-test navigation state transitions, position arrival,
-  optional final heading, realignment, multi-goal progression, and completion.
-- Add configurable model mismatch, waypoints, active goal, X-Y plotting, and
-  linked time selection.
-- Test exceptions, reconnect, reset, stale telemetry, and an unresponsive
-  program as user-visible recoverable states.
-
-**Result:** waypoint navigation runs through the same project on both targets.
-
-## Slice 5 — Challenge 4: mapped routes
-
-- Implement dimensioned arena geometry, occupancy-grid sampling, clearance,
-  coordinate conversion, and shortest valid grid planning.
-- Test path validity and minimal length without overconstraining tie-dependent
-  route choice.
-- Add simulator obstacles, geometric range truth, route display, and the
-  Challenge 4 starter and reference artifact.
-
-**Result:** planning remains student/course Python while the simulator supplies
-only world geometry and sensors.
-
-## Slice 6 — Challenge 5: delivery mission
-
-- Implement robust range estimation, conditional feature state, planning,
-  navigation, payload/servo state, and explicit mission outcomes.
-- Test missing/outlier range data, no path, interrupted navigation, and
-  successful delivery.
-- Add range rays, task regions, payload events, starter, examples, and curated
-  monitor layout.
-
-**Result:** the five-challenge course is complete end to end.
-
-## Slice 7 — Course release and reliability
-
-- Finish IDE recent projects, external-file conflict handling, course release
-  management, repair workflow, accessibility, and responsive laptop layouts.
-- Finish monitor plot interaction, saved layouts, recording/replay, CSV/text/PNG
-  export, rate control, and representative-duration soak tests.
-- Complete powered-motor and Wi-Fi/browser physical acceptance.
-- Exercise denied permission, wrong network, absent robot, version mismatch,
-  interrupted transfer, refresh recovery, syntax/import/runtime errors, runaway
-  output, lost telemetry, reset during a run, and high-rate channels.
-- Publish concise student setup/workflow, instructor release, recovery, and
-  hardware acceptance instructions.
-
-**Result:** a course release that does not require developer supervision for
-ordinary use.
-
-## Validation architecture
-
-Use the narrowest layer that can prove the behavior:
-
-1. **Pure Python contracts:** records, validation, utilities, components, maps,
-   and planners using public inputs and outputs.
-2. **Artifact parity:** the same contracts against reference source and exact
-   `.mpy` distributions in compatible MicroPython runtimes.
-3. **Simulation tests:** deterministic clocks, analytic kinematics, geometry,
-   sensors, collision, and seed-controlled optional variation.
-4. **Target conformance:** the same request/reply, state, transfer, stop/reset,
-   telemetry, and failure scenarios for virtual and physical adapters.
-5. **Browser tests:** focused component tests plus a small number of production
-   end-to-end workflows, accessibility checks, and deployment/offline tests.
-6. **USB hardware tiers:**
-   - H0 discovery and firmware classification, read-only;
-   - H1 non-motion: install, imports, peripherals, manual encoders,
-     reset/recovery, and zero-command paths; USB-fed motor VIN may be present;
-   - H2 motors powered with wheels raised: bounded signs, motion, and stop;
-   - H3 floor operation: calibration and challenge behavior.
-7. **Wi-Fi/browser gate:** offline cache first, then explicit network switch,
-   Local Network Access, transport, and full physical target workflow.
-
-Hardware runs produce machine-readable evidence containing timestamp, harness
-revision, board identity hash, exact firmware/library/course versions, safety
-tier, configuration, outcomes, and limitations. Credentials and unique network
-names are not committed.
-
-Avoid brittle tests: assert invariants, bounds, transitions, tolerances, and
-validity rather than private variables, incidental log wording, exact pixels,
-or one tie-dependent path. Mocks belong only at genuine external boundaries.
-
-At every slice boundary update `STATUS.md` under:
-
-```text
-Completed
-Demonstrated
-Automated checks
-Physical XRP checks
-Known limitations
-Next slice
-```
-
-If work pauses, leave the repository runnable and record the exact next safe
-operation, including whether physical intervention is required.
+Floor trials remain intentionally separate because they require the actual
+course surface and arena. Measure wheel-speed response, effective wheel
+diameter, track width, stopping distance, motion-induced IMU/range behavior,
+and each complete physical challenge. Feed those measurements into
+`robot_config.py`, simulator comparison envelopes, and instructor examples;
+the student workflow and network architecture should not change.

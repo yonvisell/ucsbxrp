@@ -152,14 +152,13 @@ class RecordContractTests(unittest.TestCase):
 
 
 class ConfigurationContractTests(unittest.TestCase):
-    def test_default_config_is_nominal_but_motion_locked(self):
+    def test_default_config_contains_nominal_geometry_and_full_effort_range(self):
         config = RobotConfig()
         self.assertEqual(config.sample_period_ms, 20)
         self.assertEqual(config.wheel_diameter_mm, 60.0)
         self.assertEqual(config.encoder_counts_per_revolution, 585.0)
         self.assertEqual(config.track_width_mm, 155.0)
-        self.assertTrue(config.is_motion_locked)
-        self.assertEqual(config.max_effort, 0.0)
+        self.assertEqual(config.max_effort, 1.0)
 
     def test_robot_config_rejects_invalid_signs_limits_and_nonfinite_values(self):
         with self.assertRaises(ValueError):
@@ -252,11 +251,11 @@ class XRPBotContractTests(unittest.TestCase):
         self.assertEqual(devices.left_motor.efforts[-1], -0.4)
         self.assertEqual(devices.right_motor.efforts[-1], -0.4)
 
-    def test_motion_locked_config_converts_every_finite_command_to_zero(self):
+    def test_default_effort_limit_accepts_the_record_range(self):
         bot, devices = self.make_bot(RobotConfig())
         bot.set_efforts(MotorEfforts(1.0, -1.0))
-        self.assertEqual(devices.left_motor.efforts[-1], 0.0)
-        self.assertEqual(devices.right_motor.efforts[-1], 0.0)
+        self.assertEqual(devices.left_motor.efforts[-1], 1.0)
+        self.assertEqual(devices.right_motor.efforts[-1], -1.0)
 
     def test_invalid_effort_is_rejected_and_both_motors_are_stopped(self):
         bot, devices = self.make_bot()

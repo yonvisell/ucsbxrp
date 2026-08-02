@@ -1,0 +1,703 @@
+"""HTTP target service for the current RP2350 XRP.
+
+The service is deliberately private infrastructure. Student code sees only
+``ucsb_xrp`` and XRPLib. Browser clients use a small JSON API over the ordinary
+course LAN; polling keeps the implementation dependable on stock MicroPython.
+"""
+
+import gc
+import io
+import json
+import math
+import os
+import sys
+import time
+
+import _thread
+import machine
+import network
+from phew import server
+
+from .protocol import LineLogWriter, PROTOCOL_VERSION, SERVICE_VERSION, ProtocolError
+from .protocol import reply as protocol_reply
+from .protocol import validate_project, validate_request_id
+
+
+COURSE_RELEASE = "2026.08-dev.1"
+CONFIG_PATH = "/xrp_wifi.json"
+PROJECT_ROOT = "/course_projects"
+ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
+SLOTS = ("a", "b")
+LEASE_MS = 2600
+LOG_LIMIT = 160
+
+_boot_ms = time.ticks_ms()
+try:
+    _boot_id = "".join("{:02x}".format(value) for value in os.urandom(6))
+except Exception:
+    _boot_id = "ticks-{}".format(time.ticks_us())
+_run_id = 0
+_state = "ready"
+_detail = "Physical XRP ready"
+_thread_active = False
+_lease_deadline = None
+_logs = []
+_log_seq = 0
+_sample_seq = 0
+_last_sample = None
+_last_hardware = None
+_active_manifest = None
+_last_reply_by_id = {}
+_reply_order = []
+
+
+def _cors_headers():
+    return {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-Requested-With",
+        "Access-Control-Allow-Private-Network": "true",
+        "Access-Control-Max-Age": "600",
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+    }
+
+
+def _json_response(value, status=200):
+    body = json.dumps(value, separators=(",", ":")).encode("utf-8")
+    headers = _cors_headers()
+    headers["Content-Length"] = str(len(body))
+    return server.Response(body, status=status, headers=headers)
+
+
+def _error_response(request_id, code, detail, status=400):
+    return _json_response(
+        protocol_reply(
+            request_id,
+            ok=False,
+            error={"code": code, "detail": detail},
+        ),
+        status=status,
+    )
+
+
+def _append_log(stream, line):
+    global _log_seq
+    _log_seq += 1
+    _logs.append(
+        {
+            "seq": _log_seq,
+            "tMs": time.ticks_diff(time.ticks_ms(), _boot_ms),
+            "stream": stream,
+            "line": str(line),
+        }
+    )
+    if len(_logs) > LOG_LIMIT:
+        del _logs[: len(_logs) - LOG_LIMIT]
+
+
+def _set_state(state, detail):
+    global _state, _detail
+    _state = state
+    _detail = detail
+    _append_log("system", detail)
+
+
+def _stop_motors():
+    first_error = None
+    try:
+        from XRPLib.encoded_motor import EncodedMotor
+
+        left = EncodedMotor.get_default_encoded_motor(index=1)
+        right = EncodedMotor.get_default_encoded_motor(index=2)
+        try:
+            left.set_effort(0.0)
+        except Exception as exc:
+            first_error = exc
+        try:
+            right.set_effort(0.0)
+        except Exception as exc:
+            if first_error is None:
+                first_error = exc
+    except Exception as exc:
+        first_error = exc
+    if first_error is not None:
+        _append_log("stderr", "Could not set both motor efforts to zero: " + str(first_error))
+
+
+def _ensure_dir(path):
+    try:
+        os.mkdir(path)
+    except OSError:
+        pass
+
+
+def _remove_tree(path):
+    try:
+        entries = list(os.ilistdir(path))
+    except OSError:
+        return
+    for entry in entries:
+        child = path + "/" + entry[0]
+        if entry[1] == 0x4000:
+            _remove_tree(child)
+        else:
+            os.remove(child)
+    os.rmdir(path)
+
+
+def _make_parent_dirs(root, relative_path):
+    parts = relative_path.split("/")[:-1]
+    current = root
+    for part in parts:
+        current += "/" + part
+        _ensure_dir(current)
+
+
+def _active_slot_name():
+    try:
+        value = open(ACTIVE_POINTER).read().strip()
+        if value in SLOTS:
+            return value
+    except OSError:
+        pass
+    return "a"
+
+
+def _active_slot_path():
+    return PROJECT_ROOT + "/" + _active_slot_name()
+
+
+def _read_manifest():
+    global _active_manifest
+    if _active_manifest is not None:
+        return _active_manifest
+    try:
+        _active_manifest = json.load(open(_active_slot_path() + "/.project.json"))
+        return _active_manifest
+    except Exception:
+        return None
+
+
+def _write_project(project):
+    global _active_manifest
+    _ensure_dir(PROJECT_ROOT)
+    active = _active_slot_name()
+    inactive = "b" if active == "a" else "a"
+    slot_path = PROJECT_ROOT + "/" + inactive
+    _remove_tree(slot_path)
+    _ensure_dir(slot_path)
+
+    try:
+        for path, content in project["files"].items():
+            _make_parent_dirs(slot_path, path)
+            with open(slot_path + "/" + path, "w") as handle:
+                handle.write(content)
+        manifest = {
+            "name": project["name"],
+            "entrypoint": project["entrypoint"],
+            "files": sorted(project["files"].keys()),
+            "bytes": project["bytes"],
+        }
+        with open(slot_path + "/.project.json", "w") as handle:
+            json.dump(manifest, handle)
+        pointer_tmp = ACTIVE_POINTER + ".tmp"
+        with open(pointer_tmp, "w") as handle:
+            handle.write(inactive)
+        try:
+            os.remove(ACTIVE_POINTER)
+        except OSError:
+            pass
+        os.rename(pointer_tmp, ACTIVE_POINTER)
+        _active_manifest = manifest
+        return manifest
+    except Exception:
+        _remove_tree(slot_path)
+        raise
+
+
+def _compile_project(project):
+    checked = 0
+    for path, source in project["files"].items():
+        if path.endswith(".py"):
+            compile(source, path, "exec")
+            checked += 1
+    return checked
+
+
+def _clear_project_modules(manifest):
+    """Discard imports owned by the previous project before another run.
+
+    The HTTP service and student program use separate RP2350 cores. Project
+    imports therefore happen only on the student core, while this cleanup runs
+    before that core starts. Keeping the manifest in memory also prevents the
+    service core from reading the flash filesystem while those imports occur.
+    """
+    entrypoint = manifest["entrypoint"]
+    for path in manifest["files"]:
+        if path == entrypoint or not path.endswith(".py"):
+            continue
+        module_name = path[:-3].replace("/", ".")
+        if module_name.endswith(".__init__"):
+            module_name = module_name[: -len(".__init__")]
+        if not module_name:
+            continue
+        try:
+            del sys.modules[module_name]
+        except KeyError:
+            pass
+
+
+def _project_runner(slot_path, entrypoint, run_id):
+    global _thread_active, _lease_deadline
+    previous_cwd = os.getcwd()
+    stdout = LineLogWriter("stdout", _append_log)
+    inserted_path = False
+    outcome_state = "ready"
+    outcome_detail = "Program completed"
+    try:
+        os.chdir(slot_path)
+        if not sys.path or sys.path[0] != slot_path:
+            sys.path.insert(0, slot_path)
+            inserted_path = True
+        source = open(entrypoint).read()
+        globals_value = {
+            "__name__": "__main__",
+            "__file__": entrypoint,
+            "print": stdout.print,
+        }
+        exec(compile(source, entrypoint, "exec"), globals_value, globals_value)
+    except BaseException as exc:
+        buffer = io.StringIO()
+        try:
+            sys.print_exception(exc, buffer)
+            detail = buffer.getvalue().strip()
+        except Exception:
+            detail = type(exc).__name__ + ": " + str(exc)
+        _append_log("stderr", detail)
+        outcome_state = "error"
+        outcome_detail = "Program stopped after an exception"
+    finally:
+        _stop_motors()
+        stdout.flush()
+        if inserted_path:
+            try:
+                sys.path.remove(slot_path)
+            except ValueError:
+                pass
+        os.chdir(previous_cwd)
+        _lease_deadline = None
+        if run_id == _run_id:
+            _set_state(outcome_state, outcome_detail)
+        # This is deliberately the final shared-state write. Once the service
+        # core sees False, the student core will do no more cleanup or XRPLib
+        # work.
+        _thread_active = False
+
+
+async def _reset_after_response(delay_ms):
+    import uasyncio
+
+    await uasyncio.sleep_ms(delay_ms)
+    machine.reset()
+
+
+def _schedule_reset(delay_ms=220):
+    # Hardware Timer callbacks run in interrupt context, where importing and
+    # reset setup are unreliable. An event-loop task lets the HTTP response
+    # leave first, then resets in ordinary MicroPython execution context.
+    server.loop.create_task(_reset_after_response(delay_ms))
+
+
+def _read_hardware():
+    global _last_hardware
+    values = {
+        "leftEncoderCount": 0,
+        "rightEncoderCount": 0,
+        "rangeMm": None,
+        "buttonPressed": False,
+        "accelerationMg": None,
+        "angularRateMdps": None,
+        "temperatureC": None,
+        "batteryV": None,
+        "sensorError": None,
+    }
+    try:
+        from XRPLib.board import Board
+        from XRPLib.encoded_motor import EncodedMotor
+        from XRPLib.imu import IMU
+        from XRPLib.rangefinder import Rangefinder
+
+        values["leftEncoderCount"] = int(
+            EncodedMotor.get_default_encoded_motor(index=1).get_position_counts()
+        )
+        values["rightEncoderCount"] = int(
+            EncodedMotor.get_default_encoded_motor(index=2).get_position_counts()
+        )
+        raw_range_cm = Rangefinder.get_default_rangefinder().distance()
+        if isinstance(raw_range_cm, (int, float)) and raw_range_cm > 0:
+            values["rangeMm"] = float(raw_range_cm) * 10.0
+        board = Board.get_default_board()
+        values["buttonPressed"] = bool(board.is_button_pressed())
+        values["batteryV"] = float(board.get_battery_voltage())
+        imu = IMU.get_default_imu()
+        values["accelerationMg"] = list(imu.get_acc_rates())
+        values["angularRateMdps"] = list(imu.get_gyro_rates())
+        values["temperatureC"] = float(imu.temperature())
+    except Exception as exc:
+        values["sensorError"] = type(exc).__name__ + ": " + str(exc)
+    _last_hardware = values
+    return values
+
+
+def _hardware_sample():
+    global _sample_seq, _last_sample
+    now = time.ticks_ms()
+    try:
+        from ucsb_xrp._telemetry import state_snapshot
+
+        pose = state_snapshot()
+    except Exception:
+        pose = None
+
+    # XRPLib's I2C and encoder drivers are not safe for concurrent access from
+    # both RP2350 cores. While a student program is active, use its published
+    # course state and the latest stationary peripheral sample. Direct device
+    # reads resume as soon as the program thread finishes.
+    if _thread_active:
+        hardware = _last_hardware or {
+            "leftEncoderCount": 0,
+            "rightEncoderCount": 0,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": None,
+            "batteryV": None,
+            "sensorError": None,
+        }
+    else:
+        hardware = _read_hardware()
+
+    left_count = hardware["leftEncoderCount"]
+    right_count = hardware["rightEncoderCount"]
+
+    left_speed = 0.0
+    right_speed = 0.0
+    if pose is not None:
+        left_speed = pose["leftWheelSpeedMmS"]
+        right_speed = pose["rightWheelSpeedMmS"]
+    elif not _thread_active and _last_sample is not None:
+        dt_ms = time.ticks_diff(now, _last_sample[0])
+        if dt_ms > 0:
+            millimeters_per_count = math.pi * 60.0 / 585.0
+            left_speed = (
+                (left_count - _last_sample[1]) * millimeters_per_count * 1000.0 / dt_ms
+            )
+            right_speed = (
+                (right_count - _last_sample[2]) * millimeters_per_count * 1000.0 / dt_ms
+            )
+    _last_sample = (now, left_count, right_count)
+    _sample_seq += 1
+    return {
+        "tMs": time.ticks_diff(now, _boot_ms),
+        "seq": _sample_seq,
+        "source": "physical",
+        "poseAvailable": pose is not None,
+        "xMm": 0.0 if pose is None else pose["xMm"],
+        "yMm": 0.0 if pose is None else pose["yMm"],
+        "headingRad": 0.0 if pose is None else pose["headingRad"],
+        "leftEffort": 0.0 if pose is None else pose["leftEffort"],
+        "rightEffort": 0.0 if pose is None else pose["rightEffort"],
+        "leftWheelSpeedMmS": (
+            left_speed if pose is None else pose["leftWheelSpeedMmS"]
+        ),
+        "rightWheelSpeedMmS": (
+            right_speed if pose is None else pose["rightWheelSpeedMmS"]
+        ),
+        "leftEncoderCount": left_count,
+        "rightEncoderCount": right_count,
+        "collision": False,
+        "rangeMm": (
+            hardware["rangeMm"]
+            if pose is None or pose["rangeMm"] is None
+            else pose["rangeMm"]
+        ),
+        "buttonPressed": (
+            hardware["buttonPressed"]
+            if pose is None
+            else pose["buttonPressed"]
+        ),
+        "accelerationMg": hardware["accelerationMg"],
+        "angularRateMdps": hardware["angularRateMdps"],
+        "temperatureC": hardware["temperatureC"],
+        "batteryV": hardware["batteryV"],
+        "sensorError": hardware["sensorError"],
+    }
+
+
+def _state_result(after_log_seq=0):
+    return {
+        "state": _state,
+        "detail": _detail,
+        "runId": _run_id,
+        "project": _read_manifest(),
+        "logs": [item for item in _logs if item["seq"] > after_log_seq],
+    }
+
+
+def _remember_reply(request_id, value):
+    if request_id in _last_reply_by_id:
+        return
+    _last_reply_by_id[request_id] = value
+    _reply_order.append(request_id)
+    while len(_reply_order) > 20:
+        old = _reply_order.pop(0)
+        del _last_reply_by_id[old]
+
+
+def _command(request, operation):
+    request_id = None
+    try:
+        body = request.data if isinstance(request.data, dict) else {}
+        request_id = validate_request_id(body.get("requestId"))
+        previous = _last_reply_by_id.get(request_id)
+        if previous is not None:
+            return _json_response(previous)
+        result = operation(body)
+        value = protocol_reply(request_id, result=result)
+        _remember_reply(request_id, value)
+        return _json_response(value)
+    except ProtocolError as exc:
+        return _error_response(request_id, exc.code, exc.detail)
+    except SyntaxError as exc:
+        detail = "{}:{}:{}: {}".format(
+            getattr(exc, "filename", "project"),
+            getattr(exc, "lineno", 0),
+            getattr(exc, "offset", 0),
+            getattr(exc, "msg", str(exc)),
+        )
+        return _error_response(request_id, "syntax_error", detail, status=422)
+    except Exception as exc:
+        _append_log("stderr", type(exc).__name__ + ": " + str(exc))
+        return _error_response(
+            request_id,
+            "internal_error",
+            type(exc).__name__ + ": " + str(exc),
+            status=500,
+        )
+
+
+@server.route("/api/v1/info")
+def info(request):
+    wlan = network.WLAN(network.STA_IF)
+    return _json_response(
+        {
+            "protocol": PROTOCOL_VERSION,
+            "serviceVersion": SERVICE_VERSION,
+            "courseRelease": COURSE_RELEASE,
+            "bootId": _boot_id,
+            "robotName": network.hostname(),
+            "address": wlan.ifconfig()[0] if wlan.isconnected() else None,
+            "capabilities": [
+                "project.check",
+                "project.sync",
+                "program.run",
+                "program.stop",
+                "target.reset",
+                "telemetry.poll",
+                "logs.poll",
+            ],
+        }
+    )
+
+
+@server.route("/api/v1/state")
+def state(request):
+    try:
+        after = int(request.query.get("afterLogSeq", "0"))
+    except ValueError:
+        after = 0
+    return _json_response(_state_result(after))
+
+
+@server.route("/api/v1/telemetry")
+def telemetry(request):
+    try:
+        after = int(request.query.get("afterLogSeq", "0"))
+    except ValueError:
+        after = 0
+    value = _state_result(after)
+    value["sample"] = _hardware_sample()
+    return _json_response(value)
+
+
+@server.route("/api/v1/check", methods=["POST"])
+def check(request):
+    def operation(body):
+        project = validate_project(body.get("project"))
+        checked = _compile_project(project)
+        return {"detail": "{} Python files compiled".format(checked)}
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/sync", methods=["POST"])
+def sync(request):
+    def operation(body):
+        if _thread_active:
+            raise ProtocolError("target_busy", "stop the program before synchronizing")
+        project = validate_project(body.get("project"))
+        checked = _compile_project(project)
+        manifest = _write_project(project)
+        _set_state("ready", "Project synchronized")
+        return {"detail": "Project synchronized", "checked": checked, "project": manifest}
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/run", methods=["POST"])
+def run_project(request):
+    def operation(body):
+        global _run_id, _thread_active, _lease_deadline
+        if _thread_active:
+            raise ProtocolError("target_busy", "a program is already running")
+        manifest = _read_manifest()
+        if manifest is None:
+            raise ProtocolError("no_project", "synchronize a project before running")
+        _clear_project_modules(manifest)
+        _stop_motors()
+        from ucsb_xrp._telemetry import clear_state
+
+        clear_state()
+        # Collect on the service core before the student core starts. Running
+        # global collection from the student core while the HTTP loop allocates
+        # request objects can stall RP2350 MicroPython.
+        gc.collect()
+        _run_id += 1
+        _thread_active = True
+        _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
+        _set_state("running", "Running " + manifest["entrypoint"])
+        try:
+            _thread.start_new_thread(
+                _project_runner,
+                (_active_slot_path(), manifest["entrypoint"], _run_id),
+            )
+        except Exception:
+            _thread_active = False
+            _lease_deadline = None
+            raise
+        return {"detail": _detail, "runId": _run_id}
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/lease", methods=["POST"])
+def renew_lease(request):
+    def operation(body):
+        global _lease_deadline
+        requested_run = body.get("runId")
+        if _thread_active and requested_run == _run_id:
+            _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
+        return {"state": _state, "runId": _run_id}
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/stop", methods=["POST"])
+def stop(request):
+    def operation(body):
+        global _lease_deadline
+        _lease_deadline = None
+        if not _thread_active:
+            _stop_motors()
+        _set_state("ready", "Program stopped; restarting target service")
+        _schedule_reset()
+        return {"detail": "Program stopped", "reconnecting": True}
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/reset", methods=["POST"])
+def reset(request):
+    def operation(body):
+        global _lease_deadline
+        _lease_deadline = None
+        if not _thread_active:
+            _stop_motors()
+        _set_state("ready", "Resetting physical XRP")
+        _schedule_reset()
+        return {"detail": "Physical XRP resetting", "reconnecting": True}
+
+    return _command(request, operation)
+
+
+@server.catchall()
+def catchall(request):
+    if request.method == "OPTIONS":
+        return _json_response({}, status=204)
+    return _json_response(
+        {"ok": False, "error": {"code": "not_found", "detail": "Unknown endpoint"}},
+        status=404,
+    )
+
+
+async def _watch_run_lease():
+    global _lease_deadline
+    import uasyncio
+
+    while True:
+        if (
+            _thread_active
+            and _lease_deadline is not None
+            and time.ticks_diff(_lease_deadline, time.ticks_ms()) <= 0
+        ):
+            _lease_deadline = None
+            _set_state("error", "Run connection expired; restarting target service")
+            _schedule_reset()
+        await uasyncio.sleep_ms(200)
+
+
+def _connect_wifi(timeout_ms=20000):
+    config = json.load(open(CONFIG_PATH))
+    network.hostname(config["hostname"])
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if config.get("ifconfig"):
+        wlan.ifconfig(tuple(config["ifconfig"]))
+    if not wlan.isconnected():
+        wlan.connect(config["ssid"], config["password"])
+    deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
+    while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
+        time.sleep_ms(100)
+    if not wlan.isconnected():
+        raise RuntimeError("Wi-Fi connection failed with status {}".format(wlan.status()))
+    return wlan.ifconfig()[0]
+
+
+def run():
+    _stop_motors()
+    # MicroPython filesystem imports are not reliable when first performed on
+    # the second core. Load the shared course packages once on the service core;
+    # student threads then reuse the normal module cache.
+    import ucsb_xrp
+    import ucsb_xrp_reference
+    from XRPLib.board import Board
+    from XRPLib.encoded_motor import EncodedMotor
+    from XRPLib.imu import IMU
+    from XRPLib.rangefinder import Rangefinder
+
+    # Resolve the singleton drivers before the student thread begins. In
+    # addition to avoiding second-core filesystem imports, this gives service
+    # telemetry and course code the same XRPLib device instances.
+    Board.get_default_board()
+    EncodedMotor.get_default_encoded_motor(index=1)
+    EncodedMotor.get_default_encoded_motor(index=2)
+    IMU.get_default_imu()
+    Rangefinder.get_default_rangefinder()
+
+    address = _connect_wifi()
+    _append_log("system", "Course service {} at {}".format(SERVICE_VERSION, address))
+    print("UCSB XRP course service at http://{}".format(address))
+    server.loop.create_task(_watch_run_lease())
+    server.run(host="0.0.0.0", port=80)

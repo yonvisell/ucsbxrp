@@ -11,13 +11,7 @@ from .records import _ValueRecord
 
 
 class RobotConfig(_ValueRecord):
-    """Geometry, signs, calibration, control settings, and motion limit.
-
-    The no-argument value contains nominal XRP geometry but is deliberately
-    motion-locked: ``max_effort`` and all effort calibration terms are zero.
-    A physical robot configuration must provide measured signs/calibration and
-    explicitly choose a nonzero ``max_effort``.
-    """
+    """Geometry, signs, calibration, controller gains, and effort limit."""
 
     __slots__ = (
         "_sample_period_ms",
@@ -67,7 +61,7 @@ class RobotConfig(_ValueRecord):
         left_speed_effort_gain=0.0,
         right_speed_effort_gain=0.0,
         wheel_speed_kp=0.0,
-        max_effort=0.0,
+        max_effort=1.0,
     ):
         self._sample_period_ms = require_int(
             "sample_period_ms", sample_period_ms, minimum=1
@@ -164,11 +158,6 @@ class RobotConfig(_ValueRecord):
     def max_effort(self):
         return self._max_effort
 
-    @property
-    def is_motion_locked(self):
-        return self._max_effort == 0.0
-
-
 class NavigationConfig(_ValueRecord):
     __slots__ = (
         "_cruise_speed_mm_s",
@@ -254,4 +243,3 @@ class NavigationConfig(_ValueRecord):
     @property
     def realign_heading_rad(self):
         return self._realign_heading_rad
-

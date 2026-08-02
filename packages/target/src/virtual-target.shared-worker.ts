@@ -1,6 +1,11 @@
 /// <reference lib="webworker" />
 
-import { XrpSimulator } from "@ucsb-xrp/simulator";
+import {
+  XrpSimulator,
+  simulatorConfigForScenario,
+  type SimulationScenario,
+  type XrpSimulatorState,
+} from "@ucsb-xrp/simulator";
 
 import { RunOwnerLease } from "./run-owner-lease";
 import type {
@@ -12,7 +17,9 @@ import type { TargetEvent, TargetRunState } from "./types";
 
 declare const self: SharedWorkerGlobalScope;
 
-const simulator = new XrpSimulator();
+let currentScenario: SimulationScenario = "open";
+let simulator = new XrpSimulator(simulatorConfigForScenario(currentScenario));
+let simulatorState: XrpSimulatorState = simulator.state;
 const ports = new Set<MessagePort>();
 const consoleHistory: TargetEvent[] = [];
 const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
@@ -49,12 +56,14 @@ function status(state: TargetRunState, detail: string): void {
 }
 
 function telemetryEvent(): TargetEvent {
-  const state = simulator.state;
+  const state = simulatorState;
   return {
     type: "telemetry",
     sample: {
       tMs: state.tMs,
       seq: state.seq,
+      source: "virtual",
+      poseAvailable: true,
       xMm: state.pose.xMm,
       yMm: state.pose.yMm,
       headingRad: state.pose.headingRad,
@@ -65,12 +74,28 @@ function telemetryEvent(): TargetEvent {
       leftEncoderCount: state.leftEncoderCount,
       rightEncoderCount: state.rightEncoderCount,
       collision: state.collision,
+      rangeMm: state.rangeMm,
+      buttonPressed: state.buttonPressed,
+      accelerationMg: state.accelerationMg,
+      angularRateMdps: state.angularRateMdps,
+      temperatureC: state.temperatureC,
+      batteryV: state.batteryV,
+      sensorError: null,
     },
   };
 }
 
 function stopRuntime(): void {
-  simulator.stop();
+  simulatorState = {
+    ...simulatorState,
+    seq: simulatorState.seq + 1,
+    leftEffort: 0,
+    rightEffort: 0,
+    leftWheelSpeedMmS: 0,
+    rightWheelSpeedMmS: 0,
+    accelerationMg: [0, 0, 1000],
+    angularRateMdps: [0, 0, 0],
+  };
   broadcast(telemetryEvent());
 }
 
@@ -97,7 +122,7 @@ function prepareRuntime(port: MessagePort, requestId: string): void {
   }
   stopRuntime();
   consoleHistory.length = 0;
-  simulator.reset();
+  simulatorState = simulator.reset();
   runOwnerLease.begin(port, activeRunId, performance.now());
   broadcast(telemetryEvent());
   status("loading", "Loading MicroPython 1.28");
@@ -105,7 +130,7 @@ function prepareRuntime(port: MessagePort, requestId: string): void {
     type: "response",
     requestId,
     ok: true,
-    result: { runId: activeRunId },
+    result: { runId: activeRunId, scenario: currentScenario },
   });
 }
 
@@ -120,7 +145,11 @@ function handleRuntimeMessage(
   if (message.type === "runtime-ready") {
     status("running", `MicroPython ${message.version} · virtual XRP`);
   } else if (message.type === "effort") {
-    simulator.setMotorEffort(message.side, message.effort);
+    // The runtime-owned simulator sends the authoritative state immediately
+    // after each effort change.
+  } else if (message.type === "simulator-state") {
+    simulatorState = message.state;
+    broadcast(telemetryEvent());
   } else if (message.type === "console") {
     broadcast({
       type: "console",
@@ -172,6 +201,42 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     }
   } else if (command.type === "prepare-run") {
     prepareRuntime(port, command.requestId);
+  } else if (command.type === "set-scenario") {
+    if (currentState === "loading" || currentState === "running") {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: "Stop the program before changing the virtual environment",
+      });
+      return;
+    }
+    if (command.scenario === currentScenario) {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: true,
+        result: { scenario: currentScenario },
+      });
+      return;
+    }
+    currentScenario = command.scenario;
+    simulator = new XrpSimulator(simulatorConfigForScenario(currentScenario));
+    simulatorState = simulator.state;
+    consoleHistory.length = 0;
+    broadcast(telemetryEvent());
+    status("ready", "Virtual environment changed and XRP reset");
+    broadcast({
+      type: "console",
+      stream: "system",
+      line: `Virtual environment: ${currentScenario}`,
+    });
+    send(port, {
+      type: "response",
+      requestId: command.requestId,
+      ok: true,
+      result: { scenario: currentScenario },
+    });
   } else if (command.type === "runtime-message") {
     handleRuntimeMessage(port, command.runId, command.message);
   } else if (command.type === "run-owner-heartbeat") {
@@ -205,7 +270,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         runId: stoppedRunId,
       });
     }
-    simulator.reset();
+    simulatorState = simulator.reset();
     consoleHistory.length = 0;
     broadcast(telemetryEvent());
     status("ready", "Virtual XRP reset");
@@ -228,15 +293,7 @@ self.onconnect = (event: MessageEvent) => {
 setInterval(() => {
   if (runOwnerLease.expired(performance.now())) {
     invalidateRun("Run owner heartbeat expired; motor effort set to zero");
-    return;
   }
-  const state = simulator.state;
-  const isCoasting =
-    state.leftWheelSpeedMmS !== 0 || state.rightWheelSpeedMmS !== 0;
-  if (currentState === "running" || isCoasting) {
-    simulator.step();
-    broadcast(telemetryEvent());
-  }
-}, simulator.config.fixedStepMs);
+}, 100);
 
 export {};

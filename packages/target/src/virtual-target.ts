@@ -3,6 +3,7 @@ import type {
   TargetWorkerCommand,
   TargetWorkerMessage,
 } from "./worker-protocol";
+import type { SimulationScenario } from "@ucsb-xrp/simulator";
 import type {
   CheckResult,
   CourseProject,
@@ -18,6 +19,7 @@ interface PendingRequest {
 
 interface PreparedRun {
   runId: number;
+  scenario: SimulationScenario;
 }
 
 function errorDetail(error: unknown): string {
@@ -121,7 +123,7 @@ export class VirtualTargetClient implements TargetClient {
 
   async run(project: CourseProject): Promise<void> {
     this.terminateRuntime();
-    const { runId } = (await this.request({
+    const { runId, scenario } = (await this.request({
       type: "prepare-run",
     })) as PreparedRun;
     let runtimeWorker: Worker;
@@ -159,7 +161,19 @@ export class VirtualTargetClient implements TargetClient {
       });
       this.terminateRuntime(runId);
     };
-    runtimeWorker.postMessage({ mode: "run", project });
+    runtimeWorker.postMessage({ mode: "run", project, scenario });
+  }
+
+  async synchronize(project: CourseProject): Promise<void> {
+    const result = await this.check(project);
+    if (!result.ok) {
+      throw new Error(result.detail);
+    }
+    this.emit({
+      type: "console",
+      stream: "system",
+      line: "Project prepared for the virtual XRP",
+    });
   }
 
   async stop(): Promise<void> {
@@ -172,6 +186,10 @@ export class VirtualTargetClient implements TargetClient {
     await this.request({ type: "reset" });
   }
 
+  async setSimulationScenario(scenario: SimulationScenario): Promise<void> {
+    await this.request({ type: "set-scenario", scenario });
+  }
+
   subscribe(listener: (event: TargetEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -181,6 +199,7 @@ export class VirtualTargetClient implements TargetClient {
     command:
       | { type: "connect" }
       | { type: "prepare-run" }
+      | { type: "set-scenario"; scenario: SimulationScenario }
       | { type: "stop" }
       | { type: "reset" },
   ): Promise<unknown> {
@@ -260,6 +279,12 @@ export class VirtualTargetClient implements TargetClient {
     if (this.runHeartbeat !== null) {
       clearInterval(this.runHeartbeat);
       this.runHeartbeat = null;
+    }
+  }
+
+  private emit(event: TargetEvent): void {
+    for (const listener of this.listeners) {
+      listener(event);
     }
   }
 

@@ -9,11 +9,11 @@ import {
 } from "./offline-shell";
 
 const stateText: Record<OfflineShellState, string> = {
-  development: "cache disabled",
-  installing: "preparing offline",
-  ready: "offline ready",
-  unsupported: "offline unsupported",
-  error: "offline incomplete",
+  development: "Development build",
+  installing: "Saving web tools",
+  ready: "Web tools work offline",
+  unsupported: "Offline copy unavailable",
+  error: "Offline copy incomplete",
 };
 
 export function OfflineReadiness() {
@@ -31,9 +31,9 @@ export function OfflineReadiness() {
   const stateLabel = stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `Course release ${courseRelease.release_id} is completely cached for offline use.`
+      ? `The IDE, Monitor, MicroPython runtime, starters, and library are saved in this browser and can reopen without internet. Course release ${courseRelease.release_id}.`
       : status.state === "development"
-        ? `Course release ${courseRelease.release_id}; development servers do not install an offline cache.`
+        ? `Course release ${courseRelease.release_id}; this development build does not save an offline browser copy.`
         : (status.message ??
           `Course release ${courseRelease.release_id}: ${stateLabel}.`);
 
@@ -47,9 +47,7 @@ export function OfflineReadiness() {
       title={detail}
     >
       <span aria-hidden="true" className="offline-readiness-dot" />
-      <span>
-        {courseRelease.release_id} · {stateLabel}
-      </span>
+      <span>{stateLabel}</span>
     </div>
   );
 }

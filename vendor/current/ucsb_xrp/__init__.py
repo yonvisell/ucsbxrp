@@ -1,7 +1,11 @@
-"""Public Challenge 1 surface of the provisional UCSB-XRP course package."""
+"""Small, typed course interface shared by the physical and virtual XRP."""
 
 from .config import NavigationConfig, RobotConfig
+from .maps import ArenaMap, OccupancyGrid, Rectangle
+from .mission import DeliveryMission, DeliveryTask
 from .records import (
+    GridCell,
+    GridPath,
     Measurements,
     MotionCommand,
     MotorEfforts,
@@ -12,7 +16,16 @@ from .records import (
     STOP_COMMAND,
     WheelSpeeds,
 )
+from .robot import Robot
 from .straight_line import StraightLineController
+from .student_api import (
+    DifferentialDriveBase,
+    GridPlannerBase,
+    NavigationControllerBase,
+    OdometryBase,
+    SensorModelBase,
+    WheelSpeedControllerBase,
+)
 from .utils import (
     bearing_to_goal,
     clamp,
@@ -22,21 +35,35 @@ from .utils import (
 )
 from .xrpbot import XRPBot
 
-__version__ = "0.1.0-dev"
+__version__ = "0.2.0-dev"
 
 __all__ = (
+    "ArenaMap",
+    "DeliveryMission",
+    "DeliveryTask",
+    "DifferentialDriveBase",
+    "GridCell",
+    "GridPath",
+    "GridPlannerBase",
     "NavigationConfig",
+    "NavigationControllerBase",
     "RobotConfig",
+    "OccupancyGrid",
+    "OdometryBase",
+    "Rectangle",
     "Measurements",
     "MotionCommand",
     "MotorEfforts",
     "NavigationGoal",
     "Pose",
     "RawSensors",
+    "Robot",
     "RobotState",
+    "SensorModelBase",
     "STOP_COMMAND",
     "StraightLineController",
     "WheelSpeeds",
+    "WheelSpeedControllerBase",
     "XRPBot",
     "bearing_to_goal",
     "clamp",

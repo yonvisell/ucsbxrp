@@ -1,66 +1,58 @@
-# Provisional `ucsb_xrp` API design review
+# `ucsb_xrp` API design review
 
-The first canonical package source is `vendor/current/ucsb_xrp`. These are the
-files that will be loaded unchanged into physical MicroPython and browser
-MicroPython. The current implementation deliberately covers only the public
-records, configuration, utilities, student interfaces, and hardware boundary
-needed to establish the Challenge 1 contract. It is an executable design
-checkpoint, not a declaration that the earlier reference design is final.
+The canonical package is `vendor/current/ucsb_xrp`. The retained reference
+source is one revisable implementation of the public contracts; it is not the
+specification.
 
-## Decisions retained
+## Retained decisions
 
-- Course code uses millimeters, seconds for computed intervals, integer
-  millisecond hardware timestamps, radians, and normalized motor effort.
-- Physical conventions remain positive-forward wheel motion and positive
-  counterclockwise heading and turn rate. Per-robot signs isolate wiring.
-- `MotorEfforts` remains an explicit two-wheel value. It makes the output of a
-  wheel-speed controller observable and testable before any hardware write;
-  it is not an XRPLib concept.
-- `XRPBot` is the only course-package module that imports XRPLib. Imports are
-  lazy so records, algorithms, and tests work without physical hardware.
-- Waiting for the USER button and resetting encoders are separate operations.
-  A later `Robot` service may compose them, but the hardware boundary does not
-  hide either state change.
+- Course units are millimeters, millimeters per second, seconds for computed
+  intervals, integer milliseconds for device time, radians, and normalized
+  motor effort.
+- Positive wheel speed means forward; positive heading and turn rate are
+  counterclockwise. Per-robot motor and encoder signs isolate wiring.
+- Public records are compact immutable value objects with construction-time
+  validation, useful equality, and representations that work in CPython and
+  MicroPython without `dataclasses` or runtime typing machinery.
+- `MotorEfforts(left, right)` makes the wheel controller's two physical outputs
+  explicit and testable. It is a course value, not another hardware subsystem.
+- `XRPBot` is the only course class that imports XRPLib. It rechecks values,
+  applies the configured effort bound and signs at the hardware boundary, and
+  makes a best effort to stop both motors after invalid or failed output.
+- `Robot` owns the recurring measured loop, timing/overrun observation,
+  component composition, and telemetry publication. Algorithms remain in the
+  six replaceable components.
+- Student base classes state only required methods. Reference algorithms are
+  not inherited, copied into templates, or treated as normative.
 
-## Decisions revised
+## Coordinated improvements completed
 
-- Public records are small read-only value objects with construction-time
-  validation and useful equality and representation. They use no `dataclasses`
-  or `typing` dependency and avoid allocation-heavy machinery.
-- `Pose` and `NavigationGoal` normalize headings on construction, establishing
-  the documented half-open interval rather than relying on every caller. A
-  one-microradian boundary collapse makes exact `+pi` consistent across
-  CPython double precision and RP2350 MicroPython single precision.
-- `RobotConfig()` provides nominal XRP geometry but is explicitly
-  **uncalibrated and motion-locked**: `max_effort == 0.0`, and all effort-model
-  terms are zero. Physical motion requires an intentional calibrated config.
-- A `MotorEfforts` value must be finite and normalized to `[-1, 1]`.
-  `XRPBot` independently rechecks finiteness and clamps each finite request to
-  `RobotConfig.max_effort` immediately before applying motor signs. Invalid or
-  partially failed writes make a best effort to set both motors to zero.
-- XRPLib's `are_motors_powered()` is not used as a motion-safety gate. The
-  observed RP2350 board reports USB-derived voltage as powered even when the
-  external motor supply is intentionally disconnected.
-- The Challenge 1 student base classes contain only method contracts. No
-  reference algorithm is embedded in them or made normative by inheritance.
+- `RobotConfig` is usable by default and has an ordinary configurable
+  `max_effort` in `[0, 1]`; there is no second authorization state. Individual
+  starters choose explicit values appropriate to the task.
+- `DifferentialDrive`, exact-arc `Odometry`, `NavigationController`, and
+  `GridPlanner` now have public bases, reference implementations, starters,
+  bytecode, CPython contracts, and browser MicroPython parity tests.
+- `ArenaMap`, `OccupancyGrid`, `GridCell`, `GridPath`, `DeliveryTask`,
+  `DeliveryMission`, and the measured `Robot` loop complete the five-challenge
+  course path.
+- Course telemetry remains a small private channel rather than a new
+  student-facing logging framework. It lets the physical service display the
+  estimated pose and latest applied effort when a project uses `Robot`.
 
-## Deliberately unresolved
+## Deliberately adaptable details
 
-- Validate the nominal wheel diameter, encoder scale, track width, motor signs,
-  and useful effort limits in H2/H3 tests before publishing a calibrated
-  physical default.
-- Decide after student-facing trials whether the flat `RobotConfig` fields are
-  clearer than separate left/right calibration records. Avoid changing this
-  only for implementation elegance.
-- Specify control-loop scheduling, overrun reporting, stopping semantics
-  (coast versus brake), and supervisory watchdog ownership before implementing
-  `Robot`.
-- Select the source/reference implementation mechanism without magic strings,
-  then generate `.mpy` artifacts from one retained reference source tree and
-  run the same contracts against source and bytecode.
-- Complete the later-challenge records, component interfaces, factories,
-  mapping, navigation, mission, and telemetry APIs only in the vertical slice
-  that exercises them on both physical and virtual targets.
-- Reconsider the name `MotorEfforts` only if classroom use shows that
-  `WheelEfforts` or `DriveEfforts` materially reduces confusion; the paired
-  boundary itself should remain explicit.
+- Calibration fields remain flat in `RobotConfig` because they are easy to
+  inspect in a short undergraduate project. Split calibration records would be
+  justified only by actual classroom confusion or reuse.
+- Reference control gains and navigation thresholds are examples. Physical
+  floor calibration should revise `robot_config.py`, not hard-code one robot's
+  measurements into the package API.
+- Planning requires a shortest valid four-neighbor route but does not prescribe
+  one frontier implementation or tie break.
+- `MotorEfforts` can be renamed only if student use demonstrates a clearer
+  term; any rename must update course documents, starters, source, bytecode,
+  examples, and tests together.
+- Persistent/replay telemetry and more simulator environments should remain
+  application capabilities unless a course learning objective requires a new
+  Python API.

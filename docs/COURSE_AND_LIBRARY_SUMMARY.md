@@ -180,9 +180,11 @@ world effects—motor response, encoders, range, button and payload state,
 collisions, and ground-truth pose—but does not perform course sensing,
 odometry, mapping, planning, navigation, or mission logic.
 
-## Questions to resolve
+## Current implementation note
 
-No contradiction or unresolved course/API decision was found among the three
-active `v2_` documents. Hardware identity, firmware compatibility, and the
-browser-to-robot transport require the Stage 1 empirical checks rather than a
-course-design decision.
+No contradiction was found among the three active `v2_` documents. The current
+RP2350, firmware, portable reference bytecode, virtual-target path, and
+browser-to-robot LAN transport have now been exercised. Reference algorithms
+remain revisable; course outcomes, units, component ownership, and the concise
+student workflow are the compatibility target. Physical floor calibration is
+kept in per-robot configuration rather than promoted into the public API.

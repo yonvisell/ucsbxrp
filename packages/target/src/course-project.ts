@@ -1,7 +1,15 @@
 import type { CourseProject } from "./types";
 
-const rawChallengeOneStarter = import.meta.glob(
-  "../../../vendor/current/starters/challenge_1/*.py",
+export interface CourseStarter {
+  id: string;
+  label: string;
+  shortLabel: string;
+  summary: string;
+  project: CourseProject;
+}
+
+const rawStarterFiles = import.meta.glob(
+  "../../../vendor/current/starters/challenge_*/*.py",
   {
     eager: true,
     import: "default",
@@ -9,22 +17,69 @@ const rawChallengeOneStarter = import.meta.glob(
   },
 ) as Record<string, string>;
 
-const starterDirectory = "../../../vendor/current/starters/challenge_1/";
+const metadata = [
+  {
+    id: "challenge_1",
+    label: "Challenge 1 · Straight Run",
+    shortLabel: "1 · Straight Run",
+    summary: "Measure wheel motion and control a straight-line run.",
+  },
+  {
+    id: "challenge_2",
+    label: "Challenge 2 · Turn and Return",
+    shortLabel: "2 · Turn and Return",
+    summary: "Add differential-drive kinematics and planar odometry.",
+  },
+  {
+    id: "challenge_3",
+    label: "Challenge 3 · Waypoint Courier",
+    shortLabel: "3 · Waypoint Courier",
+    summary: "Follow ordered world-coordinate goals.",
+  },
+  {
+    id: "challenge_4",
+    label: "Challenge 4 · Mapped Route",
+    shortLabel: "4 · Mapped Route",
+    summary: "Plan a shortest free grid path and execute it.",
+  },
+  {
+    id: "challenge_5",
+    label: "Challenge 5 · Delivery Mission",
+    shortLabel: "5 · Delivery Mission",
+    summary: "Observe, update the map, plan, and deliver.",
+  },
+] as const;
 
-const files = Object.fromEntries(
-  Object.entries(rawChallengeOneStarter).map(([sourcePath, content]) => {
-    if (!sourcePath.startsWith(starterDirectory)) {
-      throw new Error(`Unexpected Challenge 1 starter file '${sourcePath}'`);
-    }
-    return [sourcePath.slice(starterDirectory.length), content];
-  }),
-);
-
-if (Object.keys(files).length !== 5 || !("main.py" in files)) {
-  throw new Error("The Challenge 1 starter must contain five Python files");
+function projectFor(starterId: string): CourseProject {
+  const marker = `/starters/${starterId}/`;
+  const files = Object.fromEntries(
+    Object.entries(rawStarterFiles)
+      .filter(([sourcePath]) => sourcePath.includes(marker))
+      .map(([sourcePath, content]) => [sourcePath.split(marker)[1], content]),
+  );
+  if (!("main.py" in files) || Object.keys(files).length < 5) {
+    throw new Error(`${starterId} must contain a complete Python project`);
+  }
+  return Object.freeze({
+    entrypoint: "main.py",
+    files: Object.freeze(files),
+  });
 }
 
-export const STAGE_ONE_PROJECT: CourseProject = Object.freeze({
-  entrypoint: "main.py",
-  files: Object.freeze(files),
-});
+export const COURSE_STARTERS: readonly CourseStarter[] = Object.freeze(
+  metadata.map((starter) =>
+    Object.freeze({ ...starter, project: projectFor(starter.id) }),
+  ),
+);
+
+export const STAGE_ONE_PROJECT = COURSE_STARTERS[0]!.project;
+
+export function courseStarter(starterId: string): CourseStarter {
+  const starter = COURSE_STARTERS.find(
+    (candidate) => candidate.id === starterId,
+  );
+  if (!starter) {
+    throw new Error(`Unknown course starter '${starterId}'`);
+  }
+  return starter;
+}

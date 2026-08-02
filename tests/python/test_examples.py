@@ -125,7 +125,7 @@ class ExampleTests(unittest.TestCase):
         self.assertEqual(set(right_motor.efforts), {0.0})
         self.assertEqual(left_motor.efforts[-1], 0.0)
         self.assertEqual(right_motor.efforts[-1], 0.0)
-        self.assertIn("motion_locked: True", output)
+        self.assertIn("motor_command: zero", output)
         self.assertIn("left_encoder_count: 18", output)
         self.assertIn("right_encoder_count: -11", output)
         self.assertIn("range_mm: 312.5", output)

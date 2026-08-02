@@ -29,6 +29,8 @@ class FakeMotor:
     def get_position_counts(self):
         if self.read_error is not None:
             raise self.read_error
+        if self.efforts:
+            self.count += int(self.efforts[-1] * 200)
         return self.count
 
     def reset_encoder_position(self):
@@ -37,11 +39,14 @@ class FakeMotor:
 
 
 class FakeBoard:
+    def __init__(self):
+        self.wait_count = 0
+
     def is_button_pressed(self):
         return False
 
     def wait_for_button(self):
-        raise AssertionError("the no-motion starter must not wait to authorize motion")
+        self.wait_count += 1
 
 
 class FakeRangefinder:
@@ -85,7 +90,7 @@ class ChallengeOneStarterTests(unittest.TestCase):
             "XRPLib.encoded_motor": motor_module,
             "XRPLib.rangefinder": range_module,
         }
-        return modules, left_motor, right_motor
+        return modules, left_motor, right_motor, board
 
     def run_starter(self, modules):
         transient_modules = {
@@ -109,7 +114,9 @@ class ChallengeOneStarterTests(unittest.TestCase):
         try:
             with mock.patch.dict(sys.modules, modules), mock.patch.object(
                 sys, "path", starter_path
-            ), contextlib.redirect_stdout(output):
+            ), mock.patch("time.sleep", return_value=None), contextlib.redirect_stdout(
+                output
+            ):
                 runpy.run_path(str(STARTER_ROOT / "main.py"), run_name="__main__")
         finally:
             for name in transient_modules:
@@ -134,24 +141,24 @@ class ChallengeOneStarterTests(unittest.TestCase):
             with self.subTest(path=path.name):
                 compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
-    def test_default_starter_runs_end_to_end_with_zero_motor_effort_only(self):
-        modules, left_motor, right_motor = self.make_fake_xrplib()
+    def test_default_starter_runs_the_straight_challenge_and_stops(self):
+        modules, left_motor, right_motor, board = self.make_fake_xrplib()
         output = self.run_starter(modules)
 
         self.assertTrue(left_motor.efforts)
         self.assertTrue(right_motor.efforts)
-        self.assertEqual(set(left_motor.efforts), {0.0})
-        self.assertEqual(set(right_motor.efforts), {0.0})
+        self.assertTrue(any(effort > 0 for effort in left_motor.efforts))
+        self.assertTrue(any(effort > 0 for effort in right_motor.efforts))
         self.assertEqual(left_motor.efforts[-1], 0.0)
         self.assertEqual(right_motor.efforts[-1], 0.0)
         self.assertEqual(left_motor.reset_count, 1)
         self.assertEqual(right_motor.reset_count, 1)
-        self.assertIn("Challenge 1 no-motion check", output)
-        self.assertIn("planned_speed_mm_s: 150.0", output)
-        self.assertIn("motion_locked: True", output)
+        self.assertEqual(board.wait_count, 1)
+        self.assertIn("Challenge 1 complete", output)
+        self.assertIn("target_distance_mm: 1000.0", output)
 
     def test_sensor_read_failure_still_ends_with_zero_effort(self):
-        modules, left_motor, right_motor = self.make_fake_xrplib(
+        modules, left_motor, right_motor, _ = self.make_fake_xrplib(
             read_error=OSError("encoder read failed")
         )
 

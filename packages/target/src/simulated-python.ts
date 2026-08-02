@@ -13,7 +13,6 @@ class EncodedMotor:
 
     def __init__(self, side):
         self.side = side
-        self._position_counts = 0
 
     @classmethod
     def get_default_encoded_motor(cls, index=1):
@@ -36,14 +35,17 @@ class EncodedMotor:
         self.set_effort(0.0)
 
     def get_position_counts(self):
-        return self._position_counts
+        return int(xrp_sim_bridge.get_encoder_count(self.side))
 
     def reset_encoder_position(self):
-        self._position_counts = 0
+        xrp_sim_bridge.reset_encoder(self.side)
 
 
 `,
-  "XRPLib/board.py": `class Board:
+  "XRPLib/board.py": `import xrp_sim_bridge
+
+
+class Board:
     _instance = None
 
     @classmethod
@@ -53,14 +55,20 @@ class EncodedMotor:
         return cls._instance
 
     def is_button_pressed(self):
-        return False
+        return bool(xrp_sim_bridge.is_button_pressed())
 
     def wait_for_button(self):
         return None
 
+    def get_battery_voltage(self):
+        return float(xrp_sim_bridge.get_battery_v())
+
 
 `,
-  "XRPLib/rangefinder.py": `class Rangefinder:
+  "XRPLib/rangefinder.py": `import xrp_sim_bridge
+
+
+class Rangefinder:
     _instance = None
 
     @classmethod
@@ -70,6 +78,28 @@ class EncodedMotor:
         return cls._instance
 
     def distance(self):
-        return 65535
+        distance_mm = xrp_sim_bridge.get_range_mm()
+        return 65535 if distance_mm is None else float(distance_mm) / 10.0
+`,
+  "XRPLib/imu.py": `import xrp_sim_bridge
+
+
+class IMU:
+    _instance = None
+
+    @classmethod
+    def get_default_imu(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_acc_rates(self):
+        return tuple(xrp_sim_bridge.get_acceleration_mg())
+
+    def get_gyro_rates(self):
+        return tuple(xrp_sim_bridge.get_angular_rate_mdps())
+
+    def temperature(self):
+        return float(xrp_sim_bridge.get_temperature_c())
 `,
 };

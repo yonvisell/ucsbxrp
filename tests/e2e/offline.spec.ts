@@ -57,7 +57,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "offline ready",
+    "Web tools work offline",
   );
 
   const manifest = await ide.evaluate(async (manifestPath) => {
@@ -91,7 +91,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "offline ready",
+    "Web tools work offline",
   );
 
   await ide.getByRole("button", { name: "Validate code" }).click();
@@ -109,14 +109,13 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "offline ready",
+    "Web tools work offline",
   );
 
   await ide.getByRole("button", { name: "Run virtual XRP" }).click();
-  await expect(ide.getByRole("log")).toContainText(
-    "Challenge 1 no-motion check",
-  );
-  await expect(ide.getByRole("log")).toContainText("motion_locked: True");
+  await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
+    timeout: 20_000,
+  });
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -127,7 +126,7 @@ test("reloads the complete production course shell without a network", async ({
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
     guide.getByRole("heading", {
-      name: "Verified RP2350 state and safe next steps",
+      name: "Use a physical RP2350 XRP",
     }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);

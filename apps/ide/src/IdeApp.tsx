@@ -9,8 +9,14 @@ import {
 } from "react";
 
 import {
+  COURSE_STARTERS,
+  PhysicalTargetClient,
   VirtualTargetClient,
+  loadTargetPreference,
+  storeTargetPreference,
+  type TargetClient,
   type TargetEvent,
+  type TargetKind,
   type TargetRunState,
 } from "@ucsb-xrp/target";
 
@@ -56,9 +62,6 @@ const defaultSettings: IdeSettings = {
   tabSize: 4,
   wordWrap: "off",
 };
-const noRunMessage =
-  "No run yet. Validate the project, then run it on the virtual XRP.";
-
 function loadSettings(): IdeSettings {
   try {
     const raw = localStorage.getItem(settingsKey);
@@ -130,7 +133,16 @@ function initiallyShowProjectPanel(): boolean {
 
 export function IdeApp() {
   const initialProject = useMemo(() => loadRecoveredProject(), []);
-  const target = useMemo(() => new VirtualTargetClient(), []);
+  const [settings, setSettings] = useState<IdeSettings>(loadSettings);
+  const [targetPreference, setTargetPreference] =
+    useState(loadTargetPreference);
+  const target = useMemo<TargetClient>(
+    () =>
+      targetPreference.kind === "physical"
+        ? new PhysicalTargetClient(targetPreference.physicalEndpoint)
+        : new VirtualTargetClient(),
+    [targetPreference.kind, targetPreference.physicalEndpoint],
+  );
   const [project, setProject] = useState<ProjectSnapshot>(initialProject);
   const [activePath, setActivePath] = useState(initialProject.entrypoint);
   const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
@@ -145,6 +157,8 @@ export function IdeApp() {
   const [targetDetail, setTargetDetail] = useState("Not connected");
   const [checkDetail, setCheckDetail] = useState("Not validated");
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
+  const [syncDetail, setSyncDetail] = useState("Not synchronized");
+  const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [consoleTab, setConsoleTab] = useState<"status" | "details">("status");
   const [outputPanelOpen, setOutputPanelOpen] = useState(true);
@@ -152,7 +166,9 @@ export function IdeApp() {
     initiallyShowProjectPanel,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<IdeSettings>(loadSettings);
+  const [selectedStarterId, setSelectedStarterId] = useState(
+    COURSE_STARTERS[0]!.id,
+  );
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
   const [newFileError, setNewFileError] = useState("");
@@ -200,6 +216,8 @@ export function IdeApp() {
     if (initializedProjectEffect.current) {
       setCheckOk(null);
       setCheckDetail("Changes not validated");
+      setSyncOk(null);
+      setSyncDetail("Changes not synchronized");
     } else {
       initializedProjectEffect.current = true;
     }
@@ -209,10 +227,21 @@ export function IdeApp() {
     localStorage.setItem(settingsKey, JSON.stringify(settings));
   }, [settings]);
 
-  const canCommand =
-    targetState === "ready" ||
-    targetState === "running" ||
-    targetState === "error";
+  useEffect(() => {
+    storeTargetPreference(targetPreference);
+  }, [targetPreference]);
+
+  useEffect(() => {
+    const updateFromOtherApp = (event: StorageEvent) => {
+      if (event.key === "ucsb-xrp-target-v1") {
+        setTargetPreference(loadTargetPreference());
+      }
+    };
+    window.addEventListener("storage", updateFromOtherApp);
+    return () => window.removeEventListener("storage", updateFromOtherApp);
+  }, []);
+
+  const canCommand = targetState === "ready" || targetState === "running";
   const isRunning = targetState === "running" || targetState === "loading";
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
@@ -283,7 +312,28 @@ export function IdeApp() {
     }
   }, [canCommand, isRunning, project, target]);
 
-  const runVirtual = useCallback(async () => {
+  const synchronizeProject = useCallback(async () => {
+    if (!canCommand || isRunning) {
+      return;
+    }
+    setOutputPanelOpen(true);
+    setConsoleTab("status");
+    setSyncDetail("Synchronizing the complete project…");
+    try {
+      await target.synchronize(project);
+      setSyncOk(true);
+      setSyncDetail(
+        target.kind === "physical"
+          ? "The complete project is current on the XRP."
+          : "The project is ready for the virtual XRP.",
+      );
+    } catch (error) {
+      setSyncOk(false);
+      setSyncDetail(errorDetail(error));
+    }
+  }, [canCommand, isRunning, project, target]);
+
+  const runTarget = useCallback(async () => {
     if (!canCommand || isRunning) {
       return;
     }
@@ -307,7 +357,7 @@ export function IdeApp() {
     await target.stop();
   }, [isRunning, target]);
 
-  const resetVirtual = useCallback(async () => {
+  const resetTarget = useCallback(async () => {
     if (!canCommand) {
       return;
     }
@@ -376,6 +426,34 @@ export function IdeApp() {
       }
     }
   }, [pendingFolderDeletions, project, workingFolder]);
+
+  const loadCourseStarter = useCallback(() => {
+    const starter = COURSE_STARTERS.find(
+      (candidate) => candidate.id === selectedStarterId,
+    );
+    if (!starter) {
+      return;
+    }
+    const snapshot: ProjectSnapshot = {
+      name: starter.id.replace("_", "-"),
+      entrypoint: starter.project.entrypoint,
+      files: { ...starter.project.files },
+    };
+    setProject(snapshot);
+    setActivePath(snapshot.entrypoint);
+    setOpenPaths([snapshot.entrypoint]);
+    setWorkingFolder(null);
+    setPendingFolderDeletions(new Set());
+    setFolderDirty(true);
+    setCheckOk(null);
+    setCheckDetail("Not validated");
+    setSyncOk(null);
+    setSyncDetail("Not synchronized");
+    setConsoleEntries([]);
+    setOperationDetail(
+      `${starter.label} loaded. Choose Save files to create its working folder.`,
+    );
+  }, [selectedStarterId]);
 
   const createFile = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -530,7 +608,7 @@ export function IdeApp() {
         void validateCode();
       } else if (command && event.key === "Enter") {
         event.preventDefault();
-        void runVirtual();
+        void runTarget();
       } else if (command && event.key === ",") {
         event.preventDefault();
         setSettingsOpen((open) => !open);
@@ -542,7 +620,7 @@ export function IdeApp() {
     deletePath,
     newFileOpen,
     pathOperation,
-    runVirtual,
+    runTarget,
     saveProjectFiles,
     validateCode,
   ]);
@@ -596,6 +674,20 @@ export function IdeApp() {
           <span className="brand-name">XRP IDE</span>
         </div>
         <div className="toolbar" role="toolbar" aria-label="Project commands">
+          <select
+            aria-label="Execution target"
+            className="target-select"
+            onChange={(event) =>
+              setTargetPreference((current) => ({
+                ...current,
+                kind: event.target.value as TargetKind,
+              }))
+            }
+            value={targetPreference.kind}
+          >
+            <option value="virtual">Virtual XRP</option>
+            <option value="physical">Physical XRP</option>
+          </select>
           <button
             disabled={!canCommand || isRunning}
             onClick={validateCode}
@@ -603,13 +695,22 @@ export function IdeApp() {
           >
             Validate code
           </button>
+          {target.kind === "physical" ? (
+            <button
+              disabled={!canCommand || isRunning}
+              onClick={synchronizeProject}
+              title="Transfer the complete project to the physical XRP"
+            >
+              Sync project
+            </button>
+          ) : null}
           <button
             className="primary-button"
             disabled={!canCommand || isRunning}
-            onClick={runVirtual}
-            title={`Run ${project.entrypoint} on the virtual XRP (⌘/Ctrl+Enter)`}
+            onClick={runTarget}
+            title={`Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`}
           >
-            Run virtual XRP
+            {target.kind === "virtual" ? "Run virtual XRP" : "Run on XRP"}
           </button>
           <button
             className="danger-button"
@@ -618,8 +719,8 @@ export function IdeApp() {
           >
             Stop program
           </button>
-          <button disabled={!canCommand} onClick={resetVirtual}>
-            Reset virtual XRP
+          <button disabled={!canCommand} onClick={resetTarget}>
+            {target.kind === "virtual" ? "Reset virtual XRP" : "Reset XRP"}
           </button>
           <div className="toolbar-spacer" />
           <a
@@ -657,7 +758,10 @@ export function IdeApp() {
             title={targetDetail}
           >
             <span aria-hidden="true" className={`status-dot ${targetState}`} />
-            <span>Virtual XRP · {targetState}</span>
+            <span>
+              {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} ·{" "}
+              {targetState}
+            </span>
           </div>
         </div>
       </header>
@@ -679,7 +783,27 @@ export function IdeApp() {
               </button>
             </div>
             <div className="project-actions">
+              <div className="starter-actions">
+                <select
+                  aria-label="Course starter"
+                  onChange={(event) => setSelectedStarterId(event.target.value)}
+                  value={selectedStarterId}
+                >
+                  {COURSE_STARTERS.map((starter) => (
+                    <option key={starter.id} value={starter.id}>
+                      {starter.shortLabel}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={loadCourseStarter}
+                  title="Start a fresh browser-recovered project from this course challenge"
+                >
+                  Load starter
+                </button>
+              </div>
               <button
+                className="open-folder-button"
                 disabled={!supportsWorkingFolders()}
                 onClick={openWorkingFolder}
                 title="Open a local folder with read and write access"
@@ -774,18 +898,10 @@ export function IdeApp() {
             </div>
             <div className="course-release">
               <span>COURSE RELEASE</span>
-              <strong>0.1.0 · Stage 1</strong>
+              <strong>UCSB-XRP 0.2.0-dev</strong>
             </div>
           </aside>
-        ) : (
-          <button
-            className="project-reopen"
-            onClick={() => setProjectPanelOpen(true)}
-            title="Show project files"
-          >
-            Project files ›
-          </button>
-        )}
+        ) : null}
 
         <section
           className={`editor-stack ${outputPanelOpen ? "" : "output-collapsed"}`}
@@ -796,6 +912,15 @@ export function IdeApp() {
               role="tablist"
               aria-label="Open files"
             >
+              {!projectPanelOpen ? (
+                <button
+                  className="project-reopen"
+                  onClick={() => setProjectPanelOpen(true)}
+                  title="Show project files"
+                >
+                  Project files ›
+                </button>
+              ) : null}
               {openPaths.map((path) => (
                 <div
                   className={`editor-tab ${path === activePath ? "active" : ""}`}
@@ -840,7 +965,7 @@ export function IdeApp() {
                   insertSpaces: true,
                   lineHeight: Math.round(settings.editorFontSize * 1.65),
                   minimap: { enabled: false },
-                  padding: { top: 8 },
+                  padding: { top: 5 },
                   renderLineHighlight: "gutter",
                   scrollBeyondLastLine: false,
                   stickyScroll: { enabled: false },
@@ -849,7 +974,7 @@ export function IdeApp() {
                   wordWrap: settings.wordWrap,
                 }}
                 path={activePath}
-                theme="vs-dark"
+                theme="vs"
                 value={project.files[activePath] ?? ""}
               />
             </div>
@@ -938,6 +1063,27 @@ export function IdeApp() {
                     {checkDetail}
                   </small>
                 </div>
+                {target.kind === "physical" ? (
+                  <div>
+                    <span>Physical project</span>
+                    <strong
+                      className={
+                        syncOk === true
+                          ? "pass"
+                          : syncOk === false
+                            ? "fail"
+                            : ""
+                      }
+                    >
+                      {syncOk === true
+                        ? "Synchronized"
+                        : syncOk === false
+                          ? "Sync failed"
+                          : "Not current"}
+                    </strong>
+                    <small aria-live="polite">{syncDetail}</small>
+                  </div>
+                ) : null}
                 <div>
                   <span>Project</span>
                   <strong>
@@ -962,7 +1108,10 @@ export function IdeApp() {
                 style={{ fontSize: `${settings.consoleFontSize}px` }}
               >
                 {consoleEntries.length === 0 ? (
-                  <span className="console-placeholder">{noRunMessage}</span>
+                  <span className="console-placeholder">
+                    No run yet. Validate the project, then run it on the{" "}
+                    {target.kind === "virtual" ? "virtual" : "physical"} XRP.
+                  </span>
                 ) : (
                   consoleEntries.map((entry) => (
                     <div
@@ -1005,6 +1154,41 @@ export function IdeApp() {
               ×
             </button>
           </div>
+          <label className="setting-row">
+            <span>Execution target</span>
+            <select
+              onChange={(event) =>
+                setTargetPreference((current) => ({
+                  ...current,
+                  kind: event.target.value as TargetKind,
+                }))
+              }
+              value={targetPreference.kind}
+            >
+              <option value="virtual">Virtual XRP</option>
+              <option value="physical">Physical XRP</option>
+            </select>
+          </label>
+          {targetPreference.kind === "physical" ? (
+            <label className="setting-row">
+              <span>Physical XRP address</span>
+              <input
+                aria-describedby="physical-address-help"
+                defaultValue={targetPreference.physicalEndpoint}
+                onBlur={(event) =>
+                  setTargetPreference((current) => ({
+                    ...current,
+                    physicalEndpoint: event.target.value,
+                  }))
+                }
+                spellCheck={false}
+                type="url"
+              />
+              <small id="physical-address-help">
+                Setup reports this address. It is shared with XRP Monitor.
+              </small>
+            </label>
+          ) : null}
           <label className="setting-row">
             <span>
               Editor font size <strong>{settings.editorFontSize} px</strong>
@@ -1072,10 +1256,9 @@ export function IdeApp() {
           <section className="settings-note">
             <h3>Target connection</h3>
             <p>
-              The RP2350 USB baseline and canonical course library are verified
-              on the attached XRP. Physical-target controls will appear after
-              the correlated command/telemetry protocol, supervisory device
-              service, and Wi-Fi acceptance tests are complete.
+              Virtual and physical targets use the same project. On a physical
+              XRP, validate, synchronize the complete project, then run. USB is
+              used only for setup or repair; ordinary work uses the shared LAN.
             </p>
           </section>
           <section className="settings-note shortcuts-note">
@@ -1090,7 +1273,7 @@ export function IdeApp() {
                 <dd>⌘/Ctrl+Shift+Enter</dd>
               </div>
               <div>
-                <dt>Run virtual XRP</dt>
+                <dt>Run selected target</dt>
                 <dd>⌘/Ctrl+Enter</dd>
               </div>
               <div>

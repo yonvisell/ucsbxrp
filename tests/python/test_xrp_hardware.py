@@ -52,11 +52,14 @@ class HardwareHelpersTest(unittest.TestCase):
             with self.assertRaises(HARDWARE.HardwareError):
                 HARDWARE.verify_firmware(path, release)
 
-    def test_bootloader_requires_explicit_state_change_gate(self):
-        with self.assertRaisesRegex(
-            HARDWARE.HardwareError, "--allow-state-change"
-        ):
-            HARDWARE.enter_bootloader("/dev/does-not-matter", False)
+    def test_bootloader_requires_one_exact_connected_port(self):
+        original_ports = HARDWARE.find_controller_ports
+        try:
+            HARDWARE.find_controller_ports = lambda: []
+            with self.assertRaisesRegex(HARDWARE.HardwareError, "observed 0"):
+                HARDWARE.enter_bootloader("/dev/does-not-matter")
+        finally:
+            HARDWARE.find_controller_ports = original_ports
 
     def test_probe_classifies_micropython_usb_without_status_volume(self):
         class Port:

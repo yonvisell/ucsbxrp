@@ -1,23 +1,168 @@
 import * as echarts from "echarts";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
-interface SignalPlotProps {
-  sample: TelemetrySample;
+export type SignalPlotId =
+  "wheel-speed" | "motor-effort" | "range" | "acceleration" | "angular-rate";
+
+interface SignalSeriesDefinition {
+  label: string;
+  color: string;
+  dash?: "dashed" | "dotted";
+  value: (sample: TelemetrySample) => number | null;
 }
 
-const maximumSamples = 400;
+interface SignalPlotDefinition {
+  id: SignalPlotId;
+  label: string;
+  unit: string;
+  description: string;
+  fixedRange?: readonly [number, number];
+  series: readonly SignalSeriesDefinition[];
+}
 
-export function SignalPlot({ sample }: SignalPlotProps) {
+export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
+  {
+    id: "wheel-speed",
+    label: "Wheel speed",
+    unit: "mm/s",
+    description: "Measured left and right wheel speed",
+    series: [
+      {
+        label: "Left",
+        color: "#08736b",
+        value: (sample) => sample.leftWheelSpeedMmS,
+      },
+      {
+        label: "Right",
+        color: "#a66b08",
+        dash: "dashed",
+        value: (sample) => sample.rightWheelSpeedMmS,
+      },
+    ],
+  },
+  {
+    id: "motor-effort",
+    label: "Motor effort",
+    unit: "normalized",
+    description: "Commanded left and right motor effort",
+    fixedRange: [-1, 1],
+    series: [
+      {
+        label: "Left",
+        color: "#08736b",
+        value: (sample) => sample.leftEffort,
+      },
+      {
+        label: "Right",
+        color: "#a66b08",
+        dash: "dashed",
+        value: (sample) => sample.rightEffort,
+      },
+    ],
+  },
+  {
+    id: "range",
+    label: "Forward range",
+    unit: "mm",
+    description: "Forward time-of-flight range",
+    series: [
+      {
+        label: "Range",
+        color: "#205f99",
+        value: (sample) => sample.rangeMm,
+      },
+    ],
+  },
+  {
+    id: "acceleration",
+    label: "Acceleration",
+    unit: "mg",
+    description: "IMU acceleration along the x, y, and z axes",
+    series: [
+      {
+        label: "x",
+        color: "#08736b",
+        value: (sample) => sample.accelerationMg?.[0] ?? null,
+      },
+      {
+        label: "y",
+        color: "#a66b08",
+        dash: "dashed",
+        value: (sample) => sample.accelerationMg?.[1] ?? null,
+      },
+      {
+        label: "z",
+        color: "#a02d27",
+        dash: "dotted",
+        value: (sample) => sample.accelerationMg?.[2] ?? null,
+      },
+    ],
+  },
+  {
+    id: "angular-rate",
+    label: "Angular rate",
+    unit: "mdps",
+    description: "IMU angular rate about the x, y, and z axes",
+    series: [
+      {
+        label: "x",
+        color: "#08736b",
+        value: (sample) => sample.angularRateMdps?.[0] ?? null,
+      },
+      {
+        label: "y",
+        color: "#a66b08",
+        dash: "dashed",
+        value: (sample) => sample.angularRateMdps?.[1] ?? null,
+      },
+      {
+        label: "z",
+        color: "#a02d27",
+        dash: "dotted",
+        value: (sample) => sample.angularRateMdps?.[2] ?? null,
+      },
+    ],
+  },
+] as const;
+
+export function signalPlotDefinition(id: SignalPlotId): SignalPlotDefinition {
+  const definition = SIGNAL_PLOTS.find((candidate) => candidate.id === id);
+  if (!definition) {
+    throw new Error(`Unknown signal plot: ${id}`);
+  }
+  return definition;
+}
+
+export function signalPlotData(
+  samples: readonly TelemetrySample[],
+  id: SignalPlotId,
+  timeWindowS: number,
+): Array<{ name: string; values: Array<[number, number | null]> }> {
+  const definition = signalPlotDefinition(id);
+  const latestMs = samples.at(-1)?.tMs ?? 0;
+  const startMs = latestMs - timeWindowS * 1_000;
+  const visible = samples.filter((sample) => sample.tMs >= startMs);
+  return definition.series.map((series) => ({
+    name: series.label,
+    values: visible.map((sample) => [
+      (sample.tMs - latestMs) / 1_000,
+      series.value(sample),
+    ]),
+  }));
+}
+
+interface SignalPlotProps {
+  id: SignalPlotId;
+  samples: readonly TelemetrySample[];
+  timeWindowS: number;
+}
+
+export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
-  const history = useRef<{
-    sequence: number;
-    time: number[];
-    left: number[];
-    right: number[];
-  }>({ sequence: -1, time: [], left: [], right: [] });
+  const definition = useMemo(() => signalPlotDefinition(id), [id]);
 
   useEffect(() => {
     if (!elementRef.current) {
@@ -37,81 +182,69 @@ export function SignalPlot({ sample }: SignalPlotProps) {
   }, []);
 
   useEffect(() => {
-    if (sample.seq === history.current.sequence) {
-      return;
-    }
-    if (sample.seq === 0 && history.current.sequence > 0) {
-      history.current = { sequence: -1, time: [], left: [], right: [] };
-    }
-    const data = history.current;
-    data.sequence = sample.seq;
-    data.time.push(sample.tMs / 1000);
-    data.left.push(sample.leftWheelSpeedMmS);
-    data.right.push(sample.rightWheelSpeedMmS);
-    if (data.time.length > maximumSamples) {
-      data.time.shift();
-      data.left.shift();
-      data.right.shift();
-    }
-
+    const data = signalPlotData(samples, id, timeWindowS);
     chartRef.current?.setOption(
       {
         animation: false,
         backgroundColor: "transparent",
-        grid: { left: 48, right: 18, top: 24, bottom: 36 },
+        grid: { left: 47, right: 12, top: 22, bottom: 31 },
         legend: {
-          top: 2,
-          right: 12,
-          textStyle: { color: "#8fa3b4", fontSize: 10 },
+          top: 1,
+          right: 8,
+          textStyle: { color: "#3f4d55", fontSize: 9 },
           itemHeight: 2,
-          itemWidth: 16,
+          itemWidth: 13,
         },
         tooltip: {
           trigger: "axis",
-          backgroundColor: "#0c1924",
-          borderColor: "#345066",
-          textStyle: { color: "#e7eef4" },
+          backgroundColor: "#ffffff",
+          borderColor: "#737f88",
+          textStyle: { color: "#182128", fontSize: 10 },
         },
         xAxis: {
           type: "value",
+          min: -timeWindowS,
+          max: 0,
           name: "time (s)",
-          nameTextStyle: { color: "#768b9c" },
-          axisLabel: { color: "#768b9c" },
-          axisLine: { lineStyle: { color: "#345066" } },
-          splitLine: { lineStyle: { color: "#172a39" } },
+          nameGap: 18,
+          nameTextStyle: { color: "#56636c", fontSize: 9 },
+          axisLabel: { color: "#56636c", fontSize: 9 },
+          axisLine: { lineStyle: { color: "#737f88" } },
+          splitLine: { lineStyle: { color: "#dce1e4" } },
         },
         yAxis: {
           type: "value",
-          axisLabel: { color: "#768b9c" },
-          axisLine: { show: true, lineStyle: { color: "#345066" } },
-          splitLine: { lineStyle: { color: "#172a39" } },
+          min: definition.fixedRange?.[0],
+          max: definition.fixedRange?.[1],
+          scale: definition.fixedRange === undefined,
+          axisLabel: { color: "#56636c", fontSize: 9 },
+          axisLine: { show: true, lineStyle: { color: "#737f88" } },
+          splitLine: { lineStyle: { color: "#dce1e4" } },
         },
-        series: [
-          {
-            name: "Left",
-            type: "line",
-            showSymbol: false,
-            lineStyle: { color: "#54d6c8", width: 2 },
-            data: data.time.map((time, index) => [time, data.left[index]]),
+        series: definition.series.map((series, index) => ({
+          name: series.label,
+          type: "line",
+          showSymbol: false,
+          connectNulls: false,
+          lineStyle: {
+            color: series.color,
+            type: series.dash,
+            width: 1.7,
           },
-          {
-            name: "Right",
-            type: "line",
-            showSymbol: false,
-            lineStyle: { color: "#f5ba57", type: "dashed", width: 2 },
-            data: data.time.map((time, index) => [time, data.right[index]]),
-          },
-        ],
+          data: data[index]?.values ?? [],
+        })),
       },
       { notMerge: true, lazyUpdate: true },
     );
-  }, [sample]);
+  }, [definition, id, samples, timeWindowS]);
 
   return (
     <div
-      aria-label="Wheel-speed history: solid cyan is left, dashed gold is right"
+      aria-label={`${definition.description} over the last ${timeWindowS} seconds`}
       className="signal-plot"
-      data-testid="wheel-speed-plot"
+      data-testid={
+        id === "wheel-speed" ? "wheel-speed-plot" : `strip-chart-${id}`
+      }
       ref={elementRef}
       role="img"
     />

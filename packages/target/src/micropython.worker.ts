@@ -2,6 +2,7 @@
 
 import { loadMicroPython } from "@micropython/micropython-webassembly-pyscript";
 import micropythonWasmUrl from "@micropython/micropython-webassembly-pyscript/micropython.wasm?url";
+import { XrpSimulator, simulatorConfigForScenario } from "@ucsb-xrp/simulator";
 
 import { COURSE_PACKAGE_FILES, COURSE_REFERENCE_FILES } from "./course-python";
 import { prepareProject } from "./project-validation";
@@ -41,6 +42,27 @@ function errorDetail(error: unknown): string {
 }
 
 self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
+  const simulator = new XrpSimulator(
+    simulatorConfigForScenario(event.data.scenario),
+  );
+  let leftEncoderOrigin = 0;
+  let rightEncoderOrigin = 0;
+  let lastSimulationTime = performance.now();
+  const postSimulatorState = () =>
+    post({ type: "simulator-state", state: simulator.state });
+  const advanceSimulator = () => {
+    const now = performance.now();
+    const elapsedMs = Math.max(0, Math.min(now - lastSimulationTime, 5000));
+    const steps = Math.floor(elapsedMs / simulator.config.fixedStepMs);
+    for (let index = 0; index < steps; index += 1) {
+      simulator.step();
+    }
+    if (steps > 0) {
+      lastSimulationTime += steps * simulator.config.fixedStepMs;
+      postSimulatorState();
+    }
+    return simulator.state;
+  };
   try {
     let runtimeVersion = "unknown";
     const runtime = await loadMicroPython({
@@ -51,7 +73,45 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
     });
     runtime.registerJsModule("xrp_sim_bridge", {
       set_motor_effort(side: "left" | "right", effort: number) {
+        advanceSimulator();
         post({ type: "effort", side, effort });
+        simulator.setMotorEffort(side, effort);
+        postSimulatorState();
+      },
+      get_encoder_count(side: "left" | "right") {
+        const state = advanceSimulator();
+        return side === "left"
+          ? state.leftEncoderCount - leftEncoderOrigin
+          : state.rightEncoderCount - rightEncoderOrigin;
+      },
+      reset_encoder(side: "left" | "right") {
+        const state = advanceSimulator();
+        if (side === "left") {
+          leftEncoderOrigin = state.leftEncoderCount;
+        } else {
+          rightEncoderOrigin = state.rightEncoderCount;
+        }
+      },
+      get_range_mm() {
+        return advanceSimulator().rangeMm;
+      },
+      is_button_pressed() {
+        return advanceSimulator().buttonPressed;
+      },
+      get_acceleration_mg() {
+        return advanceSimulator().accelerationMg;
+      },
+      get_angular_rate_mdps() {
+        return advanceSimulator().angularRateMdps;
+      },
+      get_temperature_c() {
+        return advanceSimulator().temperatureC;
+      },
+      get_battery_v() {
+        return advanceSimulator().batteryV;
+      },
+      advance_simulator() {
+        advanceSimulator();
       },
       set_runtime_version(version: string) {
         runtimeVersion = String(version);
@@ -116,9 +176,19 @@ for __ucsb_path in __ucsb_check_paths:
       return;
     }
 
+    postSimulatorState();
     const entrypoint = project.entrypoint;
     runtime.runPython(`
 import sys
+import time
+import xrp_sim_bridge
+
+__ucsb_original_sleep_ms = time.sleep_ms
+def __ucsb_simulated_sleep_ms(duration_ms):
+    __ucsb_original_sleep_ms(duration_ms)
+    xrp_sim_bridge.advance_simulator()
+time.sleep_ms = __ucsb_simulated_sleep_ms
+
 sys.path.insert(0, "/project")
 __ucsb_entrypoint = "/project/${entrypoint}"
 exec(
@@ -130,8 +200,13 @@ exec(
     {"__name__": "__main__", "__file__": __ucsb_entrypoint},
 )
 `);
+    advanceSimulator();
+    simulator.stop();
+    postSimulatorState();
     post({ type: "run-complete" });
   } catch (error) {
+    simulator.stop();
+    postSimulatorState();
     post({ type: "error", detail: errorDetail(error) });
   }
 };

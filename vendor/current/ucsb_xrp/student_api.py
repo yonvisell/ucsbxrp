@@ -1,6 +1,6 @@
-"""Narrow base interfaces implemented by students in Challenge 1."""
+"""Narrow component contracts implemented progressively by students."""
 
-from .config import RobotConfig
+from .config import NavigationConfig, RobotConfig
 
 
 class _ConfiguredComponent:
@@ -40,4 +40,65 @@ class WheelSpeedControllerBase(_ConfiguredComponent):
         raise NotImplementedError
 
     def update(self, target, measured):
+        raise NotImplementedError
+
+
+class DifferentialDriveBase(_ConfiguredComponent):
+    """Contract for differential-drive inverse kinematics."""
+
+    __slots__ = ()
+
+    def wheel_speeds(self, command):
+        raise NotImplementedError
+
+
+class OdometryBase(_ConfiguredComponent):
+    """Contract for differential-drive pose integration."""
+
+    __slots__ = ()
+
+    def reset(self, initial_pose):
+        raise NotImplementedError
+
+    def update(self, left_increment_mm, right_increment_mm):
+        raise NotImplementedError
+
+    @property
+    def pose(self):
+        raise NotImplementedError
+
+
+class NavigationControllerBase:
+    """Contract for ordered world-goal navigation."""
+
+    __slots__ = ("_config",)
+
+    def __init__(self, config):
+        if not isinstance(config, NavigationConfig):
+            raise TypeError("config must be a NavigationConfig")
+        self._config = config
+
+    @property
+    def config(self):
+        return self._config
+
+    def start(self, goals):
+        raise NotImplementedError
+
+    def update(self, pose):
+        raise NotImplementedError
+
+    def current_goal(self):
+        raise NotImplementedError
+
+    def is_complete(self):
+        raise NotImplementedError
+
+
+class GridPlannerBase:
+    """Contract for shortest four-neighbor grid planning."""
+
+    __slots__ = ()
+
+    def plan(self, grid, start, goal):
         raise NotImplementedError

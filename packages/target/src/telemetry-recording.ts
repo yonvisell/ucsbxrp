@@ -1,7 +1,7 @@
 import type { TelemetrySample } from "./types";
 
 export interface TelemetryRecordingSnapshot {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly samples: readonly TelemetrySample[];
   readonly droppedSamples: number;
 }
@@ -53,7 +53,7 @@ export class TelemetryRecorder {
     if (!this.active) {
       return;
     }
-    const copy = { ...sample };
+    const copy = copySample(sample);
     if (this.samples.length < this.maximumSamples) {
       this.samples.push(copy);
       return;
@@ -75,14 +75,16 @@ export class TelemetryRecorder {
             ...this.samples.slice(0, this.nextWriteIndex),
           ];
     return {
-      schemaVersion: 1,
-      samples: orderedSamples.map((sample) => ({ ...sample })),
+      schemaVersion: 2,
+      samples: orderedSamples.map(copySample),
       droppedSamples: this.droppedSamples,
     };
   }
 }
 
 const csvColumns = [
+  "source",
+  "pose_available",
   "seq",
   "t_ms",
   "x_mm",
@@ -95,13 +97,47 @@ const csvColumns = [
   "left_encoder_count",
   "right_encoder_count",
   "collision",
+  "range_mm",
+  "button_pressed",
+  "acceleration_x_mg",
+  "acceleration_y_mg",
+  "acceleration_z_mg",
+  "angular_rate_x_mdps",
+  "angular_rate_y_mdps",
+  "angular_rate_z_mdps",
+  "temperature_c",
+  "battery_v",
+  "sensor_error",
 ] as const;
+
+function copySample(sample: TelemetrySample): TelemetrySample {
+  return {
+    ...sample,
+    accelerationMg: sample.accelerationMg ? [...sample.accelerationMg] : null,
+    angularRateMdps: sample.angularRateMdps
+      ? [...sample.angularRateMdps]
+      : null,
+  };
+}
+
+function csvValue(value: string | number | boolean | null): string {
+  if (value === null) {
+    return "";
+  }
+  if (typeof value === "boolean") {
+    return value ? "1" : "0";
+  }
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
 
 export function telemetryRecordingToCsv(
   recording: TelemetryRecordingSnapshot,
 ): string {
   const rows = recording.samples.map((sample) =>
     [
+      sample.source,
+      sample.poseAvailable,
       sample.seq,
       sample.tMs,
       sample.xMm,
@@ -113,8 +149,21 @@ export function telemetryRecordingToCsv(
       sample.rightWheelSpeedMmS,
       sample.leftEncoderCount,
       sample.rightEncoderCount,
-      sample.collision ? 1 : 0,
-    ].join(","),
+      sample.collision,
+      sample.rangeMm,
+      sample.buttonPressed,
+      sample.accelerationMg?.[0] ?? null,
+      sample.accelerationMg?.[1] ?? null,
+      sample.accelerationMg?.[2] ?? null,
+      sample.angularRateMdps?.[0] ?? null,
+      sample.angularRateMdps?.[1] ?? null,
+      sample.angularRateMdps?.[2] ?? null,
+      sample.temperatureC,
+      sample.batteryV,
+      sample.sensorError,
+    ]
+      .map(csvValue)
+      .join(","),
   );
   return `${csvColumns.join(",")}\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
 }

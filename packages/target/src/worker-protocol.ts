@@ -1,9 +1,19 @@
+import type {
+  SimulationScenario,
+  XrpSimulatorState,
+} from "@ucsb-xrp/simulator";
+
 import type { CourseProject, TargetEvent } from "./types";
 
 export type TargetWorkerCommand =
   | { type: "connect"; requestId: string }
   | { type: "disconnect" }
   | { type: "prepare-run"; requestId: string }
+  | {
+      type: "set-scenario";
+      requestId: string;
+      scenario: SimulationScenario;
+    }
   | {
       type: "runtime-message";
       runId: number;
@@ -20,7 +30,7 @@ export type TargetWorkerMessage =
       type: "response";
       requestId: string;
       ok: true;
-      result?: { runId: number };
+      result?: { runId?: number; scenario?: SimulationScenario };
     }
   | {
       type: "response";
@@ -32,11 +42,13 @@ export type TargetWorkerMessage =
 export interface RuntimeWorkerRequest {
   mode: "check" | "run";
   project: CourseProject;
+  scenario?: SimulationScenario;
 }
 
 export type RuntimeWorkerMessage =
   | { type: "runtime-ready"; version: string }
   | { type: "effort"; side: "left" | "right"; effort: number }
+  | { type: "simulator-state"; state: XrpSimulatorState }
   | { type: "console"; stream: "stdout" | "stderr"; line: string }
   | { type: "check-complete"; detail: string }
   | { type: "run-complete" }

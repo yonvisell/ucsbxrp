@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-01T17:53:01-07:00",
+  "result": "pass",
+  "controller": "SparkFun XRP Controller with RP2350",
+  "firmware": {
+    "board": "SPARKFUN_XRP_CONTROLLER",
+    "micropython": "1.28.0",
+    "asset": "SPARKFUN_XRP_CONTROLLER-20260406-v1.28.0.uf2",
+    "xrplib": "2026.07.1"
+  },
+  "repository": {
+    "base_commit": "55e53f0ed448d990e39cddc191e6d9e9c2224f53",
+    "working_tree_state": "uncommitted implementation under validation"
+  },
+  "target": {
+    "robot_name": "ucsb-xrp",
+    "network": "Pink",
+    "address": "192.168.7.30",
+    "protocol": 1,
+    "service_version": "2026.08-dev.1",
+    "course_release": "2026.08-dev.1",
+    "installed_file_count": 21
+  },
+  "service_probe": {
+    "result": "pass",
+    "harness_sha256": "c265dbf3f515e84a6f1704632c6e7428275b5142cd47609429cbcdca797f7b6c",
+    "service_source_sha256": "fcbebee9bc9ffce5fd4e61fb6c5b4475a1ecaadcc3cdf255e3705fa3359bb11f",
+    "protocol_source_sha256": "9b8f2ee3c0fe2c9e1508b33621f0ea97a6a73d806bd08b428bcf14f8a7a0093f",
+    "operations": [
+      "browser private-network preflight",
+      "MicroPython compilation",
+      "atomic project synchronization",
+      "zero-output run",
+      "student stdout capture",
+      "stop and service restart",
+      "controller reset and reconnect"
+    ],
+    "stationary_sample": {
+      "left_encoder_count": 0,
+      "right_encoder_count": -1,
+      "range_mm": 186.597932,
+      "button_pressed": false,
+      "acceleration_mg": [-3.1346474, -2.1760636, 996.22548],
+      "angular_rate_mdps": [4.6428604, -91.785704, 32.5],
+      "temperature_c": 30.398438,
+      "battery_v": 6.5810848,
+      "sensor_error": null
+    }
+  },
+  "motor_check": {
+    "result": "pass",
+    "test_configuration": "raised-wheel",
+    "physical_setup": "robot stable and elevated; wheels completely clear",
+    "operator_observation": "Wheels moved as expected.",
+    "harness_sha256": "43087f65feebb1f8a6d79a20ac4240ccee85191c0aa38fd3159d7242acf2ecb7",
+    "effort": 0.22,
+    "single_wheel_duration_ms": 350,
+    "paired_duration_ms": 400,
+    "settle_duration_ms": 250,
+    "initial_counts": [0, 0],
+    "after_left_counts": [197, 0],
+    "after_right_counts": [196, 152],
+    "final_counts": [404, 341],
+    "encoder_deltas": {
+      "left_pulse": [197, 0],
+      "right_pulse": [-1, 152],
+      "paired_pulse": [208, 189]
+    },
+    "checks": {
+      "left_motor_and_encoder_responded": true,
+      "right_motor_and_encoder_responded": true,
+      "both_encoders_responded_together": true,
+      "positive_effort_has_positive_encoder_sign": true,
+      "final_zero_effort_commanded": true
+    },
+    "battery_v": 6.5810848,
+    "post_check_settle": {
+      "sample_interval_ms": 400,
+      "first_counts": [405, 341],
+      "second_counts": [405, 341],
+      "left_speed_mm_s": 0.0,
+      "right_speed_mm_s": 0.0,
+      "left_effort": 0.0,
+      "right_effort": 0.0
+    }
+  },
+  "not_exercised": [
+    "wheel motion on the floor",
+    "motion-induced IMU and range changes",
+    "effective wheel diameter and track-width calibration",
+    "complete physical challenge trajectories"
+  ],
+  "privacy": "Wi-Fi password and USB serial are omitted."
+}

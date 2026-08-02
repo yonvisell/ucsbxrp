@@ -1,29 +1,13 @@
-# Challenge 1 starter: safe component check
+# Challenge 1: Straight Run
 
-This is the five-file project structure used for **Straight Run**. Its initial
-`main.py` is deliberately a no-motion check: it reads two sensor samples,
-passes them through the selected `SensorModel`, asks the supplied
-`StraightLineController` for a planned command, and passes the corresponding
-wheel-speed request through the selected `WheelSpeedController`.
+Open this folder in the XRP IDE. The supplied components are selected at first,
+so the project runs before student work begins. Students implement
+`SensorModel` and `WheelSpeedController` in `student_components.py`, test each
+component, then change its corresponding flag in `course_setup.py`.
 
-`ROBOT_CONFIG` is motion-locked, so the computed and applied motor efforts are
-zero. This checks imports, records, sensor conversion, component selection, and
-zero-effort cleanup. It is **not** evidence that either motor moves, has the
-correct sign, or stops under power.
+`main.py` waits for the USER button, drives the distance in `challenge.py`, and
+always stops in `finally`. `robot_config.py` contains nominal virtual-XRP values;
+physical-robot measurements can be entered there without changing program code.
 
-Do not unlock motion by editing only `max_effort`. A motion-enabled project
-requires the later raised-wheel acceptance procedure and measured calibration
-values for the particular robot.
-
-## Files
-
-- `main.py` runs the current check or challenge.
-- `robot_config.py` contains measurements and reusable controller settings.
-- `student_components.py` contains the two Challenge 1 student components.
-- `course_setup.py` selects supplied or student components explicitly.
-- `challenge.py` contains values specific to Straight Run.
-
-The supplied components are loaded from generated `.mpy` files. Those exact
-files pass the same public behavior checks in browser MicroPython and on the
-RP2350. Their retained source remains provisional course design, not a
-definitive algorithm students are expected to reproduce internally.
+The retained reference source is an initial clear implementation, not a
+prescribed internal solution.

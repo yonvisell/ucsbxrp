@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
-"""Safety-tiered host utility for the current SparkFun RP2350 XRP.
-
-The default `probe` and `verify-firmware` commands are H0/read-only. The
-`enter-bootloader` command changes controller state and therefore requires the
-literal `--allow-state-change` gate. No command in this utility can issue a
-motor effort.
-"""
+"""Inspect the SparkFun RP2350 XRP or enter its firmware bootloader."""
 
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import sys
 import time
@@ -27,7 +20,7 @@ BOOT_VOLUME_NAMES = ("RP2350", "RPI-RP2")
 
 
 class HardwareError(RuntimeError):
-    """A bounded hardware operation could not be completed safely."""
+    """The requested hardware operation could not be completed."""
 
 
 def _sha256_bytes(value):
@@ -178,7 +171,6 @@ def probe():
     ):
         runtime_classification = "micropython-usb-device"
     return {
-        "safety_tier": "H0",
         "controller_ports": ports,
         "boot_volumes": find_boot_volumes(),
         "status_path": str(status_path) if status_path else None,
@@ -187,17 +179,13 @@ def probe():
     }
 
 
-def enter_bootloader(port_name, allow_state_change, timeout_s=8.0):
+def enter_bootloader(port_name, timeout_s=8.0):
     """Use the exact firmware platform's 1200-baud touch reset.
 
     XRP-WPILib 2.1.0 pins an Arduino-Pico board manifest with
     `use_1200bps_touch: true` for USB VID/PID 1B4F:0046. This operation only
     requests ROM bootloader entry; it does not flash bytes.
     """
-    if not allow_state_change:
-        raise HardwareError(
-            "Bootloader entry requires the literal --allow-state-change gate"
-        )
     matches = find_controller_ports()
     selected = [port for port in matches if port.device == port_name]
     if len(selected) != 1:
@@ -247,7 +235,6 @@ def make_parser():
         "enter-bootloader", help="request RP2350 ROM bootloader via 1200-baud touch"
     )
     boot.add_argument("--port", required=True)
-    boot.add_argument("--allow-state-change", action="store_true")
     return parser
 
 
@@ -259,7 +246,7 @@ def main(argv=None):
         elif args.command == "verify-firmware":
             result = verify_firmware(args.firmware, load_release(args.release))
         elif args.command == "enter-bootloader":
-            result = enter_bootloader(args.port, args.allow_state_change)
+            result = enter_bootloader(args.port)
         else:
             raise HardwareError("Unsupported command: {}".format(args.command))
     except HardwareError as exc:

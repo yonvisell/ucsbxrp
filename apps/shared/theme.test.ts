@@ -45,10 +45,10 @@ describe("shared theme contrast", () => {
   );
 
   it.each([
-    ["ink", "primary-bg"],
-    ["ink", "primary-hover"],
-    ["ink", "danger-bg"],
-    ["ink", "danger-hover"],
+    ["on-accent", "primary-bg"],
+    ["on-accent", "primary-hover"],
+    ["on-accent", "danger-bg"],
+    ["on-accent", "danger-hover"],
     ["disabled-ink", "disabled-bg"],
   ])("keeps %s text legible on %s", (foreground, background) => {
     expect(
@@ -67,8 +67,8 @@ describe("shared theme contrast", () => {
         `focus indicator on ${background}`,
       ).toBeGreaterThanOrEqual(3);
     }
-    expect(contrast(color("cyan"), color("primary-bg"))).toBeGreaterThanOrEqual(
-      3,
-    );
+    expect(
+      contrast(color("on-accent"), color("primary-bg")),
+    ).toBeGreaterThanOrEqual(3);
   });
 });

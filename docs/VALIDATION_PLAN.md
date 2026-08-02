@@ -1,158 +1,119 @@
-# Validation plan
+# Validation strategy
 
-This harness is risk-based and contract-oriented. It should prove student-visible
-behavior and safety invariants without freezing incidental implementation
-choices, exact log prose, CSS geometry, private state, or one valid algorithmic
-tie-break.
+Validation is organized around student-visible contracts and realistic failure
+modes. The harness is intentionally small: each behavior is proved at the
+lowest useful layer, then a few complete workflows confirm that the layers work
+together.
 
-## Test layers
+## Checks
 
-| Layer | Proves | Ordinary trigger |
-| --- | --- | --- |
-| Fast | formatting, TypeScript, OSC, simulator, target state, project helpers, pure Python contracts | `npm run check:fast` |
-| MicroPython | canonical `ucsb_xrp` imports and contracts; source/`.mpy` parity in WebAssembly | `npm run test:micropython` |
-| Browser | separate IDE, Monitor, recovery, diagnostics, target-safety, responsive, accessibility, and offline workflows | `npm run test:browser` |
-| USB H0/H1 | controller identity, firmware/runtime, filesystem, versions, imports, reset/recovery, non-motion peripherals, and zero-effort cleanup | explicit hardware command |
-| Wireless | discovery, permission, transfer transaction, replies, telemetry, reconnect, exception/watchdog recovery | explicit hardware command |
-| Motion H2/H3 | bounded raised-wheel motion, signs, encoders, stop/failure; then floor calibration and challenges | explicit motion gate |
-| Release | immutable bundle hashes, clean install, offline apps, bytecode artifacts, representative recordings, written acceptance | `npm run test:release` |
-
-The current repository implements only part of the Fast, MicroPython, and
-Browser rows. Command names above are the target interface and should be added
-only when their corresponding checks exist.
-
-## Acceptance matrix
-
-| Product boundary | Required evidence before it is called complete |
+| Check | What it establishes |
 | --- | --- |
-| `ucsb_xrp` | public contract tests on CPython and MicroPython; exact course package used by both targets; invalid configuration and numerical boundaries covered |
-| Reference modules | source contracts pass; exact `.mpy` artifacts built reproducibly; compiler compatibility and hashes recorded; imports and contract vectors pass in WebAssembly and RP2350 |
-| Virtual XRP | deterministic physics and sensors; canonical package runs; watchdog/fail-to-zero behavior; reset and cross-tab ownership; no student algorithm hidden in simulator |
-| Device service | version/capability discovery; correlated replies and timeouts; atomic project transaction; independent supervision; exception, partial transfer, reconnect, and reset recovery |
-| IDE | durable recovery; complete project operations; import-aware structured diagnostics; target-specific Validate/Transfer/Run/Stop/Reset; accessible responsive behavior; offline-ready release |
-| XRP Monitor | dynamic channels and units; no-data/stale/paused states; bounded storage; throttled rendering; recording/replay/export independent of visible panels |
-| USB hardware | machine-readable H0/H1 evidence with board identity hash, exact firmware/library/course versions, commands, observations, and limitations |
-| Powered motors | separate H2/H3 evidence; explicit human gate; hard time limit; zero before/after; signs, stopping, failure, and disconnect verified physically |
-| Wi-Fi/browser | warm offline cache; explicit network permission; deployed HTTPS origin; round trip, transfer, run/stop/reset, telemetry, reconnect, and denied-permission recovery |
+| Python contracts | records, units, numerical components, maps, planners, missions, starters, examples, and release contents |
+| MicroPython parity | the canonical package and exact supplied `.mpy` files import and produce the same public results in browser and RP2350 MicroPython |
+| TypeScript/unit | target protocol, OSC, project storage, recording, simulator physics/sensors, bounded buffers, and recovery transitions |
+| Browser workflows | IDE, Monitor, shared target, project operations, diagnostics, offline loading, accessibility, and responsive behavior in stable Chrome |
+| Physical integration | USB setup, LAN discovery, versions, synchronization, execution, logs, telemetry, reconnect, reset, and stationary sensors |
+| Raised-wheel motion | short motor pulses, encoder sign/response, zero cleanup, and stopping behavior |
+| Floor trials | calibrated trajectories and motion-induced sensor behavior on the final course surface |
 
-## Library and numerical tests
+The ordinary repository check is:
 
-- Use immutable JSON/vector fixtures where the same inputs should run through
-  reference source, student exemplars, WebAssembly, and physical MicroPython.
-- Inject monotonic clocks. Test timestamp wrap, zero/nonpositive elapsed time,
-  and sample overruns explicitly.
+```sh
+npm run check
+```
+
+Hardware commands are separate because CI has no robot attached, not because
+students need a formal acceptance process.
+
+## Numerical and course contracts
+
+- Reuse immutable input/output vectors across supplied source, student
+  exemplars, WebAssembly MicroPython, and physical MicroPython.
+- Inject clocks. Cover timestamp wrap, nonpositive elapsed time, and loop
+  overruns explicitly.
 - Derive tolerances from encoder quantization, fixed-step integration, and
-  sensor resolution. Do not use an unexplained global epsilon.
-- For differential drive, include analytic straight, in-place, and curved
-  trajectories plus inverse sign cases.
-- For planning, assert free adjacent cells, correct endpoints, and minimum path
-  length. Do not require one tie-dependent shortest path.
-- For navigation, assert state transitions, bounds, termination, and accepted
-  tolerances. Do not inspect controller private variables.
-- Compare virtual and physical traces by stated qualitative features and
-  justified envelopes. Do not tune the simulator to reproduce one floor run.
+  sensor resolution; do not use an unexplained global epsilon.
+- Cover straight, in-place, and curved differential-drive trajectories,
+  including sign inversions.
+- For navigation, test state transitions, limits, termination, and accepted
+  tolerances through the public interface.
+- For planning, verify free adjacent cells, endpoints, validity, and minimum
+  path length without requiring one arbitrary tie break.
+- Treat captured physical telemetry as a replay fixture, not universal ground
+  truth.
 
-## Protocol, OSC, and target tests
+## Target protocol contracts
 
-- Every command has an identifier, correlated reply, bounded timeout, and
-  explicit error outcome. A transmission alone never passes a test.
-- Test target capability/version mismatch, duplicate/idempotent commands,
-  truncated or malformed frames, oversized payloads, and reconnect.
-- OSC coverage includes signed int32 limits, float32 special-value policy,
-  Unicode, embedded-NUL rejection, every padding length, truncated padding,
-  invalid type tags/arguments, and a declared trailing-byte policy.
-- Cross-check shared OSC vectors against an independent or MicroPython codec.
-- Fault-inject at storage, worker, and transport boundaries instead of mocking
-  internal classes.
-- Expired run ownership, page crash, exception, reset, disconnect, and watchdog
-  timeout must independently converge to zero commanded effort.
+Both targets run the same conformance cases:
 
-## Browser tests
+- discover identity, versions, capabilities, and current state;
+- correlate every request and reply, including timeouts and structured errors;
+- synchronize a whole project transactionally so an interrupted upload keeps
+  the preceding runnable project;
+- validate, run, stop, and reset as separate operations;
+- reconnect without inventing a successful state;
+- reject malformed, duplicate, incompatible, and oversized input cleanly;
+- preserve typed channel names, units, timestamps, sequence numbers, logs, and
+  events; and
+- end a run after exception, reset, connection loss, or lease expiry.
 
-Keep browser workflows independent so an early folder/settings failure does not
-mask target safety or monitor behavior. Maintain one cross-tab production smoke,
-then separate tests for:
+Protocol tests fault-inject at transport, storage, and runtime boundaries. They
+avoid mocking private implementation details.
 
-- validation and source-linked syntax/import/runtime diagnostics;
-- recovery reload, dirty replacement, Save/Save As, ZIP fallback, and partial
-  write failure;
-- virtual run, normal completion, exception, non-yielding program, Stop, Reset,
-  owner loss, and fail-to-zero;
-- monitor no-data/stale/paused states, bounded buffers, recording/replay, and
-  deterministic exports;
-- offline reload of IDE, Monitor, guide, worker, WASM, and current course bundle;
-- desktop, course-laptop, and narrow-drawer keyboard/accessibility passes.
+## Browser workflows
 
-Assert semantic outcomes and state, not exact runtime patch wording or fixed
-pixel positions. A few masked structural screenshots are appropriate; exclude
-Monaco canvases and live charts from brittle visual snapshots.
+Keep browser tests independent so one failed dialog does not hide unrelated
+target or Monitor defects. Cover:
 
-## Hardware safety tiers
+- folder open/save, file create/rename/duplicate/delete, startup selection,
+  browser recovery, tabs, and keyboard commands;
+- MicroPython syntax results and visible runtime output;
+- virtual discovery, synchronize, run, stop, reset, owner loss, and all five
+  cumulative course starters;
+- physical request correlation, timeouts, unavailable-device messages, and the
+  same browser fetch receiver used by stable Chrome;
+- cancellation of unfinished physical discovery and ordered shared-worker
+  disconnect, so rapid React remounts cannot leave a hidden poller;
+- world/sensor views, blocked-gate replanning, selectable scrolling signal
+  plots, and the collapsible Monitor controls;
+- bounded recordings and deterministic export;
+- root and deployment-subpath offline reloads; and
+- desktop and narrow layouts, semantic control names, keyboard-contained
+  dialogs, reduced-motion/forced-color fallbacks, and measured contrast.
 
-### H0 — discovery, read-only
+Tests assert roles, labels, state, and behavior. Screenshot comparisons are
+reserved for stable layout structure; dynamic editor canvases and plots are
+inspected interactively rather than frozen pixel-for-pixel.
 
-- Enumerate USB interfaces and mounted volumes.
-- Classify the runtime before opening serial as a REPL.
-- Record firmware/status evidence without credentials or public unique names.
-- Make no filesystem or device-state change.
+## Physical XRP checks in the current pass
 
-### H1 — non-motion USB acceptance
+The attached robot is exercised through USB and `Pink`. The useful evidence is
+concise:
 
-- Verify/install a manifest-pinned runtime and library only after preserving the
-  baseline and verifying image hash and board identity.
-- Exercise REPL, imports, filesystem, soft/hard reset recovery, LED, USER button,
-  IMU, range, and manual encoder changes where available.
-- Permit zero effort only. The RP2350 board can supply motor-driver VIN from
-  USB-C when its power switch is on, so a disconnected battery is not an
-  unpowered-motor guarantee. XRPLib's `are_motors_powered()` threshold is
-  diagnostic evidence, not a motion authorization gate.
-- Require the board switch off, human confirmation that the MOT LED is off,
-  and near-zero reported VIN. Fail closed if these disagree; USB must continue
-  to provide the REPL through the independent system-power path.
-- A software zero command is not evidence of physical stopping.
+- detected board and runtime versions;
+- installed course/service release hashes;
+- assigned LAN address and service discovery reply;
+- project synchronization and file inventory;
+- check, start, stop, reset, reconnect, logs, and telemetry;
+- USER button, IMU, range, encoder, and power readings;
+- short, bounded, raised-wheel motor pulses with encoder response and zero
+  cleanup; and
+- the exact behaviors that remain untested because they require floor motion.
 
-### H2 — motors powered, wheels raised
-
-- Require explicit `--allow-motion` plus a fresh human confirmation that wheels
-  are clear and the robot is supported.
-- Begin with an acknowledged zero command; use low bounded effort and a hard
-  duration; finish in `finally` with zero and independently reset on timeout.
-- Verify left/right signs, encoder signs, stop, exception, disconnect, and
-  watchdog behavior before calibration.
-
-### H3 — floor operation
-
-- Calibrate start effort, speed/effort response, wheel diameter, and effective
-  track width with provenance and repeated trials.
-- Run challenge acceptance only after H2 passes on the same release.
-
-Motion tests are never part of an ordinary check or CI command.
-
-## Hardware evidence record
-
-Each run writes a machine-readable record containing:
-
-- schema and harness version;
-- timestamp and safety tier;
-- hashed controller identity and observed USB model/VID/PID;
-- exact firmware asset name, upstream immutable identity, byte size, SHA-256,
-  MicroPython version and `_mpy` value;
-- XRPLib and course release identifiers and hashes;
-- battery connection assertion, observed VIN/motor-rail evidence, and required
-  human confirmations;
-- requested operations, target replies, measurements, pass/fail/deferred state,
-  and limitations.
-
-Raw logs may accompany the record. Do not commit passwords, unique SSIDs, or
-unredacted device serial numbers.
+Credentials, device serial numbers, and unique identifiers are not committed.
+Historical detailed captures remain under `docs/hardware/`; ordinary users do
+not reproduce them.
 
 ## Harness discipline
 
-- Keep the dependency set small. Strict TypeScript and Prettier are sufficient
-  until a concrete lint defect class justifies another tool.
-- Do not impose a global coverage percentage. Require focused cases at safety,
-  parsing, numerical, and recovery boundaries.
-- Record test-data provenance. Captured physical telemetry is a replay fixture,
-  not universal ground truth.
-- A skipped hardware capability is `deferred` with a reason, never silently
-  passed or reported as failed when a capability is intentionally deferred.
+- Test public behavior and genuine boundaries, not implementation shape.
+- Keep dependencies few and pinned; add a tool only when it catches a concrete
+  class of defects.
+- Do not impose a global coverage percentage.
+- Keep timeouts short enough to expose hangs and long enough for the measured
+  RP2350 path.
+- Record skipped physical behavior plainly; never translate “not exercised”
+  into pass or failure.
+- A stage finishes only after the focused checks and one representative
+  end-to-end workflow pass.
