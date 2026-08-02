@@ -5,11 +5,11 @@ function numericValue(text: string | null): number {
 }
 
 const boundedVirtualMotionProgram = `from time import sleep_ms
-from ucsb_xrp import MotorEfforts, RobotConfig, XRPBot
+from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
 
-bot = XRPBot(RobotConfig(max_effort=0.65))
+bot = XRPBot(RobotConfig(max_drive_command=0.65))
 try:
-    bot.set_efforts(MotorEfforts(0.58, 0.52))
+    bot.set_drive(DriveCommand(0.58, 0.52))
     sleep_ms(1800)
 finally:
     bot.stop()
@@ -205,7 +205,9 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     .poll(
       async () =>
         numericValue(await dashboard.getByTestId("x-mm").textContent()),
-      { message: "virtual XRP should translate after motor effort is applied" },
+      {
+        message: "virtual XRP should translate after drive command is applied",
+      },
     )
     .toBeGreaterThan(10);
 
@@ -243,7 +245,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     .getByRole("button", { name: "Stop", exact: true })
     .click();
   await expect(ide.getByRole("log")).toContainText(
-    "Run stopped; motor effort set to zero",
+    "Run stopped; drive command set to zero",
   );
   await expect(ideStatus).toContainText("Virtual XRP · ready");
 
@@ -354,7 +356,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       name: "Use a physical RP2350 XRP",
     }),
   ).toBeVisible();
-  await expect(guide.getByText("MotorEfforts(left, right)")).toBeVisible();
+  await expect(guide.getByText("DriveCommand(left, right)")).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });
@@ -372,10 +374,10 @@ test("abandons a virtual run safely when its IDE owner disappears", async ({
         entrypoint: "main.py",
         files: {
           "main.py": `from time import sleep_ms
-from ucsb_xrp import MotorEfforts, RobotConfig, XRPBot
+from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
 
-bot = XRPBot(RobotConfig(max_effort=0.65))
-bot.set_efforts(MotorEfforts(0.6, 0.6))
+bot = XRPBot(RobotConfig(max_drive_command=0.65))
+bot.set_drive(DriveCommand(0.6, 0.6))
 while True:
     sleep_ms(1000)
 `,
@@ -420,7 +422,7 @@ while True:
     .not.toContain("running");
   await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
   await expect(monitor.getByRole("log")).toContainText(
-    "motor effort set to zero",
+    "drive command set to zero",
   );
   expect(browserErrors).toEqual([]);
 });

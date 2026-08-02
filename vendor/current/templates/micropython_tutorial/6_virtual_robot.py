@@ -2,14 +2,14 @@
 
 from time import sleep_ms
 
-from ucsb_xrp import MotorEfforts, RobotConfig, XRPBot
+from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
 
 
-bot = XRPBot(RobotConfig(max_effort=0.4))
+bot = XRPBot(RobotConfig(max_drive_command=0.4))
 
 
 def command_for(left, right, duration_ms):
-    bot.set_efforts(MotorEfforts(left, right))
+    bot.set_drive(DriveCommand(left, right))
     sleep_ms(duration_ms)
     bot.stop()
 

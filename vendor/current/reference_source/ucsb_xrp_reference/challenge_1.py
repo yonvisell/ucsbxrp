@@ -3,7 +3,7 @@
 from math import pi
 
 from ucsb_xrp._validation import isfinite, require_int
-from ucsb_xrp.records import Measurements, MotorEfforts, RawSensors, WheelSpeeds
+from ucsb_xrp.records import DriveCommand, Measurements, RawSensors, WheelSpeeds
 from ucsb_xrp.student_api import SensorModelBase, WheelSpeedControllerBase
 from ucsb_xrp.utils import clamp, elapsed_time_s
 
@@ -138,7 +138,7 @@ class SensorModel(SensorModelBase):
 
 
 class WheelSpeedController(WheelSpeedControllerBase):
-    """Convert requested and measured wheel speed to bounded effort."""
+    """Convert requested and measured wheel speed to a bounded drive command."""
 
     __slots__ = ()
 
@@ -151,28 +151,32 @@ class WheelSpeedController(WheelSpeedControllerBase):
         if not isinstance(measured, WheelSpeeds):
             raise TypeError("measured must be a WheelSpeeds value")
 
-        left = self._wheel_effort(
+        left = self._wheel_command(
             target.left_mm_s,
             measured.left_mm_s,
-            self.config.left_start_effort,
-            self.config.left_speed_effort_gain,
+            self.config.left_start_command,
+            self.config.left_speed_command_gain,
         )
-        right = self._wheel_effort(
+        right = self._wheel_command(
             target.right_mm_s,
             measured.right_mm_s,
-            self.config.right_start_effort,
-            self.config.right_speed_effort_gain,
+            self.config.right_start_command,
+            self.config.right_speed_command_gain,
         )
-        return MotorEfforts(left, right)
+        return DriveCommand(left, right)
 
-    def _wheel_effort(self, target, measured, start_effort, speed_effort_gain):
+    def _wheel_command(self, target, measured, start_command, speed_command_gain):
         if target == 0.0:
             return 0.0
 
         direction = 1.0 if target > 0.0 else -1.0
-        effort = (
-            direction * start_effort
-            + target * speed_effort_gain
+        command = (
+            direction * start_command
+            + target * speed_command_gain
             + self.config.wheel_speed_kp * (target - measured)
         )
-        return clamp(effort, -self.config.max_effort, self.config.max_effort)
+        return clamp(
+            command,
+            -self.config.max_drive_command,
+            self.config.max_drive_command,
+        )

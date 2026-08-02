@@ -2,7 +2,7 @@
 
 from ._validation import isfinite
 from .config import RobotConfig
-from .records import MotorEfforts, RawSensors
+from .records import DriveCommand, RawSensors
 from .utils import clamp
 
 try:
@@ -31,7 +31,7 @@ class _XRPLibDevices:
 
 
 class XRPBot:
-    """Read XRP hardware and apply bounded, signed motor effort.
+    """Read XRP hardware and apply a bounded, signed drive command.
 
     ``_devices`` and ``_ticks_ms`` are private seams for the virtual XRP and
     contract tests. Student programs construct ``XRPBot(config)``.
@@ -96,13 +96,14 @@ class XRPBot:
     def wait_for_button(self):
         self._devices.board.wait_for_button()
 
-    def set_efforts(self, efforts):
-        if not isinstance(efforts, MotorEfforts):
+    def set_drive(self, command):
+        """Apply one normalized command to the left and right motor channels."""
+        if not isinstance(command, DriveCommand):
             self._stop_after_invalid_command()
-            raise TypeError("efforts must be a MotorEfforts value")
+            raise TypeError("command must be a DriveCommand value")
 
-        left = efforts.left
-        right = efforts.right
+        left = command.left
+        right = command.right
         if (
             isinstance(left, bool)
             or not isinstance(left, (int, float))
@@ -112,12 +113,12 @@ class XRPBot:
             or not isfinite(float(right))
         ):
             self._stop_after_invalid_command()
-            raise ValueError("motor efforts must be finite real numbers")
+            raise ValueError("drive commands must be finite real numbers")
 
         left = float(left)
         right = float(right)
 
-        limit = self._config.max_effort
+        limit = self._config.max_drive_command
         left = clamp(left, -limit, limit) * self._config.left_motor_sign
         right = clamp(right, -limit, limit) * self._config.right_motor_sign
 
@@ -127,6 +128,10 @@ class XRPBot:
         except Exception:
             self._best_effort_stop()
             raise
+
+    def set_efforts(self, efforts):
+        """Compatibility alias for :meth:`set_drive`."""
+        self.set_drive(efforts)
 
     def stop(self):
         error = self._best_effort_stop()

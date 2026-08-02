@@ -1,0 +1,64 @@
+{
+  "observedAtUtc": "2026-08-02T09:28:37Z",
+  "scope": "Repeated physical run lifecycle after the UCSB-XRP 0.3 API provision",
+  "repositoryBaseCommit": "395144204513226bf3a576006b147c339a0d1395",
+  "controller": {
+    "id": "sparkfun-xrp-controller-rp2350",
+    "network": "Pink",
+    "address": "192.168.7.32",
+    "micropython": "1.28.0",
+    "installedServiceVersion": "2026.08-dev.2",
+    "installedServiceSha256": "b4ee963ff1acd93c5595b4e98dac72d4337ba236f810114be237dab9ab9ea292"
+  },
+  "motion": "No physical motion requested; the lifecycle project retained a zero drive command.",
+  "reproduction": {
+    "harness": "tests/e2e/physical-hardware.spec.ts",
+    "browser": "Stable Chrome",
+    "passedBeforeFailure": [
+      "IDE and Monitor discovered the same retained project",
+      "project synchronization",
+      "Monitor-started first run",
+      "Monitor stop and controller reboot",
+      "new-file edit, stale-revision propagation, and resynchronization"
+    ],
+    "failure": "The second IDE-started /run request did not reply within 8 seconds. HTTP and the USB REPL then remained unresponsive while ICMP and USB identity initially remained present.",
+    "trace": "test-results/physical-hardware-IDE-and--4c9d8-sical-XRP-project-lifecycle-stable-chrome/trace.zip",
+    "result": "failed"
+  },
+  "diagnosis": {
+    "classification": "boundary localized; exact VM lock owner not observable after the hard hang",
+    "evidence": "The post-stop boot, edit, flash synchronization, and retained revision all completed. The next run command entered the installed synchronous core-1 startup boundary and never returned.",
+    "risk": "RP2350 MicroPython shares its VM, allocator, and flash coordination across the service and student cores; a lockup in this boundary previously required a physical reset."
+  },
+  "correction": {
+    "serviceSha256": "97586a53cbaad8666988a0013ea7155f67fa44a235bafc464a44f94f8eb138f3",
+    "physicalClientSha256": "781994e9bbb9e2329ce4af7514d99c216cb9faeb488de035066c290c2654ee86",
+    "serviceProbeSha256": "cb15d68bbed6540f68fe5ffc53825b023e11bcc5a24b6f84a51a10c5a4dbe0d4",
+    "hardwareHarnessSha256": "01541c03407c49bcc158cb344ec43c25d7704022d51f71d50dc726f68525fe14",
+    "changes": [
+      "Compile and prepare the entrypoint on service core 0.",
+      "Return the run response in loading state before scheduling core-1 launch.",
+      "Finish any in-flight browser telemetry request and leave a 500 ms startup quiet interval.",
+      "Feed a 7 s RP2350 hardware watchdog from the service event loop so a VM-level deadlock automatically reboots.",
+      "Bound macOS serial-device open to 2 s so a frozen USB driver cannot hang the instructor recovery harness."
+    ]
+  },
+  "softwareValidation": {
+    "cpPythonTests": 92,
+    "vitestTests": 97,
+    "microPython128Parity": "passed",
+    "offlinePayloadFiles": 115,
+    "stableChromeSoftwareWorkflows": 17,
+    "results": "passed"
+  },
+  "recovery": {
+    "verifiedFirmware": {
+      "asset": "SPARKFUN_XRP_CONTROLLER-20260406-v1.28.0.uf2",
+      "sha256": "0a36d7e2bc20dfcde2dd1af9a673fd0a63248820a360723c3967751106610ed0",
+      "flashed": false
+    },
+    "targetedUsbReset": "The exact VID/PID link reset and re-enumeration completed on macOS, but the frozen controller could not reattach. This distinguished a controller hang from a host-driver-only failure.",
+    "pending": "Press RESET once, install the corrected service, then repeat the strict service probe and two-run Stable Chrome lifecycle."
+  },
+  "result": "correction software-validated; physical install and repetition pending one controller reset"
+}

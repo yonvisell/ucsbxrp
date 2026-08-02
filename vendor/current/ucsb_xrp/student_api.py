@@ -32,7 +32,7 @@ class SensorModelBase(_ConfiguredComponent):
 
 
 class WheelSpeedControllerBase(_ConfiguredComponent):
-    """Contract for converting target and measured speed to motor effort."""
+    """Contract for converting wheel-speed error to a drive command."""
 
     __slots__ = ()
 

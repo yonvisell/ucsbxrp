@@ -104,8 +104,8 @@ class WheelSpeeds(_ValueRecord):
         return self._right_mm_s
 
 
-class MotorEfforts(_ValueRecord):
-    """Normalized left and right effort before hardware sign conversion."""
+class DriveCommand(_ValueRecord):
+    """Normalized left and right motor commands before sign conversion."""
 
     __slots__ = ("_left", "_right")
     _field_names = ("left", "right")
@@ -114,7 +114,7 @@ class MotorEfforts(_ValueRecord):
         left = require_number("left", left)
         right = require_number("right", right)
         if abs(left) > 1.0 or abs(right) > 1.0:
-            raise ValueError("motor efforts must be within [-1.0, 1.0]")
+            raise ValueError("drive commands must be within [-1.0, 1.0]")
         self._left = left
         self._right = right
 
@@ -125,6 +125,11 @@ class MotorEfforts(_ValueRecord):
     @property
     def right(self):
         return self._right
+
+
+# Compatibility for projects created before the drive-command terminology was
+# adopted. Both names refer to the same validated value type.
+MotorEfforts = DriveCommand
 
 
 class MotionCommand(_ValueRecord):

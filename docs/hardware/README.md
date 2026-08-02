@@ -4,6 +4,14 @@ This directory retains machine-readable observations from the attached
 SparkFun XRP Controller with RP2350. Records are evidence of what one device did
 with an exact software revision; they are not a checklist for students.
 
+`2026-08-01-course-runtime-api-validation.json` records the UCSB-XRP 0.3
+package/reference installation and the compile, sync, zero-drive run,
+telemetry, stop, restart, and reset/reconnect lifecycle on the attached RP2350.
+`2026-08-01-runtime-launch-regression.json` records the subsequent second-run
+VM hang found by the two-app browser harness, the localized evidence, the
+deferred-launch/quiet-window/watchdog correction, its complete software proof,
+and the one pending reset/install/repetition.
+
 The 2026-07-31 records preserve the original XRP-WPILib 2.1.0 identity, the
 transition to the official board-specific MicroPython 1.28.0 firmware and
 XRPLib 2026.07.1, early stationary sensor observations, and the initial

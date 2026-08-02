@@ -106,14 +106,14 @@ class ExampleTests(unittest.TestCase):
         self.assertIn("pose_mm_rad: 250.0 -75.0 0.5", output)
         self.assertIn("wheel_speeds_mm_s: 120.0 115.0", output)
         self.assertIn("motion_command_mm_s_rad_s: 100.0 -0.25", output)
-        self.assertIn("motor_efforts_normalized: 0.3 0.28", output)
+        self.assertIn("drive_command_normalized: 0.3 0.28", output)
 
     def test_challenge_one_component_example_runs_without_hardware(self):
         output = self.run_example("challenge_1_components.py")
         self.assertIn("wheel_increment_mm: 6.283", output)
         self.assertIn("expected_increment_mm: 6.283", output)
         self.assertIn("wheel_speed_mm_s: 62.83", output)
-        self.assertIn("calculated_motor_efforts: MotorEfforts", output)
+        self.assertIn("calculated_drive_command: DriveCommand", output)
 
     def test_no_motion_sensor_example_writes_zero_only(self):
         modules, left_motor, right_motor = self.make_fake_xrplib()

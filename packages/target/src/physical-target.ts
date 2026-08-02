@@ -90,6 +90,8 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+const RUN_STARTUP_QUIET_MS = 500;
+
 export class DirectPhysicalTargetClient implements TargetClient {
   readonly kind = "physical" as const;
   readonly endpoint: string;
@@ -98,6 +100,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly requestTimeoutMs: number;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollInFlight: Promise<void> | null = null;
+  private pollingPaused = false;
   private connected = false;
   private reconnecting = false;
   private connectGeneration = 0;
@@ -228,13 +232,24 @@ export class DirectPhysicalTargetClient implements TargetClient {
         "The IDE project has changed. Run or synchronize it in the IDE first.",
       );
     }
-    const result = await this.command<{ detail: string; runId: number }>(
-      "run",
-      {},
-    );
-    this.lastRunId = result.runId;
-    this.lastLeaseAt = 0;
-    this.emitStatus("running", result.detail);
+    // Let any current telemetry request finish, then leave the RP2350 service
+    // core quiet while its second core loads the project. This avoids racing
+    // Wi-Fi response allocation with MicroPython project startup.
+    this.pollingPaused = true;
+    this.stopPolling();
+    try {
+      await this.pollInFlight;
+      const result = await this.command<{ detail: string; runId: number }>(
+        "run",
+        {},
+      );
+      this.lastRunId = result.runId;
+      this.lastLeaseAt = 0;
+      this.emitStatus("loading", result.detail);
+    } finally {
+      this.pollingPaused = false;
+      this.schedulePoll(RUN_STARTUP_QUIET_MS);
+    }
   }
 
   async markProjectStale(project: CourseProject): Promise<void> {
@@ -369,10 +384,26 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   private schedulePoll(delay = this.pollIntervalMs): void {
     this.stopPolling();
-    if (!this.connected) {
+    if (!this.connected || this.pollingPaused) {
       return;
     }
-    this.pollTimer = setTimeout(() => void this.poll(), delay);
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      const request = this.poll();
+      this.pollInFlight = request;
+      void request.then(
+        () => {
+          if (this.pollInFlight === request) {
+            this.pollInFlight = null;
+          }
+        },
+        () => {
+          if (this.pollInFlight === request) {
+            this.pollInFlight = null;
+          }
+        },
+      );
+    }, delay);
   }
 
   private stopPolling(): void {

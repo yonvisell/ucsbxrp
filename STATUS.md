@@ -11,7 +11,7 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–4 are complete. The Monitor now uses flat, independently
+Refinement slices 1–5 are complete in software. The Monitor now uses flat, independently
 resizable regions; a bounded arena grid with labeled millimeter coordinates;
 compact signal and recording controls; precise drive-command and yaw-rate
 labels; a closer dimensioned XRP view; and a narrow top-sheet control layout.
@@ -40,6 +40,13 @@ again only through an IDE run or synchronization. The browser, CPython probe,
 and RP2350 service compute the same project identity. The physical service
 discovers the retained project after boot and preserves it through stop/reset.
 
+The public course runtime is now `ucsb_xrp` 0.3.0-dev. New projects use the
+literal `DriveCommand` and `XRPBot.set_drive()` vocabulary; earlier
+`MotorEfforts`, `set_efforts()`, and configuration names remain compatibility
+aliases. Each student component has its own plainly named module. `Robot` owns
+wrap-safe absolute sample deadlines, records overruns, and skips missed periods
+without timing drift or catch-up bursts.
+
 The attached RP2350 was provisioned on `Pink`; its current DHCP address is
 `192.168.7.32`. Stationary
 sensors, project transfer, compilation, execution, logs, course pose telemetry,
@@ -47,17 +54,19 @@ stop/reset/reconnect, simultaneous IDE/Monitor use, recording, and raised-wheel
 motor response were exercised. The user observed the left, right, and paired
 wheel motion expected by the encoder evidence.
 
-The requested final hardware repetition is complete. The current service
-passed the strict compile/sync/run/telemetry/stop/reset lifecycle after a manual
-reset, and Stable Chrome exercised the complete five-file Challenge 1 path
-through the same service. The physical client now distinguishes device boots,
-restarts its log cursor after a reboot, and keeps intentional stop/reset cycles
-in a reconnecting state instead of exposing a transient timeout. A repeated
-raised-wheel check verified both motors, both encoders, and paired response.
+The 0.3 package and service passed the strict
+compile/sync/run/telemetry/stop/reset probe. The following two-app Stable Chrome
+repetition passed its first run, stop/reboot, edit, and resynchronization, then
+found a controller-level hang at the second `/run`. The corrected service now
+returns its run reply before core-1 launch, the physical client leaves a 500 ms
+startup polling interval, and a 7 s hardware watchdog makes any future VM
+deadlock self-recovering. The correction passes the complete software suite;
+one controller reset is presently needed to install and repeat it because the
+old running service predated the watchdog.
 
 ## Delivered course release
 
-- `ucsb_xrp` 0.2.0-dev provides explicit value records, robot configuration,
+- `ucsb_xrp` 0.3.0-dev provides explicit value records, robot configuration,
   `XRPBot`, the measured `Robot` loop, straight-line control, arena/grid
   utilities, and delivery-mission orchestration.
 - Students implement six focused components: `SensorModel`,
@@ -67,9 +76,9 @@ raised-wheel check verified both motors, both encoders, and paired response.
   treated as definitive. Reproducibly generated ordinary `.mpy` artifacts run
   in both browser and RP2350 MicroPython.
 - Five complete starters keep the task entrypoint, challenge values, robot
-  configuration, component selection, and student work in five plainly named
-  files. Normal starters publish structured telemetry through `Robot`; they do
-  not print periodic sample counters.
+  configuration, component selection, and each student component in a plainly
+  named file. Normal starters publish structured telemetry through `Robot`;
+  they do not print periodic sample counters.
 - Challenge 5 exercises both an open route and a newly blocked delivery gate,
   including range observation, replanning, navigation, and explicit outcomes.
 
@@ -132,7 +141,7 @@ raised-wheel check verified both motors, both encoders, and paired response.
   temperature, battery, and button behavior.
 - A shared worker owns the virtual target across IDE and Monitor tabs; each run
   uses a disposable MicroPython worker and an owner lease so browser loss also
-  terminates non-yielding code and converges effort to zero.
+  terminates non-yielding code and converges the drive command to zero.
 - The shared target retains the exact current project and publishes its name,
   startup file, revision, and changed/current state. Either app can start that
   revision; the Monitor cannot start code made stale by IDE edits.
@@ -142,9 +151,12 @@ raised-wheel check verified both motors, both encoders, and paired response.
   correlated/idempotent commands, transactional project transfer, execution,
   logs, telemetry, stop/reset/reconnect, bounded input, browser preflight, and
   a run lease.
-- The service isolates student-core startup imports from service-core HTTP
-  allocation. Device boot identifiers make log sequence resets explicit, and
-  short reconnect probes avoid false errors during intentional reboots.
+- The service prepares the entrypoint on core 0, replies in `loading` state,
+  then starts core 1 after the response. Browser polling remains quiet during
+  that startup, and a service-fed hardware watchdog automatically recovers a
+  future VM deadlock. Device boot identifiers make log-sequence resets
+  explicit; short reconnect probes avoid false errors during intentional
+  reboots.
 - The one-command USB provisioner reads the `Pink` credential without printing
   it, installs and verifies every course/reference/service file, obtains the
   actual post-reset DHCP address over USB, restarts the controller, and waits
@@ -152,7 +164,7 @@ raised-wheel check verified both motors, both encoders, and paired response.
 
 ### Offline and guidance
 
-- The production service worker verifies all 97 public payload files,
+- The production service worker verifies all 115 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, and supplied bytecode. The interface says
   **Saved for offline use**; robot connectivity remains a separate status.
@@ -165,21 +177,23 @@ raised-wheel check verified both motors, both encoders, and paired response.
 The latest complete software pass includes:
 
 - Prettier, TypeScript, and repository whitespace checks;
-- 87 CPython contract and harness tests;
+- 92 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 96 Vitest tests for project identity and handling, folder rotation, target clients and
-  lifecycle, simulator, telemetry, offline state, plot data, and measured
-  contrast;
-- a production build and verification of the exact 97-file offline manifest;
+- 97 Vitest tests for project identity and handling, folder rotation, target
+  clients and lifecycle, simulator, telemetry, offline state, plot data, and
+  measured contrast;
+- a production build and verification of the exact 115-file offline manifest;
   and
 - 17 Stable Chrome software workflows covering all starters, both new project
   templates, flat IDE geometry, four-generation source autosave, per-run
   telemetry/output autosave, blocked-gate replanning, two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   recording/CSV export, and a network-blocked offline reload;
-  plus one opt-in Stable Chrome hardware workflow covering the shared physical
-  project lifecycle, which passed against the attached XRP.
+  plus one opt-in Stable Chrome hardware repetition. Its first complete
+  lifecycle passed; the second launch exposed the RP2350 hang described above.
+  The resulting watchdog/deferred-launch correction is software-validated but
+  not yet installed on the currently frozen controller.
 
 The current Monitor pass includes a direct narrow Chrome inspection and an
 original-size 1,440 × 900 Stable Chrome capture. It covered the bounded labeled
@@ -197,12 +211,13 @@ the 175 px scrolling sidebar fit without vertical or horizontal overflow.
 ## Physical evidence
 
 `docs/hardware/2026-08-01-final-app-and-rp2350-validation.json` records the
-current final pass:
+earlier complete app/robot pass:
 
 - the exact installed service and harness hashes;
 - strict LAN discovery, browser preflight, compile, atomic sync, zero-effort
   execution, stdout, stationary/pose telemetry, stop/restart, and reset;
-- full five-file physical IDE/Monitor startup and reboot-aware output;
+- full then-current five-file physical IDE/Monitor startup and reboot-aware
+  output;
 - approximately 6.54–6.59 V motor supply and live range, button, IMU, and
   encoder readings; and
 - 0.22-effort raised-wheel pulses with left `+303`, right `+291`, and paired
@@ -214,16 +229,26 @@ the superseded timeout that prompted the final client lifecycle correction.
 subsequent retained-revision, post-reset DHCP discovery, and two-app physical
 Run/Stop refinement proof.
 
+`docs/hardware/2026-08-01-course-runtime-api-validation.json` records the 0.3
+package/reference install and passing strict physical service probe.
+`docs/hardware/2026-08-01-runtime-launch-regression.json` separately records
+the immediately following second-launch hang, trace, evidence-bounded
+diagnosis, corrected source identities, automatic-recovery design, complete
+software validation, and pending reset/install/repetition. The passing probe is
+not erased, and the failed repetition is not reported as passing.
+
 ## Remaining work
 
-1. Complete coordinated course-runtime/API clarification and structured
-   watches/live parameters in the active refinement plan.
-2. Red-team and repeat integrated virtual, Chrome, offline-update, persistence,
-   and physical-target validation after those slices.
-3. On the final course surface, measure wheel-speed response, effective wheel
+1. Reset the currently hung controller once, install the corrected service,
+   and repeat the strict probe and two-run Stable Chrome lifecycle. Subsequent
+   VM-level hangs should recover through the new hardware watchdog.
+2. Complete structured watches/live parameters in the active refinement plan.
+3. Red-team and repeat integrated virtual, Chrome, offline-update, persistence,
+   and physical-target validation after that slice.
+4. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.
-4. Run each complete challenge on the floor after calibration. These empirical
+5. Run each complete challenge on the floor after calibration. These empirical
    results should refine configuration, not create another student workflow or
    target protocol.
 

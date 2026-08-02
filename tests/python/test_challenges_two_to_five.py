@@ -205,8 +205,8 @@ class FakeBot:
             button_pressed=False,
         )
 
-    def set_efforts(self, efforts):
-        self.events.append(("effort", efforts))
+    def set_drive(self, command):
+        self.events.append(("drive", command))
 
     def stop(self):
         self.events.append("stop")
@@ -219,15 +219,15 @@ class RobotAndMissionTests(unittest.TestCase):
             wheel_diameter_mm=100 / math.pi,
             encoder_counts_per_revolution=100,
             track_width_mm=100,
-            left_start_effort=0.1,
-            right_start_effort=0.1,
-            left_speed_effort_gain=0.001,
-            right_speed_effort_gain=0.001,
+            left_start_command=0.1,
+            right_start_command=0.1,
+            left_speed_command_gain=0.001,
+            right_speed_command_gain=0.001,
             wheel_speed_kp=0,
-            max_effort=0.5,
+            max_drive_command=0.5,
         )
         bot = FakeBot()
-        clock = iter((100, 105))
+        clock = iter((100, 105, 120))
         robot = Robot(
             config,
             bot,
@@ -258,6 +258,38 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertGreater(published["leftEffort"], 0)
         robot.stop()
         self.assertEqual(state_snapshot()["leftEffort"], 0)
+
+    def test_robot_uses_absolute_wrap_safe_sample_deadlines(self):
+        config = RobotConfig(sample_period_ms=20, max_drive_command=0.5)
+        bot = FakeBot()
+        clock = iter((250, 254, 14, 24, 34))
+
+        def ticks_add(value, delta):
+            return (value + delta) % 256
+
+        def ticks_diff(later, earlier):
+            return ((later - earlier + 128) % 256) - 128
+
+        robot = Robot(
+            config,
+            bot,
+            SensorModel(config),
+            WheelSpeedController(config),
+            DifferentialDrive(config),
+            Odometry(config),
+            _sleep_ms=lambda duration: bot.events.append(("sleep", duration)),
+            _ticks_add=ticks_add,
+            _ticks_diff_fn=ticks_diff,
+            _ticks_ms=lambda: next(clock),
+        )
+
+        robot.start(Pose(0, 0, 0))
+        robot.step(STOP_COMMAND)
+        robot.step(STOP_COMMAND)
+
+        sleeps = [event for event in bot.events if isinstance(event, tuple) and event[0] == "sleep"]
+        self.assertEqual(sleeps, [("sleep", 16), ("sleep", 10)])
+        self.assertEqual(robot.last_overrun_ms, 0)
 
     def test_delivery_mission_observes_plans_navigates_and_always_stops(self):
         arena = ArenaMap(

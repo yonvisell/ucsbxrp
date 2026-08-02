@@ -1190,7 +1190,7 @@ export function IdeApp() {
             </div>
             <div className="course-release">
               <span>COURSE RELEASE</span>
-              <strong>UCSB-XRP 0.2.0-dev</strong>
+              <strong>UCSB-XRP 0.3.0-dev</strong>
             </div>
           </aside>
         ) : null}

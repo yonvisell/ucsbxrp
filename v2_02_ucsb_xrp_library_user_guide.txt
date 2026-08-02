@@ -24,10 +24,10 @@ DifferentialDrive
     converts the MotionCommand to WheelSpeeds
 
 WheelSpeedController
-    converts target and measured WheelSpeeds to MotorEfforts
+    converts target and measured WheelSpeeds to DriveCommand
 
 XRPBot
-    sends MotorEfforts to the hardware
+    sends DriveCommand to the hardware
 
 Measurement and pose
 
@@ -67,7 +67,8 @@ UNITS AND DIRECTIONS
 - Hardware timestamps use integer milliseconds.
 - Heading and heading change use radians.
 - Turn rate uses radians per second.
-- Motor effort is a normalized dimensionless value.
+- Each left/right drive command is a normalized dimensionless value from -1
+  to +1 before the configured limit and motor signs are applied.
 
 World positive x normally points in the robot's initial forward direction.
 World positive y points to its left. Heading zero is world positive x, and
@@ -87,22 +88,24 @@ robot_config.py
     Contains RobotConfig and NavigationConfig values measured or selected for
     one robot.
 
-student_components.py
-    Contains SensorModel, WheelSpeedController, DifferentialDrive, Odometry,
-    NavigationController, and GridPlanner.
+sensor_model.py, wheel_speed_controller.py, differential_drive.py,
+odometry.py, navigation_controller.py, grid_planner.py
+    Each file contains the student component named by the file. Early
+    challenges include only the components introduced so far.
 
 course_setup.py
     Selects the reference or student implementation of each component and
     provides the make_* factory functions.
 
 challenge.py
-    Contains the current experiment or task values, including requested motor
-    effort and duration, initial pose, destinations, map, grid resolution, and
-    range settings.
+    Contains the current experiment or task values, including initial pose,
+    travel distance, destinations, map, grid resolution, and range settings.
 
 Task values belong in challenge.py. Robot measurements and reusable controller
-settings belong in robot_config.py. Algorithms belong in
-student_components.py.
+settings belong in robot_config.py. Each algorithm belongs in its literally
+named component file. Use # for ordinary comments. Triple-quoted strings at
+the start of a module, class, or function are documentation strings, not a
+general commenting syntax.
 
 
 REFERENCE AND STUDENT IMPLEMENTATIONS
@@ -129,15 +132,15 @@ introduced so far.
 
 RUNNING A DIRECT MOTOR EXPERIMENT
 
-XRPBot is used directly for fixed-effort motor measurements. This short
-program applies the MotorEfforts value supplied by challenge.py, waits for the
+XRPBot is used directly for fixed-command motor measurements. This short
+program applies the DriveCommand value supplied by challenge.py, waits for the
 specified interval, and prints the encoder samples before and after the run.
 
 motor_experiment.py
 
     from time import sleep_ms
 
-    from challenge import EXPERIMENT_EFFORTS, RUN_TIME_MS
+    from challenge import EXPERIMENT_COMMAND, RUN_TIME_MS
     from robot_config import ROBOT_CONFIG
     from ucsb_xrp import XRPBot
 
@@ -148,7 +151,7 @@ motor_experiment.py
     start = bot.read()
 
     try:
-        bot.set_efforts(EXPERIMENT_EFFORTS)
+        bot.set_drive(EXPERIMENT_COMMAND)
         sleep_ms(RUN_TIME_MS)
         finish = bot.read()
     finally:
@@ -157,9 +160,10 @@ motor_experiment.py
     print(start)
     print(finish)
 
-EXPERIMENT_EFFORTS is a MotorEfforts value. The same program can be used with
-the wheels raised or with the robot on the floor. Motor characterization uses
-XRPBot; controlled motion uses Robot.
+EXPERIMENT_COMMAND is a DriveCommand value. The same program can be used with
+the wheels raised or with the robot on the floor. This is deliberately one
+open-loop timed pulse, not a sampled controller. Motor characterization may
+therefore use sleep_ms; all sampled challenge control uses Robot's clock.
 
 
 STARTING AND STOPPING ROBOT
@@ -171,8 +175,12 @@ Robot.start(initial_pose) waits for a USER-button press and release, resets the
 encoders and component state, and returns the first RobotState.
 
 Robot.step(command) runs one sample period and returns the next RobotState.
+Robot maintains absolute, wrap-safe sample deadlines internally. Student code
+does not call sleep_ms inside a measured control loop. If calculation overruns
+one deadline, Robot records the overrun and advances to the next future sample
+rather than accumulating drift or issuing catch-up samples.
 
-Robot.stop() sends zero motor effort.
+Robot.stop() sends a zero drive command.
 
 A program that can command motion places Robot.stop() in a finally clause.
 
@@ -237,8 +245,6 @@ main.py
         straight.start(
             measurements=state.measurements,
             distance_mm=TRAVEL_DISTANCE_MM,
-        )
-
         while not straight.is_complete():
             command = straight.update(state.measurements)
             state = robot.step(command)
@@ -404,10 +410,10 @@ RobotConfig contains:
 - encoder counts per wheel revolution;
 - effective track width;
 - motor and encoder direction signs;
-- left and right motor starting effort;
-- left and right speed-to-effort calibration;
+- left and right starting drive command;
+- left and right speed-to-command calibration;
 - wheel-speed feedback gain; and
-- maximum motor effort.
+- maximum drive command.
 
 NavigationConfig contains:
 

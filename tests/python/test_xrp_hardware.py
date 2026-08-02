@@ -1,7 +1,9 @@
 import hashlib
 import importlib.util
 from pathlib import Path
+import signal
 import tempfile
+import time
 import unittest
 
 
@@ -60,6 +62,18 @@ class HardwareHelpersTest(unittest.TestCase):
                 HARDWARE.enter_bootloader("/dev/does-not-matter")
         finally:
             HARDWARE.find_controller_ports = original_ports
+
+    @unittest.skipUnless(hasattr(signal, "setitimer"), "requires POSIX timers")
+    def test_serial_open_has_a_bounded_driver_timeout(self):
+        class BlockedSerialModule:
+            @staticmethod
+            def Serial(*_args, **_options):
+                time.sleep(1.0)
+
+        started = time.monotonic()
+        with self.assertRaisesRegex(HARDWARE.HardwareError, "did not open"):
+            HARDWARE._open_serial(BlockedSerialModule, "/dev/cu.test", 0.02)
+        self.assertLess(time.monotonic() - started, 0.5)
 
     def test_probe_classifies_micropython_usb_without_status_volume(self):
         class Port:

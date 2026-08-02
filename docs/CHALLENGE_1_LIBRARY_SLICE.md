@@ -4,22 +4,24 @@
 
 The Challenge 1 starter is a complete Straight Run program. It reads encoders,
 estimates wheel motion, requests closed-loop wheel speed, slows near the target
-distance, stops in `finally`, and prints its measured result. The same five
-project files run with simulated XRPLib in browser MicroPython or real XRPLib
-on the RP2350.
+distance, stops in `finally`, and prints its final result. The same project
+runs with simulated XRPLib in browser MicroPython or real XRPLib on the RP2350.
 
 - `main.py` contains the readable run sequence.
 - `challenge.py` contains the task distance and speed.
 - `robot_config.py` contains geometry and controller calibration.
-- `student_components.py` contains the two student implementations.
+- `sensor_model.py` and `wheel_speed_controller.py` contain the two student
+  implementations.
 - `course_setup.py` independently selects supplied or student components with
   explicit Boolean flags.
 
 `SensorModel` converts timestamped encoder counts to wheel positions,
 increments, and speeds. `WheelSpeedController` converts requested and measured
-`WheelSpeeds` to bounded `MotorEfforts`, with an exact zero command for a zero
+`WheelSpeeds` to bounded `DriveCommand`, with an exact zero command for a zero
 target. `StraightLineController` uses mean measured travel, slows near the
 destination, and stops within the specified position tolerance.
+`Robot` owns the wrap-safe absolute sample schedule; the starter contains no
+manual sleep or periodic print loop.
 
 ## Reference artifacts
 

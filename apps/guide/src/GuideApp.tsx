@@ -220,7 +220,7 @@ export function GuideApp() {
                 <b>→</b>
                 <span>WheelSpeedController</span>
                 <b>→</b>
-                <span>MotorEfforts</span>
+                <span>DriveCommand</span>
                 <b>→</b>
                 <span>XRPBot</span>
               </div>
@@ -229,18 +229,22 @@ export function GuideApp() {
                 <code>WheelSpeedController</code>,{" "}
                 <code>DifferentialDrive</code>, <code>Odometry</code>,{" "}
                 <code>NavigationController</code>, and <code>GridPlanner</code>.
-                The course supplies the hardware adapter, measured loop,
-                straight controller, dimensioned maps, occupancy grids, and
-                final mission sequence.
+                Each appears in its own literally named Python file. The course
+                supplies the hardware adapter, measured loop, straight
+                controller, dimensioned maps, occupancy grids, and final mission
+                sequence.
               </p>
               <p>
                 Distances are millimeters, linear speeds are millimeters per
                 second, angles are radians, and{" "}
-                <code>MotorEfforts(left, right)</code> uses the normalized range
-                −1 to +1. <code>RobotConfig.max_effort</code> is an ordinary
-                output limit, not a separate operating mode. The readable
-                reference source is a starting design and may be improved;
-                public behavior and units define interoperability.
+                <code>DriveCommand(left, right)</code> uses the normalized range
+                −1 to +1. <code>MotionCommand</code> requests body speed and yaw
+                rate; <code>DriveCommand</code> is the resulting two-wheel motor
+                input. <code>RobotConfig.max_drive_command</code> is an ordinary
+                output limit, not a separate operating mode. <code>Robot</code>
+                keeps the sample clock, so challenge loops do not call sleep.
+                The readable reference source is a starting design and may be
+                improved; public behavior and units define interoperability.
               </p>
             </div>
           </section>

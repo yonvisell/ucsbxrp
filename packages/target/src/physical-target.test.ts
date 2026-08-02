@@ -153,7 +153,7 @@ describe("physical target", () => {
     );
     expect(events).toContainEqual({
       type: "status",
-      state: "running",
+      state: "loading",
       detail: "Running main.py",
     });
     target.disconnect();
@@ -360,6 +360,74 @@ describe("physical target", () => {
     ).toBe("http://xrp.local/path");
   });
 
+  it("leaves a quiet window between the run reply and telemetry polling", async () => {
+    vi.useFakeTimers();
+    const paths: string[] = [];
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const path = String(input);
+        paths.push(path);
+        if (!init || init.method === "GET") {
+          if (path.includes("/api/v1/telemetry")) {
+            return response({
+              bootId: "boot-a",
+              state: "running",
+              detail: "Running main.py",
+              runId: 1,
+              logs: [],
+            });
+          }
+          return response({
+            protocol: 1,
+            serviceVersion: "test",
+            courseRelease: "test",
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: {
+              name: "Retained project",
+              entrypoint: "main.py",
+              revision:
+                "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3",
+            },
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        const body = JSON.parse(String(init.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: path.endsWith("/lease")
+            ? { state: "running", runId: 1 }
+            : { detail: "Starting main.py", runId: 1 },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 250,
+    });
+
+    await target.connect();
+    await target.runCurrent();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(paths.some((path) => path.includes("/api/v1/telemetry"))).toBe(
+      false,
+    );
+    await vi.advanceTimersByTimeAsync(1);
+    expect(paths.some((path) => path.includes("/api/v1/telemetry"))).toBe(true);
+    target.disconnect();
+    vi.useRealTimers();
+  });
+
   it("discovers, checks, synchronizes, and runs with correlated replies", async () => {
     let requestCount = 0;
     const fetchMock = vi.fn(
@@ -414,7 +482,7 @@ describe("physical target", () => {
     expect(requestCount).toBe(3);
     expect(events).toContainEqual({
       type: "status",
-      state: "running",
+      state: "loading",
       detail: "Running main.py",
     });
     target.disconnect();

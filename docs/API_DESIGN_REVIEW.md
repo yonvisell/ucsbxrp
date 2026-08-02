@@ -7,29 +7,29 @@ specification.
 ## Retained decisions
 
 - Course units are millimeters, millimeters per second, seconds for computed
-  intervals, integer milliseconds for device time, radians, and normalized
-  motor effort.
+  intervals, integer milliseconds for device time, radians, and a normalized
+  drive command.
 - Positive wheel speed means forward; positive heading and turn rate are
   counterclockwise. Per-robot motor and encoder signs isolate wiring.
 - Public records are compact immutable value objects with construction-time
   validation, useful equality, and representations that work in CPython and
   MicroPython without `dataclasses` or runtime typing machinery.
-- `MotorEfforts(left, right)` makes the wheel controller's two physical outputs
-  explicit and testable. It is a course value, not another hardware subsystem.
+- `DriveCommand(left, right)` makes the wheel controller's two normalized
+  outputs explicit and testable without implying physical force or torque.
 - `XRPBot` is the only course class that imports XRPLib. It rechecks values,
-  applies the configured effort bound and signs at the hardware boundary, and
+  applies the configured command bound and signs at the hardware boundary, and
   makes a best effort to stop both motors after invalid or failed output.
-- `Robot` owns the recurring measured loop, timing/overrun observation,
-  component composition, and telemetry publication. Algorithms remain in the
-  six replaceable components.
+- `Robot` owns the recurring measured loop, wrap-safe absolute deadlines,
+  timing/overrun observation, component composition, and telemetry publication.
+  Algorithms remain in the six replaceable components.
 - Student base classes state only required methods. Reference algorithms are
   not inherited, copied into templates, or treated as normative.
 
 ## Coordinated improvements completed
 
 - `RobotConfig` is usable by default and has an ordinary configurable
-  `max_effort` in `[0, 1]`; there is no second authorization state. Individual
-  starters choose explicit values appropriate to the task.
+  `max_drive_command` in `[0, 1]`; there is no second authorization state.
+  Individual starters choose explicit values appropriate to the task.
 - `DifferentialDrive`, exact-arc `Odometry`, `NavigationController`, and
   `GridPlanner` now have public bases, reference implementations, starters,
   bytecode, CPython contracts, and browser MicroPython parity tests.
@@ -38,7 +38,12 @@ specification.
   course path.
 - Course telemetry remains a small private channel rather than a new
   student-facing logging framework. It lets the physical service display the
-  estimated pose and latest applied effort when a project uses `Robot`.
+  estimated pose and latest applied drive command when a project uses `Robot`.
+- `MotorEfforts`, `XRPBot.set_efforts()`, and the prior RobotConfig effort
+  names remain aliases, so saved projects continue to run while current course
+  surfaces use one clearer vocabulary.
+- Student work is separated into one literally named file per component rather
+  than accumulating six unrelated classes in `student_components.py`.
 
 ## Deliberately adaptable details
 
@@ -50,9 +55,8 @@ specification.
   measurements into the package API.
 - Planning requires a shortest valid four-neighbor route but does not prescribe
   one frontier implementation or tie break.
-- `MotorEfforts` can be renamed only if student use demonstrates a clearer
-  term; any rename must update course documents, starters, source, bytecode,
-  examples, and tests together.
+- Drive-command terminology is the preferred course surface. The older effort
+  names are compatibility-only and should not be introduced in new examples.
 - Persistent/replay telemetry and more simulator environments should remain
   application capabilities unless a course learning objective requires a new
   Python API.

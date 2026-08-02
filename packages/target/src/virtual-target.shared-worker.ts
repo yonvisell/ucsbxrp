@@ -206,7 +206,7 @@ function handleRuntimeMessage(
   } else if (message.type === "run-complete") {
     runOwnerLease.clear();
     stopRuntime();
-    status("ready", "Program completed; motor effort is zero");
+    status("ready", "Program completed; drive command is zero");
     broadcastMessage({ type: "terminate-runtime", runId });
   } else if (message.type === "error") {
     runOwnerLease.clear();
@@ -220,7 +220,7 @@ function handleRuntimeMessage(
 function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
   if (command.type === "disconnect") {
     if (runOwnerLease.ownsPort(port)) {
-      invalidateRun("Run owner disconnected; motor effort set to zero");
+      invalidateRun("Run owner disconnected; drive command set to zero");
     }
     ports.delete(port);
     port.close();
@@ -319,7 +319,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     broadcast({
       type: "console",
       stream: "system",
-      line: "Run stopped; motor effort set to zero",
+      line: "Run stopped; drive command set to zero",
     });
     status("ready", "Stopped");
     send(port, { type: "response", requestId: command.requestId, ok: true });
@@ -356,7 +356,7 @@ self.onconnect = (event: MessageEvent) => {
 
 setInterval(() => {
   if (runOwnerLease.expired(performance.now())) {
-    invalidateRun("Run owner heartbeat expired; motor effort set to zero");
+    invalidateRun("Run owner heartbeat expired; drive command set to zero");
   }
 }, 100);
 

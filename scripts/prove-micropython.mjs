@@ -125,6 +125,7 @@ import sys
 
 from ucsb_xrp import (
     ArenaMap,
+    DriveCommand,
     GridCell,
     MotorEfforts,
     MotionCommand,
@@ -147,16 +148,16 @@ from ucsb_xrp_reference import (
     WheelSpeedController,
 )
 
-assert RobotConfig().max_effort == 1.0
+assert RobotConfig().max_drive_command == 1.0
 
 configured = XRPBot(
     RobotConfig(
         left_motor_sign=-1,
         right_motor_sign=1,
-        max_effort=0.4,
+        max_drive_command=0.4,
     )
 )
-configured.set_efforts(MotorEfforts(0.9, -0.7))
+configured.set_drive(DriveCommand(0.9, -0.7))
 sample = configured.read(include_range=True)
 assert abs(sample.range_mm - 247.5) < 0.001
 assert abs(Pose(0, 0, math.pi).heading_rad + math.pi) < 0.00001
@@ -167,12 +168,12 @@ component_config = RobotConfig(
     encoder_counts_per_revolution=100.0,
     left_encoder_sign=1,
     right_encoder_sign=-1,
-    left_start_effort=0.10,
-    right_start_effort=0.12,
-    left_speed_effort_gain=0.002,
-    right_speed_effort_gain=0.0015,
+    left_start_command=0.10,
+    right_start_command=0.12,
+    left_speed_command_gain=0.002,
+    right_speed_command_gain=0.0015,
     wheel_speed_kp=0.001,
-    max_effort=0.5,
+    max_drive_command=0.5,
 )
 sensor_model = SensorModel(component_config)
 sensor_model.reset(RawSensors(1000, 100, 200, None, False))
@@ -187,6 +188,13 @@ component_efforts = wheel_controller.update(
 )
 assert abs(component_efforts.left - 0.31) < 0.0001
 assert abs(component_efforts.right + 0.26) < 0.0001
+
+# Projects written against the earlier vocabulary continue to run unchanged.
+legacy_config = RobotConfig(max_effort=0.25)
+assert legacy_config.max_drive_command == 0.25
+assert MotorEfforts is DriveCommand
+configured.set_efforts(MotorEfforts(0.0, 0.0))
+configured.set_drive(DriveCommand(0.9, -0.7))
 
 drive = DifferentialDrive(RobotConfig(track_width_mm=100.0))
 wheel_speeds = drive.wheel_speeds(MotionCommand(200.0, 1.0))
@@ -220,7 +228,7 @@ if (
   Math.abs(efforts.right + 0.4) > 1e-6
 ) {
   throw new Error(
-    `Unexpected hardware-boundary efforts: ${JSON.stringify(efforts)}`,
+    `Unexpected hardware-boundary drive commands: ${JSON.stringify(efforts)}`,
   );
 }
 if (!output.includes("canonical ucsb_xrp source parity passed")) {
@@ -248,7 +256,9 @@ if (
 }
 
 process.stdout.write(`${output.join("\n")}\n`);
-process.stdout.write(`hardware-boundary efforts: ${JSON.stringify(efforts)}\n`);
+process.stdout.write(
+  `hardware-boundary drive commands: ${JSON.stringify(efforts)}\n`,
+);
 process.stdout.write(
   `portable .mpy ABI: ${wasmMpy & portableAbiMask} (WebAssembly ${wasmMpy}; RP2350 ${recordedPhysicalMpy})\n`,
 );

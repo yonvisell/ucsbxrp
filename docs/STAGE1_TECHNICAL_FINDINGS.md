@@ -38,7 +38,7 @@ inside a shared worker. The proven structure is:
 2. the IDE page owns the disposable MicroPython worker;
 3. runtime and simulator messages are forwarded to the shared worker; and
 4. stop, reset, owner loss, completion, or exception terminates the runtime and
-   sets motor effort to zero.
+   sets the drive command to zero.
 
 MicroPython `sleep_ms` must advance the authoritative simulator. Without that
 bridge, open-loop programs sleep in real time while the plant remains frozen;
@@ -49,7 +49,7 @@ the full Challenge starter tests exposed and corrected that mismatch.
 The Mac and XRP use the ordinary `Pink` network. USB provisioning stores the
 credential directly on the device without logging it, installs and reads back
 the course/service files, resets the XRP, and waits for the service discovery
-reply. The current XRP is `ucsb-xrp` at `192.168.7.30`.
+reply. The current XRP is `ucsb-xrp` at `192.168.7.32` for this DHCP lease.
 
 The target service uses a small HTTP/JSON API because it is dependable on stock
 MicroPython and directly supports browser Private Network Access preflight.
@@ -82,13 +82,23 @@ collection runs on the service core before launch. The program core finishes
 motor stop and file cleanup before releasing hardware ownership; stop, reset,
 and lease-expiry paths reset the controller without cross-core XRPLib calls.
 Direct reads resume only after the program thread completes. Project manifests
-are retained in RAM and project imports are evicted before each run, avoiding
-flash reads from the program core while the HTTP core is active.
+are retained in RAM, the entrypoint is compiled on the service core, and prior
+project imports are evicted before each run. The browser does not poll during
+the short project-import interval.
+
+A later red-team repetition found that the synchronous `/run` startup handshake
+could still deadlock the shared RP2350 MicroPython VM on a second launch. The
+service now compiles and prepares the entrypoint on core 0, returns a `loading`
+reply before starting core 1, and the browser leaves a 500 ms telemetry-quiet
+startup interval. A 7 s hardware watchdog, fed only by the live service event
+loop, makes a future VM-level lockup self-recovering. The host bootloader helper
+also bounds a macOS serial-driver open so a frozen controller cannot hang the
+instructor harness indefinitely.
 
 With those corrections installed, the final strict boot-aware probe passed the
 complete lifecycle and course pose telemetry after the user reset the board.
-Stable Chrome then validated a full five-file Challenge 1 run while IDE and
-Monitor simultaneously displayed the same physical state. Intentional stop and
+Stable Chrome then validated the complete Challenge 1 project of that revision
+while IDE and Monitor simultaneously displayed the same physical state. Intentional stop and
 reset now remain visibly in the reconnecting state, use short repeated
 discovery attempts, and reset the log cursor from the service boot identifier;
 neither path exposes the expected reboot as an application error.

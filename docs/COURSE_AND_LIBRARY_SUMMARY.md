@@ -61,11 +61,13 @@ from `ucsb_xrp.student_api`. In `course_setup.py`, one named
 student component passes its software tests. Early starters include only the
 flags for components introduced so far.
 
-Students concentrate their code in `student_components.py`. Robot-specific
-measurements and reusable controller settings belong in `robot_config.py`;
-challenge values belong in `challenge.py`; `main.py` constructs the selected
-objects and runs the task. Algorithms and task-specific numerical values should
-not be duplicated in `main.py`.
+Each student component has a literal file: `sensor_model.py`,
+`wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
+`navigation_controller.py`, or `grid_planner.py`. A starter includes only the
+components introduced so far. Robot-specific measurements and reusable
+controller settings belong in `robot_config.py`; challenge values belong in
+`challenge.py`; `main.py` constructs the selected objects and runs the task.
+Algorithms and task-specific numerical values are not duplicated in `main.py`.
 
 ## Supplied library services
 
@@ -73,8 +75,8 @@ not be duplicated in `main.py`.
 `DeliveryMission` are supplied.
 
 `XRPBot` is the only UCSB-XRP class that accesses XRPLib directly. It reads raw
-sensors, resets encoders, waits for the USER button, applies normalized motor
-efforts, and stops the motors. `Robot` assembles the selected lower-level
+sensors, resets encoders, waits for the USER button, applies normalized drive
+commands, and stops the motors. `Robot` assembles the selected lower-level
 components and performs the recurring sample cycle. Programs obtain assembled
 objects from:
 
@@ -87,7 +89,8 @@ make_grid_planner()
 A normal run calls `Robot.start(initial_pose)`, repeatedly calls
 `Robot.step(command, read_range=False)`, and places `Robot.stop()` in a
 `finally` clause. Each step returns a `RobotState` containing the newest
-`Measurements` and `Pose`.
+`Measurements` and `Pose`. `Robot` owns absolute, wrap-safe sample deadlines;
+student control loops do not call `sleep_ms`.
 
 The principal run-time paths are:
 
@@ -96,7 +99,7 @@ MotionCommand
   -> DifferentialDrive
   -> WheelSpeeds
   -> WheelSpeedController
-  -> MotorEfforts
+  -> DriveCommand
   -> XRPBot
 
 XRPBot
@@ -125,7 +128,7 @@ of one named map feature before planning and navigation. It reports
 
 The public records imported from `ucsb_xrp` are `RobotConfig`,
 `NavigationConfig`, `DeliveryTask`, `RawSensors`, `Measurements`, `Pose`,
-`RobotState`, `MotionCommand`, `WheelSpeeds`, `MotorEfforts`,
+`RobotState`, `MotionCommand`, `WheelSpeeds`, `DriveCommand`,
 `NavigationGoal`, `GridCell`, and `GridPath`. `STOP_COMMAND` is the shared
 zero-motion command.
 
@@ -133,7 +136,7 @@ Distances, positions, wheel travel, map coordinates, clearances, and grid
 resolution use millimeters. Linear and wheel speeds use millimeters per second.
 Hardware timestamps use integer milliseconds; calculated elapsed time uses
 seconds. Heading and heading change use radians, and turn rate uses radians per
-second. Motor effort is normalized and dimensionless.
+second. Each left/right drive command is normalized and dimensionless.
 
 World \(+x\) is the reference forward direction, world \(+y\) points left,
 heading zero points along \(+x\), and positive heading and turn rate are
@@ -152,7 +155,8 @@ lookup, and `neighbors()` returns free four-neighbor cells.
   `estimate_range(samples, minimum_usable)` returns a median range estimate or
   `None` after rejecting unusable readings.
 - `WheelSpeedController.update(target, measured)` returns bounded
-  `MotorEfforts`; a zero target for a wheel produces zero effort for that wheel.
+  `DriveCommand`; a zero target for a wheel produces a zero command for that
+  wheel.
 - `DifferentialDrive.wheel_speeds(command)` converts a `MotionCommand` to
   `WheelSpeeds`.
 - `Odometry.reset(initial_pose)` initializes pose, and
@@ -188,3 +192,6 @@ browser-to-robot LAN transport have now been exercised. Reference algorithms
 remain revisable; course outcomes, units, component ownership, and the concise
 student workflow are the compatibility target. Physical floor calibration is
 kept in per-robot configuration rather than promoted into the public API.
+`MotorEfforts`, `XRPBot.set_efforts()`, and the earlier RobotConfig effort
+field names remain compatibility aliases for saved pre-0.3 projects; current
+course material uses the drive-command vocabulary.

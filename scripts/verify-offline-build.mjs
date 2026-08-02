@@ -90,7 +90,7 @@ assert.match(
 );
 assert.match(
   micropythonWorkerText,
-  /class MotorEfforts/,
+  /class DriveCommand/,
   "MicroPython worker must contain recognizable canonical package source",
 );
 

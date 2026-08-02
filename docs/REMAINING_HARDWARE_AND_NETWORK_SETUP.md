@@ -3,9 +3,10 @@
 ## Current development robot
 
 The SparkFun RP2350 XRP is fully configured. It joins `Pink` at
-`192.168.7.30`; the current firmware, XRPLib, UCSB library, reference bytecode,
-and browser service are installed. USB can remain connected, but normal IDE and
-Monitor traffic uses `Pink`.
+the address printed by the provisioner; its latest DHCP lease was
+`192.168.7.32`. The current firmware, XRPLib, UCSB library, reference bytecode,
+and browser service are installed. USB can remain connected, but normal IDE
+and Monitor traffic uses `Pink`.
 
 Nothing else needs to be configured for the present raised-wheel setup. Open:
 
@@ -31,25 +32,17 @@ restarts the controller, and prints its LAN address. Enter that address once in
 IDE Settings. Students then use the same IDE/Monitor workflow for the virtual
 and physical XRP.
 
-`Pink` did not supply a DHCP lease during the present setup, so this robot uses
-the known-free address `192.168.7.30`. If another controller has the same
-network behavior, assign it a distinct free address:
-
-```sh
-.venv/bin/python scripts/provision_xrp.py \
-  --static-address 192.168.7.31 --gateway 192.168.7.1
-```
-
 ## If the robot is not reachable
 
-Press **RESET** once and wait for it to rejoin `Pink`. If it still does not
+The service watchdog automatically reboots a locked runtime. If it has not
+returned after about 20 seconds, press **RESET** once. If it still does not
 appear, rerun `scripts/provision_xrp.py`; this is both the setup and repair
-command. UF2 recovery is only relevant if the controller no longer enumerates
+command. UF2 recovery is relevant only if the controller no longer enumerates
 as MicroPython over USB.
 
 ## Remaining floor-dependent work
 
-The software, virtual XRP, stationary sensors, Wi-Fi path, five-file physical
+The software, virtual XRP, stationary sensors, Wi-Fi path, complete physical
 project path, raised-wheel motors, and encoders are validated. The remaining
 work requires placing the wheels on the final course surface:
 

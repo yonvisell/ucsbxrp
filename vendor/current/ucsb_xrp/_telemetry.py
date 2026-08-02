@@ -1,17 +1,17 @@
 """In-process pose channel shared with the optional browser target service."""
 
-from .records import MotorEfforts, RobotState
+from .records import DriveCommand, RobotState
 
 
 _latest = None
 
 
-def publish_state(state, efforts=None):
+def publish_state(state, drive_command=None):
     global _latest
     if not isinstance(state, RobotState):
         raise TypeError("state must be a RobotState")
-    if efforts is not None and not isinstance(efforts, MotorEfforts):
-        raise TypeError("efforts must be a MotorEfforts value or None")
+    if drive_command is not None and not isinstance(drive_command, DriveCommand):
+        raise TypeError("drive_command must be a DriveCommand value or None")
     _latest = {
         "xMm": state.pose.x_mm,
         "yMm": state.pose.y_mm,
@@ -20,8 +20,9 @@ def publish_state(state, efforts=None):
         "rightWheelSpeedMmS": state.measurements.right_speed_mm_s,
         "rangeMm": state.measurements.range_mm,
         "buttonPressed": state.measurements.button_pressed,
-        "leftEffort": 0.0 if efforts is None else efforts.left,
-        "rightEffort": 0.0 if efforts is None else efforts.right,
+        # The physical-service wire keys remain stable for older app builds.
+        "leftEffort": 0.0 if drive_command is None else drive_command.left,
+        "rightEffort": 0.0 if drive_command is None else drive_command.right,
     }
 
 

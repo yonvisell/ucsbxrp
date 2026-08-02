@@ -53,7 +53,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   const csv = await readFile(path!, "utf8");
   const rows = csv.trimEnd().split("\n");
   expect(rows[0]).toBe(
-    "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_effort,right_effort,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error",
+    "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error",
   );
   expect(rows.length).toBeGreaterThan(4);
   expect(rows[1]?.split(",")).toHaveLength(25);

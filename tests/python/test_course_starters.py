@@ -32,15 +32,25 @@ class CourseStarterTests(unittest.TestCase):
             [path.name for path in directories],
             ["challenge_1", "challenge_2", "challenge_3", "challenge_4", "challenge_5"],
         )
-        required = {
-            "challenge.py",
-            "course_setup.py",
-            "main.py",
-            "robot_config.py",
-            "student_components.py",
-        }
+        component_files = (
+            "sensor_model.py",
+            "wheel_speed_controller.py",
+            "differential_drive.py",
+            "odometry.py",
+            "navigation_controller.py",
+            "grid_planner.py",
+        )
         for directory in directories:
             paths = {path.name: path for path in directory.glob("*.py")}
+            challenge_number = int(directory.name.rsplit("_", 1)[1])
+            component_count = (2, 4, 5, 6, 6)[challenge_number - 1]
+            required = {
+                "challenge.py",
+                "course_setup.py",
+                "main.py",
+                "robot_config.py",
+                *component_files[:component_count],
+            }
             self.assertEqual(set(paths), required, directory.name)
             for name, path in paths.items():
                 with self.subTest(challenge=directory.name, file=name):

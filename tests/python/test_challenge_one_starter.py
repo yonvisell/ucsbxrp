@@ -30,7 +30,7 @@ class FakeMotor:
         if self.read_error is not None:
             raise self.read_error
         if self.efforts:
-            self.count += int(self.efforts[-1] * 200)
+            self.count += int(self.efforts[-1] * 20)
         return self.count
 
     def reset_encoder_position(self):
@@ -97,7 +97,8 @@ class ChallengeOneStarterTests(unittest.TestCase):
             "challenge",
             "course_setup",
             "robot_config",
-            "student_components",
+            "sensor_model",
+            "wheel_speed_controller",
         }
         saved_modules = {
             name: sys.modules.pop(name)
@@ -105,6 +106,12 @@ class ChallengeOneStarterTests(unittest.TestCase):
             if name in sys.modules
         }
         output = io.StringIO()
+        clock = [0]
+
+        def fake_ticks_ms():
+            clock[0] += 20
+            return clock[0]
+
         starter_path = [
             str(STARTER_ROOT),
             str(REFERENCE_SOURCE_ROOT),
@@ -114,9 +121,13 @@ class ChallengeOneStarterTests(unittest.TestCase):
         try:
             with mock.patch.dict(sys.modules, modules), mock.patch.object(
                 sys, "path", starter_path
-            ), mock.patch("time.sleep", return_value=None), contextlib.redirect_stdout(
-                output
-            ):
+            ), mock.patch(
+                "ucsb_xrp.robot._default_sleep_ms", return_value=None
+            ), mock.patch(
+                "ucsb_xrp.robot._default_ticks_ms", side_effect=fake_ticks_ms
+            ), mock.patch(
+                "ucsb_xrp.xrpbot._default_ticks_ms", side_effect=fake_ticks_ms
+            ), contextlib.redirect_stdout(output):
                 runpy.run_path(str(STARTER_ROOT / "main.py"), run_name="__main__")
         finally:
             for name in transient_modules:
@@ -125,7 +136,7 @@ class ChallengeOneStarterTests(unittest.TestCase):
 
         return output.getvalue()
 
-    def test_starter_has_five_legible_python_files_that_compile(self):
+    def test_starter_has_literal_component_files_that_compile(self):
         paths = sorted(STARTER_ROOT.glob("*.py"))
         self.assertEqual(
             [path.name for path in paths],
@@ -134,7 +145,8 @@ class ChallengeOneStarterTests(unittest.TestCase):
                 "course_setup.py",
                 "main.py",
                 "robot_config.py",
-                "student_components.py",
+                "sensor_model.py",
+                "wheel_speed_controller.py",
             ],
         )
         for path in paths:

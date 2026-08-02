@@ -8,6 +8,7 @@ REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT / "vendor" / "current"))
 
 from ucsb_xrp import (  # noqa: E402
+    DriveCommand,
     Measurements,
     MotionCommand,
     MotorEfforts,
@@ -89,12 +90,12 @@ def calibrated_config(**changes):
     values = {
         "left_motor_sign": -1,
         "right_motor_sign": 1,
-        "left_start_effort": 0.12,
-        "right_start_effort": 0.13,
-        "left_speed_effort_gain": 0.002,
-        "right_speed_effort_gain": 0.0021,
+        "left_start_command": 0.12,
+        "right_start_command": 0.13,
+        "left_speed_command_gain": 0.002,
+        "right_speed_command_gain": 0.0021,
         "wheel_speed_kp": 0.003,
-        "max_effort": 0.4,
+        "max_drive_command": 0.4,
     }
     values.update(changes)
     return RobotConfig(**values)
@@ -116,7 +117,7 @@ class RecordContractTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     WheelSpeeds(value, 0.0)
         with self.assertRaises(ValueError):
-            MotorEfforts(1.01, 0.0)
+            DriveCommand(1.01, 0.0)
         with self.assertRaises(ValueError):
             RawSensors(0, 0, 0, 0.0, False)
         with self.assertRaises(TypeError):
@@ -152,21 +153,21 @@ class RecordContractTests(unittest.TestCase):
 
 
 class ConfigurationContractTests(unittest.TestCase):
-    def test_default_config_contains_nominal_geometry_and_full_effort_range(self):
+    def test_default_config_contains_nominal_geometry_and_full_command_range(self):
         config = RobotConfig()
         self.assertEqual(config.sample_period_ms, 20)
         self.assertEqual(config.wheel_diameter_mm, 60.0)
         self.assertEqual(config.encoder_counts_per_revolution, 585.0)
         self.assertEqual(config.track_width_mm, 155.0)
-        self.assertEqual(config.max_effort, 1.0)
+        self.assertEqual(config.max_drive_command, 1.0)
 
     def test_robot_config_rejects_invalid_signs_limits_and_nonfinite_values(self):
         with self.assertRaises(ValueError):
             RobotConfig(left_motor_sign=0)
         with self.assertRaises(ValueError):
-            RobotConfig(max_effort=1.01)
+            RobotConfig(max_drive_command=1.01)
         with self.assertRaises(ValueError):
-            RobotConfig(left_start_effort=0.2, max_effort=0.1)
+            RobotConfig(left_start_command=0.2, max_drive_command=0.1)
         with self.assertRaises(ValueError):
             RobotConfig(track_width_mm=float("nan"))
 
@@ -245,15 +246,15 @@ class XRPBotContractTests(unittest.TestCase):
                 devices.rangefinder.distance_cm = raw_value
                 self.assertIsNone(bot.read(include_range=True).range_mm)
 
-    def test_set_efforts_applies_signs_and_final_boundary_clamp(self):
+    def test_set_drive_applies_signs_and_final_boundary_clamp(self):
         bot, devices = self.make_bot()
-        bot.set_efforts(MotorEfforts(0.9, -0.7))
+        bot.set_drive(DriveCommand(0.9, -0.7))
         self.assertEqual(devices.left_motor.efforts[-1], -0.4)
         self.assertEqual(devices.right_motor.efforts[-1], -0.4)
 
     def test_default_effort_limit_accepts_the_record_range(self):
         bot, devices = self.make_bot(RobotConfig())
-        bot.set_efforts(MotorEfforts(1.0, -1.0))
+        bot.set_drive(DriveCommand(1.0, -1.0))
         self.assertEqual(devices.left_motor.efforts[-1], 1.0)
         self.assertEqual(devices.right_motor.efforts[-1], -1.0)
 
@@ -261,10 +262,10 @@ class XRPBotContractTests(unittest.TestCase):
         bot, devices = self.make_bot()
         for invalid in (float("nan"), float("inf"), "bad", True):
             with self.subTest(invalid=invalid):
-                corrupt = MotorEfforts(0.1, 0.2)
+                corrupt = DriveCommand(0.1, 0.2)
                 corrupt._left = invalid
                 with self.assertRaises(ValueError):
-                    bot.set_efforts(corrupt)
+                    bot.set_drive(corrupt)
                 self.assertEqual(devices.left_motor.efforts[-1], 0.0)
                 self.assertEqual(devices.right_motor.efforts[-1], 0.0)
 
@@ -272,7 +273,7 @@ class XRPBotContractTests(unittest.TestCase):
         bot, devices = self.make_bot()
         devices.right_motor.fail_nonzero = True
         with self.assertRaises(OSError):
-            bot.set_efforts(MotorEfforts(0.2, 0.2))
+            bot.set_drive(DriveCommand(0.2, 0.2))
         self.assertEqual(devices.left_motor.efforts[-1], 0.0)
         self.assertEqual(devices.right_motor.efforts[-1], 0.0)
 
@@ -292,6 +293,27 @@ class XRPBotContractTests(unittest.TestCase):
         self.assertEqual(devices.left_motor.reset_count, 1)
         self.assertEqual(devices.right_motor.reset_count, 1)
         self.assertEqual(devices.board.wait_count, 1)
+
+    def test_pre_0_3_names_remain_compatible(self):
+        config = RobotConfig(
+            left_start_effort=0.1,
+            right_start_effort=0.11,
+            left_speed_effort_gain=0.002,
+            right_speed_effort_gain=0.0021,
+            max_effort=0.4,
+        )
+        self.assertEqual(config.left_start_command, 0.1)
+        self.assertEqual(config.max_drive_command, 0.4)
+        self.assertEqual(config.max_effort, config.max_drive_command)
+        self.assertIs(MotorEfforts, DriveCommand)
+
+        bot, devices = self.make_bot(config)
+        bot.set_efforts(MotorEfforts(0.2, 0.2))
+        self.assertEqual(devices.left_motor.efforts[-1], 0.2)
+        self.assertEqual(devices.right_motor.efforts[-1], 0.2)
+
+        with self.assertRaises(TypeError):
+            RobotConfig(max_drive_command=0.4, max_effort=0.3)
 
 
 if __name__ == "__main__":

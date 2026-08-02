@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import signal
 import sys
 import time
 
@@ -179,6 +180,31 @@ def probe():
     }
 
 
+def _open_serial(serial_module, port_name, timeout_s=2.0):
+    """Open one serial device without allowing a macOS driver stall to hang."""
+    if not hasattr(signal, "setitimer"):
+        return serial_module.Serial(port_name, baudrate=1200, timeout=0.25)
+
+    def raise_timeout(_signal_number, _frame):
+        raise TimeoutError("serial device open timed out")
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+    signal.signal(signal.SIGALRM, raise_timeout)
+    signal.setitimer(signal.ITIMER_REAL, timeout_s)
+    try:
+        return serial_module.Serial(port_name, baudrate=1200, timeout=0.25)
+    except TimeoutError as exc:
+        raise HardwareError(
+            "The XRP serial driver did not open within {:.1f} seconds".format(
+                timeout_s
+            )
+        ) from exc
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
 def enter_bootloader(port_name, timeout_s=8.0):
     """Use the exact firmware platform's 1200-baud touch reset.
 
@@ -198,7 +224,7 @@ def enter_bootloader(port_name, timeout_s=8.0):
         import serial
     except ImportError as exc:
         raise HardwareError("pyserial is required for bootloader entry") from exc
-    connection = serial.Serial(port_name, baudrate=1200, timeout=0.25)
+    connection = _open_serial(serial, port_name)
     try:
         connection.dtr = False
     finally:

@@ -103,6 +103,31 @@ def wait_for_new_boot(base_url, previous, timeout_s=25.0):
     raise ProbeError("service did not complete a new boot: {}".format(last_error))
 
 
+def wait_for_program(base_url, run_id, timeout_s=8.0, until_running=False):
+    """Poll after the RP2350 startup quiet window.
+
+    A short program may move from ``loading`` to ``ready`` before the first
+    sample. Long-running probes renew their run lease as soon as ``running`` is
+    observed.
+    """
+    time.sleep(0.55)
+    deadline = time.monotonic() + timeout_s
+    state = None
+    attempt = 0
+    while time.monotonic() < deadline:
+        state, _ = request_json(base_url, "/api/v1/telemetry")
+        run_state = state.get("state")
+        if run_state == "running":
+            command(base_url, "lease", 400 + attempt, runId=run_id)
+            if until_running:
+                return state
+        elif run_state != "loading":
+            return state
+        attempt += 1
+        time.sleep(0.2)
+    raise ProbeError("program did not leave its startup/run state")
+
+
 def zero_output_project(wait_forever=False):
     if wait_forever:
         main = """\
@@ -118,14 +143,14 @@ finally:
 """
     else:
         main = """\
-from ucsb_xrp import MotorEfforts, RobotConfig, XRPBot
+from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
 
 config = RobotConfig()
 bot = XRPBot(config)
 try:
     raw = bot.read(include_range=True)
-    bot.set_efforts(MotorEfforts(0.0, 0.0))
-    assert 0.0 <= config.max_effort <= 1.0
+    bot.set_drive(DriveCommand(0.0, 0.0))
+    assert 0.0 <= config.max_drive_command <= 1.0
     assert raw.time_ms >= 0
     print("Physical service probe output")
 finally:
@@ -159,8 +184,8 @@ class ImmediateStartBot:
         pass
     def wait_for_button(self):
         pass
-    def set_efforts(self, efforts):
-        self._bot.set_efforts(efforts)
+    def set_drive(self, command):
+        self._bot.set_drive(command)
     def stop(self):
         self._bot.stop()
 
@@ -225,17 +250,8 @@ def run_probe(address):
     evidence["projectRevision"] = expected_revision
 
     run = command(base_url, "run", 3)
-    deadline = time.monotonic() + 8.0
-    final_state = None
-    observed_logs = []
-    while time.monotonic() < deadline:
-        state, _ = request_json(base_url, "/api/v1/telemetry")
-        final_state = state
-        observed_logs = state.get("logs", [])
-        if state.get("state") != "running":
-            break
-        command(base_url, "lease", 4, runId=run["runId"])
-        time.sleep(0.25)
+    final_state = wait_for_program(base_url, run["runId"])
+    observed_logs = final_state.get("logs", [])
     if final_state is None or final_state.get("state") != "ready":
         raise ProbeError("zero-output project did not complete")
     if not any(
@@ -249,14 +265,8 @@ def run_probe(address):
     evidence["telemetry"] = final_state["sample"]
 
     command(base_url, "sync", 5, project=pose_telemetry_project())
-    command(base_url, "run", 6)
-    deadline = time.monotonic() + 8.0
-    pose_state = None
-    while time.monotonic() < deadline:
-        pose_state, _ = request_json(base_url, "/api/v1/telemetry")
-        if pose_state.get("state") != "running":
-            break
-        time.sleep(0.2)
+    pose_run = command(base_url, "run", 6)
+    pose_state = wait_for_program(base_url, pose_run["runId"])
     sample = None if pose_state is None else pose_state.get("sample")
     if (
         pose_state is None
@@ -278,8 +288,8 @@ def run_probe(address):
     long_revision = project_revision(long_project)
     if long_sync.get("project", {}).get("revision") != long_revision:
         raise ProbeError("long-running project revision did not match its source")
-    command(base_url, "run", 8)
-    time.sleep(0.4)
+    long_run = command(base_url, "run", 8)
+    wait_for_program(base_url, long_run["runId"], until_running=True)
     before_stop, _ = request_json(base_url, "/api/v1/info")
     command(base_url, "stop", 9)
     after_stop = wait_for_new_boot(base_url, before_stop)

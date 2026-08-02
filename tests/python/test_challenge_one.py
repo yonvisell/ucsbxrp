@@ -115,12 +115,12 @@ class SensorModelContractTests(unittest.TestCase):
 class WheelSpeedControllerContractTests(unittest.TestCase):
     def make_controller(self, **changes):
         values = {
-            "left_start_effort": 0.10,
-            "right_start_effort": 0.12,
-            "left_speed_effort_gain": 0.002,
-            "right_speed_effort_gain": 0.0015,
+            "left_start_command": 0.10,
+            "right_start_command": 0.12,
+            "left_speed_command_gain": 0.002,
+            "right_speed_command_gain": 0.0015,
             "wheel_speed_kp": 0.001,
-            "max_effort": 0.50,
+            "max_drive_command": 0.50,
         }
         values.update(changes)
         return WheelSpeedController(RobotConfig(**values))

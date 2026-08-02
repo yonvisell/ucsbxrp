@@ -11,7 +11,7 @@ from .records import _ValueRecord
 
 
 class RobotConfig(_ValueRecord):
-    """Geometry, signs, calibration, controller gains, and effort limit."""
+    """Geometry, signs, calibration, controller gains, and command limit."""
 
     __slots__ = (
         "_sample_period_ms",
@@ -22,12 +22,12 @@ class RobotConfig(_ValueRecord):
         "_right_motor_sign",
         "_left_encoder_sign",
         "_right_encoder_sign",
-        "_left_start_effort",
-        "_right_start_effort",
-        "_left_speed_effort_gain",
-        "_right_speed_effort_gain",
+        "_left_start_command",
+        "_right_start_command",
+        "_left_speed_command_gain",
+        "_right_speed_command_gain",
         "_wheel_speed_kp",
-        "_max_effort",
+        "_max_drive_command",
     )
     _field_names = (
         "sample_period_ms",
@@ -38,12 +38,12 @@ class RobotConfig(_ValueRecord):
         "right_motor_sign",
         "left_encoder_sign",
         "right_encoder_sign",
-        "left_start_effort",
-        "right_start_effort",
-        "left_speed_effort_gain",
-        "right_speed_effort_gain",
+        "left_start_command",
+        "right_start_command",
+        "left_speed_command_gain",
+        "right_speed_command_gain",
         "wheel_speed_kp",
-        "max_effort",
+        "max_drive_command",
     )
 
     def __init__(
@@ -56,13 +56,52 @@ class RobotConfig(_ValueRecord):
         right_motor_sign=1,
         left_encoder_sign=1,
         right_encoder_sign=1,
-        left_start_effort=0.0,
-        right_start_effort=0.0,
-        left_speed_effort_gain=0.0,
-        right_speed_effort_gain=0.0,
+        left_start_command=None,
+        right_start_command=None,
+        left_speed_command_gain=None,
+        right_speed_command_gain=None,
         wheel_speed_kp=0.0,
-        max_effort=1.0,
+        max_drive_command=None,
+        **legacy,
     ):
+        left_start_command = self._resolve_legacy(
+            "left_start_command",
+            left_start_command,
+            "left_start_effort",
+            legacy,
+            0.0,
+        )
+        right_start_command = self._resolve_legacy(
+            "right_start_command",
+            right_start_command,
+            "right_start_effort",
+            legacy,
+            0.0,
+        )
+        left_speed_command_gain = self._resolve_legacy(
+            "left_speed_command_gain",
+            left_speed_command_gain,
+            "left_speed_effort_gain",
+            legacy,
+            0.0,
+        )
+        right_speed_command_gain = self._resolve_legacy(
+            "right_speed_command_gain",
+            right_speed_command_gain,
+            "right_speed_effort_gain",
+            legacy,
+            0.0,
+        )
+        max_drive_command = self._resolve_legacy(
+            "max_drive_command",
+            max_drive_command,
+            "max_effort",
+            legacy,
+            1.0,
+        )
+        if legacy:
+            name = next(iter(legacy))
+            raise TypeError("unexpected RobotConfig argument: {}".format(name))
         self._sample_period_ms = require_int(
             "sample_period_ms", sample_period_ms, minimum=1
         )
@@ -81,26 +120,45 @@ class RobotConfig(_ValueRecord):
         self._right_encoder_sign = require_sign(
             "right_encoder_sign", right_encoder_sign
         )
-        self._left_start_effort = require_nonnegative(
-            "left_start_effort", left_start_effort
+        self._left_start_command = require_nonnegative(
+            "left_start_command", left_start_command
         )
-        self._right_start_effort = require_nonnegative(
-            "right_start_effort", right_start_effort
+        self._right_start_command = require_nonnegative(
+            "right_start_command", right_start_command
         )
-        self._left_speed_effort_gain = require_nonnegative(
-            "left_speed_effort_gain", left_speed_effort_gain
+        self._left_speed_command_gain = require_nonnegative(
+            "left_speed_command_gain", left_speed_command_gain
         )
-        self._right_speed_effort_gain = require_nonnegative(
-            "right_speed_effort_gain", right_speed_effort_gain
+        self._right_speed_command_gain = require_nonnegative(
+            "right_speed_command_gain", right_speed_command_gain
         )
         self._wheel_speed_kp = require_nonnegative("wheel_speed_kp", wheel_speed_kp)
-        self._max_effort = require_number("max_effort", max_effort)
-        if self._max_effort < 0.0 or self._max_effort > 1.0:
-            raise ValueError("max_effort must be within [0.0, 1.0]")
-        if self._left_start_effort > self._max_effort:
-            raise ValueError("left_start_effort must not exceed max_effort")
-        if self._right_start_effort > self._max_effort:
-            raise ValueError("right_start_effort must not exceed max_effort")
+        self._max_drive_command = require_number(
+            "max_drive_command", max_drive_command
+        )
+        if self._max_drive_command < 0.0 or self._max_drive_command > 1.0:
+            raise ValueError("max_drive_command must be within [0.0, 1.0]")
+        if self._left_start_command > self._max_drive_command:
+            raise ValueError(
+                "left_start_command must not exceed max_drive_command"
+            )
+        if self._right_start_command > self._max_drive_command:
+            raise ValueError(
+                "right_start_command must not exceed max_drive_command"
+            )
+
+    @staticmethod
+    def _resolve_legacy(preferred_name, preferred, legacy_name, legacy, default):
+        if legacy_name not in legacy:
+            return default if preferred is None else preferred
+        legacy_value = legacy.pop(legacy_name)
+        if preferred is not None:
+            raise TypeError(
+                "use either {} or {}, not both".format(
+                    preferred_name, legacy_name
+                )
+            )
+        return legacy_value
 
     @property
     def sample_period_ms(self):
@@ -135,28 +193,49 @@ class RobotConfig(_ValueRecord):
         return self._right_encoder_sign
 
     @property
-    def left_start_effort(self):
-        return self._left_start_effort
+    def left_start_command(self):
+        return self._left_start_command
 
     @property
-    def right_start_effort(self):
-        return self._right_start_effort
+    def right_start_command(self):
+        return self._right_start_command
 
     @property
-    def left_speed_effort_gain(self):
-        return self._left_speed_effort_gain
+    def left_speed_command_gain(self):
+        return self._left_speed_command_gain
 
     @property
-    def right_speed_effort_gain(self):
-        return self._right_speed_effort_gain
+    def right_speed_command_gain(self):
+        return self._right_speed_command_gain
 
     @property
     def wheel_speed_kp(self):
         return self._wheel_speed_kp
 
     @property
+    def max_drive_command(self):
+        return self._max_drive_command
+
+    # Read-only compatibility aliases for course projects created before 0.3.
+    @property
+    def left_start_effort(self):
+        return self.left_start_command
+
+    @property
+    def right_start_effort(self):
+        return self.right_start_command
+
+    @property
+    def left_speed_effort_gain(self):
+        return self.left_speed_command_gain
+
+    @property
+    def right_speed_effort_gain(self):
+        return self.right_speed_command_gain
+
+    @property
     def max_effort(self):
-        return self._max_effort
+        return self.max_drive_command
 
 class NavigationConfig(_ValueRecord):
     __slots__ = (

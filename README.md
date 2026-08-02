@@ -41,7 +41,7 @@ permission.
   it.
 - **Sync project** atomically transfers the complete project to a physical XRP.
 - **Run** executes the selected startup file; while active it becomes **Stop**.
-- **Stop** ends execution and commands zero motor effort.
+- **Stop** ends execution and commands zero drive input.
 - **Reset** returns the selected target to its initial state.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
@@ -60,7 +60,7 @@ the physical XRP address. Status and verbose details are separate output tabs.
 
 The Monitor shares the active virtual or physical target with the IDE. It
 shows connection/run state, pose and trail when available, wheel speed,
-efforts, encoders, range, USER button, IMU, temperature, battery, collision,
+drive commands, encoders, range, USER button, IMU, temperature, battery, collision,
 and program output. For the virtual XRP, choose **Open field** or **Delivery
 gate blocked**; the second scene exercises Challenge 5 observation and
 replanning. The world uses the production XRP's dimensioned footprint and a
@@ -93,7 +93,8 @@ The command detects one XRP, reads the network credential from the local
 instructor details file without printing it, configures Wi-Fi, installs and
 read-verifies the current course library/reference/service files, resets the
 controller, and waits for its discovery reply. The current development robot
-is `ucsb-xrp` at `http://192.168.7.30`.
+is `ucsb-xrp`; the latest DHCP lease was `http://192.168.7.32`, and the command
+prints the address to use after every provision.
 
 If an access point associates the XRP but does not issue a DHCP lease, an
 instructor can assign a known-free address in the same subnet without changing
@@ -104,10 +105,12 @@ the student workflow:
   --static-address 192.168.7.30 --gateway 192.168.7.1
 ```
 
-Use `scripts/xrp_service_probe.py --address 192.168.7.30` for the complete
+Use `scripts/xrp_service_probe.py --address 192.168.7.32` for the complete
 non-moving protocol lifecycle. With the robot raised and wheels clear,
-`scripts/xrp_motor_check.py --address 192.168.7.30` runs one short bounded
+`scripts/xrp_motor_check.py --address 192.168.7.32` runs one short bounded
 motor/encoder response check. Neither command requires a staged checklist.
+The installed service automatically reboots through a hardware watchdog if its
+shared MicroPython runtime ever locks; USB remains the fallback repair path.
 Detailed recovery and remaining floor-calibration work are in
 `docs/REMAINING_HARDWARE_AND_NETWORK_SETUP.md`.
 
@@ -125,7 +128,7 @@ components:
 - `GridPlanner`
 
 Supplied services are `XRPBot`, `Robot`, `StraightLineController`, `ArenaMap`,
-`OccupancyGrid`, and `DeliveryMission`. `MotorEfforts(left, right)` is the
+`OccupancyGrid`, and `DeliveryMission`. `DriveCommand(left, right)` is the
 explicit, normalized two-wheel output of the controller; `XRPBot` alone applies
 robot-specific signs and writes it to XRPLib. Its name is descriptive course
 vocabulary, not a separate device or student requirement.

@@ -1,17 +1,17 @@
 """Select supplied or student components and assemble the Challenge 2 robot."""
 
-from student_components import (
-    DifferentialDrive as StudentDifferentialDrive,
-    Odometry as StudentOdometry,
-    SensorModel as StudentSensorModel,
-    WheelSpeedController as StudentWheelSpeedController,
-)
+from differential_drive import DifferentialDrive as StudentDifferentialDrive
+from odometry import Odometry as StudentOdometry
+from sensor_model import SensorModel as StudentSensorModel
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
     DifferentialDrive as SuppliedDifferentialDrive,
     Odometry as SuppliedOdometry,
     SensorModel as SuppliedSensorModel,
     WheelSpeedController as SuppliedWheelSpeedController,
+)
+from wheel_speed_controller import (
+    WheelSpeedController as StudentWheelSpeedController,
 )
 
 

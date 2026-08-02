@@ -1,0 +1,54 @@
+{
+  "observedAtUtc": "2026-08-02T09:04:28Z",
+  "scope": "UCSB-XRP 0.3 drive-command vocabulary, reference bytecode, absolute sample scheduling, and physical service lifecycle",
+  "repositoryBaseCommit": "395144204513226bf3a576006b147c339a0d1395",
+  "motion": "No physical motion requested; every applied drive command was zero.",
+  "controller": {
+    "id": "sparkfun-xrp-controller-rp2350",
+    "network": "Pink",
+    "address": "192.168.7.32",
+    "serviceVersion": "2026.08-dev.2",
+    "courseRelease": "2026.08-dev.2",
+    "installedFilesVerified": 21
+  },
+  "runtime": {
+    "micropython": "1.28.0",
+    "firmwareSha256": "0a36d7e2bc20dfcde2dd1af9a673fd0a63248820a360723c3967751106610ed0",
+    "xrplib": "2026.07.1",
+    "ucsbXrp": "0.3.0-dev",
+    "courseSourceSha256": "c6c7725b68a47d48d5e02e397f37a33ba8c1e341c4a53a8e5d0de8472697a11d",
+    "challenge1ReferenceMpySha256": "f4bb6dce29e3150b20a8f31f726f11d844c597d2a462109df5797c94bd7ad351"
+  },
+  "harness": {
+    "provisionerSha256": "08fae4b4138ea0ff61117fce5ae932cd95fd04bd7919f3ce7aa645e60ca5a3eb",
+    "serviceProbeSha256": "3f9911a7d36eb8914aa3918047e9f1c929f22ddf3c75f8ef4078852845a8c7f2",
+    "installedServiceSha256": "b4ee963ff1acd93c5595b4e98dac72d4337ba236f810114be237dab9ab9ea292",
+    "robotLoopSha256": "48e36ad5a36b315df013fc445e1a1668aff63a6ba570a194f7a4f32b5fa31e7b",
+    "robotConfigSha256": "c2fe925873f30864bb9d1b9147c85ffab546fd050c64d27d1d7b8f05bfa6415e"
+  },
+  "operations": [
+    "USB installation and byte-for-byte verification",
+    "DHCP rediscovery on Pink",
+    "browser CORS and private-network preflight",
+    "MicroPython compilation",
+    "atomic project synchronization",
+    "retained project revision discovery",
+    "zero-drive execution and stdout capture",
+    "course pose telemetry publication",
+    "stop and restart",
+    "controller reset and LAN reconnect"
+  ],
+  "observations": {
+    "batteryV": 6.553741,
+    "rangeMm": 289.34708,
+    "pose": {
+      "xMm": 125.0,
+      "yMm": -50.0,
+      "headingRad": 0.25
+    },
+    "driveCommand": [0.0, 0.0],
+    "wheelSpeedMmS": [0.0, 0.0],
+    "sensorError": null
+  },
+  "result": "passed"
+}

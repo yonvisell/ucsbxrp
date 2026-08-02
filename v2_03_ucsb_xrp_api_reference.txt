@@ -26,7 +26,7 @@ Public records
 - RobotState
 - MotionCommand
 - WheelSpeeds
-- MotorEfforts
+- DriveCommand
 - NavigationGoal
 - GridCell
 - GridPath
@@ -76,8 +76,8 @@ MotionCommand
     -> DifferentialDrive.wheel_speeds()
     -> WheelSpeeds
     -> WheelSpeedController.update()
-    -> MotorEfforts
-    -> XRPBot.set_efforts()
+    -> DriveCommand
+    -> XRPBot.set_drive()
 
 XRPBot.read()
     -> RawSensors
@@ -129,7 +129,8 @@ Units
 - Elapsed time used in calculations is in seconds.
 - Heading and heading change are in radians.
 - Turn rate is in radians per second.
-- Motor effort is a dimensionless value limited by RobotConfig.max_effort.
+- Each left/right drive command is dimensionless and limited by
+  RobotConfig.max_drive_command.
 
 World coordinates
 
@@ -174,12 +175,12 @@ Construction
         right_motor_sign: int,
         left_encoder_sign: int,
         right_encoder_sign: int,
-        left_start_effort: float,
-        right_start_effort: float,
-        left_speed_effort_gain: float,
-        right_speed_effort_gain: float,
+        left_start_command: float,
+        right_start_command: float,
+        left_speed_command_gain: float,
+        right_speed_command_gain: float,
         wheel_speed_kp: float,
-        max_effort: float,
+        max_drive_command: float,
     ) -> RobotConfig
 
 Fields
@@ -198,25 +199,33 @@ track_width_mm: float
     the value used for turning and odometry.
 
 left_motor_sign, right_motor_sign: int
-    Each is +1 or -1. The sign converts positive forward motor effort to the
-    value required by the corresponding hardware channel.
+    Each is +1 or -1. The sign converts a positive forward drive command to
+    the value required by the corresponding hardware channel.
 
 left_encoder_sign, right_encoder_sign: int
     Each is +1 or -1. The sign makes forward wheel rotation produce increasing
     wheel position.
 
-left_start_effort, right_start_effort: float
-    Magnitude of the effort needed to begin moving each loaded wheel.
+left_start_command, right_start_command: float
+    Magnitude of the drive command needed to begin moving each loaded wheel.
 
-left_speed_effort_gain, right_speed_effort_gain: float
-    Calibrated motor-effort change per millimeter per second of requested wheel
-    speed.
+left_speed_command_gain, right_speed_command_gain: float
+    Calibrated drive-command change per millimeter per second of requested
+    wheel speed.
 
 wheel_speed_kp: float
     Proportional correction applied to wheel-speed error.
 
-max_effort: float
+max_drive_command: float
     Maximum magnitude returned by WheelSpeedController and accepted by XRPBot.
+
+Compatibility
+
+Projects written before release 0.3 may continue to use the keyword and
+read-only property aliases left_start_effort, right_start_effort,
+left_speed_effort_gain, right_speed_effort_gain, and max_effort. New projects
+use the drive-command names above; specifying both names for one value is an
+error.
 
 
 NavigationConfig
@@ -496,24 +505,29 @@ left_mm_s, right_mm_s: float
     motion.
 
 
-MotorEfforts
+DriveCommand
 
 Import
 
-    from ucsb_xrp import MotorEfforts
+    from ucsb_xrp import DriveCommand
 
 Construction
 
-    MotorEfforts(
+    DriveCommand(
         left: float,
         right: float,
-    ) -> MotorEfforts
+    ) -> DriveCommand
 
 Fields
 
 left, right: float
-    Normalized left and right motor efforts. Each magnitude is no greater than
-    RobotConfig.max_effort.
+    Normalized left and right motor commands. Each magnitude is no greater
+    than RobotConfig.max_drive_command.
+
+Compatibility
+
+MotorEfforts is an alias of DriveCommand for projects written before release
+0.3. It does not define a second value type.
 
 
 NavigationGoal
@@ -633,13 +647,18 @@ Resets both hardware encoder counts.
 
 Returns after a complete USER-button press and release.
 
+    set_drive(command: DriveCommand) -> None
+
+Applies the configured motor signs and sends the two normalized commands to
+the hardware.
+
     set_efforts(efforts: MotorEfforts) -> None
 
-Applies the configured motor signs and sends the two efforts to the hardware.
+Compatibility alias for set_drive().
 
     stop() -> None
 
-Sends zero effort to both motors.
+Sends a zero command to both motors.
 
 
 Robot
@@ -675,14 +694,17 @@ RobotState. Odometry begins at initial_pose.
 Completes one control sample:
 
 1. DifferentialDrive converts command to target wheel speeds.
-2. WheelSpeedController uses target and measured wheel speeds to obtain motor
-   efforts.
-3. XRPBot applies those efforts for the sample period.
+2. WheelSpeedController uses target and measured wheel speeds to obtain a
+   DriveCommand.
+3. XRPBot applies that command until the absolute sample deadline.
 4. XRPBot reads the encoders and requested range.
 5. SensorModel produces Measurements.
 6. Odometry updates Pose from the new wheel increments.
 
 The returned RobotState contains the resulting Measurements and Pose.
+Robot advances wrap-safe absolute deadlines by sample_period_ms. It reports
+the latest positive deadline overrun through last_overrun_ms and skips missed
+deadlines rather than accumulating drift or issuing catch-up samples.
 
     stop() -> None
 
@@ -701,6 +723,11 @@ Property
     state -> RobotState
 
 Returns the most recent state produced by start() or step().
+
+    last_overrun_ms -> int
+
+Returns how many milliseconds late the latest sample deadline was, or zero
+when the deadline was met.
 
 
 StraightLineController
@@ -953,7 +980,7 @@ WheelSpeedController
 
 Purpose
 
-Converts target and measured wheel speeds to normalized motor efforts.
+Converts target and measured wheel speeds to a normalized drive command.
 
 Import
 
@@ -972,13 +999,14 @@ Clears controller state before a new run.
     update(
         target: WheelSpeeds,
         measured: WheelSpeeds,
-    ) -> MotorEfforts
+    ) -> DriveCommand
 
-Returns one effort for each wheel. The result uses the corresponding starting
-effort and speed-to-effort calibration, corrects for the target-minus-measured
-speed error, and limits each magnitude to config.max_effort.
+Returns one command for each wheel. The result uses the corresponding starting
+command and speed-to-command calibration, corrects for the
+target-minus-measured speed error, and limits each magnitude to
+config.max_drive_command.
 
-A target speed of zero produces zero effort for that wheel.
+A target speed of zero produces a zero drive command for that wheel.
 
 
 DifferentialDrive

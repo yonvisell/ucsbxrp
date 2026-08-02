@@ -46,7 +46,7 @@ Status: implemented; virtual workflow and physical software path exercised.
 
 - Implement sensor conversion, wheel-speed feedback, the straight-line task,
   the `XRPBot` boundary, and the reusable `Robot` sample loop.
-- Supply the five-file starter, selectable student/reference components,
+- Supply the compact starter with literally named component files,
   deterministic tests, browser MicroPython execution, telemetry, recording,
   and CSV export.
 - Measure the attached robot's stationary sensors and use a short raised-wheel
@@ -109,9 +109,10 @@ new obstruction.
 
 ## Slice 7 — Course release and validation
 
-Status: implemented and fully software-validated. The corrected service,
-reboot-aware client, two-app physical workflow, and post-reset hardware
-repetition passed.
+Status: implemented and fully software-validated. Earlier two-app physical
+workflows passed; the latest repetition exposed a second-launch VM hang. Its
+deferred-launch, quiet-window, and hardware-watchdog correction is software-
+validated and awaits one reset/install/repetition on the attached controller.
 
 - Keep the IDE compact and high contrast; retain folders, multi-file projects,
   tabs, recovery storage, startup-file selection, clear commands, adjustable
@@ -214,7 +215,8 @@ Reconnect action restores permission without weakening browser recovery.
 
 ### Refinement 5 — Course runtime and public vocabulary
 
-Status: planned.
+Status: implemented and software-validated; final corrected-service hardware
+repetition awaits the attached controller's reset.
 
 - Replace ambiguous motor-effort terminology with drive-command terminology
   through one coordinated compatibility-preserving change.
@@ -222,6 +224,8 @@ Status: planned.
   deadlines, and organize student code by literal course component.
 - Update source, reference bytecode, examples, starters, tests, and all active
   course documents together.
+- Return a physical run reply before core-1 startup, pause browser telemetry
+  during that boundary, and add automatic hardware-watchdog recovery.
 
 ### Refinement 6 — Structured watches and live parameters
 

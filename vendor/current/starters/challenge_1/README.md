@@ -2,7 +2,8 @@
 
 Open this folder in the XRP IDE. The supplied components are selected at first,
 so the project runs before student work begins. Students implement
-`SensorModel` and `WheelSpeedController` in `student_components.py`, test each
+`SensorModel` in `sensor_model.py` and `WheelSpeedController` in
+`wheel_speed_controller.py`, test each
 component, then change its corresponding flag in `course_setup.py`.
 
 `main.py` waits for the USER button, drives the distance in `challenge.py`, and

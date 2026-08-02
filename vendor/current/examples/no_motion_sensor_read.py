@@ -1,13 +1,13 @@
 """Read XRP sensors without commanding motion."""
 
-from ucsb_xrp import MotorEfforts, RobotConfig, XRPBot
+from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
 
 
 config = RobotConfig()
 bot = None
 try:
     bot = XRPBot(config)
-    bot.set_efforts(MotorEfforts(0.0, 0.0))
+    bot.set_drive(DriveCommand(0.0, 0.0))
     sensors = bot.read(include_range=True)
 
     print("motor_command:", "zero")

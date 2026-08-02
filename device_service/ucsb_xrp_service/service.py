@@ -23,13 +23,14 @@ from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
 
 
-COURSE_RELEASE = "2026.08-dev.1"
+COURSE_RELEASE = "2026.08-dev.2"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
 SLOTS = ("a", "b")
 LEASE_MS = 2600
-STARTUP_TIMEOUT_MS = 4000
+LAUNCH_AFTER_RESPONSE_MS = 80
+SERVICE_WATCHDOG_MS = 7000
 LOG_LIMIT = 160
 
 _boot_ms = time.ticks_ms()
@@ -41,6 +42,7 @@ _run_id = 0
 _state = "ready"
 _detail = "Physical XRP ready"
 _thread_active = False
+_launch_pending = False
 _lease_deadline = None
 _logs = []
 _log_seq = 0
@@ -49,8 +51,6 @@ _last_sample = None
 _last_hardware = None
 _active_manifest = None
 _last_project_module_names = []
-_startup_state = "idle"
-_startup_detail = ""
 _last_reply_by_id = {}
 _reply_order = []
 
@@ -126,7 +126,9 @@ def _stop_motors():
     except Exception as exc:
         first_error = exc
     if first_error is not None:
-        _append_log("stderr", "Could not set both motor efforts to zero: " + str(first_error))
+        _append_log(
+            "stderr", "Could not set both drive commands to zero: " + str(first_error)
+        )
 
 
 def _ensure_dir(path):
@@ -298,8 +300,8 @@ def _clear_project_modules(manifest):
     _last_project_module_names = current_names
 
 
-def _project_runner(slot_path, entrypoint, source, startup_modules, run_id):
-    global _thread_active, _lease_deadline, _startup_state, _startup_detail
+def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
+    global _thread_active, _lease_deadline
     previous_cwd = os.getcwd()
     stdout = LineLogWriter("stdout", _append_log)
     inserted_path = False
@@ -315,9 +317,6 @@ def _project_runner(slot_path, entrypoint, source, startup_modules, run_id):
         # response allocation on the service core.
         for module_name in startup_modules:
             __import__(module_name)
-        entry_code = compile(source, entrypoint, "exec")
-        _startup_detail = "Project startup loaded"
-        _startup_state = "ready"
         globals_value = {
             "__name__": "__main__",
             "__file__": entrypoint,
@@ -331,9 +330,6 @@ def _project_runner(slot_path, entrypoint, source, startup_modules, run_id):
             detail = buffer.getvalue().strip()
         except Exception:
             detail = type(exc).__name__ + ": " + str(exc)
-        if _startup_state == "loading":
-            _startup_detail = detail
-            _startup_state = "error"
         _append_log("stderr", detail)
         outcome_state = "error"
         outcome_detail = "Program stopped after an exception"
@@ -353,6 +349,42 @@ def _project_runner(slot_path, entrypoint, source, startup_modules, run_id):
         # core sees False, the student core will do no more cleanup or XRPLib
         # work.
         _thread_active = False
+
+
+async def _launch_project_after_response(
+    slot_path, entrypoint, entry_code, startup_modules, run_id
+):
+    """Start core 1 only after the small run response has left core 0.
+
+    RP2350 MicroPython shares one VM and heap across both cores. Starting a
+    project while the HTTP handler is still allocating its response can make a
+    rare allocator/flash lockup unrecoverable. The browser treats ``loading``
+    as an active run state, so this short deferred launch is visible without
+    adding another student-facing step.
+    """
+    global _launch_pending, _thread_active, _lease_deadline
+    import uasyncio
+
+    await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
+    if not _launch_pending or run_id != _run_id:
+        return
+    _launch_pending = False
+    _thread_active = True
+    _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
+    _set_state("running", "Running " + entrypoint)
+    try:
+        _thread.start_new_thread(
+            _project_runner,
+            (slot_path, entrypoint, entry_code, startup_modules, run_id),
+        )
+    except Exception as exc:
+        _thread_active = False
+        _lease_deadline = None
+        detail = "Could not start project: {}: {}".format(
+            type(exc).__name__, str(exc)
+        )
+        _append_log("stderr", detail)
+        _set_state("error", detail)
 
 
 async def _reset_after_response(delay_ms):
@@ -557,6 +589,7 @@ def info(request):
             "protocol": PROTOCOL_VERSION,
             "serviceVersion": SERVICE_VERSION,
             "courseRelease": COURSE_RELEASE,
+            "recoveryWatchdogMs": SERVICE_WATCHDOG_MS,
             "bootId": _boot_id,
             "robotName": network.hostname(),
             "address": wlan.ifconfig()[0] if wlan.isconnected() else None,
@@ -608,7 +641,7 @@ def check(request):
 @server.route("/api/v1/sync", methods=["POST"])
 def sync(request):
     def operation(body):
-        if _thread_active:
+        if _thread_active or _launch_pending:
             raise ProtocolError("target_busy", "stop the program before synchronizing")
         project = validate_project(body.get("project"))
         checked = _compile_project(project)
@@ -622,16 +655,20 @@ def sync(request):
 @server.route("/api/v1/run", methods=["POST"])
 def run_project(request):
     def operation(body):
-        global _run_id, _thread_active, _lease_deadline
-        global _startup_state, _startup_detail
-        if _thread_active:
+        global _run_id, _launch_pending, _lease_deadline
+        if _thread_active or _launch_pending:
             raise ProtocolError("target_busy", "a program is already running")
         manifest = _read_manifest()
         if manifest is None:
             raise ProtocolError("no_project", "synchronize a project before running")
         slot_path = _active_slot_path()
         entrypoint = manifest["entrypoint"]
-        source = open(slot_path + "/" + entrypoint).read()
+        with open(slot_path + "/" + entrypoint) as handle:
+            source = handle.read()
+        # Compile before core 1 starts. This catches entrypoint syntax errors in
+        # the correlated run reply and avoids compiling while the service core
+        # allocates network objects.
+        entry_code = compile(source, entrypoint, "exec")
         startup_modules = _entrypoint_project_imports(manifest, source)
         _clear_project_modules(manifest)
         _stop_motors()
@@ -643,37 +680,14 @@ def run_project(request):
         # request objects can stall RP2350 MicroPython.
         gc.collect()
         _run_id += 1
-        _startup_state = "loading"
-        _startup_detail = "Loading project startup"
-        _thread_active = True
+        _launch_pending = True
         _lease_deadline = None
-        _set_state("running", "Running " + entrypoint)
-        try:
-            _thread.start_new_thread(
-                _project_runner,
-                (slot_path, entrypoint, source, startup_modules, _run_id),
+        _set_state("loading", "Starting " + entrypoint)
+        server.loop.create_task(
+            _launch_project_after_response(
+                slot_path, entrypoint, entry_code, startup_modules, _run_id
             )
-        except Exception:
-            _thread_active = False
-            _lease_deadline = None
-            _startup_state = "error"
-            raise
-        deadline = time.ticks_add(time.ticks_ms(), STARTUP_TIMEOUT_MS)
-        while (
-            _startup_state == "loading"
-            and time.ticks_diff(deadline, time.ticks_ms()) > 0
-        ):
-            time.sleep_ms(5)
-        if _startup_state == "loading":
-            _startup_state = "error"
-            _startup_detail = "Project startup timed out; restarting target service"
-            _set_state("error", _startup_detail)
-            _schedule_reset()
-            raise ProtocolError("startup_timeout", _startup_detail)
-        if _startup_state == "error":
-            raise ProtocolError("startup_error", _startup_detail)
-        if _thread_active:
-            _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
+        )
         return {"detail": _detail, "runId": _run_id}
 
     return _command(request, operation)
@@ -694,7 +708,8 @@ def renew_lease(request):
 @server.route("/api/v1/stop", methods=["POST"])
 def stop(request):
     def operation(body):
-        global _lease_deadline
+        global _launch_pending, _lease_deadline
+        _launch_pending = False
         _lease_deadline = None
         if not _thread_active:
             _stop_motors()
@@ -708,7 +723,8 @@ def stop(request):
 @server.route("/api/v1/reset", methods=["POST"])
 def reset(request):
     def operation(body):
-        global _lease_deadline
+        global _launch_pending, _lease_deadline
+        _launch_pending = False
         _lease_deadline = None
         if not _thread_active:
             _stop_motors()
@@ -743,6 +759,15 @@ async def _watch_run_lease():
             _set_state("error", "Run connection expired; restarting target service")
             _schedule_reset()
         await uasyncio.sleep_ms(200)
+
+
+async def _feed_service_watchdog(watchdog):
+    """Keep a hardware recovery path independent of the Python VM locks."""
+    import uasyncio
+
+    while True:
+        watchdog.feed()
+        await uasyncio.sleep_ms(500)
 
 
 def _connect_wifi(timeout_ms=20000):
@@ -786,5 +811,7 @@ def run():
     address = _connect_wifi()
     _append_log("system", "Course service {} at {}".format(SERVICE_VERSION, address))
     print("UCSB XRP course service at http://{}".format(address))
+    watchdog = machine.WDT(timeout=SERVICE_WATCHDOG_MS)
+    server.loop.create_task(_feed_service_watchdog(watchdog))
     server.loop.create_task(_watch_run_lease())
     server.run(host="0.0.0.0", port=80)

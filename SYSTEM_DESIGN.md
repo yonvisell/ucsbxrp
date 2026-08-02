@@ -72,7 +72,7 @@ IDE and presents only available data. It contains:
 - a compact collapsible sidebar with selectable 2–30 second histories of wheel
   speed, dimensionless drive command, forward range, acceleration, and yaw
   rate;
-- live pose, efforts, encoders, range, button, IMU, temperature, and battery
+- live pose, drive commands, encoders, range, button, IMU, temperature, and battery
   values;
 - program and service output; and
 - bounded telemetry recording and deterministic CSV export. Display and export
@@ -136,7 +136,7 @@ and authoritative simulator state. Terminating the worker stops non-yielding
 student code without freezing either application.
 
 The deterministic plant uses fixed 20 ms integration, differential-drive
-kinematics, effort deadbands, asymmetric response, first-order acceleration and
+kinematics, drive-command deadbands, asymmetric response, first-order acceleration and
 deceleration, encoder quantization, robot footprint, world bounds, rectangular
 obstacles, collision prevention, geometric forward range, planar IMU values,
 temperature, battery, and button state. MicroPython `sleep_ms` advances the
@@ -177,20 +177,23 @@ IDE edit to mark it stale locally without changing the device until the next
 explicit run or synchronization.
 
 Student code runs on the second RP2350 core. The service resolves course
-packages and XRPLib singletons before starting that thread, identifies the
-entrypoint's project imports, and pauses HTTP work while the student core loads
-that project graph. The active project manifest is retained in RAM, and prior
-project modules are evicted before a new run. This avoids concurrent flash
-reads and network allocation during startup without constraining ordinary
-student imports. A renewable run lease is owned outside the student program;
-expiration resets the target. Normal completion and exceptions stop on the
-program core, while stop, reset, and lease loss use the controller reset path.
-All converge to zero motor output. Program output is line-buffered into the
-same bounded log stream used by the applications.
+packages and XRPLib singletons, compiles the entrypoint, evicts prior project
+modules, and collects garbage on the service core before launch. The run reply
+then reports `loading`; core 1 starts only after that reply has left, while the
+browser finishes any in-flight telemetry request and holds polling for 500 ms.
+This keeps HTTP response allocation out of the project-import boundary without
+constraining ordinary student imports. The active project manifest remains in
+RAM. A 7 s hardware watchdog is fed by the service event loop, so a future
+shared-VM deadlock reboots the controller instead of requiring a physical
+reset. A renewable run lease is owned outside the student program; expiration
+also resets the target. Normal completion and exceptions stop on the program
+core, while stop, reset, and lease loss use the controller reset path. All
+converge to zero drive command. Program output is line-buffered into the same
+bounded log stream used by the applications.
 
 XRPLib peripheral drivers are not accessed simultaneously from both RP2350
 cores. Before and after a run, the service reads hardware directly. During a
-run, it uses the course `Robot` channel for pose, wheel speed, effort, range,
+run, it uses the course `Robot` channel for pose, wheel speed, drive command, range,
 and button state, and retains the latest stationary IMU, battery, and encoder
 sample. Garbage collection runs on the service core before launch; motor stop
 and file cleanup finish on the program core before it releases hardware
@@ -211,7 +214,8 @@ lease remains valid.
 The public package uses small immutable value records compatible with CPython
 and MicroPython. Distances and positions are millimeters; speeds are
 millimeters per second; computed time is seconds; hardware timestamps are
-integer milliseconds; angles are radians; motor effort is normalized.
+integer milliseconds; angles are radians; each left/right drive command is
+normalized.
 World `+x` is forward, `+y` is left, and positive heading is counterclockwise.
 
 Students implement six independently selectable components:
@@ -219,7 +223,9 @@ Students implement six independently selectable components:
 `NavigationController`, and `GridPlanner`. Supplied services keep hardware,
 control-loop, mapping, and mission boilerplate out of student code. `XRPBot`
 is the sole direct XRPLib adapter; `Robot` owns the measured sample/control
-loop and publishes pose/effort state for physical telemetry.
+loop and publishes pose/drive-command state for physical telemetry. Its sample
+clock advances absolute wrap-safe deadlines and skips missed periods, so timing
+does not drift with student computation or produce catch-up bursts.
 
 Retained reference source is a revisable implementation, not the API's
 definition. Reproducible MicroPython 1.28 cross-compilation produces ordinary
@@ -232,7 +238,7 @@ Five cumulative starters separate:
 - `main.py`: the readable task entrypoint;
 - `challenge.py`: task/environment values;
 - `robot_config.py`: measured robot and controller values;
-- `student_components.py`: student work; and
+- one literally named file per student component;
 - `course_setup.py`: explicit component selection and assembly.
 
 ## 7. Offline release and data
