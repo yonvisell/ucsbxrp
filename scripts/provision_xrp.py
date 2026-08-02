@@ -9,8 +9,23 @@ import install_xrp_service
 import xrp_wifi
 
 
+def local_service_version():
+    """Read the installed service version without importing MicroPython code."""
+    protocol_path = (
+        install_xrp_service.ROOT
+        / "device_service/ucsb_xrp_service/protocol.py"
+    )
+    for line in protocol_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("SERVICE_VERSION = "):
+            return json.loads(line.split("=", 1)[1].strip())
+    raise install_xrp_service.InstallError(
+        "SERVICE_VERSION is missing from the device protocol"
+    )
+
+
 def provision(
     port=None,
+    mode=xrp_wifi.MODE_ACCESS_POINT,
     ssid="Pink",
     credentials=None,
     hostname="ucsb-xrp",
@@ -19,10 +34,15 @@ def provision(
     netmask="255.255.255.0",
     gateway=None,
     dns=None,
+    ap_name=None,
+    ap_password=xrp_wifi.DEFAULT_AP_PASSWORD,
+    ap_channel=None,
 ):
     selected_port = xrp_wifi.choose_port(port)
-    credentials_path = xrp_wifi.choose_credentials_path(credentials)
-    password = xrp_wifi.read_password(credentials_path, ssid)
+    password = None
+    if mode == xrp_wifi.MODE_STATION:
+        credentials_path = xrp_wifi.choose_credentials_path(credentials)
+        password = xrp_wifi.read_password(credentials_path, ssid)
     wifi = xrp_wifi.configure_with_usb_retry(
         selected_port,
         ssid,
@@ -33,21 +53,35 @@ def provision(
         netmask=netmask,
         gateway=gateway,
         dns=dns,
+        mode=mode,
+        ap_ssid=ap_name,
+        ap_password=ap_password,
+        ap_channel=ap_channel,
     )
-    if not wifi.get("connected") or not wifi.get("address"):
+    if not wifi.get("ready") or not wifi.get("address"):
         raise xrp_wifi.WifiSetupError(
-            "XRP did not join {} ({})".format(ssid, wifi.get("status", "unknown"))
+            "XRP network did not start ({})".format(wifi.get("status", "unknown"))
         )
     installed = install_xrp_service.install_with_usb_retry(selected_port)
     address = installed["address"]
-    service = install_xrp_service.wait_for_service(address)
+    service = None
+    if wifi["mode"] == xrp_wifi.MODE_STATION:
+        service = install_xrp_service.wait_for_service(address)
+    release = json.loads(
+        (install_xrp_service.ROOT / "vendor/current/release.json").read_text(
+            encoding="utf-8"
+        )
+    )
     return {
-        "robot": service["robotName"],
+        "robot": service["robotName"] if service else wifi["hostname"],
         "address": address,
-        "network": ssid,
+        "mode": wifi["mode"],
+        "requestedMode": wifi["requested_mode"],
+        "fallback": wifi["fallback"],
+        "network": wifi["ssid"],
         "addressMode": wifi["address_mode"],
-        "courseRelease": service["courseRelease"],
-        "serviceVersion": service["serviceVersion"],
+        "courseRelease": service["courseRelease"] if service else release["release_id"],
+        "serviceVersion": service["serviceVersion"] if service else local_service_version(),
         "installedFiles": len(installed["files"]),
     }
 
@@ -55,6 +89,12 @@ def provision(
 def make_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", help="USB serial device; detected automatically")
+    parser.add_argument(
+        "--mode",
+        choices=(xrp_wifi.MODE_ACCESS_POINT, xrp_wifi.MODE_STATION),
+        default=xrp_wifi.MODE_ACCESS_POINT,
+        help="robot hotspot (default) or an existing Wi-Fi network",
+    )
     parser.add_argument("--ssid", default="Pink")
     parser.add_argument("--credentials")
     parser.add_argument("--hostname", default="ucsb-xrp")
@@ -63,6 +103,9 @@ def make_parser():
     parser.add_argument("--netmask", default="255.255.255.0")
     parser.add_argument("--gateway")
     parser.add_argument("--dns")
+    parser.add_argument("--ap-name", help="optional hotspot name; default is device-specific")
+    parser.add_argument("--ap-password", default=xrp_wifi.DEFAULT_AP_PASSWORD)
+    parser.add_argument("--ap-channel", type=int, choices=(1, 6, 11))
     return parser
 
 
@@ -71,6 +114,7 @@ def main(argv=None):
     try:
         result = provision(
             port=args.port,
+            mode=args.mode,
             ssid=args.ssid,
             credentials=args.credentials,
             hostname=args.hostname,
@@ -79,6 +123,9 @@ def main(argv=None):
             netmask=args.netmask,
             gateway=args.gateway,
             dns=args.dns,
+            ap_name=args.ap_name,
+            ap_password=args.ap_password,
+            ap_channel=args.ap_channel,
         )
     except (xrp_wifi.WifiSetupError, install_xrp_service.InstallError) as exc:
         print("Provisioning error: {}".format(exc), file=sys.stderr)

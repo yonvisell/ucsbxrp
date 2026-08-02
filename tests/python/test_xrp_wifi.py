@@ -74,7 +74,7 @@ class XrpWifiTest(unittest.TestCase):
             gateway="192.168.7.1",
         )
         self.assertEqual(
-            config["ifconfig"],
+            config["station"]["ifconfig"],
             ["192.168.7.30", "255.255.255.0", "192.168.7.1", "192.168.7.1"],
         )
         self.assertNotIn("not-a-real-password", XRP_WIFI.device_connect_code(5000))
@@ -88,6 +88,32 @@ class XrpWifiTest(unittest.TestCase):
                 static_address="192.168.7.30",
             )
 
+    def test_builds_device_specific_access_point_profile_without_station_secret(self):
+        config = XRP_WIFI.make_device_config(
+            hostname="ucsb-xrp",
+            mode=XRP_WIFI.MODE_ACCESS_POINT,
+        )
+
+        self.assertEqual(config["version"], 2)
+        self.assertEqual(config["mode"], "access_point")
+        self.assertEqual(
+            config["access_point"]["ifconfig"][0], XRP_WIFI.DEFAULT_AP_ADDRESS
+        )
+        self.assertNotIn("station", config)
+        self.assertNotIn("ssid", config["access_point"])
+
+    def test_rejects_unsupported_hotspot_password_and_channel(self):
+        with self.assertRaisesRegex(XRP_WIFI.WifiSetupError, "8 to 63"):
+            XRP_WIFI.make_device_config(
+                mode=XRP_WIFI.MODE_ACCESS_POINT,
+                ap_password="short",
+            )
+        with self.assertRaisesRegex(XRP_WIFI.WifiSetupError, "1, 6, or 11"):
+            XRP_WIFI.make_device_config(
+                mode=XRP_WIFI.MODE_ACCESS_POINT,
+                ap_channel=4,
+            )
+
     def test_device_code_never_embeds_a_password(self):
         code = XRP_WIFI.device_connect_code(5000)
         self.assertIn(XRP_WIFI.DEVICE_CONFIG, code)
@@ -96,6 +122,7 @@ class XrpWifiTest(unittest.TestCase):
         self.assertIn("waiting_for_ip", code)
         self.assertIn("machine.WDT(timeout=8388)", code)
         self.assertIn("watchdog.feed()", code)
+        self.assertIn("activate_network", code)
 
     def test_device_execution_waits_longer_than_the_association_deadline(self):
         class Transport:

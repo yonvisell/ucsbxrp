@@ -14,8 +14,8 @@ implementation.
   hardware and world behavior only; Three.js is a view of that state.
 - One canonical course package and one set of ordinary `.mpy` reference
   artifacts run in browser and RP2350 MicroPython.
-- USB is the instructor setup and repair path. Normal project work and
-  telemetry use the LAN already shared by the computer and XRP.
+- USB is the setup, network-mode change, and repair path. Normal project work
+  and telemetry use either the XRP's own hotspot or an existing local network.
 - Tests constrain public results, units, geometry, termination, and recovery,
   while allowing different sound student algorithms and internal structures.
 - The normal workflow has no staged acceptance process. A short setup command,
@@ -37,8 +37,9 @@ the final post-reset regression.
   poller across open IDE and Monitor tabs so the small HTTP service is not
   loaded by competing browser loops.
 
-Usable result: the IDE and Monitor can use the physical XRP at
-`http://192.168.7.32` or the virtual XRP with the same project.
+Usable result: the IDE and Monitor can use the physical XRP at its reported
+station address or fixed hotspot address, or the virtual XRP with the same
+project.
 
 ## Slice 2 — Straight Run
 
@@ -359,3 +360,26 @@ Usable result: the Monitor downloads substantially less JavaScript, the static
 release is license-complete and deployable through GitHub Pages, the HTTPS
 physical-target path follows the current browser permission model, and no
 course workflow or rendered application feature changes.
+
+### Refinement 13 — Local-first release and dual robot networking
+
+Status: implemented and validated in software and on the attached RP2350.
+
+- Define local-first precisely: one complete online delivery followed by local
+  application execution without further exchange with the web host.
+- Make a uniquely named XRP access point with fixed address the default student
+  network, while retaining an existing-Wi-Fi profile for private course routers
+  and instructor fleet work.
+- Keep one device service and browser target contract; store both endpoint
+  choices and switch profiles without parallel application builds.
+- Migrate station-only device and browser settings, fall back from an
+  unavailable station to the recoverable hotspot, and expose only
+  credential-free network status.
+- Exercise AP activation/address/channel, station association, profile changes,
+  fallback, USB repair, HTTP lifecycle, offline build, and the compact IDE
+  selector.
+
+Usable result: a student can save the applications locally, provision one XRP,
+join its printed hotspot, and use the complete IDE/Monitor without campus
+network access. An instructor can instead place the same robot and apps on an
+isolated or ordinary local network.

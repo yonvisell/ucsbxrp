@@ -12,6 +12,7 @@ import {
   TelemetryRecorder,
   VirtualTargetClient,
   loadTargetPreference,
+  physicalEndpointForPreference,
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
   storeTargetPreference,
@@ -218,9 +219,15 @@ export function DashboardApp() {
   const target = useMemo<TargetClient>(
     () =>
       targetPreference.kind === "physical"
-        ? new PhysicalTargetClient(targetPreference.physicalEndpoint)
+        ? new PhysicalTargetClient(
+            physicalEndpointForPreference(targetPreference),
+          )
         : new VirtualTargetClient(),
-    [targetPreference.kind, targetPreference.physicalEndpoint],
+    [
+      targetPreference.kind,
+      targetPreference.physicalConnection,
+      targetPreference.physicalEndpoint,
+    ],
   );
   const recorder = useMemo(() => new TelemetryRecorder(), []);
   const automaticRecorder = useMemo(() => new TelemetryRecorder(), []);

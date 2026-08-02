@@ -561,6 +561,37 @@
   width: 100%;
 }
 
+.xrp-wifi-settings {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 0.56rem 0 0;
+}
+
+.xrp-wifi-settings legend {
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--font-sm);
+  font-weight: 700;
+}
+
+.xrp-wifi-summary {
+  margin: 0.25rem 0 0.2rem;
+  color: var(--quiet);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.xrp-wifi-settings .setting-row {
+  border-top: 0;
+  padding: 0.38rem 0 0.5rem;
+}
+
+.xrp-wifi-settings .setting-row + .setting-row {
+  border-top: 1px solid var(--line);
+}
+
 .settings-note {
   margin-top: 0.55rem;
   border: 1px solid var(--line);

@@ -94,23 +94,14 @@ def parse_device_address(output):
 
 def device_address_code(timeout_ms):
     return """
-import json, machine, network, time
+import json, machine
+from ucsb_xrp_service.networking import activate_network
 watchdog = machine.WDT(timeout={watchdog_ms})
 watchdog.feed()
 config = json.load(open('/xrp_wifi.json'))
-network.hostname(config['hostname'])
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-if config.get('ifconfig'):
-    wlan.ifconfig(tuple(config['ifconfig']))
-if not wlan.isconnected() and wlan.status() not in (network.STAT_CONNECTING, 2):
-    wlan.connect(config['ssid'], config['password'])
-deadline = time.ticks_add(time.ticks_ms(), {timeout_ms})
-while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
-    watchdog.feed()
-    time.sleep_ms(100)
+result = activate_network(config, timeout_ms={timeout_ms}, watchdog=watchdog)
 watchdog.feed()
-print({prefix!r} + (wlan.ifconfig()[0] if wlan.isconnected() else ''))
+print({prefix!r} + (result.get('address') or ''))
 """.format(
         timeout_ms=int(timeout_ms),
         prefix=ADDRESS_PREFIX,

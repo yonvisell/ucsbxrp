@@ -13,10 +13,12 @@ import {
   PhysicalTargetClient,
   VirtualTargetClient,
   loadTargetPreference,
+  physicalEndpointForPreference,
   storeTargetPreference,
   type TargetClient,
   type TargetEvent,
   type TargetKind,
+  type PhysicalConnectionMode,
   type TargetRunState,
   type SynchronizedProject,
   type CourseProjectKind,
@@ -145,9 +147,15 @@ export function IdeApp() {
   const target = useMemo<TargetClient>(
     () =>
       targetPreference.kind === "physical"
-        ? new PhysicalTargetClient(targetPreference.physicalEndpoint)
+        ? new PhysicalTargetClient(
+            physicalEndpointForPreference(targetPreference),
+          )
         : new VirtualTargetClient(),
-    [targetPreference.kind, targetPreference.physicalEndpoint],
+    [
+      targetPreference.kind,
+      targetPreference.physicalConnection,
+      targetPreference.physicalEndpoint,
+    ],
   );
   const [project, setProject] = useState<ProjectSnapshot>(initialProject);
   const [activePath, setActivePath] = useState(initialProject.entrypoint);
@@ -1464,24 +1472,58 @@ export function IdeApp() {
             </select>
           </label>
           {targetPreference.kind === "physical" ? (
-            <label className="setting-row">
-              <span>Physical XRP address</span>
-              <input
-                aria-describedby="physical-address-help"
-                defaultValue={targetPreference.physicalEndpoint}
-                onBlur={(event) =>
-                  setTargetPreference((current) => ({
-                    ...current,
-                    physicalEndpoint: event.target.value,
-                  }))
-                }
-                spellCheck={false}
-                type="url"
-              />
-              <small id="physical-address-help">
-                Setup reports this address. It is shared with XRP Monitor.
-              </small>
-            </label>
+            <fieldset className="xrp-wifi-settings">
+              <legend>XRP Wi-Fi</legend>
+              <p className="xrp-wifi-summary">
+                Project sync, controls, and telemetry use Wi-Fi. USB handles
+                firmware, setup, and repair.
+              </p>
+              <label className="setting-row">
+                <span>Network</span>
+                <select
+                  aria-label="Network"
+                  aria-describedby="physical-connection-help"
+                  onChange={(event) =>
+                    setTargetPreference((current) => ({
+                      ...current,
+                      physicalConnection: event.target
+                        .value as PhysicalConnectionMode,
+                    }))
+                  }
+                  value={targetPreference.physicalConnection}
+                >
+                  <option value="access_point">Robot hotspot</option>
+                  <option value="station">Existing Wi-Fi</option>
+                </select>
+                <small id="physical-connection-help">
+                  {targetPreference.physicalConnection === "access_point"
+                    ? "Join the UCSB-XRP network shown during USB setup; the robot is at 192.168.42.1."
+                    : "Use the same local Wi-Fi network as the XRP."}
+                </small>
+              </label>
+              {targetPreference.physicalConnection === "station" ? (
+                <label className="setting-row">
+                  <span>XRP address</span>
+                  <input
+                    aria-label="XRP address"
+                    aria-describedby="physical-address-help"
+                    defaultValue={targetPreference.physicalEndpoint}
+                    onBlur={(event) =>
+                      setTargetPreference((current) => ({
+                        ...current,
+                        physicalEndpoint: event.target.value,
+                      }))
+                    }
+                    spellCheck={false}
+                    type="url"
+                  />
+                  <small id="physical-address-help">
+                    USB setup reports this address. Monitor uses the same
+                    setting.
+                  </small>
+                </label>
+              ) : null}
+            </fieldset>
           ) : null}
           <label className="setting-row">
             <span>
@@ -1563,11 +1605,10 @@ export function IdeApp() {
             </select>
           </label>
           <section className="settings-note">
-            <h3>Target connection</h3>
+            <h3>Physical workflow</h3>
             <p>
               Virtual and physical targets use the same project. On a physical
-              XRP, validate, synchronize the complete project, then run. USB is
-              used only for setup or repair; ordinary work uses the shared LAN.
+              XRP, validate, synchronize the complete project, then run.
             </p>
           </section>
           <section className="settings-note shortcuts-note">

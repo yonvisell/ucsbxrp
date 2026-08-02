@@ -18,6 +18,13 @@ second Chrome launch, physical live-parameter update, final zero-command
 telemetry, restored student demo, and the watchdog-safe USB repair correction
 found during the same repetition.
 
+`2026-08-02-dual-network-validation.json` records the default robot-hotspot
+profile, Pink station profile, failed-station hotspot recovery, direct Chrome
+IDE/Monitor connection, and a repeated zero-output service lifecycle on the
+attached board. It also states the one remaining network-path boundary: Chrome
+was not moved from Pink to the robot hotspot while this Codex session depended
+on Pink.
+
 The 2026-07-31 records preserve the original XRP-WPILib 2.1.0 identity, the
 transition to the official board-specific MicroPython 1.28.0 firmware and
 XRPLib 2026.07.1, early stationary sensor observations, and the initial

@@ -35,10 +35,16 @@ export type {
 export {
   DEFAULT_TARGET_PREFERENCE,
   TARGET_PREFERENCE_KEY,
+  XRP_ACCESS_POINT_ENDPOINT,
   loadTargetPreference,
+  physicalEndpointForPreference,
   storeTargetPreference,
 } from "./target-preference";
-export type { TargetKind, TargetPreference } from "./target-preference";
+export type {
+  PhysicalConnectionMode,
+  TargetKind,
+  TargetPreference,
+} from "./target-preference";
 export type {
   CheckResult,
   CourseProject,

@@ -31,6 +31,12 @@ interface PhysicalInfo {
   bootId: string;
   robotName: string;
   address: string;
+  network?: {
+    mode?: "access_point" | "station";
+    requested_mode?: "access_point" | "station";
+    fallback?: boolean;
+    ssid?: string;
+  };
   capabilities: string[];
   project?: PhysicalProjectManifest | null;
   runtimeJson?: string;
@@ -184,7 +190,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.connected = true;
     this.emitStatus(
       "ready",
-      `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
+      `${info.robotName} · ${this.connectionDescription(info)} · course ${info.courseRelease}`,
     );
     this.consumeProjectManifest(info.project);
     this.consumeRuntimeState(info.runtimeJson);
@@ -196,6 +202,19 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.connected = false;
     this.stopPolling();
     this.emitStatus("disconnected", "Physical XRP disconnected");
+  }
+
+  private connectionDescription(info: PhysicalInfo): string {
+    const mode = info.network?.mode;
+    const networkName = info.network?.ssid;
+    if (mode === "access_point") {
+      const fallback = info.network?.fallback ? " fallback" : "";
+      return `${networkName ?? "robot hotspot"}${fallback} · ${info.address}`;
+    }
+    if (mode === "station") {
+      return `${networkName ?? "existing Wi-Fi"} · ${info.address}`;
+    }
+    return info.address;
   }
 
   async check(project: CourseProject): Promise<CheckResult> {

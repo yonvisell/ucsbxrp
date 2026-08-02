@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Configure and inspect the XRP's ordinary Wi-Fi connection over USB.
+"""Configure and inspect the XRP's Wi-Fi profile over USB.
 
-The password is read from a local file, sent directly over the serial REPL, and
-never printed. The resulting device configuration is intentionally persistent
-so the course service can reconnect after reset.
+Station credentials are read from a local file, sent directly over the serial
+connection, and never printed. Access-point mode uses one fixed course password.
+The resulting device configuration persists across reset.
 """
 
 import argparse
@@ -17,12 +17,20 @@ DEFAULT_CREDENTIAL_PATHS = (
     Path.home() / "Documents/Details.md",
     Path.home() / "Documents/TheDetails.md",
 )
+ROOT = Path(__file__).resolve().parents[1]
+NETWORKING_SOURCE = (
+    ROOT / "device_service" / "ucsb_xrp_service" / "networking.py"
+)
 DEVICE_CONFIG = "/xrp_wifi.json"
 RESULT_PREFIX = "UCSB_XRP_WIFI="
 EXPECTED_VID = 0x1B4F
 EXPECTED_PID = 0x0046
 WIFI_WATCHDOG_MS = 8388
 USB_WIFI_ATTEMPTS = 3
+MODE_STATION = "station"
+MODE_ACCESS_POINT = "access_point"
+DEFAULT_AP_PASSWORD = "ucsb-xrp"
+DEFAULT_AP_ADDRESS = "192.168.42.1"
 
 
 class WifiSetupError(RuntimeError):
@@ -96,20 +104,56 @@ def read_password(path, ssid):
 
 
 def make_device_config(
-    ssid,
-    password,
-    hostname,
+    ssid=None,
+    password=None,
+    hostname="ucsb-xrp",
     static_address=None,
     netmask="255.255.255.0",
     gateway=None,
     dns=None,
+    mode=MODE_STATION,
+    ap_ssid=None,
+    ap_password=DEFAULT_AP_PASSWORD,
+    ap_channel=None,
 ):
-    config = {"ssid": ssid, "password": password, "hostname": hostname}
-    if static_address is None:
+    if mode not in (MODE_STATION, MODE_ACCESS_POINT):
+        raise WifiSetupError("mode must be station or access_point")
+    if not isinstance(ap_password, str) or not 8 <= len(ap_password) <= 63:
+        raise WifiSetupError("access-point password must contain 8 to 63 characters")
+    if ap_channel is not None and ap_channel not in (1, 6, 11):
+        raise WifiSetupError("access-point channel must be 1, 6, or 11")
+
+    access_point = {
+        "password": ap_password,
+        "ifconfig": [
+            DEFAULT_AP_ADDRESS,
+            "255.255.255.0",
+            DEFAULT_AP_ADDRESS,
+            DEFAULT_AP_ADDRESS,
+        ],
+    }
+    if ap_ssid:
+        access_point["ssid"] = ap_ssid
+    if ap_channel is not None:
+        access_point["channel"] = ap_channel
+
+    config = {
+        "version": 2,
+        "mode": mode,
+        "hostname": hostname,
+        "access_point": access_point,
+        "fallback_to_access_point": True,
+    }
+    if mode == MODE_ACCESS_POINT:
         return config
-    if not gateway:
-        raise WifiSetupError("--gateway is required with --static-address")
-    config["ifconfig"] = [static_address, netmask, gateway, dns or gateway]
+    if not ssid or not isinstance(password, str):
+        raise WifiSetupError("station mode requires an SSID and password")
+    station = {"ssid": ssid, "password": password}
+    if static_address is not None:
+        if not gateway:
+            raise WifiSetupError("--gateway is required with --static-address")
+        station["ifconfig"] = [static_address, netmask, gateway, dns or gateway]
+    config["station"] = station
     return config
 
 
@@ -122,40 +166,14 @@ def parse_result(output):
 
 
 def device_connect_code(timeout_ms):
-    return """
-import json, machine, network, time
+    source = NETWORKING_SOURCE.read_text(encoding="utf-8")
+    return source + """
+
+import json, machine
 watchdog = machine.WDT(timeout={watchdog_ms})
 watchdog.feed()
 config = json.load(open({config_path!r}))
-network.hostname(config['hostname'])
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-if config.get('ifconfig'):
-    wlan.ifconfig(tuple(config['ifconfig']))
-if not wlan.isconnected() and wlan.status() not in (network.STAT_CONNECTING, 2):
-    wlan.connect(config['ssid'], config['password'])
-deadline = time.ticks_add(time.ticks_ms(), {timeout_ms})
-while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
-    watchdog.feed()
-    time.sleep_ms(100)
-watchdog.feed()
-status_names = {{
-    network.STAT_IDLE: 'idle',
-    network.STAT_CONNECTING: 'connecting',
-    network.STAT_WRONG_PASSWORD: 'wrong_password',
-    network.STAT_NO_AP_FOUND: 'network_not_found',
-    network.STAT_CONNECT_FAIL: 'connect_failed',
-    network.STAT_GOT_IP: 'connected',
-    2: 'waiting_for_ip',
-}}
-status = wlan.status()
-result = {{
-    'connected': wlan.isconnected(),
-    'status': status_names.get(status, str(status)),
-    'hostname': network.hostname(),
-    'address': wlan.ifconfig()[0] if wlan.isconnected() else None,
-    'address_mode': 'static' if config.get('ifconfig') else 'dhcp',
-}}
+result = activate_network(config, timeout_ms={timeout_ms}, watchdog=watchdog)
 print({prefix!r} + json.dumps(result))
 """.format(
         config_path=DEVICE_CONFIG,
@@ -180,14 +198,18 @@ def execute_device_connect(transport, timeout_s):
 
 def configure(
     port,
-    ssid,
-    password,
-    hostname,
+    ssid=None,
+    password=None,
+    hostname="ucsb-xrp",
     timeout_s=45.0,
     static_address=None,
     netmask="255.255.255.0",
     gateway=None,
     dns=None,
+    mode=MODE_STATION,
+    ap_ssid=None,
+    ap_password=DEFAULT_AP_PASSWORD,
+    ap_channel=None,
 ):
     try:
         from mpremote.transport_serial import SerialTransport
@@ -205,6 +227,10 @@ def configure(
             netmask=netmask,
             gateway=gateway,
             dns=dns,
+            mode=mode,
+            ap_ssid=ap_ssid,
+            ap_password=ap_password,
+            ap_channel=ap_channel,
         ),
         separators=(",", ":"),
     ).encode("utf-8")
@@ -258,6 +284,12 @@ def configure_with_usb_retry(*args, attempts=USB_WIFI_ATTEMPTS, **kwargs):
 def make_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", help="XRP USB serial device; detected automatically")
+    parser.add_argument(
+        "--mode",
+        choices=(MODE_ACCESS_POINT, MODE_STATION),
+        default=MODE_ACCESS_POINT,
+        help="robot hotspot (default) or an existing Wi-Fi network",
+    )
     parser.add_argument("--ssid", default="Pink")
     parser.add_argument("--hostname", default="ucsb-xrp")
     parser.add_argument("--credentials", type=Path)
@@ -266,15 +298,21 @@ def make_parser():
     parser.add_argument("--netmask", default="255.255.255.0")
     parser.add_argument("--gateway")
     parser.add_argument("--dns")
+    parser.add_argument("--ap-name", help="optional hotspot name; default is device-specific")
+    parser.add_argument("--ap-password", default=DEFAULT_AP_PASSWORD)
+    parser.add_argument("--ap-channel", type=int, choices=(1, 6, 11))
     return parser
 
 
 def main(argv=None):
     args = make_parser().parse_args(argv)
+    credentials = None
     try:
         port = choose_port(args.port)
-        credentials = choose_credentials_path(args.credentials)
-        password = read_password(credentials, args.ssid)
+        password = None
+        if args.mode == MODE_STATION:
+            credentials = choose_credentials_path(args.credentials)
+            password = read_password(credentials, args.ssid)
         result = configure_with_usb_retry(
             port,
             args.ssid,
@@ -285,14 +323,19 @@ def main(argv=None):
             netmask=args.netmask,
             gateway=args.gateway,
             dns=args.dns,
+            mode=args.mode,
+            ap_ssid=args.ap_name,
+            ap_password=args.ap_password,
+            ap_channel=args.ap_channel,
         )
     except WifiSetupError as exc:
         print("Wi-Fi setup error: {}".format(exc), file=sys.stderr)
         return 2
     safe_result = dict(result)
-    safe_result["credential_source"] = str(credentials)
+    if credentials is not None:
+        safe_result["credential_source"] = str(credentials)
     print(json.dumps(safe_result, indent=2, sort_keys=True))
-    return 0 if result.get("connected") else 1
+    return 0 if result.get("ready") else 1
 
 
 if __name__ == "__main__":

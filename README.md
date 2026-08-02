@@ -21,9 +21,10 @@ npm run dev
 The IDE starts with Challenge 1. The **Project template** menu loads the five
 challenges, a sensor-driven robot demo, or a staged MicroPython tutorial as an
 ordinary editable project. Select **Virtual XRP** for immediate use or
-**Physical XRP** for the robot on the local network. Later starters retain all
-components introduced so far; students carry their completed methods forward
-and enable each named `USE_STUDENT_*` switch independently.
+**Physical XRP** for a robot hotspot or an existing local network. Later
+starters retain all components introduced so far; students carry their
+completed methods forward and enable each named `USE_STUDENT_*` switch
+independently.
 
 ## IDE workflow
 
@@ -47,7 +48,8 @@ permission.
 
 Settings are collapsible and include editor/output font size (9 px default,
 8 px minimum), indentation, word wrap, code overview, target selection, and
-the physical XRP address. Status and verbose details are separate output tabs.
+the XRP Wi-Fi mode and existing-Wi-Fi address. Status and verbose details are
+separate output tabs.
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
@@ -94,19 +96,30 @@ When a folder is connected, every monitored run also writes aligned
 ## Configure the physical XRP
 
 The current robot uses the SparkFun XRP Controller with RP2350, MicroPython
-1.28.0, and XRPLib 2026.07.1. With the Mac already on `Pink` and the XRP
-connected by USB-C, run:
+1.28.0, and XRPLib 2026.07.1. Connect the flashed XRP by USB-C and run:
 
 ```sh
 .venv/bin/python scripts/provision_xrp.py
 ```
 
-The command detects one XRP, reads the network credential from the local
-instructor details file without printing it, configures Wi-Fi, installs and
-read-verifies the current course library/reference/service files, resets the
-controller, and waits for its discovery reply. The current development robot
-is `ucsb-xrp`; the latest DHCP lease was `http://192.168.7.32`, and the command
-prints the address to use after every provision.
+The default student configuration installs and read-verifies the course
+library, reference bytecode, and service, then starts a uniquely named robot
+hotspot such as `UCSB-XRP-9EDE`. Join that network with the course password
+`ucsb-xrp`; the robot service is always `http://192.168.42.1`. In IDE Settings,
+select **Physical XRP** and **Robot hotspot**.
+
+To place the XRP and computer on an existing local network instead, run:
+
+```sh
+.venv/bin/python scripts/provision_xrp.py --mode station --ssid Pink
+```
+
+Station setup reads the matching credential from the local instructor details
+file without printing it, joins the network, restarts the service, and reports
+its DHCP address. Select **Existing Wi-Fi** in IDE Settings and enter that
+address. An isolated course router does not require an internet uplink after
+the applications have been saved locally. If the requested network is absent,
+the XRP starts its recoverable device-specific hotspot until the next reset.
 
 If an access point associates the XRP but does not issue a DHCP lease, an
 instructor can assign a known-free address in the same subnet without changing
@@ -114,12 +127,13 @@ the student workflow:
 
 ```sh
 .venv/bin/python scripts/provision_xrp.py \
+  --mode station --ssid Pink \
   --static-address 192.168.7.30 --gateway 192.168.7.1
 ```
 
-Use `scripts/xrp_service_probe.py --address 192.168.7.32` for the complete
+Use `scripts/xrp_service_probe.py --address ADDRESS` for the complete
 non-moving protocol lifecycle. With the robot raised and wheels clear,
-`scripts/xrp_motor_check.py --address 192.168.7.32` runs one short bounded
+`scripts/xrp_motor_check.py --address ADDRESS` runs one short bounded
 motor/encoder response check. Neither command requires a staged checklist.
 The installed service automatically reboots through a hardware watchdog if its
 shared MicroPython runtime ever locks; USB remains the fallback repair path.
@@ -159,10 +173,13 @@ npm run preview
 ```
 
 Load each production application once and wait for **Saved for offline use**.
-The saved release includes the applications, workers, MicroPython WebAssembly,
-course package, starters, and reference bytecode; private reference source is
-excluded. Local development deliberately reports **Development build** and
-does not save an offline browser copy, so stale assets do not hide changes.
+The web application and course release then operate locally without further
+exchange with the web host; robot commands and telemetry remain local network
+traffic. The saved release includes the applications, workers, MicroPython
+WebAssembly, course package, starters, and reference bytecode; private
+reference source is excluded. Local development deliberately reports
+**Development build** and does not save an offline browser copy, so stale
+assets do not hide changes.
 
 ## Validation
 

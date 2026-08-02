@@ -1,8 +1,9 @@
 """HTTP target service for the current RP2350 XRP.
 
 The service is deliberately private infrastructure. Student code sees only
-``ucsb_xrp`` and XRPLib. Browser clients use a small JSON API over the ordinary
-course LAN; polling keeps the implementation dependable on stock MicroPython.
+``ucsb_xrp`` and XRPLib. Browser clients use a small JSON API over either the
+XRP access point or an ordinary local network; polling keeps the implementation
+dependable on stock MicroPython.
 """
 
 import gc
@@ -21,6 +22,7 @@ from phew import server
 from .protocol import LineLogWriter, PROTOCOL_VERSION, SERVICE_VERSION, ProtocolError
 from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
+from .networking import activate_network, public_network_state
 
 
 COURSE_RELEASE = "2026.08-dev.4"
@@ -53,6 +55,7 @@ _active_manifest = None
 _last_project_module_names = []
 _last_reply_by_id = {}
 _reply_order = []
+_network_state = None
 
 
 def _cors_headers():
@@ -596,7 +599,6 @@ def _command(request, operation):
 
 @server.route("/api/v1/info")
 def info(request):
-    wlan = network.WLAN(network.STA_IF)
     return _json_response(
         {
             "protocol": PROTOCOL_VERSION,
@@ -605,7 +607,8 @@ def info(request):
             "recoveryWatchdogMs": SERVICE_WATCHDOG_MS,
             "bootId": _boot_id,
             "robotName": network.hostname(),
-            "address": wlan.ifconfig()[0] if wlan.isconnected() else None,
+            "address": _network_state["address"] if _network_state else None,
+            "network": public_network_state(_network_state or {}),
             "project": _read_manifest(),
             "runtimeJson": _runtime_snapshot_json(),
             "capabilities": [
@@ -804,24 +807,22 @@ async def _feed_service_watchdog(watchdog):
 
 
 def _connect_wifi(timeout_ms=20000, watchdog=None):
+    global _network_state
     config = json.load(open(CONFIG_PATH))
-    network.hostname(config["hostname"])
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    if config.get("ifconfig"):
-        wlan.ifconfig(tuple(config["ifconfig"]))
-    if not wlan.isconnected():
-        wlan.connect(config["ssid"], config["password"])
-    deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
-    while not wlan.isconnected() and time.ticks_diff(deadline, time.ticks_ms()) > 0:
-        if watchdog is not None:
-            watchdog.feed()
-        time.sleep_ms(100)
-    if watchdog is not None:
-        watchdog.feed()
-    if not wlan.isconnected():
-        raise RuntimeError("Wi-Fi connection failed with status {}".format(wlan.status()))
-    return wlan.ifconfig()[0]
+    _network_state = activate_network(
+        config,
+        timeout_ms=timeout_ms,
+        watchdog=watchdog,
+        network_module=network,
+        time_module=time,
+    )
+    if not _network_state.get("ready") or not _network_state.get("address"):
+        raise RuntimeError(
+            "Wi-Fi setup failed with status {}".format(
+                _network_state.get("status", "unknown")
+            )
+        )
+    return _network_state["address"]
 
 
 def run(watchdog=None):
@@ -855,7 +856,12 @@ def run(watchdog=None):
     watchdog.feed()
 
     address = _connect_wifi(watchdog=watchdog)
-    _append_log("system", "Course service {} at {}".format(SERVICE_VERSION, address))
+    _append_log(
+        "system",
+        "Course service {} at {} ({})".format(
+            SERVICE_VERSION, address, _network_state["mode"]
+        ),
+    )
     print("UCSB XRP course service at http://{}".format(address))
     server.loop.create_task(_feed_service_watchdog(watchdog))
     server.loop.create_task(_watch_run_lease())

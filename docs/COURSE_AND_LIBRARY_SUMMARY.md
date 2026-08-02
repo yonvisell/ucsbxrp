@@ -191,6 +191,11 @@ world effects—motor response, encoders, range, button and payload state,
 collisions, and ground-truth pose—but does not perform course sensing,
 odometry, mapping, planning, navigation, or mission logic.
 
+The production web release is delivered once and then runs locally from the
+browser. Physical traffic uses the same target service in either the default
+device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
+student project changes with the network choice.
+
 ## Current implementation note
 
 No contradiction was found among the three active `v2_` documents. The current

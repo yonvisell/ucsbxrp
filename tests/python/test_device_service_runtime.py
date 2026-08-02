@@ -192,7 +192,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             asyncio.run(self.service._feed_service_watchdog(watchdog))
         self.assertEqual(watchdog.feeds, 2)
 
-    def test_wifi_connection_feeds_an_early_boot_watchdog(self):
+    def test_wifi_connection_uses_the_shared_profile_and_feeds_watchdog(self):
         class Watchdog:
             def __init__(self):
                 self.feeds = 0
@@ -200,38 +200,31 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             def feed(self):
                 self.feeds += 1
 
-        class Wlan:
-            def __init__(self):
-                self.checks = 0
-                self.connected_with = None
-
-            def active(self, _value):
-                pass
-
-            def isconnected(self):
-                self.checks += 1
-                return self.checks >= 4
-
-            def connect(self, ssid, password):
-                self.connected_with = (ssid, password)
-
-            def ifconfig(self):
-                return ("192.168.7.32", "", "", "")
-
         watchdog = Watchdog()
-        wlan = Wlan()
         config = {"hostname": "ucsb-xrp", "ssid": "Pink", "password": "secret"}
         with (
             patch("builtins.open", return_value=object()),
             patch.object(self.service.json, "load", return_value=config),
-            patch.object(self.service.network, "hostname", create=True),
-            patch.object(self.service.network, "WLAN", return_value=wlan),
+            patch.object(
+                self.service,
+                "activate_network",
+                return_value={
+                    "ready": True,
+                    "mode": "station",
+                    "address": "192.168.7.32",
+                },
+            ) as activate,
         ):
             address = self.service._connect_wifi(watchdog=watchdog)
 
         self.assertEqual(address, "192.168.7.32")
-        self.assertEqual(wlan.connected_with, ("Pink", "secret"))
-        self.assertGreaterEqual(watchdog.feeds, 2)
+        activate.assert_called_once_with(
+            config,
+            timeout_ms=20000,
+            watchdog=watchdog,
+            network_module=self.service.network,
+            time_module=self.service.time,
+        )
 
     def test_parameter_update_is_correlated_and_queued(self):
         self.service._thread_active = True

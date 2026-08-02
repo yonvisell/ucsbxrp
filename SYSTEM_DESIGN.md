@@ -38,7 +38,8 @@ The IDE is the programming surface. It provides:
 - local Monaco workers and MicroPython syntax validation;
 - explicit validate and synchronize operations plus one stateful Run/Stop
   control and Reset;
-- virtual/physical target selection and a physical address setting;
+- virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
+  and an existing-Wi-Fi address setting;
 - a flat white workspace with compact collapsible project, settings, and
   output regions, literal file names, and concise hover/focus help; and
 - separate concise Status and verbose Details output.
@@ -160,11 +161,17 @@ clock and one physical state.
 
 ## 5. Physical XRP service
 
-The RP2350 joins the ordinary course LAN and runs a private MicroPython HTTP
-service at boot. The current development unit is `ucsb-xrp`; its current DHCP
-address is reported by the provisioner rather than fixed in the applications.
-USB is retained for initial configuration, deterministic file installation,
-and recovery.
+The RP2350 runs one private MicroPython HTTP service over either of two network
+profiles. **Robot hotspot** is the default student profile: each XRP derives a
+distinct `UCSB-XRP-xxxx` SSID from its radio identity, uses the fixed course
+password and `192.168.42.1` service address, and selects channel 1, 6, or 11
+from the same identity. **Existing Wi-Fi** joins a private course router or an
+ordinary local network by DHCP or optional static configuration. A failed
+station association starts the recoverable robot hotspot until reset. These
+are alternative transports for the same service and target contract; the
+system does not depend on simultaneous AP and station operation. USB is
+retained for initial configuration, deterministic file installation, mode
+changes, and recovery.
 
 The versioned JSON API provides:
 
@@ -216,13 +223,14 @@ ownership. Direct reads resume only afterward. This keeps HTTP allocation,
 polling, and asynchronous stop paths from contending with student code on the
 board's memory manager, I2C, encoder, and motor drivers.
 
-Provisioning reads the selected Wi-Fi password only on the instructor Mac,
-writes the device configuration over USB, and never prints or commits the
+Provisioning defaults to the robot hotspot and needs no private network
+credential. Existing-Wi-Fi setup reads its password only on the instructor
+Mac, writes the versioned profile over USB, and never prints or commits that
 secret. Every installed course/service/reference file is read back byte for
-byte. After reset, the tool restores the saved network configuration through
-USB, reads the actual post-reboot DHCP address, restarts the normal service,
-and waits for discovery at that address. It does not assume that a pre-reset
-lease remains valid.
+byte. After reset, the tool activates the saved profile through USB, reads the
+actual post-reboot address, and restarts the normal service. In station mode it
+also waits for HTTP discovery at that address and never assumes that a
+pre-reset lease remains valid.
 
 ## 6. Course library and release
 
@@ -258,7 +266,10 @@ Five cumulative starters separate:
 
 ## 7. Offline release and data
 
-The production service worker caches the complete public release—application
+The production service worker makes the web tools local-first in the standard
+sense: after one complete online load, application code and course assets run
+from browser-local storage without another exchange with the web host. It
+caches the complete public release—application
 shells, workers, MicroPython WebAssembly, course source, starters, templates,
 reference bytecode, and third-party notices—and exposes a visible readiness
 state. One GitHub Pages artifact workflow obtains either the root or project
@@ -268,6 +279,7 @@ older interface does not remain in memory. Development disables caching to
 prevent stale bundles from masking changes. Private reference source and
 instructor credentials are not web assets.
 
+Robot commands and telemetry still cross the selected local robot network.
 When an HTTPS Pages origin connects to the XRP's HTTP service, the document
 first triggers Chrome's local-network permission before handing polling to the
 shared worker. Requests identify the target address space as local. This keeps

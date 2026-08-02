@@ -168,6 +168,48 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("reports the active robot network without exposing its credentials", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({
+        protocol: 1,
+        serviceVersion: "test",
+        courseRelease: "test",
+        bootId: "boot-ap",
+        robotName: "ucsb-xrp",
+        address: "192.168.42.1",
+        network: {
+          mode: "access_point",
+          requested_mode: "station",
+          fallback: true,
+          ssid: "UCSB-XRP-AA71",
+        },
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      }),
+    );
+    const target = new DirectPhysicalTargetClient("192.168.42.1", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+
+    expect(events).toContainEqual({
+      type: "status",
+      state: "ready",
+      detail: "ucsb-xrp · UCSB-XRP-AA71 fallback · 192.168.42.1 · course test",
+    });
+    target.disconnect();
+  });
+
   it("discovers and runs the retained project without another transfer", async () => {
     const revision =
       "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3";

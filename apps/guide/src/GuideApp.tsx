@@ -121,36 +121,36 @@ export function GuideApp() {
               <h2>Use a physical RP2350 XRP</h2>
               <h3>Instructor setup, once per robot</h3>
               <p>
-                Connect the flashed XRP by USB. From the repository, one command
-                detects the controller, reads the local Wi-Fi credential file,
-                joins <code>Pink</code>, installs the current course library and
-                robot service, verifies every copied file, restarts the board,
-                and prints its address:
+                While online, first open the production IDE and Monitor and wait
+                for <strong>Saved for offline use</strong>. The complete web
+                application then runs locally without returning to its web host.
+                Connect the flashed XRP by USB and run:
               </p>
               <pre>
                 <code>.venv/bin/python scripts/provision_xrp.py</code>
               </pre>
               <p>
-                The default credential lookup accepts{" "}
-                <code>~/Documents/Details.md</code> or{" "}
-                <code>~/Documents/TheDetails.md</code>. Use <code>--ssid</code>,{" "}
-                <code>--credentials</code>, or <code>--port</code> only when the
-                defaults do not apply. The password is transferred directly over
-                USB and is never printed.
+                This installs and read-verifies the course release, then creates
+                a device-specific network such as <code>UCSB-XRP-9EDE</code> at{" "}
+                <code>192.168.42.1</code>. Its course password is{" "}
+                <code>ucsb-xrp</code>. The printed network name distinguishes
+                nearby robots.
               </p>
 
               <h3>Normal student workflow</h3>
               <ol className="procedure">
                 <li>
-                  Put the computer and XRP on the same ordinary Wi-Fi network.
+                  Join the <code>UCSB-XRP-…</code> network printed during USB
+                  setup. Internet access is not needed after the applications
+                  have been saved locally.
                 </li>
                 <li>
-                  In IDE Settings, enter the address printed during
-                  provisioning.
+                  In IDE Settings, select <strong>Physical XRP</strong> and{" "}
+                  <strong>Robot hotspot</strong>.
                 </li>
                 <li>
-                  Select <strong>Physical XRP</strong>. The status pill
-                  identifies the robot, address, and installed course release.
+                  The status identifies the robot network, fixed address, and
+                  installed course release.
                 </li>
                 <li>
                   Use <strong>Validate code</strong>,{" "}
@@ -164,6 +164,18 @@ export function GuideApp() {
                 interrupted. Stop and reset reconnect automatically after the
                 controller restarts. USB can remain connected; browser traffic
                 uses Wi-Fi.
+              </p>
+              <h3>Existing local Wi-Fi</h3>
+              <p>
+                For an instructor-managed private router or another ordinary
+                network, provision with{" "}
+                <code>scripts/provision_xrp.py --mode station --ssid NAME</code>
+                . The router does not need internet after the web applications
+                are local. USB setup reads the matching credential from the
+                local details file without printing it. Select{" "}
+                <strong>Existing Wi-Fi</strong> in IDE Settings and enter the
+                reported address. If that network is unavailable at boot, the
+                XRP exposes its own recoverable hotspot until the next reset.
               </p>
             </div>
           </section>
@@ -330,9 +342,11 @@ export function GuideApp() {
               <ul className="procedure">
                 <li>
                   <strong>Physical XRP is unreachable:</strong> confirm both
-                  devices are on the same Wi-Fi, then rerun{" "}
-                  <code>scripts/provision_xrp.py</code> over USB to repair the
-                  installation and print the current address.
+                  devices are using the network mode selected in IDE Settings.
+                  In hotspot mode, join the printed <code>UCSB-XRP-…</code>
+                  network. In existing-Wi-Fi mode, rerun{" "}
+                  <code>scripts/provision_xrp.py --mode station</code> over USB
+                  to repair the installation and report the current address.
                 </li>
                 <li>
                   <strong>Code validates but does not run:</strong> open Details
