@@ -5,7 +5,8 @@ SCOPE
 
 This reference defines the public interface used by UCSB-XRP programs. Public
 records, supplied services, functions, and constants are imported from
-ucsb_xrp. Factory functions are imported from course_setup.
+ucsb_xrp. The live-program functions are accessed through ucsb_xrp.live.
+Factory functions are imported from course_setup.
 
 The six selectable components have reference and student implementations with
 the same public interface. Student templates inherit base classes from
@@ -39,6 +40,15 @@ Supplied services
 - ArenaMap
 - OccupancyGrid
 - DeliveryMission
+
+Live program module
+
+- LiveParameter
+- live.number
+- live.toggle
+- live.choice
+- live.watch
+- live.apply_updates
 
 Selectable components
 
@@ -728,6 +738,91 @@ Returns the most recent state produced by start() or step().
 
 Returns how many milliseconds late the latest sample deadline was, or zero
 when the deadline was met.
+
+
+LIVE PROGRAM MODULE
+
+Purpose
+
+Declares a bounded set of values that may be adjusted in the Monitor while a
+program runs and publishes compact named intermediate values. The same module
+works on virtual and physical targets. It is not a persistent configuration
+store or a replacement for telemetry recording.
+
+Import
+
+    from ucsb_xrp import live
+
+LiveParameter
+
+The number(), toggle(), and choice() functions return a LiveParameter. Its
+public value property contains the currently applied value:
+
+    parameter.value -> float | bool | str
+
+The declaration fixes the value type and valid set for the life of one run.
+Programs read value; they do not assign it directly.
+
+Functions
+
+    live.number(
+        name: str,
+        default: float,
+        minimum: float,
+        maximum: float,
+        step: float,
+        unit: str = "",
+        label: str | None = None,
+    ) -> LiveParameter
+
+Declares a finite numeric value rendered as a slider. maximum must be greater
+than minimum. step must be positive, no larger than the range, and default
+must lie on the resulting steps within the inclusive range. The range contains
+a whole number of steps. The Monitor sends only representable values.
+
+    live.toggle(
+        name: str,
+        default: bool,
+        label: str | None = None,
+    ) -> LiveParameter
+
+Declares a Boolean value rendered as a checkbox.
+
+    live.choice(
+        name: str,
+        default: str,
+        options: Sequence[str],
+        label: str | None = None,
+    ) -> LiveParameter
+
+Declares a categorical value rendered as radio choices. options contains two
+to six distinct short strings, and default must be one of them.
+
+    live.watch(
+        name: str,
+        value: float | bool | str,
+        unit: str = "",
+        label: str | None = None,
+    ) -> None
+
+Stages or updates one named value for Monitor > Live program. Robot publishes
+all staged watches together at its next sample boundary. Numeric values must be
+finite; text is limited to 64 characters. Use watches for current modes,
+measured or calculated values, and error terms. Use telemetry recording when a
+complete time history is required.
+
+    live.apply_updates() -> bool
+
+Applies the most recently queued value for every declared parameter as one
+control-loop update and returns True if any applied value changed. Robot.start()
+and Robot.step() call this automatically at measured sample boundaries. A
+custom loop that does not use Robot calls it at its own explicit boundary.
+
+Names contain only letters, digits, and underscores and begin with a letter or
+underscore. A run may declare at most 16 parameters and 16 watch values. A
+second declaration of the same parameter name is an error. Parameter updates
+are validated on both browser and physical-service boundaries; an invalid or
+unknown update does not change the applied value.
 
 
 StraightLineController

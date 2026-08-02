@@ -93,6 +93,7 @@ class ExampleTests(unittest.TestCase):
             [path.name for path in paths],
             [
                 "challenge_1_components.py",
+                "live_parameters_and_watches.py",
                 "no_motion_sensor_read.py",
                 "records_and_units.py",
             ],

@@ -74,6 +74,8 @@ IDE and presents only available data. It contains:
   rate;
 - live pose, drive commands, encoders, range, button, IMU, temperature, and battery
   values;
+- an expandable Live program region for bounded numeric, Boolean, and choice
+  parameters plus named program watch values;
 - program and service output; and
 - bounded telemetry recording and deterministic CSV export. Display and export
   convert hardware-native acceleration and angular-rate values to m/s² and
@@ -99,12 +101,24 @@ operation rather than relying on ambiguous verbs.
 ## 3. Shared target contract
 
 `TargetClient` exposes `connect`, `disconnect`, `check`, `synchronize`, `run`,
-`runCurrent`, `markProjectStale`, `stop`, `reset`, and event subscription. The
+`runCurrent`, `markProjectStale`, `stop`, `reset`, `setRuntimeParameter`, and
+event subscription. The
 virtual target additionally accepts a named simulation scenario. Events are
-typed as status, synchronized-project state, console, or telemetry; samples
+typed as status, synchronized-project state, runtime state, console, or
+telemetry; samples
 carry source, sequence/time, pose availability, motion,
 encoders, collision, range, button, IMU, temperature, battery, and sensor-error
 fields.
+
+Runtime state is a bounded immutable snapshot: at most 16 validated parameter
+descriptors and 16 watch values. The virtual target stores encoded parameter
+values in fixed integer slots shared with its disposable MicroPython worker;
+each browser request updates one slot atomically. The physical service queues
+the validated value behind the `ucsb_xrp.live` lock. In both targets,
+`Robot.start()` and `Robot.step()` apply the latest queued values together at a
+measured sample boundary. Programs that do not use `Robot` may expose their own
+explicit boundary with `live.apply_updates()`. The Monitor shows pending state
+until the program publishes the applied snapshot.
 
 The UI depends only on this contract. Target-specific details—workers for the
 virtual XRP and a single shared HTTP poller for the physical XRP—stay inside
@@ -159,7 +173,7 @@ The versioned JSON API provides:
   pointer;
 - run, stop, lease renewal, and reset;
 - captured stdout/stderr and service events; and
-- polled hardware telemetry.
+- polled hardware telemetry and live-program state/parameter updates.
 
 Commands carry bounded request IDs and return correlated, cached replies so a
 retry does not repeat a state-changing operation. Inputs have explicit file,

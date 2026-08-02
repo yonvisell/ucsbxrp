@@ -23,7 +23,7 @@ from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
 
 
-COURSE_RELEASE = "2026.08-dev.2"
+COURSE_RELEASE = "2026.08-dev.3"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -528,6 +528,18 @@ def _hardware_sample():
     }
 
 
+def _runtime_snapshot_json():
+    try:
+        from ucsb_xrp.live import runtime_snapshot_json
+
+        value = runtime_snapshot_json()
+        if not isinstance(value, str) or len(value) > 32768:
+            raise ValueError("runtime snapshot is invalid")
+        return value
+    except Exception:
+        return '{"revision":0,"parameters":[],"watches":[]}'
+
+
 def _state_result(after_log_seq=0):
     return {
         "bootId": _boot_id,
@@ -535,6 +547,7 @@ def _state_result(after_log_seq=0):
         "detail": _detail,
         "runId": _run_id,
         "project": _read_manifest(),
+        "runtimeJson": _runtime_snapshot_json(),
         "logs": [item for item in _logs if item["seq"] > after_log_seq],
     }
 
@@ -594,6 +607,7 @@ def info(request):
             "robotName": network.hostname(),
             "address": wlan.ifconfig()[0] if wlan.isconnected() else None,
             "project": _read_manifest(),
+            "runtimeJson": _runtime_snapshot_json(),
             "capabilities": [
                 "project.check",
                 "project.sync",
@@ -603,6 +617,7 @@ def info(request):
                 "target.reset",
                 "telemetry.poll",
                 "logs.poll",
+                "runtime.parameters",
             ],
         }
     )
@@ -673,8 +688,10 @@ def run_project(request):
         _clear_project_modules(manifest)
         _stop_motors()
         from ucsb_xrp._telemetry import clear_state
+        from ucsb_xrp.live import clear as clear_runtime
 
         clear_state()
+        clear_runtime()
         # Collect on the service core before the student core starts. Running
         # global collection from the student core while the HTTP loop allocates
         # request objects can stall RP2350 MicroPython.
@@ -689,6 +706,22 @@ def run_project(request):
             )
         )
         return {"detail": _detail, "runId": _run_id}
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/parameter", methods=["POST"])
+def set_runtime_parameter(request):
+    def operation(body):
+        if not _thread_active:
+            raise ProtocolError("target_idle", "start a program before changing parameters")
+        from ucsb_xrp.live import queue_update, runtime_snapshot_json
+
+        try:
+            queue_update(body.get("name"), body.get("value"))
+        except (TypeError, ValueError) as exc:
+            raise ProtocolError("invalid_parameter", str(exc))
+        return {"runtimeJson": runtime_snapshot_json()}
 
     return _command(request, operation)
 

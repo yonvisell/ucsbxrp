@@ -16,6 +16,35 @@ export interface CheckResult {
   detail: string;
 }
 
+export type RuntimeParameterValue = number | boolean | string;
+export type RuntimeParameterKind = "number" | "toggle" | "choice";
+
+export interface RuntimeParameter {
+  name: string;
+  label: string;
+  kind: RuntimeParameterKind;
+  value: RuntimeParameterValue;
+  pendingValue?: RuntimeParameterValue;
+  unit?: string;
+  minimum?: number;
+  maximum?: number;
+  step?: number;
+  options?: string[];
+}
+
+export interface RuntimeWatch {
+  name: string;
+  label: string;
+  value: RuntimeParameterValue;
+  unit?: string;
+}
+
+export interface RuntimeState {
+  revision: number;
+  parameters: RuntimeParameter[];
+  watches: RuntimeWatch[];
+}
+
 export type TargetRunState =
   "disconnected" | "connecting" | "loading" | "ready" | "running" | "error";
 
@@ -58,6 +87,10 @@ export type TargetEvent =
       project: SynchronizedProject | null;
     }
   | {
+      type: "runtime";
+      state: RuntimeState;
+    }
+  | {
       type: "console";
       stream: "stdout" | "stderr" | "system";
       line: string;
@@ -74,6 +107,10 @@ export interface TargetClient {
   markProjectStale(project: CourseProject): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;
+  setRuntimeParameter(
+    name: string,
+    value: RuntimeParameterValue,
+  ): Promise<void>;
   setSimulationScenario?(scenario: SimulationScenario): Promise<void>;
   subscribe(listener: (event: TargetEvent) => void): () => void;
 }

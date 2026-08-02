@@ -140,6 +140,62 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
     "3 Python files compiled with MicroPython",
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(monitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
+  const liveProgram = monitor.locator(".live-program-group");
+  await expect(liveProgram).toHaveAttribute("open", "");
+  await expect(liveProgram.locator("summary")).toContainText("5 controls");
+  const speed = liveProgram.getByRole("slider", { name: "Forward speed" });
+  await speed.fill("180");
+  const speedControl = liveProgram.locator(
+    '[data-runtime-parameter="forward_speed_mm_s"]',
+  );
+  await expect(speedControl).toContainText("180 mm/s");
+  await expect(speedControl).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
+  await expect(speedControl).toHaveAttribute("data-runtime-value", "180");
+  const direction = liveProgram.locator(
+    '[data-runtime-parameter="turn_direction"]',
+  );
+  await direction.getByLabel("right", { exact: true }).check();
+  await expect(direction).toHaveAttribute("data-runtime-value", "right", {
+    timeout: 5_000,
+  });
+  await expect(direction).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
+  await direction.getByLabel("left", { exact: true }).check();
+  await expect(direction).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
+  await expect(direction).toHaveAttribute("data-runtime-value", "left");
+  const secondApproach = liveProgram.getByRole("checkbox", {
+    name: "Drive after turn",
+  });
+  await secondApproach.uncheck();
+  const secondApproachControl = liveProgram.locator(
+    '[data-runtime-parameter="second_approach"]',
+  );
+  await expect(secondApproachControl).toHaveAttribute(
+    "data-runtime-value",
+    "false",
+    { timeout: 5_000 },
+  );
+  await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
+  await secondApproach.check();
+  await expect(secondApproachControl).toHaveAttribute(
+    "data-runtime-value",
+    "true",
+    { timeout: 5_000 },
+  );
+  await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
+  await expect(liveProgram.getByText("Phase")).toBeVisible();
   await expect(ide.getByRole("log")).toContainText(
     "Obstacle-turn demo complete",
     { timeout: 40_000 },

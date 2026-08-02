@@ -6,12 +6,15 @@ import type {
   TargetEvent,
   TargetRunState,
   TelemetrySample,
+  RuntimeParameterValue,
+  RuntimeState,
 } from "./types";
 import type {
   PhysicalWorkerCommand,
   PhysicalWorkerMessage,
 } from "./physical-worker-protocol";
 import { describeProject } from "./project-identity";
+import { EMPTY_RUNTIME_STATE, parseRuntimeState } from "./runtime-controls";
 
 interface PhysicalProjectManifest {
   name: string;
@@ -30,6 +33,7 @@ interface PhysicalInfo {
   address: string;
   capabilities: string[];
   project?: PhysicalProjectManifest | null;
+  runtimeJson?: string;
 }
 
 interface PhysicalLog {
@@ -46,6 +50,7 @@ interface PhysicalState {
   logs: PhysicalLog[];
   sample?: TelemetrySample;
   project?: PhysicalProjectManifest | null;
+  runtimeJson?: string;
 }
 
 interface CommandReply<T> {
@@ -113,6 +118,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private currentProject: SynchronizedProject | null = null;
   private projectStateKnown = false;
   private info: PhysicalInfo | null = null;
+  private lastRuntimeJson = "";
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -164,6 +170,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
     );
     this.consumeProjectManifest(info.project);
+    this.consumeRuntimeState(info.runtimeJson);
     this.schedulePoll(0);
   }
 
@@ -293,6 +300,23 @@ export class DirectPhysicalTargetClient implements TargetClient {
       this.reconnecting = false;
       this.schedulePoll(0);
     }
+  }
+
+  async setRuntimeParameter(
+    name: string,
+    value: RuntimeParameterValue,
+  ): Promise<void> {
+    if (!this.info?.capabilities.includes("runtime.parameters")) {
+      throw new PhysicalTargetError(
+        "capability_mismatch",
+        "This XRP service does not yet support live parameters",
+      );
+    }
+    const result = await this.command<{ runtimeJson: string }>("parameter", {
+      name,
+      value,
+    });
+    this.consumeRuntimeState(result.runtimeJson);
   }
 
   subscribe(listener: (event: TargetEvent) => void): () => void {
@@ -448,6 +472,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
     this.lastRunId = state.runId;
     this.consumeProjectManifest(state.project);
+    this.consumeRuntimeState(state.runtimeJson);
     this.emitStatus(state.state, state.detail);
     if (state.sample) {
       this.emit({ type: "telemetry", sample: state.sample });
@@ -478,6 +503,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
         );
         this.consumeProjectManifest(info.project);
+        this.consumeRuntimeState(info.runtimeJson);
         return;
       } catch (error) {
         lastError = error;
@@ -534,6 +560,18 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.projectStateKnown = true;
     this.currentProject = project;
     this.emit({ type: "project", project });
+  }
+
+  private consumeRuntimeState(runtimeJson: string | undefined): void {
+    if (runtimeJson === undefined || runtimeJson === this.lastRuntimeJson) {
+      return;
+    }
+    this.lastRuntimeJson = runtimeJson;
+    try {
+      this.emit({ type: "runtime", state: parseRuntimeState(runtimeJson) });
+    } catch {
+      this.emit({ type: "runtime", state: EMPTY_RUNTIME_STATE });
+    }
   }
 
   private emit(event: TargetEvent): void {
@@ -668,6 +706,17 @@ export class PhysicalTargetClient implements TargetClient {
     await this.request({ type: "reset" });
   }
 
+  async setRuntimeParameter(
+    name: string,
+    value: RuntimeParameterValue,
+  ): Promise<void> {
+    if (this.direct) {
+      await this.direct.setRuntimeParameter(name, value);
+      return;
+    }
+    await this.request({ type: "set-runtime-parameter", name, value });
+  }
+
   subscribe(listener: (event: TargetEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -690,7 +739,12 @@ export class PhysicalTargetClient implements TargetClient {
       | { type: "run-current" }
       | { type: "mark-project-stale"; project: CourseProject }
       | { type: "stop" }
-      | { type: "reset" },
+      | { type: "reset" }
+      | {
+          type: "set-runtime-parameter";
+          name: string;
+          value: RuntimeParameterValue;
+        },
   ): Promise<unknown> {
     if (!this.worker) {
       return Promise.reject(new Error("Physical target is not connected"));

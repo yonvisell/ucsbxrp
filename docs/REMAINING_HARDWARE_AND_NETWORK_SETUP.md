@@ -2,21 +2,23 @@
 
 ## Current development robot
 
-The SparkFun RP2350 XRP is fully configured. It joins `Pink` at
-the address printed by the provisioner; its latest DHCP lease was
-`192.168.7.32`. The current firmware, XRPLib, UCSB library, reference bytecode,
-and browser service are installed. USB can remain connected, but normal IDE
-and Monitor traffic uses `Pink`.
+The SparkFun RP2350 XRP previously joined `Pink`; its latest DHCP lease was
+`192.168.7.32`. Release `2026.08-dev.2` passed the complete physical service
+and raised-wheel checks. The completed `2026.08-dev.3` release is ready on the
+Mac but is not yet installed: in the latest probe the controller appeared on
+neither USB nor its last LAN address.
 
-Nothing else needs to be configured for the present raised-wheel setup. Open:
+The production applications are available at:
 
 - IDE: `http://127.0.0.1:4174/ide/`
 - XRP Monitor: `http://127.0.0.1:4174/dashboard/`
 - Guide: `http://127.0.0.1:4174/guide/`
 
-Select **Physical XRP** in the IDE. The Monitor follows the same target and
-address automatically. The normal sequence is **Validate code**, **Sync
-project**, then **Run**.
+After the controller returns, select **Physical XRP** in the IDE. The Monitor
+follows the same target and address automatically. The normal sequence is
+**Validate code**, then **Run**; Run synchronizes changed files automatically.
+**Sync project** remains available when an instructor wants an explicit
+transfer without starting the program.
 
 ## Configure another course XRP
 
@@ -32,19 +34,40 @@ restarts the controller, and prints its LAN address. Enter that address once in
 IDE Settings. Students then use the same IDE/Monitor workflow for the virtual
 and physical XRP.
 
-## If the robot is not reachable
+## Restore the current development robot
 
-The service watchdog automatically reboots a locked runtime. If it has not
-returned after about 20 seconds, press **RESET** once. If it still does not
-appear, rerun `scripts/provision_xrp.py`; this is both the setup and repair
-command. UF2 recovery is relevant only if the controller no longer enumerates
-as MicroPython over USB.
+Disconnect both USB and battery power from the controller, then reconnect USB
+normally. Once a MicroPython serial port appears, run:
+
+```sh
+.venv/bin/python scripts/provision_xrp.py
+```
+
+That installs and read-verifies release `2026.08-dev.3`, restores `Pink`,
+restarts the service, and prints the current LAN address. If normal USB
+reconnection still produces no serial port, reconnect once in BOOTSEL mode,
+flash the current SparkFun RP2350 MicroPython UF2, reconnect normally, and run
+the same provision command.
+
+GPIO15 is an ordinary GPIO, not the RP2350 hardware reset signal. Connecting
+the header RESET input to GPIO15 can let a healthy program request a reset, but
+cannot recover a VM or USB interface that is already unresponsive.
+
+After provisioning, the two direct repetitions are:
+
+```sh
+.venv/bin/python scripts/xrp_service_probe.py --address ADDRESS
+.venv/bin/python scripts/xrp_motor_check.py --address ADDRESS
+```
+
+Use the address printed by the provisioner. No separate network mode or setup
+sequence is required.
 
 ## Remaining floor-dependent work
 
-The software, virtual XRP, stationary sensors, Wi-Fi path, complete physical
-project path, raised-wheel motors, and encoders are validated. The remaining
-work requires placing the wheels on the final course surface:
+The prior release validated stationary sensors, Wi-Fi, the complete physical
+project path, raised-wheel motors, and encoders. After the short release
+repetition above, the remaining work requires the final course surface:
 
 1. measure wheel-speed response, effective wheel diameter and track width, and
    stopping distance;

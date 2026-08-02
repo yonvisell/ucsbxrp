@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   initialOfflineShellState,
+  offlineShellIsolationNeedsReload,
   offlineShellUpdateNeedsReload,
 } from "./offline-shell";
 
@@ -23,5 +24,13 @@ describe("offline shell mode", () => {
     expect(offlineShellUpdateNeedsReload("old", "new", "new")).toBe(false);
     expect(offlineShellUpdateNeedsReload("new", "new", null)).toBe(false);
     expect(offlineShellUpdateNeedsReload(null, "new", null)).toBe(false);
+  });
+
+  it("reloads once after installation to enable isolated runtime controls", () => {
+    expect(offlineShellIsolationNeedsReload(false, "build-a", null)).toBe(true);
+    expect(offlineShellIsolationNeedsReload(false, "build-a", "build-a")).toBe(
+      false,
+    );
+    expect(offlineShellIsolationNeedsReload(true, "build-a", null)).toBe(false);
   });
 });

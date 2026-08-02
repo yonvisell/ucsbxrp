@@ -22,6 +22,8 @@ import {
   type TelemetrySample,
   type SimulationScenario,
   type SynchronizedProject,
+  type RuntimeParameterValue,
+  type RuntimeState,
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
@@ -50,6 +52,11 @@ const simulationScenarioKey = "ucsb-xrp-simulation-scenario-v1";
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v2";
 const maximumPlotSamples = 1_200;
 const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
+const emptyRuntimeState: RuntimeState = {
+  revision: 0,
+  parameters: [],
+  watches: [],
+};
 
 function isActiveRunState(state: TargetRunState): boolean {
   return state === "loading" || state === "running";
@@ -200,6 +207,13 @@ export function DashboardApp() {
     useState<SynchronizedProject | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [recordingActive, setRecordingActive] = useState(false);
+  const [runtimeState, setRuntimeState] =
+    useState<RuntimeState>(emptyRuntimeState);
+  const [runtimeDrafts, setRuntimeDrafts] = useState<
+    Record<string, RuntimeParameterValue>
+  >({});
+  const [runtimeUpdateError, setRuntimeUpdateError] = useState("");
+  const [liveProgramOpen, setLiveProgramOpen] = useState(false);
   const [recordedSamples, setRecordedSamples] = useState(0);
   const [droppedSamples, setDroppedSamples] = useState(0);
   const [autosaveFolder, setAutosaveFolder] =
@@ -217,10 +231,25 @@ export function DashboardApp() {
   const automaticRunProject = useRef<SynchronizedProject | null>(null);
   const automaticRunOutput = useRef<ConsoleEntry[]>([]);
   const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
+  const runtimeUpdateTimers = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  );
+  const openedLiveProgram = useRef(false);
 
   useEffect(() => {
     storeTargetPreference(targetPreference);
   }, [targetPreference]);
+
+  useEffect(() => {
+    if (targetState === "running") {
+      return;
+    }
+    for (const timer of runtimeUpdateTimers.current.values()) {
+      clearTimeout(timer);
+    }
+    runtimeUpdateTimers.current.clear();
+    setRuntimeDrafts({});
+  }, [targetState]);
 
   useEffect(() => {
     simulationScenarioRef.current = simulationScenario;
@@ -390,6 +419,9 @@ export function DashboardApp() {
   useEffect(() => {
     setConsoleEntries([]);
     setCurrentProject(null);
+    setRuntimeState(emptyRuntimeState);
+    setRuntimeDrafts({});
+    setRuntimeUpdateError("");
     nextConsoleId.current = 1;
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
@@ -443,6 +475,16 @@ export function DashboardApp() {
           automaticRunProject.current = event.project;
         }
         setCurrentProject(event.project);
+      } else if (event.type === "runtime") {
+        setRuntimeState(event.state);
+        if (
+          !openedLiveProgram.current &&
+          (event.state.parameters.length > 0 || event.state.watches.length > 0)
+        ) {
+          openedLiveProgram.current = true;
+          setRuntimeUpdateError("");
+          setLiveProgramOpen(true);
+        }
       } else if (event.type === "console") {
         const entry = {
           id: nextConsoleId.current++,
@@ -485,6 +527,10 @@ export function DashboardApp() {
         archiveAutomaticRun("disconnected", "Target connection changed");
       }
       unsubscribe();
+      for (const timer of runtimeUpdateTimers.current.values()) {
+        clearTimeout(timer);
+      }
+      runtimeUpdateTimers.current.clear();
       target.disconnect();
     };
   }, [archiveAutomaticRun, automaticRecorder, recorder, target]);
@@ -598,6 +644,54 @@ export function DashboardApp() {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const commitRuntimeParameter = async (
+    name: string,
+    nextValue: RuntimeParameterValue,
+  ) => {
+    setRuntimeUpdateError("");
+    try {
+      await target.setRuntimeParameter(name, nextValue);
+      setRuntimeDrafts((current) => {
+        const next = { ...current };
+        delete next[name];
+        return next;
+      });
+    } catch (error: unknown) {
+      setRuntimeUpdateError(
+        error instanceof Error ? error.message : String(error),
+      );
+      setRuntimeDrafts((current) => {
+        const next = { ...current };
+        delete next[name];
+        return next;
+      });
+    }
+  };
+
+  const setRuntimeParameter = (
+    name: string,
+    nextValue: RuntimeParameterValue,
+    debounce = false,
+  ) => {
+    setRuntimeDrafts((current) => ({ ...current, [name]: nextValue }));
+    const previous = runtimeUpdateTimers.current.get(name);
+    if (previous) {
+      clearTimeout(previous);
+    }
+    if (!debounce) {
+      runtimeUpdateTimers.current.delete(name);
+      void commitRuntimeParameter(name, nextValue);
+      return;
+    }
+    runtimeUpdateTimers.current.set(
+      name,
+      setTimeout(() => {
+        runtimeUpdateTimers.current.delete(name);
+        void commitRuntimeParameter(name, nextValue);
+      }, 140),
+    );
   };
 
   const visiblePlots = SIGNAL_PLOTS.filter(
@@ -737,6 +831,175 @@ export function DashboardApp() {
                 </button>
               </div>
               <div className="monitor-controls-scroll">
+                <details
+                  className="monitor-control-group live-program-group"
+                  onToggle={(event) =>
+                    setLiveProgramOpen(event.currentTarget.open)
+                  }
+                  open={liveProgramOpen}
+                >
+                  <summary title="Adjust declared program parameters and inspect named intermediate values.">
+                    <span>Live program</span>
+                    <small>
+                      {runtimeState.parameters.length} controls ·{" "}
+                      {runtimeState.watches.length} watches
+                    </small>
+                  </summary>
+                  <div className="live-program-content">
+                    {runtimeState.parameters.length === 0 &&
+                    runtimeState.watches.length === 0 ? (
+                      <p className="live-program-empty">
+                        A running project can declare compact controls and named
+                        watch values here.
+                      </p>
+                    ) : null}
+                    {runtimeState.parameters.length > 0 ? (
+                      <div
+                        aria-label="Live program parameters"
+                        className="runtime-parameters"
+                      >
+                        {runtimeState.parameters.map((parameter) => {
+                          const shownValue =
+                            runtimeDrafts[parameter.name] ??
+                            parameter.pendingValue ??
+                            parameter.value;
+                          if (parameter.kind === "number") {
+                            return (
+                              <label
+                                className="runtime-number"
+                                data-pending={
+                                  parameter.pendingValue !== undefined ||
+                                  runtimeDrafts[parameter.name] !== undefined
+                                }
+                                data-runtime-parameter={parameter.name}
+                                data-runtime-value={String(shownValue)}
+                                key={parameter.name}
+                                title={`Adjust ${parameter.label.toLowerCase()} while the program runs. The value is applied at its next sample boundary.`}
+                              >
+                                <span>{parameter.label}</span>
+                                <output>
+                                  {Number(shownValue).toLocaleString(
+                                    undefined,
+                                    {
+                                      maximumFractionDigits: 4,
+                                    },
+                                  )}
+                                  {parameter.unit ? ` ${parameter.unit}` : ""}
+                                </output>
+                                <input
+                                  aria-label={parameter.label}
+                                  disabled={targetState !== "running"}
+                                  max={parameter.maximum}
+                                  min={parameter.minimum}
+                                  onChange={(event) =>
+                                    setRuntimeParameter(
+                                      parameter.name,
+                                      Number(event.target.value),
+                                      true,
+                                    )
+                                  }
+                                  step={parameter.step}
+                                  type="range"
+                                  value={Number(shownValue)}
+                                />
+                              </label>
+                            );
+                          }
+                          if (parameter.kind === "toggle") {
+                            return (
+                              <label
+                                className="runtime-toggle"
+                                data-pending={
+                                  parameter.pendingValue !== undefined ||
+                                  runtimeDrafts[parameter.name] !== undefined
+                                }
+                                data-runtime-parameter={parameter.name}
+                                data-runtime-value={String(shownValue)}
+                                key={parameter.name}
+                                title={`Turn ${parameter.label.toLowerCase()} on or off while the program runs.`}
+                              >
+                                <span>{parameter.label}</span>
+                                <input
+                                  checked={Boolean(shownValue)}
+                                  disabled={targetState !== "running"}
+                                  onChange={(event) =>
+                                    setRuntimeParameter(
+                                      parameter.name,
+                                      event.target.checked,
+                                    )
+                                  }
+                                  type="checkbox"
+                                />
+                              </label>
+                            );
+                          }
+                          return (
+                            <fieldset
+                              className="runtime-choice"
+                              data-pending={
+                                parameter.pendingValue !== undefined ||
+                                runtimeDrafts[parameter.name] !== undefined
+                              }
+                              data-runtime-parameter={parameter.name}
+                              data-runtime-value={String(shownValue)}
+                              key={parameter.name}
+                              title={`Choose ${parameter.label.toLowerCase()} while the program runs.`}
+                            >
+                              <legend>{parameter.label}</legend>
+                              <div>
+                                {parameter.options?.map((option) => (
+                                  <label key={option}>
+                                    <input
+                                      checked={shownValue === option}
+                                      disabled={targetState !== "running"}
+                                      name={`runtime-${parameter.name}`}
+                                      onChange={() =>
+                                        setRuntimeParameter(
+                                          parameter.name,
+                                          option,
+                                        )
+                                      }
+                                      type="radio"
+                                    />
+                                    <span>{option}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </fieldset>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {runtimeState.watches.length > 0 ? (
+                      <dl
+                        aria-label="Program watch values"
+                        className="runtime-watches"
+                      >
+                        {runtimeState.watches.map((watch) => (
+                          <div
+                            key={watch.name}
+                            title={`Current ${watch.label}`}
+                          >
+                            <dt>{watch.label}</dt>
+                            <dd>
+                              {typeof watch.value === "number"
+                                ? watch.value.toLocaleString(undefined, {
+                                    maximumFractionDigits: 4,
+                                  })
+                                : String(watch.value)}
+                              {watch.unit ? ` ${watch.unit}` : ""}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : null}
+                    {runtimeUpdateError ? (
+                      <p className="runtime-update-error" role="alert">
+                        {runtimeUpdateError}
+                      </p>
+                    ) : null}
+                  </div>
+                </details>
                 <section
                   aria-labelledby="signal-controls-title"
                   className="monitor-control-group"

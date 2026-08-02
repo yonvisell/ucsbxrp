@@ -23,6 +23,8 @@ describe("virtual run-owner lease", () => {
     expect(lease.heartbeat(other, 3, 100)).toBe(false);
     expect(lease.heartbeat(owner, 2, 100)).toBe(false);
     expect(lease.owns(owner, 3)).toBe(true);
+    expect(lease.ownerFor(3)).toBe(owner);
+    expect(lease.ownerFor(2)).toBeNull();
     expect(lease.ownsPort(other)).toBe(false);
   });
 

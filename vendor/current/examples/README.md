@@ -6,6 +6,7 @@ These small examples make units and component boundaries visible.
 | --- | --- | --- |
 | `records_and_units.py` | None | Named records and course units |
 | `challenge_1_components.py` | None | Sensor and wheel-controller data flow |
+| `live_parameters_and_watches.py` | None | Monitor controls and named intermediate values |
 | `no_motion_sensor_read.py` | XRP with XRPLib | Live encoders, button, and range with a zero drive command |
 
 `no_motion_sensor_read.py` explicitly sends a zero drive command and calls `stop()` in

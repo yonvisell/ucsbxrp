@@ -31,6 +31,10 @@ export class RunOwnerLease<Owner> {
     return this.owner === owner && this.runId !== null;
   }
 
+  ownerFor(runId: number): Owner | null {
+    return this.runId === runId ? this.owner : null;
+  }
+
   expired(nowMs: number): boolean {
     return this.runId !== null && nowMs >= this.deadlineMs;
   }

@@ -44,7 +44,8 @@ describe("course starter catalog", () => {
     ]);
     const demo = courseProjectTemplate("demo_obstacle_turn");
     expect(demo.project.files["main.py"]).toContain("drive_until_close");
-    expect(demo.project.files["main.py"]).toContain("turn_left");
+    expect(demo.project.files["main.py"]).toContain("turn_quarter_turn");
+    expect(demo.project.files["main.py"]).toContain("live.number");
     const tutorial = courseProjectTemplate("micropython_tutorial");
     expect(tutorial.project.entrypoint).toBe("1_values_and_functions.py");
     expect(tutorial.project.files["7_finite_state_machine.py"]).toContain(

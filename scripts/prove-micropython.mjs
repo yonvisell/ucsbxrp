@@ -11,6 +11,8 @@ const referenceDirectory = new URL(
 );
 const output = [];
 const efforts = { left: 0, right: 0 };
+const liveValues = [];
+const liveStates = [];
 
 const micropython = await loadMicroPython({
   heapsize: 2 * 1024 * 1024,
@@ -21,6 +23,22 @@ const micropython = await loadMicroPython({
 micropython.registerJsModule("xrp_sim_bridge", {
   set_motor_effort(side, effort) {
     efforts[side] = Number(effort);
+  },
+  register_live_parameter(descriptorJson, encodedDefault) {
+    const descriptor = JSON.parse(String(descriptorJson));
+    const slot = liveValues.length;
+    liveValues.push(
+      descriptor.name === "parity_speed"
+        ? Number(encodedDefault) + 2
+        : Number(encodedDefault),
+    );
+    return slot;
+  },
+  read_live_parameter(slot) {
+    return liveValues[Number(slot)];
+  },
+  publish_runtime_state(runtimeJson) {
+    liveStates.push(JSON.parse(String(runtimeJson)));
   },
 });
 
@@ -119,7 +137,17 @@ micropython.FS.writeFile(
 `,
 );
 
-micropython.runPython(`
+function runPythonChecked(source) {
+  try {
+    return micropython.runPython(source);
+  } catch (error) {
+    throw new Error(
+      `MicroPython parity execution failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+runPythonChecked(`
 import math
 import sys
 
@@ -137,6 +165,7 @@ from ucsb_xrp import (
     RobotConfig,
     WheelSpeeds,
     XRPBot,
+    live,
     wrap_angle_rad,
 )
 from ucsb_xrp_reference import (
@@ -196,6 +225,15 @@ assert MotorEfforts is DriveCommand
 configured.set_efforts(MotorEfforts(0.0, 0.0))
 configured.set_drive(DriveCommand(0.9, -0.7))
 
+parity_speed = live.number(
+    "parity_speed", 100, minimum=50, maximum=200, step=5, unit="mm/s"
+)
+assert parity_speed.value == 100
+assert live.apply_updates()
+assert parity_speed.value == 110
+live.watch("parity_error", 2.5, unit="mm")
+assert not live.apply_updates()
+
 drive = DifferentialDrive(RobotConfig(track_width_mm=100.0))
 wheel_speeds = drive.wheel_speeds(MotionCommand(200.0, 1.0))
 assert wheel_speeds == WheelSpeeds(150.0, 250.0)
@@ -239,6 +277,16 @@ if (!output.includes("canonical ucsb_xrp source parity passed")) {
 if (!output.includes("reference .mpy public contracts passed")) {
   throw new Error(
     `Expected reference bytecode output was not captured: ${output.join("\n")}`,
+  );
+}
+const finalLiveState = liveStates.at(-1);
+if (
+  finalLiveState?.parameters?.[0]?.value !== 110 ||
+  finalLiveState?.watches?.[0]?.name !== "parity_error" ||
+  finalLiveState?.watches?.[0]?.value !== 2.5
+) {
+  throw new Error(
+    `Live bridge state was not published correctly: ${JSON.stringify(finalLiveState)}`,
   );
 }
 

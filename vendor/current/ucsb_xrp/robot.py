@@ -23,6 +23,7 @@ except ImportError:  # CPython tests
 from .config import RobotConfig
 from ._telemetry import publish_state
 from .records import DriveCommand, MotionCommand, Pose, RobotState
+from .live import apply_updates
 
 
 class Robot:
@@ -116,6 +117,7 @@ class Robot:
         pose = self._odometry.reset(initial_pose)
         self._state = RobotState(measurements, pose)
         publish_state(self._state)
+        apply_updates()
         self._last_overrun_ms = 0
         self._next_sample_ms = self._ticks_add(
             self._ticks_ms(), self.config.sample_period_ms
@@ -150,6 +152,7 @@ class Robot:
             )
             self._state = RobotState(measurements, pose)
             publish_state(self._state, drive_command)
+            apply_updates()
             self._advance_deadline()
             return self._state
         except Exception:
@@ -161,6 +164,7 @@ class Robot:
 
     def stop(self):
         self._bot.stop()
+        apply_updates()
         if self._state is not None:
             publish_state(self._state, DriveCommand(0.0, 0.0))
 

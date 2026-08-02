@@ -8,6 +8,10 @@ import {
 } from "@ucsb-xrp/simulator";
 
 import { RunOwnerLease } from "./run-owner-lease";
+import {
+  EMPTY_RUNTIME_STATE,
+  encodeRuntimeParameter,
+} from "./runtime-controls";
 import type {
   RuntimeWorkerMessage,
   TargetWorkerCommand,
@@ -15,6 +19,7 @@ import type {
 } from "./worker-protocol";
 import type {
   CourseProject,
+  RuntimeState,
   SynchronizedProject,
   TargetEvent,
   TargetRunState,
@@ -33,6 +38,8 @@ let currentState: TargetRunState = "ready";
 let currentDetail = "Virtual target ready";
 let currentProject: CourseProject | null = null;
 let currentProjectDescriptor: SynchronizedProject | null = null;
+let runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
+let runtimeSlots: Record<string, number> = {};
 
 function send(port: MessagePort, message: TargetWorkerMessage): void {
   port.postMessage(message);
@@ -60,6 +67,12 @@ function status(state: TargetRunState, detail: string): void {
   currentState = state;
   currentDetail = detail;
   broadcast({ type: "status", state, detail });
+}
+
+function clearRuntimeState(): void {
+  runtimeState = EMPTY_RUNTIME_STATE;
+  runtimeSlots = {};
+  broadcast({ type: "runtime", state: runtimeState });
 }
 
 function telemetryEvent(): TargetEvent {
@@ -111,6 +124,7 @@ function invalidateRun(detail: string): void {
   activeRunId += 1;
   runOwnerLease.clear();
   stopRuntime();
+  clearRuntimeState();
   if (stoppedRunId > 0) {
     broadcastMessage({ type: "terminate-runtime", runId: stoppedRunId });
   }
@@ -163,6 +177,7 @@ function prepareRuntime(
     });
   }
   stopRuntime();
+  clearRuntimeState();
   consoleHistory.length = 0;
   simulatorState = simulator.reset();
   runOwnerLease.begin(port, activeRunId, performance.now());
@@ -203,6 +218,10 @@ function handleRuntimeMessage(
       stream: message.stream,
       line: message.line,
     });
+  } else if (message.type === "runtime-state") {
+    runtimeState = message.state;
+    runtimeSlots = message.slots;
+    broadcast({ type: "runtime", state: runtimeState });
   } else if (message.type === "run-complete") {
     runOwnerLease.clear();
     stopRuntime();
@@ -241,6 +260,10 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         state: currentState,
         detail: currentDetail,
       },
+    });
+    send(port, {
+      type: "event",
+      event: { type: "runtime", state: runtimeState },
     });
     send(port, { type: "event", event: telemetryEvent() });
     send(port, {
@@ -305,11 +328,67 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     handleRuntimeMessage(port, command.runId, command.message);
   } else if (command.type === "run-owner-heartbeat") {
     runOwnerLease.heartbeat(port, command.runId, performance.now());
+  } else if (command.type === "set-runtime-parameter") {
+    if (currentState !== "running") {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: "Start a program before adjusting its live parameters",
+      });
+      return;
+    }
+    const parameter = runtimeState.parameters.find(
+      (item) => item.name === command.name,
+    );
+    const slot = runtimeSlots[command.name];
+    const owner = runOwnerLease.ownerFor(activeRunId);
+    if (!parameter || slot === undefined || !owner) {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: "That live parameter is not available in the running program",
+      });
+      return;
+    }
+    try {
+      const encoded = encodeRuntimeParameter(parameter, command.value);
+      send(owner, {
+        type: "apply-runtime-parameter",
+        runId: activeRunId,
+        slot,
+        encoded,
+      });
+      runtimeState = {
+        ...runtimeState,
+        revision: runtimeState.revision + 1,
+        parameters: runtimeState.parameters.map((item) =>
+          item.name === command.name
+            ? { ...item, pendingValue: command.value }
+            : item,
+        ),
+      };
+      broadcast({ type: "runtime", state: runtimeState });
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: true,
+      });
+    } catch (error) {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   } else if (command.type === "stop") {
     const stoppedRunId = activeRunId;
     activeRunId += 1;
     runOwnerLease.clear();
     stopRuntime();
+    clearRuntimeState();
     if (stoppedRunId > 0) {
       broadcastMessage({
         type: "terminate-runtime",
@@ -328,6 +407,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     activeRunId += 1;
     runOwnerLease.clear();
     stopRuntime();
+    clearRuntimeState();
     if (stoppedRunId > 0) {
       broadcastMessage({
         type: "terminate-runtime",

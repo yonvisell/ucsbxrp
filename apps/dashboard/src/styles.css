@@ -111,6 +111,170 @@
   font-weight: 650;
 }
 
+.live-program-group {
+  display: block;
+}
+
+.live-program-group > summary {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: 650;
+  list-style: none;
+}
+
+.live-program-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.live-program-group > summary::before {
+  color: var(--muted);
+  content: "›";
+  font-size: 13px;
+  line-height: 1;
+}
+
+.live-program-group[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.live-program-group > summary span {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.live-program-group > summary small {
+  grid-column: 3;
+  color: var(--quiet);
+  font-size: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.live-program-content {
+  display: grid;
+  gap: 5px;
+  padding-top: 5px;
+}
+
+.live-program-empty,
+.runtime-update-error {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
+.runtime-update-error {
+  color: var(--danger);
+}
+
+.runtime-parameters,
+.runtime-watches {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+}
+
+.runtime-number {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 4px;
+  color: var(--ink);
+  font-size: var(--font-xs);
+}
+
+.runtime-number output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.runtime-number input[type="range"] {
+  width: 100%;
+  height: 9px;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.runtime-toggle {
+  display: flex;
+  min-height: 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: var(--font-xs);
+}
+
+.runtime-toggle input,
+.runtime-choice input {
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+.runtime-choice {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.runtime-choice legend {
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--font-xs);
+}
+
+.runtime-choice > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 7px;
+}
+
+.runtime-choice label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--font-xs);
+}
+
+.runtime-watches {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.runtime-watches > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  font-size: var(--font-xs);
+}
+
+.runtime-watches dt {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runtime-watches dd {
+  margin: 0;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .signal-choices {
   display: grid;
   gap: 0;

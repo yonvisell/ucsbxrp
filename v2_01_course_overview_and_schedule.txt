@@ -251,6 +251,23 @@ NavigationController uses the current Pose to produce a MotionCommand.
 GridPlanner produces a GridPath that can be converted to NavigationGoal values.
 
 
+PARAMETER TUNING AND DEBUGGING
+
+Programs may declare a small set of bounded numeric, Boolean, or enumerated
+parameters through ucsb_xrp.live. The Monitor renders these as compact sliders,
+checkboxes, or radio choices while the program runs. Robot applies queued
+changes together at a measured sample boundary, so parameter adjustment does
+not add network or timing code to a student control loop.
+
+Programs may also publish named watch values such as the active controller
+state, a wheel-speed error, or a range estimate. Watches show current internal
+state without filling program output with periodic print statements. Program
+output remains appropriate for milestones and exceptions, and telemetry
+recording remains the mechanism for complete time histories. Live adjustments
+are transient; values that define a saved task or robot remain in challenge.py
+or robot_config.py.
+
+
 PROJECT FILES
 
 main.py

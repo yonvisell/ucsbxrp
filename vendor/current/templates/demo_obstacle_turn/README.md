@@ -10,3 +10,8 @@ The same files run on the virtual or physical XRP. In the virtual scene, Run
 starts immediately. On the physical XRP, press and release USER when prompted.
 The program filters several range samples and bounds each motion. The robot
 always stops in the `finally` block, including after an exception.
+
+While it runs, open **Monitor → Live program** to adjust the bounded speeds,
+obstacle distance, turn direction, and second approach. Updates take effect
+together at a measured sample boundary. The same section shows named internal
+values without adding diagnostic `print` statements to the control loop.

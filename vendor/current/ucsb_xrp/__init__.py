@@ -18,6 +18,7 @@ from .records import (
     WheelSpeeds,
 )
 from .robot import Robot
+from . import live
 from .straight_line import StraightLineController
 from .student_api import (
     DifferentialDriveBase,
@@ -36,7 +37,7 @@ from .utils import (
 )
 from .xrpbot import XRPBot
 
-__version__ = "0.3.0-dev"
+__version__ = "0.4.0-dev"
 
 __all__ = (
     "ArenaMap",
@@ -72,4 +73,5 @@ __all__ = (
     "distance_to_goal",
     "elapsed_time_s",
     "wrap_angle_rad",
+    "live",
 )

@@ -6,6 +6,7 @@ import { XrpSimulator, simulatorConfigForScenario } from "@ucsb-xrp/simulator";
 
 import { COURSE_PACKAGE_FILES, COURSE_REFERENCE_FILES } from "./course-python";
 import { prepareProject } from "./project-validation";
+import { MAX_RUNTIME_PARAMETERS, parseRuntimeState } from "./runtime-controls";
 import { SIMULATED_XRPLIB_FILES } from "./simulated-python";
 import type {
   RuntimeWorkerMessage,
@@ -48,6 +49,10 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   let leftEncoderOrigin = 0;
   let rightEncoderOrigin = 0;
   let lastSimulationTime = performance.now();
+  const liveValues = event.data.liveParameterBuffer
+    ? new Int32Array(event.data.liveParameterBuffer)
+    : null;
+  const liveSlots = new Map<string, number>();
   const postSimulatorState = () =>
     post({ type: "simulator-state", state: simulator.state });
   const advanceSimulator = () => {
@@ -115,6 +120,43 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
       },
       set_runtime_version(version: string) {
         runtimeVersion = String(version);
+      },
+      register_live_parameter(descriptorJson: string, encodedDefault: number) {
+        if (!liveValues) {
+          throw new Error(
+            "Live parameters need an isolated browser context. Reload this page once and run again.",
+          );
+        }
+        const descriptor = JSON.parse(String(descriptorJson)) as {
+          name?: unknown;
+        };
+        if (typeof descriptor.name !== "string") {
+          throw new Error("Live parameter descriptor has no name");
+        }
+        const existing = liveSlots.get(descriptor.name);
+        if (existing !== undefined) {
+          return existing;
+        }
+        const slot = liveSlots.size;
+        if (slot >= MAX_RUNTIME_PARAMETERS) {
+          throw new Error("Too many live parameters");
+        }
+        liveSlots.set(descriptor.name, slot);
+        Atomics.store(liveValues, slot, Number(encodedDefault));
+        return slot;
+      },
+      read_live_parameter(slot: number) {
+        if (!liveValues || slot < 0 || slot >= liveSlots.size) {
+          throw new Error("Live parameter slot is unavailable");
+        }
+        return Atomics.load(liveValues, Number(slot));
+      },
+      publish_runtime_state(runtimeJson: string) {
+        post({
+          type: "runtime-state",
+          state: parseRuntimeState(String(runtimeJson)),
+          slots: Object.fromEntries(liveSlots),
+        });
       },
     });
 

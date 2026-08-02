@@ -12,6 +12,8 @@ import type {
   TargetEvent,
 } from "./types";
 import { describeProject } from "./project-identity";
+import { MAX_RUNTIME_PARAMETERS } from "./runtime-controls";
+import type { RuntimeParameterValue } from "./types";
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -40,6 +42,7 @@ export class VirtualTargetClient implements TargetClient {
   private readonly pending = new Map<string, PendingRequest>();
   private nextRequest = 1;
   private runHeartbeat: ReturnType<typeof setInterval> | null = null;
+  private liveValues: Int32Array | null = null;
 
   async connect(): Promise<void> {
     if (this.worker) {
@@ -161,6 +164,18 @@ export class VirtualTargetClient implements TargetClient {
     }
     this.runtimeWorker = runtimeWorker;
     this.activeRunId = runId;
+    if (
+      typeof SharedArrayBuffer === "function" &&
+      globalThis.crossOriginIsolated
+    ) {
+      this.liveValues = new Int32Array(
+        new SharedArrayBuffer(
+          Int32Array.BYTES_PER_ELEMENT * MAX_RUNTIME_PARAMETERS,
+        ),
+      );
+    } else {
+      this.liveValues = null;
+    }
     this.startRunHeartbeat(runId);
     runtimeWorker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
       if (runtimeWorker !== this.runtimeWorker) {
@@ -182,7 +197,12 @@ export class VirtualTargetClient implements TargetClient {
       });
       this.terminateRuntime(runId);
     };
-    runtimeWorker.postMessage({ mode: "run", project, scenario });
+    runtimeWorker.postMessage({
+      mode: "run",
+      project,
+      scenario,
+      liveParameterBuffer: this.liveValues?.buffer,
+    });
   }
 
   async synchronize(project: CourseProject): Promise<void> {
@@ -217,6 +237,13 @@ export class VirtualTargetClient implements TargetClient {
     await this.request({ type: "reset" });
   }
 
+  async setRuntimeParameter(
+    name: string,
+    value: RuntimeParameterValue,
+  ): Promise<void> {
+    await this.request({ type: "set-runtime-parameter", name, value });
+  }
+
   async setSimulationScenario(scenario: SimulationScenario): Promise<void> {
     await this.request({ type: "set-scenario", scenario });
   }
@@ -241,6 +268,11 @@ export class VirtualTargetClient implements TargetClient {
         }
       | { type: "mark-project-stale"; revision: string }
       | { type: "set-scenario"; scenario: SimulationScenario }
+      | {
+          type: "set-runtime-parameter";
+          name: string;
+          value: RuntimeParameterValue;
+        }
       | { type: "stop" }
       | { type: "reset" },
   ): Promise<unknown> {
@@ -268,6 +300,17 @@ export class VirtualTargetClient implements TargetClient {
     }
     if (message.type === "terminate-runtime") {
       this.terminateRuntime(message.runId);
+      return;
+    }
+    if (message.type === "apply-runtime-parameter") {
+      if (
+        message.runId === this.activeRunId &&
+        this.liveValues &&
+        message.slot >= 0 &&
+        message.slot < this.liveValues.length
+      ) {
+        Atomics.store(this.liveValues, message.slot, message.encoded);
+      }
       return;
     }
     const pending = this.pending.get(message.requestId);
@@ -341,5 +384,6 @@ export class VirtualTargetClient implements TargetClient {
     this.runtimeWorker?.terminate();
     this.runtimeWorker = null;
     this.activeRunId = null;
+    this.liveValues = null;
   }
 }

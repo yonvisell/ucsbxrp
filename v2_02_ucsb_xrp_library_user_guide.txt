@@ -245,6 +245,7 @@ main.py
         straight.start(
             measurements=state.measurements,
             distance_mm=TRAVEL_DISTANCE_MM,
+        )
         while not straight.is_complete():
             command = straight.update(state.measurements)
             state = robot.step(command)
@@ -399,6 +400,61 @@ robot.estimate_range(samples, minimum_usable). Robot delegates the calculation
 to its selected SensorModel implementation. The method accepts a sequence
 containing numeric ranges and None values and returns one range estimate, or
 None when too few usable samples are present.
+
+
+ADJUSTING A RUN AND WATCHING INTERMEDIATE VALUES
+
+Use the live module for parameters that are useful to tune during an
+experiment and for intermediate values that should be visible without
+periodic print statements.
+
+    from ucsb_xrp import live
+
+
+    CRUISE_SPEED = live.number(
+        "cruise_speed_mm_s",
+        120.0,
+        minimum=60.0,
+        maximum=220.0,
+        step=10.0,
+        unit="mm/s",
+        label="Cruise speed",
+    )
+    CONTROLLER_ENABLED = live.toggle(
+        "controller_enabled",
+        True,
+        label="Controller enabled",
+    )
+    TURN_DIRECTION = live.choice(
+        "turn_direction",
+        "left",
+        options=("left", "right"),
+        label="Turn direction",
+    )
+
+The Monitor renders a compact slider, checkbox, or radio choices from these
+declarations. Read the current value through CRUISE_SPEED.value,
+CONTROLLER_ENABLED.value, or TURN_DIRECTION.value. Robot.start() and
+Robot.step() apply valid queued changes together at a measured sample
+boundary. Programs that do not use Robot may call live.apply_updates() at
+their own explicit control-loop boundary.
+
+Stage a named value when it changes or once per measured sample:
+
+    live.watch(
+        "wheel_speed_error_mm_s",
+        target_speed_mm_s - measured_speed_mm_s,
+        unit="mm/s",
+        label="Wheel-speed error",
+    )
+
+Robot publishes the staged values together at its next measured boundary, and
+they appear under Monitor > Live program. A watch is appropriate for current
+state, an error term, a selected mode, or another compact diagnostic.
+Use ordinary print statements for infrequent messages and exceptions; use
+telemetry recording for complete time histories. Live values are transient
+run data and do not replace robot_config.py or challenge.py as the source of
+saved experiment settings.
 
 
 CONFIGURATION

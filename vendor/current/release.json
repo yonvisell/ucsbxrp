@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "release_id": "2026.08-dev.2",
+  "release_id": "2026.08-dev.3",
   "status": "development",
   "application_version": "0.1.0",
-  "course_api_revision": "0.3-draft",
+  "course_api_revision": "0.4-draft",
   "controller": {
     "id": "sparkfun-xrp-controller-rp2350",
     "usb_vid": "0x1B4F",
@@ -27,10 +27,10 @@
     "commit": "1914fd636d1d06425cdbec88ae4b998844d1501a"
   },
   "ucsb_xrp": {
-    "version": "0.3.0-dev",
+    "version": "0.4.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
-    "source_file_count": 12,
-    "source_sha256": "c6c7725b68a47d48d5e02e397f37a33ba8c1e341c4a53a8e5d0de8472697a11d",
+    "source_file_count": 13,
+    "source_sha256": "0f578c3a12fa834fb803e4567b9daf64165f9ab6abceb3586bbd0ace2c848f0a",
     "reference_compiler": {
       "repository": "micropython/micropython",
       "tag": "v1.28.0",

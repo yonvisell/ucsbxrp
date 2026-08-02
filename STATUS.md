@@ -11,12 +11,13 @@ browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
 
-Refinement slices 1–5 are complete in software. The Monitor now uses flat, independently
-resizable regions; a bounded arena grid with labeled millimeter coordinates;
-compact signal and recording controls; precise drive-command and yaw-rate
-labels; a closer dimensioned XRP view; and a narrow top-sheet control layout.
-Production tabs also reload once when a newer complete offline shell activates,
-preventing a long-open page from silently displaying the previous build.
+Refinement slices 1–6 are complete in software. The Monitor now uses flat,
+independently resizable regions; a bounded arena grid with labeled millimeter
+coordinates; compact signal and recording controls; precise drive-command and
+yaw-rate labels; a closer dimensioned XRP view; and a narrow top-sheet control
+layout. Production tabs explicitly check for a newer complete offline shell
+and reload once when it activates, preventing a long-open page from silently
+displaying the previous build.
 
 The IDE now applies the same flat, high-contrast visual system: a white 188 px
 file rail, thin separators, compact 10 px controls, 9 px default code, no
@@ -40,19 +41,22 @@ again only through an IDE run or synchronization. The browser, CPython probe,
 and RP2350 service compute the same project identity. The physical service
 discovers the retained project after boot and preserves it through stop/reset.
 
-The public course runtime is now `ucsb_xrp` 0.3.0-dev. New projects use the
+The public course runtime is now `ucsb_xrp` 0.4.0-dev. New projects use the
 literal `DriveCommand` and `XRPBot.set_drive()` vocabulary; earlier
 `MotorEfforts`, `set_efforts()`, and configuration names remain compatibility
 aliases. Each student component has its own plainly named module. `Robot` owns
 wrap-safe absolute sample deadlines, records overruns, and skips missed periods
-without timing drift or catch-up bursts.
+without timing drift or catch-up bursts. Programs can additionally declare up
+to 16 bounded numeric, Boolean, or choice parameters and 16 named watch values
+through `ucsb_xrp.live`. The Monitor renders compact controls, and `Robot`
+applies queued values and publishes staged watches once per measured boundary.
 
-The attached RP2350 was provisioned on `Pink`; its current DHCP address is
-`192.168.7.32`. Stationary
-sensors, project transfer, compilation, execution, logs, course pose telemetry,
-stop/reset/reconnect, simultaneous IDE/Monitor use, recording, and raised-wheel
-motor response were exercised. The user observed the left, right, and paired
-wheel motion expected by the encoder evidence.
+The attached RP2350 was previously provisioned on `Pink`; its latest DHCP
+address was `192.168.7.32`. Stationary sensors, project transfer, compilation,
+execution, logs, course pose telemetry, stop/reset/reconnect, simultaneous
+IDE/Monitor use, recording, and raised-wheel motor response were exercised on
+the preceding release. The user observed the left, right, and paired wheel
+motion expected by the encoder evidence.
 
 The 0.3 package and service passed the strict
 compile/sync/run/telemetry/stop/reset probe. The following two-app Stable Chrome
@@ -60,13 +64,14 @@ repetition passed its first run, stop/reboot, edit, and resynchronization, then
 found a controller-level hang at the second `/run`. The corrected service now
 returns its run reply before core-1 launch, the physical client leaves a 500 ms
 startup polling interval, and a 7 s hardware watchdog makes any future VM
-deadlock self-recovering. The correction passes the complete software suite;
-one controller reset is presently needed to install and repeat it because the
-old running service predated the watchdog.
+deadlock self-recovering. Release `2026.08-dev.3` adds the completed live
+program protocol and passes the complete software suite. In the latest probe
+the controller enumerated on neither USB nor its last LAN address, so this
+release could not yet be installed or repeated.
 
 ## Delivered course release
 
-- `ucsb_xrp` 0.3.0-dev provides explicit value records, robot configuration,
+- `ucsb_xrp` 0.4.0-dev provides explicit value records, robot configuration,
   `XRPBot`, the measured `Robot` loop, straight-line control, arena/grid
   utilities, and delivery-mission orchestration.
 - Students implement six focused components: `SensorModel`,
@@ -111,6 +116,10 @@ old running service predated the watchdog.
 - A 176 px collapsible sidebar for signal selection and recording; the virtual
   scene is selected directly in the world, while target settings remain shared
   from the IDE.
+- An expandable Live program region renders declared numeric parameters as
+  thin sliders, Booleans as checkboxes, short choices as radio controls, and
+  named watch values as a compact table. Pending and applied values are shared
+  across tabs and controls disable when the program is not running.
 - Independently selectable wheel-speed, drive-command, forward-range,
   acceleration, and yaw-rate strips with labels and units inside each plot.
 - Persistent pointer- and keyboard-adjustable separators independently size
@@ -146,11 +155,12 @@ old running service predated the watchdog.
   startup file, revision, and changed/current state. Either app can start that
   revision; the Monitor cannot start code made stale by IDE edits.
 - A separate shared worker gives all open web-app tabs one physical polling
-  connection and broadcasts the same state, telemetry, and output.
+  connection and broadcasts the same state, telemetry, runtime controls, and
+  output.
 - The physical service supports discovery, capabilities, compilation,
   correlated/idempotent commands, transactional project transfer, execution,
-  logs, telemetry, stop/reset/reconnect, bounded input, browser preflight, and
-  a run lease.
+  logs, telemetry, live parameter updates, stop/reset/reconnect, bounded input,
+  browser preflight, and a run lease.
 - The service prepares the entrypoint on core 0, replies in `loading` state,
   then starts core 1 after the response. Browser polling remains quiet during
   that startup, and a service-fed hardware watchdog automatically recovers a
@@ -164,49 +174,52 @@ old running service predated the watchdog.
 
 ### Offline and guidance
 
-- The production service worker verifies all 115 public payload files,
+- The production service worker verifies all 117 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, and supplied bytecode. The interface says
   **Saved for offline use**; robot connectivity remains a separate status.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
   later physical calibration.
+- `docs/RED_TEAM_REVIEW.md` records the integrated failure-mode review,
+  implemented mitigations, evidence, and remaining empirical boundaries.
 
 ## Validation performed
 
 The latest complete software pass includes:
 
 - Prettier, TypeScript, and repository whitespace checks;
-- 92 CPython contract and harness tests;
+- 98 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 97 Vitest tests for project identity and handling, folder rotation, target
+- 103 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, plot data, and
   measured contrast;
-- a production build and verification of the exact 115-file offline manifest;
+- a production build and verification of the exact 117-file offline manifest;
   and
 - 17 Stable Chrome software workflows covering all starters, both new project
   templates, flat IDE geometry, four-generation source autosave, per-run
   telemetry/output autosave, blocked-gate replanning, two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
-  recording/CSV export, and a network-blocked offline reload;
+  typed live parameter updates and named watches, recording/CSV export, and a
+  network-blocked offline reload;
   plus one opt-in Stable Chrome hardware repetition. Its first complete
   lifecycle passed; the second launch exposed the RP2350 hang described above.
   The resulting watchdog/deferred-launch correction is software-validated but
   not yet installed on the currently frozen controller.
 
-The current Monitor pass includes a direct narrow Chrome inspection and an
-original-size 1,440 × 900 Stable Chrome capture. It covered the bounded labeled
-grid, XRP zoom, expanded/collapsed controls, thin slider, live values, plots,
-output, and responsive top sheet. Wide and narrow interaction tests exercised
-the splitters and controls. Browser consoles were empty. Ordinary text is
-tested at 4.5:1 or better; control boundaries and focus indicators are tested
-at 3:1 or better. The IDE was directly inspected in Chrome at 1,382 × 752 in
-both challenge and tutorial states. Measured header, toolbar, project rail,
-folder controls, and all interactive labels had no horizontal text overflow;
-the responsive Stable Chrome workflow separately exercised the 375 px layout.
-The Monitor folder/run controls were then directly inspected at 1,382 × 752;
-the 175 px scrolling sidebar fit without vertical or horizontal overflow.
+The current Monitor pass includes the original-size 1,440 × 900 Stable Chrome
+capture plus a direct 1,382 × 752 Chrome inspection of the complete production
+bundle. It covered the bounded labeled grid, XRP zoom, expanded/collapsed
+controls, 212 px live-values region, thin sliders, watch values, plots, output,
+and responsive top sheet. Forward speed was changed from 120 to 180 mm/s in
+the real Monitor, applied at a program boundary, and the demo completed with
+zero drive command. Wide and narrow interaction tests exercised the splitters
+and controls. Ordinary text is tested at 4.5:1 or better; control boundaries
+and focus indicators are tested at 3:1 or better. The IDE and guide were also
+visually inspected at 1,382 × 752; the IDE header, toolbar, project rail,
+folder controls, tabs, editor, and output had no clipping. The responsive
+Stable Chrome workflow separately exercised the 375 px layout.
 
 ## Physical evidence
 
@@ -239,16 +252,15 @@ not erased, and the failed repetition is not reported as passing.
 
 ## Remaining work
 
-1. Reset the currently hung controller once, install the corrected service,
-   and repeat the strict probe and two-run Stable Chrome lifecycle. Subsequent
-   VM-level hangs should recover through the new hardware watchdog.
-2. Complete structured watches/live parameters in the active refinement plan.
-3. Red-team and repeat integrated virtual, Chrome, offline-update, persistence,
-   and physical-target validation after that slice.
-4. On the final course surface, measure wheel-speed response, effective wheel
+1. Restore normal USB enumeration with one complete controller power cycle,
+   run `scripts/provision_xrp.py` to install `2026.08-dev.3`, and repeat the
+   strict physical probe, live-parameter demo, and two-run Chrome lifecycle.
+   If normal reconnection still produces no serial port, reflash the current
+   RP2350 MicroPython UF2 first. GPIO15 is not a hardware-reset substitute.
+2. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.
-5. Run each complete challenge on the floor after calibration. These empirical
+3. Run each complete challenge on the floor after calibration. These empirical
    results should refine configuration, not create another student workflow or
    target protocol.
 

@@ -20,6 +20,71 @@ function response(value: unknown, status = 200): Response {
 }
 
 describe("physical target", () => {
+  it("discovers and applies physical live parameters with runtime feedback", async () => {
+    const paths: string[] = [];
+    const bodies: Array<Record<string, unknown>> = [];
+    const initialRuntime =
+      '{"revision":1,"parameters":[{"name":"speed","label":"Speed","kind":"number","value":100,"minimum":50,"maximum":200,"step":5,"unit":"mm/s"}],"watches":[]}';
+    const updatedRuntime =
+      '{"revision":2,"parameters":[{"name":"speed","label":"Speed","kind":"number","value":100,"pendingValue":175,"minimum":50,"maximum":200,"step":5,"unit":"mm/s"}],"watches":[]}';
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const path = String(input);
+        paths.push(path);
+        if (!init || init.method === "GET") {
+          return response({
+            protocol: 1,
+            serviceVersion: "test",
+            courseRelease: "test",
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            runtimeJson: initialRuntime,
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+              "runtime.parameters",
+            ],
+          });
+        }
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        bodies.push(body);
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { runtimeJson: updatedRuntime },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await target.setRuntimeParameter("speed", 175);
+
+    expect(paths.at(-1)).toBe("http://192.168.7.30/api/v1/parameter");
+    expect(bodies.at(-1)).toEqual(
+      expect.objectContaining({ name: "speed", value: 175 }),
+    );
+    expect(events).toContainEqual({
+      type: "runtime",
+      state: expect.objectContaining({
+        revision: 2,
+        parameters: [expect.objectContaining({ pendingValue: 175 })],
+      }),
+    });
+    target.disconnect();
+  });
+
   it("discovers and runs the retained project without another transfer", async () => {
     const revision =
       "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3";

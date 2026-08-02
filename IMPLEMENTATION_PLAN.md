@@ -229,16 +229,22 @@ repetition awaits the attached controller's reset.
 
 ### Refinement 6 — Structured watches and live parameters
 
-Status: planned.
+Status: implemented and software-validated; attached-XRP repetition pending.
 
 - Add structured watched values and typed numeric, Boolean, and enumerated live
   parameters; apply validated updates atomically at sample boundaries.
 - Prove virtual-runtime message delivery before exposing these controls, then
   exercise the same behavior on the attached XRP.
 
+Usable result: a student program declares compact bounded controls and named
+intermediate values in ordinary Python. The same Monitor UI validates and
+applies values at a measured boundary on virtual and physical targets without
+periodic print logging or target-specific program code.
+
 ### Refinement 7 — Integrated red-team validation
 
-Status: planned.
+Status: software-complete; current-release physical repetition pending USB
+enumeration.
 
 - Exercise service-worker upgrades, multi-tab ownership, stale projects,
   invalid live values, interrupted writes, permission loss, telemetry load,

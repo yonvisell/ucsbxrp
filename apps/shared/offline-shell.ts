@@ -16,6 +16,7 @@ interface OfflineManifest {
 export const OFFLINE_SHELL_EVENT = "ucsb-xrp:offline-shell-state";
 const offlineShellVersionKey = "ucsb-xrp-offline-shell-version-v1";
 const offlineShellReloadKey = "ucsb-xrp-offline-shell-reload-v1";
+const isolationReloadKey = "ucsb-xrp-isolation-reload-v1";
 
 export function initialOfflineShellState(
   production: boolean,
@@ -37,6 +38,14 @@ export function offlineShellUpdateNeedsReload(
     previousVersion !== currentVersion &&
     lastReloadedVersion !== currentVersion
   );
+}
+
+export function offlineShellIsolationNeedsReload(
+  isolated: boolean,
+  currentVersion: string,
+  lastReloadedVersion: string | null,
+): boolean {
+  return !isolated && lastReloadedVersion !== currentVersion;
 }
 
 function publishState(
@@ -161,6 +170,12 @@ async function installOfflineShell(basePath: string) {
         scope: basePath,
         updateViaCache: "none",
       });
+      // register() may reuse a long-lived registration without immediately
+      // checking its script. Ask explicitly while online so a classroom tab
+      // left open between sessions receives the current build promptly.
+      if (navigator.onLine && hasActiveWorker()) {
+        registration = await registration.update();
+      }
     } catch (error) {
       if (!hasActiveWorker()) {
         throw error;
@@ -188,9 +203,15 @@ async function installOfflineShell(basePath: string) {
       previousVersion,
       manifest.version,
       window.sessionStorage.getItem(offlineShellReloadKey),
+    ) ||
+    offlineShellIsolationNeedsReload(
+      globalThis.crossOriginIsolated,
+      manifest.version,
+      window.sessionStorage.getItem(isolationReloadKey),
     )
   ) {
     window.sessionStorage.setItem(offlineShellReloadKey, manifest.version);
+    window.sessionStorage.setItem(isolationReloadKey, manifest.version);
     window.location.reload();
   }
 }

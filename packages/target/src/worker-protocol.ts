@@ -3,7 +3,13 @@ import type {
   XrpSimulatorState,
 } from "@ucsb-xrp/simulator";
 
-import type { CourseProject, SynchronizedProject, TargetEvent } from "./types";
+import type {
+  CourseProject,
+  RuntimeParameterValue,
+  RuntimeState,
+  SynchronizedProject,
+  TargetEvent,
+} from "./types";
 
 export type TargetWorkerCommand =
   | { type: "connect"; requestId: string }
@@ -36,12 +42,24 @@ export type TargetWorkerCommand =
       message: RuntimeWorkerMessage;
     }
   | { type: "run-owner-heartbeat"; runId: number }
+  | {
+      type: "set-runtime-parameter";
+      requestId: string;
+      name: string;
+      value: RuntimeParameterValue;
+    }
   | { type: "stop"; requestId: string }
   | { type: "reset"; requestId: string };
 
 export type TargetWorkerMessage =
   | { type: "event"; event: TargetEvent }
   | { type: "terminate-runtime"; runId: number }
+  | {
+      type: "apply-runtime-parameter";
+      runId: number;
+      slot: number;
+      encoded: number;
+    }
   | {
       type: "response";
       requestId: string;
@@ -64,6 +82,7 @@ export interface RuntimeWorkerRequest {
   mode: "check" | "run";
   project: CourseProject;
   scenario?: SimulationScenario;
+  liveParameterBuffer?: SharedArrayBuffer;
 }
 
 export type RuntimeWorkerMessage =
@@ -73,4 +92,9 @@ export type RuntimeWorkerMessage =
   | { type: "console"; stream: "stdout" | "stderr"; line: string }
   | { type: "check-complete"; detail: string }
   | { type: "run-complete" }
+  | {
+      type: "runtime-state";
+      state: RuntimeState;
+      slots: Record<string, number>;
+    }
   | { type: "error"; detail: string };

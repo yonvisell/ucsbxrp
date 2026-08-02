@@ -42,6 +42,11 @@ export type { TargetKind, TargetPreference } from "./target-preference";
 export type {
   CheckResult,
   CourseProject,
+  RuntimeParameter,
+  RuntimeParameterKind,
+  RuntimeParameterValue,
+  RuntimeState,
+  RuntimeWatch,
   SynchronizedProject,
   TargetClient,
   TargetEvent,

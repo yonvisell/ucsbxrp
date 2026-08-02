@@ -1,4 +1,9 @@
-import type { CheckResult, CourseProject, TargetEvent } from "./types";
+import type {
+  CheckResult,
+  CourseProject,
+  RuntimeParameterValue,
+  TargetEvent,
+} from "./types";
 
 export type PhysicalWorkerCommand =
   | { type: "connect"; requestId: string; endpoint: string }
@@ -13,7 +18,13 @@ export type PhysicalWorkerCommand =
       project: CourseProject;
     }
   | { type: "stop"; requestId: string }
-  | { type: "reset"; requestId: string };
+  | { type: "reset"; requestId: string }
+  | {
+      type: "set-runtime-parameter";
+      requestId: string;
+      name: string;
+      value: RuntimeParameterValue;
+    };
 
 export type PhysicalWorkerMessage =
   | { type: "event"; event: TargetEvent }

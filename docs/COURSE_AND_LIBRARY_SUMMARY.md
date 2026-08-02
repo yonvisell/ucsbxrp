@@ -92,6 +92,13 @@ A normal run calls `Robot.start(initial_pose)`, repeatedly calls
 `Measurements` and `Pose`. `Robot` owns absolute, wrap-safe sample deadlines;
 student control loops do not call `sleep_ms`.
 
+For experiments and debugging, `ucsb_xrp.live` supplies bounded numeric,
+Boolean, and enumerated parameters plus named watch values. The Monitor renders
+the declared controls and current values; `Robot` applies queued parameter
+changes together at a sample boundary. Saved task and robot settings remain in
+`challenge.py` and `robot_config.py`, while complete histories remain
+telemetry rather than printed counters.
+
 The principal run-time paths are:
 
 ```text

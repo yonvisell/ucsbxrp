@@ -191,6 +191,15 @@ export function GuideApp() {
                 more room; the arrow keys adjust a focused separator.
               </p>
               <p>
+                A program can declare bounded controls with{" "}
+                <code>ucsb_xrp.live</code>. They appear in{" "}
+                <strong>Live program</strong> as thin sliders, checkboxes, or
+                radio choices, and take effect together at the next measured
+                sample boundary. Named <code>live.watch()</code> values expose
+                modes, estimates, and error terms without periodic diagnostic
+                printing. Use telemetry recording for complete histories.
+              </p>
+              <p>
                 Recording stores up to 30,000 telemetry samples. Start and stop
                 recording independently of a run, then export a CSV with units
                 in the column names. IMU exports use m/s² and rad/s; course

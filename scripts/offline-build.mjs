@@ -101,6 +101,18 @@ const SCOPE_PATH = ${JSON.stringify(manifest.base_path)};
 const PRECACHE_URLS = ${JSON.stringify(precacheUrls, null, 2)};
 const PRECACHE_PATHS = new Set(PRECACHE_URLS);
 
+function withIsolationHeaders(response) {
+  const headers = new Headers(response.headers);
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function navigationFallback(pathname) {
   if (!pathname.startsWith(SCOPE_PATH)) {
     return null;
@@ -167,18 +179,21 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     const fallbackUrl = navigationFallback(url.pathname);
     if (fallbackUrl !== null) {
-      event.respondWith(
-        fetch(request).catch(async () => {
+      event.respondWith((async () => {
+        let response;
+        try {
+          response = await fetch(request);
+        } catch {
           const cache = await caches.open(CACHE_NAME);
-          const cached = await cache.match(
+          response = await cache.match(
             new URL(fallbackUrl, self.location.origin).toString(),
           );
-          if (cached === undefined) {
+          if (response === undefined) {
             throw new Error("Offline application entry is unavailable");
           }
-          return cached;
-        }),
-      );
+        }
+        return withIsolationHeaders(response);
+      })());
     }
     return;
   }
@@ -189,7 +204,8 @@ self.addEventListener("fetch", (event) => {
       caches
         .open(CACHE_NAME)
         .then((cache) => cache.match(url.toString(), { ignoreSearch: true }))
-        .then((cached) => cached ?? fetch(request)),
+        .then((cached) => cached ?? fetch(request))
+        .then(withIsolationHeaders),
     );
     return;
   }
@@ -199,10 +215,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches
-      .match(url.toString(), { ignoreSearch: true })
-      .then((cached) => cached ?? fetch(request)),
+    event.respondWith(
+      caches
+        .match(url.toString(), { ignoreSearch: true })
+        .then((cached) => cached ?? fetch(request))
+        .then(withIsolationHeaders),
   );
 });
 `;

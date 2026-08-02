@@ -52,6 +52,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
     def setUpClass(cls):
         cls.server = FakeServer()
         cls.thread_calls = []
+        cls.live_updates = []
 
         fake_thread = types.ModuleType("_thread")
         fake_thread.start_new_thread = lambda function, args: cls.thread_calls.append(
@@ -73,6 +74,14 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         fake_uasyncio.sleep_ms = sleep_ms
         fake_course_telemetry = types.ModuleType("ucsb_xrp._telemetry")
         fake_course_telemetry.clear_state = lambda: None
+        fake_course_live = types.ModuleType("ucsb_xrp.live")
+        fake_course_live.clear = lambda: None
+        fake_course_live.runtime_snapshot_json = (
+            lambda: '{"revision":0,"parameters":[],"watches":[]}'
+        )
+        fake_course_live.queue_update = lambda name, value: cls.live_updates.append(
+            (name, value)
+        )
         fake_ucsb_xrp = types.ModuleType("ucsb_xrp")
         fake_ucsb_xrp.__path__ = []
 
@@ -93,6 +102,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "uasyncio": fake_uasyncio,
                 "ucsb_xrp": fake_ucsb_xrp,
                 "ucsb_xrp._telemetry": fake_course_telemetry,
+                "ucsb_xrp.live": fake_course_live,
                 "ucsb_xrp_service": package,
                 "ucsb_xrp_service.protocol": protocol,
             },
@@ -128,10 +138,13 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
     def setUp(self):
         self.server.loop.tasks.clear()
         self.thread_calls.clear()
+        self.live_updates.clear()
         self.service._thread_active = False
         self.service._launch_pending = False
         self.service._run_id = 0
         self.service._logs.clear()
+        self.service._last_reply_by_id.clear()
+        self.service._reply_order.clear()
 
     def test_run_reply_precedes_second_core_launch(self):
         with tempfile.TemporaryDirectory() as project_dir:
@@ -178,6 +191,50 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "stop test loop"):
             asyncio.run(self.service._feed_service_watchdog(watchdog))
         self.assertEqual(watchdog.feeds, 2)
+
+    def test_parameter_update_is_correlated_and_queued(self):
+        self.service._thread_active = True
+
+        response = self.service.set_runtime_parameter(
+            types.SimpleNamespace(
+                data={
+                    "requestId": "parameter-1",
+                    "name": "forward_speed_mm_s",
+                    "value": 175,
+                }
+            )
+        )
+        reply = json.loads(response.body.decode("utf-8"))
+
+        self.assertTrue(reply["ok"])
+        self.assertEqual(reply["requestId"], "parameter-1")
+        self.assertEqual(self.live_updates, [("forward_speed_mm_s", 175)])
+        self.assertIn("runtimeJson", reply["result"])
+
+    def test_invalid_parameter_is_a_client_error_not_a_service_failure(self):
+        self.service._thread_active = True
+        live_module = sys.modules["ucsb_xrp.live"]
+
+        with patch.object(
+            live_module,
+            "queue_update",
+            side_effect=ValueError("unknown live parameter: missing"),
+        ):
+            response = self.service.set_runtime_parameter(
+                types.SimpleNamespace(
+                    data={
+                        "requestId": "parameter-2",
+                        "name": "missing",
+                        "value": 1,
+                    }
+                )
+            )
+        reply = json.loads(response.body.decode("utf-8"))
+
+        self.assertFalse(reply["ok"])
+        self.assertEqual(reply["error"]["code"], "invalid_parameter")
+        self.assertEqual(response.status, 400)
+        self.assertEqual(self.service._logs, [])
 
 
 if __name__ == "__main__":

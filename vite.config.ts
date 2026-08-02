@@ -17,6 +17,11 @@ const basePath =
   requestedBasePath === "/"
     ? "/"
     : `/${requestedBasePath.replace(/^\/+|\/+$/g, "")}/`;
+const isolationHeaders = {
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "require-corp",
+  "Cross-Origin-Resource-Policy": "same-origin",
+};
 
 export default defineConfig({
   base: basePath,
@@ -31,10 +36,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    headers: isolationHeaders,
   },
   preview: {
     port: 4173,
     strictPort: true,
+    headers: isolationHeaders,
   },
   build: {
     target: "es2022",
