@@ -36,6 +36,8 @@ export interface RotatingTextEntry {
 export const autosaveDirectoryName = "UCSB_XRP_Autosaves";
 export const autosaveGenerations = 4;
 export const courseFolderChangedKey = "ucsb-xrp-course-folder-changed-v1";
+export const courseFolderIdeHandoffKey =
+  "ucsb-xrp-course-folder-ide-handoff-v1";
 
 const databaseName = "ucsb-xrp-course-tools-v1";
 const databaseVersion = 1;
@@ -164,6 +166,30 @@ export async function rememberCourseFolder(
     return true;
   } catch {
     return false;
+  }
+}
+
+export function handCourseFolderToIde(): void {
+  try {
+    localStorage.setItem(courseFolderIdeHandoffKey, "pending");
+  } catch {
+    // The remembered IndexedDB handle still remains useful to the IDE.
+  }
+}
+
+export function courseFolderIsWaitingForIde(): boolean {
+  try {
+    return localStorage.getItem(courseFolderIdeHandoffKey) === "pending";
+  } catch {
+    return false;
+  }
+}
+
+export function finishCourseFolderIdeHandoff(): void {
+  try {
+    localStorage.removeItem(courseFolderIdeHandoffKey);
+  } catch {
+    // No persistent handoff state remains available to clear.
   }
 }
 

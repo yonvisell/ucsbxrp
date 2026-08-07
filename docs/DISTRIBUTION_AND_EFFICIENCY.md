@@ -3,17 +3,27 @@
 ## Current result
 
 The production `dist` directory is a self-contained static release. It contains
-the landing page, IDE, Monitor, guide, local workers, Monaco, ECharts, Three.js,
-MicroPython WebAssembly, the public course release, reference bytecode, project
-templates, service worker, offline manifest, and third-party notices. No CDN,
-application server, or remote runtime asset is required.
+the landing page, IDE, Monitor, commissioning wizard, guide, local workers,
+Monaco, ECharts, Three.js, MicroPython WebAssembly, the public course release,
+reference bytecode, project templates, the pinned RP2350 firmware, service
+worker, offline manifest, and third-party notices. No CDN, application server,
+or remote runtime asset is required.
 
 The Monitor imports only the ECharts line-chart, grid, title, legend, tooltip,
 and canvas-renderer modules it uses. Against the same release, this reduced its
 minified JavaScript from 1,687,014 to 1,081,536 bytes and gzip size from 511,939
 to 315,685 bytes. The complete offline payload decreased from 7,740,158 to
-7,178,887 bytes after adding 43,325 bytes of distributable license notices. No
-plotting option, appearance, data history, or interaction changed.
+7,178,887 bytes after adding 43,325 bytes of distributable license notices. The
+self-commissioning release is 9,083,613 bytes across 183 verified payloads;
+most of the increase is the exact 1,725,952-byte RP2350 UF2 needed for repair
+after the computer leaves internet Wi-Fi. The commissioning application itself
+is approximately 25 kB minified and 8.3 kB gzip. No Monitor appearance,
+plotting option, data history, or interaction changed.
+
+The lockfile pins patched DOMPurify 3.4.13 and Nano ID 3.3.17 releases where
+the current Monaco and Vite dependency trees otherwise selected vulnerable
+patch levels. `npm audit` reports no remaining production or development
+advisories.
 
 Further changes such as lazy-loading the editor, batching telemetry renders, or
 replacing the Three.js trail buffer would add lifecycle and timing complexity.
@@ -32,11 +42,9 @@ both forms:
 - `https://yonvisell.github.io/<repository>/` for an ordinary project
   repository.
 
-The repository currently has no Git remote. To publish it, create or select the
-destination repository, add it as `origin`, push `main`, and select **GitHub
-Actions** as the Pages source in the repository's **Settings → Pages** once.
-Subsequent pushes to `main` deploy automatically; `workflow_dispatch` also
-allows an explicit deployment.
+The public repository is `yonvisell/ucsbxrp`. Its Pages source is GitHub
+Actions; pushes to `main` deploy automatically, and `workflow_dispatch` allows
+an explicit deployment.
 
 The repository also has no root license for the UCSB course-tool source itself.
 That does not prevent its owner from publishing the site, but it leaves reuse
@@ -54,11 +62,14 @@ network prompt once. Chrome or Edge remains the supported course browser.
 Before first public use, validate the deployed URL—not only `localhost`—in the
 course browser:
 
-1. open the IDE, Monitor, and guide at their final Pages paths;
+1. open the commissioning wizard, IDE, Monitor, and guide at their final Pages
+   paths;
 2. wait for **Saved for offline use**;
-3. reload all three with networking disabled and run one virtual project;
-4. restore networking, select the physical target, grant local-network access,
-   and exercise connect, synchronize, run, stop, and telemetry against an XRP.
+3. reload the applications with networking disabled and run one virtual
+   project;
+4. restore networking, run one USB commission/repair, join the selected robot
+   network, grant local-network access, and exercise connect, flash, run, stop,
+   and telemetry against an XRP.
 
 The physical step must be repeated at the final HTTPS origin because browser
 permissions are origin-specific. It cannot be completed while the XRP is

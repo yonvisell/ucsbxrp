@@ -592,6 +592,25 @@
   border-top: 1px solid var(--line);
 }
 
+.commission-settings-link {
+  display: inline-flex;
+  margin: 2px 0 8px;
+  color: var(--ink);
+  font-size: var(--font-sm);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.commission-settings-link:hover {
+  color: var(--cyan-deep);
+  text-decoration: underline;
+}
+
+.commission-settings-link.standalone {
+  border-top: 1px solid var(--line);
+  padding-top: 0.56rem;
+}
+
 .settings-note {
   margin-top: 0.55rem;
   border: 1px solid var(--line);

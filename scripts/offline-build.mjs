@@ -125,7 +125,7 @@ function navigationFallback(pathname) {
     return SCOPE_PATH + "index.html";
   }
 
-  for (const application of ["ide", "dashboard", "guide"]) {
+  for (const application of ["ide", "dashboard", "guide", "commission"]) {
     if (relativePath === application || relativePath === application + "/index.html") {
       return SCOPE_PATH + application + "/index.html";
     }

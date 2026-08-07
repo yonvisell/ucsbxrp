@@ -10,6 +10,9 @@ export function GuideApp() {
           <a className="tool-link" href="../ide/">
             Open IDE
           </a>
+          <a className="tool-link" href="../commission/">
+            Set up XRP
+          </a>
           <a className="tool-link" href="../dashboard/">
             Open XRP Monitor
           </a>
@@ -53,7 +56,7 @@ export function GuideApp() {
                   Choose a project template, then select <strong>Load</strong>.
                 </li>
                 <li>
-                  Select <strong>Validate code</strong>. Every Python file is
+                  Select <strong>Validate</strong>. Every Python file is
                   compiled by the same MicroPython version used by the course.
                 </li>
                 <li>
@@ -119,63 +122,67 @@ export function GuideApp() {
             <div className="section-number">03</div>
             <div>
               <h2>Use a physical RP2350 XRP</h2>
-              <h3>Instructor setup, once per robot</h3>
+              <h3>Set up or repair the robot</h3>
               <p>
-                While online, first open the production IDE and Monitor and wait
-                for <strong>Saved for offline use</strong>. The complete web
-                application then runs locally without returning to its web host.
-                Connect the flashed XRP by USB and run:
+                Open <a href="../commission/">Set up or repair XRP</a> in
+                current desktop Chrome or Edge. The same action is available in
+                IDE Settings. It checks the robot, installs only missing or
+                changed course files, verifies every installed file, repairs the
+                exact course firmware when needed, and restarts the XRP.
               </p>
-              <pre>
-                <code>.venv/bin/python scripts/provision_xrp.py</code>
-              </pre>
-              <p>
-                This installs and read-verifies the course release, then creates
-                a device-specific network such as <code>UCSB-XRP-9EDE</code> at{" "}
-                <code>192.168.42.1</code>. Its course password is{" "}
-                <code>ucsb-xrp</code>. The printed network name distinguishes
-                nearby robots.
-              </p>
-
-              <h3>Normal student workflow</h3>
               <ol className="procedure">
                 <li>
-                  Join the <code>UCSB-XRP-…</code> network printed during USB
-                  setup. Internet access is not needed after the applications
-                  have been saved locally.
+                  Choose a normal local folder for project files and automatic
+                  copies. The wizard separately waits until Chrome has saved the
+                  complete web release for offline use.
                 </li>
                 <li>
-                  In IDE Settings, select <strong>Physical XRP</strong> and{" "}
-                  <strong>Robot hotspot</strong>.
+                  Connect the XRP by USB-C, select it in the browser device
+                  picker, and choose its network. A new robot defaults to its
+                  own device-specific hotspot; a repair keeps the current
+                  network unless you change it.
                 </li>
                 <li>
-                  The status identifies the robot network, fixed address, and
-                  installed course release.
+                  If firmware repair is needed, follow the one additional prompt
+                  to select the temporary <code>RP2350</code> firmware drive.
+                  The wizard verifies the controller again after it restarts.
                 </li>
                 <li>
-                  Use <strong>Validate code</strong>,{" "}
-                  <strong>Flash project</strong>, and <strong>Run</strong>. Run
-                  automatically flashes changed files, so the separate flash
-                  step is optional during ordinary work.
+                  For hotspot mode, join the displayed <code>UCSB-XRP-…</code>
+                  Wi-Fi network with password <code>ucsb-xrp</code>. The wizard
+                  verifies the robot service and opens the IDE with{" "}
+                  <strong>Physical XRP</strong> selected.
                 </li>
               </ol>
               <p>
-                The XRP keeps the last complete project if a transfer is
-                interrupted. Stop and reset reconnect automatically after the
-                controller restarts. USB can remain connected; browser traffic
-                uses Wi-Fi.
+                Use <strong>Validate</strong>, <strong>Flash project</strong>,
+                and <strong>Run</strong>. Run automatically flashes changed
+                files, so the separate flash step is optional during ordinary
+                work. The XRP keeps the last complete project if a transfer is
+                interrupted. USB can remain connected; normal programming and
+                telemetry use Wi-Fi.
               </p>
               <h3>Existing local Wi-Fi</h3>
               <p>
-                For an instructor-managed private router or another ordinary
-                network, provision with{" "}
-                <code>scripts/provision_xrp.py --mode station --ssid NAME</code>
-                . The router does not need internet after the web applications
-                are local. USB setup reads the matching credential from the
-                local details file without printing it. Select{" "}
-                <strong>Existing Wi-Fi</strong> in IDE Settings and enter the
-                reported address. If that network is unavailable at boot, the
-                XRP exposes its own recoverable hotspot until the next reset.
+                Select <strong>Existing Wi-Fi</strong> in the wizard to place
+                the XRP on the same local network as the computer. The password
+                is sent to the XRP over USB and is not retained by the web app.
+                The router does not need internet after the web release is
+                local. If that network is unavailable at boot, the XRP exposes
+                its recoverable hotspot until the next reset. IDE Settings can
+                reopen setup later to change or repair the profile.
+              </p>
+              <div className="callout">
+                Browser security keeps four actions explicit when they are
+                needed: choosing a project folder, selecting the USB device,
+                selecting the temporary firmware drive, and granting this web
+                origin access to the local robot network. No instructor account
+                or command line is required for normal student setup.
+              </div>
+              <p>
+                Instructors retaining a scripted fleet workflow can use{" "}
+                <code>scripts/provision_xrp.py</code>; it consumes the same
+                canonical installation file list as the browser wizard.
               </p>
             </div>
           </section>
@@ -300,7 +307,7 @@ export function GuideApp() {
                     </td>
                   </tr>
                   <tr>
-                    <td>Validate code</td>
+                    <td>Validate</td>
                     <td>
                       <kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>
                     </td>
@@ -344,9 +351,10 @@ export function GuideApp() {
                   <strong>Physical XRP is unreachable:</strong> confirm both
                   devices are using the network mode selected in IDE Settings.
                   In hotspot mode, join the printed <code>UCSB-XRP-…</code>
-                  network. In existing-Wi-Fi mode, rerun{" "}
-                  <code>scripts/provision_xrp.py --mode station</code> over USB
-                  to repair the installation and report the current address.
+                  network. Otherwise connect USB-C and open{" "}
+                  <a href="../commission/">Set up or repair XRP</a>; it keeps a
+                  working network by default and can replace the profile when
+                  selected.
                 </li>
                 <li>
                   <strong>Code validates but does not run:</strong> open Details

@@ -31,7 +31,7 @@
 }
 
 .monitor-run-button {
-  margin-left: 3px;
+  margin-left: 2px;
 }
 
 .monitor-controls-cap {
@@ -416,12 +416,12 @@
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
 }
 
 .header-link-separator {
   color: var(--line-bright);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
 }
 
 .dashboard-grid {

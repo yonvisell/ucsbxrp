@@ -1,6 +1,7 @@
 export {
   PhysicalTargetClient,
   PhysicalTargetError,
+  localNetworkRequestInit,
   normalizePhysicalEndpoint,
 } from "./physical-target";
 export type { PhysicalTargetOptions } from "./physical-target";

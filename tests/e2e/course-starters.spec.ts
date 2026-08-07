@@ -33,7 +33,7 @@ for (const starter of starters) {
     );
     await page.getByLabel("Project template").selectOption(starter.option);
     await page.getByRole("button", { name: "Load", exact: true }).click();
-    await page.getByRole("button", { name: "Validate code" }).click();
+    await page.getByRole("button", { name: "Validate" }).click();
     await expect(page.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
     );
@@ -119,7 +119,7 @@ test("loads and runs the staged MicroPython tutorial", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Open 7_finite_state_machine.py" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Validate code" }).click();
+  await page.getByRole("button", { name: "Validate" }).click();
   await expect(page.getByTestId("check-result")).toContainText(
     "8 Python files compiled with MicroPython",
   );
@@ -142,7 +142,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   );
   await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
   await ide.getByRole("button", { name: "Load", exact: true }).click();
-  await ide.getByRole("button", { name: "Validate code" }).click();
+  await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
   );
@@ -229,7 +229,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
 
   await ide.getByLabel("Project template").selectOption("demo_spiral");
   await ide.getByRole("button", { name: "Load", exact: true }).click();
-  await ide.getByRole("button", { name: "Validate code" }).click();
+  await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
   );

@@ -28,6 +28,7 @@ import {
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
+import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import {
   chooseCourseFolder,
@@ -769,7 +770,8 @@ export function DashboardApp() {
         </div>
         <div className="toolbar">
           <button
-            className={`monitor-run-button ${isRunning ? "danger-button" : "primary-button"}`}
+            aria-label={isRunning ? "Stop" : "Run"}
+            className={`monitor-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
             disabled={!isRunning && !canRunCurrent}
             onClick={runOrStop}
             title={
@@ -782,16 +784,22 @@ export function DashboardApp() {
                     : "Run or flash a project in the IDE first."
             }
           >
-            {isRunning ? "Stop" : "Run"}
+            <RunStopIcon running={isRunning} />
+            <span className="visually-hidden">
+              {isRunning ? "Stop" : "Run"}
+            </span>
           </button>
           <button
+            aria-label="Reset"
+            className="header-icon-button"
             disabled={
               targetState === "disconnected" || targetState === "connecting"
             }
             onClick={reset}
             title="Restart the target and restore its initial state."
           >
-            Reset
+            <ResetIcon />
+            <span className="visually-hidden">Reset</span>
           </button>
           <div className="toolbar-spacer" />
           <nav aria-label="Application links" className="header-nav">

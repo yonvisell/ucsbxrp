@@ -149,7 +149,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
     await monitorRun.evaluate(
       (button) => button.getBoundingClientRect().height,
     ),
-  ).toBe(21);
+  ).toBe(19);
 
   await expect(page.getByTestId("monitor-controls")).toBeVisible();
   await expect(
@@ -233,7 +233,7 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   );
 
   const headerBox = await page.locator(".app-header").boundingBox();
-  expect(headerBox?.height).toBeLessThanOrEqual(31);
+  expect(headerBox?.height).toBeLessThanOrEqual(29);
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();

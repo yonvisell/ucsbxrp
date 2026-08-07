@@ -93,6 +93,49 @@ export function readOfflineShellStatus(): OfflineShellStatus {
   };
 }
 
+export function waitForOfflineShell(
+  timeoutMs = 60_000,
+): Promise<OfflineShellStatus> {
+  const current = readOfflineShellStatus();
+  if (current.state === "ready" || current.state === "development") {
+    return Promise.resolve(current);
+  }
+  if (current.state === "error" || current.state === "unsupported") {
+    return Promise.reject(
+      new Error(
+        current.message ??
+          "Save the web tools for offline use before changing Wi-Fi.",
+      ),
+    );
+  }
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      window.removeEventListener(OFFLINE_SHELL_EVENT, onState);
+      clearTimeout(timeout);
+    };
+    const onState = (event: Event) => {
+      const status = (event as CustomEvent<OfflineShellStatus>).detail;
+      if (status.state === "ready") {
+        finish();
+        resolve(status);
+      } else if (status.state === "error" || status.state === "unsupported") {
+        finish();
+        reject(
+          new Error(
+            status.message ??
+              "Save the web tools for offline use before changing Wi-Fi.",
+          ),
+        );
+      }
+    };
+    const timeout = window.setTimeout(() => {
+      finish();
+      reject(new Error("The offline course copy did not finish saving."));
+    }, timeoutMs);
+    window.addEventListener(OFFLINE_SHELL_EVENT, onState);
+  });
+}
+
 async function waitForWorker(worker: ServiceWorker) {
   if (worker.state === "activated") {
     return;

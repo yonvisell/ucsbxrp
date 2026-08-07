@@ -45,6 +45,7 @@ for (const requiredPath of [
   "ide/index.html",
   "dashboard/index.html",
   "guide/index.html",
+  "commission/index.html",
   "favicon.svg",
   "third-party-licenses/README.txt",
   "third-party-licenses/echarts/LICENSE",
@@ -53,6 +54,7 @@ for (const requiredPath of [
   "third-party-licenses/micropython--micropython-webassembly-pyscript/LICENSE",
   `${COURSE_RELEASE_OUTPUT_PATH}/release.json`,
   `${COURSE_RELEASE_OUTPUT_PATH}/ucsb_xrp/__init__.py`,
+  "course/commissioning/manifest.json",
 ]) {
   assert.ok(
     assets.some((asset) => asset.path === requiredPath),
@@ -106,6 +108,18 @@ const courseRelease = JSON.parse(
   ),
 );
 const referenceArtifacts = courseRelease.ucsb_xrp?.reference_artifacts ?? [];
+const firmwareAsset = courseRelease.micropython?.asset;
+assert.equal(typeof firmwareAsset, "string", "course firmware name is missing");
+assert.ok(
+  assets.some(
+    (asset) =>
+      asset.path ===
+        `${COURSE_RELEASE_OUTPUT_PATH}/firmware/${firmwareAsset}` &&
+      asset.bytes === courseRelease.micropython.byte_size &&
+      asset.sha256 === courseRelease.micropython.sha256,
+  ),
+  "offline commissioning firmware differs from release.json",
+);
 for (const artifact of referenceArtifacts) {
   const publishedPath = `${COURSE_RELEASE_OUTPUT_PATH}/${artifact.path}`;
   const publishedAsset = assets.find((asset) => asset.path === publishedPath);

@@ -3,7 +3,7 @@
 ## 1. Scope and governing boundary
 
 The system coordinates four products: the `ucsb_xrp` MicroPython package and
-reference modules, browser IDE, XRP Monitor, and virtual XRP. A small private
+reference modules, browser IDE, XRP Monitor, and virtual XRP. A small on-robot
 service makes the physical RP2350 XRP implement the same browser target
 contract.
 
@@ -24,7 +24,8 @@ change makes student reasoning or instructor operation clearer.
 
 ## 2. Browser applications
 
-One Vite production build contains three entry points and shared packages.
+One Vite production build contains the IDE, Monitor, commissioning wizard,
+guide, landing page, and shared packages.
 
 ### IDE
 
@@ -38,7 +39,7 @@ The IDE is the programming surface. It provides:
   MicroPython tutorial; a fresh browser opens the spiral demo while recovered
   student work remains authoritative;
 - local Monaco workers and MicroPython syntax validation;
-- explicit **Validate code** and **Flash project** operations plus one stateful
+- explicit **Validate** and **Flash project** operations plus one stateful
   Run/Stop control and Reset;
 - virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
   and an existing-Wi-Fi address setting;
@@ -62,6 +63,41 @@ Browser recovery remains independent. Folder writes are debounced, serialized,
 and revision/epoch checked so an older queued snapshot cannot overwrite a newer
 edit or explicit save. Before overwriting source, the previous complete project
 is rotated through four JSON generations in `UCSB_XRP_Autosaves`.
+
+### Commissioning and repair
+
+The commissioning wizard is the ordinary student entrypoint for a new,
+outdated, or damaged XRP. It first obtains a project-folder handle and confirms
+that the complete production shell is available offline. The folder stores
+projects and rotated data copies; the application cache remains browser-owned.
+That distinction is explicit because a web application cannot choose its own
+disk cache location.
+
+One user-selected Web Serial connection enters the MicroPython raw REPL. The
+wizard then performs a credential-free controller inspection, maintains any
+already-active hardware watchdog, and checks the exact RP2350 board and
+MicroPython version. An incompatible or absent runtime branches to the pinned
+official UF2 image: the controller enters its bootloader, the user selects the
+temporary firmware volume, the browser writes the hash-verified image, and the
+wizard inspects the re-enumerated controller again.
+
+The production build generates one commissioning manifest from the exact file
+map used by `scripts/provision_xrp.py`. Each destination has a byte count and
+SHA-256 digest. The browser hashes existing files, fetches and independently
+hashes only changed payloads, writes through a temporary name, re-hashes every
+destination, and import-checks `ucsb_xrp`, the on-robot service, and required
+XRPLib modules. Repeating the operation therefore repairs drift without
+rewriting matching files. New robots default to their device-specific hotspot;
+repairs retain a valid existing profile unless the user chooses hotspot or
+station mode. Station credentials move directly from the page to the XRP over
+USB and are neither persisted nor returned to the page.
+
+After network activation, reset, and an exact service/release reply, the wizard
+stores the physical endpoint, hands the selected folder to the IDE, and opens
+the IDE in physical mode. It cannot silently choose an operating-system Wi-Fi
+network or bypass browser folder, serial-device, firmware-volume, and
+local-network permissions; these are the only intentional user-mediated
+boundaries.
 
 ### XRP Monitor
 
@@ -99,8 +135,12 @@ without a pose.
 The guide covers the first virtual run, projects and templates, physical setup,
 normal operation, data, shortcuts, and recovery. It is opened in a new tab.
 All applications use the same high-contrast theme, compact controls, visible
-focus, semantic labels, and responsive layout. Control labels describe the
-operation rather than relying on ambiguous verbs.
+focus, semantic labels, and responsive layout. The IDE and Monitor use
+accessible play/stop and reset icon buttons in their 27 px headers, a compact
+target selector, and explicit names for less familiar commands such as
+**Validate** and **Flash project**. Icon controls retain semantic names and
+hover/focus help. The landing page presents the IDE, setup/repair wizard,
+Monitor, and guide as four concise first actions.
 
 ## 3. Shared target contract
 
@@ -233,14 +273,14 @@ ownership. Direct reads resume only afterward. This keeps HTTP allocation,
 polling, and asynchronous stop paths from contending with student code on the
 board's memory manager, I2C, encoder, and motor drivers.
 
-Provisioning defaults to the robot hotspot and needs no private network
-credential. Existing-Wi-Fi setup reads its password only on the instructor
-Mac, writes the versioned profile over USB, and never prints or commits that
-secret. Every installed course/service/reference file is read back byte for
-byte. After reset, the tool activates the saved profile through USB, reads the
-actual post-reboot address, and restarts the normal service. In station mode it
-also waits for HTTP discovery at that address and never assumes that a
-pre-reset lease remains valid.
+Browser commissioning defaults to the robot hotspot and needs no private
+network credential. Existing-Wi-Fi setup accepts a password only for the
+duration of the USB write and never includes it in a status reply or browser
+store. Every installed course/service/reference file is content-hashed before
+and after replacement. The browser and command-line provisioner consume one
+canonical installation map; the latter remains useful for instructor fleet
+automation and optional static station addressing, but is not a student
+prerequisite.
 
 ## 6. Course library and release
 
@@ -281,8 +321,9 @@ sense: after one complete online load, application code and course assets run
 from browser-local storage without another exchange with the web host. It
 caches the complete public release—application
 shells, workers, MicroPython WebAssembly, course source, starters, templates,
-reference bytecode, and third-party notices—and exposes a visible readiness
-state. One GitHub Pages artifact workflow obtains either the root or project
+reference bytecode, the pinned RP2350 UF2 and commissioning manifest, and
+third-party notices—and exposes a visible readiness state. One GitHub Pages
+artifact workflow obtains either the root or project
 base path from Pages and publishes the same static release. When a newer
 complete shell activates, a long-open tab reloads once for that build so an
 older interface does not remain in memory. Development disables caching to
@@ -311,6 +352,14 @@ Ordinary failures remain visible and recoverable: no robot, wrong address,
 local-network denial, incompatible protocol, syntax/runtime errors, interrupted
 transfer, expired run owner, browser refresh, and unavailable sensors. No UI
 state is reported as successful until a target reply or event establishes it.
+
+Commissioning adds explicit recovery for the wrong controller/runtime, partial
+file installation, an existing service watchdog, unavailable station Wi-Fi,
+and reset/re-enumeration. File replacement is idempotent and individually
+atomic; a reset occurs only after complete readback and import verification.
+The wizard treats an unreachable post-reset Wi-Fi service as incomplete and
+keeps probing without erasing the USB-verified result. A user can reconnect by
+USB and run the same operation again after power loss or browser closure.
 
 The dependency set is deliberately small and pinned. Tests cover public Python
 contracts, deterministic physics, protocol validation, bytecode parity,

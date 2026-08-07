@@ -12,8 +12,8 @@ together.
 | Python contracts | records, units, numerical components, maps, planners, missions, starters, examples, and release contents |
 | MicroPython parity | the canonical package and exact supplied `.mpy` files import and produce the same public results in browser and RP2350 MicroPython |
 | TypeScript/unit | target protocol, OSC, project storage, recording, simulator physics/sensors, bounded buffers, and recovery transitions |
-| Browser workflows | IDE, Monitor, shared target, project operations, diagnostics, offline loading, accessibility, and responsive behavior in stable Chrome |
-| Physical integration | USB setup, LAN discovery, versions, synchronization, execution, logs, telemetry, reconnect, reset, and stationary sensors |
+| Browser workflows | commissioning wizard, IDE, Monitor, shared target, project operations, diagnostics, offline loading, accessibility, and responsive behavior in stable Chrome |
+| Physical integration | Web Serial/REPL commissioning, firmware recovery, LAN discovery, versions, synchronization, execution, logs, telemetry, reconnect, reset, and stationary sensors |
 | Raised-wheel motion | short motor pulses, encoder sign/response, zero cleanup, and stopping behavior |
 | Floor trials | calibrated trajectories and motion-induced sensor behavior on the final course surface |
 
@@ -74,6 +74,10 @@ target or Monitor defects. Cover:
   cumulative course starters;
 - physical request correlation, timeouts, unavailable-device messages, and the
   same browser fetch receiver used by stable Chrome;
+- commissioning controller/version rejection, raw-paste flow control and raw
+  fallback, watchdog feeding, changed-only transfer, complete remote hashing,
+  import verification, repeated repair, firmware integrity, network profile,
+  reset, service proof, and project-folder/physical-target handoff;
 - cancellation of unfinished physical discovery and ordered shared-worker
   disconnect, so rapid React remounts cannot leave a hidden poller;
 - dimensioned world/XRP views, ruler scaling, SI sensor labels, blocked-gate
@@ -89,9 +93,9 @@ Tests assert roles, labels, state, and behavior. Screenshot comparisons are
 reserved for stable layout structure; dynamic editor canvases and plots are
 inspected interactively rather than frozen pixel-for-pixel.
 
-## Physical XRP checks in the current pass
+## Physical XRP checks when hardware is attached
 
-The attached robot is exercised through USB and `Pink`. The useful evidence is
+An attached robot is exercised through USB and `Pink`. The useful evidence is
 concise:
 
 - detected board and runtime versions;
@@ -108,6 +112,14 @@ concise:
 Credentials, device serial numbers, and unique identifiers are not committed.
 Historical detailed captures remain under `docs/hardware/`; ordinary users do
 not reproduce them.
+
+The dev.7 commissioning slice is intentionally hardware-deferred. Its first
+attached-XRP pass should use the public Pages origin and exercise: new/repair
+inspection, no-change repetition, one deliberate changed-file repair, firmware
+bootloader entry if a suitable spare controller is available, default hotspot
+activation, post-reset service proof, automatic IDE selection, and one ordinary
+Wi-Fi project flash. The software harness does not substitute for those serial,
+removable-volume, radio, and browser-permission observations.
 
 ## Harness discipline
 

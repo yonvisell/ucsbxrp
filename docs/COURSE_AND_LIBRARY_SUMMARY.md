@@ -197,11 +197,22 @@ browser. Physical traffic uses the same target service in either the default
 device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
 student project changes with the network choice.
 
+The public commissioning wizard is the normal physical-robot entrypoint.
+Students choose their project folder, connect an RP2350 XRP by USB-C, and use
+one idempotent setup/repair action. The browser checks firmware and required
+runtime versions, installs and read-verifies only changed course files, prepares
+the selected Wi-Fi profile, then opens the IDE on the verified physical target.
+New robots default to their unique hotspot; an existing robot keeps its working
+network unless the student changes it. Instructor command-line provisioning is
+an optional fleet interface to the same canonical file set.
+
 ## Current implementation note
 
 No contradiction was found among the three active `v2_` documents. The current
 RP2350, firmware, portable reference bytecode, virtual-target path, and
-browser-to-robot LAN transport have now been exercised. Reference algorithms
+browser-to-robot LAN transport have been exercised in earlier releases. The
+dev.7 self-commissioning path is complete in the software harness and still
+requires its first attached-RP2350 pass. Reference algorithms
 remain revisable; course outcomes, units, component ownership, and the concise
 student workflow are the compatibility target. Physical floor calibration is
 kept in per-robot configuration rather than promoted into the public API.

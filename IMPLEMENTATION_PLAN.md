@@ -127,8 +127,9 @@ strict repeated-launch and two-app physical lifecycle.
   parity, TypeScript/unit checks, production/offline builds, stable-Chrome
   workflows, visual inspection, LAN service checks, and the raised-wheel motor
   check.
-- Leave a concise student guide, one-command instructor setup, truthful status,
-  local Git commit/archive, and production preview.
+- Leave a concise student guide, one-action browser commissioning with optional
+  instructor automation, truthful status, local Git commit/archive, and
+  production preview.
 
 Usable result: a coherent development release that an instructor can open and
 operate without reconstructing the implementation history.
@@ -279,7 +280,7 @@ Chrome.
 
 - Use one compact `UCSBXRP` wordmark treatment in both applications, with
   contiguous matching type, UCSB blue, and a restrained grey-red product name.
-- Reduce both headers to 29 px, align the IDE target selector with 21 px command
+- Reduce both headers to 27 px, align the IDE target selector with 19 px command
   buttons, remove the redundant retained-project label, and make both cross-app
   links explicit new-tab actions.
 - Put signal selection and the time window before Live controls; place program
@@ -308,7 +309,7 @@ Chrome.
 - Use the same darker `#00588a` blue for the UCSB mark and enabled Run control,
   and remove approximately 2 px from header, button, selector, panel-bar, and
   representative Monitor-control heights.
-- Assert the final hierarchy, 29/21 px header geometry, lower-left placement,
+- Assert the final hierarchy, 27/19 px header geometry, lower-left placement,
   compact controls, settled enabled state, and narrow no-clipping behavior in
   the Chrome harness.
 
@@ -386,3 +387,65 @@ Usable result: a student can save the applications locally, provision one XRP,
 join its printed hotspot, and use the complete IDE/Monitor without campus
 network access. An instructor can instead place the same robot and apps on an
 isolated or ordinary local network.
+
+### Refinement 14 — Student self-commissioning and repair
+
+Status: implemented and validated without attached hardware; one physical XRP
+pass remains.
+
+The command-line-only dependency made every new robot an instructor task. This
+slice moves the existing deterministic USB installation boundary into the
+public local-first application without changing the Wi-Fi runtime or course
+API.
+
+- Add a landing-page and IDE-Settings commissioning entrypoint that first
+  selects the student's normal project folder and waits for the complete
+  offline release.
+- Use a user-selected Web Serial XRP connection to enter MicroPython raw REPL,
+  inspect the exact RP2350 controller/runtime, and keep an existing hardware
+  watchdog alive throughout repair.
+- Generate a public commissioning manifest from the command-line provisioner's
+  canonical installation map. Compare remote SHA-256 values, transfer only
+  changed files through temporary names, re-hash all destinations, and import
+  the installed course, service, reference, and XRPLib components.
+- Bundle and integrity-check the pinned official UF2. If controller inspection
+  fails, enter bootloader mode, write the selected temporary RP2350 volume, and
+  inspect the re-enumerated serial device before proceeding.
+- Default a new XRP to its unique hotspot, preserve an existing robot's profile
+  during repair, and retain explicit hotspot or existing-Wi-Fi selection. Never
+  persist or echo a station password in the browser.
+- Activate the profile, reset, probe for the exact release/service reply, store
+  the physical target and endpoint, hand the selected folder to the IDE, and
+  open it automatically. The operating-system Wi-Fi selection remains the one
+  manual hotspot handoff browsers cannot perform.
+- Exercise the raw-paste protocol, standard raw fallback, controller rejection,
+  firmware integrity, changed-only and repeated installs, readback failure,
+  network selection, reset, service verification, folder/target handoff, and
+  the complete real-payload wizard in automated Chrome.
+
+Usable result: a student can commission, update, or repair the RP2350 XRP from
+the public web release with the same action. The operation is idempotent and
+uses the same files as instructor automation. Hardware-independent evidence is
+complete; the first attached-XRP run must confirm serial timing, bootloader
+volume selection, post-reset enumeration, and the final hotspot handoff before
+the physical claim is closed.
+
+### Refinement 15 — Compact command surfaces and entry page
+
+Status: implemented and validated in Stable Chrome and direct production
+Chrome.
+
+- Reduce header-control typography and spacing without changing command or
+  target behavior.
+- Replace the IDE and Monitor Run and Reset text controls with semantically
+  labeled icons; switch the play icon to stop while a project is active.
+- Shorten **Validate code** to **Validate** and reduce the width of the
+  virtual/physical target selector.
+- Tighten and rewrite the landing page around four literal entry actions: IDE,
+  XRP setup/repair, Monitor, and getting started.
+- Recheck wide and constrained layouts, keyboard-accessible names, stateful
+  run/stop behavior, and horizontal overflow in Stable Chrome.
+
+Usable result: the persistent application commands consume fewer horizontal
+pixels while remaining unambiguous to assistive technology and first-time
+students; the landing page states what to do without duplicating the guide.

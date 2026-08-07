@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-02
+Last updated: 2026-08-07
 
 ## Current result
 
@@ -10,6 +10,25 @@ library, revisable supplied implementations, a deterministic virtual XRP, a
 browser IDE, an XRP Monitor, complete offline web tools, and a private RP2350
 LAN service. The same project files and target commands cross the browser,
 simulator, and physical-controller boundaries.
+
+Refinement 14 removes instructor commissioning from the normal student path.
+The landing page and IDE Settings now open one browser wizard for a new,
+outdated, or damaged XRP. It connects a project folder, waits for the verified
+offline release, selects the exact RP2350 XRP over Web Serial, enters raw REPL,
+checks controller/runtime versions, updates only content-changed files, hashes
+all installed destinations, import-checks the runtime, prepares hotspot or
+existing-Wi-Fi operation, resets the controller, and opens the IDE in physical
+mode after an exact service reply. A repair keeps the working network by
+default; a new robot defaults to its unique `UCSB-XRP-…` hotspot.
+
+The same build carries the hash-pinned official MicroPython 1.28.0 RP2350 UF2.
+An incompatible runtime branches to a guided bootloader-volume write and then
+returns to the same inspection. The commissioning manifest is generated from
+the command-line provisioner's exact 23-file map, so browser and instructor
+automation cannot silently drift. The project folder and offline application
+cache remain correctly separate browser facilities. Only browser-enforced
+folder/device/volume/local-network permissions and the computer's hotspot
+selection remain explicit.
 
 Refinement slices 1–13 are complete in software. The Monitor now uses flat,
 independently resizable regions; a bounded arena grid with labeled millimeter
@@ -30,12 +49,13 @@ and retains a bounded-travel fallback plus unconditional final zero drive. A
 Monitor opened after the IDE starts a virtual run now attaches to that active
 run without treating its unchanged scene preference as a forbidden change.
 
-Both application headers are now 29 px high and use a contiguous `UCSBXRP`
+Both application headers are now 27 px high and use a contiguous `UCSBXRP`
 wordmark: UCSB blue and a restrained grey-red product name share the same type,
 size, and weight. The UCSB mark and enabled Run control use the same darker
-`#00588a` blue. Header selectors and buttons are 21 px high; the IDE command
-region remains one line and scrolls horizontally when necessary, while target
-state and Settings stay fixed at the far right. IDE and Monitor links carry a
+`#00588a` blue. Header selectors and buttons are 19 px high; Run/Stop and Reset
+use compact labeled icons. The IDE command region remains one line and scrolls
+horizontally when necessary, while target state and Settings stay fixed at the
+far right. IDE and Monitor links carry a
 visible diagonal arrow and open a separate tab in both directions. In the
 Monitor, Signals and Time window precede permanently open Live controls, named
 watches appear below Live values in the right panel, and
@@ -77,8 +97,8 @@ to 16 bounded numeric, Boolean, or choice parameters and 16 named watch values
 through `ucsb_xrp.live`. The Monitor renders compact controls, and `Robot`
 applies queued values and publishes staged watches once per measured boundary.
 
-The attached RP2350 is provisioned on `Pink` at `192.168.7.34`. Release
-`2026.08-dev.5` is installed. Its device-specific `UCSB-XRP-9EDE` hotspot,
+The development RP2350 was last provisioned on `Pink` at `192.168.7.34` with
+release `2026.08-dev.5`. Its device-specific `UCSB-XRP-9EDE` hotspot,
 fixed `192.168.42.1` address, Pink station association, and failed-station
 hotspot fallback all pass on the physical radio. Its strict browser-preflight,
 compile, atomic sync, zero-output run, stdout, stationary and course-pose
@@ -141,7 +161,7 @@ the XRP reappearing as a USB or Pink-network device.
   and continuously recovered browser state.
 - Create, rename, copy, delete, and tab among project files; select the main
   file and load any challenge, robot demo, or tutorial template.
-- Explicit **Validate code** and **Flash project** operations, one stateful
+- Explicit **Validate** and **Flash project** operations, one stateful
   **Run/Stop** control, and **Reset** for virtual or physical targets.
 - A compact project rail, collapsible project/settings/output panels, 9 px
   default editor and output type, an 8 px selectable minimum, optional code
@@ -152,6 +172,26 @@ the XRP reappearing as a USB or Pink-network device.
 - Separate Status and Details views, grouped XRP-hotspot/existing-Wi-Fi
   selection and station-address editing, local Monaco workers, and MicroPython
   compilation.
+- A concise **Commission or repair XRP** entry in Settings, available for both
+  virtual and physical target state, with the selected project folder and
+  physical endpoint handed back automatically after setup.
+
+### XRP commissioning
+
+- Current desktop Chrome/Edge wizard reachable from the public landing page,
+  guide, and IDE Settings; no instructor account or local command line is
+  required for the student path.
+- Exact VID/PID serial selection; MicroPython raw-paste transfer with standard
+  raw fallback; controller, version, XRPLib, course-library, service, and file
+  integrity checks; watchdog-safe operations; and post-reset service proof.
+- Idempotent content comparison and individually atomic file replacement. All
+  23 canonical payload files are fetched and browser-hashed before transfer,
+  then every destination is hashed on-device before reset.
+- Pinned, offline UF2 recovery with byte-count and SHA-256 verification, plus
+  automatic serial re-enumeration when the browser retains device permission.
+- New-robot hotspot default, keep-current repair default, optional station
+  credentials held only in component state until USB transfer, and automatic
+  physical-target/folder handoff to the IDE.
 
 ### XRP Monitor
 
@@ -217,19 +257,18 @@ the XRP reappearing as a USB or Pink-network device.
   future VM deadlock. Device boot identifiers make log-sequence resets
   explicit; short reconnect probes avoid false errors during intentional
   reboots.
-- The one-command USB provisioner defaults to a uniquely named XRP hotspot,
-  installs and verifies every course/reference/service file, and reports its
-  fixed address. Optional station mode reads the selected local credential
-  without printing it, obtains the actual DHCP address over USB, restarts the
-  controller, and waits for LAN discovery. A failed station association starts
+- The browser wizard and optional command-line provisioner share one canonical
+  installation map. Both default a new robot to a uniquely named XRP hotspot,
+  install and verify every course/reference/service file, and support station
+  mode without exposing its credential. A failed station association starts
   the recoverable hotspot.
 
 ### Offline and guidance
 
-- The production service worker verifies all 154 public payload files,
+- The production service worker verifies all 183 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
-  starters, demo/tutorial templates, supplied bytecode, and dependency license
-  notices. The interface says
+  starters, demo/tutorial templates, supplied bytecode, commissioning payload,
+  exact RP2350 UF2, and dependency license notices. The interface says
   **Saved for offline use**; robot connectivity remains a separate status.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
@@ -241,24 +280,27 @@ the XRP reappearing as a USB or Pink-network device.
 
 The latest complete software pass includes:
 
-- Prettier, TypeScript, and repository whitespace checks;
-- 120 CPython contract and harness tests;
+- Prettier, TypeScript, repository whitespace, and zero-advisory npm audit
+  checks;
+- 122 CPython contract and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 111 Vitest tests for project identity and handling, folder rotation, target
-  clients and lifecycle, simulator, telemetry, offline state, plot data, and
-  measured contrast;
-- a production build and verification of the exact 154-file offline manifest;
-  and
-- 21 passing Stable Chrome software workflows covering all starters, the two
+- 120 Vitest tests for project identity and handling, folder rotation, target
+  clients and lifecycle, simulator, telemetry, offline state, commissioning,
+  raw REPL transport, plot data, and measured contrast;
+- a production build and verification of the exact 183-file offline manifest,
+  including the 1,725,952-byte firmware against its pinned SHA-256 digest; and
+- 24 passing Stable Chrome software workflows covering all starters, the two
   robot demos and tutorial project, flat IDE geometry, four-generation source
   autosave, per-run telemetry/output autosave, blocked-gate replanning,
   two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   typed live parameter updates and named watches, recording/CSV export, and a
   network-blocked offline reload, XRP-hotspot/existing-Wi-Fi selection, and the
-  fresh-browser spiral default;
-  plus direct Chrome and harness repetitions on the attached RP2350. The
+  fresh-browser spiral default, and a complete browser commissioning session
+  against a raw-REPL RP2350 state machine using all 23 real payload files;
+  one opt-in physical-hardware workflow skipped because no XRP was attached;
+  plus direct Chrome and harness repetitions on the previously attached RP2350. The
   previously failing second launch, physical live-parameter update,
   stop/reconnect, read-verified USB repair, and strict post-reset lifecycle now
   pass on release `2026.08-dev.4`.
@@ -282,7 +324,7 @@ Stable Chrome workflow separately exercised the 375 px layout.
 
 The final header/status refinement was inspected again at 1,382 × 752 and
 1,152 × 720 in direct production Chrome, with a separate 691 px constrained
-inspection. Measurements confirmed 29 px headers; 21 px header controls; 22 px
+inspection. Measurements confirmed 27 px headers; 19 px header controls; 22 px
 project controls; a 6 px right inset for Settings; exact matching
 `rgb(0, 88, 138)` UCSB-mark and enabled-Run colors; a lower-left offline status
 whose bottom edge matches the open file rail; and no offline status in either
@@ -291,6 +333,13 @@ now separates only Target, Code check, Robot files, and Project files. The
 constrained pass found and corrected multiline toolbar clipping by making the
 middle command region single-line and horizontally scrollable. Direct Chrome
 reported no console warnings or errors.
+
+The subsequent command-density pass retained the 27 px headers while reducing
+header text to 9 px, command/select heights to 19 px, and the execution-target
+selector to 88 px. Run and Reset are now accessible icon controls, with play
+changing to stop during execution; **Validate** replaces the longer label.
+Direct Chrome inspections at 691 px and 344 px confirmed the rewritten landing
+page and both application headers remain legible without horizontal overflow.
 
 The fixed-plot/world-preview refinement was then inspected directly in
 1,382 × 797 production Chrome. Four enabled plots each remained exactly 180 px
@@ -325,8 +374,17 @@ the exact offline manifest, a network-blocked subpath reload, and the focused
 Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
-check because permission is scoped to the deployed origin. The final local
-production build is `87af7af40a2034c3c30b` with 154 verified payload files.
+check because permission is scoped to the deployed origin. The current local
+production build is `9fa3b48afad8c684b6ea` with 183 verified payload files.
+
+The commissioning workflow additionally passes focused controller/version
+rejection, raw-paste flow control and standard-raw fallback, changed-only
+installation, complete remote readback, idempotent repetition, firmware
+integrity/write, network configuration, reset, target preference, and automatic
+IDE handoff tests. Its Stable Chrome workflow traverses the actual production
+manifest and payload bytes. No physical XRP was available for this dev.7 pass,
+so USB enumeration, bootloader-volume behavior, radio handoff, and the final
+device service reply remain explicitly unverified on hardware.
 
 ## Physical evidence
 
@@ -368,11 +426,12 @@ service lifecycle, and final direct-Chrome IDE/Monitor connection.
 
 ## Remaining work
 
-1. Publish the final Pages origin, grant Chrome Local Network Access once, and
-   repeat connect/sync/run/stop/telemetry against an XRP from that origin. Also
-   join the physical XRP hotspot once from a browser client; its radio,
-   endpoint, fallback, and browser selector have already been validated
-   independently.
+1. With one RP2350 XRP attached, run the public **Set up or repair XRP** wizard
+   through no-change repair and one deliberate changed-file repair. Confirm
+   Web Serial entry, optional firmware-volume recovery, reset/re-enumeration,
+   default-hotspot handoff, exact Pages-origin service reply, automatic IDE
+   selection, flash, run/stop, and telemetry. This replaces the former manual
+   instructor-commissioning handoff.
 2. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.

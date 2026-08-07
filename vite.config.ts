@@ -51,6 +51,7 @@ export default defineConfig({
         ide: path.resolve(projectRoot, "ide/index.html"),
         dashboard: path.resolve(projectRoot, "dashboard/index.html"),
         guide: path.resolve(projectRoot, "guide/index.html"),
+        commission: path.resolve(projectRoot, "commission/index.html"),
       },
     },
   },

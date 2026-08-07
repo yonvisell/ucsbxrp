@@ -159,13 +159,13 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     ide.getByTestId("target-status").boundingBox(),
   ]);
   expect(targetSelectBox?.height).toBe(ideRunBox?.height);
-  expect(targetSelectBox?.height).toBe(21);
-  expect(ideHeaderBox?.height).toBeLessThanOrEqual(31);
+  expect(targetSelectBox?.height).toBe(19);
+  expect(ideHeaderBox?.height).toBeLessThanOrEqual(29);
   expect(
     (targetSelectBox?.x ?? 0) -
       (ideBrandBox?.x ?? 0) -
       (ideBrandBox?.width ?? 0),
-  ).toBeGreaterThanOrEqual(9);
+  ).toBeGreaterThanOrEqual(7);
   expect(settingsBox?.x).toBeGreaterThan(
     (targetStatusBox?.x ?? 0) + (targetStatusBox?.width ?? 0) - 1,
   );
@@ -250,7 +250,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   ).toBeVisible();
   await ide.getByRole("button", { name: "Open main.py (main file)" }).click();
 
-  await ide.getByRole("button", { name: "Validate code" }).click();
+  await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "Python files compiled with MicroPython",
   );
@@ -453,7 +453,7 @@ while True:
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Validate code" }).click();
+  await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "1 Python file compiled with MicroPython",
   );
@@ -512,7 +512,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
   ).toBeVisible();
   await expect(ide.getByTestId("check-result")).toHaveCount(0);
 
-  await ide.getByRole("button", { name: "Validate code" }).click();
+  await ide.getByRole("button", { name: "Validate" }).click();
   await expect(
     ide.getByRole("button", { name: "Collapse output" }),
   ).toBeVisible();

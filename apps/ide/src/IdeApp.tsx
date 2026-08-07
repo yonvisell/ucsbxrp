@@ -25,8 +25,11 @@ import {
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
+import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import {
+  courseFolderIsWaitingForIde,
   courseFolderPermission,
+  finishCourseFolderIdeHandoff,
   loadRememberedCourseFolder,
   rememberCourseFolder,
   requestCourseFolderPermission,
@@ -286,11 +289,7 @@ export function IdeApp() {
     let disposed = false;
     const restoreFolder = async () => {
       const folder = await loadRememberedCourseFolder();
-      if (
-        disposed ||
-        folder === null ||
-        folder.name !== projectRef.current.name
-      ) {
+      if (disposed || folder === null) {
         return;
       }
       setRememberedFolder(folder);
@@ -299,12 +298,52 @@ export function IdeApp() {
         return;
       }
       if (permission === "granted") {
+        const commissioningHandoff = courseFolderIsWaitingForIde();
+        if (folder.name !== projectRef.current.name && !commissioningHandoff) {
+          return;
+        }
+        if (commissioningHandoff) {
+          try {
+            const opened = await readProjectFolder(folder);
+            if (disposed) {
+              return;
+            }
+            projectRef.current = opened.project;
+            setProject(opened.project);
+            setActivePath(opened.project.entrypoint);
+            setOpenPaths([opened.project.entrypoint]);
+            setOperationDetail(
+              `Opened ${folder.name}.${
+                opened.skipped
+                  ? ` Skipped ${opened.skipped} unsupported item${opened.skipped === 1 ? "" : "s"}.`
+                  : ""
+              } Automatic folder saves are active.`,
+            );
+            setFolderDirty(false);
+            setFolderSaveState("current");
+          } catch (error) {
+            if (
+              !(error instanceof Error) ||
+              !error.message.includes("no supported text project files")
+            ) {
+              throw error;
+            }
+            setFolderDirty(true);
+            setFolderSaveState("pending");
+            setOperationDetail(
+              `${folder.name} is empty. The current project will be saved there automatically.`,
+            );
+          }
+          finishCourseFolderIdeHandoff();
+        }
         setWorkingFolder(folder);
-        setFolderDirty(true);
-        setFolderSaveState("pending");
-        setOperationDetail(
-          `Restored ${folder.name}. Recovered edits will save automatically.`,
-        );
+        if (!commissioningHandoff) {
+          setFolderDirty(true);
+          setFolderSaveState("pending");
+          setOperationDetail(
+            `Restored ${folder.name}. Recovered edits will save automatically.`,
+          );
+        }
       } else {
         setFolderSaveState("permission");
         setOperationDetail(
@@ -973,7 +1012,7 @@ export function IdeApp() {
             onClick={validateCode}
             title="Compile all Python files with MicroPython (⌘/Ctrl+Shift+Enter)"
           >
-            Validate code
+            Validate
           </button>
           {target.kind === "physical" ? (
             <button
@@ -985,7 +1024,8 @@ export function IdeApp() {
             </button>
           ) : null}
           <button
-            className={isRunning ? "danger-button" : "primary-button"}
+            aria-label={isRunning ? "Stop" : "Run"}
+            className={`header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
             disabled={!isRunning && !canCommand}
             onClick={isRunning ? stopProgram : runTarget}
             title={
@@ -994,14 +1034,20 @@ export function IdeApp() {
                 : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
-            {isRunning ? "Stop" : "Run"}
+            <RunStopIcon running={isRunning} />
+            <span className="visually-hidden">
+              {isRunning ? "Stop" : "Run"}
+            </span>
           </button>
           <button
+            aria-label="Reset"
+            className="header-icon-button"
             disabled={!isConnected}
             onClick={resetTarget}
             title="Reset the selected XRP and clear its current motion state."
           >
-            Reset
+            <ResetIcon />
+            <span className="visually-hidden">Reset</span>
           </button>
           <div className="toolbar-spacer" />
           <a
@@ -1487,7 +1533,8 @@ export function IdeApp() {
               <legend>XRP Wi-Fi</legend>
               <p className="xrp-wifi-summary">
                 Project flashing, controls, and telemetry use Wi-Fi. USB handles
-                firmware, setup, and repair.
+                firmware, setup, repair, and changes to the network stored on
+                the XRP.
               </p>
               <label className="setting-row">
                 <span>Network</span>
@@ -1534,7 +1581,23 @@ export function IdeApp() {
                   </small>
                 </label>
               ) : null}
+              <a
+                className="commission-settings-link"
+                href="../commission/"
+                title="Install, update, repair, or change the XRP network over USB-C."
+              >
+                Commission or repair XRP ↗
+              </a>
             </fieldset>
+          ) : null}
+          {targetPreference.kind !== "physical" ? (
+            <a
+              className="commission-settings-link standalone"
+              href="../commission/"
+              title="Install or repair the course runtime on an XRP over USB-C."
+            >
+              Commission or repair XRP ↗
+            </a>
           ) : null}
           <label className="setting-row">
             <span>
@@ -1630,7 +1693,7 @@ export function IdeApp() {
                 <dd>⌘/Ctrl+S</dd>
               </div>
               <div>
-                <dt>Validate code</dt>
+                <dt>Validate</dt>
                 <dd>⌘/Ctrl+Shift+Enter</dd>
               </div>
               <div>

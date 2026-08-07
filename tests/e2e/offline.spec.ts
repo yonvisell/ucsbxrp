@@ -113,7 +113,7 @@ test("reloads the complete production course shell without a network", async ({
     "Saved for offline use",
   );
 
-  await ide.getByRole("button", { name: "Validate code" }).click();
+  await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "compiled with MicroPython",
   );
@@ -154,7 +154,9 @@ test("reloads the complete production course shell without a network", async ({
   recordErrors(landing);
   await landing.goto(coursePath(), { waitUntil: "domcontentloaded" });
   await expect(
-    landing.getByRole("heading", { name: "Build the program. See the robot." }),
+    landing.getByRole("heading", {
+      name: "Program, simulate, and inspect the XRP.",
+    }),
   ).toBeVisible();
   expect(
     await landing

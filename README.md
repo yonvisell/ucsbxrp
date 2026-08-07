@@ -2,7 +2,7 @@
 
 This repository contains the `ucsb_xrp` MicroPython library, supplied reference
 bytecode, five course starters, a browser IDE, the XRP Monitor, a deterministic
-virtual XRP, and the private service used to run the same projects on a
+virtual XRP, and the on-robot service used to run the same projects on a
 SparkFun RP2350 XRP.
 
 ## Open the applications
@@ -16,9 +16,10 @@ npm run dev
 
 - IDE: `http://127.0.0.1:5173/ide/`
 - XRP Monitor: `http://127.0.0.1:5173/dashboard/`
+- XRP setup and repair: `http://127.0.0.1:5173/commission/`
 - Getting started: `http://127.0.0.1:5173/guide/`
 
-The IDE starts with Challenge 1. The **Project template** menu loads the five
+The IDE starts with the expanding-spiral demo. The **Project template** menu loads the five
 challenges, two sensor-driven robot demos, or a staged MicroPython tutorial as
 an ordinary editable project. The demos cover obstacle-triggered turning and
 an expanding spiral with two live parameters. Select **Virtual XRP** for
@@ -39,12 +40,12 @@ project-relative, and the selected main Python file is saved in
 otherwise offers a one-click reconnect; browser recovery never depends on that
 permission.
 
-- **Validate code** compiles every Python file with MicroPython without running
+- **Validate** compiles every Python file with MicroPython without running
   it.
 - **Flash project** atomically writes the complete project to a physical XRP.
-- **Run** executes the selected main file; while active it becomes **Stop**.
-- **Stop** ends execution and commands zero drive input.
-- **Reset** returns the selected target to its initial state.
+- The play button runs the selected main file and becomes a stop button while
+  the project is active. Stopping commands zero drive input.
+- The reset button returns the selected target to its initial state.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
 Settings are collapsible and include editor/output font size (9 px default,
@@ -55,7 +56,7 @@ separate output tabs.
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
 | Save now | `Command-S` | `Ctrl-S` |
-| Validate code | `Command-Shift-Enter` | `Ctrl-Shift-Enter` |
+| Validate | `Command-Shift-Enter` | `Ctrl-Shift-Enter` |
 | Run | `Command-Enter` | `Ctrl-Enter` |
 | Open settings | `Command-,` | `Ctrl-,` |
 
@@ -67,7 +68,7 @@ drive commands, encoders, range, USER button, IMU, temperature, battery, collisi
 and program output. For the virtual XRP, choose **Open field** or **Delivery
 gate blocked**; the second scene exercises Challenge 5 observation and
 replanning. The world uses the production XRP's dimensioned footprint and a
-500 mm ruler. The compact left sidebar collapses to a narrow rail and selects a
+coordinate grid labeled in millimetres. The compact left sidebar collapses to a narrow rail and selects a
 2–30 second scrolling history for wheel speed, normalized drive command,
 forward range,
 acceleration, or angular rate. Signals can be combined or hidden for the
@@ -94,37 +95,45 @@ When a folder is connected, every monitored run also writes aligned
 `run-1.txt`, `run-1.json`, and `telemetry-1.csv` automatic copies. Generations
 1–4 rotate newest to oldest; explicit CSV downloads are never rotated.
 
-## Configure the physical XRP
+## Set up or repair a physical XRP
 
-The current robot uses the SparkFun XRP Controller with RP2350, MicroPython
-1.28.0, and XRPLib 2026.07.1. Connect the flashed XRP by USB-C and run:
+Open **Set up or repair XRP** on the landing page, or the same link in IDE
+Settings, using current desktop Chrome or Edge. The wizard:
+
+1. connects a normal local project folder and waits for the complete offline
+   web release;
+2. selects the USB-C XRP through the browser's device picker;
+3. checks the RP2350 controller, MicroPython 1.28.0, XRPLib, course library,
+   supplied bytecode, and robot service;
+4. installs only missing or changed files, read-verifies every installed file,
+   and repairs the exact course firmware when necessary; and
+5. restarts the XRP, verifies its Wi-Fi service, and opens the IDE with
+   **Physical XRP** selected.
+
+The first setup defaults to a distinct hotspot such as `UCSB-XRP-9EDE`, with
+password `ucsb-xrp` and service address `http://192.168.42.1`. Join the named
+network when the wizard asks. The web tools continue from Chrome's verified
+offline copy. A repaired robot keeps its existing network unless another mode
+is selected. **Existing Wi-Fi** is also available in the wizard and later from
+IDE Settings; credentials pass directly to the XRP over USB and are not stored
+by the web application.
+
+The same **Install or repair XRP** action is intentionally idempotent: matching
+files are not rewritten, changed files are replaced and hashed, the runtime is
+import-checked, and the selected network profile is normalized before reset.
+The browser must still show its own folder, serial-device, firmware-drive, and
+local-network permission controls; the web application cannot bypass those
+platform boundaries.
+
+For instructor automation or fleet maintenance, the equivalent command-line
+path remains available:
 
 ```sh
 .venv/bin/python scripts/provision_xrp.py
 ```
 
-The default student configuration installs and read-verifies the course
-library, reference bytecode, and service, then starts a uniquely named robot
-hotspot such as `UCSB-XRP-9EDE`. Join that network with the course password
-`ucsb-xrp`; the robot service is always `http://192.168.42.1`. In IDE Settings,
-select **Physical XRP** and **Robot hotspot**.
-
-To place the XRP and computer on an existing local network instead, run:
-
-```sh
-.venv/bin/python scripts/provision_xrp.py --mode station --ssid Pink
-```
-
-Station setup reads the matching credential from the local instructor details
-file without printing it, joins the network, restarts the service, and reports
-its DHCP address. Select **Existing Wi-Fi** in IDE Settings and enter that
-address. An isolated course router does not require an internet uplink after
-the applications have been saved locally. If the requested network is absent,
-the XRP starts its recoverable device-specific hotspot until the next reset.
-
-If an access point associates the XRP but does not issue a DHCP lease, an
-instructor can assign a known-free address in the same subnet without changing
-the student workflow:
+Station mode and an optional known-free static address are supported without
+changing the student workflow:
 
 ```sh
 .venv/bin/python scripts/provision_xrp.py \

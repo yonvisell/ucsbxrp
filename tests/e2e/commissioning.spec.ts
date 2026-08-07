@@ -1,0 +1,350 @@
+import { expect, test } from "@playwright/test";
+
+test("keeps the compact landing actions clear at laptop-narrow width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 720 });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Program, simulate, and inspect the XRP.",
+    }),
+  ).toBeVisible();
+  for (const name of [
+    "Open IDE",
+    "Set up / repair XRP",
+    "Open Monitor",
+    "Getting started",
+  ]) {
+    await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("keeps the commissioning steps readable without narrow-page overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 720 });
+  await page.goto("/commission/");
+
+  await expect(
+    page.getByRole("heading", { name: "Choose a project folder" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Choose project folder" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await expect(page.getByText("Connect to XRP", { exact: true })).toBeVisible();
+});
+
+test("commissions a new XRP from the public wizard and hands it to the IDE", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+
+  await page.addInitScript(() => {
+    localStorage.clear();
+
+    const courseFolder = {
+      kind: "directory",
+      name: "My XRP Project",
+      async *entries() {},
+      getDirectoryHandle: async () => courseFolder,
+      getFileHandle: async (name: string) => ({
+        kind: "file",
+        name,
+        getFile: async () => new File([], name),
+        createWritable: async () => ({
+          write: async () => undefined,
+          close: async () => undefined,
+        }),
+      }),
+      removeEntry: async () => undefined,
+      queryPermission: async () => "granted",
+      requestPermission: async () => "granted",
+    };
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => courseFolder,
+    });
+
+    const textEncoder = new TextEncoder();
+    const textDecoder = new TextDecoder();
+    const files = new Map<string, Uint8Array>();
+
+    const sha256 = async (data: Uint8Array) => {
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new Uint8Array(data),
+      );
+      return Array.from(new Uint8Array(digest), (value) =>
+        value.toString(16).padStart(2, "0"),
+      ).join("");
+    };
+
+    class MockXrpPort {
+      readable: ReadableStream<Uint8Array> | null = null;
+      writable: WritableStream<Uint8Array> | null = null;
+      private controller: ReadableStreamDefaultController<Uint8Array> | null =
+        null;
+      private command: number[] = [];
+      private rawPaste = false;
+      private windowRemaining = 0;
+      private temporaryPath = "";
+      private temporaryData: number[] = [];
+
+      getInfo() {
+        return { usbVendorId: 0x1b4f, usbProductId: 0x0046 };
+      }
+
+      async open() {
+        this.readable = new ReadableStream<Uint8Array>({
+          start: (controller) => {
+            this.controller = controller;
+          },
+        });
+        this.writable = new WritableStream<Uint8Array>({
+          write: async (chunk) => this.receive(chunk),
+        });
+      }
+
+      async close() {
+        this.controller = null;
+        this.readable = null;
+        this.writable = null;
+      }
+
+      async setSignals() {}
+
+      private send(value: Uint8Array | string) {
+        this.controller?.enqueue(
+          typeof value === "string" ? textEncoder.encode(value) : value,
+        );
+      }
+
+      private async receive(chunk: Uint8Array) {
+        if (chunk.length === 2 && chunk[0] === 13 && chunk[1] === 1) {
+          this.send("raw REPL; CTRL-B to exit\r\n>");
+          return;
+        }
+        if (
+          chunk.length === 3 &&
+          chunk[0] === 5 &&
+          chunk[1] === 65 &&
+          chunk[2] === 1
+        ) {
+          this.rawPaste = true;
+          this.command = [];
+          this.windowRemaining = 128;
+          this.send(Uint8Array.of(82, 1, 128, 0));
+          return;
+        }
+        if (this.rawPaste && chunk.length === 1 && chunk[0] === 4) {
+          this.rawPaste = false;
+          this.send(Uint8Array.of(4));
+          const response = await this.execute(
+            textDecoder.decode(Uint8Array.from(this.command)),
+          );
+          this.send(response.stdout);
+          this.send(Uint8Array.of(4));
+          this.send(response.stderr);
+          this.send(Uint8Array.of(4, 62));
+          return;
+        }
+        if (this.rawPaste) {
+          this.command.push(...chunk);
+          this.windowRemaining -= chunk.length;
+          if (this.windowRemaining === 0) {
+            this.windowRemaining = 128;
+            this.send(Uint8Array.of(1));
+          }
+        }
+      }
+
+      private async execute(code: string) {
+        if (code.includes("__UCSB_XRP_INSPECTION__=")) {
+          return {
+            stdout: `__UCSB_XRP_INSPECTION__=${JSON.stringify({
+              implementation: "micropython",
+              version: [1, 28, 0],
+              machine: "SparkFun XRP Controller with RP2350",
+              mpy: 774,
+              modules: [
+                "XRPLib.board",
+                "XRPLib.encoded_motor",
+                "XRPLib.imu",
+                "XRPLib.rangefinder",
+              ],
+            })}\r\n`,
+            stderr: "",
+          };
+        }
+        if (code.includes("__UCSB_XRP_NETWORK_PROFILE__=")) {
+          return {
+            stdout: `__UCSB_XRP_NETWORK_PROFILE__=${JSON.stringify({ present: false })}\r\n`,
+            stderr: "",
+          };
+        }
+        if (code.includes("__UCSB_XRP_HASHES__=")) {
+          const source = code.match(/for p in (\[[^\n]+\]):/)?.[1];
+          const hashes: Record<string, string | null> = {};
+          for (const path of JSON.parse(source ?? "[]") as string[]) {
+            const data = files.get(path);
+            hashes[path] = data ? await sha256(data) : null;
+          }
+          return {
+            stdout: `__UCSB_XRP_HASHES__=${JSON.stringify(hashes)}\r\n`,
+            stderr: "",
+          };
+        }
+        if (code.includes("__UCSB_XRP_VERIFY__=")) {
+          return {
+            stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
+              library: "0.4.0-dev",
+              service: "2026.08-dev.7",
+              modules: [
+                "XRPLib.board",
+                "XRPLib.encoded_motor",
+                "XRPLib.imu",
+                "XRPLib.rangefinder",
+              ],
+            })}\r\n`,
+            stderr: "",
+          };
+        }
+        if (code.includes("__UCSB_XRP_NETWORK__=")) {
+          return {
+            stdout: `__UCSB_XRP_NETWORK__=${JSON.stringify({
+              ready: true,
+              mode: "access_point",
+              requested_mode: "access_point",
+              fallback: false,
+              status: "ready",
+              ssid: "UCSB-XRP-4A21",
+              address: "192.168.42.1",
+              channel: 6,
+            })}\r\n`,
+            stderr: "",
+          };
+        }
+        const open = code.match(/f=open\(("[^"]+"),'wb'\)/);
+        if (open) {
+          this.temporaryPath = JSON.parse(open[1]!) as string;
+          this.temporaryData = [];
+          return { stdout: "", stderr: "" };
+        }
+        const chunk = code.match(/a2b_base64\(("[A-Za-z0-9+/=]+")\)/);
+        if (chunk) {
+          const binary = atob(JSON.parse(chunk[1]!) as string);
+          this.temporaryData.push(
+            ...Array.from(binary, (character) => character.charCodeAt(0)),
+          );
+          return { stdout: "", stderr: "" };
+        }
+        const rename = code.match(/os\.rename\(("[^"]+"),("[^"]+")\)/);
+        if (rename) {
+          files.set(
+            JSON.parse(rename[2]!) as string,
+            Uint8Array.from(this.temporaryData),
+          );
+        }
+        return { stdout: "", stderr: "" };
+      }
+    }
+
+    const port = new MockXrpPort();
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        requestPort: async () => port,
+        getPorts: async () => [port],
+      },
+    });
+
+    const originalFetch = window.fetch.bind(window);
+    let serviceProbeCount = 0;
+    window.fetch = async (input, init) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url === "http://192.168.42.1/api/v1/info") {
+        serviceProbeCount += 1;
+        if (serviceProbeCount < 2) {
+          throw new TypeError("computer has not joined the XRP hotspot yet");
+        }
+        return new Response(
+          JSON.stringify({
+            protocol: 1,
+            serviceVersion: "2026.08-dev.7",
+            courseRelease: "2026.08-dev.7",
+            robotName: "UCSB-XRP-4A21",
+            address: "192.168.42.1",
+            bootId: "test-boot",
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return originalFetch(input, init);
+    };
+  });
+
+  await page.goto("/commission/");
+  await expect(
+    page.getByRole("heading", { name: "Choose a project folder" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Choose project folder" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Select connected XRP" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Choose how the XRP connects" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Robot hotspot")).toBeChecked();
+  await page.getByRole("button", { name: "Install or repair XRP" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Connect to the XRP" }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("UCSB-XRP-4A21", { exact: true })).toBeVisible();
+  await expect(page.getByText("ucsb-xrp", { exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("ucsb-xrp-target-v1") ?? "null"),
+      ),
+    )
+    .toMatchObject({
+      kind: "physical",
+      physicalConnection: "access_point",
+      physicalEndpoint: "http://192.168.42.1",
+    });
+  await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
+  expect(browserErrors).toEqual([]);
+});

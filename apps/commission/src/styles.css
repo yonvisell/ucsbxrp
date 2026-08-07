@@ -1,0 +1,374 @@
+.commission-app {
+  min-height: 100vh;
+  background: #f7f8f8;
+}
+
+.commission-header {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 0 12px;
+  background: var(--panel);
+  font-size: var(--font-sm);
+}
+
+.commission-header a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.commission-brand {
+  color: var(--wordmark-secondary) !important;
+  font-size: var(--font-ui);
+  font-weight: 750;
+}
+
+.commission-brand span {
+  color: var(--ucsb-blue);
+}
+
+.commission-layout {
+  display: grid;
+  width: min(850px, calc(100% - 32px));
+  min-height: calc(100vh - 34px);
+  grid-template-columns: 180px minmax(0, 1fr);
+  margin: 0 auto;
+  padding: clamp(28px, 7vh, 70px) 0 40px;
+}
+
+.commission-steps {
+  display: flex;
+  min-height: 470px;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-right: 0;
+  padding: 20px 14px 12px;
+  background: #eef1f2;
+}
+
+.commission-steps > div:not(.commission-offline) {
+  display: grid;
+  grid-template-columns: 21px 1fr;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 0;
+  color: var(--quiet);
+}
+
+.commission-steps > div:not(.commission-offline) > span {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--line-bright);
+  border-radius: 50%;
+  background: var(--panel);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.commission-steps > div strong {
+  font-size: var(--font-sm);
+  font-weight: 650;
+}
+
+.commission-steps > div.active {
+  color: var(--ink);
+}
+
+.commission-steps > div.active > span {
+  border-color: var(--primary-bg);
+  background: var(--primary-bg);
+  color: var(--on-accent);
+}
+
+.commission-steps > div.done > span {
+  border-color: var(--cyan-deep);
+  color: var(--cyan-deep);
+}
+
+.commission-offline {
+  display: grid;
+  gap: 3px;
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.commission-offline .offline-readiness {
+  padding: 0;
+  font-size: var(--font-xs);
+}
+
+.commission-offline .offline-readiness-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.commission-offline small {
+  overflow: hidden;
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commission-panel {
+  min-height: 470px;
+  border: 1px solid var(--line);
+  padding: clamp(28px, 5vw, 54px);
+  background: var(--panel);
+}
+
+.commission-kicker {
+  margin: 0 0 7px;
+  color: var(--ucsb-blue);
+  font-size: var(--font-xs);
+  font-weight: 800;
+  letter-spacing: 0.055em;
+}
+
+.commission-panel h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(23px, 4vw, 34px);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.commission-detail {
+  max-width: 510px;
+  min-height: 38px;
+  margin: 14px 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.commission-error {
+  max-width: 520px;
+  border-left: 3px solid var(--red);
+  margin: -4px 0 16px;
+  padding: 7px 10px;
+  background: #fff4f2;
+  color: #7a211d;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.commission-actions {
+  display: grid;
+  max-width: 450px;
+  justify-items: start;
+  gap: 10px;
+}
+
+.commission-actions button,
+.network-options > button {
+  min-height: 27px;
+  padding: 0 11px;
+}
+
+.commission-actions p {
+  margin: 0;
+  color: var(--quiet);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
+.network-options {
+  display: grid;
+  max-width: 500px;
+  gap: 1px;
+}
+
+.network-options > label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding: 9px 4px;
+  cursor: pointer;
+}
+
+.network-options > label:first-child {
+  border-top: 0;
+}
+
+.network-options input[type="radio"] {
+  margin: 2px 0 0;
+}
+
+.network-options label span {
+  display: grid;
+  gap: 2px;
+}
+
+.network-options label strong {
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.network-options label small,
+.station-fields small,
+.wifi-handoff > small {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  line-height: 1.4;
+}
+
+.network-options > button {
+  justify-self: start;
+  margin-top: 14px;
+}
+
+.station-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding: 10px 3px 2px 29px;
+}
+
+.station-fields label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.station-fields input {
+  width: 100%;
+  min-height: 25px;
+  border: 1px solid var(--line-bright);
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.station-fields small {
+  grid-column: 1 / -1;
+}
+
+.commission-progress {
+  display: grid;
+  max-width: 480px;
+  gap: 8px;
+}
+
+.commission-progress > div {
+  height: 4px;
+  overflow: hidden;
+  background: #dce1e3;
+}
+
+.commission-progress > div span {
+  display: block;
+  height: 100%;
+  min-width: 8%;
+  background: var(--primary-bg);
+  transition: width 160ms ease;
+}
+
+.commission-progress small {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+}
+
+.wifi-handoff {
+  display: grid;
+  max-width: 450px;
+  justify-items: start;
+  gap: 12px;
+}
+
+.wifi-handoff dl {
+  width: 100%;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.wifi-handoff dl > div {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 2px;
+  font-size: var(--font-sm);
+}
+
+.wifi-handoff dt {
+  color: var(--quiet);
+}
+
+.wifi-handoff dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.commission-success {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--cyan-deep);
+}
+
+.commission-success > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+}
+
+.commission-success p {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+@media (max-width: 650px) {
+  .commission-layout {
+    width: min(100% - 20px, 540px);
+    grid-template-columns: 1fr;
+    padding-top: 12px;
+  }
+
+  .commission-steps {
+    display: grid;
+    min-height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 10px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    padding: 8px 10px;
+  }
+
+  .commission-steps > div:not(.commission-offline) {
+    min-width: 0;
+    grid-template-columns: 21px minmax(0, 1fr);
+    padding: 2px 0;
+  }
+
+  .commission-offline {
+    display: none;
+  }
+
+  .commission-panel {
+    min-height: 420px;
+    padding: 28px 22px;
+  }
+
+  .station-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .station-fields small {
+    grid-column: 1;
+  }
+}

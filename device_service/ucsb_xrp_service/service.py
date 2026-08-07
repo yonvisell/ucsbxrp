@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.6"
+COURSE_RELEASE = "2026.08-dev.7"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
