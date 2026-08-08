@@ -128,6 +128,15 @@ is selected. **Existing Wi-Fi** is also available in the wizard and later from
 IDE Settings; credentials pass directly to the XRP over USB and are not stored
 by the web application.
 
+Selecting the project folder performs a real write-and-read check and creates
+`UCSB_XRP_Autosaves/xrp-setup-latest.txt`. The collapsed **Setup log** records
+the controller check, changed-file count, reset, and each robot-service probe;
+it never records the Wi-Fi password. **Connect to the XRP** begins after USB
+installation and reset have completed, so RESET and BOOT are not used at that
+step. If the XRP does not reply, join the network shown by the wizard and allow
+this site to access the local network when Chrome asks. On macOS, Chrome must
+also be enabled under **System Settings → Privacy & Security → Local Network**.
+
 The same **Install or repair XRP** action is intentionally idempotent: matching
 files are not rewritten, changed files are replaced and hashed, the runtime is
 import-checked, and the selected network profile is normalized before reset.

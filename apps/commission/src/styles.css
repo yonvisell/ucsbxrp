@@ -310,6 +310,125 @@
   font-weight: 650;
 }
 
+.wifi-probe-status {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  border-left: 2px solid var(--ucsb-blue);
+  padding: 6px 8px;
+  background: #f1f6fa;
+}
+
+.wifi-probe-status.needs-repair {
+  border-left-color: var(--red);
+  background: #fff4f2;
+}
+
+.wifi-probe-status strong {
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.wifi-probe-status span,
+.wifi-instruction {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.wifi-instruction {
+  margin: -2px 0 0;
+}
+
+.wifi-instruction strong {
+  color: var(--ink);
+}
+
+.connection-help {
+  width: 100%;
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.connection-help summary,
+.setup-log summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.connection-help ul {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 10px;
+  padding-left: 18px;
+  line-height: 1.45;
+}
+
+.connection-help button,
+.setup-log button {
+  min-height: 25px;
+  padding: 0 9px;
+  font-size: var(--font-xs);
+}
+
+.setup-log {
+  max-width: 520px;
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.setup-log > summary {
+  color: var(--ink);
+  font-size: var(--font-sm);
+  font-weight: 650;
+}
+
+.setup-log > summary small {
+  margin-left: 7px;
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  font-weight: 450;
+}
+
+.setup-log-body {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.setup-log pre {
+  max-height: 150px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  background: #f7f8f8;
+  color: var(--ink);
+  font:
+    9px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.setup-log-footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.setup-log-footer small {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+}
+
 .commission-success {
   display: flex;
   align-items: center;

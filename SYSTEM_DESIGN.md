@@ -72,7 +72,10 @@ outdated, or damaged XRP. It first obtains a project-folder handle and confirms
 that the complete production shell is available offline. The folder stores
 projects and rotated data copies; the application cache remains browser-owned.
 That distinction is explicit because a web application cannot choose its own
-disk cache location.
+disk cache location. Before continuing, the wizard writes and reads back a
+small setup log in that folder. Meaningful controller, installation, reset, and
+network-probe events append to the same password-free log; raw serial traffic is
+not retained.
 
 One user-selected Web Serial connection enters the MicroPython raw REPL. The
 wizard then performs a credential-free controller inspection, maintains any
@@ -93,12 +96,13 @@ repairs retain a valid existing profile unless the user chooses hotspot or
 station mode. Station credentials move directly from the page to the XRP over
 USB and are neither persisted nor returned to the page.
 
-After network activation, reset, and an exact service/release reply, the wizard
-stores the physical endpoint, hands the selected folder to the IDE, and opens
-the IDE in physical mode. It cannot silently choose an operating-system Wi-Fi
-network or bypass browser folder, serial-device, firmware-volume, and
-local-network permissions; these are the only intentional user-mediated
-boundaries.
+After network activation and reset, the wizard reports every service-probe
+attempt and distinguishes an unreachable network from an incompatible service.
+An exact service/release reply stores the physical endpoint, hands the selected
+folder to the IDE, and opens the IDE in physical mode. It cannot silently choose
+an operating-system Wi-Fi network or bypass browser folder, serial-device,
+firmware-volume, and local-network permissions; these are the only intentional
+user-mediated boundaries.
 
 ### XRP Monitor
 

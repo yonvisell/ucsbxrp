@@ -43,6 +43,15 @@ never gives the static site repository credentials; and explains online update
 checks and atomic complete-cache activation. The Monitor reports measured
 recording rate and time capacity for its 30,000-sample rolling buffer.
 
+Refinement 16 makes the USB-to-Wi-Fi handoff observable and recoverable. The
+wizard now proves that the selected project folder can be written and read,
+then maintains a collapsed, password-free setup log both on screen and at
+`UCSB_XRP_Autosaves/xrp-setup-latest.txt`. Robot-service checks report attempt
+count and the last timeout, browser/network error, HTTP response, or release
+mismatch instead of failing silently. Compact help explains the Chrome and
+macOS local-network permissions, makes clear that RESET and BOOT are not used
+after USB installation, and provides a direct return to USB repair.
+
 Refinement slices 1–13 are complete in software. The Monitor now uses flat,
 independently resizable regions; a bounded arena grid with labeled millimeter
 coordinates; compact signal and recording controls; precise drive-command and
@@ -223,6 +232,9 @@ command was issued.
 - New-robot hotspot default, keep-current repair default, optional station
   credentials held only in component state until USB transfer, and automatic
   physical-target/folder handoff to the IDE.
+- Actual folder write/read verification plus a compact password-free setup log;
+  bounded network-probe diagnostics distinguish no reply, browser/network
+  failure, HTTP failure, and release mismatch.
 
 ### XRP Monitor
 
@@ -316,20 +328,21 @@ The latest complete software pass includes:
 - 124 CPython API and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 120 Vitest tests for project identity and handling, folder rotation, target
+- 122 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, commissioning,
   raw REPL transport, plot data, and measured contrast;
 - a production build and verification of the exact 183-file offline manifest,
   including the 1,725,952-byte firmware against its pinned SHA-256 digest; and
-- 24 passing Stable Chrome software workflows covering all starters, the two
+- 25 passing Stable Chrome software workflows covering all starters, the two
   robot demos and tutorial project, flat IDE geometry, four-generation source
   autosave, per-run telemetry/output autosave, blocked-gate replanning,
   two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   typed live parameter updates and named watches, recording/CSV export, and a
   network-blocked offline reload, XRP-hotspot/existing-Wi-Fi selection, and the
-  fresh-browser spiral default, and a complete browser commissioning session
-  against a raw-REPL RP2350 state machine using all 23 real payload files;
+  fresh-browser spiral default, folder write failure, visible connection
+  diagnostics, and a complete browser commissioning session against a raw-REPL
+  RP2350 state machine using all 23 real payload files;
   one opt-in physical-hardware workflow skipped because the ordinary software
   suite does not mutate an attached robot;
   plus direct Chrome and harness repetitions on the previously attached RP2350. The
@@ -380,7 +393,7 @@ x-grid line appeared between adjacent labeled values. XRP zoom confirmed one
 dark gray chassis shade, and the Monitor header displayed `IDE ↗ |`. A separate
 Stable Chrome path used an unreachable physical endpoint and verified that the
 full-size map and centered, explicitly non-pose XRP preview remained visible.
-All 24 current software Chrome workflows pass and the physical opt-in workflow
+All 25 current software Chrome workflows pass and the physical opt-in workflow
 is intentionally skipped.
 
 The conservative efficiency/distribution refinement then removed the unused
@@ -407,7 +420,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The current local
-production build is `e3280ab0b40a8c00238d` with 183 verified payload files.
+production build is `9b1caf4fc4efb34f110c` with 183 verified payload files.
 
 The commissioning workflow additionally passes focused controller/version
 rejection, raw-paste flow control and standard-raw fallback, changed-only
@@ -416,11 +429,14 @@ network configuration, reset, target preference, and automatic IDE handoff
 tests. Its Stable Chrome workflow traverses the actual production manifest and
 payload bytes. The attached dev.7 XRP now closes the physical file-comparison,
 single-file repair, destination activation, complete readback, import, and
-reset boundaries. The public Chrome flow opened the native project-folder
-chooser, but macOS presented it outside the controlled tab; the remaining live
-browser evidence is the complete folder-picker-to-Web-Serial sequence, final
-Pages-origin local-network grant, and Wi-Fi IDE handoff. Firmware-volume repair
-was not forced on a controller that already had the exact pinned runtime.
+reset boundaries. A public Chrome run completed the native folder and Web
+Serial stages through robot reset and reached the Wi-Fi handoff; that run
+exposed the formerly silent service-probe failure. The revised wizard was
+visually inspected in direct production Chrome at 691 × 752 with its setup log
+collapsed and expanded. The remaining live browser evidence is a repeat from
+the revised Pages origin through local-network permission and automatic IDE
+handoff. Firmware-volume repair was not forced on a controller that already had
+the exact pinned runtime.
 
 ## Physical evidence
 

@@ -59,24 +59,44 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await page.addInitScript(() => {
     localStorage.clear();
 
-    const courseFolder = {
+    const courseFolderFiles = new Map<string, string>();
+    const makeCourseFolder = (prefix = "", name = "My XRP Project") => ({
       kind: "directory",
-      name: "My XRP Project",
+      name,
       async *entries() {},
-      getDirectoryHandle: async () => courseFolder,
-      getFileHandle: async (name: string) => ({
-        kind: "file",
-        name,
-        getFile: async () => new File([], name),
-        createWritable: async () => ({
-          write: async () => undefined,
-          close: async () => undefined,
-        }),
-      }),
-      removeEntry: async () => undefined,
+      getDirectoryHandle: async (child: string) =>
+        makeCourseFolder(`${prefix}${child}/`, child),
+      getFileHandle: async (
+        fileName: string,
+        options?: { create?: boolean },
+      ) => {
+        const path = `${prefix}${fileName}`;
+        if (!options?.create && !courseFolderFiles.has(path)) {
+          throw new DOMException("File not found", "NotFoundError");
+        }
+        return {
+          kind: "file",
+          name: fileName,
+          getFile: async () =>
+            new File([courseFolderFiles.get(path) ?? ""], fileName),
+          createWritable: async () => ({
+            write: async (content: string) =>
+              courseFolderFiles.set(path, content),
+            close: async () => undefined,
+          }),
+        };
+      },
+      removeEntry: async (child: string) => {
+        courseFolderFiles.delete(`${prefix}${child}`);
+      },
       queryPermission: async () => "granted",
       requestPermission: async () => "granted",
-    };
+    });
+    const courseFolder = makeCourseFolder();
+    Object.defineProperty(window, "__ucsbTestCourseFiles", {
+      configurable: true,
+      value: courseFolderFiles,
+    });
     Object.defineProperty(window, "showDirectoryPicker", {
       configurable: true,
       value: async () => courseFolder,
@@ -286,7 +306,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             : input.url;
       if (url === "http://192.168.42.1/api/v1/info") {
         serviceProbeCount += 1;
-        if (serviceProbeCount < 2) {
+        if (serviceProbeCount < 3) {
           throw new TypeError("computer has not joined the XRP hotspot yet");
         }
         return new Response(
@@ -321,6 +341,17 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (
+          window as unknown as {
+            __ucsbTestCourseFiles: Map<string, string>;
+          }
+        ).__ucsbTestCourseFiles.get("UCSB_XRP_Autosaves/xrp-setup-latest.txt"),
+      ),
+    )
+    .toContain("Write and read verified");
   await page.getByRole("button", { name: "Select connected XRP" }).click();
 
   await expect(
@@ -334,6 +365,17 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   ).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText("UCSB-XRP-4A21", { exact: true })).toBeVisible();
   await expect(page.getByText("ucsb-xrp", { exact: true })).toBeVisible();
+  const connectionStatus = page
+    .getByRole("status")
+    .filter({ hasText: "Waiting for XRP" });
+  await expect(connectionStatus).toContainText("Waiting for XRP · attempt 1");
+  await expect(connectionStatus).toContainText(
+    "computer has not joined the XRP hotspot yet",
+  );
+  await page.getByText("Setup log", { exact: true }).click();
+  const visibleSetupLog = await page.getByLabel("Setup log").textContent();
+  expect(visibleSetupLog).toContain("Attempt 1");
+  expect(visibleSetupLog).not.toContain("ucsb-xrp");
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -347,4 +389,48 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     });
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
   expect(browserErrors).toEqual([]);
+});
+
+test("does not advance when the selected folder fails its write check", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+    const folder = {
+      kind: "directory",
+      name: "Read only folder",
+      async *entries() {},
+      getDirectoryHandle: async () => folder,
+      getFileHandle: async (name: string) => ({
+        kind: "file",
+        name,
+        getFile: async () => new File([], name),
+        createWritable: async () => ({
+          write: async () => undefined,
+          close: async () => undefined,
+        }),
+      }),
+      removeEntry: async () => undefined,
+      queryPermission: async () => "granted",
+      requestPermission: async () => "granted",
+    };
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => folder,
+    });
+  });
+
+  await page.goto("/commission/");
+  await page.getByRole("button", { name: "Choose project folder" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Choose a project folder" }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "project folder write check failed",
+  );
+  await page.getByText("Setup log", { exact: true }).click();
+  await expect(page.getByLabel("Setup log")).toContainText(
+    "Write check failed",
+  );
 });

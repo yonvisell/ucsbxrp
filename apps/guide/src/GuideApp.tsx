@@ -203,6 +203,18 @@ export function GuideApp() {
                 </li>
               </ol>
               <p>
+                The folder step writes and reads a small test file before setup
+                continues. The latest events remain available under{" "}
+                <strong>Setup log</strong> and in{" "}
+                <code>UCSB_XRP_Autosaves/xrp-setup-latest.txt</code>; Wi-Fi
+                passwords are not logged. <strong>Connect to the XRP</strong>{" "}
+                appears only after USB installation and reset have finished, so
+                do not press RESET or BOOT there. Join the displayed network and
+                allow Chrome's local-network request. On macOS, also enable
+                Chrome under System Settings → Privacy &amp; Security → Local
+                Network if it is disabled.
+              </p>
+              <p>
                 The XRP keeps the last complete project if a transfer is
                 interrupted. USB can remain connected; normal programming and
                 telemetry use Wi-Fi.

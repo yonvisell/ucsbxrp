@@ -77,7 +77,8 @@ target or Monitor defects. Cover:
 - commissioning controller/version rejection, raw-paste flow control and raw
   fallback, watchdog feeding, changed-only transfer, complete remote hashing,
   import verification, repeated repair, firmware integrity, network profile,
-  reset, service proof, and project-folder/physical-target handoff;
+  reset, service proof, project-folder write/read verification, visible and
+  saved handoff failures, and project-folder/physical-target handoff;
 - cancellation of unfinished physical discovery and ordered shared-worker
   disconnect, so rapid React remounts cannot leave a hidden poller;
 - dimensioned world/XRP views, ruler scaling, SI sensor labels, blocked-gate

@@ -41,6 +41,15 @@ import {
   type MicroPythonSession,
   type SerialPortLike,
 } from "./web-serial";
+import {
+  createSetupLogEntry,
+  renderSetupLog,
+  saveSetupLog,
+  setupLogPath,
+  verifySetupLogFolder,
+  type SetupLogEntry,
+  type SetupLogLevel,
+} from "./setup-log";
 
 type Stage =
   | "loading"
@@ -59,6 +68,16 @@ interface PhysicalInfo {
   courseRelease: string;
   robotName: string;
   address: string;
+}
+
+class XrpServiceProbeError extends Error {
+  constructor(
+    readonly kind: "http" | "version",
+    message: string,
+  ) {
+    super(message);
+    this.name = "XrpServiceProbeError";
+  }
 }
 
 function errorDetail(error: unknown): string {
@@ -106,11 +125,50 @@ export function CommissionApp() {
   const [progress, setProgress] = useState<CommissioningProgress | null>(null);
   const [result, setResult] = useState<CommissioningResult | null>(null);
   const [checkingWifi, setCheckingWifi] = useState(false);
+  const [wifiAttempts, setWifiAttempts] = useState(0);
+  const [wifiIssue, setWifiIssue] = useState("");
+  const [wifiNeedsRepair, setWifiNeedsRepair] = useState(false);
+  const [setupLogEntries, setSetupLogEntries] = useState<SetupLogEntry[]>([]);
+  const [setupLogSaveError, setSetupLogSaveError] = useState("");
+  const [setupLogCopied, setSetupLogCopied] = useState(false);
   const sessionRef = useRef<MicroPythonSession | null>(null);
   const portRef = useRef<SerialPortLike | null>(null);
   const navigatingRef = useRef(false);
   const wifiCheckInFlightRef = useRef(false);
+  const wifiAttemptRef = useRef(0);
+  const lastWifiLoggedIssueRef = useRef("");
+  const lastInstallProgressPhaseRef = useRef("");
   const watchdogFeedInFlightRef = useRef(false);
+  const folderRef = useRef<CourseDirectoryHandle | null>(null);
+  const folderNeedsPickerRef = useRef(false);
+  const manifestReleaseRef = useRef("");
+  const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
+  const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
+
+  const recordSetup = useCallback(
+    (step: string, message: string, level: SetupLogLevel = "info") => {
+      const next = [
+        ...setupLogEntriesRef.current,
+        createSetupLogEntry(step, message, level),
+      ].slice(-160);
+      setupLogEntriesRef.current = next;
+      setSetupLogEntries(next);
+      const activeFolder = folderRef.current;
+      if (!activeFolder) return;
+      setupLogWriteRef.current = setupLogWriteRef.current
+        .catch(() => undefined)
+        .then(() =>
+          saveSetupLog(activeFolder, next, manifestReleaseRef.current),
+        )
+        .then(() => setSetupLogSaveError(""))
+        .catch((logError) => {
+          setSetupLogSaveError(
+            `The setup log could not be saved: ${errorDetail(logError)}`,
+          );
+        });
+    },
+    [],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -121,16 +179,49 @@ export function CommissionApp() {
           loadRememberedCourseFolder(),
         ]);
         if (disposed) return;
+        manifestReleaseRef.current = loadedManifest.releaseId;
         setManifest(loadedManifest);
+        recordSetup(
+          "Start",
+          `Loaded course release ${loadedManifest.releaseId}.`,
+        );
         if (rememberedFolder) {
           const permission = await courseFolderPermission(rememberedFolder);
           if (!disposed && permission === "granted") {
-            setFolder(rememberedFolder);
-            setDetail(
-              `${rememberedFolder.name} is ready for project files and automatic copies.`,
-            );
-            setStage("usb");
-            return;
+            try {
+              recordSetup(
+                "Folder",
+                `Checking write access to ${rememberedFolder.name}.`,
+              );
+              await verifySetupLogFolder(
+                rememberedFolder,
+                setupLogEntriesRef.current,
+                loadedManifest.releaseId,
+              );
+              if (disposed) return;
+              folderRef.current = rememberedFolder;
+              setFolder(rememberedFolder);
+              recordSetup(
+                "Folder",
+                `Write and read verified in ${rememberedFolder.name}.`,
+                "success",
+              );
+              setDetail(
+                `${rememberedFolder.name} is ready for project files and automatic copies.`,
+              );
+              setStage("usb");
+              return;
+            } catch (folderError) {
+              folderNeedsPickerRef.current = true;
+              recordSetup(
+                "Folder",
+                `Remembered folder failed its write check: ${errorDetail(folderError)}`,
+                "error",
+              );
+              setError(
+                "The remembered project folder could not be written and read. Choose the folder again or select another folder.",
+              );
+            }
           }
         }
         if (!disposed) {
@@ -143,6 +234,11 @@ export function CommissionApp() {
         if (!disposed) {
           setStage("folder");
           setError(errorDetail(initializationError));
+          recordSetup(
+            "Start",
+            `Setup could not initialize: ${errorDetail(initializationError)}`,
+            "error",
+          );
         }
       }
     };
@@ -151,43 +247,69 @@ export function CommissionApp() {
       disposed = true;
       void sessionRef.current?.close();
     };
-  }, [manifestUrl]);
+  }, [manifestUrl, recordSetup]);
 
   const chooseFolder = useCallback(async () => {
     setError("");
     try {
-      let selected = await loadRememberedCourseFolder();
+      let selected = folderNeedsPickerRef.current
+        ? null
+        : await loadRememberedCourseFolder();
       if (selected) {
         const permission = await requestCourseFolderPermission(selected);
         if (permission !== "granted") selected = null;
       }
       selected ??= await chooseCourseFolder();
+      recordSetup("Folder", `Checking write access to ${selected.name}.`);
+      await verifySetupLogFolder(
+        selected,
+        setupLogEntriesRef.current,
+        manifestReleaseRef.current,
+      );
       await rememberCourseFolder(selected);
       handCourseFolderToIde();
+      folderNeedsPickerRef.current = false;
+      folderRef.current = selected;
       setFolder(selected);
+      recordSetup(
+        "Folder",
+        `Write and read verified in ${selected.name}; setup log created.`,
+        "success",
+      );
       setDetail(
         `${selected.name} is ready. The web tools are also saving their offline copy in Chrome.`,
       );
       setStage("usb");
     } catch (folderError) {
-      if (!wasCancelled(folderError)) setError(errorDetail(folderError));
+      if (!wasCancelled(folderError)) {
+        folderNeedsPickerRef.current = true;
+        const message = errorDetail(folderError);
+        setError(`The project folder write check failed. ${message}`);
+        recordSetup("Folder", `Write check failed: ${message}`, "error");
+      }
     }
-  }, []);
+  }, [recordSetup]);
 
   const inspectPort = useCallback(
     async (port: SerialPortLike) => {
       if (!manifest) return;
       setError("");
       setDetail("Checking the XRP controller and course runtime…");
+      recordSetup("USB", "Selected an XRP and opened its serial connection.");
       portRef.current = port;
       let session: MicroPythonSession;
       try {
         session = await openRawRepl(port);
-      } catch {
+      } catch (replError) {
         sessionRef.current = null;
         setStage("firmware");
         setDetail(
           "The XRP needs the course MicroPython firmware before its files can be installed.",
+        );
+        recordSetup(
+          "Firmware",
+          `The expected MicroPython REPL was not available: ${errorDetail(replError)}`,
+          "warning",
         );
         return;
       }
@@ -203,10 +325,20 @@ export function CommissionApp() {
           setDetail(
             "The controller is compatible. Keep its current network or choose a different one.",
           );
+          recordSetup(
+            "USB",
+            "Verified the RP2350 controller, MicroPython runtime, and existing network profile.",
+            "success",
+          );
         } else {
           setNetworkMode("access_point");
           setDetail(
             "The controller is compatible. A device-specific XRP hotspot is the default.",
+          );
+          recordSetup(
+            "USB",
+            "Verified the RP2350 controller and MicroPython runtime; no course network profile was installed.",
+            "success",
           );
         }
         setStage("network");
@@ -214,26 +346,34 @@ export function CommissionApp() {
         if (inspectionError instanceof FirmwareRequiredError) {
           setStage("firmware");
           setDetail(inspectionError.message);
+          recordSetup("Firmware", inspectionError.message, "warning");
         } else {
-          setError(errorDetail(inspectionError));
+          const message = errorDetail(inspectionError);
+          setError(message);
+          recordSetup("USB", `Inspection failed: ${message}`, "error");
           await session.close();
           sessionRef.current = null;
           setStage("usb");
         }
       }
     },
-    [manifest],
+    [manifest, recordSetup],
   );
 
   const selectRobot = useCallback(async () => {
     if (!manifest) return;
     setError("");
+    recordSetup("USB", "Opening the browser device picker.");
     try {
       await inspectPort(await requestXrpPort(manifest.controller));
     } catch (serialError) {
-      if (!wasCancelled(serialError)) setError(errorDetail(serialError));
+      if (!wasCancelled(serialError)) {
+        const message = errorDetail(serialError);
+        setError(message);
+        recordSetup("USB", `Device selection failed: ${message}`, "error");
+      }
     }
-  }, [inspectPort, manifest]);
+  }, [inspectPort, manifest, recordSetup]);
 
   useEffect(() => {
     if ((stage !== "network" && stage !== "firmware") || !sessionRef.current) {
@@ -245,7 +385,9 @@ export function CommissionApp() {
       try {
         await feedCommissioningWatchdog(sessionRef.current);
       } catch (feedError) {
-        setError(errorDetail(feedError));
+        const message = errorDetail(feedError);
+        setError(message);
+        recordSetup("USB", `Serial connection was lost: ${message}`, "error");
         setStage("usb");
         await sessionRef.current?.close();
         sessionRef.current = null;
@@ -255,13 +397,14 @@ export function CommissionApp() {
     };
     const timer = window.setInterval(() => void feed(), 2_000);
     return () => clearInterval(timer);
-  }, [stage]);
+  }, [recordSetup, stage]);
 
   const enterFirmwareMode = useCallback(async () => {
     const port = portRef.current;
     if (!port) return;
     setError("");
     setDetail("Opening the XRP firmware drive…");
+    recordSetup("Firmware", "Restarting the controller in firmware mode.");
     try {
       const session = sessionRef.current;
       if (session) {
@@ -280,10 +423,17 @@ export function CommissionApp() {
       setDetail(
         "When the RP2350 drive appears, select it to install the verified course firmware.",
       );
+      recordSetup("Firmware", "The RP2350 firmware drive is ready to select.");
     } catch (firmwareModeError) {
-      setError(errorDetail(firmwareModeError));
+      const message = errorDetail(firmwareModeError);
+      setError(message);
+      recordSetup(
+        "Firmware",
+        `Could not enter firmware mode: ${message}`,
+        "error",
+      );
     }
-  }, []);
+  }, [recordSetup]);
 
   const writeFirmware = useCallback(async () => {
     if (!manifest) return;
@@ -291,8 +441,17 @@ export function CommissionApp() {
     try {
       const volume = await chooseFirmwareVolume();
       setDetail("Writing and verifying the course MicroPython firmware…");
+      recordSetup(
+        "Firmware",
+        "Writing the bundled RP2350 MicroPython firmware.",
+      );
       await installFirmware({ volume, manifest, manifestUrl });
       setDetail("Firmware installed. Waiting for the XRP to reconnect…");
+      recordSetup(
+        "Firmware",
+        "Firmware write and readback completed.",
+        "success",
+      );
       await new Promise((resolve) => window.setTimeout(resolve, 1_500));
       const port = await waitForReenumeratedPort(manifest.controller);
       if (port) {
@@ -302,11 +461,19 @@ export function CommissionApp() {
         setDetail(
           "Firmware installed. Select the reconnected XRP to continue.",
         );
+        recordSetup(
+          "Firmware",
+          "Firmware installed; waiting for the reconnected USB device.",
+        );
       }
     } catch (firmwareError) {
-      if (!wasCancelled(firmwareError)) setError(errorDetail(firmwareError));
+      if (!wasCancelled(firmwareError)) {
+        const message = errorDetail(firmwareError);
+        setError(message);
+        recordSetup("Firmware", `Firmware update failed: ${message}`, "error");
+      }
     }
-  }, [inspectPort, manifest, manifestUrl]);
+  }, [inspectPort, manifest, manifestUrl, recordSetup]);
 
   const beginCommissioning = useCallback(async () => {
     if (!manifest || !sessionRef.current) return;
@@ -321,7 +488,17 @@ export function CommissionApp() {
           ? { mode: "keep" }
           : { mode: "access_point" };
     setError("");
+    setProgress(null);
+    lastInstallProgressPhaseRef.current = "";
     setStage("installing");
+    recordSetup(
+      "Install",
+      network.mode === "station"
+        ? `Starting repair and configuring existing Wi-Fi ${network.ssid}.`
+        : network.mode === "keep"
+          ? "Starting repair and retaining the installed network profile."
+          : "Starting repair and configuring the robot hotspot.",
+    );
     try {
       await waitForOfflineShell();
       const completed = await commissionDevice({
@@ -332,6 +509,10 @@ export function CommissionApp() {
         onProgress: (next) => {
           setProgress(next);
           setDetail(next.detail);
+          if (lastInstallProgressPhaseRef.current !== next.phase) {
+            lastInstallProgressPhaseRef.current = next.phase;
+            recordSetup("Install", next.detail);
+          }
         },
       });
       sessionRef.current = null;
@@ -345,17 +526,36 @@ export function CommissionApp() {
       };
       storeTargetPreference(preference);
       handCourseFolderToIde();
+      wifiAttemptRef.current = 0;
+      lastWifiLoggedIssueRef.current = "";
+      setWifiAttempts(0);
+      setWifiIssue("");
+      setWifiNeedsRepair(false);
       setDetail(
         completed.network.mode === "station"
           ? `XRP joined ${completed.network.ssid}. Verifying its course service…`
           : `Join ${completed.network.ssid} from the computer's Wi-Fi menu. This page will remain available offline.`,
       );
+      recordSetup(
+        "Install",
+        `Verified ${completed.installedFiles} changed and ${completed.unchangedFiles} unchanged files; XRP restarted on ${completed.network.ssid} at ${completed.network.address}.`,
+        "success",
+      );
       setStage("wifi");
     } catch (commissioningError) {
-      setError(errorDetail(commissioningError));
+      const message = errorDetail(commissioningError);
+      setError(message);
+      recordSetup("Install", `Repair failed: ${message}`, "error");
       setStage("network");
     }
-  }, [manifest, manifestUrl, networkMode, stationPassword, stationSsid]);
+  }, [
+    manifest,
+    manifestUrl,
+    networkMode,
+    recordSetup,
+    stationPassword,
+    stationSsid,
+  ]);
 
   const verifyWifi = useCallback(async () => {
     if (
@@ -367,6 +567,9 @@ export function CommissionApp() {
       return;
     wifiCheckInFlightRef.current = true;
     setCheckingWifi(true);
+    const attempt = wifiAttemptRef.current + 1;
+    wifiAttemptRef.current = attempt;
+    setWifiAttempts(attempt);
     const endpoint = `http://${result.network.address}`;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 3_000);
@@ -379,29 +582,65 @@ export function CommissionApp() {
           signal: controller.signal,
         }),
       );
-      if (!response.ok) throw new Error(`XRP replied with ${response.status}`);
+      if (!response.ok) {
+        throw new XrpServiceProbeError(
+          "http",
+          `The XRP service replied with HTTP ${response.status}.`,
+        );
+      }
       const info = (await response.json()) as PhysicalInfo;
       if (
         info.protocol !== 1 ||
         info.serviceVersion !== manifest.serviceVersion ||
         info.courseRelease !== manifest.releaseId
       ) {
-        throw new Error("The XRP course service version did not match.");
+        throw new XrpServiceProbeError(
+          "version",
+          "The XRP replied, but its course service version does not match this web release.",
+        );
       }
       navigatingRef.current = true;
+      setWifiIssue("");
+      setWifiNeedsRepair(false);
       setDetail(`${info.robotName} is commissioned and ready.`);
+      recordSetup(
+        "XRP connection",
+        `Verified ${info.robotName} at ${result.network.address} on attempt ${attempt}.`,
+        "success",
+      );
       setStage("complete");
       window.setTimeout(() => {
         window.location.assign(new URL("../ide/", window.location.href));
       }, 900);
-    } catch {
-      // A network switch is expected to make several probes fail quietly.
+    } catch (probeError) {
+      const serviceFailure = probeError instanceof XrpServiceProbeError;
+      const issue = wasCancelled(probeError)
+        ? "No response within three seconds."
+        : serviceFailure
+          ? probeError.message
+          : `Chrome could not reach the XRP (${errorDetail(probeError)}).`;
+      setWifiIssue(issue);
+      setWifiNeedsRepair(serviceFailure);
+      const issueKind = serviceFailure ? probeError.kind : "network";
+      const logKey = `${issueKind}:${issue}`;
+      if (
+        attempt === 1 ||
+        attempt % 5 === 0 ||
+        lastWifiLoggedIssueRef.current !== logKey
+      ) {
+        lastWifiLoggedIssueRef.current = logKey;
+        recordSetup(
+          "XRP connection",
+          `Attempt ${attempt}: ${issue}`,
+          "warning",
+        );
+      }
     } finally {
       clearTimeout(timeout);
       wifiCheckInFlightRef.current = false;
       setCheckingWifi(false);
     }
-  }, [manifest, result]);
+  }, [manifest, recordSetup, result]);
 
   useEffect(() => {
     if (stage !== "wifi") return;
@@ -409,6 +648,32 @@ export function CommissionApp() {
     const timer = window.setInterval(() => void verifyWifi(), 2_000);
     return () => clearInterval(timer);
   }, [stage, verifyWifi]);
+
+  const returnToUsb = useCallback(() => {
+    setResult(null);
+    setWifiAttempts(0);
+    setWifiIssue("");
+    setWifiNeedsRepair(false);
+    wifiAttemptRef.current = 0;
+    lastWifiLoggedIssueRef.current = "";
+    setDetail("Keep the XRP connected by USB-C, then select it again.");
+    setStage("usb");
+    recordSetup("XRP connection", "Returned to USB setup for another repair.");
+  }, [recordSetup]);
+
+  const copySetupLog = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(
+        renderSetupLog(setupLogEntriesRef.current, manifestReleaseRef.current),
+      );
+      setSetupLogCopied(true);
+      window.setTimeout(() => setSetupLogCopied(false), 1_500);
+    } catch (copyError) {
+      setSetupLogSaveError(
+        `The setup log could not be copied: ${errorDetail(copyError)}`,
+      );
+    }
+  }, []);
 
   const activeStep = workflowStep(stage);
   const progressPercent =
@@ -641,13 +906,57 @@ export function CommissionApp() {
                   <dd>{result.network.address}</dd>
                 </div>
               </dl>
+              <div
+                className={
+                  wifiNeedsRepair
+                    ? "wifi-probe-status needs-repair"
+                    : "wifi-probe-status"
+                }
+                role="status"
+              >
+                <strong>
+                  {wifiNeedsRepair
+                    ? "Robot service needs repair"
+                    : wifiAttempts
+                      ? `Waiting for XRP · attempt ${wifiAttempts}`
+                      : "Waiting for XRP"}
+                </strong>
+                <span>
+                  {wifiIssue ||
+                    "Checking the robot service at the address above."}
+                </span>
+              </div>
               <button disabled={checkingWifi} onClick={verifyWifi}>
                 {checkingWifi ? "Checking…" : "Check connection"}
               </button>
-              <small>
-                The IDE will open automatically when the verified XRP service
-                replies.
-              </small>
+              <p className="wifi-instruction">
+                {result.network.mode === "access_point"
+                  ? `Join ${result.network.ssid} in the computer's Wi-Fi menu, then return to this page.`
+                  : `Keep this computer on ${result.network.ssid}.`}{" "}
+                If Chrome asks to find and connect to devices on the local
+                network, choose <strong>Allow</strong>. The IDE opens when the
+                robot replies.
+              </p>
+              <details className="connection-help">
+                <summary>Connection help</summary>
+                <ul>
+                  <li>
+                    RESET and BOOT are not used here; USB installation has
+                    already finished.
+                  </li>
+                  <li>
+                    In Chrome's site settings for this page, allow local network
+                    access.
+                  </li>
+                  <li>
+                    On macOS, Chrome must also be enabled under System Settings
+                    → Privacy &amp; Security → Local Network.
+                  </li>
+                </ul>
+                <button type="button" onClick={returnToUsb}>
+                  Return to USB setup
+                </button>
+              </details>
             </div>
           ) : null}
 
@@ -657,6 +966,37 @@ export function CommissionApp() {
               <p>Opening the IDE with Physical XRP selected…</p>
             </div>
           ) : null}
+
+          <details className="setup-log" aria-live="off">
+            <summary>
+              <span>Setup log</span>
+              <small>
+                {setupLogEntries.length}{" "}
+                {setupLogEntries.length === 1 ? "event" : "events"} ·{" "}
+                {folder
+                  ? `saved to ${setupLogPath}`
+                  : "saved after folder selection"}
+              </small>
+            </summary>
+            <div className="setup-log-body">
+              <pre aria-label="Setup log">
+                {renderSetupLog(
+                  setupLogEntries,
+                  manifest?.releaseId ?? manifestReleaseRef.current,
+                )}
+              </pre>
+              <div className="setup-log-footer">
+                <button type="button" onClick={copySetupLog}>
+                  {setupLogCopied ? "Copied" : "Copy log"}
+                </button>
+                {setupLogSaveError ? (
+                  <small role="alert">{setupLogSaveError}</small>
+                ) : folder ? (
+                  <small>Write and read access verified.</small>
+                ) : null}
+              </div>
+            </div>
+          </details>
         </section>
       </main>
     </div>

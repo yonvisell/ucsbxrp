@@ -52,6 +52,7 @@ Generation 1 is newest; generation 4 is oldest.
 - run-N.txt: program and service output from a monitored run
 - telemetry-N.csv: unit-labeled telemetry from the same run
 - run-N.json: target, project, time, and completion metadata
+- xrp-setup-latest.txt: latest robot setup and connection log
 
 Explicit CSV downloads are separate and are never rotated here.
 `;
@@ -213,7 +214,7 @@ export async function loadRememberedCourseFolder(): Promise<CourseDirectoryHandl
 }
 
 export async function withCourseFolderWriteLock<T>(
-  area: "project" | "run",
+  area: "project" | "run" | "setup",
   operation: () => Promise<T>,
 ): Promise<T> {
   if (typeof navigator !== "undefined" && navigator.locks) {
