@@ -173,7 +173,7 @@ export function IdeApp() {
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
   const [operationDetail, setOperationDetail] = useState(
-    "Browser recovery is active. Choose Save now to select a project folder, or Open folder to resume one.",
+    "Browser recovery is active. Choose Save to select a project folder, or Open folder to resume one.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -717,7 +717,7 @@ export function IdeApp() {
     setSyncDetail("Current files have not been sent to the XRP.");
     setConsoleEntries([]);
     setOperationDetail(
-      `${template.label} loaded. Choose Save now to select its project folder.`,
+      `${template.label} loaded. Choose Save to select its project folder.`,
     );
   }, [replacePendingFolderDeletions, selectedTemplateId]);
 
@@ -969,7 +969,7 @@ export function IdeApp() {
     : rememberedFolder
       ? `${rememberedFolder.name} · reconnect to resume autosave`
       : folderDirty
-        ? "Browser recovery · choose Save now to select a folder"
+        ? "Browser recovery · choose Save to select a folder"
         : "Browser recovery";
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
   const flashState =
@@ -1025,7 +1025,7 @@ export function IdeApp() {
           ) : null}
           <button
             aria-label={isRunning ? "Stop" : "Run"}
-            className={`header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
+            className={`command-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
             disabled={!isRunning && !canCommand}
             onClick={isRunning ? stopProgram : runTarget}
             title={
@@ -1101,7 +1101,7 @@ export function IdeApp() {
         {projectPanelOpen ? (
           <aside className="project-rail panel" aria-label="Project files">
             <div className="panel-header project-heading">
-              <h2 className="panel-title">Files</h2>
+              <h2 className="panel-title">Project files</h2>
               <button
                 aria-label="Collapse project files"
                 className="icon-button"
@@ -1109,110 +1109,6 @@ export function IdeApp() {
                 title="Collapse project files"
               >
                 ‹
-              </button>
-            </div>
-            <div className="project-actions">
-              <div className="template-actions">
-                <select
-                  aria-label="Project template"
-                  onChange={(event) =>
-                    setSelectedTemplateId(event.target.value)
-                  }
-                  title="Choose a complete challenge, demo, or tutorial project."
-                  value={selectedTemplateId}
-                >
-                  {templateGroups.map((group) => (
-                    <optgroup key={group.kind} label={group.label}>
-                      {COURSE_PROJECT_TEMPLATES.filter(
-                        (template) => template.kind === group.kind,
-                      ).map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.shortLabel}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <button
-                  onClick={loadProjectTemplate}
-                  title="Load this template as a new editable browser project."
-                >
-                  Load
-                </button>
-              </div>
-              <button
-                className="open-folder-button"
-                disabled={!supportsWorkingFolders()}
-                onClick={openWorkingFolder}
-                title="Replace the browser project with files from a local folder."
-              >
-                Open folder
-              </button>
-              <button
-                onClick={() => {
-                  setNewFileOpen(true);
-                  setNewFileError("");
-                }}
-                title="Create a new text file inside this project."
-              >
-                New file
-              </button>
-              <button
-                onClick={saveProjectFiles}
-                title="Save all files now and enable automatic folder saves (⌘/Ctrl+S)"
-              >
-                Save now
-              </button>
-            </div>
-            <div className="project-summary">
-              <strong title={project.name}>{project.name}</strong>
-              <span title={`Run executes ${project.entrypoint} first.`}>
-                Main file: {project.entrypoint}
-              </span>
-            </div>
-            <div
-              className="file-actions"
-              aria-label={`Actions for ${activePath}`}
-            >
-              <button
-                onClick={() => beginPathOperation("rename")}
-                title={`Rename ${activePath}.`}
-              >
-                Rename
-              </button>
-              <button
-                onClick={() => beginPathOperation("duplicate")}
-                title={`Create an editable copy of ${activePath}.`}
-              >
-                Copy
-              </button>
-              <button
-                disabled={
-                  activePath === project.entrypoint ||
-                  !activePath.endsWith(".py")
-                }
-                onClick={useActiveFileAsEntrypoint}
-                title={
-                  !activePath.endsWith(".py")
-                    ? "Only a Python file can be the main file"
-                    : activePath === project.entrypoint
-                      ? "Run already executes this file first"
-                      : `Make ${activePath} the file Run executes first`
-                }
-              >
-                {activePath === project.entrypoint ? "Main file" : "Make main"}
-              </button>
-              <button
-                className="danger-button"
-                disabled={!canDeleteActiveFile}
-                onClick={() => setDeletePath(activePath)}
-                title={
-                  canDeleteActiveFile
-                    ? `Delete ${activePath} from the project`
-                    : "A project must retain a Python main file"
-                }
-              >
-                Delete
               </button>
             </div>
             <div className="file-list">
@@ -1235,22 +1131,121 @@ export function IdeApp() {
                 </button>
               ))}
             </div>
-            <div className="project-storage">
-              <span>PROJECT FOLDER</span>
-              <strong title={storageDetail}>{storageDetail}</strong>
-              {!workingFolder && rememberedFolder ? (
+            <div className="project-controls">
+              <div
+                className="file-actions"
+                aria-label={`Actions for ${activePath}`}
+              >
                 <button
-                  className="folder-reconnect"
-                  onClick={reconnectWorkingFolder}
-                  title={`Restore write access to ${rememberedFolder.name}.`}
+                  onClick={() => beginPathOperation("rename")}
+                  title={`Rename ${activePath}.`}
                 >
-                  Reconnect
+                  Rename
                 </button>
-              ) : null}
-            </div>
-            <div className="course-release">
-              <span>COURSE RELEASE</span>
-              <strong>UCSB-XRP 0.4.0-dev</strong>
+                <button
+                  onClick={() => beginPathOperation("duplicate")}
+                  title={`Create a second editable copy of ${activePath}.`}
+                >
+                  Duplicate
+                </button>
+                <button
+                  disabled={
+                    activePath === project.entrypoint ||
+                    !activePath.endsWith(".py")
+                  }
+                  onClick={useActiveFileAsEntrypoint}
+                  title={
+                    !activePath.endsWith(".py")
+                      ? "Only a Python file can be the main file"
+                      : activePath === project.entrypoint
+                        ? "Run already executes this file first"
+                        : `Make ${activePath} the file Run executes first`
+                  }
+                >
+                  {activePath === project.entrypoint ? "Main" : "Make main"}
+                </button>
+                <button
+                  className="danger-button"
+                  disabled={!canDeleteActiveFile}
+                  onClick={() => setDeletePath(activePath)}
+                  title={
+                    canDeleteActiveFile
+                      ? `Delete ${activePath} from the project`
+                      : "A project must retain a Python main file"
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+              <div className="project-actions">
+                <button
+                  className="open-folder-button"
+                  disabled={!supportsWorkingFolders()}
+                  onClick={openWorkingFolder}
+                  title="Open another local project folder. The current project remains in browser recovery."
+                >
+                  {workingFolder ? "Change folder" : "Open folder"}
+                </button>
+                <button
+                  onClick={() => {
+                    setNewFileOpen(true);
+                    setNewFileError("");
+                  }}
+                  title="Create a new text file inside this project."
+                >
+                  New file
+                </button>
+                <button
+                  onClick={saveProjectFiles}
+                  title="Save immediately. Connected folders also save automatically after edits (⌘/Ctrl+S)."
+                >
+                  Save
+                </button>
+              </div>
+              <div className="template-control">
+                <span>New project from template</span>
+                <div className="template-actions">
+                  <select
+                    aria-label="Project template"
+                    onChange={(event) =>
+                      setSelectedTemplateId(event.target.value)
+                    }
+                    title="Choose a complete challenge, demo, or tutorial project."
+                    value={selectedTemplateId}
+                  >
+                    {templateGroups.map((group) => (
+                      <optgroup key={group.kind} label={group.label}>
+                        {COURSE_PROJECT_TEMPLATES.filter(
+                          (template) => template.kind === group.kind,
+                        ).map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.shortLabel}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <button
+                    onClick={loadProjectTemplate}
+                    title="Create a new editable project from this template."
+                  >
+                    Create
+                  </button>
+                </div>
+              </div>
+              <div className="project-storage">
+                <span>PROJECT FOLDER</span>
+                <strong title={storageDetail}>{storageDetail}</strong>
+                {!workingFolder && rememberedFolder ? (
+                  <button
+                    className="folder-reconnect"
+                    onClick={reconnectWorkingFolder}
+                    title={`Restore write access to ${rememberedFolder.name}.`}
+                  >
+                    Reconnect
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div className="ide-offline-status">
               <OfflineReadiness />
@@ -1586,7 +1581,7 @@ export function IdeApp() {
                 href="../commission/"
                 title="Install, update, repair, or change the XRP network over USB-C."
               >
-                Commission or repair XRP ↗
+                Set up or repair XRP ↗
               </a>
             </fieldset>
           ) : null}
@@ -1596,7 +1591,7 @@ export function IdeApp() {
               href="../commission/"
               title="Install or repair the course runtime on an XRP over USB-C."
             >
-              Commission or repair XRP ↗
+              Set up or repair XRP ↗
             </a>
           ) : null}
           <label className="setting-row">
@@ -1689,7 +1684,7 @@ export function IdeApp() {
             <h3>Shortcuts</h3>
             <dl>
               <div>
-                <dt>Save now</dt>
+                <dt>Save</dt>
                 <dd>⌘/Ctrl+S</dd>
               </div>
               <div>
@@ -1774,7 +1769,7 @@ export function IdeApp() {
             <p className="dialog-context">
               {pathOperation === "rename"
                 ? `Choose a new path for ${activePath}.`
-                : `Choose a path for the copy of ${activePath}.`}
+                : `Choose a path for the duplicate of ${activePath}.`}
             </p>
             <label htmlFor="file-operation-path">Project-relative path</label>
             <input
@@ -1808,7 +1803,7 @@ export function IdeApp() {
                 Cancel
               </button>
               <button className="primary-button" type="submit">
-                {pathOperation === "rename" ? "Rename file" : "Create copy"}
+                {pathOperation === "rename" ? "Rename file" : "Duplicate file"}
               </button>
             </div>
           </form>

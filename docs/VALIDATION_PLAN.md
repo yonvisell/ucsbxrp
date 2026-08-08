@@ -1,15 +1,15 @@
 # Validation strategy
 
-Validation is organized around student-visible contracts and realistic failure
-modes. The harness is intentionally small: each behavior is proved at the
-lowest useful layer, then a few complete workflows confirm that the layers work
-together.
+Validation is organized around student-visible behavior, required interfaces,
+and realistic failure modes. The harness is intentionally small: each behavior
+is proved at the lowest useful layer, then a few complete workflows confirm
+that the layers work together.
 
 ## Checks
 
 | Check | What it establishes |
 | --- | --- |
-| Python contracts | records, units, numerical components, maps, planners, missions, starters, examples, and release contents |
+| Python API behavior | records, units, numerical components, maps, planners, missions, starters, examples, and release contents |
 | MicroPython parity | the canonical package and exact supplied `.mpy` files import and produce the same public results in browser and RP2350 MicroPython |
 | TypeScript/unit | target protocol, OSC, project storage, recording, simulator physics/sensors, bounded buffers, and recovery transitions |
 | Browser workflows | commissioning wizard, IDE, Monitor, shared target, project operations, diagnostics, offline loading, accessibility, and responsive behavior in stable Chrome |
@@ -26,7 +26,7 @@ npm run check
 Hardware commands are separate because CI has no robot attached, not because
 students need a formal acceptance process.
 
-## Numerical and course contracts
+## Numerical and course behavior
 
 - Reuse immutable input/output vectors across supplied source, student
   exemplars, WebAssembly MicroPython, and physical MicroPython.
@@ -43,7 +43,7 @@ students need a formal acceptance process.
 - Treat captured physical telemetry as a replay fixture, not universal ground
   truth.
 
-## Target protocol contracts
+## Target protocol behavior
 
 Both targets run the same conformance cases:
 
@@ -95,8 +95,8 @@ inspected interactively rather than frozen pixel-for-pixel.
 
 ## Physical XRP checks when hardware is attached
 
-An attached robot is exercised through USB and `Pink`. The useful evidence is
-concise:
+An attached robot is exercised through USB and whichever local robot network is
+selected. The useful evidence is concise:
 
 - detected board and runtime versions;
 - installed course/service release hashes;
@@ -113,13 +113,15 @@ Credentials, device serial numbers, and unique identifiers are not committed.
 Historical detailed captures remain under `docs/hardware/`; ordinary users do
 not reproduce them.
 
-The dev.7 commissioning slice is intentionally hardware-deferred. Its first
-attached-XRP pass should use the public Pages origin and exercise: new/repair
-inspection, no-change repetition, one deliberate changed-file repair, firmware
-bootloader entry if a suitable spare controller is available, default hotspot
-activation, post-reset service proof, automatic IDE selection, and one ordinary
-Wi-Fi project flash. The software harness does not substitute for those serial,
-removable-volume, radio, and browser-permission observations.
+The dev.7 file-repair path has now passed on the attached XRP: first comparison,
+no-change repetition, deliberate changed-file repair, verified temporary-file
+activation by direct rename, complete destination readback, runtime imports,
+and reset. The remaining browser-specific pass starts from the public Pages
+origin and crosses the native project-folder chooser into Web Serial, hotspot
+Local Network Access, automatic IDE selection, and one ordinary Wi-Fi project
+flash. UF2 volume recovery should be exercised only on a controller whose
+runtime is actually incompatible, rather than rewriting a correct robot for a
+formal check.
 
 ## Harness discipline
 

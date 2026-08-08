@@ -11,7 +11,7 @@ export function GuideApp() {
             Open IDE
           </a>
           <a className="tool-link" href="../commission/">
-            Set up XRP
+            Set up / repair XRP
           </a>
           <a className="tool-link" href="../dashboard/">
             Open XRP Monitor
@@ -24,7 +24,8 @@ export function GuideApp() {
           <span>On this page</span>
           <a href="#first-run">First virtual run</a>
           <a href="#projects">Projects and starters</a>
-          <a href="#physical-xrp">Use a physical XRP</a>
+          <a href="#version-control">Version control</a>
+          <a href="#physical-xrp">Physical XRP</a>
           <a href="#monitor">Monitor and data</a>
           <a href="#course-api">Course API</a>
           <a href="#shortcuts">Shortcuts</a>
@@ -53,7 +54,8 @@ export function GuideApp() {
                   <strong>Virtual XRP</strong>.
                 </li>
                 <li>
-                  Choose a project template, then select <strong>Load</strong>.
+                  Choose a project template, then select <strong>Create</strong>
+                  .
                 </li>
                 <li>
                   Select <strong>Validate</strong>. Every Python file is
@@ -80,10 +82,10 @@ export function GuideApp() {
               <h2>Projects, files, and templates</h2>
               <p>
                 Browser recovery preserves edits continuously. Select{" "}
-                <strong>Save now</strong> to choose a normal local project
-                folder; after that, edits save there automatically. Use{" "}
+                <strong>Save</strong> to choose a normal local project folder;
+                after that, edits save there automatically. Use{" "}
                 <strong>Open folder</strong> to resume another project. The IDE
-                supports nested files, multiple editor tabs, rename, copy,
+                supports nested files, multiple editor tabs, rename, duplicate,
                 delete, and selection of the main Python file.
               </p>
               <p>
@@ -118,10 +120,56 @@ export function GuideApp() {
             </div>
           </section>
 
-          <section id="physical-xrp">
+          <section id="version-control">
             <div className="section-number">03</div>
             <div>
-              <h2>Use a physical RP2350 XRP</h2>
+              <h2>Version control</h2>
+              <p>
+                Use the same project folder for the IDE and Git. The simplest
+                course workflow is to clone the assigned repository once with{" "}
+                <a
+                  href="https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  GitHub Desktop
+                </a>
+                , open that folder in the UCSBXRP IDE, and use GitHub Desktop to
+                review, commit, and push changes. GitHub Desktop is available
+                for current Windows and macOS and does not require command-line
+                Git.
+              </p>
+              <ol className="procedure">
+                <li>Clone the course repository into a normal local folder.</li>
+                <li>
+                  In the IDE, select <strong>Open folder</strong> and choose the
+                  cloned project folder.
+                </li>
+                <li>
+                  Work normally; the IDE autosaves source files into that folder
+                  after the first write permission.
+                </li>
+                <li>
+                  In GitHub Desktop, review the changed files, write a short
+                  commit message, commit, and push.
+                </li>
+              </ol>
+              <p>
+                A browser-only fallback is to upload project files through
+                GitHub at defined checkpoints, but it does not continuously
+                synchronize the local folder. The UCSBXRP site never asks for or
+                stores a GitHub password or access token. A future one-click
+                repository connection would require a course-managed GitHub App
+                and server-side token exchange; embedding credentials in a
+                static course page would not be appropriate.
+              </p>
+            </div>
+          </section>
+
+          <section id="physical-xrp">
+            <div className="section-number">04</div>
+            <div>
+              <h2>Physical XRP</h2>
               <h3>Set up or repair the robot</h3>
               <p>
                 Open <a href="../commission/">Set up or repair XRP</a> in
@@ -155,13 +203,46 @@ export function GuideApp() {
                 </li>
               </ol>
               <p>
-                Use <strong>Validate</strong>, <strong>Flash project</strong>,
-                and <strong>Run</strong>. Run automatically flashes changed
-                files, so the separate flash step is optional during ordinary
-                work. The XRP keeps the last complete project if a transfer is
+                The XRP keeps the last complete project if a transfer is
                 interrupted. USB can remain connected; normal programming and
                 telemetry use Wi-Fi.
               </p>
+              <div className="command-guide" aria-label="IDE command guide">
+                <div>
+                  <strong>Validate</strong>
+                  <span>
+                    Compile every Python file with course MicroPython. Nothing
+                    is written to the robot and the program does not run.
+                  </span>
+                </div>
+                <div>
+                  <strong>Flash project</strong>
+                  <span>
+                    Write and verify the complete project on the physical XRP.
+                    The previous complete project remains available if transfer
+                    is interrupted.
+                  </span>
+                </div>
+                <div>
+                  <strong>Run</strong>
+                  <span>
+                    Flash only when the project changed, then start its main
+                    file. On a virtual XRP, run the same files in simulation.
+                  </span>
+                </div>
+                <div>
+                  <strong>Stop</strong>
+                  <span>
+                    End the active program and return drive commands to zero.
+                  </span>
+                </div>
+                <div>
+                  <strong>Reset</strong>
+                  <span>
+                    Restart the selected target and clear its run state.
+                  </span>
+                </div>
+              </div>
               <h3>Existing local Wi-Fi</h3>
               <p>
                 Select <strong>Existing Wi-Fi</strong> in the wizard to place
@@ -182,13 +263,13 @@ export function GuideApp() {
               <p>
                 Instructors retaining a scripted fleet workflow can use{" "}
                 <code>scripts/provision_xrp.py</code>; it consumes the same
-                canonical installation file list as the browser wizard.
+                exact release file list as the browser wizard.
               </p>
             </div>
           </section>
 
           <section id="monitor">
-            <div className="section-number">04</div>
+            <div className="section-number">05</div>
             <div>
               <h2>Monitor motion, sensors, and program output</h2>
               <p>
@@ -226,11 +307,14 @@ export function GuideApp() {
                 complete histories.
               </p>
               <p>
-                Recording stores up to 30,000 telemetry samples. Start and stop
-                recording independently of a run, then export a CSV with units
-                in the column names. IMU exports use m/s² and rad/s; course
-                distances may remain in millimetres. If the limit is reached,
-                the oldest samples are replaced and the dropped count is shown.
+                Recording uses a rolling 30,000-sample buffer. The Monitor shows
+                the observed sample rate and the corresponding time capacity;
+                the buffer holds 10 minutes even at 50 Hz and about 30 minutes
+                at the usual physical 16–17 Hz. Start and stop recording
+                independently of a run, then export a CSV with units in the
+                column names. IMU exports use m/s² and rad/s; course distances
+                may remain in millimetres. If the buffer fills, the oldest
+                samples are replaced and the dropped count is shown.
               </p>
               <p>
                 Once a project or data folder is connected, every monitored run
@@ -243,21 +327,40 @@ export function GuideApp() {
           </section>
 
           <section id="course-api">
-            <div className="section-number">05</div>
+            <div className="section-number">06</div>
             <div>
-              <h2>A small course API with visible ownership</h2>
-              <div className="signal-chain" aria-label="Course control chain">
-                <span>MotionCommand</span>
-                <b>→</b>
-                <span>DifferentialDrive</span>
-                <b>→</b>
-                <span>WheelSpeeds</span>
-                <b>→</b>
-                <span>WheelSpeedController</span>
-                <b>→</b>
-                <span>DriveCommand</span>
-                <b>→</b>
-                <span>XRPBot</span>
+              <h2>Course API</h2>
+              <div className="api-map" aria-label="Course software structure">
+                <div className="api-main">
+                  <strong>main.py</strong>
+                  <span>
+                    Mission control: choose the task, assemble components, run
+                    the measured loop, and decide when to stop.
+                  </span>
+                </div>
+                <div className="api-branches">
+                  <div>
+                    <strong>Plan and decide</strong>
+                    <span>
+                      DeliveryMission · GridPlanner · NavigationController
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Measure and estimate</strong>
+                    <span>Sensors · SensorModel · Odometry</span>
+                  </div>
+                </div>
+                <div className="api-cycle">
+                  <span>MotionCommand</span>
+                  <b>→</b>
+                  <span>DifferentialDrive</span>
+                  <b>→</b>
+                  <span>WheelSpeedController</span>
+                  <b>→</b>
+                  <span>DriveCommand</span>
+                  <b>→</b>
+                  <span>XRPBot / virtual plant</span>
+                </div>
               </div>
               <p>
                 Students own <code>SensorModel</code>,{" "}
@@ -285,7 +388,7 @@ export function GuideApp() {
           </section>
 
           <section id="shortcuts">
-            <div className="section-number">06</div>
+            <div className="section-number">07</div>
             <div>
               <h2>Keyboard shortcuts</h2>
               <table>
@@ -343,7 +446,7 @@ export function GuideApp() {
           </section>
 
           <section id="troubleshooting">
-            <div className="section-number">07</div>
+            <div className="section-number">08</div>
             <div>
               <h2>Fast troubleshooting</h2>
               <ul className="procedure">
@@ -371,7 +474,10 @@ export function GuideApp() {
                   <strong>Offline use:</strong> open the production course site
                   while online and wait for{" "}
                   <strong>Saved for offline use</strong> before changing
-                  networks. Development servers instead show{" "}
+                  networks. Whenever the site is opened online, it checks for a
+                  newer complete release, saves that release, and reloads once;
+                  an interrupted update leaves the prior complete copy usable.
+                  Development servers instead show{" "}
                   <strong>Development build</strong> and do not save an offline
                   browser copy.
                 </li>

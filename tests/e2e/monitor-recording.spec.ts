@@ -77,7 +77,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
     .getByRole("button", { name: "Clear", exact: true })
     .click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
-    "0 / 30,000 samples",
+    "0 samples · 10 min at 50 Hz capacity",
   );
   await expect(
     monitor.getByRole("button", { name: "Export CSV" }),

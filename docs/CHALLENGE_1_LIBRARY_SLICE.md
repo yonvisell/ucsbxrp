@@ -29,7 +29,7 @@ Reference source under `vendor/current/reference_source/` is retained build
 input and may be improved. The official MicroPython 1.28 cross-compiler emits
 the ordinary bytecode under `vendor/current/reference_mpy/`. The build is
 deterministic and release metadata records source/artifact hashes and compiler
-identity. The exact artifacts pass the same public contract vectors in browser
+identity. The exact artifacts pass the same public behavior vectors in browser
 MicroPython and RP2350 MicroPython.
 
 Verify them with:

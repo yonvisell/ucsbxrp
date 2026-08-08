@@ -82,7 +82,8 @@ def provision(
         "addressMode": wifi["address_mode"],
         "courseRelease": service["courseRelease"] if service else release["release_id"],
         "serviceVersion": service["serviceVersion"] if service else local_service_version(),
-        "installedFiles": len(installed["files"]),
+        "installedFiles": installed.get("installed_count", len(installed["files"])),
+        "unchangedFiles": installed.get("unchanged_count", 0),
     }
 
 

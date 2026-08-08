@@ -5,7 +5,7 @@
 The system coordinates four products: the `ucsb_xrp` MicroPython package and
 reference modules, browser IDE, XRP Monitor, and virtual XRP. A small on-robot
 service makes the physical RP2350 XRP implement the same browser target
-contract.
+interface.
 
 Course behavior remains in Python:
 
@@ -32,7 +32,7 @@ guide, landing page, and shared packages.
 The IDE is the programming surface. It provides:
 
 - local-folder open and save with browser recovery;
-- multi-file creation, rename, copy, delete, tabs, and main-file
+- multi-file creation, rename, duplicate, delete, tabs, and main-file
   metadata;
 - one grouped project catalog containing the five cumulative challenges,
   sensor-driven obstacle-turn and expanding-spiral demos, and a staged
@@ -48,10 +48,11 @@ The IDE is the programming surface. It provides:
 - separate concise Status and verbose Details output.
 
 Project state is represented as `{name, entrypoint, files}` at every execution
-boundary. A canonical length-prefixed SHA-256 identity covers the entrypoint
-and sorted path/content pairs but excludes the display name. The shared target
-publishes only `{name, entrypoint, revision, stale}` to the UI; source remains
-inside the target boundary. Paths are normalized and Python sources are
+boundary. The entrypoint, file paths, and file contents produce one SHA-256
+revision identifier; the display name does not affect whether the robot has the
+current code. Length-prefixing makes that calculation unambiguous. The shared
+target publishes only `{name, entrypoint, revision, stale}` to the UI; source
+remains inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
 Catalog entries are complete `CourseProject` values, not a persistent special
 mode. Loading one creates the same editable browser project used by a local
@@ -139,10 +140,18 @@ focus, semantic labels, and responsive layout. The IDE and Monitor use
 accessible play/stop and reset icon buttons in their 27 px headers, a compact
 target selector, and explicit names for less familiar commands such as
 **Validate** and **Flash project**. Icon controls retain semantic names and
-hover/focus help. The landing page presents the IDE, setup/repair wizard,
-Monitor, and guide as four concise first actions.
+hover/focus help. The landing page presents IDE, Monitor, and Guide together,
+then gives initial setup/repair its own clearly separated action.
 
-## 3. Shared target contract
+Current desktop Chrome and Edge on Windows and macOS are the supported student
+browsers because they provide the required Web Serial and local-folder APIs.
+The application checks those capabilities before use. A local project folder
+can also be a Git working tree; students clone, review, commit, and push with
+GitHub Desktop, while the IDE edits and autosaves the same files. The static
+site never requests or stores GitHub credentials. Browser-only upload remains
+a checkpoint fallback rather than a second synchronization system.
+
+## 3. Shared target interface
 
 `TargetClient` exposes `connect`, `disconnect`, `check`, `synchronize`, `run`,
 `runCurrent`, `markProjectStale`, `stop`, `reset`, `setRuntimeParameter`, and
@@ -159,16 +168,16 @@ XRP storage. Connection state and current/stale project identity are shown
 separately, so a connected robot cannot be mistaken for a flashed one.
 
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
-descriptors and 16 watch values. The virtual target stores encoded parameter
-values in fixed integer slots shared with its disposable MicroPython worker;
-each browser request updates one slot atomically. The physical service queues
+descriptors and 16 watch values. For the virtual target, each parameter has one
+fixed shared-memory slot; numbers are encoded as integers so a browser update
+cannot be read halfway through. The physical service queues
 the validated value behind the `ucsb_xrp.live` lock. In both targets,
 `Robot.start()` and `Robot.step()` apply the latest queued values together at a
 measured sample boundary. Programs that do not use `Robot` may expose their own
 explicit boundary with `live.apply_updates()`. The Monitor shows pending state
 until the program publishes the applied snapshot.
 
-The UI depends only on this contract. Target-specific details—workers for the
+The UI depends only on this interface. Target-specific details—workers for the
 virtual XRP and a single shared HTTP poller for the physical XRP—stay inside
 their clients. A physical-target `SharedWorker` serializes the device
 connection and broadcasts status, telemetry, and output to IDE and Monitor;
@@ -188,10 +197,10 @@ A `SharedWorker` owns the target state shared by IDE and Monitor tabs:
 - active run identity and owner lease; and
 - cross-tab stop/reset and runtime termination.
 
-The tab that starts a virtual run creates its disposable dedicated worker. The
+The tab that starts a virtual run creates one short-lived worker for that run. The
 shared target returns the exact retained project to that owner, so the Monitor
 can start code prepared by the IDE without duplicating editor state. The worker
-loads official MicroPython 1.28 WebAssembly, the canonical `ucsb_xrp` source,
+loads official MicroPython 1.28 WebAssembly, the exact release `ucsb_xrp` source,
 exact reference `.mpy` files, the project, and a simulated XRPLib. It
 compiles every project file, runs the selected entrypoint, and forwards output
 and authoritative simulator state. Terminating the worker stops non-yielding
@@ -207,14 +216,14 @@ clock and one physical state.
 
 ## 5. Physical XRP service
 
-The RP2350 runs one private MicroPython HTTP service over either of two network
+The RP2350 runs one on-robot MicroPython HTTP service over either of two network
 profiles. **Robot hotspot** is the default student profile: each XRP derives a
 distinct `UCSB-XRP-xxxx` SSID from its radio identity, uses the fixed course
 password and `192.168.42.1` service address, and selects channel 1, 6, or 11
 from the same identity. **Existing Wi-Fi** joins a private course router or an
 ordinary local network by DHCP or optional static configuration. A failed
 station association starts the recoverable robot hotspot until reset. These
-are alternative transports for the same service and target contract; the
+are alternative transports for the same service and target interface; the
 system does not depend on simultaneous AP and station operation. USB is
 retained for initial configuration, deterministic file installation, mode
 changes, and recovery.
@@ -240,8 +249,9 @@ reconnecting status.
 The shared client polls active-run telemetry every 60 ms and returns to 250 ms
 when idle. This improves live plots without multiplying idle sensor-bus reads.
 
-The transactional project manifest includes the same canonical revision used
-by the browser. Discovery and telemetry repeat that descriptor after every
+The project transfer manifest includes the same content revision calculated by
+the browser. A transfer becomes active only after all files are present;
+discovery and telemetry repeat that descriptor after every
 boot, allowing either application to run the retained revision and allowing an
 IDE edit to mark it stale locally without changing the device until the next
 explicit run or synchronization.
@@ -278,7 +288,7 @@ network credential. Existing-Wi-Fi setup accepts a password only for the
 duration of the USB write and never includes it in a status reply or browser
 store. Every installed course/service/reference file is content-hashed before
 and after replacement. The browser and command-line provisioner consume one
-canonical installation map; the latter remains useful for instructor fleet
+exact release file map; the latter remains useful for instructor fleet
 automation and optional static station addressing, but is not a student
 prerequisite.
 
@@ -304,7 +314,7 @@ Retained reference source is a revisable implementation, not the API's
 definition. Reproducible MicroPython 1.28 cross-compilation produces ordinary
 portable `.mpy` artifacts. Release metadata records source identity, compiler
 identity, artifact hashes, firmware, and XRPLib revision. Tests exercise source
-and exact bytecode against the same public contracts.
+and exact bytecode against the same required public behavior.
 
 Five cumulative starters separate:
 
@@ -318,8 +328,11 @@ Five cumulative starters separate:
 
 The production service worker makes the web tools local-first in the standard
 sense: after one complete online load, application code and course assets run
-from browser-local storage without another exchange with the web host. It
-caches the complete public release—application
+from browser-local storage without another exchange with the web host. On each
+online start it checks for an updated service worker without accepting a stale
+cached response. It activates a new cache only after every required asset is
+present and retains the preceding complete release during an interrupted
+update. It caches the complete public release—application
 shells, workers, MicroPython WebAssembly, course source, starters, templates,
 reference bytecode, the pinned RP2350 UF2 and commissioning manifest, and
 third-party notices—and exposes a visible readiness state. One GitHub Pages
@@ -331,14 +344,18 @@ prevent stale bundles from masking changes. Private reference source and
 instructor credentials are not web assets.
 
 Robot commands and telemetry still cross the selected local robot network.
-When an HTTPS Pages origin connects to the XRP's HTTP service, the document
+When an HTTPS Pages origin (the site address and protocol that own the browser
+permissions) connects to the XRP's HTTP service, the document
 first triggers Chrome's local-network permission before handing polling to the
 shared worker. Requests identify the target address space as local. This keeps
 one physical poller across tabs while satisfying the browser's worker
 permission boundary.
 
-Telemetry recording stores at most 30,000 copied samples and reports dropped
-older samples. CSV export is explicit and self-describing; it preserves blanks
+Telemetry recording stores the newest 30,000 copied samples and reports dropped
+older samples. This retains 10 minutes at the 50 Hz virtual rate and about
+30 minutes at the normal 16–17 Hz physical rate; the Monitor reports its
+measured rate and corresponding capacity. CSV export is explicit and
+self-describing; it preserves blanks
 for unavailable physical values rather than inventing zero. Manual recordings
 remain session-local until exported. Independently, the Monitor captures every
 run and rotates four aligned output-text, metadata-JSON, and telemetry-CSV
@@ -355,14 +372,16 @@ state is reported as successful until a target reply or event establishes it.
 
 Commissioning adds explicit recovery for the wrong controller/runtime, partial
 file installation, an existing service watchdog, unavailable station Wi-Fi,
-and reset/re-enumeration. File replacement is idempotent and individually
-atomic; a reset occurs only after complete readback and import verification.
+and reset/re-enumeration. File replacement is safe to repeat and individually
+atomic: matching files are skipped, while each changed file is verified under
+a temporary name before it replaces the old copy. A reset occurs only after
+complete readback and import verification.
 The wizard treats an unreachable post-reset Wi-Fi service as incomplete and
 keeps probing without erasing the USB-verified result. A user can reconnect by
 USB and run the same operation again after power loss or browser closure.
 
 The dependency set is deliberately small and pinned. Tests cover public Python
-contracts, deterministic physics, protocol validation, bytecode parity,
+required interfaces, deterministic physics, protocol validation, bytecode parity,
 project/storage helpers, recording, stable-Chrome workflows, offline execution,
 and live device behavior. Physical captures document measured facts but do not
 become universal algorithm tolerances.

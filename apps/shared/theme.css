@@ -221,6 +221,10 @@ button:disabled {
   padding: 0;
 }
 
+.command-run-button {
+  margin-left: 3px;
+}
+
 .header-command-icon {
   width: 11px;
   height: 11px;
@@ -448,6 +452,11 @@ button:disabled {
   gap: 0.32rem;
 }
 
+.landing-setup-action {
+  display: flex;
+  margin-top: 1.6rem;
+}
+
 .primary-link,
 .secondary-link {
   border: 1px solid var(--line-bright);
@@ -471,7 +480,7 @@ button:disabled {
 }
 
 .release-note {
-  margin-top: 1rem;
+  margin-top: 0.85rem;
   color: var(--quiet);
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;

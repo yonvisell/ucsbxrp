@@ -52,7 +52,12 @@ class ProvisionXrpTest(unittest.TestCase):
             patch.object(
                 PROVISION.install_xrp_service,
                 "install_with_usb_retry",
-                return_value={"address": "192.168.7.32", "files": [1, 2, 3]},
+                return_value={
+                    "address": "192.168.7.32",
+                    "files": [1, 2, 3],
+                    "installed_count": 1,
+                    "unchanged_count": 2,
+                },
             ) as install,
             patch.object(
                 PROVISION.install_xrp_service,
@@ -69,7 +74,8 @@ class ProvisionXrpTest(unittest.TestCase):
         configure.assert_called_once()
         install.assert_called_once_with("/dev/test")
         self.assertEqual(result["courseRelease"], "2026.08-dev.7")
-        self.assertEqual(result["installedFiles"], 3)
+        self.assertEqual(result["installedFiles"], 1)
+        self.assertEqual(result["unchangedFiles"], 2)
 
     def test_default_hotspot_needs_no_station_credentials_or_lan_reply(self):
         with (

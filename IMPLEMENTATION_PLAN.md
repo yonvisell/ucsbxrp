@@ -123,7 +123,7 @@ strict repeated-launch and two-app physical lifecycle.
   sensor values, selectable scrolling signal plots, program output, bounded
   recordings, and unit-explicit CSV export. Group those controls in a compact
   collapsible sidebar and add controls only when they support a course task.
-- Run Python contracts, reference-artifact verification, browser MicroPython
+- Run Python API behavior tests, reference-artifact verification, browser MicroPython
   parity, TypeScript/unit checks, production/offline builds, stable-Chrome
   workflows, visual inspection, LAN service checks, and the raised-wheel motor
   check.
@@ -374,7 +374,7 @@ Status: implemented and validated in software and on the attached RP2350.
 - Make a uniquely named XRP access point with fixed address the default student
   network, while retaining an existing-Wi-Fi profile for private course routers
   and instructor fleet work.
-- Keep one device service and browser target contract; store both endpoint
+- Keep one device service and browser target interface; store both endpoint
   choices and switch profiles without parallel application builds.
 - Migrate station-only device and browser settings, fall back from an
   unavailable station to the recoverable hotspot, and expose only
@@ -390,8 +390,8 @@ isolated or ordinary local network.
 
 ### Refinement 14 — Student self-commissioning and repair
 
-Status: implemented and validated without attached hardware; one physical XRP
-pass remains.
+Status: software-complete; the physical changed-file/no-change repair boundary
+passes on the attached XRP. The public-origin native permission handoff remains.
 
 The command-line-only dependency made every new robot an instructor task. This
 slice moves the existing deterministic USB installation boundary into the
@@ -405,7 +405,7 @@ API.
   inspect the exact RP2350 controller/runtime, and keep an existing hardware
   watchdog alive throughout repair.
 - Generate a public commissioning manifest from the command-line provisioner's
-  canonical installation map. Compare remote SHA-256 values, transfer only
+  exact release file map. Compare remote SHA-256 values, transfer only
   changed files through temporary names, re-hash all destinations, and import
   the installed course, service, reference, and XRPLib components.
 - Bundle and integrity-check the pinned official UF2. If controller inspection
@@ -424,11 +424,12 @@ API.
   the complete real-payload wizard in automated Chrome.
 
 Usable result: a student can commission, update, or repair the RP2350 XRP from
-the public web release with the same action. The operation is idempotent and
-uses the same files as instructor automation. Hardware-independent evidence is
-complete; the first attached-XRP run must confirm serial timing, bootloader
-volume selection, post-reset enumeration, and the final hotspot handoff before
-the physical claim is closed.
+the public web release with the same safe-to-repeat action and exact files used
+by instructor automation. An attached dev.7 XRP passes changed-only repair,
+deliberate single-file repair, no-change repetition, runtime imports, and
+reset. The remaining public claim is bounded to the native folder chooser,
+Web Serial permission, and hotspot local-network handoff. Bootloader-volume
+recovery remains for a robot that actually has incompatible firmware.
 
 ### Refinement 15 — Compact command surfaces and entry page
 
@@ -449,3 +450,52 @@ Chrome.
 Usable result: the persistent application commands consume fewer horizontal
 pixels while remaining unambiguous to assistive technology and first-time
 students; the landing page states what to do without duplicating the guide.
+
+### Refinement 16 — Student project workflow and physical repair closure
+
+Status: implemented and validated in software, Chrome, and the attached XRP;
+public-origin permission handoff remains.
+
+- Separate initial setup/repair from the landing page's ordinary course-app
+  actions, using one literal student-facing link.
+- Make the IDE file list primary: remove redundant project/main-file prose,
+  place Rename, Duplicate, Main, Delete, folder, Save, and new-template controls
+  below it, and keep offline status at the lower-left edge.
+- Clarify Windows/macOS support and use GitHub Desktop with the same local
+  folder as the zero-credential course version-control workflow.
+- Reframe the Guide around `main.py` as mission control, define Validate,
+  Flash project, Run, Stop, and Reset separately, expose the Guide from the
+  Monitor, and explain local-first update behavior.
+- Preserve the 30,000-sample rolling recorder while showing observed rate and
+  the corresponding time capacity.
+- Make browser and command-line robot repair compare first, verify each changed
+  temporary payload, and activate it with one destination-replacing rename.
+  Exercise first update, no-change repeat, controlled one-file repair, runtime
+  imports, and reset on the attached RP2350.
+
+Usable result: project creation, editing, persistence, version control, robot
+repair, and data retention have one concise student-facing path. The remaining
+physical work is the actual public-site permission handoff and floor-dependent
+calibration, not another software or instructor setup workflow.
+
+### Refinement 17 — Student API reference
+
+Status: standalone review draft complete and checked against the current
+package; Guide integration awaits instructor review.
+
+- Document the ordinary `main.py` loop, project-file responsibilities, units,
+  signs, return values, and call order before listing individual classes.
+- Separate the six interfaces students implement from the larger set of
+  supplied values, helpers, robot, mapping, planning, mission, and live-control
+  services they may call.
+- State required behavior without prescribing the retained reference
+  algorithms, planning data structure, or navigation implementation.
+- Distinguish Python functions from IDE and Monitor actions, and direct
+  students toward watch values and telemetry instead of per-sample printing.
+- Verify that all 34 exported public package names and their current signatures
+  appear in the standalone `USER_REFERENCE.md` draft.
+
+Usable result: an undergraduate can determine what belongs in each project
+file, what each student method receives and returns, and which supplied
+functions are available without reading package internals or treating the
+reference source as definitive.

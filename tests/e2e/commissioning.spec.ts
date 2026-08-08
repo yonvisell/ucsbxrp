@@ -13,9 +13,9 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
   ).toBeVisible();
   for (const name of [
     "Open IDE",
-    "Set up / repair XRP",
     "Open Monitor",
     "Getting started",
+    "Open wizard for XRP initial set up or repair",
   ]) {
     await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
   }

@@ -60,6 +60,59 @@ class InstallXrpServiceTest(unittest.TestCase):
     def test_main_is_written_last(self):
         self.assertEqual(list(INSTALLER.installation_files())[-1], "/main.py")
 
+    def test_matching_remote_file_is_left_unchanged(self):
+        class Transport:
+            def __init__(self):
+                self.writes = []
+
+            def fs_readfile(self, _path):
+                return b"expected"
+
+            def fs_writefile(self, path, data):
+                self.writes.append((path, data))
+
+        transport = Transport()
+
+        self.assertTrue(
+            INSTALLER._remote_file_matches(transport, "/main.py", b"expected")
+        )
+        self.assertEqual(transport.writes, [])
+
+    def test_replacement_is_verified_before_becoming_active(self):
+        class Transport:
+            def __init__(self):
+                self.files = {"/main.py": b"old"}
+                self.operations = []
+
+            def fs_writefile(self, path, data):
+                self.operations.append(("write", path))
+                self.files[path] = data
+
+            def fs_readfile(self, path):
+                self.operations.append(("read", path))
+                return self.files[path]
+
+            def exec(self, code):
+                self.operations.append(("code", code))
+                self.operations.append(("activate", "/main.py"))
+                self.files["/main.py"] = self.files.pop("/main.py.commissioning")
+
+        transport = Transport()
+        INSTALLER._replace_remote_file(transport, "/main.py", b"new")
+
+        self.assertEqual(transport.files["/main.py"], b"new")
+        self.assertLess(
+            transport.operations.index(("read", "/main.py.commissioning")),
+            transport.operations.index(("activate", "/main.py")),
+        )
+        activation_code = next(
+            operation[1]
+            for operation in transport.operations
+            if operation[0] == "code"
+        )
+        self.assertIn("os.rename", activation_code)
+        self.assertNotIn("os.remove", activation_code)
+
     def test_parses_only_a_usable_post_restart_address(self):
         self.assertEqual(
             INSTALLER.parse_device_address(

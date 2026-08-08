@@ -7,7 +7,13 @@ SparkFun RP2350 XRP.
 
 ## Open the applications
 
-Use Node.js 24.17.0 (`.nvmrc`), then run:
+Students normally open the public course site; no Node.js, Python, Git, or
+local web server is required:
+
+- [yonvisell.github.io/ucsbxrp](https://yonvisell.github.io/ucsbxrp/)
+
+For repository development, use the pinned Node.js 24.17.0 (`.nvmrc`), then
+run:
 
 ```sh
 npm install
@@ -19,22 +25,22 @@ npm run dev
 - XRP setup and repair: `http://127.0.0.1:5173/commission/`
 - Getting started: `http://127.0.0.1:5173/guide/`
 
-The IDE starts with the expanding-spiral demo. The **Project template** menu loads the five
-challenges, two sensor-driven robot demos, or a staged MicroPython tutorial as
-an ordinary editable project. The demos cover obstacle-triggered turning and
-an expanding spiral with two live parameters. Select **Virtual XRP** for
-immediate use or **Physical XRP** for a robot hotspot or an existing local
-network. Later starters retain all components introduced so far; students
-carry their completed methods forward and enable each named `USE_STUDENT_*`
-switch independently.
+The IDE starts with the expanding-spiral demo. **New project from template**
+creates any of the five challenges, two sensor-driven robot demos, or a staged
+MicroPython tutorial as an ordinary editable project. The demos cover
+obstacle-triggered turning and an expanding spiral with two live parameters.
+Select **Virtual XRP** for immediate use or **Physical XRP** for a robot
+hotspot or an existing local network. Later starters retain all components
+introduced so far; students carry their completed methods forward and enable
+each named `USE_STUDENT_*` switch independently.
 
 ## IDE workflow
 
 The IDE keeps a recoverable browser copy of the project. **Open folder** resumes
-a local project; **Save now** selects or immediately updates its folder. After
-a folder is selected, edits save there automatically after a short pause. The
+a local project; **Save** selects or immediately updates its folder. After a
+folder is selected, edits save there automatically after a short pause. The
 visible `UCSB_XRP_Autosaves` subfolder retains the four prior complete project
-states before overwrite. New, renamed, copied, and deleted files remain
+states before overwrite. New, renamed, duplicated, and deleted files remain
 project-relative, and the selected main Python file is saved in
 `.ucsb-xrp-project.json`. Chrome remembers the folder handle when permitted and
 otherwise offers a one-click reconnect; browser recovery never depends on that
@@ -55,7 +61,7 @@ separate output tabs.
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
-| Save now | `Command-S` | `Ctrl-S` |
+| Save | `Command-S` | `Ctrl-S` |
 | Validate | `Command-Shift-Enter` | `Ctrl-Shift-Enter` |
 | Run | `Command-Enter` | `Ctrl-Enter` |
 | Open settings | `Command-,` | `Ctrl-,` |
@@ -86,7 +92,10 @@ values appear below **Live values** in the right panel, exposing current modes,
 estimates, and error terms without periodic debug printing; telemetry remains
 the time-history mechanism.
 
-Recording is bounded to 30,000 samples. The exported CSV includes source,
+Recording retains the newest 30,000 samples: at least 10 minutes at the 50 Hz
+virtual rate and about 30 minutes at the usual 16–17 Hz physical rate. The
+Monitor shows the measured rate and corresponding time capacity while
+recording. The exported CSV includes source,
 pose availability, motion, encoders, collision, range, button, IMU,
 temperature, battery, and sensor errors with units in the column names. It uses
 seconds, radians, metres per second squared, and radians per second; course
@@ -97,8 +106,9 @@ When a folder is connected, every monitored run also writes aligned
 
 ## Set up or repair a physical XRP
 
-Open **Set up or repair XRP** on the landing page, or the same link in IDE
-Settings, using current desktop Chrome or Edge. The wizard:
+Open **Open wizard for XRP initial set up or repair** on the landing page, or
+**Set up or repair XRP** in IDE Settings, using current desktop Chrome or Edge
+on Windows or macOS. The wizard:
 
 1. connects a normal local project folder and waits for the complete offline
    web release;
@@ -123,7 +133,8 @@ files are not rewritten, changed files are replaced and hashed, the runtime is
 import-checked, and the selected network profile is normalized before reset.
 The browser must still show its own folder, serial-device, firmware-drive, and
 local-network permission controls; the web application cannot bypass those
-platform boundaries.
+platform boundaries. The implementation feature-detects each browser API and
+provides a direct explanation when the current browser or platform lacks it.
 
 For instructor automation or fleet maintenance, the equivalent command-line
 path remains available:
@@ -149,6 +160,28 @@ The installed service automatically reboots through a hardware watchdog if its
 shared MicroPython runtime ever locks; USB remains the fallback repair path.
 Detailed recovery and remaining floor-calibration work are in
 `docs/REMAINING_HARDWARE_AND_NETWORK_SETUP.md`.
+
+## Student version control
+
+Use a course-owned GitHub repository and the same local folder in both the
+UCSBXRP IDE and [GitHub Desktop](https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop).
+GitHub Desktop runs on current Windows and macOS and provides review, commit,
+pull, and push without a command-line Git installation. The student workflow
+is: clone once, open that cloned folder in the IDE, work normally with IDE
+autosave, then review and commit in GitHub Desktop.
+
+Uploading files through github.com is an installation-free fallback for
+defined milestones, but it is not continuous folder synchronization. The
+static UCSBXRP page deliberately never requests or stores a GitHub password or
+personal access token. Secure one-click repository synchronization would need
+a registered GitHub App and a course-operated token broker, which is
+unnecessary for the current workflow.
+
+GitHub Classroom is not the basis of this design because GitHub is
+[decommissioning it on August 28, 2026](https://github.blog/changelog/2026-05-26-github-classroom-sign-ups-are-no-longer-available/).
+Use ordinary repositories in a course organization; evaluate the replacement
+Classroom 50 service separately if its roster and assignment automation become
+useful.
 
 ## Course library
 
@@ -187,7 +220,11 @@ The web application and course release then operate locally without further
 exchange with the web host; robot commands and telemetry remain local network
 traffic. The saved release includes the applications, workers, MicroPython
 WebAssembly, course package, starters, and reference bytecode; private
-reference source is excluded. Local development deliberately reports
+reference source is excluded. While online, each page explicitly checks for a
+new complete release without reusing a stale service-worker response. A new
+release replaces the active cache only after every required asset is present;
+the preceding complete release remains available during an interrupted
+update. Local development deliberately reports
 **Development build** and does not save an offline browser copy, so stale
 assets do not hide changes.
 

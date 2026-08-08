@@ -181,29 +181,89 @@ kbd {
   line-height: 1.52;
 }
 
-.signal-chain {
-  display: flex;
+.api-map {
+  display: grid;
   max-width: 850px;
+  gap: 0.45rem;
+  margin: 0.9rem 0;
+}
+
+.api-main,
+.api-branches > div {
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid var(--line-bright);
+  border-radius: 3px;
+  padding: 0.45rem 0.52rem;
+  background: var(--panel);
+}
+
+.api-main strong,
+.api-branches strong {
+  color: var(--ink);
+  font-size: 0.66rem;
+}
+
+.api-main span,
+.api-branches span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.api-branches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.api-cycle {
+  display: flex;
   align-items: center;
   gap: 0.3rem;
   overflow-x: auto;
-  margin: 0.9rem 0;
-  padding-bottom: 0.3rem;
+  padding-bottom: 0.2rem;
 }
 
-.signal-chain span {
+.api-cycle span {
   flex: 0 0 auto;
-  border: 1px solid var(--line-bright);
+  border: 1px solid var(--line);
   border-radius: 3px;
-  padding: 0.38rem 0.44rem;
-  background: var(--panel);
+  padding: 0.34rem 0.42rem;
+  background: #f5f7f8;
   color: var(--ink);
   font-size: 0.6rem;
 }
 
-.signal-chain b {
+.api-cycle b {
   color: var(--quiet);
   font-weight: 400;
+}
+
+.command-guide {
+  display: grid;
+  max-width: 780px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0.8rem 0;
+  background: var(--line);
+}
+
+.command-guide > div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.5rem 0.58rem;
+  background: var(--panel);
+}
+
+.command-guide strong {
+  font-size: 0.68rem;
+}
+
+.command-guide span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
 }
 
 .source-links {
@@ -261,5 +321,10 @@ td:first-child {
 
   .guide-header .brand {
     min-width: auto;
+  }
+
+  .api-branches,
+  .command-guide {
+    grid-template-columns: 1fr;
   }
 }

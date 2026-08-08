@@ -36,6 +36,10 @@
   background: var(--panel);
 }
 
+.project-heading .panel-title {
+  font-weight: 700;
+}
+
 .project-heading .icon-button {
   min-width: 20px;
   min-height: 20px;
@@ -44,11 +48,14 @@
   background: transparent;
 }
 
+.project-controls {
+  border-top: 1px solid var(--line);
+}
+
 .project-actions {
   display: grid;
-  grid-template-columns: 1.2fr 0.9fr 0.9fr;
+  grid-template-columns: 1.25fr 0.9fr 0.65fr;
   gap: 3px;
-  border-bottom: 1px solid var(--line);
   padding: 3px;
 }
 
@@ -61,9 +68,21 @@
 
 .template-actions {
   display: grid;
-  grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 3px;
+}
+
+.template-control {
+  border-top: 1px solid var(--line);
+  padding: 3px;
+}
+
+.template-control > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  font-weight: 650;
 }
 
 .template-actions select {
@@ -82,36 +101,10 @@
   white-space: nowrap;
 }
 
-.project-summary {
-  display: grid;
-  gap: 2px;
-  border-bottom: 1px solid var(--line);
-  padding: 4px 6px;
-}
-
-.project-summary strong,
-.project-summary span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-summary strong {
-  color: var(--ink);
-  font-size: var(--font-sm);
-  font-weight: 650;
-}
-
-.project-summary span {
-  color: var(--quiet);
-  font-size: var(--font-xs);
-}
-
 .file-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3px;
-  border-bottom: 1px solid var(--line);
   padding: 3px;
 }
 
@@ -122,6 +115,7 @@
 }
 
 .file-list {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
 }
@@ -163,28 +157,21 @@
   font-weight: 600;
 }
 
-.project-storage,
-.course-release {
+.project-storage {
   display: grid;
   gap: 2px;
   border-top: 1px solid var(--line);
   padding: 4px 6px;
 }
 
-.project-storage {
-  margin-top: auto;
-}
-
-.project-storage span,
-.course-release span {
+.project-storage span {
   color: var(--quiet);
   font-size: var(--font-xs);
   font-weight: 800;
   letter-spacing: 0.03em;
 }
 
-.project-storage strong,
-.course-release strong {
+.project-storage strong {
   overflow: hidden;
   color: var(--muted);
   font-size: var(--font-xs);

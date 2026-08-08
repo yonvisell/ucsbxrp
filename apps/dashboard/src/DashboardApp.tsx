@@ -177,6 +177,11 @@ function vector(
     : "—";
 }
 
+function compactDuration(seconds: number): string {
+  if (seconds < 120) return `${Math.max(1, Math.round(seconds))} s`;
+  return `${Math.round(seconds / 60)} min`;
+}
+
 function centeredWorldPreview(
   source: TelemetrySample["source"],
 ): TelemetrySample {
@@ -251,6 +256,7 @@ export function DashboardApp() {
   const [runtimeUpdateError, setRuntimeUpdateError] = useState("");
   const [recordedSamples, setRecordedSamples] = useState(0);
   const [droppedSamples, setDroppedSamples] = useState(0);
+  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
   const [autosaveFolder, setAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
@@ -269,6 +275,7 @@ export function DashboardApp() {
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
+  const recordingStartedAt = useRef<number | null>(null);
 
   useEffect(() => {
     storeTargetPreference(targetPreference);
@@ -481,6 +488,11 @@ export function DashboardApp() {
         if (recorder.isRecording) {
           setRecordedSamples(recorder.sampleCount);
           setDroppedSamples(recorder.droppedSampleCount);
+          if (recordingStartedAt.current !== null) {
+            setRecordingElapsedMs(
+              performance.now() - recordingStartedAt.current,
+            );
+          }
         }
       } else if (event.type === "status") {
         const nextRunActive = isActiveRunState(event.state);
@@ -639,13 +651,19 @@ export function DashboardApp() {
 
   const startRecording = () => {
     recorder.start();
+    recordingStartedAt.current = performance.now();
     setRecordingActive(true);
     setRecordedSamples(0);
     setDroppedSamples(0);
+    setRecordingElapsedMs(0);
   };
 
   const stopRecording = () => {
     const recording = recorder.stop();
+    if (recordingStartedAt.current !== null) {
+      setRecordingElapsedMs(performance.now() - recordingStartedAt.current);
+    }
+    recordingStartedAt.current = null;
     setRecordingActive(false);
     setRecordedSamples(recording.samples.length);
     setDroppedSamples(recording.droppedSamples);
@@ -653,9 +671,11 @@ export function DashboardApp() {
 
   const clearRecording = () => {
     recorder.clear();
+    recordingStartedAt.current = null;
     setRecordingActive(false);
     setRecordedSamples(0);
     setDroppedSamples(0);
+    setRecordingElapsedMs(0);
   };
 
   const exportRecording = () => {
@@ -760,6 +780,14 @@ export function DashboardApp() {
     [target.kind],
   );
   const worldSample = sample?.poseAvailable ? sample : worldPreviewSample;
+  const capturedSampleCount = recordedSamples + droppedSamples;
+  const observedRecordingRateHz =
+    recordingElapsedMs >= 500 && capturedSampleCount > 1
+      ? (capturedSampleCount - 1) / (recordingElapsedMs / 1_000)
+      : null;
+  const recordingCapacity = observedRecordingRateHz
+    ? compactDuration(recorder.maximumSamples / observedRecordingRateHz)
+    : "10 min at 50 Hz";
 
   return (
     <div className="app-shell">
@@ -771,7 +799,7 @@ export function DashboardApp() {
         <div className="toolbar">
           <button
             aria-label={isRunning ? "Stop" : "Run"}
-            className={`monitor-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
+            className={`command-run-button monitor-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
             disabled={!isRunning && !canRunCurrent}
             onClick={runOrStop}
             title={
@@ -815,6 +843,15 @@ export function DashboardApp() {
             <span aria-hidden="true" className="header-link-separator">
               |
             </span>
+            <a
+              className="tool-link"
+              href="../guide/"
+              rel="noopener noreferrer"
+              target="_blank"
+              title="Open course guidance in a new tab."
+            >
+              Guide ↗
+            </a>
           </nav>
         </div>
         <div className="header-statuses">
@@ -1051,7 +1088,11 @@ export function DashboardApp() {
                   className="monitor-control-group"
                 >
                   <h2 id="recording-controls-title">Recording</h2>
-                  <div className="recording-summary" role="status">
+                  <div
+                    className="recording-summary"
+                    role="status"
+                    title="A rolling 30,000-sample buffer keeps recent telemetry in memory. Complete monitored runs also save to the selected folder."
+                  >
                     <strong className={recordingActive ? "active" : ""}>
                       {recordingActive
                         ? "Recording telemetry"
@@ -1060,7 +1101,11 @@ export function DashboardApp() {
                           : "Recorder ready"}
                     </strong>
                     <span data-testid="recording-count">
-                      {recordedSamples.toLocaleString()} / 30,000 samples
+                      {recordedSamples.toLocaleString()} samples
+                      {observedRecordingRateHz
+                        ? ` · ${observedRecordingRateHz.toFixed(1)} Hz`
+                        : ""}
+                      {` · ${recordingCapacity} capacity`}
                       {droppedSamples > 0
                         ? ` · ${droppedSamples.toLocaleString()} older dropped`
                         : ""}

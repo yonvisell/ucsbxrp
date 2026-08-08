@@ -344,8 +344,6 @@ async function writeDeviceFile(
   checkedResult(
     await session.execute(
       `f.close()\n` +
-        `try: os.remove(${pythonLiteral(destination)})\n` +
-        `except OSError: pass\n` +
         `os.rename(${pythonLiteral(temporary)},${pythonLiteral(destination)})\n` +
         `wd.feed()`,
     ),

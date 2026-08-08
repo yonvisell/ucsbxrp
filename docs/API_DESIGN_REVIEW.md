@@ -1,8 +1,8 @@
 # `ucsb_xrp` API design review
 
 The canonical package is `vendor/current/ucsb_xrp`. The retained reference
-source is one revisable implementation of the public contracts; it is not the
-specification.
+source is one revisable implementation of the required public behavior; it is
+not the specification.
 
 ## Retained decisions
 
@@ -32,7 +32,7 @@ specification.
   Individual starters choose explicit values appropriate to the task.
 - `DifferentialDrive`, exact-arc `Odometry`, `NavigationController`, and
   `GridPlanner` now have public bases, reference implementations, starters,
-  bytecode, CPython contracts, and browser MicroPython parity tests.
+  bytecode, CPython interface tests, and browser MicroPython parity tests.
 - `ArenaMap`, `OccupancyGrid`, `GridCell`, `GridPath`, `DeliveryTask`,
   `DeliveryMission`, and the measured `Robot` loop complete the five-challenge
   course path.

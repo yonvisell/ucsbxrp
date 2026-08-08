@@ -322,7 +322,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(dashboard.getByTestId("x-mm")).toHaveText("0.0 mm");
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
-  await ide.getByRole("button", { name: "Save now" }).click();
+  await ide.getByRole("button", { name: "Save", exact: true }).click();
   await ide.getByRole("tab", { name: "Status" }).click();
   await expect(
     ide.getByText(/Saved \d+ project files to browser-course-project\./),
@@ -336,7 +336,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       ).__savedCourseFiles["student/straight_line_controller.py"],
   );
   expect(savedController).toBe("");
-  await ide.getByRole("button", { name: "Open folder" }).click();
+  await ide.getByRole("button", { name: "Change folder" }).click();
   await expect(
     ide.getByText(
       /Opened browser-course-project: \d+ supported files(?:; \d+ items? skipped)?\./,
@@ -348,23 +348,25 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       name: "Open student/straight_line_controller.py",
     })
     .click();
-  await ide.getByRole("button", { name: "Copy", exact: true }).click();
+  await ide.getByRole("button", { name: "Duplicate", exact: true }).click();
   await expect(ide.getByLabel("Project-relative path")).toHaveValue(
     "student/straight_line_controller_copy.py",
   );
-  await ide.getByRole("button", { name: "Create copy" }).click();
+  await ide.getByRole("button", { name: "Duplicate file" }).click();
   await ide.getByRole("button", { name: "Rename", exact: true }).click();
   await ide
     .getByLabel("Project-relative path")
     .fill("student/controller_experiment.py");
   await ide.getByRole("button", { name: "Rename file" }).click();
   await ide.getByRole("button", { name: "Make main" }).click();
-  await expect(ide.getByText(/Main file:/)).toContainText(
-    "student/controller_experiment.py",
-  );
+  await expect(
+    ide.getByRole("button", {
+      name: "Open student/controller_experiment.py (main file)",
+    }),
+  ).toBeVisible();
   await ide.getByRole("button", { name: "Open main.py" }).click();
   await ide.getByRole("button", { name: "Make main" }).click();
-  await ide.getByRole("button", { name: "Save now" }).click();
+  await ide.getByRole("button", { name: "Save", exact: true }).click();
   await ide
     .getByRole("button", { name: "Open student/controller_experiment.py" })
     .click();
@@ -382,7 +384,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await deleteFileButton.press("Tab");
   await expect(keepFileButton).toBeFocused();
   await deleteFileButton.click();
-  await ide.getByRole("button", { name: "Save now" }).click();
+  await ide.getByRole("button", { name: "Save", exact: true }).click();
   await expect(ide.getByText(/removed 1 deleted file/)).toBeVisible();
   const savedProjectState = await ide.evaluate(() => {
     const saved = (
@@ -410,7 +412,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await guide.goto("/guide/");
   await expect(
     guide.getByRole("heading", {
-      name: "Use a physical RP2350 XRP",
+      name: "Physical XRP",
     }),
   ).toBeVisible();
   await expect(guide.getByText("DriveCommand(left, right)")).toBeVisible();

@@ -70,6 +70,7 @@ function result(stdout = "", stderr = ""): ReplResult {
 class FakeSession implements MicroPythonSession {
   readonly files: Map<string, Uint8Array>;
   readonly requiredModules: string[];
+  readonly commands: string[] = [];
   reset = false;
   closed = false;
   private temporaryPath = "";
@@ -84,6 +85,7 @@ class FakeSession implements MicroPythonSession {
   }
 
   async execute(code: string): Promise<ReplResult> {
+    this.commands.push(code);
     if (code.includes("__UCSB_XRP_INSPECTION__=")) {
       return result(
         `__UCSB_XRP_INSPECTION__=${JSON.stringify({
@@ -220,6 +222,11 @@ describe("browser XRP commissioning", () => {
       network: { ssid: "UCSB-XRP-1234", address: "192.168.42.1" },
     });
     expect(session.files.get("/lib/ucsb_xrp/example.py")).toEqual(courseFile);
+    const activation = session.commands.find((code) =>
+      code.includes('os.rename("/lib/ucsb_xrp/example.py.commissioning"'),
+    );
+    expect(activation).toContain("os.rename");
+    expect(activation).not.toContain("os.remove");
     expect(session.files.has("/xrp_wifi.json")).toBe(true);
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);

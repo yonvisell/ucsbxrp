@@ -30,10 +30,6 @@
   grid-template-rows: 22px minmax(0, 1fr) 23px;
 }
 
-.monitor-run-button {
-  margin-left: 2px;
-}
-
 .monitor-controls-cap {
   display: flex;
   min-width: 0;
@@ -572,6 +568,12 @@
 .world-overlay > span + span {
   border-left: 1px solid var(--line);
   padding-left: 6px;
+}
+
+.world-section-label {
+  color: var(--ink);
+  font-size: var(--font-xs);
+  font-weight: 700;
 }
 
 .world-overlay select {

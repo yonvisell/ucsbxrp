@@ -199,20 +199,22 @@ student project changes with the network choice.
 
 The public commissioning wizard is the normal physical-robot entrypoint.
 Students choose their project folder, connect an RP2350 XRP by USB-C, and use
-one idempotent setup/repair action. The browser checks firmware and required
+one safe-to-repeat setup/repair action. The browser checks firmware and required
 runtime versions, installs and read-verifies only changed course files, prepares
 the selected Wi-Fi profile, then opens the IDE on the verified physical target.
 New robots default to their unique hotspot; an existing robot keeps its working
 network unless the student changes it. Instructor command-line provisioning is
-an optional fleet interface to the same canonical file set.
+an optional fleet interface to the same exact release file set.
 
 ## Current implementation note
 
 No contradiction was found among the three active `v2_` documents. The current
 RP2350, firmware, portable reference bytecode, virtual-target path, and
 browser-to-robot LAN transport have been exercised in earlier releases. The
-dev.7 self-commissioning path is complete in the software harness and still
-requires its first attached-RP2350 pass. Reference algorithms
+dev.7 changed-only comparison, controlled one-file repair, full readback,
+runtime import, and reset path now pass on the attached RP2350. The remaining
+wizard observation is the public-origin native folder-picker, Web Serial, and
+local-network permission handoff. Reference algorithms
 remain revisable; course outcomes, units, component ownership, and the concise
 student workflow are the compatibility target. Physical floor calibration is
 kept in per-robot configuration rather than promoted into the public API.

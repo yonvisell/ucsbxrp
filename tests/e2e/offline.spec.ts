@@ -51,7 +51,7 @@ test("reloads the complete production course shell without a network", async ({
     "Virtual XRP · ready",
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
-  await ide.getByRole("button", { name: "Load", exact: true }).click();
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
   expect(
     await ide
       .getByRole("link", { name: /Guide/ })
@@ -145,7 +145,7 @@ test("reloads the complete production course shell without a network", async ({
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
     guide.getByRole("heading", {
-      name: "Use a physical RP2350 XRP",
+      name: "Physical XRP",
     }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);

@@ -156,6 +156,31 @@ def _ensure_remote_dirs(transport):
     )
 
 
+def _remote_file_matches(transport, destination, expected):
+    """Return whether one installed file already has the release bytes."""
+    try:
+        return transport.fs_readfile(destination) == expected
+    except OSError:
+        return False
+
+
+def _replace_remote_file(transport, destination, data):
+    """Write, verify, and then activate one replacement file."""
+    temporary = destination + ".commissioning"
+    transport.fs_writefile(temporary, data)
+    if transport.fs_readfile(temporary) != data:
+        raise InstallError("readback mismatch for " + destination)
+    transport.exec(
+        "import os\n"
+        "os.rename({temporary!r}, {destination!r})".format(
+            temporary=temporary,
+            destination=destination,
+        )
+    )
+    if transport.fs_readfile(destination) != data:
+        raise InstallError("readback mismatch for " + destination)
+
+
 def install(port):
     try:
         from mpremote.transport_serial import SerialTransport
@@ -169,7 +194,9 @@ def install(port):
         raise InstallError("service or course release files are incomplete")
 
     transport = None
+    files = []
     installed = []
+    unchanged = []
     try:
         transport = SerialTransport(port, timeout=12)
         enter_raw_repl(transport)
@@ -178,20 +205,19 @@ def install(port):
         feed_install_watchdog(transport)
         for destination, source in sources.items():
             data = source.read_bytes()
+            record = {
+                "path": destination,
+                "bytes": len(data),
+                "sha256": file_sha256(data),
+            }
+            files.append(record)
             feed_install_watchdog(transport)
-            transport.fs_writefile(destination, data)
+            if _remote_file_matches(transport, destination, data):
+                unchanged.append(record)
+                continue
+            _replace_remote_file(transport, destination, data)
             feed_install_watchdog(transport)
-            actual = transport.fs_readfile(destination)
-            if actual != data:
-                raise InstallError("readback mismatch for " + destination)
-            feed_install_watchdog(transport)
-            installed.append(
-                {
-                    "path": destination,
-                    "bytes": len(data),
-                    "sha256": file_sha256(data),
-                }
-            )
+            installed.append(record)
         transport.exec_raw_no_follow(
             "import machine; "
             "machine.WDT(timeout={}).feed(); "
@@ -210,7 +236,14 @@ def install(port):
                 # Readback has already completed and the LAN check below confirms
                 # that the new service booted.
                 pass
-    return {"address": read_address_after_restart(port), "files": installed}
+    return {
+        "address": read_address_after_restart(port),
+        "files": files,
+        "installed_files": installed,
+        "unchanged_files": unchanged,
+        "installed_count": len(installed),
+        "unchanged_count": len(unchanged),
+    }
 
 
 def install_with_usb_retry(port, attempts=USB_INSTALL_ATTEMPTS):

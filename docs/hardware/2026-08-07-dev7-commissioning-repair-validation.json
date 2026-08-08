@@ -1,0 +1,95 @@
+{
+  "date": "2026-08-07",
+  "purpose": "Validate the dev.7 onboarding and repair file path on the attached SparkFun RP2350 XRP without movement.",
+  "repository_base": "b30f9c68dc8c89a812a7a6338d7ec78ec19d740e",
+  "release": {
+    "course_release": "2026.08-dev.7",
+    "course_library": "0.4.0-dev",
+    "micropython": "1.28.0",
+    "machine": "SparkFun XRP Controller with RP2350",
+    "xrplib_board_import": true,
+    "commissioning_files": 23,
+    "commissioning_manifest_sha256": "228c07727806326c8f327054cdddecbaabdcbd0a67920cab6cd1856b339ab46a",
+    "installer_sha256": "332a43d16b4c2d4ff27e844da0305222d8b3b6162e654b7eaf31d76d0e6b28a3",
+    "browser_commissioner_sha256": "f04d605e5327d1c72474a1de6176a98e00a0ab671fc920de8ff8566b533d48eb"
+  },
+  "device": {
+    "port": "/dev/cu.usbmodem2101",
+    "usb_vendor_id": "0x1B4F",
+    "usb_product_id": "0x0046"
+  },
+  "network_profile_after_repair": {
+    "mode": "access_point",
+    "address": "192.168.42.1",
+    "service_reply_checked_from_laptop": false,
+    "reason": "The laptop remained on Pink rather than joining the XRP hotspot. The profile and address were read over USB."
+  },
+  "observations": [
+    {
+      "id": "first-content-comparison",
+      "result": "pass",
+      "installed_files": 4,
+      "unchanged_files": 19,
+      "detail": "The first attached-device pass updated only four stale release files and verified all 23 destinations."
+    },
+    {
+      "id": "initial-idempotent-repeat",
+      "result": "pass",
+      "installed_files": 0,
+      "unchanged_files": 23
+    },
+    {
+      "id": "controlled-single-file-repair",
+      "result": "pass",
+      "changed_path": "/lib/ucsb_xrp/utils.py",
+      "installed_files": 1,
+      "unchanged_files": 22,
+      "restored_sha256": "86a0840bb0bfd27135d7564c63b98eef664da8acf18ef823369dc578382a91d8"
+    },
+    {
+      "id": "rename-overwrite-behavior",
+      "result": "pass",
+      "detail": "Two temporary root files confirmed that os.rename(source, existing_destination) replaces the destination on this RP2350 filesystem. Temporary files were removed. Browser and command-line repair now verify the temporary payload and activate it with that single rename rather than deleting the working file first."
+    },
+    {
+      "id": "revised-activation-repair",
+      "result": "pass",
+      "changed_path": "/lib/ucsb_xrp/utils.py",
+      "installed_files": 1,
+      "unchanged_files": 22,
+      "detail": "A second comment-only alteration exercised the revised single-rename activation path on the physical board."
+    },
+    {
+      "id": "final-idempotent-repeat",
+      "result": "pass",
+      "installed_files": 0,
+      "unchanged_files": 23
+    },
+    {
+      "id": "runtime-import-verification",
+      "result": "pass",
+      "detail": "ucsb_xrp, ucsb_xrp_service.service, and XRPLib.board imported after repair with the expected versions."
+    },
+    {
+      "id": "normal-service-restart",
+      "result": "pass",
+      "detail": "The final USB session ended with a controller reset; the serial device re-enumerated."
+    }
+  ],
+  "browser_boundary": {
+    "stable_chrome_state_machine": "pass",
+    "real_chrome_folder_picker_opened": true,
+    "real_chrome_full_folder_to_web_serial_sequence": "not completed",
+    "detail": "The public wizard reached the native macOS project-folder chooser in the user's Chrome. The operating-system chooser appeared outside the controlled tab and was not automated further. The exact manifest, comparison, raw-REPL installation semantics, imports, reset, and network-profile read were exercised against the attached board through the equivalent command-line transport."
+  },
+  "firmware": {
+    "repair_needed": false,
+    "uf2_write_exercised": false,
+    "reason": "The attached controller already reported the exact pinned RP2350 MicroPython runtime; rewriting correct firmware would add no evidence. Firmware integrity and volume behavior remain covered by the browser harness."
+  },
+  "motion": {
+    "commands_issued": false,
+    "final_controller_action": "reset"
+  },
+  "credentials_recorded": false
+}

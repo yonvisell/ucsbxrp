@@ -4,6 +4,12 @@ This directory retains machine-readable observations from the attached
 SparkFun XRP Controller with RP2350. Records are evidence of what one device did
 with an exact software revision; they are not a checklist for students.
 
+`2026-08-07-dev7-commissioning-repair-validation.json` records the attached
+dev.7 changed-only install, no-change repetition, two deliberate one-file
+repairs, verified direct-rename activation, final runtime imports, and reset.
+It distinguishes those physical USB results from the still-uncompleted native
+macOS folder-picker-to-Web-Serial sequence in the public wizard.
+
 `2026-08-01-course-runtime-api-validation.json` records the UCSB-XRP 0.3
 package/reference installation and the compile, sync, zero-drive run,
 telemetry, stop, restart, and reset/reconnect lifecycle on the attached RP2350.

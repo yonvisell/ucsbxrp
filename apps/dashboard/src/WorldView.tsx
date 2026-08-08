@@ -485,6 +485,7 @@ export function WorldView({
         millimeters.
       </span>
       <div className="world-overlay">
+        <b className="world-section-label">World</b>
         {scenario && onScenarioChange ? (
           <select
             aria-label="Virtual scene"

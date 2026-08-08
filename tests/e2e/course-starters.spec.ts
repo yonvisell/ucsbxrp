@@ -11,7 +11,9 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
   await expect(page.getByLabel("Project template")).toHaveValue("demo_spiral");
-  await expect(page.getByTitle("Expanding spiral")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Open main.py (main file)" }),
+  ).toBeVisible();
 });
 
 for (const starter of starters) {
@@ -32,7 +34,7 @@ for (const starter of starters) {
       "Virtual XRP · ready",
     );
     await page.getByLabel("Project template").selectOption(starter.option);
-    await page.getByRole("button", { name: "Load", exact: true }).click();
+    await page.getByRole("button", { name: "Create", exact: true }).click();
     await page.getByRole("button", { name: "Validate" }).click();
     await expect(page.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
@@ -97,7 +99,7 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   await page
     .getByLabel("Project template")
     .selectOption("micropython_tutorial");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Open 7_finite_state_machine.py" }),
   ).toBeVisible();
@@ -112,7 +114,7 @@ test("loads and runs the staged MicroPython tutorial", async ({ page }) => {
   await page
     .getByLabel("Project template")
     .selectOption("micropython_tutorial");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Open 1_values_and_functions.py" }),
   ).toBeVisible();
@@ -141,7 +143,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
     "Virtual XRP · ready",
   );
   await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
-  await ide.getByRole("button", { name: "Load", exact: true }).click();
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
   await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
@@ -228,7 +230,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   );
 
   await ide.getByLabel("Project template").selectOption("demo_spiral");
-  await ide.getByRole("button", { name: "Load", exact: true }).click();
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
   await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
@@ -327,7 +329,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
     "Virtual XRP · ready",
   );
   await ide.getByLabel("Project template").selectOption("challenge_5");
-  await ide.getByRole("button", { name: "Load", exact: true }).click();
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText(
     "Challenge 5 result: delivered",
