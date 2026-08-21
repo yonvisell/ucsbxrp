@@ -340,6 +340,7 @@ export function SignalPlot({
       return;
     }
     const chart = echarts.init(elementRef.current, undefined, {
+      devicePixelRatio: Math.min(window.devicePixelRatio, 2),
       renderer: "canvas",
     });
     chartRef.current = chart;
@@ -381,7 +382,12 @@ export function SignalPlot({
         legend: {
           top: 1,
           right: 6,
-          textStyle: { color: "#3f4d55", fontSize: 8 },
+          itemGap: 7,
+          textStyle: {
+            color: "#3f4d55",
+            fontFamily: "system-ui, sans-serif",
+            fontSize: 9,
+          },
           icon: "roundRect",
           itemHeight: 4,
           itemWidth: 8,

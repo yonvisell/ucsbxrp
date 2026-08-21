@@ -732,7 +732,7 @@ export function CommissionApp() {
       <main className="commission-layout">
         <aside aria-label="Setup progress" className="commission-steps">
           {[
-            [1, "Workspace"],
+            [1, "Course folder"],
             [2, "XRP over USB"],
             [3, "Install and verify"],
             [4, "Verify robot connection"],
@@ -753,7 +753,7 @@ export function CommissionApp() {
           ))}
           <div className="commission-offline">
             <OfflineReadiness appName="Setup" />
-            {folder ? <small>Workspace: {folder.name}</small> : null}
+            {folder ? <small>Course folder: {folder.name}</small> : null}
           </div>
         </aside>
 

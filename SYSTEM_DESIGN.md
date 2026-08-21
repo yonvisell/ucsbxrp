@@ -488,15 +488,18 @@ pose fields remain, but new analysis uses explicit fields. The Monitor exposes
 target-versus-measured wheel speed and virtual odometry position error so an
 incorrect student estimator or controller cannot look correct merely because
 the simulator knows the true state. Integer encoder counts are the authoritative
-measurement on both targets. `SensorModel` owns both exact encoder-to-distance
-conversion and a time-aware regularized wheel-speed estimate. Exact wheel
-increments feed odometry; the same regularized speed feeds the wheel controller,
-telemetry, plots, and CSV. Cumulative left/right wheel distance is also carried
-from `Measurements` rather than reconstructed in the browser. This prevents a display-only filter from concealing
-the value that closed-loop code actually uses. The supplied implementation is
-a constant-memory first-order estimate configured by
-`wheel_speed_filter_time_constant_ms`; student checks require sensible
-attenuation and response without requiring that particular internal formula.
+measurement on both targets. `SensorModel` converts those sensor readings into
+two distinct results: exact signed wheel increments for odometry and a
+time-aware regularized wheel-speed estimate for feedback control. The supplied
+speed estimator fits cumulative wheel position over a short trailing time
+window and applies the response time selected by
+`wheel_speed_filter_time_constant_ms`. Its history is bounded by that configured
+window and the course sample period. The same regularized value feeds the wheel
+controller, telemetry, plots, and CSV; the browser does not substitute or
+smooth a different display-only value. Cumulative left/right wheel distance is
+likewise carried from `Measurements` rather than reconstructed in the browser.
+Student checks require sensible attenuation and response without requiring the
+supplied internal formula.
 
 Programs may add up to 16 numerical analysis signals with `live.plot`. A signal
 has a stable identifier, student-facing label, unit, and current finite value.

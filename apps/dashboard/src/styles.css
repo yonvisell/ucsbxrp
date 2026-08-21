@@ -510,7 +510,7 @@
   min-height: 0;
   grid-template-columns:
     minmax(0, var(--monitor-primary-width)) 5px
-    minmax(0, 1fr);
+    minmax(205px, 1fr);
   overflow: hidden;
 }
 
@@ -827,7 +827,8 @@
 
 .values-content {
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .live-values {
@@ -839,7 +840,7 @@
 .live-values > div {
   display: grid;
   min-height: 19px;
-  grid-template-columns: minmax(92px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
   gap: 6px;
   border-bottom: 1px solid var(--line);

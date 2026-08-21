@@ -18,6 +18,11 @@ class SensorModel(SensorModelBase):
         "_previous_left_count",
         "_previous_right_count",
         "_previous_time_ms",
+        "_elapsed_s",
+        "_speed_times_s",
+        "_left_speed_positions_mm",
+        "_right_speed_positions_mm",
+        "_speed_window_s",
         "_left_speed_mm_s",
         "_right_speed_mm_s",
         "_has_reset",
@@ -33,6 +38,14 @@ class SensorModel(SensorModelBase):
         self._previous_left_count = 0
         self._previous_right_count = 0
         self._previous_time_ms = 0
+        self._elapsed_s = 0.0
+        self._speed_times_s = []
+        self._left_speed_positions_mm = []
+        self._right_speed_positions_mm = []
+        self._speed_window_s = max(
+            4.0 * config.sample_period_ms,
+            config.wheel_speed_filter_time_constant_ms,
+        ) / 1000.0
         self._left_speed_mm_s = 0.0
         self._right_speed_mm_s = 0.0
         self._has_reset = False
@@ -45,6 +58,10 @@ class SensorModel(SensorModelBase):
         self._previous_left_count = raw.left_encoder_count
         self._previous_right_count = raw.right_encoder_count
         self._previous_time_ms = raw.time_ms
+        self._elapsed_s = 0.0
+        self._speed_times_s = [0.0]
+        self._left_speed_positions_mm = [0.0]
+        self._right_speed_positions_mm = [0.0]
         self._left_speed_mm_s = 0.0
         self._right_speed_mm_s = 0.0
         self._has_reset = True
@@ -90,9 +107,23 @@ class SensorModel(SensorModelBase):
         self._previous_time_ms = raw.time_ms
 
         if dt_s > 0.0:
+            self._elapsed_s += dt_s
             alpha = self._speed_filter_weight(dt_s)
-            left_observation_mm_s = left_increment_mm / dt_s
-            right_observation_mm_s = right_increment_mm / dt_s
+            if alpha == 1.0:
+                left_observation_mm_s = left_increment_mm / dt_s
+                right_observation_mm_s = right_increment_mm / dt_s
+            else:
+                self._append_speed_sample(
+                    self._elapsed_s,
+                    left_position_mm,
+                    right_position_mm,
+                )
+                left_observation_mm_s = self._position_slope(
+                    self._left_speed_positions_mm
+                )
+                right_observation_mm_s = self._position_slope(
+                    self._right_speed_positions_mm
+                )
             self._left_speed_mm_s += alpha * (
                 left_observation_mm_s - self._left_speed_mm_s
             )
@@ -149,6 +180,39 @@ class SensorModel(SensorModelBase):
         if time_constant_s == 0.0:
             return 1.0
         return dt_s / (time_constant_s + dt_s)
+
+    def _append_speed_sample(self, time_s, left_position_mm, right_position_mm):
+        """Keep a short trailing position history for wheel-speed estimation."""
+        self._speed_times_s.append(time_s)
+        self._left_speed_positions_mm.append(left_position_mm)
+        self._right_speed_positions_mm.append(right_position_mm)
+        earliest_s = time_s - self._speed_window_s
+        while (
+            len(self._speed_times_s) > 2
+            and self._speed_times_s[1] <= earliest_s
+        ):
+            self._speed_times_s.pop(0)
+            self._left_speed_positions_mm.pop(0)
+            self._right_speed_positions_mm.pop(0)
+
+    def _position_slope(self, positions_mm):
+        """Return the least-squares slope of recent position versus time."""
+        count = len(self._speed_times_s)
+        if count < 2:
+            return 0.0
+        mean_time_s = sum(self._speed_times_s) / count
+        mean_position_mm = sum(positions_mm) / count
+        numerator = 0.0
+        denominator = 0.0
+        for index in range(count):
+            centered_time_s = self._speed_times_s[index] - mean_time_s
+            numerator += centered_time_s * (
+                positions_mm[index] - mean_position_mm
+            )
+            denominator += centered_time_s * centered_time_s
+        if denominator == 0.0:
+            return 0.0
+        return numerator / denominator
 
     @staticmethod
     def _require_raw(raw):

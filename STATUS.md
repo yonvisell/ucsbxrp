@@ -4,6 +4,24 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 33 corrects the newly visible encoder-quantization ripple at its
+source. The Monitor had begun plotting the course `SensorModel` estimate used
+by the wheel controller rather than a simulator-only smooth value, which made
+the integer-count derivative visible. The supplied implementation now estimates
+speed from a short trailing fit of cumulative wheel position versus time and
+then applies the configured time-based response filter. Exact signed wheel
+increments remain unchanged for odometry. A quantized 90 mm/s regression test
+requires the settled estimate to retain its mean while reducing peak-to-peak
+ripple below 4 mm/s; direct Chrome simulation shows the measured traces tracking
+the targets without the former jagged steps.
+
+The same slice makes the Monitor's telemetry column fit without horizontal
+clipping, renders plot legends at the display pixel ratio with a consistent UI
+font, and replaces the final setup-wizard uses of **workspace** with **course
+folder**. The coordinated course and service release is `2026.08-dev.11`.
+All 135 Python tests, 140 TypeScript tests, MicroPython source/bytecode parity,
+the production build, commissioning bundle, and 208-file offline shell pass.
+
 Refinement 32 replaces the provisional API matrix with conventional
 student-facing reference documentation. Each student component now has a
 literal purpose, source file and base class, state retained between calls,

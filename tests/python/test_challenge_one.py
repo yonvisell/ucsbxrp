@@ -77,23 +77,18 @@ class SensorModelContractTests(unittest.TestCase):
         self.assertAlmostEqual(first.right_position_mm, 15.0)
         self.assertAlmostEqual(first.left_increment_mm, 10.0)
         self.assertAlmostEqual(first.right_increment_mm, 15.0)
-        self.assertAlmostEqual(first.left_speed_mm_s, 40.0 * 0.25 / 0.35)
-        self.assertAlmostEqual(first.right_speed_mm_s, 60.0 * 0.25 / 0.35)
+        self.assertGreater(first.left_speed_mm_s, 0.0)
+        self.assertLess(first.left_speed_mm_s, 40.0)
+        self.assertGreater(first.right_speed_mm_s, 0.0)
+        self.assertLess(first.right_speed_mm_s, 60.0)
         self.assertAlmostEqual(second.left_position_mm, 16.0)
         self.assertAlmostEqual(second.right_position_mm, 20.0)
         self.assertAlmostEqual(second.left_increment_mm, 6.0)
         self.assertAlmostEqual(second.right_increment_mm, 5.0)
-        second_weight = 0.1 / 0.2
-        self.assertAlmostEqual(
-            second.left_speed_mm_s,
-            first.left_speed_mm_s
-            + second_weight * (60.0 - first.left_speed_mm_s),
-        )
-        self.assertAlmostEqual(
-            second.right_speed_mm_s,
-            first.right_speed_mm_s
-            + second_weight * (50.0 - first.right_speed_mm_s),
-        )
+        self.assertGreater(second.left_speed_mm_s, first.left_speed_mm_s)
+        self.assertGreater(second.right_speed_mm_s, 0.0)
+        self.assertLess(second.left_speed_mm_s, 60.0)
+        self.assertLess(second.right_speed_mm_s, 60.0)
 
     def test_speed_estimate_rejects_one_count_spikes_and_settles(self):
         model = SensorModel(
@@ -116,6 +111,24 @@ class SensorModelContractTests(unittest.TestCase):
         stopped = model.update(RawSensors(620, 30, -30, None, False))
         self.assertGreater(stopped.left_speed_mm_s, 0.0)
         self.assertLess(stopped.left_speed_mm_s, latest.left_speed_mm_s)
+
+    def test_speed_estimate_reduces_encoder_quantization_ripple(self):
+        model = SensorModel(
+            one_mm_per_count_config(wheel_speed_filter_time_constant_ms=80.0)
+        )
+        model.reset(RawSensors(0, 0, 0, None, False))
+
+        settled = []
+        for index in range(1, 101):
+            count = round(index * 1.8)
+            result = model.update(
+                RawSensors(index * 20, count, -count, None, False)
+            )
+            if index > 60:
+                settled.append(result.left_speed_mm_s)
+
+        self.assertAlmostEqual(sum(settled) / len(settled), 90.0, delta=0.5)
+        self.assertLess(max(settled) - min(settled), 4.0)
 
     def test_no_positive_elapsed_time_keeps_travel_but_reports_zero_speed(self):
         model = SensorModel(one_mm_per_count_config())

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release_id": "2026.08-dev.10",
+  "release_id": "2026.08-dev.11",
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.4-draft",
@@ -49,9 +49,9 @@
       {
         "path": "reference_mpy/ucsb_xrp_reference/challenge_1.mpy",
         "source": "reference_source/ucsb_xrp_reference/challenge_1.py",
-        "source_sha256": "51e86486eba8fd695c2a5297b12adc6c64e42d206da5c2e2d971dfb6908e4ca4",
-        "byte_size": 2580,
-        "sha256": "aac96b68314d09c7d94ad327ca107fde161a4f42c856efe120c5c9f6cc9e30e3"
+        "source_sha256": "191476b8de3add3df6a135316bb7d7b0b3c0ff841be7151da05b8081a2bb36ee",
+        "byte_size": 3277,
+        "sha256": "4b8c8cda281e9bc1478018f64b25f42db5db2b16b7191382bade1ca89d21fa44"
       },
       {
         "path": "reference_mpy/ucsb_xrp_reference/challenge_2.mpy",

@@ -1050,8 +1050,8 @@ export function ReferenceApp() {
 
           <ReferenceSection id="worlds" title="Project worlds">
             <p>
-              Each project owns a <code>world.json</code> file. It defines one
-              or more world choices, world bounds, initial pose, rectangular
+              Each project includes a <code>world.json</code> file. It defines
+              one or more world choices, world bounds, initial pose, rectangular
               obstacles, named changeable features, and visual markers such as
               start lines, start boxes, and waypoints. The IDE transfers this
               file with the project; the Monitor uses the same definition.
