@@ -126,15 +126,15 @@ IDE and presents only available data. It contains:
   500 mm x/y values, robot pose, heading, trail, range ray, obstacle, contact
   state, and arena/XRP zoom views;
 - a compact collapsible sidebar with selectable 2–30 second histories of wheel
-  speed, dimensionless drive command, forward range, acceleration, and yaw
-  rate;
+  speed, dimensionless drive command, simulation-only odometry comparison,
+  forward range, acceleration, and yaw rate;
+- a permanently open Live controls region above the telemetry values for
+  bounded numeric, Boolean, and choice parameters;
 - live pose, drive commands, ultrasound distance, acceleration, and yaw rate,
   followed by a separated device-state group for the USER button, motor supply,
   IMU temperature, and encoder counts;
-- a permanently open Live controls region below the history window for bounded
-  numeric, Boolean, and choice parameters;
 - named program watch values below the sensor values in the right panel;
-- program and service output; and
+- separate persistent Program output and System log streams;
 - bounded telemetry recording and deterministic CSV export;
 - timestamped notes shared by the world, strip plots, plot exports, and run
   metadata; and
@@ -145,7 +145,8 @@ IDE and presents only available data. It contains:
 
 The world/values, plots/output, and upper/lower allocations have independent
 pointer- and keyboard-operable separators whose positions persist locally.
-The virtual scene control sits in the world itself; target selection and the
+The virtual scene and zoom controls share a compact toolbar above the world;
+target selection and the
 physical endpoint remain shared IDE settings rather than duplicated Monitor
 controls. Environment selection resets virtual state and is disabled while a
 project is running. A physical target shows a world pose only when the course
@@ -447,7 +448,9 @@ measured wheel speeds, and final normalized drive commands. Compatibility
 pose fields remain, but new analysis uses explicit fields. The Monitor exposes
 target-versus-measured wheel speed and virtual odometry position error so an
 incorrect student estimator or controller cannot look correct merely because
-the simulator knows the true state.
+the simulator knows the true state. Integer encoder counts are the authoritative
+measurement on both targets. The wheel-speed chart applies a labeled 120 ms
+display mean to that quantized signal; recording and CSV preserve raw samples.
 
 ## 10. Install and export boundaries
 

@@ -146,7 +146,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await ide.goto("/ide/");
   const dashboard = await context.newPage();
   collectBrowserErrors(dashboard, browserErrors);
-  await dashboard.goto("/dashboard/");
+  await dashboard.goto("/monitor/");
 
   const ideStatus = ide.getByTestId("target-status");
   const dashboardStatus = dashboard.getByTestId("target-status");
@@ -196,7 +196,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     });
   expect(ideHeaderColors).toEqual({
     mark: "rgb(0, 88, 138)",
-    run: "rgb(0, 88, 138)",
+    run: "rgb(238, 240, 242)",
   });
   const conciseStatus = ide.locator(".status-grid");
   await expect(
@@ -250,8 +250,11 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     dashboard.getByText("World", { exact: true }).boundingBox(),
     dashboard.getByLabel("Virtual scene").boundingBox(),
   ]);
-  expect(sceneSelectBox?.y).toBeGreaterThan(
-    (worldLabelBox?.y ?? 0) + (worldLabelBox?.height ?? 0) - 1,
+  expect(
+    Math.abs((sceneSelectBox?.y ?? 0) - (worldLabelBox?.y ?? 0)),
+  ).toBeLessThanOrEqual(3);
+  expect(sceneSelectBox?.x).toBeGreaterThan(
+    (worldLabelBox?.x ?? 0) + (worldLabelBox?.width ?? 0),
   );
   const telemetryLabels = await dashboard
     .locator(".live-values dt")
@@ -514,7 +517,7 @@ while True:
   await ide.goto("/ide/");
   const monitor = await context.newPage();
   collectBrowserErrors(monitor, browserErrors);
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
   expect(browserErrors).toEqual([]);
 
   await expect(ide.getByTestId("target-status")).toContainText(
@@ -592,7 +595,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
     "aria-label",
     "UCSBXRP IDE",
   );
-  await expect(ide.locator(".brand")).toHaveText("UCSBXRP IDE");
+  await expect(ide.locator(".brand")).toHaveText("UCSBXRP|IDE");
   const [narrowHeaderBox, narrowToolbarBox, narrowTargetBox] =
     await Promise.all([
       ide.locator(".app-header").boundingBox(),

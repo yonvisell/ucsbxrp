@@ -16,10 +16,18 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("runs the default project directly from a fresh Monitor", async ({
+test("keeps the former dashboard address as a Monitor redirect", async ({
   page,
 }) => {
   await page.goto("/dashboard/");
+  await expect(page).toHaveURL(/\/monitor\/$/);
+  await expect(page).toHaveTitle("UCSBXRP Monitor");
+});
+
+test("runs the default project directly from a fresh Monitor", async ({
+  page,
+}) => {
+  await page.goto("/monitor/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -215,7 +223,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
 }) => {
   test.setTimeout(50_000);
   const monitor = await context.newPage();
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -230,7 +238,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
   );
-  const liveProgram = monitor.locator(".live-program-group");
+  const liveProgram = monitor.locator(".live-controls-panel");
   await expect(liveProgram).toBeVisible();
   await expect(liveProgram.locator("summary")).toHaveCount(0);
   await expect(liveProgram).toContainText("5 controls");
@@ -317,11 +325,11 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
 
   // Opening the Monitor after Run is the natural path from the IDE link.
   const monitor = await context.newPage();
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
   );
-  const liveControls = monitor.locator(".live-program-group");
+  const liveControls = monitor.locator(".live-controls-panel");
   await expect(liveControls).toContainText("2 controls");
 
   const speed = liveControls.getByRole("slider", { name: "Forward speed" });
@@ -393,7 +401,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
     });
   }
 
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );

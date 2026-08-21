@@ -259,6 +259,164 @@ function compactDuration(seconds: number): string {
   return `${Math.round(seconds / 60)} min`;
 }
 
+interface RuntimeControlsProps {
+  drafts: Record<string, RuntimeParameterValue>;
+  error: string;
+  onChange(
+    name: string,
+    value: RuntimeParameterValue,
+    debounce?: boolean,
+  ): void;
+  runtime: RuntimeState;
+  targetState: TargetRunState;
+}
+
+function RuntimeControls({
+  drafts,
+  error,
+  onChange,
+  runtime,
+  targetState,
+}: RuntimeControlsProps) {
+  return (
+    <section
+      aria-labelledby="live-controls-title"
+      className="live-controls-panel"
+    >
+      <div
+        className="live-program-heading"
+        title="Adjust parameters declared by the running program."
+      >
+        <h2 id="live-controls-title">Live controls</h2>
+        <small>
+          {runtime.parameters.length > 0
+            ? `${runtime.parameters.length} controls`
+            : "none"}
+        </small>
+      </div>
+      <div className="live-program-content">
+        {runtime.parameters.length === 0 ? (
+          <p className="live-program-empty">No controls in this program.</p>
+        ) : (
+          <div
+            aria-label="Live control parameters"
+            className="runtime-parameters"
+          >
+            {runtime.parameters.map((parameter) => {
+              const shownValue =
+                drafts[parameter.name] ??
+                parameter.pendingValue ??
+                parameter.value;
+              if (parameter.kind === "number") {
+                const shownNumber = Number(shownValue);
+                const shownText = shownNumber.toLocaleString(undefined, {
+                  maximumFractionDigits: 4,
+                });
+                return (
+                  <label
+                    className="runtime-number"
+                    data-pending={
+                      parameter.pendingValue !== undefined ||
+                      drafts[parameter.name] !== undefined
+                    }
+                    data-runtime-parameter={parameter.name}
+                    data-runtime-value={shownText}
+                    key={parameter.name}
+                    title={`Adjust ${parameter.label.toLowerCase()} while the program runs. The value is applied at its next sample boundary.`}
+                  >
+                    <span>{parameter.label}</span>
+                    <output
+                      aria-label={`${parameter.label} ${shownText}${parameter.unit ? ` ${parameter.unit}` : ""}`}
+                    >
+                      {shownText}
+                      {parameter.unit ? ` ${parameter.unit}` : ""}
+                    </output>
+                    <input
+                      aria-label={parameter.label}
+                      disabled={targetState !== "running"}
+                      max={parameter.maximum}
+                      min={parameter.minimum}
+                      onChange={(event) =>
+                        onChange(
+                          parameter.name,
+                          Number(event.target.value),
+                          true,
+                        )
+                      }
+                      step={parameter.step}
+                      type="range"
+                      value={shownNumber}
+                    />
+                  </label>
+                );
+              }
+              if (parameter.kind === "toggle") {
+                return (
+                  <label
+                    className="runtime-toggle"
+                    data-pending={
+                      parameter.pendingValue !== undefined ||
+                      drafts[parameter.name] !== undefined
+                    }
+                    data-runtime-parameter={parameter.name}
+                    data-runtime-value={String(shownValue)}
+                    key={parameter.name}
+                    title={`Turn ${parameter.label.toLowerCase()} on or off while the program runs.`}
+                  >
+                    <span>{parameter.label}</span>
+                    <input
+                      checked={Boolean(shownValue)}
+                      disabled={targetState !== "running"}
+                      onChange={(event) =>
+                        onChange(parameter.name, event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                  </label>
+                );
+              }
+              return (
+                <fieldset
+                  className="runtime-choice"
+                  data-pending={
+                    parameter.pendingValue !== undefined ||
+                    drafts[parameter.name] !== undefined
+                  }
+                  data-runtime-parameter={parameter.name}
+                  data-runtime-value={String(shownValue)}
+                  key={parameter.name}
+                  title={`Choose ${parameter.label.toLowerCase()} while the program runs.`}
+                >
+                  <legend>{parameter.label}</legend>
+                  <div>
+                    {parameter.options?.map((option) => (
+                      <label key={option}>
+                        <input
+                          checked={shownValue === option}
+                          disabled={targetState !== "running"}
+                          name={`runtime-${parameter.name}`}
+                          onChange={() => onChange(parameter.name, option)}
+                          type="radio"
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
+          </div>
+        )}
+        {error ? (
+          <p className="runtime-update-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function centeredWorldPreview(
   source: TelemetrySample["source"],
 ): TelemetrySample {
@@ -1046,7 +1204,11 @@ export function DashboardApp() {
       <header className="app-header">
         <div className="brand" aria-label="UCSBXRP Monitor">
           <span className="brand-mark">UCSB</span>
-          <span className="brand-name">XRP Monitor</span>
+          <span className="brand-xrp">XRP</span>
+          <span aria-hidden="true" className="brand-separator">
+            |
+          </span>
+          <span className="brand-product">Monitor</span>
         </div>
         <div className="toolbar">
           <button
@@ -1203,149 +1365,6 @@ export function DashboardApp() {
                       value={monitorSettings.timeWindowS}
                     />
                   </label>
-                </section>
-
-                <section
-                  aria-labelledby="live-controls-title"
-                  className="monitor-control-group live-program-group"
-                >
-                  <div
-                    className="live-program-heading"
-                    title="Adjust parameters declared by the running program."
-                  >
-                    <h2 id="live-controls-title">Live controls</h2>
-                    <small>{runtimeState.parameters.length} controls</small>
-                  </div>
-                  <div className="live-program-content">
-                    {runtimeState.parameters.length === 0 ? (
-                      <p className="live-program-empty">
-                        A running project can declare compact controls here.
-                      </p>
-                    ) : (
-                      <div
-                        aria-label="Live control parameters"
-                        className="runtime-parameters"
-                      >
-                        {runtimeState.parameters.map((parameter) => {
-                          const shownValue =
-                            runtimeDrafts[parameter.name] ??
-                            parameter.pendingValue ??
-                            parameter.value;
-                          if (parameter.kind === "number") {
-                            const shownNumber = Number(shownValue);
-                            const shownText = shownNumber.toLocaleString(
-                              undefined,
-                              { maximumFractionDigits: 4 },
-                            );
-                            return (
-                              <label
-                                className="runtime-number"
-                                data-pending={
-                                  parameter.pendingValue !== undefined ||
-                                  runtimeDrafts[parameter.name] !== undefined
-                                }
-                                data-runtime-parameter={parameter.name}
-                                data-runtime-value={shownText}
-                                key={parameter.name}
-                                title={`Adjust ${parameter.label.toLowerCase()} while the program runs. The value is applied at its next sample boundary.`}
-                              >
-                                <span>{parameter.label}</span>
-                                <output
-                                  aria-label={`${parameter.label} ${shownText}${parameter.unit ? ` ${parameter.unit}` : ""}`}
-                                >
-                                  {shownText}
-                                  {parameter.unit ? ` ${parameter.unit}` : ""}
-                                </output>
-                                <input
-                                  aria-label={parameter.label}
-                                  disabled={targetState !== "running"}
-                                  max={parameter.maximum}
-                                  min={parameter.minimum}
-                                  onChange={(event) =>
-                                    setRuntimeParameter(
-                                      parameter.name,
-                                      Number(event.target.value),
-                                      true,
-                                    )
-                                  }
-                                  step={parameter.step}
-                                  type="range"
-                                  value={shownNumber}
-                                />
-                              </label>
-                            );
-                          }
-                          if (parameter.kind === "toggle") {
-                            return (
-                              <label
-                                className="runtime-toggle"
-                                data-pending={
-                                  parameter.pendingValue !== undefined ||
-                                  runtimeDrafts[parameter.name] !== undefined
-                                }
-                                data-runtime-parameter={parameter.name}
-                                data-runtime-value={String(shownValue)}
-                                key={parameter.name}
-                                title={`Turn ${parameter.label.toLowerCase()} on or off while the program runs.`}
-                              >
-                                <span>{parameter.label}</span>
-                                <input
-                                  checked={Boolean(shownValue)}
-                                  disabled={targetState !== "running"}
-                                  onChange={(event) =>
-                                    setRuntimeParameter(
-                                      parameter.name,
-                                      event.target.checked,
-                                    )
-                                  }
-                                  type="checkbox"
-                                />
-                              </label>
-                            );
-                          }
-                          return (
-                            <fieldset
-                              className="runtime-choice"
-                              data-pending={
-                                parameter.pendingValue !== undefined ||
-                                runtimeDrafts[parameter.name] !== undefined
-                              }
-                              data-runtime-parameter={parameter.name}
-                              data-runtime-value={String(shownValue)}
-                              key={parameter.name}
-                              title={`Choose ${parameter.label.toLowerCase()} while the program runs.`}
-                            >
-                              <legend>{parameter.label}</legend>
-                              <div>
-                                {parameter.options?.map((option) => (
-                                  <label key={option}>
-                                    <input
-                                      checked={shownValue === option}
-                                      disabled={targetState !== "running"}
-                                      name={`runtime-${parameter.name}`}
-                                      onChange={() =>
-                                        setRuntimeParameter(
-                                          parameter.name,
-                                          option,
-                                        )
-                                      }
-                                      type="radio"
-                                    />
-                                    <span>{option}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </fieldset>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {runtimeUpdateError ? (
-                      <p className="runtime-update-error" role="alert">
-                        {runtimeUpdateError}
-                      </p>
-                    ) : null}
-                  </div>
                 </section>
 
                 <section
@@ -1557,6 +1576,13 @@ export function DashboardApp() {
             />
 
             <section className="values-panel dashboard-pane">
+              <RuntimeControls
+                drafts={runtimeDrafts}
+                error={runtimeUpdateError}
+                onChange={setRuntimeParameter}
+                runtime={runtimeState}
+                targetState={targetState}
+              />
               <div className="section-heading">
                 <h2>Live telemetry</h2>
               </div>
@@ -1566,17 +1592,17 @@ export function DashboardApp() {
                     {groundTruthPose ? (
                       <>
                         <div title="Simulator ground-truth x position in millimeters.">
-                          <dt>actual x</dt>
+                          <dt>simulator true x</dt>
                           <dd data-testid="x-mm">
                             {value(groundTruthPose.x)} mm
                           </dd>
                         </div>
                         <div title="Simulator ground-truth y position in millimeters.">
-                          <dt>actual y</dt>
+                          <dt>simulator true y</dt>
                           <dd>{value(groundTruthPose.y)} mm</dd>
                         </div>
                         <div title="Simulator ground-truth counterclockwise heading from world +x.">
-                          <dt>actual heading θ</dt>
+                          <dt>simulator true heading θ</dt>
                           <dd>{value(groundTruthPose.heading, 3)} rad</dd>
                         </div>
                       </>
@@ -1601,8 +1627,8 @@ export function DashboardApp() {
                         </div>
                       </>
                     ) : null}
-                    <div title="Wheel speeds measured by the course sensor and control loop.">
-                      <dt>wheel speed L/R</dt>
+                    <div title="Wheel speeds calculated from successive encoder counts. Signal plots show a short display average; telemetry recordings retain each sample.">
+                      <dt>encoder wheel speed L/R</dt>
                       <dd data-testid="left-speed">
                         {value(sample.leftWheelSpeedMmS)} /{" "}
                         {value(sample.rightWheelSpeedMmS)} mm/s
@@ -1621,7 +1647,7 @@ export function DashboardApp() {
                     {sample.requestedForwardSpeedMmS != null ||
                     sample.requestedTurnRateRadS != null ? (
                       <div title="Forward speed and turn rate requested by the running program.">
-                        <dt>requested v / ω</dt>
+                        <dt>requested speed v / yaw rate ω</dt>
                         <dd>
                           {value(sample.requestedForwardSpeedMmS ?? null)} mm/s
                           · {value(sample.requestedTurnRateRadS ?? null, 3)}{" "}

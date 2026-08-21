@@ -13,7 +13,7 @@ export function GuideApp() {
           <a className="tool-link" href="../commission/">
             Set up / repair XRP
           </a>
-          <a className="tool-link" href="../dashboard/">
+          <a className="tool-link" href="../monitor/">
             Open XRP Monitor
           </a>
         </nav>
@@ -60,9 +60,9 @@ export function GuideApp() {
                   running invalid code.
                 </li>
                 <li>
-                  Open the <a href="../dashboard/">XRP Monitor</a> in another
-                  tab to watch the robot, signals, and program output. Run and
-                  Stop work from either app.
+                  Open the <a href="../monitor/">XRP Monitor</a> in another tab
+                  to watch the robot, signals, and program output. Run and Stop
+                  work from either app.
                 </li>
               </ol>
               <p>

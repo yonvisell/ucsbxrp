@@ -21,7 +21,7 @@ npm run dev
 ```
 
 - IDE: `http://127.0.0.1:5173/ide/`
-- XRP Monitor: `http://127.0.0.1:5173/dashboard/`
+- XRP Monitor: `http://127.0.0.1:5173/monitor/`
 - XRP setup and repair: `http://127.0.0.1:5173/commission/`
 - Getting started: `http://127.0.0.1:5173/guide/`
 

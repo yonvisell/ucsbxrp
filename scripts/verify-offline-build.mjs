@@ -43,6 +43,7 @@ assert.equal(
 for (const requiredPath of [
   "index.html",
   "ide/index.html",
+  "monitor/index.html",
   "dashboard/index.html",
   "guide/index.html",
   "commission/index.html",
@@ -107,6 +108,7 @@ assert.deepEqual(
 for (const entryPath of [
   "index.html",
   "ide/index.html",
+  "monitor/index.html",
   "dashboard/index.html",
   "guide/index.html",
   "commission/index.html",

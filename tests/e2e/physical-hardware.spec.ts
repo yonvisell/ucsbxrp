@@ -57,7 +57,7 @@ test("IDE and Monitor share the retained physical XRP project lifecycle", async 
   collectBrowserErrors(ide, errors);
   collectBrowserErrors(monitor, errors);
   await ide.goto("/ide/");
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
 
   const ideStatus = ide.getByTestId("target-status");
   const monitorStatus = monitor.getByTestId("target-status");

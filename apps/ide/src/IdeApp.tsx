@@ -1242,7 +1242,11 @@ export function IdeApp() {
       <header className="app-header">
         <div className="brand" aria-label="UCSBXRP IDE">
           <span className="brand-mark">UCSB</span>
-          <span className="brand-name">XRP IDE</span>
+          <span className="brand-xrp">XRP</span>
+          <span aria-hidden="true" className="brand-separator">
+            |
+          </span>
+          <span className="brand-product">IDE</span>
         </div>
         <div className="toolbar" role="toolbar" aria-label="Project commands">
           <select
@@ -1305,7 +1309,7 @@ export function IdeApp() {
           <div className="toolbar-spacer" />
           <a
             className="tool-link"
-            href="../dashboard/"
+            href="../monitor/"
             rel="noopener noreferrer"
             target="_blank"
             title="Open the XRP Monitor in a new tab."

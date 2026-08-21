@@ -125,7 +125,7 @@ test("reloads the complete production course shell without a network", async ({
 
   const monitor = await context.newPage();
   recordErrors(monitor);
-  await monitor.goto(coursePath("dashboard/"), {
+  await monitor.goto(coursePath("monitor/"), {
     waitUntil: "domcontentloaded",
   });
   await expect(monitor.getByTestId("target-status")).toContainText(

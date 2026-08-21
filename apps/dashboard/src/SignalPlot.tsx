@@ -57,7 +57,7 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
     label: "Wheel speed (120 ms mean)",
     unit: "mm/s",
     description:
-      "Target wheel speeds and 120 ms display averages of encoder-derived measurements. Data exports retain every raw sample.",
+      "Target wheel speeds and 120 ms display averages of encoder-derived measurements. Telemetry recordings retain every raw sample.",
     series: [
       {
         label: "Encoder L",
@@ -381,6 +381,7 @@ export function SignalPlot({
           type: "line",
           showSymbol: false,
           connectNulls: false,
+          itemStyle: { color: series.color },
           lineStyle: {
             color: series.color,
             type: series.dash,

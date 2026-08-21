@@ -531,14 +531,8 @@ export function WorldView({
       data-pose-state={sample.poseAvailable ? "published" : "centered-preview"}
       data-testid="world-view"
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
-      ref={hostRef}
     >
-      <span className="visually-hidden" id="world-grid-description">
-        The arena spans x from −1200 to 1200 millimeters and y from −900 to 900
-        millimeters. Major grid lines and values are labeled every 500
-        millimeters.
-      </span>
-      <div className="world-overlay">
+      <div className="world-toolbar">
         <b className="world-section-label">World</b>
         {scenario && onScenarioChange ? (
           <select
@@ -559,31 +553,38 @@ export function WorldView({
             )}
           </select>
         ) : null}
+        <button
+          aria-pressed={viewZoom > 1}
+          className="world-view-toggle"
+          onClick={() => setViewZoom((current) => (current === 1 ? 3 : 1))}
+          title="Switch between the full arena and a closer robot view."
+          type="button"
+        >
+          {viewZoom === 1 ? "Zoom XRP" : "Fit world"}
+        </button>
         {!sample.poseAvailable ? (
           <span>Preview · no published pose</span>
         ) : null}
         {sample.collision ? <strong>Contact</strong> : null}
       </div>
-      <div
-        aria-label="World line legend: green is path; ochre is ultrasound distance"
-        className="world-legend"
-      >
-        <span>
-          <i className="path-line" /> path
+      <div className="world-canvas" ref={hostRef}>
+        <span className="visually-hidden" id="world-grid-description">
+          The arena spans x from −1200 to 1200 millimeters and y from −900 to
+          900 millimeters. Major grid lines and values are labeled every 500
+          millimeters.
         </span>
-        <span>
-          <i className="ultrasound-line" /> ultrasound distance
-        </span>
+        <div
+          aria-label="World line legend: green is path; ochre is ultrasound distance"
+          className="world-legend"
+        >
+          <span>
+            <i className="path-line" /> path
+          </span>
+          <span>
+            <i className="ultrasound-line" /> ultrasound distance
+          </span>
+        </div>
       </div>
-      <button
-        aria-pressed={viewZoom > 1}
-        className="world-view-toggle"
-        onClick={() => setViewZoom((current) => (current === 1 ? 3 : 1))}
-        title="Switch between the full arena and a closer robot view."
-        type="button"
-      >
-        {viewZoom === 1 ? "Zoom XRP" : "Fit world"}
-      </button>
     </div>
   );
 }

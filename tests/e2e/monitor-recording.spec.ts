@@ -34,7 +34,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   });
   await ide.goto("/ide/");
   const monitor = await context.newPage();
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
 
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -142,7 +142,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
 test("explains why world replay export is unavailable while recording", async ({
   page,
 }) => {
-  await page.goto("/dashboard/");
+  await page.goto("/monitor/");
 
   const replay = page.getByRole("button", {
     name: "Export world replay as WebM",
@@ -177,7 +177,7 @@ test("can save a world replay automatically when recording stops", async ({
       }),
     });
   });
-  await page.goto("/dashboard/");
+  await page.goto("/monitor/");
   await page
     .getByRole("checkbox", { name: "Export world replay after Stop" })
     .check();
@@ -236,7 +236,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(
     ide.getByRole("button", { name: "Run", exact: true }),
   ).toBeVisible();
-  await page.goto("/dashboard/");
+  await page.goto("/monitor/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -244,7 +244,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
 
   const brand = page.locator(".brand");
   await expect(brand).toHaveAttribute("aria-label", "UCSBXRP Monitor");
-  await expect(brand).toHaveText("UCSBXRP Monitor");
+  await expect(brand).toHaveText("UCSBXRP|Monitor");
   const brandStyle = await brand.evaluate((element) => {
     const mark = element.children[0] as HTMLElement;
     const name = element.children[1] as HTMLElement;
@@ -279,7 +279,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
     page.locator(".header-nav").getByText("|", { exact: true }),
   ).toBeVisible();
   const monitorRun = page.locator(".monitor-run-button");
-  await expect(monitorRun).toHaveCSS("background-color", "rgb(0, 88, 138)");
+  await expect(monitorRun).toHaveCSS("background-color", "rgb(238, 240, 242)");
   expect(
     await monitorRun.evaluate(
       (button) => button.getBoundingClientRect().height,
@@ -298,7 +298,6 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
     "strip-chart-motor-effort": 180,
-    "strip-chart-pose-error": 180,
   });
   const controlsBox = await page.getByTestId("monitor-controls").boundingBox();
   const dashboardBox = await page.locator(".dashboard-grid").boundingBox();
@@ -312,16 +311,17 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   );
   expect(sliderBox?.height).toBeLessThanOrEqual(16);
   const liveControlsBox = await page
-    .locator(".live-program-group")
+    .locator(".live-controls-panel")
     .boundingBox();
-  expect(liveControlsBox?.y).toBeGreaterThan(
-    (sliderBox?.y ?? 0) + (sliderBox?.height ?? 0),
-  );
-  await expect(page.locator("details.live-program-group")).toHaveCount(0);
+  const telemetryHeadingBox = await page
+    .getByRole("heading", { name: "Live telemetry", exact: true })
+    .boundingBox();
+  expect(liveControlsBox?.y).toBeLessThan(telemetryHeadingBox?.y ?? 0);
+  await expect(page.locator("details.live-controls-panel")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Live controls", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".live-program-group summary")).toHaveCount(0);
+  await expect(page.locator(".live-controls-panel summary")).toHaveCount(0);
 
   const worldValuesSeparator = page.getByRole("separator", {
     name: "Resize world and live telemetry",
@@ -336,14 +336,12 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
     "strip-chart-motor-effort": 180,
-    "strip-chart-pose-error": 180,
     "strip-chart-range": 180,
   });
   await page.getByRole("checkbox", { name: /Drive command/ }).uncheck();
   await expect(page.getByTestId("strip-chart-motor-effort")).toHaveCount(0);
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
-    "strip-chart-pose-error": 180,
     "strip-chart-range": 180,
   });
 
@@ -365,7 +363,7 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 691, height: 752 });
-  await page.goto("/dashboard/");
+  await page.goto("/monitor/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -395,7 +393,7 @@ test("keeps every header command reachable without hidden scrolling at phone wid
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 700 });
-  await page.goto("/dashboard/");
+  await page.goto("/monitor/");
 
   const header = page.locator(".app-header");
   await expect(header).toHaveCSS("overflow-x", "visible");
@@ -437,7 +435,7 @@ test("keeps a centered world preview visible without a published physical pose",
       }),
     );
   });
-  await page.goto("/dashboard/");
+  await page.goto("/monitor/");
 
   const world = page.getByTestId("world-view");
   await expect(world).toBeVisible();
@@ -445,12 +443,15 @@ test("keeps a centered world preview visible without a published physical pose",
   await expect(
     page.getByText("Preview · no published pose", { exact: true }),
   ).toBeVisible();
-  const worldGeometry = await world.evaluate((element) => ({
-    canvasHeight: element.querySelector("canvas")?.clientHeight ?? 0,
-    canvasWidth: element.querySelector("canvas")?.clientWidth ?? 0,
-    hostHeight: element.clientHeight,
-    hostWidth: element.clientWidth,
-  }));
+  const worldGeometry = await world.evaluate((element) => {
+    const host = element.querySelector<HTMLElement>(".world-canvas");
+    return {
+      canvasHeight: host?.querySelector("canvas")?.clientHeight ?? 0,
+      canvasWidth: host?.querySelector("canvas")?.clientWidth ?? 0,
+      hostHeight: host?.clientHeight ?? 0,
+      hostWidth: host?.clientWidth ?? 0,
+    };
+  });
   expect(worldGeometry.canvasWidth).toBe(worldGeometry.hostWidth);
   expect(worldGeometry.canvasHeight).toBe(worldGeometry.hostHeight);
   expect(worldGeometry.hostWidth).toBeGreaterThan(100);

@@ -178,7 +178,7 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
 }) => {
   test.setTimeout(40_000);
   await installMemoryFolderPicker(monitor);
-  await monitor.goto("/dashboard/");
+  await monitor.goto("/monitor/");
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );

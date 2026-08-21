@@ -49,6 +49,7 @@ export default defineConfig({
       input: {
         home: path.resolve(projectRoot, "index.html"),
         ide: path.resolve(projectRoot, "ide/index.html"),
+        monitor: path.resolve(projectRoot, "monitor/index.html"),
         dashboard: path.resolve(projectRoot, "dashboard/index.html"),
         guide: path.resolve(projectRoot, "guide/index.html"),
         commission: path.resolve(projectRoot, "commission/index.html"),

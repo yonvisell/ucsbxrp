@@ -4,6 +4,24 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 23 makes the Monitor's evidence and layout literal. Validation,
+project preparation, program startup, runtime readiness, completion, reset,
+stop, and physical reconnect actions now populate the persistent System log.
+The wheel-speed plot compares requested values with a clearly identified
+120 ms display mean of encoder-derived measurements; telemetry recordings
+retain every raw sample. The simulator-only odometry comparison is named as a
+virtual check, explains that ground truth is unavailable to robot code, and is
+off by default. **Clear plots** discards visible history without stopping new
+samples.
+
+Live controls now occupy the top of the Live telemetry column instead of the
+display/recording sidebar. World, scene, and zoom share a compact toolbar above
+the grid. Main regions use one visible single-pixel divider without inset
+outlines; selection controls and Run use neutral black rather than decorative
+blue. The product wordmarks read `UCSBXRP | IDE` and `UCSBXRP | Monitor`.
+`/monitor/` is now the canonical address; `/dashboard/` remains a compatibility
+redirect.
+
 Refinement 22 corrects the student-facing evidence and storage model. Challenge
 projects now include their README plus one hardware-free
 `component_checks.py`; **Test components** runs it in isolated MicroPython and
@@ -29,10 +47,11 @@ with plot focus plus N as the keyboard path.
 
 The IDE and Monitor now separate **Program output** from a persistent **System
 log**. Principal editor/world/telemetry/plot/output boundaries use a dedicated
-darker two-pixel hierarchy; internal rows retain light one-pixel rules. At
+dark one-pixel hierarchy; internal rows retain light one-pixel rules. At
 phone width, headers wrap into two visible rows rather than hiding commands in
 an unmarked horizontal scroller. The Monitor's narrow control sheet groups
-Signals and Live controls in one column and Recording/Export in the other.
+Signals in one column and Recording/Export in the other; Live controls remain
+with telemetry.
 IDE storage is presented as one state—browser only, reconnect needed, or saved
 automatically in `./<project>`—instead of repeated workspace/project/browser
 headings.
@@ -61,7 +80,7 @@ After first-time commissioning, the untouched default starter is created as
 `./Expanding-Spiral` inside the selected workspace and opened automatically.
 Existing UCSBXRP project folders are reopened; unrelated folders are never
 overwritten. The Monitor labels its right panel **Live telemetry**, keeps the
-world selector below the World heading, identifies the green path and ochre
+world selector beside the World heading, identifies the green path and ochre
 ultrasound ray with a compact legend, and groups USER button, motor supply, IMU
 temperature, and encoder counts after the primary motion telemetry.
 
@@ -159,14 +178,14 @@ run without treating its unchanged scene preference as a forbidden change.
 
 Both application headers are now 27 px high and use a contiguous `UCSBXRP`
 wordmark: UCSB blue and a restrained grey-red product name share the same type,
-size, and weight. The UCSB mark and enabled Run control use the same darker
-`#00588a` blue. Header selectors and buttons are 19 px high; Run/Stop and Reset
+size, and weight. The UCSB mark uses `#00588a`; Run is a neutral black control.
+Header selectors and buttons are 19 px high; Run/Stop and Reset
 use compact labeled icons. The IDE command region remains one line at ordinary
 widths and wraps into a visible second row at phone width, while target state
 and Settings stay fixed at the far right. IDE and Monitor links carry a
 visible diagonal arrow and open a separate tab in both directions. In the
-Monitor, Signals and Time window precede permanently open Live controls, named
-watches appear below Live telemetry in the right panel, and the single Guide link
+Monitor, Live controls precede Live telemetry in the right panel, named watches
+follow the telemetry values, and the single Guide link
 remains in the header. Offline readiness sits with recording/storage
 information rather than consuming a footer row. In the IDE it sits with
 workspace and project-folder information rather than consuming a footer row.
@@ -330,21 +349,23 @@ command was issued.
   IMU, temperature, battery, and program output. Without a published pose, the
   map remains present with a labeled XRP preview centered at the origin.
 - A 176 px collapsible sidebar for signal selection and recording; the virtual
-  scene is selected directly in the world, while target settings remain shared
-  from the IDE.
-- A permanently open Live controls region below Time window renders declared
+  scene and zoom are selected in the compact World toolbar, while target
+  settings remain shared from the IDE.
+- A permanently open Live controls region above Live telemetry renders declared
   numeric parameters as thin sliders, Booleans as checkboxes, and short choices
-  as radio controls. Named watch values form a compact table below Live telemetry in
-  the right panel. Pending and applied values are shared across tabs and
+  as radio controls. Named watch values form a compact table below Live telemetry
+  in the right panel. Pending and applied values are shared across tabs and
   controls disable when the program is not running.
-- Independently selectable wheel-speed, drive-command, forward-range,
-  acceleration, and yaw-rate strips with labels and units inside each plot.
+- Independently selectable wheel-speed, drive-command, virtual odometry-check,
+  forward-range, acceleration, and yaw-rate strips with labels and units inside
+  each plot. Wheel speed uses a labeled short display mean while recording raw
+  samples; students can explicitly clear the visible history.
   Every plot retains a 180 px row as signals are added or removed; the stack
   scrolls, and one unlabeled minor time line divides each pair of labeled lines.
 - Persistent pointer- and keyboard-adjustable separators independently size
   world/values, plots/output, and upper/lower regions.
 - A rolling 30,000-sample recording window, observed-rate/time-capacity and
-  dropped-sample reporting, and deterministic 25-column CSV export with
+  dropped-sample reporting, and deterministic 37-column CSV export with
   explicit seconds, m/s², rad/s, millimeters, and blank unavailable values.
 - Automatic per-run output, metadata, and telemetry archives in the connected
   folder, with four aligned generations and cross-tab de-duplication.
@@ -394,7 +415,7 @@ command was issued.
 
 ### Offline and guidance
 
-- The production service worker verifies all 191 public payload files,
+- The production service worker verifies all 192 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, supplied bytecode, commissioning payload,
   exact RP2350 UF2, and dependency license notices. Each application reports a
@@ -468,8 +489,8 @@ Refinement 21 replaced that hidden narrow-width behavior with visible wrapping.
 Direct Chrome reported no console warnings or errors.
 
 The subsequent command-density pass retained the 27 px headers while reducing
-header text to 9 px, command/select heights to 19 px, and the execution-target
-selector to 88 px. Run and Reset are now accessible icon controls, with play
+header text to 9 px, command/select heights to 19 px, and a compact unclipped
+execution-target selector. Run and Reset are accessible icon controls, with play
 changing to stop during execution; **Validate** replaces the longer label.
 Direct Chrome inspections at 691 px and 344 px confirmed the rewritten landing
 page and both application headers remain legible without horizontal overflow.
@@ -508,7 +529,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The current local
-production build is `5f0688fa0a431f977237` with 191 verified payload files.
+production build includes 192 verified payload files.
 
 The commissioning workflow additionally passes focused controller/version
 rejection, raw-paste flow control and standard-raw fallback, changed-only
