@@ -140,7 +140,7 @@ function editorLanguage(path: string): string {
 
 const apiReferenceByFilename: Record<string, { href: string; label: string }> =
   {
-    "main.py": { href: "../reference/#working-loop", label: "Working loop" },
+    "main.py": { href: "../reference/#project-loop", label: "Project loop" },
     "course_setup.py": {
       href: "../reference/#student-components",
       label: "Components",
@@ -170,8 +170,11 @@ const apiReferenceByFilename: Record<string, { href: string; label: string }> =
       href: "../reference/#configuration",
       label: "Configuration",
     },
-    "challenge.py": { href: "../reference/#maps", label: "Maps and tasks" },
-    "world.py": { href: "../reference/#maps", label: "World" },
+    "challenge.py": {
+      href: "../reference/#missions",
+      label: "Mission services",
+    },
+    "world.json": { href: "../reference/#worlds", label: "Project world" },
   };
 
 function apiReferenceForPath(path: string) {

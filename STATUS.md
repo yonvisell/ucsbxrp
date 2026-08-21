@@ -4,6 +4,26 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 32 replaces the provisional API matrix with conventional
+student-facing reference documentation. Each student component now has a
+literal purpose, source file and base class, state retained between calls,
+constructor, properties, and method entries with parameters, types, units,
+return values, exceptions, and required behavior. Data records, Robot, live
+controls and student-defined plots, project worlds, maps, configuration,
+supplied mission services, XRPBot, and numerical functions are documented in
+the same page. IDE context links now open the applicable entry for main.py,
+student modules, configuration, challenge services, and world.json. The source
+base-class descriptions and standalone USER_REFERENCE.md use the same plain
+language.
+
+The Guide now distinguishes challenge.py task conditions from project-owned
+world.json geometry, and its offline section states the complete PWA boundary:
+one complete online load, same Chrome profile, no Node server, optional launcher,
+browser-storage clearing or eviction, project-folder independence, and the
+network still required to reach a physical XRP. The API and Guide code type is
+smaller than body text. TypeScript, Python compilation, release identity,
+production build, commissioning bundle, and 208-file offline shell all pass.
+
 Refinement 31 adds a bounded instructor challenge-authoring path. The IDE
 catalog now reads one data file instead of hard-coded TypeScript metadata.
 `scripts/challenge_authoring.py` creates a new challenge from the closest

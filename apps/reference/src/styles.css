@@ -136,7 +136,8 @@
 
 .reference-content p,
 .reference-content dd,
-.reference-content span {
+.reference-content span,
+.reference-content li {
   color: #39474f;
   font-size: 11px;
   line-height: 1.52;
@@ -153,129 +154,181 @@
   background: #edf0f1;
   color: #23343e;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.92em;
+  font-size: 0.82em;
 }
 
-.flow-code,
-.code-example {
-  max-width: 800px;
-  overflow-x: auto;
-  border-left: 2px solid #007e73;
-  margin: 11px 0;
-  padding: 10px 12px;
-  background: #f5f7f7;
-  color: #26363f;
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.responsibility-table {
-  max-width: 880px;
-  border-top: 1px solid var(--pane-line);
-  margin-top: 12px;
-}
-
-.responsibility-head,
-.responsibility-row {
-  display: grid;
-  grid-template-columns: 130px minmax(220px, 1fr) minmax(220px, 0.8fr);
-  gap: 12px;
-  border-bottom: 1px solid var(--line);
-  padding: 7px 5px;
-}
-
-.responsibility-head {
-  background: #f3f5f5;
-}
-
-.responsibility-head span {
+.reference-content h4 {
+  margin: 10px 0 4px;
   color: var(--quiet);
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 750;
+  letter-spacing: 0.035em;
   text-transform: uppercase;
 }
 
-.responsibility-row {
+.api-procedure {
+  max-width: 800px;
+  margin: 9px 0;
+  padding-left: 1.25rem;
+}
+
+.api-procedure li,
+.method-reference li {
+  margin: 3px 0;
+}
+
+.component-summary {
+  display: grid;
+  max-width: 880px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 12px 0;
+  background: var(--line);
+}
+
+.component-summary a {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  background: #fff;
   color: inherit;
   text-decoration: none;
 }
 
-.responsibility-row:hover {
-  background: #f8fafa;
+.component-summary a:hover {
+  background: #f6f8f8;
 }
 
-.responsibility-row strong {
-  color: var(--cyan-deep);
+.component-summary strong {
+  color: #174456;
   font-size: 10px;
 }
 
-.component-identity {
-  color: var(--quiet) !important;
+.component-summary span {
+  color: var(--muted);
+  font-size: 10px;
 }
 
-.component-details {
-  display: grid;
-  max-width: 880px;
-  margin: 10px 0 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--line);
+.class-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+  margin: -3px 0 9px;
 }
 
-.component-details > div {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 7px;
-  border-bottom: 1px solid var(--line);
-  padding: 7px 8px 7px 0;
-}
-
-.component-details > div:nth-child(odd) {
-  border-right: 1px solid var(--line);
-}
-
-.component-details > div:nth-child(even) {
-  padding-left: 8px;
-}
-
-.component-details dt {
+.class-meta span {
   color: var(--quiet);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 10px;
+}
+
+.class-signature,
+.method-signature {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 3px 5px !important;
+  background: #f1f3f4 !important;
+  color: #174456 !important;
+  font-size: 9px !important;
+  line-height: 1.42;
+}
+
+.parameter-table {
+  max-width: 880px;
+  border-top: 1px solid var(--line);
+  margin: 6px 0 10px;
+}
+
+.parameter-head,
+.parameter-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.85fr) minmax(90px, 0.55fr) 58px minmax(
+      230px,
+      1.5fr
+    );
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 5px 4px;
+}
+
+.parameter-head {
+  background: #f3f5f5;
+}
+
+.parameter-head span {
+  color: var(--quiet);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.025em;
   text-transform: uppercase;
 }
 
-.component-details dd {
-  margin: 0;
+.parameter-row code {
+  align-self: start;
+  padding: 0;
+  background: transparent;
+  color: #174456;
+  font-size: 9px;
+  overflow-wrap: anywhere;
 }
 
-.signature-list,
-.api-table {
+.parameter-row span {
+  font-size: 10px;
+  line-height: 1.42;
+}
+
+.method-reference,
+.function-reference,
+.record-reference,
+.class-compact {
+  max-width: 880px;
+  scroll-margin-top: 44px;
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 11px;
+}
+
+.method-reference h3,
+.record-reference h3,
+.class-compact h3 {
+  margin-top: 0;
+}
+
+.method-reference ul {
+  max-width: 800px;
+  margin: 4px 0;
+  padding-left: 1.2rem;
+}
+
+.return-line {
+  margin-top: 6px !important;
+}
+
+.function-table {
   max-width: 880px;
   border-top: 1px solid var(--line);
 }
 
-.signature,
-.api-table > div {
+.function-table > div {
   display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(300px, 1fr);
-  gap: 15px;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(300px, 1fr);
+  gap: 14px;
   border-bottom: 1px solid var(--line);
   padding: 7px 4px;
 }
 
-.signature > code,
-.api-table > div > code {
+.function-table > div > code {
   align-self: start;
   padding: 0;
   background: transparent;
-  color: #1e465d;
-  line-height: 1.45;
+  color: #174456;
+  font-size: 9px;
+  line-height: 1.42;
   overflow-wrap: anywhere;
 }
 
-.signature > p,
-.api-table > div > p {
+.function-table > div > p {
   margin: 0;
 }
 
@@ -310,31 +363,31 @@
     padding: 4px 7px;
   }
 
-  .responsibility-head,
-  .responsibility-row {
-    grid-template-columns: 110px minmax(200px, 1fr);
+  .parameter-head,
+  .parameter-row {
+    grid-template-columns: minmax(130px, 0.8fr) minmax(
+        85px,
+        0.55fr
+      ) 50px minmax(210px, 1.4fr);
   }
 
-  .responsibility-head span:last-child,
-  .responsibility-row span:last-child {
-    display: none;
-  }
-
-  .component-details {
-    grid-template-columns: 1fr;
-  }
-
-  .component-details > div:nth-child(odd) {
-    border-right: 0;
-  }
-
-  .component-details > div:nth-child(even) {
-    padding-left: 0;
-  }
-
-  .signature,
-  .api-table > div {
+  .function-table > div {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+}
+
+@media (max-width: 560px) {
+  .component-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .parameter-table {
+    overflow-x: auto;
+  }
+
+  .parameter-head,
+  .parameter-row {
+    min-width: 590px;
   }
 }

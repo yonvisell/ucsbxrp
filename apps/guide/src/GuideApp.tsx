@@ -349,8 +349,9 @@ export function GuideApp() {
               <code>main.py</code> is mission control: it selects the task,
               obtains the configured components from{" "}
               <code>course_setup.py</code>, sends one body-motion command per
-              sample, and decides when to stop. <code>Robot.step()</code> owns
-              sample timing and performs the command/measurement loop below.
+              sample, and decides when to stop. <code>Robot.step()</code>{" "}
+              maintains sample timing and performs the command/measurement loop
+              below.
             </p>
             <figure className="feedback-figure">
               <div className="mission-node">
@@ -408,7 +409,13 @@ export function GuideApp() {
             <div className="project-files-summary">
               <div>
                 <code>challenge.py</code>
-                <span>Task values, goals, and map.</span>
+                <span>Task values and completion conditions.</span>
+              </div>
+              <div>
+                <code>world.json</code>
+                <span>
+                  World choices, bounds, starting pose, obstacles, and markers.
+                </span>
               </div>
               <div>
                 <code>robot_config.py</code>
@@ -478,6 +485,10 @@ export function GuideApp() {
                     saved app and browser recovery copy.
                   </li>
                   <li>
+                    Chrome may also remove saved site data when storage is
+                    scarce. Reload the site once while online to restore it.
+                  </li>
+                  <li>
                     The saved app is not copied into the course folder; native
                     project files remain separate.
                   </li>
@@ -489,7 +500,9 @@ export function GuideApp() {
               optional. It adds a launcher and a separate app window, but uses
               the same Chrome storage and has the same offline limits. When the
               site is opened with internet access, Chrome checks for a newer
-              course-app version.
+              course-app version. No Node server or other local server is
+              required. This is a saved web application, not a native executable
+              or a copy that can be opened from a <code>file://</code> folder.
             </p>
           </GuideSection>
 

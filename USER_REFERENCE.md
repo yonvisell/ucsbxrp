@@ -8,8 +8,8 @@ algorithms.
 ## Start here
 
 A course project normally uses the supplied `Robot` service through the
-factory in `course_setup.py`. `Robot` owns sensor sampling, the fixed-rate loop,
-motor output, odometry updates, telemetry, and live-parameter updates.
+factory in `course_setup.py`. `Robot` performs sensor sampling, timed motor
+control, odometry updates, telemetry, and live-parameter updates.
 
 ```python
 from challenge import INITIAL_POSE, TRAVEL_DISTANCE_MM
@@ -42,7 +42,8 @@ period. Always put `robot.stop()` in `finally`.
 | File | Purpose |
 | --- | --- |
 | `main.py` | Mission control: construct services, start the robot, sequence the task, and stop cleanly. |
-| `challenge.py` | Task-specific poses, routes, maps, distances, and thresholds. |
+| `challenge.py` | Task-specific distances, thresholds, routes, and completion conditions. |
+| `world.json` | World choices, bounds, initial pose, rectangular obstacles, start markers, and waypoints. |
 | `robot_config.py` | Measured robot geometry, signs, calibration, controller gains, and reusable navigation settings. |
 | `course_setup.py` | Assemble the robot and select each supplied or student component with a `USE_STUDENT_*` flag. |
 | `sensor_model.py` | Student `SensorModel` implementation. |
@@ -179,16 +180,23 @@ Each challenge project initially selects the supplied component. After a student
 implementation passes its software tests, change only its corresponding
 `USE_STUDENT_*` flag in `course_setup.py`.
 
-### Responsibility and data flow
+### Component functions
 
-| Component | Owns | Receives | State it maintains | Output and users |
-| --- | --- | --- | --- | --- |
-| `SensorModel` | Encoder-to-distance conversion, regularized wheel-speed estimation, and robust range estimation | `RawSensors`; robot geometry, encoder signs, and speed-filter setting from `RobotConfig` | Encoder/time origins, previous counts and time, current wheel-speed estimates | `Measurements`; wheel speeds go to `WheelSpeedController`, increments go to `Odometry`, and range/travel/button values go to mission code |
-| `WheelSpeedController` | Wheel-speed feedback and bounded motor command | Target `WheelSpeeds` from `DifferentialDrive`; measured `WheelSpeeds` from `SensorModel`; calibration and gains | Any controller memory selected by the implementation; the supplied proportional example has no error history | `DriveCommand`, passed by `Robot` to `XRPBot` |
-| `DifferentialDrive` | Body-to-wheel inverse kinematics | `MotionCommand` and track width | No time history is required | Target `WheelSpeeds` for `WheelSpeedController` |
-| `Odometry` | Integration of measured wheel-distance increments into pose | Initial `Pose`, left/right increments from `SensorModel`, and track width | Latest estimated `Pose` | `Pose` for navigation, mission code, `RobotState`, and telemetry; simulator truth is not an input |
-| `NavigationController` | Progress through ordered position and optional-heading goals | Goals, latest odometry `Pose`, navigation speeds and tolerances | Goal list, active goal, and any turn/drive/alignment mode | `MotionCommand` for the next `Robot.step()` |
-| `GridPlanner` | Shortest-path search through free occupancy-grid cells | Grid, start cell, and goal cell | Search-local frontier, visited, and predecessor data; no persistent state is required | `GridPath`, converted to goals before navigation |
+- `SensorModel` converts raw encoder, time, range, and button readings into
+  wheel travel, regularized wheel speed, and range measurements.
+- `WheelSpeedController` compares requested and measured wheel speeds and
+  returns a bounded motor command.
+- `DifferentialDrive` converts requested forward speed and turn rate into left
+  and right wheel speeds.
+- `Odometry` updates the estimated world pose from measured left and right
+  wheel-distance increments. Simulator ground truth is not an input.
+- `NavigationController` returns body-motion commands for an ordered sequence
+  of world-coordinate goals.
+- `GridPlanner` returns a shortest route through free horizontal and vertical
+  neighbors in an occupancy grid.
+
+The method descriptions below state each input, return value, retained state,
+and required behavior.
 
 ### `SensorModel(SensorModelBase)`
 
@@ -282,6 +290,7 @@ MODE = live.choice(
 )
 
 live.watch("speed_error", 12.5, unit="mm/s", label="Speed error")
+live.plot("speed_error", 12.5, unit="mm/s", label="Speed error")
 ```
 
 - `live.number(name, default, minimum, maximum, step, unit="", label=None)` ->
@@ -291,20 +300,41 @@ live.watch("speed_error", 12.5, unit="mm/s", label="Speed error")
   with two to six choices.
 - `live.watch(name, value, unit="", label=None)` -> `None`; publishes the
   latest number, Boolean, or short string under that name.
+- `live.plot(name, value, unit="", label=None)` -> `None`; publishes a finite
+  numerical value as an optional strip-plot signal. It appears as an unchecked
+  green signal choice in Monitor Controls.
 - `live.apply_updates()` -> Boolean; applies pending parameter values and
   reports whether one changed.
 
 `Robot.step()` calls `live.apply_updates()` automatically at a sample
 boundary. Call it explicitly only in a program that does not use `Robot`.
 Parameter names are Python-style identifiers and must be unique. A project may
-declare up to 16 parameters and 16 watch values.
+declare up to 16 parameters, 16 watch values, and 16 plot values.
 
 Use watch values for current modes, errors, and intermediate estimates. Use
-Monitor telemetry and CSV recording for time histories. Reserve `print()` for
-occasional milestones or messages that belong in program output; do not print
-every sample merely to build a measurement log.
+plot values for additional numerical time histories. Monitor telemetry and CSV
+recording retain the sampled values. Reserve `print()` for occasional
+milestones or explanations, not repeated measurement logging.
 
 ## Maps, grids, paths, and missions
+
+### Project worlds
+
+`load_world(path="world.json", world_id=None)` returns a validated
+`ProjectWorld`. With `world_id=None`, it selects the file's `default_world`.
+Each project transfers its own `world.json` to the virtual or physical XRP.
+
+A `ProjectWorld` provides:
+
+- `.id`, `.label`, `.bounds_mm`, `.initial_pose`, and `.feature_names`
+- `arena_map(blocked_features=())` -> `ArenaMap`
+- `waypoint(name)` -> one named `NavigationGoal`
+- `waypoints()` -> all waypoint goals in file order
+
+The JSON file may define multiple world choices. Each world contains
+millimetre bounds, an initial pose, rectangular obstacles, named changeable
+features, and visual markers such as start lines, start boxes, and waypoints.
+The Monitor selector and project code use the same file.
 
 ### Geometry and occupancy
 

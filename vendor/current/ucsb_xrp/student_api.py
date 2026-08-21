@@ -17,11 +17,12 @@ class _ConfiguredComponent:
 
 
 class SensorModelBase(_ConfiguredComponent):
-    """Own raw-sensor conversion and the state of measured wheel estimates.
+    """Convert raw sensor readings into measured robot motion and range.
 
-    Implementations receive ``RawSensors`` from ``Robot``. They maintain
-    encoder/time origins and any wheel-speed estimator state, then provide
-    ``Measurements`` consumed by the wheel controller, odometry, and mission.
+    A sensor model keeps the encoder and time origins established by
+    :meth:`reset`, plus any state required to estimate wheel speed.  Its
+    :meth:`update` method returns the wheel distances, increments, and speeds
+    used by the wheel controller, odometry, and mission code.
     """
 
     __slots__ = ()
@@ -40,11 +41,11 @@ class SensorModelBase(_ConfiguredComponent):
 
 
 class WheelSpeedControllerBase(_ConfiguredComponent):
-    """Own conversion of target and measured wheel speed to motor command.
+    """Convert requested and measured wheel speeds into motor commands.
 
-    ``Robot`` supplies ``WheelSpeeds`` from ``DifferentialDrive`` and
-    ``SensorModel``. Implementations may maintain controller state and return a
-    bounded ``DriveCommand`` for ``XRPBot``.
+    ``Robot`` supplies the requested speeds from ``DifferentialDrive`` and the
+    measured speeds from ``SensorModel``.  An implementation may keep
+    controller state between calls and must return a bounded ``DriveCommand``.
     """
 
     __slots__ = ()
@@ -59,11 +60,11 @@ class WheelSpeedControllerBase(_ConfiguredComponent):
 
 
 class DifferentialDriveBase(_ConfiguredComponent):
-    """Own inverse kinematics from body motion to wheel-speed targets.
+    """Convert a requested body motion into left and right wheel speeds.
 
-    The calculation receives a ``MotionCommand`` and uses robot track width. It
-    normally requires no persistent state. ``Robot`` sends the returned
-    ``WheelSpeeds`` to the wheel-speed controller.
+    The calculation uses the robot track width from ``RobotConfig``.  Each call
+    is independent; an implementation need not retain information from an
+    earlier call.  ``Robot`` sends the returned speeds to the wheel controller.
     """
 
     __slots__ = ()
@@ -74,11 +75,12 @@ class DifferentialDriveBase(_ConfiguredComponent):
 
 
 class OdometryBase(_ConfiguredComponent):
-    """Own the pose estimate produced from measured wheel-distance increments.
+    """Estimate robot pose from measured left and right wheel travel.
 
-    Implementations maintain the latest ``Pose`` after ``reset``. ``Robot``
-    passes increments from ``SensorModel`` and publishes the returned pose for
-    navigation, mission logic, and telemetry. Simulator truth is not an input.
+    After :meth:`reset`, an implementation keeps the latest ``Pose``. ``Robot``
+    passes the wheel-distance increments returned by ``SensorModel`` and uses
+    the updated pose for navigation, mission logic, and telemetry.  Simulator
+    ground truth is never an input to this component.
     """
 
     __slots__ = ()
@@ -98,11 +100,11 @@ class OdometryBase(_ConfiguredComponent):
 
 
 class NavigationControllerBase:
-    """Own progress through ordered world-frame navigation goals.
+    """Generate motion commands for an ordered sequence of navigation goals.
 
-    Implementations maintain the active goal and any navigation mode. Mission
-    code supplies the latest odometry ``Pose`` and sends the returned
-    ``MotionCommand`` to ``Robot``.
+    An implementation keeps the goal sequence, the active goal, and any
+    internal navigation mode. Mission code supplies the latest odometry
+    ``Pose`` and sends the returned ``MotionCommand`` to ``Robot``.
     """
 
     __slots__ = ("_config",)
@@ -134,11 +136,11 @@ class NavigationControllerBase:
 
 
 class GridPlannerBase:
-    """Own shortest-path search over free four-neighbor grid cells.
+    """Find a shortest route through free neighboring occupancy-grid cells.
 
-    Search state may remain local to ``plan``. Mission code converts the
-    returned ``GridPath`` to navigation goals; no robot service calls this
-    component inside the measured control loop.
+    Search data may remain local to :meth:`plan`. Mission code converts the
+    returned ``GridPath`` to navigation goals before the measured robot loop
+    follows them.
     """
 
     __slots__ = ()

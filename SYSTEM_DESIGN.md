@@ -179,8 +179,26 @@ sent off-device.
 
 ### Guide and visual system
 
-The guide covers the first virtual run, projects and templates, physical setup,
-normal operation, data, shortcuts, and recovery. It is opened in a new tab.
+The Guide covers the first virtual run, course and project folders, component
+tests, physical setup, Monitor evidence and exports, project flow, offline use,
+GitHub, shortcuts, and troubleshooting. The separate UCSB XRP API page is the
+detailed Python reference. It documents each student base class through its
+purpose, retained state, constructor, properties, method parameters and units,
+return values, exceptions, and required behavior; it also covers every public
+record, service, world/map type, configuration value, low-level XRP method, and
+numerical function. IDE tabs link directly to the applicable API entry,
+including the project-owned world.json definition. Both pages open in a new
+tab and are part of the offline release.
+
+The offline shell belongs to the site and Chrome profile, not to a selected
+course folder. After one complete online load, the applications, virtual XRP,
+Guide, API reference, and course release may reopen without internet or a local
+server. Installation adds a launcher but does not change that storage model.
+Clearing or evicting site data removes the shell and browser recovery data but
+does not remove native project folders. Physical operation still requires a
+local network path to the XRP, and GitHub operations and first-load/update
+checks still require internet.
+
 All applications use the same high-contrast theme, compact controls, visible
 focus, semantic labels, and responsive layout. The IDE and Monitor use
 accessible play/stop and reset icon buttons in their 27 px headers, a compact
