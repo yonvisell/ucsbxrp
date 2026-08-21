@@ -284,7 +284,7 @@ Chrome.
   buttons, remove the redundant retained-project label, and make both cross-app
   links explicit new-tab actions.
 - Put signal selection and the time window before Live controls; place program
-  watches below Live values in the right panel; keep Guide and offline readiness
+  watches below Live telemetry in the right panel; keep Guide and offline readiness
   together in a sidebar-only footer.
 - Assert the exact hierarchy, geometry, typography, collapsed visibility, and
   asynchronous live-control acknowledgements in the Chrome harness.
@@ -399,7 +399,7 @@ public local-first application without changing the Wi-Fi runtime or course
 API.
 
 - Add a landing-page and IDE-Settings commissioning entrypoint with an optional
-  working-folder choice, and wait for the complete offline release. Folder
+  workspace choice, and wait for the complete offline release. Folder
   selection must not block robot repair or conflate project storage with the
   browser's offline application cache.
 - Use a user-selected Web Serial XRP connection to enter MicroPython raw REPL,
@@ -416,9 +416,9 @@ API.
   during repair, and retain explicit hotspot or existing-Wi-Fi selection. Never
   persist or echo a station password in the browser.
 - Activate the profile, reset, probe for the exact release/service reply, store
-  the physical target and endpoint, hand a selected working folder to the IDE
-  only when it is a recognized UCSBXRP project or a new empty folder, and open
-  the IDE automatically. The operating-system Wi-Fi selection remains the one
+  the physical target and endpoint, hand a selected workspace to the IDE, and
+  open the IDE automatically without importing workspace contents as a project.
+  The operating-system Wi-Fi selection remains the one
   manual hotspot handoff browsers cannot perform.
 - Exercise the raw-paste protocol, standard raw fallback, controller rejection,
   firmware integrity, changed-only and repeated installs, readback failure,
@@ -511,10 +511,8 @@ direct Chrome, and attached-controller checks.
   transport. Explain that physical Run, Monitor, and telemetry use the robot's
   selected local Wi-Fi after setup; USB may remain attached but is not a second
   runtime transport.
-- Make the setup working folder optional. Accept a remembered folder for
-  automatic IDE handoff only when it contains UCSBXRP metadata; initialize an
-  empty folder, but never replace the default project with unrelated source
-  files merely because a prior directory permission exists.
+- Make the setup workspace optional and never replace the default project with
+  unrelated source files merely because a prior directory permission exists.
 - Let a fresh virtual Monitor prepare and run the shared Expanding spiral
   default without requiring the IDE to run first. Continue requiring an
   explicit physical flash when no verified project exists on the robot.
@@ -522,10 +520,57 @@ direct Chrome, and attached-controller checks.
   compiler error in Details when validation fails. Preserve prior validation,
   output, completion, and exception messages across subsequent runs and reset.
 - Present one literal project identity first in IDE Status, followed by Target,
-  Validation, and Robot project. Use **working folder** for optional native
-  storage, **browser backup** for recovery data, and **Works without internet**
-  for the verified cached application.
+  Validation, and Robot project. Keep browser recovery distinct from native
+  project storage and the verified cached application.
 
 Usable result: a fresh browser session starts with one predictable project,
 either app can start the virtual default, Run and Details agree about what
 happened, and setup does not silently import an unrelated repository.
+
+### Refinement 19 — Workspace, project folders, and output clarity
+
+Status: implemented and validated in unit, offline, Stable Chrome, and direct
+Chrome passes.
+
+- Treat the onboarding selection as a workspace containing named project
+  folders. Remember workspace and active-project handles independently, with a
+  metadata-based migration for earlier single-folder state.
+- When a workspace is active, ask for a project-folder name before creating a
+  template, write the project immediately, and route source copies, run output,
+  and telemetry into that project folder.
+- Show `./<project-folder>` above the file list; use literal file-action and
+  project-action labels; remove repeated automatic-save wording.
+- Separate Program output from validation and service Details. Remove the
+  redundant Monitor Guide/footer row and the redundant recording-ready label.
+- Replace ambiguous offline wording with app-specific readiness and explain
+  that Chrome owns the offline application copy separately from folders and
+  without a Node server.
+
+Usable result: students choose one workspace, create clearly named projects,
+and find source, automatic copies, output, and telemetry together without
+confusing that disk hierarchy with the browser's offline application cache.
+
+### Refinement 20 — Figure, replay, and annotation export
+
+Status: implemented and validated in unit, production/offline, Stable Chrome,
+and direct Chrome passes.
+
+- Add one compact note entry to Monitor Recording. Attach each note to the
+  current telemetry time and published pose; show or hide all world and strip
+  plot notes with one stateful control.
+- Generate one self-contained SVG containing every selected signal plot and
+  the current time window. Rasterize that same figure at 2× resolution for PNG
+  so the two exports cannot drift.
+- Replay a stopped telemetry recording in an isolated 960×720 world canvas and
+  encode it as WebM with browser-native APIs. Preserve real time for short
+  recordings and bound longer exports to 20 seconds with a visible speed label.
+- Retain at most 24 notes, include them in monitored-run metadata, and use the
+  latest monotonic pose segment after a reset. Keep export local and add no
+  dependency or server path.
+- Exercise SVG content, PNG bytes, actual Stable Chrome WebM encoding,
+  recorder-start ordering, annotation visibility, replay bounds, responsive
+  controls, and offline build inclusion.
+
+Usable result: students can produce publication-ready plot figures, a portable
+world replay, and compact synchronized observations directly from the Monitor
+without screen recording or manual plot reconstruction.

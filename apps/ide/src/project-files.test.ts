@@ -3,12 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { STAGE_ONE_PROJECT, courseProjectTemplate } from "@ucsb-xrp/target";
 
 import {
+  createProjectFolder,
   deleteProjectFile,
   duplicateProjectFile,
+  ensureProjectFolder,
   hasProjectFolderMetadata,
   loadRecoveredProject,
   normalizedProjectPath,
   projectPathError,
+  projectFolderNameError,
   readProjectFolder,
   removeProjectFolderFiles,
   renameProjectFile,
@@ -16,6 +19,7 @@ import {
   setProjectEntrypoint,
   storeRecoveredProject,
   suggestedDuplicatePath,
+  suggestedProjectFolderName,
   writeProjectFolder,
   type CourseDirectoryHandle,
 } from "./project-files";
@@ -255,6 +259,43 @@ describe("project recovery", () => {
     expect(recovered.name).toBe(spiral.name);
     expect(recovered.entrypoint).toBe(spiral.entrypoint);
     expect(recovered.files).toEqual(spiral.files);
+  });
+
+  it("updates only the exact earlier spiral starter", () => {
+    const current = courseProjectTemplate("demo_spiral").project;
+    const currentMain = current.files["main.py"]!;
+    const previousMain = currentMain
+      .replace(
+        '    "spiral_winding_turns_per_m",\n    1.2,\n    minimum=0.4,\n    maximum=2.0,',
+        '    "spiral_winding_turns_per_m",\n    0.8,\n    minimum=0.4,\n    maximum=1.2,',
+      )
+      .replace(
+        "try:\n    state = robot.start(Pose(0.0, 0.0, 0.0))",
+        'try:\n    print("Press and release USER to start the spiral demo")\n    state = robot.start(Pose(0.0, 0.0, 0.0))',
+      );
+    storage.setItem(
+      projectRecoveryKey,
+      JSON.stringify({
+        name: current.name,
+        entrypoint: current.entrypoint,
+        files: { ...current.files, "main.py": previousMain },
+      }),
+    );
+
+    expect(loadRecoveredProject().files).toEqual(current.files);
+
+    storage.setItem(
+      projectRecoveryKey,
+      JSON.stringify({
+        name: current.name,
+        entrypoint: current.entrypoint,
+        files: {
+          ...current.files,
+          "main.py": `${previousMain}\n# Student note\n`,
+        },
+      }),
+    );
+    expect(loadRecoveredProject().files["main.py"]).toContain("Student note");
   });
 
   it("migrates only the exact original Stage 1 starter", () => {
@@ -549,11 +590,71 @@ describe("working-folder reads", () => {
     expect(files.get("main.py")).toBe("print('new')\n");
     expect(files.has("obsolete.py")).toBe(false);
     expect(JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}")).toEqual({
+      name: "course-project",
       entrypoint: "student/controller.py",
     });
     const reopened = await readProjectFolder(root);
     expect(reopened.project).toEqual(project);
     expect(reopened.skipped).toBe(0);
+  });
+
+  it("creates a named project folder inside a workspace without overwriting", async () => {
+    const files = new Map<string, string>();
+    const workspace = new WritableDirectoryHandle("XRP-workspace", files);
+    const project = {
+      name: "Expanding spiral",
+      entrypoint: "main.py",
+      files: { "main.py": "print('spiral')\n" },
+    };
+
+    const folder = await createProjectFolder(workspace, "spiral-lab", project);
+
+    expect(folder.name).toBe("spiral-lab");
+    expect(files.get("spiral-lab/main.py")).toBe("print('spiral')\n");
+    expect(
+      JSON.parse(files.get("spiral-lab/.ucsb-xrp-project.json") ?? "{}"),
+    ).toEqual({ name: "Expanding spiral", entrypoint: "main.py" });
+    await expect(
+      createProjectFolder(workspace, "spiral-lab", project),
+    ).rejects.toThrow("already exists");
+  });
+
+  it("reopens a UCSBXRP project child and skips unrelated folder names", async () => {
+    const files = new Map<string, string>([
+      ["Expanding-Spiral/notes.txt", "unrelated folder\n"],
+    ]);
+    const workspace = new WritableDirectoryHandle("XRP-workspace", files);
+    const project = {
+      name: "Expanding spiral",
+      entrypoint: "main.py",
+      files: { "main.py": "print('spiral')\n" },
+    };
+
+    const created = await ensureProjectFolder(
+      workspace,
+      "Expanding-Spiral",
+      project,
+    );
+    expect(created.created).toBe(true);
+    expect(created.folder.name).toBe("Expanding-Spiral-2");
+    expect(files.get("Expanding-Spiral/notes.txt")).toBe("unrelated folder\n");
+
+    const reopened = await ensureProjectFolder(
+      workspace,
+      "Expanding-Spiral",
+      project,
+    );
+    expect(reopened.created).toBe(false);
+    expect(reopened.folder.name).toBe("Expanding-Spiral-2");
+  });
+
+  it("validates and suggests portable project folder names", () => {
+    expect(projectFolderNameError("spiral-lab")).toBeNull();
+    expect(projectFolderNameError("../spiral")).toContain("one folder name");
+    expect(projectFolderNameError("  ")).toContain("Enter");
+    expect(suggestedProjectFolderName("Expanding spiral! ")).toBe(
+      "Expanding-spiral",
+    );
   });
 
   it("retains the four prior complete project states before automatic overwrite", async () => {

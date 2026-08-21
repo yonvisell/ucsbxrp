@@ -120,6 +120,18 @@
   overflow: auto;
 }
 
+.project-root {
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  padding: 3px 6px;
+  color: var(--muted);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-xs);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .file-row {
   display: flex;
   width: 100%;
@@ -171,6 +183,12 @@
   letter-spacing: 0.03em;
 }
 
+.project-storage > span:not(:first-child) {
+  margin-top: 3px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
 .project-storage strong {
   overflow: hidden;
   color: var(--muted);
@@ -197,27 +215,23 @@
   white-space: nowrap;
 }
 
-.ide-offline-status {
-  min-width: 0;
-  border-top: 1px solid var(--line);
-  padding: 3px 6px;
-}
-
-.ide-offline-status .offline-readiness {
+.project-storage .offline-readiness {
   min-width: 0;
   gap: 3px;
-  padding: 0;
+  margin-top: 3px;
+  border-top: 1px solid var(--line);
+  padding: 4px 0 0;
   overflow: hidden;
   font-size: var(--font-xs);
 }
 
-.ide-offline-status .offline-readiness-dot {
+.project-storage .offline-readiness-dot {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
 }
 
-.ide-offline-status .offline-readiness > span:last-child {
+.project-storage .offline-readiness > span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
 }

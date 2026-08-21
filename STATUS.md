@@ -1,26 +1,51 @@
 # Project status
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Current result
 
-Refinement 18 closes the fresh-session inconsistencies found in delayed user
-review. Run now validates automatically and leaves compiler errors in Details;
-program and validation history no longer disappears at the next run. A fresh
-virtual Monitor prepares and runs the same Expanding spiral default without an
-IDE prerequisite. IDE Status begins with the literal project name and entry
-file, followed by Target, Validation, and Robot project. Student-facing storage
-terms now distinguish the optional **working folder**, resilient **browser
-backup**, and the verified **Works without internet** application state.
+Refinement 19 makes local storage correspond to the student mental model. A
+**workspace** is the chosen parent folder; every project has one named child
+folder shown as `./<name>` above the file list. With a workspace connected,
+creating a template asks for that child-folder name, writes it immediately, and
+activates automatic source, program-output, and telemetry saving there. The
+workspace and active project handles are remembered independently and legacy
+single-folder handles migrate according to UCSBXRP project metadata. File
+actions now say Rename file, Duplicate file, Make main, and Delete file; the
+project action says Open project.
+
+After first-time commissioning, the untouched default starter is created as
+`./Expanding-Spiral` inside the selected workspace and opened automatically.
+Existing UCSBXRP project folders are reopened; unrelated folders are never
+overwritten. The Monitor labels its right panel **Live telemetry**, keeps the
+world selector below the World heading, identifies the green path and ochre
+ultrasound ray with a compact legend, and groups USER button, motor supply, IMU
+temperature, and encoder counts after the primary motion telemetry.
+
+The Monitor also exports every selected strip plot as one editable SVG or
+high-resolution PNG. A stopped telemetry recording can be replayed into a
+960×720 WebM world animation without disturbing the live target. Compact notes
+mark one telemetry time and pose across the world and all plots, can be hidden
+globally, and are included in monitored-run metadata. Plot and media generation
+remain browser-local and introduce no new runtime dependency. Frame generation
+waits for the browser encoder's start event; five repeated real WebM downloads
+close the start-up race found under a loaded Stable Chrome run.
+
+The IDE bottom panel now separates **Program output** from validation and
+target-service **Details**, while retaining concise Status. The Monitor removes
+its duplicate Guide/footer row and redundant Recorder-ready heading; the IDE
+also removes its dedicated footer row. Readiness now says **IDE available
+offline**, **Monitor available offline**, or **Setup available offline**, with a
+precise explanation that Chrome stores the complete web release in browser
+storage, separately from project folders and without a Node server.
 
 Commissioning remains USB-first. USB inspects, repairs, installs, and selects
 the robot network; normal physical Run, Monitor, and telemetry use that local
-Wi-Fi service afterward. The working folder is optional during the wizard. An
-automatic handoff opens only a recognized UCSBXRP project folder or initializes
-a new empty folder, preventing a remembered repository from replacing the
-default project with unrelated Python files. GitHub Desktop remains the
-recommended credential-free version-control path using that same folder; the
-static site does not request or store GitHub credentials.
+Wi-Fi service afterward. A workspace is optional during the wizard. The
+handoff remembers it without importing its contents, preventing unrelated
+Python files from replacing the current project. GitHub Desktop remains the
+recommended credential-free version-control path using the active project
+folder; the static site does not request or store GitHub credentials.
 
 The seven delivery slices in `IMPLEMENTATION_PLAN.md` form one usable course
 development release: five cumulative starters, a canonical MicroPython
@@ -62,7 +87,7 @@ checks and atomic complete-cache activation. The Monitor reports measured
 recording rate and time capacity for its 30,000-sample rolling buffer.
 
 Refinement 16 makes the USB-to-Wi-Fi handoff observable and recoverable. The
-wizard now proves that the selected project folder can be written and read,
+wizard now proves that the selected workspace can be written and read,
 then maintains a collapsed, password-free setup log both on screen and at
 `UCSB_XRP_Autosaves/xrp-setup-latest.txt`. Robot-service checks report attempt
 count and the last timeout, browser/network error, HTTP response, or release
@@ -98,11 +123,10 @@ horizontally when necessary, while target state and Settings stay fixed at the
 far right. IDE and Monitor links carry a
 visible diagonal arrow and open a separate tab in both directions. In the
 Monitor, Signals and Time window precede permanently open Live controls, named
-watches appear below Live values in the right panel, and
-`Guide | Works without internet` occupies the bottom of the controls sidebar
-only while that sidebar is open.
-In the IDE, offline readiness occupies the lower-left edge of the file rail
-only while the rail is open.
+watches appear below Live telemetry in the right panel, and the single Guide link
+remains in the header. Offline readiness sits with recording/storage
+information rather than consuming a footer row. In the IDE it sits with
+workspace and project-folder information rather than consuming a footer row.
 
 The web release is now explicitly local-first: after one verified online load,
 all application and course assets execute from browser-local storage without
@@ -112,11 +136,12 @@ network. IDE Settings groups project flashing, controls, telemetry, and address
 under **XRP Wi-Fi** while identifying USB as the firmware, setup, and repair
 path. Station-only preferences migrate without losing their saved endpoint.
 
-Folder work is now low-friction and recoverable. Save selects a normal
-project folder once; subsequent edits are serialized and written automatically
-after a short pause. Chrome retains the native handle where permitted and
-otherwise exposes one Reconnect action. Four complete pre-overwrite project
-states rotate in `UCSB_XRP_Autosaves`. The Monitor independently stores four
+Folder work is now low-friction and recoverable. A workspace contains one named
+folder per project; new templates write their folder immediately and subsequent
+edits are serialized automatically after a short pause. Chrome retains the
+workspace and active-project handles where permitted and otherwise exposes one
+Reconnect action. Four complete pre-overwrite project states rotate in the
+project's `UCSB_XRP_Autosaves`. The Monitor independently stores four
 aligned generations of output text, run metadata, and unit-labeled telemetry
 for every observed run; manual CSV exports remain explicit and unrotated.
 
@@ -266,7 +291,7 @@ command was issued.
   from the IDE.
 - A permanently open Live controls region below Time window renders declared
   numeric parameters as thin sliders, Booleans as checkboxes, and short choices
-  as radio controls. Named watch values form a compact table below Live values in
+  as radio controls. Named watch values form a compact table below Live telemetry in
   the right panel. Pending and applied values are shared across tabs and
   controls disable when the program is not running.
 - Independently selectable wheel-speed, drive-command, forward-range,
@@ -290,9 +315,9 @@ command was issued.
 - The wide Monitor keeps controls in a side rail and fits the world, values,
   output, and plots in one viewport. Narrow layouts use a compact top sheet and
   a vertically scrolling content order.
-- Status text is no longer styled like a button. Offline readiness is labeled
-  **Works without internet** and explicitly distinguishes the web copy from the
-  robot connection.
+- Status text is no longer styled like a button. Offline readiness names the
+  current application, such as **IDE available offline**, and explicitly
+  distinguishes the browser copy from robot connectivity and project folders.
 
 ### Virtual and physical targets
 
@@ -329,8 +354,8 @@ command was issued.
 - The production service worker verifies all 183 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, supplied bytecode, commissioning payload,
-  exact RP2350 UF2, and dependency license notices. The interface says
-  **Works without internet**; robot connectivity remains a separate status.
+  exact RP2350 UF2, and dependency license notices. Each application reports a
+  literal **available offline** state; robot connectivity remains separate.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
   later physical calibration.
@@ -346,17 +371,18 @@ The latest complete software pass includes:
 - 124 CPython API and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 123 Vitest tests for project identity and handling, folder rotation, target
+- 130 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, commissioning,
   raw REPL transport, plot data, and measured contrast;
 - a production build and verification of the exact 183-file offline manifest,
   including the 1,725,952-byte firmware against its pinned SHA-256 digest; and
-- 28 passing Stable Chrome software workflows covering all starters, the two
+- 29 passing Stable Chrome software workflows covering all starters, the two
   robot demos and tutorial project, flat IDE geometry, four-generation source
   autosave, per-run telemetry/output autosave, blocked-gate replanning,
   two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
-  typed live parameter updates and named watches, recording/CSV export, and a
+  typed live parameter updates and named watches, recording/CSV/SVG/PNG/WebM
+  export, synchronized annotations, named workspace-child creation, and a
   network-blocked offline reload, XRP-hotspot/existing-Wi-Fi selection, and the
   fresh-browser spiral default, fresh-Monitor direct Run, automatic validation
   failure reporting, folder write failure, explicit serial-picker cancellation,
@@ -412,7 +438,7 @@ x-grid line appeared between adjacent labeled values. XRP zoom confirmed one
 dark gray chassis shade, and the Monitor header displayed `IDE ↗ |`. A separate
 Stable Chrome path used an unreachable physical endpoint and verified that the
 full-size map and centered, explicitly non-pose XRP preview remained visible.
-All 28 current software Chrome workflows pass and the physical opt-in workflow
+All 29 current software Chrome workflows pass and the physical opt-in workflow
 is intentionally skipped.
 
 The conservative efficiency/distribution refinement then removed the unused
@@ -439,7 +465,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The current local
-production build is `2bfd4e25238fe393b921` with 183 verified payload files.
+production build is `a5fd9d1ad5d47912e691` with 183 verified payload files.
 
 The commissioning workflow additionally passes focused controller/version
 rejection, raw-paste flow control and standard-raw fallback, changed-only

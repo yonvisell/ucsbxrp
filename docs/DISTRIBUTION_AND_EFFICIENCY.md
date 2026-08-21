@@ -10,17 +10,21 @@ worker, offline manifest, and third-party notices. No CDN, application server,
 or remote runtime asset is required.
 
 The Monitor imports only the ECharts line-chart, grid, title, legend, tooltip,
-and canvas-renderer modules it uses. Against the same release, this reduced its
-minified JavaScript from 1,687,014 to 1,081,536 bytes and gzip size from 511,939
-to 315,685 bytes. The complete offline payload decreased from 7,740,158 to
-7,178,887 bytes after adding 43,325 bytes of distributable license notices. The
-self-commissioning release is 9,083,613 bytes across 183 verified payloads;
-most of the increase is the exact 1,725,952-byte RP2350 UF2 needed for repair
-after the computer leaves internet Wi-Fi. The commissioning application itself
-is approximately 25 kB minified and 8.3 kB gzip. No Monitor appearance,
-plotting option, data history, or interaction changed.
+and canvas-renderer modules it uses. The initial reduction moved its minified
+JavaScript from 1,687,014 to 1,081,536 bytes and gzip size from 511,939 to
+315,685 bytes without changing behavior. Combined SVG/PNG figures,
+telemetry-driven WebM replay, and timestamped annotations bring the current
+Monitor to 1,096,729 bytes minified and 319,455 bytes under ordinary gzip: an
+increase of 15,193 and 3,770 bytes respectively, with no new package. Export
+canvases, SVG strings, and media encoders exist only while an export is being
+made.
 
-The lockfile pins patched DOMPurify 3.4.13 and Nano ID 3.3.17 releases where
+The complete self-commissioning release is 9,122,965 bytes across 183 verified
+payloads. Its largest addition remains the exact 1,725,952-byte RP2350 UF2
+needed for repair after the computer leaves internet Wi-Fi. The commissioning
+application is 33,204 bytes minified and about 10.9 kB gzip.
+
+The lockfile pins patched DOMPurify 3.4.13 and Nano ID 3.3.18 releases where
 the current Monaco and Vite dependency trees otherwise selected vulnerable
 patch levels. `npm audit` reports no remaining production or development
 advisories.
@@ -64,7 +68,7 @@ course browser:
 
 1. open the commissioning wizard, IDE, Monitor, and guide at their final Pages
    paths;
-2. wait for **Works without internet**;
+2. wait for the app-specific **available offline** status;
 3. reload the applications with networking disabled and run one virtual
    project;
 4. restore networking, run one USB commission/repair, join the selected robot

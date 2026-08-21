@@ -31,7 +31,8 @@ guide, landing page, and shared packages.
 
 The IDE is the programming surface. It provides:
 
-- local-folder open and save with browser recovery;
+- a workspace containing named project folders, automatic project writes, and
+  an independent browser backup;
 - multi-file creation, rename, duplicate, delete, tabs, and main-file
   metadata;
 - one grouped project catalog containing the five cumulative challenges,
@@ -45,7 +46,7 @@ The IDE is the programming surface. It provides:
   and an existing-Wi-Fi address setting;
 - a flat white workspace with compact collapsible project, settings, and
   output regions, literal file names, and concise hover/focus help; and
-- separate concise Status and verbose Details output.
+- separate concise Status, Program output, and validation/service Details.
 
 Project state is represented as `{name, entrypoint, files}` at every execution
 boundary. The entrypoint, file paths, and file contents produce one SHA-256
@@ -55,26 +56,30 @@ target publishes only `{name, entrypoint, revision, stale}` to the UI; source
 remains inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
 Catalog entries are complete `CourseProject` values, not a persistent special
-mode. Loading one creates the same editable browser project used by a local
-folder, and any Python file can be selected as its main file (entrypoint).
-The selected native folder handle is retained in IndexedDB when the browser
-permits structured handle storage. If read/write permission survives, the IDE
-reattaches it; otherwise one explicit Reconnect gesture restores access.
-The browser backup remains independent. Folder writes are debounced, serialized,
-and revision/epoch checked so an older queued snapshot cannot overwrite a newer
-edit or explicit save. Before overwriting source, the previous complete project
-is rotated through four JSON generations in `UCSB_XRP_Autosaves`.
+mode. A workspace is a parent directory; each project is one named child
+directory containing source, metadata, rotated copies, run output, and
+telemetry. When a workspace is active, loading a template first asks for the
+child-directory name and writes the complete project immediately. Without a
+workspace, it remains in the independent browser backup until Save selects a
+workspace and names the project folder. Any Python file can be selected as its
+entrypoint. Workspace and active-project handles are retained separately in
+IndexedDB when structured handle storage is available. If project read/write
+permission does not survive, one explicit Reconnect gesture restores it.
+Folder writes are debounced, serialized, and revision/epoch checked so an older
+queued snapshot cannot overwrite a newer edit or explicit save. Before
+overwriting source, the previous complete project is rotated through four JSON
+generations in the project's `UCSB_XRP_Autosaves`.
 
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,
-outdated, or damaged XRP. A working folder is useful but not a commissioning
-prerequisite: students may select one for a project, rotated data, and setup
+outdated, or damaged XRP. A workspace is useful but not a commissioning
+prerequisite: students may select one for project folders and setup
 logs, or defer it until the IDE. The application cache remains browser-owned;
-a page cannot place that cache inside a user-selected folder. When a folder is
-selected, the wizard writes and reads back a small setup log before continuing.
+a page cannot place that cache inside a user-selected folder. When a workspace
+is selected, the wizard writes and reads back a small setup log before continuing.
 Meaningful controller, installation, reset, and network-probe events append to
-the same password-free log; without a folder the visible log remains copyable.
+the same password-free log; without a workspace the visible log remains copyable.
 Raw serial traffic is not retained.
 
 One user-selected Web Serial connection enters the MicroPython raw REPL. The
@@ -102,10 +107,11 @@ service uses either the XRP hotspot or existing Wi-Fi for physical Run,
 Monitor, and telemetry. After network activation and reset, the wizard reports every service-probe
 attempt and distinguishes an unreachable network from an incompatible service.
 An exact service/release reply stores the physical endpoint, hands any selected
-folder to the IDE, and opens the IDE in physical mode. The IDE automatically
-opens only a folder containing UCSBXRP metadata, initializes an empty folder,
-and leaves an unrecognized nonempty folder unchanged until **Open folder** is
-selected explicitly. It cannot silently choose
+workspace to the IDE, and opens the IDE in physical mode. For a new browser,
+the untouched spiral starter becomes `./Expanding-Spiral` inside that workspace.
+Recovered work is not moved automatically. The workspace itself is not imported
+as a project; an existing repository is loaded only through **Open project**. It
+cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
 firmware-volume, and local-network permissions; these are the only intentional
 user-mediated boundaries.
@@ -122,13 +128,18 @@ IDE and presents only available data. It contains:
 - a compact collapsible sidebar with selectable 2–30 second histories of wheel
   speed, dimensionless drive command, forward range, acceleration, and yaw
   rate;
-- live pose, drive commands, encoders, range, button, IMU, temperature, and battery
-  values;
+- live pose, drive commands, ultrasound distance, acceleration, and yaw rate,
+  followed by a separated device-state group for the USER button, motor supply,
+  IMU temperature, and encoder counts;
 - a permanently open Live controls region below the history window for bounded
   numeric, Boolean, and choice parameters;
 - named program watch values below the sensor values in the right panel;
 - program and service output; and
-- bounded telemetry recording and deterministic CSV export. Display and export
+- bounded telemetry recording and deterministic CSV export;
+- timestamped notes shared by the world, strip plots, plot exports, and run
+  metadata; and
+- combined SVG/PNG plot export plus a browser-native WebM world replay from a
+  stopped recording. Display and export
   convert hardware-native acceleration and angular-rate values to m/s² and
   rad/s; course geometry remains in millimeters.
 
@@ -140,6 +151,14 @@ controls. Environment selection resets virtual state and is disabled while a
 project is running. A physical target shows a world pose only when the course
 `Robot` loop publishes an estimate; stationary device sensors remain visible
 without a pose.
+
+Plot export is generated on demand from the retained samples rather than from
+a screenshot, producing stable axes and one figure containing every selected
+signal. World export replays the latest monotonic pose segment into an isolated
+canvas; it does not mutate the live Three.js world or the running target. The
+output is real time for recordings up to 20 seconds and bounded to 20 seconds
+for longer data by an explicit playback-rate label. No telemetry or media is
+sent off-device.
 
 ### Guide and visual system
 
@@ -358,7 +377,11 @@ base path from Pages and publishes the same static release. When a newer
 complete shell activates, a long-open tab reloads once for that build so an
 older interface does not remain in memory. Development disables caching to
 prevent stale bundles from masking changes. Private reference source and
-instructor credentials are not web assets.
+instructor credentials are not web assets. This application cache is owned by
+the HTTPS origin and is not copied into the selected workspace. It needs no
+Node process after caching; a `file://` copy is not substituted because the
+module, worker, WebAssembly, and service-worker boundaries require an HTTP(S)
+origin. Clearing site data removes the cached release but not project folders.
 
 Robot commands and telemetry still cross the selected local robot network.
 When an HTTPS Pages origin (the site address and protocol that own the browser
@@ -376,7 +399,7 @@ self-describing; it preserves blanks
 for unavailable physical values rather than inventing zero. Manual recordings
 remain session-local until exported. Independently, the Monitor captures every
 run and rotates four aligned output-text, metadata-JSON, and telemetry-CSV
-generations into the selected course folder. A Web Lock plus a compact run
+generations into the active project folder. A Web Lock plus a compact run
 fingerprint prevents duplicate archives when multiple Monitor tabs observe the
 same run. Explicit exports are never included in rotation.
 

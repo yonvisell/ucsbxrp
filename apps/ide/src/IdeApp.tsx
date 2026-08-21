@@ -27,28 +27,36 @@ import {
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import {
+  chooseWorkspaceFolder,
   courseFolderIsWaitingForIde,
   courseFolderPermission,
   finishCourseFolderIdeHandoff,
-  loadRememberedCourseFolder,
-  rememberCourseFolder,
+  loadRememberedProjectFolder,
+  loadRememberedWorkspaceFolder,
+  rememberProjectFolder,
+  rememberWorkspaceFolder,
   requestCourseFolderPermission,
 } from "../../shared/course-folder";
 import {
   chooseWorkingFolder,
+  createProjectFolder,
+  defaultProjectFolderName,
   defaultProjectTemplateId,
   deleteProjectFile,
   duplicateProjectFile,
-  hasProjectFolderMetadata,
+  ensureProjectFolder,
+  isDefaultProject,
   loadRecoveredProject,
   normalizedProjectPath,
   projectPathError,
+  projectFolderNameError,
   readProjectFolder,
   renameProjectFile,
   saveProjectFolderWithAutosave,
   setProjectEntrypoint,
   storeRecoveredProject,
   suggestedDuplicatePath,
+  suggestedProjectFolderName,
   supportsWorkingFolders,
   type CourseDirectoryHandle,
   type ProjectSnapshot,
@@ -56,6 +64,7 @@ import {
 
 interface ConsoleEntry {
   id: number;
+  category: "program" | "service";
   stream: "stdout" | "stderr" | "system";
   line: string;
 }
@@ -167,6 +176,10 @@ export function IdeApp() {
   const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
   const [workingFolder, setWorkingFolder] =
     useState<CourseDirectoryHandle | null>(null);
+  const [workspaceFolder, setWorkspaceFolder] =
+    useState<CourseDirectoryHandle | null>(null);
+  const [rememberedWorkspaceFolder, setRememberedWorkspaceFolder] =
+    useState<CourseDirectoryHandle | null>(null);
   const [rememberedFolder, setRememberedFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [rememberedFolderCanAttach, setRememberedFolderCanAttach] =
@@ -176,7 +189,7 @@ export function IdeApp() {
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
   const [operationDetail, setOperationDetail] = useState(
-    "This project is backed up in this browser. Choose Save to select its working folder, or Open folder to open another project.",
+    "This project has a browser backup. Choose a workspace to create its project folder, or open an existing project.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -192,7 +205,9 @@ export function IdeApp() {
   );
   const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
-  const [consoleTab, setConsoleTab] = useState<"status" | "details">("status");
+  const [consoleTab, setConsoleTab] = useState<"status" | "output" | "details">(
+    "status",
+  );
   const [outputPanelOpen, setOutputPanelOpen] = useState(true);
   const [projectPanelOpen, setProjectPanelOpen] = useState(
     initiallyShowProjectPanel,
@@ -204,6 +219,12 @@ export function IdeApp() {
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
   const [newFileError, setNewFileError] = useState("");
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectDraft, setNewProjectDraft] = useState("");
+  const [newProjectError, setNewProjectError] = useState("");
+  const [pendingProject, setPendingProject] = useState<ProjectSnapshot | null>(
+    null,
+  );
   const [pathOperation, setPathOperation] = useState<PathOperation | null>(
     null,
   );
@@ -240,6 +261,7 @@ export function IdeApp() {
           ...entries.slice(-199),
           {
             id: nextConsoleId.current++,
+            category: event.stream === "system" ? "service" : "program",
             stream: event.stream,
             line: event.line,
           },
@@ -290,83 +312,85 @@ export function IdeApp() {
 
   useEffect(() => {
     let disposed = false;
-    const restoreFolder = async () => {
-      const folder = await loadRememberedCourseFolder();
-      if (disposed || folder === null) {
-        return;
-      }
-      setRememberedFolder(folder);
+    const restoreFolders = async () => {
+      const [workspace, rememberedProject] = await Promise.all([
+        loadRememberedWorkspaceFolder(),
+        loadRememberedProjectFolder(),
+      ]);
+      if (disposed) return;
       const commissioningHandoff = courseFolderIsWaitingForIde();
-      if (folder.name !== projectRef.current.name && !commissioningHandoff) {
-        setRememberedFolderCanAttach(false);
-        return;
-      }
-      const permission = await courseFolderPermission(folder);
-      if (disposed) {
-        return;
-      }
-      if (permission === "granted") {
-        if (commissioningHandoff) {
-          const isUcsbProject = await hasProjectFolderMetadata(folder);
-          if (isUcsbProject) {
-            const opened = await readProjectFolder(folder);
-            if (disposed) return;
-            projectRef.current = opened.project;
-            setProject(opened.project);
-            setActivePath(opened.project.entrypoint);
-            setOpenPaths([opened.project.entrypoint]);
+      let folder = rememberedProject;
+      let defaultProjectCreated = false;
+      if (workspace) {
+        setRememberedWorkspaceFolder(workspace);
+        const permission = await courseFolderPermission(workspace);
+        if (disposed) return;
+        if (permission === "granted") {
+          setWorkspaceFolder(workspace);
+          if (commissioningHandoff) {
             setOperationDetail(
-              `Opened ${folder.name}.${
-                opened.skipped
-                  ? ` Skipped ${opened.skipped} unsupported item${opened.skipped === 1 ? "" : "s"}.`
-                  : ""
-              } Automatic folder saves are active.`,
+              `${workspace.name} is ready. New projects will be created in named folders inside it.`,
             );
-            setFolderDirty(false);
-            setFolderSaveState("current");
-          } else {
+          }
+          if (!folder && isDefaultProject(projectRef.current)) {
             try {
-              await readProjectFolder(folder);
-              if (disposed) return;
-              setRememberedFolderCanAttach(false);
-              setOperationDetail(
-                `${folder.name} contains files but is not yet a UCSBXRP project, so the current project was left unchanged. Use Open folder if you intend to import it.`,
+              const result = await ensureProjectFolder(
+                workspace,
+                defaultProjectFolderName,
+                projectRef.current,
               );
-              finishCourseFolderIdeHandoff();
-              return;
+              folder = result.folder;
+              defaultProjectCreated = result.created;
+              void rememberProjectFolder(folder);
             } catch (error) {
-              if (
-                !(error instanceof Error) ||
-                !error.message.includes("no supported text project files")
-              ) {
-                throw error;
-              }
-              setFolderDirty(true);
-              setFolderSaveState("pending");
               setOperationDetail(
-                `${folder.name} is ready. The current project will be saved there automatically.`,
+                `${workspace.name} is ready, but the default project folder could not be created: ${errorDetail(error)}`,
               );
             }
           }
-          finishCourseFolderIdeHandoff();
         }
-        setRememberedFolderCanAttach(true);
-        setWorkingFolder(folder);
-        if (!commissioningHandoff) {
-          setFolderDirty(true);
-          setFolderSaveState("pending");
+      }
+      if (folder) {
+        setRememberedFolder(folder);
+        const permission = await courseFolderPermission(folder);
+        if (disposed) return;
+        if (permission === "granted") {
+          const opened = await readProjectFolder(folder);
+          if (disposed) return;
+          projectRef.current = opened.project;
+          setProject(opened.project);
+          setActivePath(opened.project.entrypoint);
+          setOpenPaths([opened.project.entrypoint]);
+          setRememberedFolderCanAttach(true);
+          setWorkingFolder(folder);
+          setFolderDirty(false);
+          setFolderSaveState("current");
           setOperationDetail(
-            `Restored ${folder.name}. Recovered edits will save automatically.`,
+            `${defaultProjectCreated ? "Created" : "Opened"} ./${folder.name}.${
+              opened.skipped
+                ? ` Skipped ${opened.skipped} unsupported item${opened.skipped === 1 ? "" : "s"}.`
+                : defaultProjectCreated
+                  ? " Edits and monitored runs save there automatically."
+                  : ""
+            }`,
+          );
+        } else {
+          setFolderSaveState("permission");
+          setOperationDetail(
+            `Reconnect project folder ${folder.name} once to resume automatic saves.`,
           );
         }
-      } else {
-        setFolderSaveState("permission");
-        setOperationDetail(
-          `Reconnect ${folder.name} once to resume automatic working-folder saves.`,
-        );
       }
+      if (commissioningHandoff) finishCourseFolderIdeHandoff();
     };
-    void restoreFolder();
+    void restoreFolders().catch((error: unknown) => {
+      if (disposed) return;
+      setFolderSaveState("error");
+      setOperationDetail(
+        `The remembered project folder could not be reopened: ${errorDetail(error)} The browser backup remains available.`,
+      );
+      if (courseFolderIsWaitingForIde()) finishCourseFolderIdeHandoff();
+    });
     return () => {
       disposed = true;
     };
@@ -397,6 +421,14 @@ export function IdeApp() {
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
+  );
+  const programOutput = useMemo(
+    () => consoleEntries.filter((entry) => entry.category === "program"),
+    [consoleEntries],
+  );
+  const serviceDetails = useMemo(
+    () => consoleEntries.filter((entry) => entry.category === "service"),
+    [consoleEntries],
   );
   const replacementEntrypoint = projectFiles.find(
     (path) => path !== activePath && path.endsWith(".py"),
@@ -442,7 +474,7 @@ export function IdeApp() {
       setFolderDirty(true);
       setOperationDetail(
         workingFolder
-          ? "Changes are backed up in this browser and save to the working folder automatically."
+          ? "Changes save to this project folder automatically."
           : "Changes are backed up in this browser.",
       );
     },
@@ -492,7 +524,7 @@ export function IdeApp() {
       return;
     }
     setOutputPanelOpen(true);
-    setConsoleTab("details");
+    setConsoleTab("output");
     let validationPassed = checkOk === true;
     try {
       if (!validationPassed) {
@@ -505,12 +537,16 @@ export function IdeApp() {
           ...entries.slice(-199),
           {
             id: nextConsoleId.current++,
+            category: "service",
             stream: result.ok ? "system" : "stderr",
             line: `${result.ok ? "Validation passed" : "Validation failed"}: ${result.detail}`,
           },
         ]);
       }
-      if (!validationPassed) return;
+      if (!validationPassed) {
+        setConsoleTab("details");
+        return;
+      }
       await target.run(project);
       if (target.kind === "physical") {
         setSyncOk(true);
@@ -524,6 +560,7 @@ export function IdeApp() {
         ...entries.slice(-199),
         {
           id: nextConsoleId.current++,
+          category: "service",
           stream: "stderr",
           line: detail,
         },
@@ -547,7 +584,6 @@ export function IdeApp() {
     setOutputPanelOpen(true);
     setConsoleTab("status");
     await target.reset();
-    setConsoleEntries([]);
   }, [isConnected, target]);
 
   const openWorkingFolder = useCallback(async () => {
@@ -559,7 +595,7 @@ export function IdeApp() {
       setRememberedFolder(folder);
       setRememberedFolderCanAttach(true);
       setFolderSaveState("current");
-      void rememberCourseFolder(folder);
+      void rememberProjectFolder(folder);
       projectRef.current = result.project;
       setProject(result.project);
       setActivePath(result.project.entrypoint);
@@ -570,7 +606,7 @@ export function IdeApp() {
       setCheckDetail("Current files have not been checked.");
       setConsoleEntries([]);
       setOperationDetail(
-        `Opened ${folder.name}: ${Object.keys(result.project.files).length} supported file${
+        `Opened project folder ${folder.name}: ${Object.keys(result.project.files).length} supported file${
           Object.keys(result.project.files).length === 1 ? "" : "s"
         }${result.skipped ? `; ${result.skipped} item${result.skipped === 1 ? "" : "s"} skipped` : ""}.`,
       );
@@ -580,6 +616,99 @@ export function IdeApp() {
       }
     }
   }, [replacePendingFolderDeletions]);
+
+  const selectWorkspaceFolder = useCallback(async () => {
+    try {
+      const folder = await chooseWorkspaceFolder();
+      let projectAttached = false;
+      setWorkspaceFolder(folder);
+      setRememberedWorkspaceFolder(folder);
+      void rememberWorkspaceFolder(folder);
+      if (!workingFolder && isDefaultProject(projectRef.current)) {
+        const ensured = await ensureProjectFolder(
+          folder,
+          defaultProjectFolderName,
+          projectRef.current,
+        );
+        const opened = await readProjectFolder(ensured.folder);
+        projectRef.current = opened.project;
+        setProject(opened.project);
+        setActivePath(opened.project.entrypoint);
+        setOpenPaths([opened.project.entrypoint]);
+        setWorkingFolder(ensured.folder);
+        setRememberedFolder(ensured.folder);
+        setRememberedFolderCanAttach(true);
+        setFolderSaveState("current");
+        setFolderDirty(false);
+        replacePendingFolderDeletions(() => new Set());
+        void rememberProjectFolder(ensured.folder);
+        setOperationDetail(
+          `${ensured.created ? "Created" : "Opened"} ./${ensured.folder.name}. Edits and monitored runs save there automatically.`,
+        );
+        projectAttached = true;
+      } else {
+        setOperationDetail(
+          `${folder.name} is the workspace for new project folders.`,
+        );
+      }
+      return { folder, projectAttached };
+    } catch (error) {
+      if (!wasCancelled(error)) {
+        setOperationDetail(errorDetail(error));
+      }
+      return null;
+    }
+  }, [replacePendingFolderDeletions, workingFolder]);
+
+  const prepareProjectCreation = useCallback(
+    async (snapshot: ProjectSnapshot, chooseWorkspaceIfMissing = false) => {
+      let workspace = workspaceFolder;
+      if (!workspace && rememberedWorkspaceFolder) {
+        const permission = await requestCourseFolderPermission(
+          rememberedWorkspaceFolder,
+        );
+        if (permission === "granted") {
+          workspace = rememberedWorkspaceFolder;
+          setWorkspaceFolder(workspace);
+        }
+      }
+      if (!workspace && chooseWorkspaceIfMissing && supportsWorkingFolders()) {
+        const selection = await selectWorkspaceFolder();
+        workspace = selection?.folder ?? null;
+        if (selection?.projectAttached) return;
+      }
+      if (!workspace) {
+        projectRef.current = snapshot;
+        setProject(snapshot);
+        setActivePath(snapshot.entrypoint);
+        setOpenPaths([snapshot.entrypoint]);
+        setWorkingFolder(null);
+        setRememberedFolder(null);
+        replacePendingFolderDeletions(() => new Set());
+        setFolderDirty(true);
+        setFolderSaveState("browser");
+        setCheckOk(null);
+        setCheckDetail("Current files have not been checked.");
+        setSyncOk(null);
+        setSyncDetail("Current files have not been sent to the XRP.");
+        setConsoleEntries([]);
+        setOperationDetail(
+          `${snapshot.name} created in the browser backup. Choose a workspace to create its local project folder.`,
+        );
+        return;
+      }
+      setPendingProject(snapshot);
+      setNewProjectDraft(suggestedProjectFolderName(snapshot.name));
+      setNewProjectError("");
+      setNewProjectOpen(true);
+    },
+    [
+      rememberedWorkspaceFolder,
+      replacePendingFolderDeletions,
+      selectWorkspaceFolder,
+      workspaceFolder,
+    ],
+  );
 
   const reconnectWorkingFolder = useCallback(async () => {
     if (!rememberedFolder || !rememberedFolderCanAttach) {
@@ -595,10 +724,11 @@ export function IdeApp() {
         return;
       }
       setWorkingFolder(rememberedFolder);
+      void rememberProjectFolder(rememberedFolder);
       setFolderDirty(true);
       setFolderSaveState("pending");
       setOperationDetail(
-        `Reconnected ${rememberedFolder.name}. Recovered edits will save automatically.`,
+        `Reconnected project folder ${rememberedFolder.name}. Recovered edits will save automatically.`,
       );
     } catch (error) {
       if (!wasCancelled(error)) {
@@ -610,13 +740,14 @@ export function IdeApp() {
 
   const saveProjectFiles = useCallback(async () => {
     try {
+      if (!workingFolder) {
+        await prepareProjectCreation(projectRef.current, true);
+        return;
+      }
       folderWriteEpoch.current += 1;
-      const folder = workingFolder ?? (await chooseWorkingFolder());
+      const folder = workingFolder;
       const currentProjectSnapshot = projectRef.current;
-      const savedProject =
-        workingFolder || currentProjectSnapshot.name === folder.name
-          ? currentProjectSnapshot
-          : { ...currentProjectSnapshot, name: folder.name };
+      const savedProject = currentProjectSnapshot;
       const deletedPaths = new Set(pendingFolderDeletionsRef.current);
       setOperationDetail(
         `Saving ${Object.keys(savedProject.files).length} files…`,
@@ -630,14 +761,6 @@ export function IdeApp() {
         () => undefined,
       );
       const { removedFiles } = await queued;
-      if (!workingFolder) {
-        setWorkingFolder(folder);
-        setRememberedFolder(folder);
-        setRememberedFolderCanAttach(true);
-        projectRef.current = savedProject;
-        setProject(savedProject);
-        void rememberCourseFolder(folder);
-      }
       setFolderDirty(false);
       setFolderSaveState("current");
       replacePendingFolderDeletions(() => new Set());
@@ -656,7 +779,7 @@ export function IdeApp() {
         setOperationDetail(errorDetail(error));
       }
     }
-  }, [replacePendingFolderDeletions, workingFolder]);
+  }, [prepareProjectCreation, replacePendingFolderDeletions, workingFolder]);
 
   useEffect(() => {
     if (!workingFolder || !folderDirty) {
@@ -707,11 +830,7 @@ export function IdeApp() {
             }
             return remaining;
           });
-          setOperationDetail(
-            `Autosaved ${Object.keys(snapshot.files).length} project file${
-              Object.keys(snapshot.files).length === 1 ? "" : "s"
-            } to ${folder.name}.`,
-          );
+          setOperationDetail(`Saved changes to ./${folder.name}.`);
         })
         .catch((error: unknown) => {
           if (
@@ -736,7 +855,7 @@ export function IdeApp() {
     workingFolder,
   ]);
 
-  const loadProjectTemplate = useCallback(() => {
+  const loadProjectTemplate = useCallback(async () => {
     const template = COURSE_PROJECT_TEMPLATES.find(
       (candidate) => candidate.id === selectedTemplateId,
     );
@@ -748,24 +867,59 @@ export function IdeApp() {
       entrypoint: template.project.entrypoint,
       files: { ...template.project.files },
     };
-    projectRef.current = snapshot;
-    setProject(snapshot);
-    setActivePath(snapshot.entrypoint);
-    setOpenPaths([snapshot.entrypoint]);
-    setWorkingFolder(null);
-    setRememberedFolder(null);
-    replacePendingFolderDeletions(() => new Set());
-    setFolderDirty(true);
-    setFolderSaveState("browser");
-    setCheckOk(null);
-    setCheckDetail("Current files have not been checked.");
-    setSyncOk(null);
-    setSyncDetail("Current files have not been sent to the XRP.");
-    setConsoleEntries([]);
-    setOperationDetail(
-      `${template.label} loaded. Choose Save to select its project folder.`,
-    );
-  }, [replacePendingFolderDeletions, selectedTemplateId]);
+    await prepareProjectCreation(snapshot);
+  }, [prepareProjectCreation, selectedTemplateId]);
+
+  const createNamedProject = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!pendingProject || !workspaceFolder) return;
+      const validationError = projectFolderNameError(newProjectDraft);
+      if (validationError) {
+        setNewProjectError(validationError);
+        return;
+      }
+      try {
+        setNewProjectError("");
+        setOperationDetail(`Creating ${newProjectDraft.trim()}…`);
+        const folder = await createProjectFolder(
+          workspaceFolder,
+          newProjectDraft,
+          pendingProject,
+        );
+        projectRef.current = pendingProject;
+        setProject(pendingProject);
+        setActivePath(pendingProject.entrypoint);
+        setOpenPaths([pendingProject.entrypoint]);
+        setWorkingFolder(folder);
+        setRememberedFolder(folder);
+        setRememberedFolderCanAttach(true);
+        void rememberProjectFolder(folder);
+        replacePendingFolderDeletions(() => new Set());
+        setFolderDirty(false);
+        setFolderSaveState("current");
+        setCheckOk(null);
+        setCheckDetail("Current files have not been checked.");
+        setSyncOk(null);
+        setSyncDetail("Current files have not been sent to the XRP.");
+        setConsoleEntries([]);
+        setNewProjectOpen(false);
+        setPendingProject(null);
+        setNewProjectDraft("");
+        setOperationDetail(
+          `Created ./${folder.name}. Edits and monitored runs save there automatically.`,
+        );
+      } catch (error) {
+        setNewProjectError(errorDetail(error));
+      }
+    },
+    [
+      newProjectDraft,
+      pendingProject,
+      replacePendingFolderDeletions,
+      workspaceFolder,
+    ],
+  );
 
   const createFile = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -934,11 +1088,13 @@ export function IdeApp() {
       if (event.key === "Escape") {
         setSettingsOpen(false);
         setNewFileOpen(false);
+        setNewProjectOpen(false);
+        setPendingProject(null);
         setPathOperation(null);
         setDeletePath(null);
         return;
       }
-      if (newFileOpen || pathOperation || deletePath) {
+      if (newFileOpen || newProjectOpen || pathOperation || deletePath) {
         return;
       }
       const command = event.metaKey || event.ctrlKey;
@@ -961,6 +1117,7 @@ export function IdeApp() {
   }, [
     deletePath,
     newFileOpen,
+    newProjectOpen,
     pathOperation,
     runTarget,
     saveProjectFiles,
@@ -968,7 +1125,7 @@ export function IdeApp() {
   ]);
 
   useEffect(() => {
-    if (!newFileOpen && !pathOperation && !deletePath) {
+    if (!newFileOpen && !newProjectOpen && !pathOperation && !deletePath) {
       return;
     }
     const keepFocusInDialog = (event: KeyboardEvent) => {
@@ -1000,23 +1157,19 @@ export function IdeApp() {
     };
     window.addEventListener("keydown", keepFocusInDialog);
     return () => window.removeEventListener("keydown", keepFocusInDialog);
-  }, [deletePath, newFileOpen, pathOperation]);
+  }, [deletePath, newFileOpen, newProjectOpen, pathOperation]);
 
   const storageDetail = workingFolder
-    ? `${workingFolder.name} · ${
-        folderSaveState === "error"
-          ? "autosave failed"
-          : folderSaveState === "saving"
-            ? "saving…"
-            : folderDirty
-              ? "autosave pending"
-              : "autosaved"
-      }`
+    ? folderSaveState === "error"
+      ? "Automatic save failed"
+      : folderSaveState === "saving" || folderDirty
+        ? "Saving changes…"
+        : "Connected · changes save automatically"
     : rememberedFolder && rememberedFolderCanAttach
-      ? `${rememberedFolder.name} · reconnect to resume autosave`
-      : folderDirty
-        ? "Browser backup · choose Save for a working folder"
-        : "Browser backup only";
+      ? `${rememberedFolder.name} · reconnect to resume saving`
+      : "Browser backup · no project folder";
+  const visibleConsoleEntries =
+    consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
   const flashState =
     syncOk === false
@@ -1157,6 +1310,11 @@ export function IdeApp() {
                 ‹
               </button>
             </div>
+            <div className="project-root" data-testid="project-folder">
+              {workingFolder
+                ? `./${workingFolder.name}`
+                : "Browser project · no folder"}
+            </div>
             <div className="file-list">
               {projectFiles.map((path) => (
                 <button
@@ -1186,13 +1344,13 @@ export function IdeApp() {
                   onClick={() => beginPathOperation("rename")}
                   title={`Rename ${activePath}.`}
                 >
-                  Rename
+                  Rename file
                 </button>
                 <button
                   onClick={() => beginPathOperation("duplicate")}
                   title={`Create a second editable copy of ${activePath}.`}
                 >
-                  Duplicate
+                  Duplicate file
                 </button>
                 <button
                   disabled={
@@ -1208,7 +1366,7 @@ export function IdeApp() {
                         : `Make ${activePath} the file Run executes first`
                   }
                 >
-                  {activePath === project.entrypoint ? "Main" : "Make main"}
+                  Make main
                 </button>
                 <button
                   className="danger-button"
@@ -1220,7 +1378,7 @@ export function IdeApp() {
                       : "A project must retain a Python main file"
                   }
                 >
-                  Delete
+                  Delete file
                 </button>
               </div>
               <div className="project-actions">
@@ -1228,9 +1386,9 @@ export function IdeApp() {
                   className="open-folder-button"
                   disabled={!supportsWorkingFolders()}
                   onClick={openWorkingFolder}
-                  title="Open another local project folder. The current project remains in browser recovery."
+                  title="Open an existing local UCSBXRP project folder. The current project remains in browser recovery."
                 >
-                  {workingFolder ? "Change folder" : "Open folder"}
+                  Open project
                 </button>
                 <button
                   onClick={() => {
@@ -1280,7 +1438,21 @@ export function IdeApp() {
                 </div>
               </div>
               <div className="project-storage">
-                <span>WORKING FOLDER</span>
+                <span>WORKSPACE</span>
+                <strong
+                  title={workspaceFolder?.name ?? "No workspace selected"}
+                >
+                  {workspaceFolder?.name ?? "Not selected"}
+                </strong>
+                <button
+                  className="folder-reconnect"
+                  disabled={!supportsWorkingFolders()}
+                  onClick={selectWorkspaceFolder}
+                  title="Choose the parent folder that contains your UCSBXRP project folders."
+                >
+                  {workspaceFolder ? "Change workspace" : "Choose workspace"}
+                </button>
+                <span>PROJECT FOLDER</span>
                 <strong title={storageDetail}>{storageDetail}</strong>
                 {!workingFolder &&
                 rememberedFolder &&
@@ -1293,10 +1465,8 @@ export function IdeApp() {
                     Reconnect
                   </button>
                 ) : null}
+                <OfflineReadiness appName="IDE" />
               </div>
-            </div>
-            <div className="ide-offline-status">
-              <OfflineReadiness />
             </div>
           </aside>
         ) : null}
@@ -1345,17 +1515,11 @@ export function IdeApp() {
                   </button>
                 </div>
               ))}
-              <span className="autosave-label">
-                {workingFolder
-                  ? folderSaveState === "error"
-                    ? "Save failed"
-                    : folderSaveState === "saving"
-                      ? "Saving…"
-                      : folderDirty
-                        ? "Autosave pending"
-                        : "Autosaved"
-                  : "Browser backup"}
-              </span>
+              {folderSaveState === "error" || folderSaveState === "saving" ? (
+                <span className="autosave-label">
+                  {folderSaveState === "error" ? "Save failed" : "Saving…"}
+                </span>
+              ) : null}
             </div>
             <div className="editor-frame" data-testid="python-editor">
               <Editor
@@ -1408,6 +1572,19 @@ export function IdeApp() {
                   Status
                 </button>
                 <button
+                  aria-selected={consoleTab === "output"}
+                  className={consoleTab === "output" ? "active" : ""}
+                  onClick={() => {
+                    setConsoleTab("output");
+                    setOutputPanelOpen(true);
+                  }}
+                  role="tab"
+                  title="Show text printed by the running program and Python exceptions."
+                >
+                  Program output
+                  {programOutput.length > 0 ? ` (${programOutput.length})` : ""}
+                </button>
+                <button
                   aria-selected={consoleTab === "details"}
                   className={consoleTab === "details" ? "active" : ""}
                   onClick={() => {
@@ -1415,23 +1592,31 @@ export function IdeApp() {
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
-                  title="Show program output and detailed service messages."
+                  title="Show validation, connection, and target-service messages."
                 >
                   Details
-                  {consoleEntries.length > 0
-                    ? ` (${consoleEntries.length})`
+                  {serviceDetails.length > 0
+                    ? ` (${serviceDetails.length})`
                     : ""}
                 </button>
               </div>
               <div className="console-actions">
-                {outputPanelOpen && consoleTab === "details" ? (
+                {outputPanelOpen && consoleTab !== "status" ? (
                   <button
                     className="clear-output"
-                    disabled={consoleEntries.length === 0}
-                    onClick={() => setConsoleEntries([])}
-                    title="Clear the visible program and service output."
+                    disabled={visibleConsoleEntries.length === 0}
+                    onClick={() =>
+                      setConsoleEntries((entries) =>
+                        entries.filter((entry) =>
+                          consoleTab === "output"
+                            ? entry.category !== "program"
+                            : entry.category !== "service",
+                        ),
+                      )
+                    }
+                    title={`Clear ${consoleTab === "output" ? "program output" : "service details"}.`}
                   >
-                    Clear output
+                    Clear
                   </button>
                 ) : null}
                 <button
@@ -1510,13 +1695,14 @@ export function IdeApp() {
                 aria-live="polite"
                 style={{ fontSize: `${settings.consoleFontSize}px` }}
               >
-                {consoleEntries.length === 0 ? (
+                {visibleConsoleEntries.length === 0 ? (
                   <span className="console-placeholder">
-                    Program output and validation messages appear here. Run
-                    validates first.
+                    {consoleTab === "output"
+                      ? "Program output appears here after Run."
+                      : "Validation, connection, and target-service messages appear here. Run validates before starting."}
                   </span>
                 ) : (
-                  consoleEntries.map((entry) => (
+                  visibleConsoleEntries.map((entry) => (
                     <div
                       className={`console-line ${entry.stream}`}
                       key={entry.id}
@@ -1751,6 +1937,60 @@ export function IdeApp() {
             </dl>
           </section>
         </aside>
+      ) : null}
+
+      {newProjectOpen && pendingProject ? (
+        <div
+          aria-labelledby="new-project-title"
+          aria-modal="true"
+          className="modal-backdrop"
+          role="dialog"
+        >
+          <form className="new-file-dialog" onSubmit={createNamedProject}>
+            <span className="dialog-kicker">NEW PROJECT</span>
+            <h2 id="new-project-title">Name the project folder</h2>
+            <p className="dialog-context">
+              The folder will be created inside {workspaceFolder?.name}. Source,
+              automatic copies, program output, and telemetry will stay with
+              this project.
+            </p>
+            <label htmlFor="new-project-folder">Folder name</label>
+            <input
+              aria-describedby="new-project-help"
+              aria-invalid={newProjectError ? "true" : undefined}
+              autoFocus
+              id="new-project-folder"
+              onChange={(event) => {
+                setNewProjectDraft(event.target.value);
+                setNewProjectError("");
+              }}
+              value={newProjectDraft}
+            />
+            <small
+              aria-live="polite"
+              className={newProjectError ? "dialog-error" : ""}
+              id="new-project-help"
+            >
+              {newProjectError || `Creates ./${newProjectDraft || "project"}`}
+            </small>
+            <div className="dialog-actions">
+              <button
+                onClick={() => {
+                  setNewProjectOpen(false);
+                  setPendingProject(null);
+                  setNewProjectDraft("");
+                  setNewProjectError("");
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button className="primary-button" type="submit">
+                Create project
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
 
       {newFileOpen ? (

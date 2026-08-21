@@ -8,11 +8,11 @@ import {
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import {
-  chooseCourseFolder,
+  chooseWorkspaceFolder,
   courseFolderPermission,
   handCourseFolderToIde,
-  loadRememberedCourseFolder,
-  rememberCourseFolder,
+  loadRememberedWorkspaceFolder,
+  rememberWorkspaceFolder,
   requestCourseFolderPermission,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
@@ -182,7 +182,7 @@ export function CommissionApp() {
       try {
         const [loadedManifest, rememberedFolder] = await Promise.all([
           loadCommissioningManifest(manifestUrl),
-          loadRememberedCourseFolder(),
+          loadRememberedWorkspaceFolder(),
         ]);
         if (disposed) return;
         manifestReleaseRef.current = loadedManifest.releaseId;
@@ -213,7 +213,7 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is ready for project files, setup logs, and automatic copies.`,
+                `${rememberedFolder.name} is ready as the parent workspace for project folders.`,
               );
               setStage("usb");
               return;
@@ -225,7 +225,7 @@ export function CommissionApp() {
                 "error",
               );
               setError(
-                "The remembered project folder could not be written and read. Choose the folder again or select another folder.",
+                "The remembered workspace could not be written and read. Choose it again or select another folder.",
               );
             }
           }
@@ -233,7 +233,7 @@ export function CommissionApp() {
         if (!disposed) {
           setStage("folder");
           setDetail(
-            "Choose a working folder for one XRP project, logs, and automatic copies, or continue and choose one later in the IDE.",
+            "Choose a workspace that will contain your XRP project folders, or continue and choose one later in the IDE.",
           );
         }
       } catch (initializationError) {
@@ -260,19 +260,19 @@ export function CommissionApp() {
     try {
       let selected = folderNeedsPickerRef.current
         ? null
-        : await loadRememberedCourseFolder();
+        : await loadRememberedWorkspaceFolder();
       if (selected) {
         const permission = await requestCourseFolderPermission(selected);
         if (permission !== "granted") selected = null;
       }
-      selected ??= await chooseCourseFolder();
+      selected ??= await chooseWorkspaceFolder();
       recordSetup("Folder", `Checking write access to ${selected.name}.`);
       await verifySetupLogFolder(
         selected,
         setupLogEntriesRef.current,
         manifestReleaseRef.current,
       );
-      await rememberCourseFolder(selected);
+      await rememberWorkspaceFolder(selected);
       folderNeedsPickerRef.current = false;
       folderRef.current = selected;
       setFolder(selected);
@@ -282,14 +282,14 @@ export function CommissionApp() {
         "success",
       );
       setDetail(
-        `${selected.name} is ready. Chrome stores the web app separately so it can work without internet.`,
+        `${selected.name} is ready for project folders. Chrome stores the web apps separately in browser storage.`,
       );
       setStage("usb");
     } catch (folderError) {
       if (!wasCancelled(folderError)) {
         folderNeedsPickerRef.current = true;
         const message = errorDetail(folderError);
-        setError(`The working-folder write check failed. ${message}`);
+        setError(`The workspace write check failed. ${message}`);
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
     }
@@ -298,11 +298,11 @@ export function CommissionApp() {
   const skipFolder = useCallback(() => {
     setError("");
     setDetail(
-      "Connect the XRP by USB-C and keep it connected through setup. Choose Save in the IDE later to add a working folder.",
+      "Connect the XRP by USB-C and keep it connected through setup. You can choose a workspace in the IDE later.",
     );
     recordSetup(
       "Folder",
-      "Continued without a working folder; the visible setup log remains available to copy.",
+      "Continued without a workspace; the visible setup log remains available to copy.",
     );
     setStage("usb");
   }, [recordSetup]);
@@ -730,7 +730,7 @@ export function CommissionApp() {
       <main className="commission-layout">
         <aside aria-label="Setup progress" className="commission-steps">
           {[
-            [1, "Working folder"],
+            [1, "Workspace"],
             [2, "XRP over USB"],
             [3, "Install and verify"],
             [4, "Verify robot connection"],
@@ -750,15 +750,15 @@ export function CommissionApp() {
             </div>
           ))}
           <div className="commission-offline">
-            <OfflineReadiness />
-            {folder ? <small>Working folder: {folder.name}</small> : null}
+            <OfflineReadiness appName="Setup" />
+            {folder ? <small>Workspace: {folder.name}</small> : null}
           </div>
         </aside>
 
         <section className="commission-panel" aria-live="polite">
           <p className="commission-kicker">ROBOT SETUP &amp; REPAIR</p>
           {stage === "loading" ? <h1>Preparing setup</h1> : null}
-          {stage === "folder" ? <h1>Choose a working folder</h1> : null}
+          {stage === "folder" ? <h1>Choose a workspace</h1> : null}
           {stage === "usb" ? <h1>Connect the XRP by USB-C</h1> : null}
           {stage === "network" ? <h1>Choose the robot network</h1> : null}
           {stage === "installing" ? <h1>Updating the XRP</h1> : null}
@@ -779,19 +779,20 @@ export function CommissionApp() {
             <div className="commission-actions">
               <div className="commission-action-row">
                 <button className="primary-button" onClick={chooseFolder}>
-                  Choose working folder
+                  Choose workspace
                 </button>
                 <button onClick={skipFolder}>Choose later</button>
               </div>
               <p>
-                Choose a new folder or an existing UCSBXRP project folder.
-                Source, setup logs, run data, and four automatic copies go
-                there. Chrome stores the web app itself separately.
+                Choose one parent folder for your UCSBXRP projects. Each new
+                project gets its own named subfolder; source, run data, and
+                automatic copies stay with that project. Setup logs remain at
+                the workspace level. Chrome stores the web apps separately.
               </p>
               <p>
                 For version control, clone the course repository with GitHub
-                Desktop and open that project folder in the IDE. This site never
-                requests or stores GitHub credentials.
+                Desktop and choose the cloned repository as a project in the
+                IDE. This site never requests or stores GitHub credentials.
               </p>
             </div>
           ) : null}

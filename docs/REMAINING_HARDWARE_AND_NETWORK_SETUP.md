@@ -4,8 +4,8 @@
 
 Open **Open wizard for XRP initial set up or repair** from the public landing
 page, or **Set up or repair XRP** in IDE Settings, in current desktop Chrome or
-Edge. Choose a working folder or defer it, connect the RP2350 XRP by USB-C, select it once,
-and choose **Robot hotspot** or **Existing Wi-Fi**.
+Edge. Choose a workspace or defer it, connect the RP2350 XRP by USB-C, select it
+once, and choose **Robot hotspot** or **Existing Wi-Fi**.
 The wizard waits for the verified offline web copy, installs and read-verifies
 only changed course files, repairs MicroPython when needed, restarts the XRP,
 verifies its Wi-Fi service, and opens the IDE in physical mode.
@@ -22,7 +22,7 @@ the same installation file set; it is not part of the normal student path.
 The current development robot now runs release `2026.08-dev.7` in hotspot mode
 at `192.168.42.1`. Its 23-file USB repair passed no-change repetition and two
 controlled one-file repairs. The public wizard also reached the native macOS
-project-folder chooser; completing that chooser-to-Web-Serial path and granting
+workspace chooser; completing that chooser-to-Web-Serial path and granting
 the final Pages origin local-network access are the remaining browser-specific
 observations. The previously validated station profile is `Pink` at
 `192.168.7.34`.

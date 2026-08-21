@@ -36,6 +36,7 @@ export interface RotatingTextEntry {
 export const autosaveDirectoryName = "UCSB_XRP_Autosaves";
 export const autosaveGenerations = 4;
 export const courseFolderChangedKey = "ucsb-xrp-course-folder-changed-v1";
+export const workspaceFolderChangedKey = "ucsb-xrp-workspace-folder-changed-v1";
 export const courseFolderIdeHandoffKey =
   "ucsb-xrp-course-folder-ide-handoff-v1";
 
@@ -43,6 +44,9 @@ const databaseName = "ucsb-xrp-course-tools-v1";
 const databaseVersion = 1;
 const handleStoreName = "course-folders";
 const workingFolderKey = "working-folder";
+const projectFolderKey = "project-folder-v1";
+const workspaceFolderKey = "workspace-folder-v1";
+const projectMetadataFile = ".ucsb-xrp-project.json";
 const autosaveReadme = `UCSB XRP automatic copies
 
 The browser creates these files after a project folder has been selected.
@@ -110,7 +114,7 @@ export function supportsCourseFolders(): boolean {
   );
 }
 
-export async function chooseCourseFolder(): Promise<CourseDirectoryHandle> {
+async function chooseFolder(id: string): Promise<CourseDirectoryHandle> {
   const picker = (
     window as Window & {
       showDirectoryPicker?: (options: {
@@ -124,7 +128,20 @@ export async function chooseCourseFolder(): Promise<CourseDirectoryHandle> {
       "Folder access requires a current Chromium browser on localhost or HTTPS.",
     );
   }
-  return picker({ id: "ucsb-xrp-course-project", mode: "readwrite" });
+  return picker({ id, mode: "readwrite" });
+}
+
+/** @deprecated Choose a workspace or project folder explicitly. */
+export async function chooseCourseFolder(): Promise<CourseDirectoryHandle> {
+  return chooseFolder("ucsb-xrp-course-project");
+}
+
+export async function chooseWorkspaceFolder(): Promise<CourseDirectoryHandle> {
+  return chooseFolder("ucsb-xrp-workspace");
+}
+
+export async function chooseProjectFolder(): Promise<CourseDirectoryHandle> {
+  return chooseFolder("ucsb-xrp-project");
 }
 
 export async function courseFolderPermission(
@@ -146,8 +163,10 @@ export async function requestCourseFolderPermission(
   return handle.requestPermission({ mode: "readwrite" });
 }
 
-export async function rememberCourseFolder(
+async function rememberFolder(
   handle: CourseDirectoryHandle,
+  key: string,
+  changeKey: string,
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") {
     return false;
@@ -156,11 +175,11 @@ export async function rememberCourseFolder(
     const database = await openFolderDatabase();
     const transaction = database.transaction(handleStoreName, "readwrite");
     const completed = transactionComplete(transaction);
-    transaction.objectStore(handleStoreName).put(handle, workingFolderKey);
+    transaction.objectStore(handleStoreName).put(handle, key);
     await completed;
     database.close();
     try {
-      localStorage.setItem(courseFolderChangedKey, String(Date.now()));
+      localStorage.setItem(changeKey, String(Date.now()));
     } catch {
       // The handle remains available to this origin even without localStorage.
     }
@@ -168,6 +187,25 @@ export async function rememberCourseFolder(
   } catch {
     return false;
   }
+}
+
+/** @deprecated Remember a workspace or project folder explicitly. */
+export async function rememberCourseFolder(
+  handle: CourseDirectoryHandle,
+): Promise<boolean> {
+  return rememberFolder(handle, workingFolderKey, courseFolderChangedKey);
+}
+
+export async function rememberWorkspaceFolder(
+  handle: CourseDirectoryHandle,
+): Promise<boolean> {
+  return rememberFolder(handle, workspaceFolderKey, workspaceFolderChangedKey);
+}
+
+export async function rememberProjectFolder(
+  handle: CourseDirectoryHandle,
+): Promise<boolean> {
+  return rememberFolder(handle, projectFolderKey, courseFolderChangedKey);
 }
 
 export function handCourseFolderToIde(): void {
@@ -194,7 +232,9 @@ export function finishCourseFolderIdeHandoff(): void {
   }
 }
 
-export async function loadRememberedCourseFolder(): Promise<CourseDirectoryHandle | null> {
+async function loadRememberedFolder(
+  key: string,
+): Promise<CourseDirectoryHandle | null> {
   if (typeof indexedDB === "undefined") {
     return null;
   }
@@ -203,11 +243,62 @@ export async function loadRememberedCourseFolder(): Promise<CourseDirectoryHandl
     const transaction = database.transaction(handleStoreName, "readonly");
     const completed = transactionComplete(transaction);
     const handle = await requestResult(
-      transaction.objectStore(handleStoreName).get(workingFolderKey),
+      transaction.objectStore(handleStoreName).get(key),
     );
     await completed;
     database.close();
     return (handle as CourseDirectoryHandle | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function hasProjectMetadata(
+  handle: CourseDirectoryHandle,
+): Promise<boolean> {
+  try {
+    await handle.getFileHandle(projectMetadataFile);
+    return true;
+  } catch (error) {
+    if (isNotFound(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/** @deprecated Load a workspace or project folder explicitly. */
+export async function loadRememberedCourseFolder(): Promise<CourseDirectoryHandle | null> {
+  return loadRememberedFolder(workingFolderKey);
+}
+
+export async function loadRememberedWorkspaceFolder(): Promise<CourseDirectoryHandle | null> {
+  const remembered = await loadRememberedFolder(workspaceFolderKey);
+  if (remembered) {
+    return remembered;
+  }
+  const legacy = await loadRememberedFolder(workingFolderKey);
+  if (!legacy) {
+    return null;
+  }
+  try {
+    return (await hasProjectMetadata(legacy)) ? null : legacy;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadRememberedProjectFolder(): Promise<CourseDirectoryHandle | null> {
+  const remembered = await loadRememberedFolder(projectFolderKey);
+  if (remembered) {
+    return remembered;
+  }
+  const legacy = await loadRememberedFolder(workingFolderKey);
+  if (!legacy) {
+    return null;
+  }
+  try {
+    return (await hasProjectMetadata(legacy)) ? legacy : null;
   } catch {
     return null;
   }

@@ -7,7 +7,7 @@ import {
 
 import {
   autosaveDirectoryName,
-  chooseCourseFolder,
+  chooseProjectFolder,
   supportsCourseFolders,
   withCourseFolderWriteLock,
   writeRotatingTextBundle,
@@ -82,6 +82,7 @@ const ignoredDirectories = new Set([
 const maximumFiles = 250;
 const maximumFileBytes = 1024 * 1024;
 export const defaultProjectTemplateId = DEFAULT_COURSE_PROJECT_TEMPLATE_ID;
+export const defaultProjectFolderName = "Expanding-Spiral";
 
 function defaultProject(): ProjectSnapshot {
   const project = DEFAULT_COURSE_PROJECT;
@@ -90,6 +91,22 @@ function defaultProject(): ProjectSnapshot {
     entrypoint: project.entrypoint,
     files: { ...project.files },
   };
+}
+
+export function isDefaultProject(project: ProjectSnapshot): boolean {
+  const expected = defaultProject();
+  const paths = Object.keys(project.files).sort();
+  const expectedPaths = Object.keys(expected.files).sort();
+  return (
+    project.name === expected.name &&
+    project.entrypoint === expected.entrypoint &&
+    paths.length === expectedPaths.length &&
+    paths.every(
+      (path, index) =>
+        path === expectedPaths[index] &&
+        project.files[path] === expected.files[path],
+    )
+  );
 }
 
 export async function hasProjectFolderMetadata(
@@ -165,13 +182,49 @@ function migrateOriginalStageOneStarter(
   };
 }
 
+function migratePreviousSpiralStarter(
+  project: ProjectSnapshot,
+): ProjectSnapshot {
+  const current = defaultProject();
+  const currentMain = current.files["main.py"];
+  if (!currentMain) return project;
+  const previousMain = currentMain
+    .replace(
+      '    "spiral_winding_turns_per_m",\n    1.2,\n    minimum=0.4,\n    maximum=2.0,',
+      '    "spiral_winding_turns_per_m",\n    0.8,\n    minimum=0.4,\n    maximum=1.2,',
+    )
+    .replace(
+      "try:\n    state = robot.start(Pose(0.0, 0.0, 0.0))",
+      'try:\n    print("Press and release USER to start the spiral demo")\n    state = robot.start(Pose(0.0, 0.0, 0.0))',
+    );
+  const projectPaths = Object.keys(project.files).sort();
+  const currentPaths = Object.keys(current.files).sort();
+  if (
+    project.name !== current.name ||
+    project.entrypoint !== current.entrypoint ||
+    projectPaths.length !== currentPaths.length ||
+    !projectPaths.every((path, index) => {
+      if (path !== currentPaths[index]) return false;
+      return (
+        project.files[path] ===
+        (path === "main.py" ? previousMain : current.files[path])
+      );
+    })
+  ) {
+    return project;
+  }
+  return current;
+}
+
 export function loadRecoveredProject(): ProjectSnapshot {
   try {
     const saved = localStorage.getItem(projectRecoveryKey);
     if (saved) {
       const project = recoveredProject(JSON.parse(saved));
       if (project) {
-        return migrateOriginalStageOneStarter(project);
+        return migratePreviousSpiralStarter(
+          migrateOriginalStageOneStarter(project),
+        );
       }
     }
     const legacySource = localStorage.getItem(legacyRecoveryKey);
@@ -218,6 +271,33 @@ export function projectPathError(path: string): string | null {
 
 export function normalizedProjectPath(path: string): string {
   return path.trim().replaceAll("\\", "/");
+}
+
+export function projectFolderNameError(name: string): string | null {
+  const normalized = name.trim();
+  if (!normalized) {
+    return "Enter a project folder name.";
+  }
+  if (normalized === "." || normalized === "..") {
+    return "Choose a regular folder name.";
+  }
+  if (normalized.includes("/") || normalized.includes("\\")) {
+    return "Enter one folder name, without a path.";
+  }
+  if (/[:*?"<>|\0]/.test(normalized)) {
+    return "The folder name contains a character that cannot be used.";
+  }
+  return null;
+}
+
+export function suggestedProjectFolderName(name: string): string {
+  const suggestion = name
+    .trim()
+    .replace(/[^A-Za-z0-9 _-]+/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return suggestion || "xrp-project";
 }
 
 function fileExtension(name: string): string {
@@ -367,7 +447,7 @@ export function supportsWorkingFolders(): boolean {
 }
 
 export async function chooseWorkingFolder(): Promise<CourseDirectoryHandle> {
-  return chooseCourseFolder();
+  return chooseProjectFolder();
 }
 
 export async function readProjectFolder(
@@ -376,6 +456,7 @@ export async function readProjectFolder(
   const files: Record<string, string> = {};
   let skipped = 0;
   let preferredEntrypoint: string | undefined;
+  let preferredName: string | undefined;
 
   const visit = async (
     directory: CourseDirectoryHandle,
@@ -399,6 +480,9 @@ export async function readProjectFolder(
           const metadata = JSON.parse(await file.text()) as unknown;
           if (isRecord(metadata) && typeof metadata.entrypoint === "string") {
             preferredEntrypoint = metadata.entrypoint;
+            if (typeof metadata.name === "string" && metadata.name.trim()) {
+              preferredName = metadata.name.trim();
+            }
           } else {
             skipped += 1;
           }
@@ -431,7 +515,7 @@ export async function readProjectFolder(
   }
   return {
     project: {
-      name: root.name,
+      name: preferredName ?? root.name,
       entrypoint: selectEntrypoint(files, preferredEntrypoint),
       files,
     },
@@ -472,9 +556,79 @@ export async function writeProjectFolder(
   });
   const writable = await metadata.createWritable();
   await writable.write(
-    `${JSON.stringify({ entrypoint: project.entrypoint }, null, 2)}\n`,
+    `${JSON.stringify(
+      { name: project.name, entrypoint: project.entrypoint },
+      null,
+      2,
+    )}\n`,
   );
   await writable.close();
+}
+
+export async function createProjectFolder(
+  workspace: CourseDirectoryHandle,
+  requestedName: string,
+  project: ProjectSnapshot,
+): Promise<CourseDirectoryHandle> {
+  const error = projectFolderNameError(requestedName);
+  if (error) {
+    throw new Error(error);
+  }
+  const name = requestedName.trim();
+  try {
+    await workspace.getDirectoryHandle(name);
+    throw new Error(
+      `A folder named ${name} already exists. Open it as a project or choose another name.`,
+    );
+  } catch (folderError) {
+    if (!(
+      typeof folderError === "object" &&
+      folderError !== null &&
+      "name" in folderError &&
+      folderError.name === "NotFoundError"
+    )) {
+      throw folderError;
+    }
+  }
+  const folder = await workspace.getDirectoryHandle(name, { create: true });
+  await writeProjectFolder(folder, project);
+  return folder;
+}
+
+export async function ensureProjectFolder(
+  workspace: CourseDirectoryHandle,
+  requestedName: string,
+  project: ProjectSnapshot,
+): Promise<{ folder: CourseDirectoryHandle; created: boolean }> {
+  const error = projectFolderNameError(requestedName);
+  if (error) {
+    throw new Error(error);
+  }
+  const baseName = requestedName.trim();
+  for (let index = 1; index <= 100; index += 1) {
+    const name = index === 1 ? baseName : `${baseName}-${index}`;
+    try {
+      const existing = await workspace.getDirectoryHandle(name);
+      if (await hasProjectFolderMetadata(existing)) {
+        return { folder: existing, created: false };
+      }
+    } catch (folderError) {
+      if (!(
+        typeof folderError === "object" &&
+        folderError !== null &&
+        "name" in folderError &&
+        folderError.name === "NotFoundError"
+      )) {
+        throw folderError;
+      }
+      const folder = await workspace.getDirectoryHandle(name, {
+        create: true,
+      });
+      await writeProjectFolder(folder, project);
+      return { folder, created: true };
+    }
+  }
+  throw new Error(`No available project folder name begins with ${baseName}.`);
 }
 
 export async function removeProjectFolderFiles(

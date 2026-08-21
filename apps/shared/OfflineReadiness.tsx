@@ -8,15 +8,20 @@ import {
   type OfflineShellStatus,
 } from "./offline-shell";
 
-const stateText: Record<OfflineShellState, string> = {
+const stateText: Record<Exclude<OfflineShellState, "ready">, string> = {
   development: "Development build",
   installing: "Preparing offline use",
-  ready: "Works without internet",
   unsupported: "Offline use unavailable",
   error: "Offline setup incomplete",
 };
 
-export function OfflineReadiness() {
+interface OfflineReadinessProps {
+  appName?: string;
+}
+
+export function OfflineReadiness({
+  appName = "Course tools",
+}: OfflineReadinessProps) {
   const [status, setStatus] = useState(readOfflineShellStatus);
 
   useEffect(() => {
@@ -28,10 +33,13 @@ export function OfflineReadiness() {
     return () => window.removeEventListener(OFFLINE_SHELL_EVENT, handleState);
   }, []);
 
-  const stateLabel = stateText[status.state];
+  const stateLabel =
+    status.state === "ready"
+      ? `${appName} available offline`
+      : stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `The web apps and course release are saved in this browser. Robot connectivity is separate. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
+      ? `Chrome has saved the web apps and course release in browser storage. No Node server or internet connection is needed after this page loads; robot connectivity and project folders are separate. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
       : status.state === "development"
         ? `Course release ${courseRelease.release_id}; this development build does not save an offline browser copy.`
         : (status.message ??

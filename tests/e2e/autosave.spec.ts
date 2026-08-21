@@ -101,6 +101,32 @@ async function installMemoryFolderPicker(page: Page) {
   });
 }
 
+test("creates the untouched default as a named workspace child", async ({
+  page: ide,
+}) => {
+  await installMemoryFolderPicker(ide);
+  await ide.goto("/ide/");
+
+  await ide.getByRole("button", { name: "Choose workspace" }).click();
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "./Expanding-Spiral",
+  );
+  const files = await ide.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __courseAutosaveFiles: Record<string, string>;
+        }
+      ).__courseAutosaveFiles,
+  );
+  expect(files["Expanding-Spiral/main.py"]).toContain(
+    '"spiral_winding_turns_per_m"',
+  );
+  expect(
+    JSON.parse(files["Expanding-Spiral/.ucsb-xrp-project.json"] ?? "{}"),
+  ).toEqual({ name: "Expanding spiral", entrypoint: "main.py" });
+});
+
 test("automatically saves project edits and retains four prior states", async ({
   page: ide,
 }) => {
@@ -109,8 +135,10 @@ test("automatically saves project edits and retains four prior states", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(ide.locator(".autosave-label")).toHaveText("Autosaved");
+  await ide.getByRole("button", { name: "Choose workspace" }).click();
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "./Expanding-Spiral",
+  );
 
   for (let revision = 1; revision <= 5; revision += 1) {
     await ide.getByRole("button", { name: "New file", exact: true }).click();
@@ -118,10 +146,9 @@ test("automatically saves project edits and retains four prior states", async ({
       .getByLabel("Project-relative path")
       .fill(`notes/revision_${revision}.txt`);
     await ide.getByRole("button", { name: "Create file" }).click();
-    await expect(ide.locator(".autosave-label")).toContainText("Autosave");
-    await expect(ide.locator(".autosave-label")).toHaveText("Autosaved", {
-      timeout: 5_000,
-    });
+    await expect(
+      ide.getByText("Saved changes to ./Expanding-Spiral."),
+    ).toBeVisible({ timeout: 5_000 });
   }
 
   const saved = await ide.evaluate(
@@ -132,12 +159,12 @@ test("automatically saves project edits and retains four prior states", async ({
         }
       ).__courseAutosaveFiles,
   );
-  expect(saved["notes/revision_5.txt"]).toBe("");
+  expect(saved["Expanding-Spiral/notes/revision_5.txt"]).toBe("");
   const newestPrior = JSON.parse(
-    saved["UCSB_XRP_Autosaves/project-1.json"] ?? "{}",
+    saved["Expanding-Spiral/UCSB_XRP_Autosaves/project-1.json"] ?? "{}",
   ) as { project?: { files?: Record<string, string> } };
   const oldestPrior = JSON.parse(
-    saved["UCSB_XRP_Autosaves/project-4.json"] ?? "{}",
+    saved["Expanding-Spiral/UCSB_XRP_Autosaves/project-4.json"] ?? "{}",
   ) as { project?: { files?: Record<string, string> } };
   expect(newestPrior.project?.files?.["notes/revision_4.txt"]).toBe("");
   expect(newestPrior.project?.files?.["notes/revision_5.txt"]).toBeUndefined();
@@ -155,9 +182,9 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await monitor.getByRole("button", { name: "Choose folder" }).click();
+  await monitor.getByRole("button", { name: "Choose project folder" }).click();
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
-    "Runs auto-save to student-course-project",
+    "Runs save to ./student-course-project",
   );
 
   const ide = await context.newPage();

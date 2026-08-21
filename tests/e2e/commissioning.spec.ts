@@ -33,10 +33,10 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   await page.goto("/commission/");
 
   await expect(
-    page.getByRole("heading", { name: "Choose a working folder" }),
+    page.getByRole("heading", { name: "Choose a workspace" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Choose working folder" }),
+    page.getByRole("button", { name: "Choose workspace" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -370,9 +370,9 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
   await page.goto("/commission/");
   await expect(
-    page.getByRole("heading", { name: "Choose a working folder" }),
+    page.getByRole("heading", { name: "Choose a workspace" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Choose working folder" }).click();
+  await page.getByRole("button", { name: "Choose workspace" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
@@ -456,13 +456,13 @@ test("does not advance when the selected folder fails its write check", async ({
   });
 
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Choose working folder" }).click();
+  await page.getByRole("button", { name: "Choose workspace" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Choose a working folder" }),
+    page.getByRole("heading", { name: "Choose a workspace" }),
   ).toBeVisible();
   await expect(page.getByRole("alert")).toContainText(
-    "working-folder write check failed",
+    "workspace write check failed",
   );
   await page.getByText("Setup log", { exact: true }).click();
   await expect(page.getByLabel("Setup log")).toContainText(

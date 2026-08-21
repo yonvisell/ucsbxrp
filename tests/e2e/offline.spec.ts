@@ -59,13 +59,13 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Works without internet",
+    "IDE available offline",
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
   ).toHaveCount(0);
   const ideOfflineBox = await ide
-    .locator(".ide-offline-status")
+    .locator(".project-storage")
     .getByTestId("offline-readiness")
     .boundingBox();
   const projectRailBox = await ide.locator(".project-rail").boundingBox();
@@ -76,8 +76,9 @@ test("reloads the complete production course shell without a network", async ({
     (projectRailBox?.x ?? 0) + (projectRailBox?.width ?? 0),
   );
   expect(ideOfflineBox?.y).toBeGreaterThan(
-    (projectRailBox?.y ?? 0) + (projectRailBox?.height ?? 0) * 0.8,
+    (projectRailBox?.y ?? 0) + (projectRailBox?.height ?? 0) * 0.65,
   );
+  await expect(ide.locator(".ide-offline-status")).toHaveCount(0);
 
   const manifest = await ide.evaluate(async (manifestPath) => {
     const response = await fetch(manifestPath);
@@ -110,7 +111,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Works without internet",
+    "IDE available offline",
   );
 
   await ide.getByRole("button", { name: "Validate" }).click();
@@ -128,8 +129,9 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Works without internet",
+    "Monitor available offline",
   );
+  await expect(monitor.locator(".monitor-controls-footer")).toHaveCount(0);
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {

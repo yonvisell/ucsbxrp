@@ -32,11 +32,11 @@ import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import {
-  chooseCourseFolder,
+  chooseProjectFolder,
   courseFolderChangedKey,
   courseFolderPermission,
-  loadRememberedCourseFolder,
-  rememberCourseFolder,
+  loadRememberedProjectFolder,
+  rememberProjectFolder,
   requestCourseFolderPermission,
   withCourseFolderWriteLock,
   writeRotatingTextBundle,
@@ -44,6 +44,15 @@ import {
 } from "../../shared/course-folder";
 import { SIGNAL_PLOTS, SignalPlot, type SignalPlotId } from "./SignalPlot";
 import { WorldView } from "./WorldView";
+import {
+  createSignalPlotsSvg,
+  createWorldReplayWebm,
+  downloadBlob,
+  svgToPng,
+  timestampedName,
+  webmExportSupported,
+  type MonitorAnnotation,
+} from "./monitor-export";
 
 interface ConsoleEntry {
   id: number;
@@ -90,7 +99,7 @@ const defaultMonitorSettings: MonitorSettings = {
   },
   layout: {
     topHeightPercent: 57,
-    worldWidthPercent: 82,
+    worldWidthPercent: 77,
     plotsWidthPercent: 69,
   },
 };
@@ -137,7 +146,7 @@ function loadMonitorSettings(): MonitorSettings {
           stored?.layout?.worldWidthPercent,
           defaultMonitorSettings.layout.worldWidthPercent,
           48,
-          84,
+          78,
         ),
         plotsWidthPercent: boundedPercent(
           stored?.layout?.plotsWidthPercent,
@@ -257,6 +266,7 @@ export function DashboardApp() {
   >({});
   const [runtimeUpdateError, setRuntimeUpdateError] = useState("");
   const [recordedSamples, setRecordedSamples] = useState(0);
+  const [recordedPoseSamples, setRecordedPoseSamples] = useState(0);
   const [droppedSamples, setDroppedSamples] = useState(0);
   const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
   const [autosaveFolder, setAutosaveFolder] =
@@ -264,8 +274,15 @@ export function DashboardApp() {
   const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [runAutosaveDetail, setRunAutosaveDetail] = useState(
-    "Choose a working folder in the IDE, or choose a data folder here.",
+    "Open or create a project in the IDE to save run data with its source.",
   );
+  const [annotations, setAnnotations] = useState<MonitorAnnotation[]>([]);
+  const [annotationDraft, setAnnotationDraft] = useState("");
+  const [annotationsVisible, setAnnotationsVisible] = useState(true);
+  const [exportState, setExportState] = useState<
+    "idle" | "plots-svg" | "plots-png" | "world-webm"
+  >("idle");
+  const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
   const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const currentProjectRef = useRef<SynchronizedProject | null>(null);
@@ -273,6 +290,7 @@ export function DashboardApp() {
   const automaticRunStartedAt = useRef("");
   const automaticRunProject = useRef<SynchronizedProject | null>(null);
   const automaticRunOutput = useRef<ConsoleEntry[]>([]);
+  const annotationsRef = useRef<MonitorAnnotation[]>([]);
   const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
@@ -311,9 +329,13 @@ export function DashboardApp() {
   }, [autosaveFolder]);
 
   useEffect(() => {
+    annotationsRef.current = annotations;
+  }, [annotations]);
+
+  useEffect(() => {
     let disposed = false;
     const refreshFolder = async () => {
-      const folder = await loadRememberedCourseFolder();
+      const folder = await loadRememberedProjectFolder();
       if (disposed || folder === null) {
         return;
       }
@@ -324,11 +346,11 @@ export function DashboardApp() {
       }
       if (permission === "granted") {
         setAutosaveFolder(folder);
-        setRunAutosaveDetail(`Runs auto-save to ${folder.name}.`);
+        setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
       } else {
         setAutosaveFolder(null);
         setRunAutosaveDetail(
-          `Reconnect ${folder.name} once to resume run auto-save.`,
+          `Reconnect project folder ${folder.name} to resume run saving.`,
         );
       }
     };
@@ -360,7 +382,7 @@ export function DashboardApp() {
       automaticRunOutput.current = [];
       if (!folder) {
         setRunAutosaveDetail(
-          "Run finished; browser data remains visible, but no auto-save folder is connected.",
+          "Run finished; browser data remains visible, but no project folder is connected.",
         );
         return;
       }
@@ -386,6 +408,7 @@ export function DashboardApp() {
         project: projectAtStart,
         telemetrySamples: recording.samples.length,
         droppedTelemetrySamples: recording.droppedSamples,
+        annotations: annotationsRef.current,
       };
       const outputText = [
         "UCSB XRP monitored run",
@@ -442,7 +465,7 @@ export function DashboardApp() {
         })
         .catch((error: unknown) => {
           setRunAutosaveDetail(
-            `Run auto-save failed: ${error instanceof Error ? error.message : String(error)}`,
+            `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
           );
         });
     },
@@ -499,6 +522,9 @@ export function DashboardApp() {
       } else if (event.type === "status") {
         const nextRunActive = isActiveRunState(event.state);
         if (nextRunActive && !automaticRunActive.current) {
+          annotationsRef.current = [];
+          setAnnotations([]);
+          setAnnotationDraft("");
           automaticRunActive.current = true;
           automaticRunStartedAt.current = new Date().toISOString();
           automaticRunProject.current = currentProjectRef.current;
@@ -507,7 +533,7 @@ export function DashboardApp() {
           setRunAutosaveDetail(
             autosaveFolderRef.current
               ? `Capturing this run for ${autosaveFolderRef.current.name}…`
-              : "Capturing this run in the Monitor; no auto-save folder is connected.",
+              : "Capturing this run in the Monitor; no project folder is connected.",
           );
         } else if (!nextRunActive && automaticRunActive.current) {
           archiveAutomaticRun(event.state, event.detail);
@@ -543,6 +569,9 @@ export function DashboardApp() {
     setTargetState("connecting");
     setSample(null);
     setPlotSamples([]);
+    annotationsRef.current = [];
+    setAnnotations([]);
+    setAnnotationDraft("");
     currentProjectRef.current = null;
     let disposed = false;
     const connect = async () => {
@@ -619,11 +648,11 @@ export function DashboardApp() {
 
   const chooseRunAutosaveFolder = async () => {
     try {
-      const folder = await chooseCourseFolder();
+      const folder = await chooseProjectFolder();
       setRememberedAutosaveFolder(folder);
       setAutosaveFolder(folder);
-      setRunAutosaveDetail(`Runs auto-save to ${folder.name}.`);
-      void rememberCourseFolder(folder);
+      setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
+      void rememberProjectFolder(folder);
     } catch (error: unknown) {
       if (!wasCancelled(error)) {
         setRunAutosaveDetail(
@@ -648,9 +677,7 @@ export function DashboardApp() {
         return;
       }
       setAutosaveFolder(rememberedAutosaveFolder);
-      setRunAutosaveDetail(
-        `Runs auto-save to ${rememberedAutosaveFolder.name}.`,
-      );
+      setRunAutosaveDetail(`Runs save to ./${rememberedAutosaveFolder.name}.`);
     } catch (error: unknown) {
       if (!wasCancelled(error)) {
         setRunAutosaveDetail(
@@ -662,9 +689,13 @@ export function DashboardApp() {
 
   const startRecording = () => {
     recorder.start();
+    annotationsRef.current = [];
+    setAnnotations([]);
+    setAnnotationDraft("");
     recordingStartedAt.current = performance.now();
     setRecordingActive(true);
     setRecordedSamples(0);
+    setRecordedPoseSamples(0);
     setDroppedSamples(0);
     setRecordingElapsedMs(0);
   };
@@ -677,6 +708,9 @@ export function DashboardApp() {
     recordingStartedAt.current = null;
     setRecordingActive(false);
     setRecordedSamples(recording.samples.length);
+    setRecordedPoseSamples(
+      recording.samples.filter((recorded) => recorded.poseAvailable).length,
+    );
     setDroppedSamples(recording.droppedSamples);
   };
 
@@ -685,22 +719,18 @@ export function DashboardApp() {
     recordingStartedAt.current = null;
     setRecordingActive(false);
     setRecordedSamples(0);
+    setRecordedPoseSamples(0);
     setDroppedSamples(0);
     setRecordingElapsedMs(0);
+    annotationsRef.current = [];
+    setAnnotations([]);
+    setAnnotationDraft("");
   };
 
   const exportRecording = () => {
     const csv = telemetryRecordingToCsv(recorder.snapshot());
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const timestamp = new Date().toISOString().replaceAll(":", "-");
-    link.href = url;
-    link.download = `xrp-telemetry-${timestamp}.csv`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadBlob(blob, timestampedName("xrp-telemetry", "csv"));
   };
 
   const commitRuntimeParameter = async (
@@ -754,6 +784,77 @@ export function DashboardApp() {
   const visiblePlots = SIGNAL_PLOTS.filter(
     (plot) => monitorSettings.plots[plot.id],
   );
+
+  const addAnnotation = () => {
+    const label = annotationDraft.trim();
+    if (!sample || !label) return;
+    const annotation: MonitorAnnotation = {
+      id: `${sample.source}-${sample.seq}-${Date.now()}`,
+      label,
+      tMs: sample.tMs,
+      poseAvailable: sample.poseAvailable,
+      xMm: sample.xMm,
+      yMm: sample.yMm,
+    };
+    annotationsRef.current = [...annotationsRef.current, annotation].slice(-24);
+    setAnnotations(annotationsRef.current);
+    setAnnotationDraft("");
+    setAnnotationsVisible(true);
+  };
+
+  const exportPlots = async (format: "svg" | "png") => {
+    if (visiblePlots.length === 0 || plotSamples.length === 0) return;
+    const nextState = format === "svg" ? "plots-svg" : "plots-png";
+    setExportState(nextState);
+    setExportDetail(`Preparing ${format.toUpperCase()}…`);
+    try {
+      const svg = createSignalPlotsSvg(
+        plotSamples,
+        visiblePlots.map((plot) => plot.id),
+        monitorSettings.timeWindowS,
+        annotationsVisible ? annotations : [],
+      );
+      if (format === "svg") {
+        downloadBlob(
+          new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
+          timestampedName("xrp-plots", "svg"),
+        );
+      } else {
+        downloadBlob(await svgToPng(svg), timestampedName("xrp-plots", "png"));
+      }
+      setExportDetail("");
+    } catch (error) {
+      setExportDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      setExportState("idle");
+    }
+  };
+
+  const exportWorldReplay = async () => {
+    setExportState("world-webm");
+    setExportDetail("Preparing world animation…");
+    let shownProgress = -1;
+    try {
+      const blob = await createWorldReplayWebm({
+        samples: recorder.snapshot().samples,
+        annotations: annotationsVisible ? annotations : [],
+        scenario: simulationScenario,
+        onProgress: (fraction) => {
+          const progress = Math.floor(fraction * 100);
+          if (progress !== shownProgress) {
+            shownProgress = progress;
+            setExportDetail(`Encoding world animation · ${progress}%`);
+          }
+        },
+      });
+      downloadBlob(blob, timestampedName("xrp-world", "webm"));
+      setExportDetail("");
+    } catch (error) {
+      setExportDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      setExportState("idle");
+    }
+  };
 
   const setPlotVisible = (id: SignalPlotId, visible: boolean) => {
     setMonitorSettings((current) => ({
@@ -1108,14 +1209,12 @@ export function DashboardApp() {
                     role="status"
                     title="A rolling 30,000-sample buffer keeps recent telemetry in memory. Complete monitored runs also save to the selected folder."
                   >
-                    <strong className={recordingActive ? "active" : ""}>
-                      {recordingActive
-                        ? "Recording telemetry"
-                        : recordedSamples > 0
-                          ? "Recording stopped"
-                          : "Recorder ready"}
-                    </strong>
                     <span data-testid="recording-count">
+                      {recordingActive
+                        ? "Recording · "
+                        : recordedSamples > 0
+                          ? "Stopped · "
+                          : ""}
                       {recordedSamples.toLocaleString()} samples
                       {observedRecordingRateHz
                         ? ` · ${observedRecordingRateHz.toFixed(1)} Hz`
@@ -1156,6 +1255,85 @@ export function DashboardApp() {
                       Clear
                     </button>
                   </div>
+                  <div className="annotation-tools">
+                    <div className="annotation-entry">
+                      <input
+                        aria-label="Plot annotation"
+                        disabled={sample === null}
+                        maxLength={72}
+                        onChange={(event) =>
+                          setAnnotationDraft(event.target.value)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") addAnnotation();
+                        }}
+                        placeholder="Note at current time"
+                        title="Enter a short note, then add it at the current telemetry time."
+                        value={annotationDraft}
+                      />
+                      <button
+                        disabled={sample === null || !annotationDraft.trim()}
+                        onClick={addAnnotation}
+                        title="Add this note to the world and every visible signal plot at the current time."
+                      >
+                        Add note
+                      </button>
+                    </div>
+                    <button
+                      aria-pressed={annotationsVisible}
+                      className="annotation-visibility"
+                      disabled={annotations.length === 0}
+                      onClick={() =>
+                        setAnnotationsVisible((visible) => !visible)
+                      }
+                      title="Show or hide all current plot and world notes."
+                    >
+                      {annotations.length === 0
+                        ? "Notes · 0"
+                        : `${annotationsVisible ? "Hide" : "Show"} notes · ${annotations.length}`}
+                    </button>
+                  </div>
+                  <div className="export-actions" aria-label="Export views">
+                    <button
+                      disabled={
+                        exportState !== "idle" ||
+                        plotSamples.length === 0 ||
+                        visiblePlots.length === 0
+                      }
+                      onClick={() => void exportPlots("svg")}
+                      title="Download every visible strip plot as one editable vector graphic."
+                    >
+                      Plots SVG
+                    </button>
+                    <button
+                      disabled={
+                        exportState !== "idle" ||
+                        plotSamples.length === 0 ||
+                        visiblePlots.length === 0
+                      }
+                      onClick={() => void exportPlots("png")}
+                      title="Download every visible strip plot as one high-resolution PNG image."
+                    >
+                      Plots PNG
+                    </button>
+                    <button
+                      disabled={
+                        exportState !== "idle" ||
+                        recordingActive ||
+                        recordedPoseSamples < 2 ||
+                        !webmExportSupported()
+                      }
+                      onClick={() => void exportWorldReplay()}
+                      title="Create a WebM world animation from the stopped telemetry recording. Long recordings are accelerated to at most 20 seconds."
+                    >
+                      World WebM
+                    </button>
+                  </div>
+                  {exportDetail ? (
+                    <span className="export-detail" role="status">
+                      {exportDetail}
+                    </span>
+                  ) : null}
                   <div className="run-autosave-summary">
                     <span data-testid="run-autosave-status" role="status">
                       {runAutosaveDetail}
@@ -1173,27 +1351,14 @@ export function DashboardApp() {
                       }
                     >
                       {!autosaveFolder && rememberedAutosaveFolder
-                        ? "Reconnect folder"
+                        ? "Reconnect project"
                         : autosaveFolder
-                          ? "Change folder"
-                          : "Choose folder"}
+                          ? "Change project"
+                          : "Choose project folder"}
                     </button>
+                    <OfflineReadiness appName="Monitor" />
                   </div>
                 </section>
-              </div>
-              <div className="monitor-controls-footer">
-                <a
-                  href="../guide/"
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  title="Open course and robot guidance in a new tab."
-                >
-                  Guide ↗
-                </a>
-                <span aria-hidden="true" className="footer-separator">
-                  |
-                </span>
-                <OfflineReadiness />
               </div>
             </div>
           ) : (
@@ -1213,30 +1378,25 @@ export function DashboardApp() {
           <div className="dashboard-region top-region" style={topRegionStyle}>
             <section className="world-panel dashboard-pane">
               <WorldView
+                annotations={annotations}
                 onScenarioChange={
                   target.kind === "virtual"
                     ? (nextScenario) =>
                         void changeSimulationScenario(nextScenario)
                     : undefined
                 }
-                poseLabel={
-                  sample?.poseAvailable
-                    ? sample.source === "virtual"
-                      ? "virtual pose"
-                      : "estimated pose"
-                    : "centered preview · no pose"
-                }
                 sample={worldSample}
                 scenario={target.kind === "virtual" ? simulationScenario : null}
                 scenarioDisabled={
                   targetState === "loading" || targetState === "running"
                 }
+                showAnnotations={annotationsVisible}
               />
             </section>
 
             <ResizableSeparator
-              label="Resize world and live values"
-              maximum={84}
+              label="Resize world and live telemetry"
+              maximum={78}
               minimum={48}
               onChange={(next) => setLayoutValue("worldWidthPercent", next)}
               orientation="vertical"
@@ -1245,7 +1405,7 @@ export function DashboardApp() {
 
             <section className="values-panel dashboard-pane">
               <div className="section-heading">
-                <h2>Live values</h2>
+                <h2>Live telemetry</h2>
               </div>
               <div className="values-content">
                 {sample ? (
@@ -1280,31 +1440,13 @@ export function DashboardApp() {
                         {value(sample.rightEffort, 2)}
                       </dd>
                     </div>
-                    <div title="Raw left and right encoder counts.">
-                      <dt>encoder counts L/R</dt>
-                      <dd>
-                        {sample.leftEncoderCount} / {sample.rightEncoderCount}
-                      </dd>
-                    </div>
                     <div title="Elapsed program or simulator time.">
                       <dt>time</dt>
                       <dd>{value(sample.tMs / 1000, 2)} s</dd>
                     </div>
                     <div title="Forward ultrasonic distance reading.">
-                      <dt>forward range</dt>
+                      <dt>ultrasound distance</dt>
                       <dd data-testid="range-mm">{value(sample.rangeMm)} mm</dd>
-                    </div>
-                    <div title="Current state of the XRP USER button.">
-                      <dt>USER button</dt>
-                      <dd>{sample.buttonPressed ? "pressed" : "released"}</dd>
-                    </div>
-                    <div title="Measured motor-supply voltage.">
-                      <dt>motor supply</dt>
-                      <dd>{value(sample.batteryV, 2)} V</dd>
-                    </div>
-                    <div title="Temperature reported by the inertial sensor.">
-                      <dt>IMU temperature</dt>
-                      <dd>{value(sample.temperatureC, 1)} °C</dd>
                     </div>
                     <div title="Acceleration along the IMU x, y, and z axes.">
                       <dt>acceleration ax/ay/az</dt>
@@ -1337,6 +1479,27 @@ export function DashboardApp() {
                         <dd className="alert-value">{sample.sensorError}</dd>
                       </div>
                     ) : null}
+                    <div
+                      className="telemetry-secondary-start"
+                      title="Current state of the XRP USER button."
+                    >
+                      <dt>USER button</dt>
+                      <dd>{sample.buttonPressed ? "pressed" : "released"}</dd>
+                    </div>
+                    <div title="Measured motor-supply voltage.">
+                      <dt>motor supply</dt>
+                      <dd>{value(sample.batteryV, 2)} V</dd>
+                    </div>
+                    <div title="Temperature reported by the inertial sensor.">
+                      <dt>IMU temperature</dt>
+                      <dd>{value(sample.temperatureC, 1)} °C</dd>
+                    </div>
+                    <div title="Raw left and right encoder counts.">
+                      <dt>encoder counts L/R</dt>
+                      <dd>
+                        {sample.leftEncoderCount} / {sample.rightEncoderCount}
+                      </dd>
+                    </div>
                   </dl>
                 ) : (
                   <div className="telemetry-placeholder" role="status">
@@ -1395,8 +1558,10 @@ export function DashboardApp() {
                   {visiblePlots.map((plot) => (
                     <section className="strip-chart" key={plot.id}>
                       <SignalPlot
+                        annotations={annotations}
                         id={plot.id}
                         samples={plotSamples}
+                        showAnnotations={annotationsVisible}
                         timeWindowS={monitorSettings.timeWindowS}
                       />
                     </section>

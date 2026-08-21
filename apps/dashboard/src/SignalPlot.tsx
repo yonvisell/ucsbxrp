@@ -15,6 +15,8 @@ import {
   type TelemetrySample,
 } from "@ucsb-xrp/target";
 
+import type { MonitorAnnotation } from "./monitor-export";
+
 echarts.use([
   LineChart,
   GridComponent,
@@ -85,9 +87,9 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   },
   {
     id: "range",
-    label: "Forward range",
+    label: "Ultrasound distance",
     unit: "mm",
-    description: "Forward time-of-flight range",
+    description: "Forward ultrasound distance",
     series: [
       {
         label: "Range",
@@ -175,8 +177,10 @@ export function signalPlotData(
 }
 
 interface SignalPlotProps {
+  annotations?: readonly MonitorAnnotation[];
   id: SignalPlotId;
   samples: readonly TelemetrySample[];
+  showAnnotations?: boolean;
   timeWindowS: number;
 }
 
@@ -199,7 +203,13 @@ export function signalXAxis(timeWindowS: number) {
   };
 }
 
-export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
+export function SignalPlot({
+  annotations = [],
+  id,
+  samples,
+  showAnnotations = true,
+  timeWindowS,
+}: SignalPlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const definition = useMemo(() => signalPlotDefinition(id), [id]);
@@ -223,6 +233,14 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
 
   useEffect(() => {
     const data = signalPlotData(samples, id, timeWindowS);
+    const latestMs = samples.at(-1)?.tMs ?? 0;
+    const startMs = latestMs - timeWindowS * 1_000;
+    const visibleAnnotations = showAnnotations
+      ? annotations.filter(
+          (annotation) =>
+            annotation.tMs >= startMs && annotation.tMs <= latestMs,
+        )
+      : [];
     chartRef.current?.setOption(
       {
         animation: false,
@@ -273,11 +291,33 @@ export function SignalPlot({ id, samples, timeWindowS }: SignalPlotProps) {
             width: 1.4,
           },
           data: data[index]?.values ?? [],
+          markLine:
+            index === 0 && visibleAnnotations.length > 0
+              ? {
+                  silent: true,
+                  symbol: ["none", "none"],
+                  lineStyle: {
+                    color: "#87515d",
+                    type: "dashed",
+                    width: 1,
+                  },
+                  label: {
+                    color: "#75434d",
+                    fontSize: 8,
+                    formatter: "{b}",
+                    position: "insideEndTop",
+                  },
+                  data: visibleAnnotations.map((annotation) => ({
+                    name: `${(annotation.tMs / 1_000).toFixed(2)} s · ${annotation.label}`,
+                    xAxis: (annotation.tMs - latestMs) / 1_000,
+                  })),
+                }
+              : undefined,
         })),
       },
       { notMerge: true, lazyUpdate: true },
     );
-  }, [definition, id, samples, timeWindowS]);
+  }, [annotations, definition, id, samples, showAnnotations, timeWindowS]);
 
   return (
     <div

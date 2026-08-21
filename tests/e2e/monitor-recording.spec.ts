@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 function recordedCount(text: string | null): number {
-  return Number.parseInt((text ?? "").replaceAll(",", ""), 10);
+  const match = (text ?? "").match(/([\d,]+) samples/);
+  return Number.parseInt((match?.[1] ?? "0").replaceAll(",", ""), 10);
 }
 
 async function visiblePlotHeights(page: Page): Promise<Record<string, number>> {
@@ -37,7 +38,9 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   await expect(monitor.getByTestId("x-mm")).toBeVisible();
 
   await monitor.getByRole("button", { name: "Record", exact: true }).click();
-  await expect(monitor.getByText("Recording telemetry")).toBeVisible();
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    "Recording · 0 samples",
+  );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
 
   await expect
@@ -50,11 +53,19 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
     )
     .toBeGreaterThan(3);
 
+  await monitor.getByLabel("Plot annotation").fill("turn begins");
+  await monitor.getByRole("button", { name: "Add note" }).click();
+  await expect(
+    monitor.getByRole("button", { name: "Hide notes · 1" }),
+  ).toBeVisible();
+
   await monitor
     .locator(".monitor-controls")
     .getByRole("button", { name: "Stop", exact: true })
     .click();
-  await expect(monitor.getByText("Recording stopped")).toBeVisible();
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    "Stopped ·",
+  );
 
   const downloadPromise = monitor.waitForEvent("download");
   await monitor.getByRole("button", { name: "Export CSV" }).click();
@@ -71,6 +82,34 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   );
   expect(rows.length).toBeGreaterThan(4);
   expect(rows[1]?.split(",")).toHaveLength(25);
+
+  const svgDownloadPromise = monitor.waitForEvent("download");
+  await monitor.getByRole("button", { name: "Plots SVG" }).click();
+  const svgDownload = await svgDownloadPromise;
+  expect(svgDownload.suggestedFilename()).toMatch(/^xrp-plots-.*\.svg$/);
+  const svgPath = await svgDownload.path();
+  expect(svgPath).not.toBeNull();
+  const svg = await readFile(svgPath!, "utf8");
+  expect(svg).toContain("UCSBXRP signal plots");
+  expect(svg).toContain("turn begins");
+
+  const pngDownloadPromise = monitor.waitForEvent("download");
+  await monitor.getByRole("button", { name: "Plots PNG" }).click();
+  const pngDownload = await pngDownloadPromise;
+  expect(pngDownload.suggestedFilename()).toMatch(/^xrp-plots-.*\.png$/);
+  const pngPath = await pngDownload.path();
+  expect(pngPath).not.toBeNull();
+  expect((await readFile(pngPath!)).byteLength).toBeGreaterThan(2_000);
+
+  const webmDownloadPromise = monitor.waitForEvent("download", {
+    timeout: 20_000,
+  });
+  await monitor.getByRole("button", { name: "World WebM" }).click();
+  const webmDownload = await webmDownloadPromise;
+  expect(webmDownload.suggestedFilename()).toMatch(/^xrp-world-.*\.webm$/);
+  const webmPath = await webmDownload.path();
+  expect(webmPath).not.toBeNull();
+  expect((await readFile(webmPath!)).byteLength).toBeGreaterThan(1_000);
 
   await monitor
     .locator(".monitor-controls")
@@ -188,14 +227,14 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(page.locator(".live-program-group summary")).toHaveCount(0);
 
   const worldValuesSeparator = page.getByRole("separator", {
-    name: "Resize world and live values",
+    name: "Resize world and live telemetry",
   });
-  await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "82");
+  await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "77");
   await worldValuesSeparator.focus();
   await worldValuesSeparator.press("ArrowLeft");
-  await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "80");
+  await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "75");
 
-  await page.getByRole("checkbox", { name: /Forward range/ }).check();
+  await page.getByRole("checkbox", { name: /Ultrasound distance/ }).check();
   await expect(page.getByTestId("strip-chart-range")).toBeVisible();
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
@@ -271,7 +310,7 @@ test("keeps a centered world preview visible without a published physical pose",
   await expect(world).toBeVisible();
   await expect(world).toHaveAttribute("data-pose-state", "centered-preview");
   await expect(
-    page.getByText("centered preview · no pose", { exact: true }),
+    page.getByText("Preview · no published pose", { exact: true }),
   ).toBeVisible();
   const worldGeometry = await world.evaluate((element) => ({
     canvasHeight: element.querySelector("canvas")?.clientHeight ?? 0,

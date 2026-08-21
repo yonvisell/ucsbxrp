@@ -130,7 +130,16 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       value: savedFiles,
     });
     Object.defineProperty(window, "showDirectoryPicker", {
-      value: async () => new FakeDirectoryHandle("browser-course-project"),
+      value: async (options?: { id?: string }) =>
+        options?.id === "ucsb-xrp-project" &&
+        Object.keys(savedFiles).some((path) =>
+          path.startsWith("virtual-browser-check/"),
+        )
+          ? new FakeDirectoryHandle(
+              "virtual-browser-check",
+              "virtual-browser-check/",
+            )
+          : new FakeDirectoryHandle("browser-course-workspace"),
     });
   }, boundedVirtualMotionProgram);
 
@@ -226,6 +235,37 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(
     dashboard.getByText(/Major grid lines and values are labeled/),
   ).toContainText("500 millimeters");
+  await expect(
+    dashboard.getByLabel(
+      "World line legend: green is path; ochre is ultrasound distance",
+    ),
+  ).toBeVisible();
+  await expect(
+    dashboard.getByRole("heading", { name: "Live telemetry" }),
+  ).toBeVisible();
+  await expect(
+    dashboard.getByTestId("world-view").getByText(/virtual pose/i),
+  ).toHaveCount(0);
+  const [worldLabelBox, sceneSelectBox] = await Promise.all([
+    dashboard.getByText("World", { exact: true }).boundingBox(),
+    dashboard.getByLabel("Virtual scene").boundingBox(),
+  ]);
+  expect(sceneSelectBox?.y).toBeGreaterThan(
+    (worldLabelBox?.y ?? 0) + (worldLabelBox?.height ?? 0) - 1,
+  );
+  const telemetryLabels = await dashboard
+    .locator(".live-values dt")
+    .allTextContents();
+  for (const label of [
+    "USER button",
+    "motor supply",
+    "IMU temperature",
+    "encoder counts L/R",
+  ]) {
+    expect(telemetryLabels.indexOf(label)).toBeGreaterThan(
+      telemetryLabels.indexOf("yaw rate ωz"),
+    );
+  }
   await dashboard.getByRole("button", { name: "Zoom XRP" }).click();
   await expect(
     dashboard.getByRole("button", { name: "Fit world" }),
@@ -330,9 +370,13 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
   await ide.getByRole("button", { name: "Save", exact: true }).click();
+  await ide.getByLabel("Folder name").fill("virtual-browser-check");
+  await ide.getByRole("button", { name: "Create project" }).click();
   await ide.getByRole("tab", { name: "Status" }).click();
   await expect(
-    ide.getByText(/Saved \d+ project files to browser-course-project\./),
+    ide.getByText(
+      "Created ./virtual-browser-check. Edits and monitored runs save there automatically.",
+    ),
   ).toBeVisible();
   const savedController = await ide.evaluate(
     () =>
@@ -340,13 +384,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
         window as unknown as {
           __savedCourseFiles: Record<string, string>;
         }
-      ).__savedCourseFiles["student/straight_line_controller.py"],
+      ).__savedCourseFiles[
+        "virtual-browser-check/student/straight_line_controller.py"
+      ],
   );
   expect(savedController).toBe("");
-  await ide.getByRole("button", { name: "Change folder" }).click();
+  await ide.getByRole("button", { name: "Open project" }).click();
   await expect(
     ide.getByText(
-      /Opened browser-course-project: \d+ supported files(?:; \d+ items? skipped)?\./,
+      /Opened project folder virtual-browser-check: \d+ supported files?(?:; \d+ items? skipped)?\./,
     ),
   ).toBeVisible();
 
@@ -355,16 +401,24 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       name: "Open student/straight_line_controller.py",
     })
     .click();
-  await ide.getByRole("button", { name: "Duplicate", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "Duplicate file", exact: true })
+    .click();
   await expect(ide.getByLabel("Project-relative path")).toHaveValue(
     "student/straight_line_controller_copy.py",
   );
-  await ide.getByRole("button", { name: "Duplicate file" }).click();
-  await ide.getByRole("button", { name: "Rename", exact: true }).click();
+  await ide
+    .getByRole("dialog")
+    .getByRole("button", { name: "Duplicate file" })
+    .click();
+  await ide.getByRole("button", { name: "Rename file", exact: true }).click();
   await ide
     .getByLabel("Project-relative path")
     .fill("student/controller_experiment.py");
-  await ide.getByRole("button", { name: "Rename file" }).click();
+  await ide
+    .getByRole("dialog")
+    .getByRole("button", { name: "Rename file" })
+    .click();
   await ide.getByRole("button", { name: "Make main" }).click();
   await expect(
     ide.getByRole("button", {
@@ -377,14 +431,16 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await ide
     .getByRole("button", { name: "Open student/controller_experiment.py" })
     .click();
-  await ide.getByRole("button", { name: "Delete", exact: true }).click();
+  await ide.getByRole("button", { name: "Delete file", exact: true }).click();
   await expect(
     ide.getByRole("heading", {
       name: "Delete student/controller_experiment.py?",
     }),
   ).toBeVisible();
   const keepFileButton = ide.getByRole("button", { name: "Keep file" });
-  const deleteFileButton = ide.getByRole("button", { name: "Delete file" });
+  const deleteFileButton = ide
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Delete file" });
   await expect(keepFileButton).toBeFocused();
   await keepFileButton.press("Shift+Tab");
   await expect(deleteFileButton).toBeFocused();
@@ -400,17 +456,19 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       }
     ).__savedCourseFiles;
     return {
-      deletedCopy: saved["student/controller_experiment.py"],
+      deletedCopy:
+        saved["virtual-browser-check/student/controller_experiment.py"],
       keys: Object.keys(saved).sort(),
-      metadata: saved[".ucsb-xrp-project.json"],
+      metadata: saved["virtual-browser-check/.ucsb-xrp-project.json"],
     };
   });
   expect(savedProjectState.keys).not.toContain(
-    "student/controller_experiment.py",
+    "virtual-browser-check/student/controller_experiment.py",
   );
   expect(savedProjectState.deletedCopy).toBeUndefined();
   expect(savedProjectState.metadata).toBeDefined();
   expect(JSON.parse(savedProjectState.metadata!)).toEqual({
+    name: "virtual-browser-check",
     entrypoint: "main.py",
   });
 

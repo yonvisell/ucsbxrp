@@ -7,12 +7,15 @@ import {
   type TelemetrySample,
 } from "@ucsb-xrp/target";
 
+import type { MonitorAnnotation } from "./monitor-export";
+
 interface WorldViewProps {
+  annotations?: readonly MonitorAnnotation[];
   onScenarioChange?: (scenario: SimulationScenario) => void;
-  poseLabel: string;
   sample: TelemetrySample;
   scenario: SimulationScenario | null;
   scenarioDisabled?: boolean;
+  showAnnotations?: boolean;
 }
 
 const WORLD_WIDTH_MM = 2_400;
@@ -262,12 +265,23 @@ function disposeMaterial(material: THREE.Material): void {
   material.dispose();
 }
 
+function disposeObject(object: THREE.Object3D): void {
+  object.traverse((descendant) => {
+    const disposable = descendant as THREE.Mesh | THREE.Line | THREE.Sprite;
+    disposable.geometry?.dispose();
+    const material = disposable.material;
+    if (Array.isArray(material)) material.forEach(disposeMaterial);
+    else if (material) disposeMaterial(material);
+  });
+}
+
 export function WorldView({
+  annotations = [],
   onScenarioChange,
-  poseLabel,
   sample,
   scenario,
   scenarioDisabled = false,
+  showAnnotations = true,
 }: WorldViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -276,6 +290,7 @@ export function WorldView({
   const robotRef = useRef<THREE.Group | null>(null);
   const trailRef = useRef<THREE.Line | null>(null);
   const rangeRef = useRef<THREE.Line | null>(null);
+  const annotationGroupRef = useRef<THREE.Group | null>(null);
   const resizeRef = useRef<(() => void) | null>(null);
   const trailPoints = useRef<THREE.Vector3[]>([]);
   const lastSequence = useRef(-1);
@@ -365,6 +380,10 @@ export function WorldView({
     scene.add(range);
     rangeRef.current = range;
 
+    const annotationGroup = new THREE.Group();
+    scene.add(annotationGroup);
+    annotationGroupRef.current = annotationGroup;
+
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
@@ -403,6 +422,7 @@ export function WorldView({
       robotRef.current = null;
       trailRef.current = null;
       rangeRef.current = null;
+      annotationGroupRef.current = null;
       resizeRef.current = null;
       trailPoints.current = [];
       lastSequence.current = -1;
@@ -468,6 +488,40 @@ export function WorldView({
     renderer.render(scene, camera);
   }, [sample, viewZoom]);
 
+  useEffect(() => {
+    const group = annotationGroupRef.current;
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    if (!group || !renderer || !scene || !camera) return;
+    for (const child of [...group.children]) {
+      disposeObject(child);
+      group.remove(child);
+    }
+    group.visible = showAnnotations;
+    if (showAnnotations) {
+      for (const annotation of annotations) {
+        if (!annotation.poseAvailable) continue;
+        const marker = new THREE.Mesh(
+          new THREE.CircleGeometry(10, 20),
+          new THREE.MeshBasicMaterial({ color: "#87515d", depthTest: false }),
+        );
+        marker.position.set(annotation.xMm, annotation.yMm, 7);
+        marker.renderOrder = 7;
+        group.add(marker);
+        const labelText = `${(annotation.tMs / 1_000).toFixed(2)} s · ${annotation.label.slice(0, 32)}`;
+        const label = textSprite(
+          labelText,
+          Math.min(420, Math.max(190, labelText.length * 11)),
+        );
+        label.position.set(annotation.xMm, annotation.yMm + 34, 8);
+        label.renderOrder = 8;
+        group.add(label);
+      }
+    }
+    renderer.render(scene, camera);
+  }, [annotations, scenario, showAnnotations]);
+
   return (
     <div
       aria-describedby="world-grid-description"
@@ -505,12 +559,21 @@ export function WorldView({
             )}
           </select>
         ) : null}
-        <span>{poseLabel}</span>
-        <span>
-          range{" "}
-          {sample.rangeMm === null ? "—" : `${sample.rangeMm.toFixed(0)} mm`}
-        </span>
+        {!sample.poseAvailable ? (
+          <span>Preview · no published pose</span>
+        ) : null}
         {sample.collision ? <strong>Contact</strong> : null}
+      </div>
+      <div
+        aria-label="World line legend: green is path; ochre is ultrasound distance"
+        className="world-legend"
+      >
+        <span>
+          <i className="path-line" /> path
+        </span>
+        <span>
+          <i className="ultrasound-line" /> ultrasound distance
+        </span>
       </div>
       <button
         aria-pressed={viewZoom > 1}

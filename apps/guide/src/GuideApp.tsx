@@ -83,12 +83,15 @@ export function GuideApp() {
             <div>
               <h2>Projects, files, and templates</h2>
               <p>
-                A browser backup preserves edits continuously. Select{" "}
-                <strong>Save</strong> to choose a normal local working folder;
-                after that, edits save there automatically. Use{" "}
-                <strong>Open folder</strong> to resume another project. The IDE
-                supports nested files, multiple editor tabs, rename, duplicate,
-                delete, and selection of the main Python file.
+                A <strong>workspace</strong> is one parent folder containing
+                your XRP projects. Each <strong>project folder</strong> contains
+                one project's source, settings, automatic copies, run output,
+                and telemetry. When a workspace is connected, creating a project
+                from a template asks for the new folder name and writes it
+                immediately. Use <strong>Open project</strong> for an existing
+                project folder. Nested files, editor tabs, rename, duplicate,
+                delete, and <strong>Make main</strong> operate on files inside
+                the active project.
               </p>
               <p>
                 Five starters cover Straight Run, Turn and Return, Waypoint
@@ -102,9 +105,8 @@ export function GuideApp() {
                 The same template menu includes sensor-driven obstacle-turn and
                 expanding-spiral demos, plus a seven-lesson MicroPython
                 foundations project. Templates are not a special project type:
-                after loading, every file is editable and can be saved as a
-                normal local folder. Tutorial lessons can be made runnable with{" "}
-                <strong>Make main</strong>.
+                after loading, every file is editable. Tutorial lessons can be
+                made runnable with <strong>Make main</strong>.
               </p>
               <p>
                 Later starters retain every component introduced so far. Bring
@@ -113,11 +115,13 @@ export function GuideApp() {
                 software tests pass.
               </p>
               <div className="callout">
-                Loading a starter creates a fresh browser-recovered project. The
-                four previous folder states are kept as readable JSON in{" "}
-                <code>UCSB_XRP_Autosaves</code>. If Chrome cannot restore folder
-                permission after a restart, select <strong>Reconnect</strong>;
-                the browser backup remains available meanwhile.
+                If no workspace is connected, a template opens in the browser
+                backup; <strong>Save</strong> then asks for a workspace and
+                project folder name. The four previous folder states are kept as
+                readable JSON in <code>UCSB_XRP_Autosaves</code>. If Chrome
+                cannot restore folder permission after a restart, select{" "}
+                <strong>Reconnect</strong>; the browser backup remains available
+                meanwhile.
               </div>
             </div>
           </section>
@@ -144,12 +148,12 @@ export function GuideApp() {
               <ol className="procedure">
                 <li>Clone the course repository into a normal local folder.</li>
                 <li>
-                  In the IDE, select <strong>Open folder</strong> and choose the
-                  cloned project folder.
+                  In the IDE, select <strong>Open project</strong> and choose
+                  the cloned project folder.
                 </li>
                 <li>
-                  Work normally; the IDE autosaves source files into that folder
-                  after the first write permission.
+                  Work normally; the IDE writes source changes into that folder
+                  automatically after the first permission.
                 </li>
                 <li>
                   In GitHub Desktop, review the changed files, write a short
@@ -182,9 +186,9 @@ export function GuideApp() {
               </p>
               <ol className="procedure">
                 <li>
-                  Choose a working folder for one project, setup logs, run data,
-                  and automatic copies, or choose it later in the IDE. Chrome
-                  stores the web application separately.
+                  Choose a workspace that will contain your named project
+                  folders, or choose it later in the IDE. Chrome stores the web
+                  applications separately from project files.
                 </li>
                 <li>
                   Connect the XRP by USB-C, select it in the browser device
@@ -206,10 +210,11 @@ export function GuideApp() {
                 </li>
               </ol>
               <p>
-                The optional folder step writes and reads a small test file. The
-                latest events remain available under <strong>Setup log</strong>{" "}
-                and in <code>UCSB_XRP_Autosaves/xrp-setup-latest.txt</code>;
-                Wi-Fi passwords are not logged.{" "}
+                The optional workspace step writes and reads a small test file.
+                The latest events remain available under{" "}
+                <strong>Setup log</strong> and in{" "}
+                <code>UCSB_XRP_Autosaves/xrp-setup-latest.txt</code>; Wi-Fi
+                passwords are not logged.{" "}
                 <strong>Verify robot connection</strong> appears only after USB
                 installation and reset. Existing-Wi-Fi mode can verify
                 immediately while the computer stays online; hotspot mode
@@ -272,9 +277,9 @@ export function GuideApp() {
               </p>
               <div className="callout">
                 Browser security keeps the relevant platform choices explicit:
-                an optional working folder, the USB device, the temporary
-                firmware drive when repair needs it, and local-network access.
-                No instructor account or command line is required for normal
+                an optional workspace, the USB device, the temporary firmware
+                drive when repair needs it, and local-network access. No
+                instructor account or command line is required for normal
                 student setup.
               </div>
               <p>
@@ -305,12 +310,12 @@ export function GuideApp() {
                 Use the collapsible sidebar to choose signal histories and
                 control recordings. The virtual scene is selected directly in
                 the world view. Plots can show wheel speed, drive command,
-                range, acceleration, and yaw rate over a 2–30 second window.
-                Every selected plot retains the same height; additional plots
-                scroll rather than compressing their y axes. Unlabeled midpoint
-                grid lines make time intervals easier to read. Drag the
-                separators to give the world, values, plots, or output more
-                room; the arrow keys adjust a focused separator.
+                ultrasound distance, acceleration, and yaw rate over a 2–30
+                second window. Every selected plot retains the same height;
+                additional plots scroll rather than compressing their y axes.
+                Unlabeled midpoint grid lines make time intervals easier to
+                read. Drag the separators to give the world, values, plots, or
+                output more room; the arrow keys adjust a focused separator.
               </p>
               <p>
                 A program can declare bounded controls with{" "}
@@ -319,7 +324,7 @@ export function GuideApp() {
                 radio choices, and take effect together at the next measured
                 sample boundary. Named <code>live.watch()</code> values expose
                 modes, estimates, and error terms below{" "}
-                <strong>Live values</strong> in the right panel, without
+                <strong>Live telemetry</strong> in the right panel, without
                 periodic diagnostic printing. Use telemetry recording for
                 complete histories.
               </p>
@@ -332,6 +337,15 @@ export function GuideApp() {
                 column names. IMU exports use m/s² and rad/s; course distances
                 may remain in millimetres. If the buffer fills, the oldest
                 samples are replaced and the dropped count is shown.
+              </p>
+              <p>
+                Add a short note to mark the current telemetry time on the world
+                and every signal plot; one button shows or hides all notes.
+                Export the selected plots together as an editable SVG or
+                high-resolution PNG. After stopping a recording, export a WebM
+                world replay containing the path, robot pose, ultrasound ray,
+                scene, and visible notes. Replays longer than 20 seconds are
+                accelerated and label their playback factor.
               </p>
               <p>
                 Once a project or data folder is connected, every monitored run
@@ -478,8 +492,8 @@ export function GuideApp() {
                 </li>
                 <li>
                   <strong>Code validates but does not run:</strong> open Details
-                  in the IDE; syntax and runtime exceptions include the file and
-                  line reported by MicroPython.
+                  for validation and target messages, and Program output for
+                  Python exceptions and text printed by the project.
                 </li>
                 <li>
                   <strong>No physical world pose:</strong> sensor telemetry is
@@ -490,11 +504,14 @@ export function GuideApp() {
                 <li>
                   <strong>Offline use:</strong> open the production course site
                   while online and wait for{" "}
-                  <strong>Works without internet</strong> before changing
-                  networks. Whenever the site is opened online, it checks for a
-                  newer complete release, saves that release, and reloads once;
-                  an interrupted update leaves the prior complete copy usable.
-                  Development servers instead show{" "}
+                  <strong>IDE available offline</strong>
+                  or <strong>Monitor available offline</strong> before changing
+                  networks. Chrome stores the complete web release in browser
+                  storage, not in the selected workspace; no Node server is
+                  needed afterward. Whenever the site is opened online, it
+                  checks for a newer complete release and activates it only
+                  after every asset is present. Clearing site data removes this
+                  copy. Development servers instead show{" "}
                   <strong>Development build</strong> and do not save an offline
                   browser copy.
                 </li>
