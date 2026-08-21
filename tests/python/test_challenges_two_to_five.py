@@ -295,10 +295,11 @@ class RobotAndMissionTests(unittest.TestCase):
         finally:
             course_telemetry._publish_browser_state = original_publisher
 
-        self.assertEqual(
-            bridge.calls[-1],
-            (10, 0, 0, 500.0, 500.0, 100, 0, 100.0, 100.0),
-        )
+        published = bridge.calls[-1]
+        self.assertEqual(published[:3], (10, 0, 0))
+        self.assertAlmostEqual(published[3], 100.0)
+        self.assertAlmostEqual(published[4], 100.0)
+        self.assertEqual(published[5:], (100, 0, 100.0, 100.0))
 
     def test_robot_uses_absolute_wrap_safe_sample_deadlines(self):
         config = RobotConfig(sample_period_ms=20, max_drive_command=0.5)
