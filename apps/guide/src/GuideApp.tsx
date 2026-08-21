@@ -33,14 +33,14 @@ export function GuideApp() {
       <div className="guide-layout">
         <nav className="guide-toc" aria-label="Guide sections">
           <span>Guide</span>
-          <a href="#virtual-run">Run the virtual XRP</a>
-          <a href="#projects">Choose and save a project</a>
-          <a href="#components">Test one component</a>
-          <a href="#physical-xrp">Set up a physical XRP</a>
-          <a href="#monitor">Use the Monitor</a>
-          <a href="#project-structure">Understand code roles</a>
-          <a href="#offline-use">Use the apps without internet</a>
-          <a href="#github">Use GitHub</a>
+          <a href="#virtual-run">Virtual XRP</a>
+          <a href="#projects">Projects and course folders</a>
+          <a href="#components">Component tests</a>
+          <a href="#physical-xrp">Physical XRP setup</a>
+          <a href="#monitor">Monitor</a>
+          <a href="#project-structure">Project files and control flow</a>
+          <a href="#offline-use">Offline use</a>
+          <a href="#github">GitHub version control</a>
           <a href="#shortcuts">Keyboard shortcuts</a>
           <a href="#troubleshooting">Troubleshooting</a>
         </nav>
@@ -48,7 +48,7 @@ export function GuideApp() {
         <main className="guide-content">
           <section className="guide-intro">
             <p className="eyebrow">Student guide</p>
-            <h1>Program, test, and analyze the XRP robot.</h1>
+            <h1>Using the UCSBXRP course tools</h1>
             <p>
               Begin with the virtual XRP, save the project in a course folder,
               test each component you implement, and then run the same project
@@ -61,7 +61,7 @@ export function GuideApp() {
           <GuideSection
             id="virtual-run"
             number="01"
-            title="Run a program on the virtual XRP"
+            title="Virtual XRP: run a project"
           >
             <ol className="procedure">
               <li>
@@ -89,7 +89,7 @@ export function GuideApp() {
           <GuideSection
             id="projects"
             number="02"
-            title="Choose and save a project"
+            title="Projects and course folders"
           >
             <p>
               A <strong>course folder</strong> is the parent folder on your
@@ -171,11 +171,7 @@ export function GuideApp() {
             </div>
           </GuideSection>
 
-          <GuideSection
-            id="components"
-            number="03"
-            title="Test one student component"
-          >
+          <GuideSection id="components" number="03" title="Component tests">
             <p>
               Challenge projects provide one focused file for each component you
               implement. <strong>Validate</strong> checks Python syntax.{" "}
@@ -222,7 +218,7 @@ export function GuideApp() {
           <GuideSection
             id="physical-xrp"
             number="04"
-            title="Set up and run a physical XRP"
+            title="Physical XRP setup"
           >
             <p>
               Open <a href="../commission/">Set up or repair XRP</a> in current
@@ -273,7 +269,11 @@ export function GuideApp() {
             </p>
           </GuideSection>
 
-          <GuideSection id="monitor" number="05" title="Read the Monitor">
+          <GuideSection
+            id="monitor"
+            number="05"
+            title="Monitor: telemetry, controls, and output"
+          >
             <p>
               The Monitor shows the simulated or measured world, live telemetry,
               controls and watch values created by the running program, signal
@@ -339,7 +339,7 @@ export function GuideApp() {
           <GuideSection
             id="project-structure"
             number="06"
-            title="Understand each file and component"
+            title="Project files and control flow"
           >
             <p>
               <code>main.py</code> is mission control: it selects the task,
@@ -432,11 +432,7 @@ export function GuideApp() {
             </p>
           </GuideSection>
 
-          <GuideSection
-            id="offline-use"
-            number="07"
-            title="Use the course apps without internet"
-          >
+          <GuideSection id="offline-use" number="07" title="Offline use">
             <p>
               First open the course site while the computer has internet access.
               Wait until the IDE or Monitor reports{" "}
@@ -446,7 +442,7 @@ export function GuideApp() {
             </p>
             <div className="offline-capabilities">
               <section>
-                <h3>Available without internet</h3>
+                <h3>Available after one complete online load</h3>
                 <ul>
                   <li>
                     Close and reopen the IDE, Monitor, Guide, and API reference
@@ -464,7 +460,7 @@ export function GuideApp() {
                 </ul>
               </section>
               <section>
-                <h3>Requires internet or retained Chrome data</h3>
+                <h3>Limits</h3>
                 <ul>
                   <li>
                     The first complete load and later course-app updates require
@@ -493,11 +489,7 @@ export function GuideApp() {
             </p>
           </GuideSection>
 
-          <GuideSection
-            id="github"
-            number="08"
-            title="Use GitHub with your team"
-          >
+          <GuideSection id="github" number="08" title="GitHub version control">
             <p>
               Keep one GitHub repository for each course team. Use the
               repository assigned by the course; if none is assigned, one
@@ -537,11 +529,7 @@ export function GuideApp() {
             </div>
           </GuideSection>
 
-          <GuideSection
-            id="shortcuts"
-            number="09"
-            title="Use keyboard shortcuts"
-          >
+          <GuideSection id="shortcuts" number="09" title="Keyboard shortcuts">
             <table>
               <thead>
                 <tr>

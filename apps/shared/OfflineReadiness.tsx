@@ -10,9 +10,9 @@ import {
 
 const stateText: Record<Exclude<OfflineShellState, "ready">, string> = {
   development: "Local development",
-  installing: "Saving course tools in Chrome",
-  unsupported: "Course tools not saved",
-  error: "Course tools not fully saved",
+  installing: "Saving course apps in Chrome",
+  unsupported: "Course apps not saved",
+  error: "Course apps not fully saved",
 };
 
 interface OfflineReadinessProps {
@@ -39,9 +39,9 @@ export function OfflineReadiness({
       : stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `Chrome has saved the course apps and course release in this site's browser storage, including ${appName}. They can reopen without internet and do not need a Node server. Project files remain in the selected workspace or browser recovery storage; clearing site data removes the saved apps. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
+      ? `Chrome has saved ${appName} and the other course apps for this site. The same Chrome profile can reopen them without internet. Project files remain in their project folders; a project without a selected folder has only a recovery copy in Chrome. Clearing this site's data removes the saved apps and recovery copies, but not project folders. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
       : status.state === "development"
-        ? `Course release ${courseRelease.release_id}; the local development server does not save a browser copy.`
+        ? `Course release ${courseRelease.release_id}; this local preview does not install the offline copy.`
         : (status.message ??
           `Course release ${courseRelease.release_id}: ${stateLabel}.`);
 

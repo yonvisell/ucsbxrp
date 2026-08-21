@@ -101,13 +101,13 @@ async function installMemoryFolderPicker(page: Page) {
   });
 }
 
-test("creates the untouched default as a named workspace child", async ({
+test("creates the untouched default inside the selected course folder", async ({
   page: ide,
 }) => {
   await installMemoryFolderPicker(ide);
   await ide.goto("/ide/");
 
-  await ide.getByRole("button", { name: "Choose workspace" }).click();
+  await ide.getByRole("button", { name: "Choose course folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
     "./Expanding-Spiral",
   );
@@ -135,7 +135,7 @@ test("automatically saves project edits and retains four prior states", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Choose workspace" }).click();
+  await ide.getByRole("button", { name: "Choose course folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
     "./Expanding-Spiral",
   );

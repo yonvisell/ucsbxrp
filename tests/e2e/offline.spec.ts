@@ -63,7 +63,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /course apps and course release.*Project files remain/s,
+    /same Chrome profile can reopen them without internet.*Project files remain in their project folders/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -151,7 +151,7 @@ test("reloads the complete production course shell without a network", async ({
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
     guide.getByRole("heading", {
-      name: "Set up and run a physical XRP",
+      name: "Physical XRP setup",
     }),
   ).toBeVisible();
   await expect(
@@ -159,7 +159,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toBeVisible();
   await expect(
     guide.getByRole("heading", {
-      name: "Use the course apps without internet",
+      name: "Offline use",
     }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);

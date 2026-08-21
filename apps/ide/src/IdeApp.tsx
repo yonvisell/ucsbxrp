@@ -230,7 +230,7 @@ export function IdeApp() {
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
   const [operationDetail, setOperationDetail] = useState(
-    "This project has a browser backup. Choose a workspace to create its project folder, or open an existing project.",
+    "This project has a recovery copy in Chrome. Choose a course folder to create its project folder, or open an existing project.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -429,7 +429,7 @@ export function IdeApp() {
       if (disposed) return;
       setFolderSaveState("error");
       setOperationDetail(
-        `The remembered project folder could not be reopened: ${errorDetail(error)} The browser backup remains available.`,
+        `The remembered project folder could not be reopened: ${errorDetail(error)} The recovery copy in Chrome remains available.`,
       );
       if (courseFolderIsWaitingForIde()) finishCourseFolderIdeHandoff();
     });
@@ -735,7 +735,7 @@ export function IdeApp() {
         projectAttached = true;
       } else {
         setOperationDetail(
-          `${folder.name} is the workspace for new project folders.`,
+          `${folder.name} is the course folder for new project folders.`,
         );
       }
       return { folder, projectAttached };
@@ -780,7 +780,7 @@ export function IdeApp() {
         setSyncDetail("Current files have not been sent to the XRP.");
         setConsoleEntries([]);
         setOperationDetail(
-          `${snapshot.name} created in the browser backup. Choose a workspace to create its local project folder.`,
+          `${snapshot.name} has a recovery copy in Chrome. Choose a course folder to create its project folder.`,
         );
         return;
       }
@@ -806,7 +806,7 @@ export function IdeApp() {
       if (permission !== "granted") {
         setFolderSaveState("permission");
         setOperationDetail(
-          `Folder access was not granted. The browser backup remains current.`,
+          `Folder access was not granted. The recovery copy in Chrome remains current.`,
         );
         return;
       }
@@ -1254,14 +1254,14 @@ export function IdeApp() {
         : "Connected · changes save automatically"
     : rememberedFolder && rememberedFolderCanAttach
       ? `${rememberedFolder.name} · reconnect to resume saving`
-      : "Saved in this browser only";
+      : "Recovery copy in Chrome; no project folder selected";
   const storageSummary = workingFolder
     ? `Saved automatically in ./${workingFolder.name}`
     : rememberedFolder && rememberedFolderCanAttach
       ? `${rememberedFolder.name} · reconnect to resume automatic saving`
       : workspaceFolder
-        ? `Saved in this browser only · workspace ${workspaceFolder.name} selected`
-        : "Saved in this browser only";
+        ? `Recovery copy in Chrome · course folder ${workspaceFolder.name} selected`
+        : "Recovery copy in Chrome · choose a course folder";
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
@@ -1421,7 +1421,7 @@ export function IdeApp() {
             <div className="project-root" data-testid="project-folder">
               {workingFolder
                 ? `./${workingFolder.name}`
-                : `${project.name} · browser only`}
+                : `${project.name} · recovery copy in Chrome`}
             </div>
             <div className="file-list">
               {projectFiles.map((path) => (
@@ -1519,7 +1519,7 @@ export function IdeApp() {
                   className="component-check-button"
                   disabled={componentCheckRunning}
                   onClick={() => void testComponents()}
-                  title="Run deterministic student-component checks in MicroPython without using the robot. PASS, PENDING, and FAIL results appear in Program output."
+                  title="Run this challenge's component checks in MicroPython without starting either robot. PASS, PENDING, and FAIL results appear in Program output."
                 >
                   {componentCheckRunning
                     ? "Testing components…"
@@ -1566,7 +1566,9 @@ export function IdeApp() {
                   onClick={selectWorkspaceFolder}
                   title="Choose the parent folder that contains your UCSBXRP project folders."
                 >
-                  {workspaceFolder ? "Change workspace" : "Choose workspace"}
+                  {workspaceFolder
+                    ? "Change course folder"
+                    : "Choose course folder"}
                 </button>
                 {!workingFolder &&
                 rememberedFolder &&

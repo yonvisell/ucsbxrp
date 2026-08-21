@@ -4,6 +4,17 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 27 gives storage and navigation terms one student-visible meaning.
+The parent directory is always the **course folder**; each runnable body of work
+is a named **project folder**; and an unsaved project has a **recovery copy in
+Chrome**. The IDE, setup wizard, offline status, Guide, tooltips, and browser
+tests use those terms consistently. Guide section names are now literal topics
+rather than conversational instructions, and the Guide lists the five
+challenges, two demos, and tutorial explicitly. Its inline code is smaller than
+the surrounding prose rather than visually dominating it. Direct Chrome checks
+found no remaining visible `workspace`, `browser only`, `starter`, or
+`deterministic` wording and no horizontal overflow at 864 × 996.
+
 Refinement 26 makes every challenge folder self-explanatory. Each README now
 states the challenge objective, enumerates the student-owned classes and their
 responsibilities, distinguishes supplied files and services, shows the closed

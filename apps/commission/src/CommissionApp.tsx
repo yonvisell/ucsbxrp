@@ -213,7 +213,7 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is ready as the parent workspace for project folders.`,
+                `${rememberedFolder.name} is ready as the course folder. Each project will have its own named subfolder.`,
               );
               setStage("usb");
               return;
@@ -225,7 +225,7 @@ export function CommissionApp() {
                 "error",
               );
               setError(
-                "The remembered workspace could not be written and read. Choose it again or select another folder.",
+                "The remembered course folder could not be written and read. Choose it again or select another folder.",
               );
             }
           }
@@ -233,7 +233,7 @@ export function CommissionApp() {
         if (!disposed) {
           setStage("folder");
           setDetail(
-            "Choose a workspace that will contain your XRP project folders, or continue and choose one later in the IDE.",
+            "Choose one course folder that will contain your XRP project folders, or continue and choose it later in the IDE.",
           );
         }
       } catch (initializationError) {
@@ -290,7 +290,7 @@ export function CommissionApp() {
         folderNeedsPickerRef.current = true;
         const message = errorDetail(folderError);
         setError(
-          "The selected workspace could not be written and read. Choose it again or select another folder.",
+          "The selected course folder could not be written and read. Choose it again or select another folder.",
         );
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
@@ -300,11 +300,11 @@ export function CommissionApp() {
   const skipFolder = useCallback(() => {
     setError("");
     setDetail(
-      "Connect the XRP by USB-C and keep it connected through setup. You can choose a workspace in the IDE later.",
+      "Connect the XRP by USB-C and keep it connected through setup. You can choose a course folder in the IDE later.",
     );
     recordSetup(
       "Folder",
-      "Continued without a workspace; the visible setup log remains available to copy.",
+      "Continued without a course folder; the visible setup log remains available to copy.",
     );
     setStage("usb");
   }, [recordSetup]);
@@ -760,7 +760,7 @@ export function CommissionApp() {
         <section className="commission-panel" aria-live="polite">
           <p className="commission-kicker">ROBOT SETUP &amp; REPAIR</p>
           {stage === "loading" ? <h1>Preparing setup</h1> : null}
-          {stage === "folder" ? <h1>Choose a workspace</h1> : null}
+          {stage === "folder" ? <h1>Choose a course folder</h1> : null}
           {stage === "usb" ? <h1>Connect the XRP by USB-C</h1> : null}
           {stage === "network" ? <h1>Choose the robot network</h1> : null}
           {stage === "installing" ? <h1>Updating the XRP</h1> : null}
@@ -781,15 +781,16 @@ export function CommissionApp() {
             <div className="commission-actions">
               <div className="commission-action-row">
                 <button className="primary-button" onClick={chooseFolder}>
-                  Choose workspace
+                  Choose course folder
                 </button>
                 <button onClick={skipFolder}>Choose later</button>
               </div>
               <p>
                 Choose one parent folder for your UCSBXRP projects. Each new
                 project gets its own named subfolder; source, run data, and
-                automatic copies stay with that project. Setup logs remain at
-                the workspace level. Chrome stores the web apps separately.
+                automatic copies stay with that project. Setup logs are saved
+                directly in the course folder. Chrome stores the course apps
+                separately.
               </p>
             </div>
           ) : null}

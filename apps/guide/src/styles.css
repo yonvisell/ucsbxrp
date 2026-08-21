@@ -155,7 +155,7 @@
   background: #edf0f1;
   color: #23343e;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.92em;
+  font-size: 0.84em;
 }
 
 .procedure {
@@ -179,7 +179,7 @@
   background: #f6f7f8;
   color: var(--muted);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.35;
 }
 
@@ -369,7 +369,7 @@
 .measurement-path > a strong {
   color: #174456;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .actuation-path > a,
