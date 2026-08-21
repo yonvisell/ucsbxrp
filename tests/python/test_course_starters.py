@@ -79,6 +79,59 @@ class CourseStarterTests(unittest.TestCase):
             }
             self.assertEqual(len(switches), expected_count, challenge)
 
+    def test_each_challenge_readme_defines_student_and_supplied_responsibilities(self):
+        expected_student_files = {
+            "challenge_1": ("sensor_model.py", "wheel_speed_controller.py"),
+            "challenge_2": (
+                "sensor_model.py",
+                "wheel_speed_controller.py",
+                "differential_drive.py",
+                "odometry.py",
+            ),
+            "challenge_3": (
+                "sensor_model.py",
+                "wheel_speed_controller.py",
+                "differential_drive.py",
+                "odometry.py",
+                "navigation_controller.py",
+            ),
+            "challenge_4": (
+                "sensor_model.py",
+                "wheel_speed_controller.py",
+                "differential_drive.py",
+                "odometry.py",
+                "navigation_controller.py",
+                "grid_planner.py",
+            ),
+            "challenge_5": (
+                "sensor_model.py",
+                "wheel_speed_controller.py",
+                "differential_drive.py",
+                "odometry.py",
+                "navigation_controller.py",
+                "grid_planner.py",
+            ),
+        }
+        required_sections = (
+            "## Objective",
+            "## Student implementations",
+            "## Supplied project files and services",
+            "## Program flow",
+            "## Work sequence",
+        )
+
+        for challenge, student_files in expected_student_files.items():
+            text = (STARTERS / challenge / "README.md").read_text(encoding="utf-8")
+            with self.subTest(challenge=challenge):
+                for section in required_sections:
+                    self.assertIn(section, text)
+                self.assertIn("```text", text)
+                self.assertIn("* student implementation", text)
+                self.assertIn("component_checks.py", text)
+                self.assertIn("course_setup.py", text)
+                for filename in student_files:
+                    self.assertIn("`%s`" % filename, text)
+
     def test_navigation_settings_are_named_and_show_units(self):
         expected_names = {
             "cruise_speed_mm_s",

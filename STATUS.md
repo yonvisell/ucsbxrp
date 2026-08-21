@@ -4,6 +4,14 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 26 makes every challenge folder self-explanatory. Each README now
+states the challenge objective, enumerates the student-owned classes and their
+responsibilities, distinguishes supplied files and services, shows the closed
+command/measurement flow, and gives the sequence for isolated component checks,
+virtual execution, and physical execution. A source-level regression test
+requires this structure and the correct cumulative set of student files for all
+five challenges.
+
 Refinement 25 adds a complete student-facing documentation path. The Guide now
 names every challenge, demo, and tutorial; defines the course-folder/project
 relationship; distinguishes Validate from Test components; gives the physical

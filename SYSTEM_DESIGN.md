@@ -483,5 +483,7 @@ student component entry states what the component owns, what it receives, what
 state it maintains, what it provides, and which module consumes that output.
 Method signatures and units follow those responsibilities. The IDE maps known
 component/configuration filenames to the corresponding reference anchor, while
-the Guide retains the high-level closed command/measurement loop. Both pages
-are part of the verified offline shell.
+the Guide retains the high-level closed command/measurement loop. Each challenge
+README repeats only the challenge-specific objective, student/supplied ownership,
+flow, and work sequence needed to understand that project without leaving its
+folder. The Guide and API pages are part of the verified offline shell.
