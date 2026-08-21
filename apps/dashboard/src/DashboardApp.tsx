@@ -63,7 +63,7 @@ interface ConsoleEntry {
 }
 
 const simulationScenarioKey = "ucsb-xrp-simulation-scenario-v1";
-const monitorSettingsKey = "ucsb-xrp-monitor-settings-v2";
+const monitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
 const maximumPlotSamples = 1_200;
 const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
 const emptyRuntimeState: RuntimeState = {
@@ -159,7 +159,7 @@ const defaultMonitorSettings: MonitorSettings = {
   plots: {
     "wheel-speed": true,
     "motor-effort": true,
-    "pose-error": true,
+    "pose-error": false,
     range: false,
     acceleration: false,
     "angular-rate": false,
@@ -1153,7 +1153,16 @@ export function DashboardApp() {
                   aria-labelledby="signal-controls-title"
                   className="monitor-control-group signal-control-group"
                 >
-                  <h2 id="signal-controls-title">Signals</h2>
+                  <div className="signal-controls-heading">
+                    <h2 id="signal-controls-title">Signals</h2>
+                    <button
+                      disabled={plotSamples.length === 0}
+                      onClick={() => setPlotSamples([])}
+                      title="Clear the visible signal history. New samples continue plotting."
+                    >
+                      Clear plots
+                    </button>
+                  </div>
                   <div className="signal-choices">
                     {SIGNAL_PLOTS.map((plot) => (
                       <label

@@ -196,6 +196,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
       "ready",
       `${info.robotName} · ${this.connectionDescription(info)} · course ${info.courseRelease}`,
     );
+    this.emit({
+      type: "console",
+      stream: "system",
+      line: `Connected to ${info.robotName} · ${this.connectionDescription(info)}`,
+    });
     this.consumeProjectManifest(info.project);
     this.consumeRuntimeState(info.runtimeJson);
     this.schedulePoll(0);
@@ -222,9 +227,20 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async check(project: CourseProject): Promise<CheckResult> {
+    const projectName = project.name?.trim() || project.entrypoint;
+    this.emit({
+      type: "console",
+      stream: "system",
+      line: `Validating ${projectName} on the physical XRP`,
+    });
     try {
       const result = await this.command<{ detail: string }>("check", {
         project,
+      });
+      this.emit({
+        type: "console",
+        stream: "system",
+        line: `Validation passed · ${result.detail}`,
       });
       return { ok: true, detail: result.detail };
     } catch (error) {
@@ -232,8 +248,18 @@ export class DirectPhysicalTargetClient implements TargetClient {
         error instanceof PhysicalTargetError &&
         error.code === "syntax_error"
       ) {
+        this.emit({
+          type: "console",
+          stream: "system",
+          line: `Validation failed · ${error.message}`,
+        });
         return { ok: false, detail: error.message };
       }
+      this.emit({
+        type: "console",
+        stream: "system",
+        line: `Validation could not finish · ${errorDetail(error)}`,
+      });
       throw error;
     }
   }
@@ -292,6 +318,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       );
       this.lastRunId = result.runId;
       this.lastLeaseAt = 0;
+      this.emit({ type: "console", stream: "system", line: result.detail });
       this.emitStatus("loading", result.detail);
     } finally {
       this.pollingPaused = false;
@@ -318,6 +345,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         detail: string;
         reconnecting: boolean;
       }>("stop", {});
+      this.emit({ type: "console", stream: "system", line: result.detail });
       this.emitStatus("connecting", `${result.detail}; reconnecting…`);
       await this.reconnectAfterReset();
     } finally {
@@ -334,6 +362,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         detail: string;
         reconnecting: boolean;
       }>("reset", {});
+      this.emit({ type: "console", stream: "system", line: result.detail });
       this.emitStatus("connecting", `${result.detail}; reconnecting…`);
       await this.reconnectAfterReset();
     } finally {
@@ -546,6 +575,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
           "ready",
           `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
         );
+        this.emit({
+          type: "console",
+          stream: "system",
+          line: `${info.robotName} reconnected and ready`,
+        });
         this.consumeProjectManifest(info.project);
         this.consumeRuntimeState(info.runtimeJson);
         return;

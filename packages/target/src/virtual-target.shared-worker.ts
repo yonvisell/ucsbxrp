@@ -171,6 +171,11 @@ function prepareRuntime(
   simulatorState = simulator.reset();
   runOwnerLease.begin(port, activeRunId, performance.now());
   broadcast(telemetryEvent());
+  broadcast({
+    type: "console",
+    stream: "system",
+    line: `Starting ${currentProjectDescriptor.name} (${currentProjectDescriptor.entrypoint}) on the virtual XRP`,
+  });
   status("loading", "Loading MicroPython 1.28");
   send(port, {
     type: "response",
@@ -195,6 +200,11 @@ function handleRuntimeMessage(
   }
   if (message.type === "runtime-ready") {
     status("running", `MicroPython ${message.version} · virtual XRP`);
+    broadcast({
+      type: "console",
+      stream: "system",
+      line: `MicroPython ${message.version} ready; program running`,
+    });
   } else if (message.type === "effort") {
     // The runtime-owned simulator sends the authoritative state immediately
     // after each effort change.
@@ -216,12 +226,22 @@ function handleRuntimeMessage(
   } else if (message.type === "run-complete") {
     runOwnerLease.clear();
     stopRuntime();
+    broadcast({
+      type: "console",
+      stream: "system",
+      line: "Program completed; drive command is zero",
+    });
     status("ready", "Program completed; drive command is zero");
     broadcastMessage({ type: "terminate-runtime", runId });
   } else if (message.type === "error") {
     runOwnerLease.clear();
     stopRuntime();
     broadcast({ type: "console", stream: "stderr", line: message.detail });
+    broadcast({
+      type: "console",
+      stream: "system",
+      line: "Program stopped after a MicroPython exception",
+    });
     status("error", "Program stopped after a MicroPython exception");
     broadcastMessage({ type: "terminate-runtime", runId });
   }
@@ -408,6 +428,11 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     simulatorState = simulator.reset();
     consoleHistory.length = 0;
     broadcast(telemetryEvent());
+    broadcast({
+      type: "console",
+      stream: "system",
+      line: "Virtual XRP reset",
+    });
     status("ready", "Virtual XRP reset");
     send(port, { type: "response", requestId: command.requestId, ok: true });
   }

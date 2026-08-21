@@ -38,6 +38,7 @@ interface SignalSeriesDefinition {
   label: string;
   color: string;
   dash?: "dashed" | "dotted";
+  displayAverageMs?: number;
   value: (sample: TelemetrySample) => number | null;
 }
 
@@ -53,19 +54,22 @@ export interface SignalPlotDefinition {
 export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   {
     id: "wheel-speed",
-    label: "Wheel speed",
+    label: "Wheel speed (120 ms mean)",
     unit: "mm/s",
-    description: "Target and measured left and right wheel speed",
+    description:
+      "Target wheel speeds and 120 ms display averages of encoder-derived measurements. Data exports retain every raw sample.",
     series: [
       {
-        label: "Measured L",
+        label: "Encoder L",
         color: "#08736b",
+        displayAverageMs: 120,
         value: (sample) => sample.leftWheelSpeedMmS,
       },
       {
-        label: "Measured R",
+        label: "Encoder R",
         color: "#a66b08",
         dash: "dashed",
+        displayAverageMs: 120,
         value: (sample) => sample.rightWheelSpeedMmS,
       },
       {
@@ -104,10 +108,10 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   },
   {
     id: "pose-error",
-    label: "Odometry position error",
+    label: "Odometry check (virtual)",
     unit: "mm",
     description:
-      "Distance between the student odometry estimate and virtual ground truth",
+      "Simulation-only difference between student odometry and the simulator's true pose. The true pose is not available to robot code or a physical XRP.",
     series: [
       {
         label: "Position error",
@@ -212,14 +216,46 @@ export function signalPlotData(
   const definition = signalPlotDefinition(id);
   const latestMs = samples.at(-1)?.tMs ?? 0;
   const startMs = latestMs - timeWindowS * 1_000;
-  const visible = samples.filter((sample) => sample.tMs >= startMs);
-  return definition.series.map((series) => ({
-    name: series.label,
-    values: visible.map((sample) => [
-      (sample.tMs - latestMs) / 1_000,
-      series.value(sample),
-    ]),
-  }));
+  const firstVisibleIndex = Math.max(
+    0,
+    samples.findIndex((sample) => sample.tMs >= startMs),
+  );
+  return definition.series.map((series) => {
+    const raw = samples.map(series.value);
+    let display = raw;
+    if (series.displayAverageMs !== undefined) {
+      let first = 0;
+      let sum = 0;
+      let count = 0;
+      display = raw.map((current, index) => {
+        if (current !== null) {
+          sum += current;
+          count += 1;
+        }
+        while (
+          first < index &&
+          samples[index]!.tMs - samples[first]!.tMs > series.displayAverageMs!
+        ) {
+          const removed = raw[first];
+          if (removed !== null && removed !== undefined) {
+            sum -= removed;
+            count -= 1;
+          }
+          first += 1;
+        }
+        return count > 0 ? sum / count : null;
+      });
+    }
+    return {
+      name: series.label,
+      values: samples
+        .slice(firstVisibleIndex)
+        .map((sample, offset) => [
+          (sample.tMs - latestMs) / 1_000,
+          display[firstVisibleIndex + offset] ?? null,
+        ]),
+    };
+  });
 }
 
 interface SignalPlotProps {
@@ -320,8 +356,9 @@ export function SignalPlot({
           top: 1,
           right: 6,
           textStyle: { color: "#3f4d55", fontSize: 8 },
-          itemHeight: 2,
-          itemWidth: 11,
+          icon: "roundRect",
+          itemHeight: 4,
+          itemWidth: 8,
         },
         tooltip: {
           trigger: "axis",

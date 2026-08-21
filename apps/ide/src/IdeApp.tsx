@@ -589,15 +589,6 @@ export function IdeApp() {
         setCheckOk(result.ok);
         setCheckDetail(result.detail);
         validationPassed = result.ok;
-        setConsoleEntries((entries) => [
-          ...entries.slice(-199),
-          {
-            id: nextConsoleId.current++,
-            category: "service",
-            stream: result.ok ? "system" : "stderr",
-            line: `${result.ok ? "Validation passed" : "Validation failed"}: ${result.detail}`,
-          },
-        ]);
       }
       if (!validationPassed) {
         setConsoleTab("details");

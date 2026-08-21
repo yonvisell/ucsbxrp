@@ -256,6 +256,20 @@
   gap: 0;
 }
 
+.signal-controls-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.signal-controls-heading button {
+  min-height: 18px;
+  padding: 0 4px;
+  font-size: var(--font-xs);
+}
+
 .check-row {
   display: grid;
   min-height: 19px;

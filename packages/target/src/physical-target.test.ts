@@ -346,6 +346,11 @@ describe("physical target", () => {
       state: "loading",
       detail: "Running main.py",
     });
+    expect(events).toContainEqual({
+      type: "console",
+      stream: "system",
+      line: "Running main.py",
+    });
     target.disconnect();
   });
 
@@ -731,6 +736,21 @@ describe("physical target", () => {
       type: "status",
       state: "loading",
       detail: "Running main.py",
+    });
+    expect(events).toContainEqual({
+      type: "console",
+      stream: "system",
+      line: "Validating main.py on the physical XRP",
+    });
+    expect(events).toContainEqual({
+      type: "console",
+      stream: "system",
+      line: "Validation passed · 1 Python files compiled",
+    });
+    expect(events).toContainEqual({
+      type: "console",
+      stream: "system",
+      line: "Running main.py",
     });
     target.disconnect();
   });

@@ -81,6 +81,21 @@ describe("monitor signal plots", () => {
     ]);
   });
 
+  it("uses a short display mean for quantized encoder wheel speeds", () => {
+    const data = signalPlotData(
+      [
+        sample(0, { leftWheelSpeedMmS: 80 }),
+        sample(20, { leftWheelSpeedMmS: 120 }),
+        sample(140, { leftWheelSpeedMmS: 100 }),
+      ],
+      "wheel-speed",
+      5,
+    );
+
+    expect(data[0]?.name).toBe("Encoder L");
+    expect(data[0]?.values.map((point) => point[1])).toEqual([80, 100, 110]);
+  });
+
   it("preserves missing physical sensor values as chart gaps", () => {
     const data = signalPlotData(
       [sample(0, { rangeMm: null }), sample(100, { rangeMm: 240 })],

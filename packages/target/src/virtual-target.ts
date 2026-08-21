@@ -130,42 +130,63 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   async check(project: CourseProject): Promise<CheckResult> {
-    return new Promise((resolve, reject) => {
-      let checker: Worker;
-      try {
-        checker = this.createMicroPythonWorker("ucsb-xrp-micropython-check");
-      } catch (error) {
-        reject(new Error(errorDetail(error)));
-        return;
-      }
-      this.checkWorkers.add(checker);
-      const finish = () => {
-        clearTimeout(timeout);
-        checker.terminate();
-        this.checkWorkers.delete(checker);
-      };
-      const timeout = setTimeout(() => {
-        finish();
-        reject(new Error("MicroPython project check timed out"));
-      }, 20_000);
-      checker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
-        const message = event.data;
-        if (message.type === "check-complete") {
-          finish();
-          resolve({ ok: true, detail: message.detail });
-        } else if (message.type === "error") {
-          finish();
-          resolve({ ok: false, detail: message.detail });
-        }
-      };
-      checker.onerror = (event) => {
-        finish();
-        reject(
-          new Error(event.message || "MicroPython project checker failed"),
-        );
-      };
-      checker.postMessage({ mode: "check", project });
+    const projectName = project.name?.trim() || project.entrypoint;
+    this.emit({
+      type: "console",
+      stream: "system",
+      line: `Validating ${projectName}`,
     });
+    try {
+      const result = await new Promise<CheckResult>((resolve, reject) => {
+        let checker: Worker;
+        try {
+          checker = this.createMicroPythonWorker("ucsb-xrp-micropython-check");
+        } catch (error) {
+          reject(new Error(errorDetail(error)));
+          return;
+        }
+        this.checkWorkers.add(checker);
+        const finish = () => {
+          clearTimeout(timeout);
+          checker.terminate();
+          this.checkWorkers.delete(checker);
+        };
+        const timeout = setTimeout(() => {
+          finish();
+          reject(new Error("MicroPython project check timed out"));
+        }, 20_000);
+        checker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
+          const message = event.data;
+          if (message.type === "check-complete") {
+            finish();
+            resolve({ ok: true, detail: message.detail });
+          } else if (message.type === "error") {
+            finish();
+            resolve({ ok: false, detail: message.detail });
+          }
+        };
+        checker.onerror = (event) => {
+          finish();
+          reject(
+            new Error(event.message || "MicroPython project checker failed"),
+          );
+        };
+        checker.postMessage({ mode: "check", project });
+      });
+      this.emit({
+        type: "console",
+        stream: "system",
+        line: `${result.ok ? "Validation passed" : "Validation failed"} · ${result.detail}`,
+      });
+      return result;
+    } catch (error) {
+      this.emit({
+        type: "console",
+        stream: "system",
+        line: `Validation could not finish · ${errorDetail(error)}`,
+      });
+      throw error;
+    }
   }
 
   async run(project: CourseProject): Promise<void> {
