@@ -1,8 +1,9 @@
 # UCSB XRP course tools
 
 This repository contains the `ucsb_xrp` MicroPython library, supplied reference
-bytecode, five course starters, a browser IDE, the XRP Monitor, a deterministic
-virtual XRP, and the on-robot service used to run the same projects on a
+bytecode, five challenge projects, two demos, a MicroPython tutorial, a browser
+IDE, the XRP Monitor, a repeatable physics-based virtual XRP, and the on-robot
+service used to run the same projects on a
 SparkFun RP2350 XRP.
 
 ## Open the applications
@@ -24,23 +25,25 @@ npm run dev
 - XRP Monitor: `http://127.0.0.1:5173/monitor/`
 - XRP setup and repair: `http://127.0.0.1:5173/commission/`
 - Getting started: `http://127.0.0.1:5173/guide/`
+- UCSB XRP API: `http://127.0.0.1:5173/reference/`
 
 The IDE starts with the expanding-spiral demo. **New project from template**
 creates any of the five challenges, two sensor-driven robot demos, or a staged
 MicroPython tutorial as an ordinary editable project. The demos cover
 obstacle-triggered turning and an expanding spiral with two live parameters.
 Select **Virtual XRP** for immediate use or **Physical XRP** for a robot
-hotspot or an existing local network. Later starters retain all components
+hotspot or an existing local network. Later challenges retain all components
 introduced so far; students carry their completed methods forward and enable
 each named `USE_STUDENT_*` switch independently.
 
 ## IDE workflow
 
-A **workspace** is a parent folder containing one named folder per XRP project.
-If a workspace is connected, **New project from template** asks for the project
-folder name, creates that folder, and writes the template immediately. **Open
-project** resumes an existing folder. Source edits then save automatically after
-a short pause; **Save** forces an immediate write. The active folder is shown as
+A **course folder** is a parent folder containing one named folder per XRP
+project. After the IDE has access to a course folder, **New project from
+template** asks for the project folder name, creates that folder, and writes the
+template immediately. **Open project** resumes an existing folder. Source edits
+then save automatically after a short pause; **Save** forces an immediate write.
+The active folder is shown as
 `./<project-folder>` above the file list. Its `UCSB_XRP_Autosaves` subfolder
 retains the four prior complete project states before overwrite and also receives
 monitored run output and telemetry. New, renamed, duplicated, and deleted files
@@ -49,8 +52,8 @@ main Python file.
 
 The browser backup is independent of the project folder. Chrome remembers folder
 handles when permitted and otherwise offers one reconnect action. With no
-workspace connected, a template remains in the browser backup until **Save**
-selects a workspace and names its project folder.
+course folder selected, a template remains in the browser backup until
+**Save** selects a course folder and names its project folder.
 
 - **Validate** compiles every Python file with MicroPython without running
   it.
@@ -115,9 +118,10 @@ When a project folder is connected, every monitored run also writes aligned
 `run-1.txt`, `run-1.json`, and `telemetry-1.csv` automatic copies. Generations
 1–4 rotate newest to oldest; explicit CSV downloads are never rotated.
 
-Enter a short note and choose **Add note** to mark the current telemetry time.
-The note appears at the corresponding world pose and as a vertical marker on
-each strip plot; **Hide notes** and **Show notes** change all views together.
+Right-click a strip plot at the relevant time, enter a short label in the
+revealed field, and press Enter. The note appears at that time and at the
+corresponding world pose; **Hide notes** and **Show notes** change all views
+together.
 At most 24 current notes are retained, and monitored-run metadata saves them
 with the run. **Plots SVG** exports all selected plots as one editable vector
 figure; **Plots PNG** exports the same figure as a high-resolution image.
@@ -133,7 +137,7 @@ Open **Open wizard for XRP initial set up or repair** on the landing page, or
 **Set up or repair XRP** in IDE Settings, using current desktop Chrome or Edge
 on Windows or macOS. The wizard:
 
-1. optionally connects a workspace for named project folders and setup logs,
+1. optionally selects a course folder for named project folders and setup logs,
    and waits for the complete offline web release;
 2. selects the USB-C XRP through the browser's device picker;
 3. checks the RP2350 controller, MicroPython 1.28.0, XRPLib, course library,
@@ -154,10 +158,11 @@ is selected. **Existing Wi-Fi** is also available in the wizard and later from
 IDE Settings; credentials pass directly to the XRP over USB and are not stored
 by the web application.
 
-Selecting a workspace performs a real write-and-read check and creates
+Selecting a course folder performs a real write-and-read check and creates
 `UCSB_XRP_Autosaves/xrp-setup-latest.txt`. The collapsed **Setup log** records
 the controller check, changed-file count, reset, and each robot-service probe;
-it never records the Wi-Fi password. The workspace can be chosen later in the IDE;
+it never records the Wi-Fi password. The course folder can be chosen later in
+the IDE;
 the visible log remains copyable meanwhile. **Verify robot connection** begins
 after USB installation and reset. Existing-Wi-Fi mode can verify without
 changing the computer's network; hotspot mode requires joining the network
@@ -165,11 +170,11 @@ shown by the wizard. Allow this site to access the local network when Chrome
 asks. On macOS, Chrome must also be enabled under **System Settings → Privacy &
 Security → Local Network**.
 
-The commissioning handoff remembers the workspace but does not import its
-contents as a project. For a new browser, the untouched spiral starter is
+The commissioning handoff remembers the course folder but does not import its
+contents as a project. For a new browser, the default expanding-spiral demo is
 written immediately to `./Expanding-Spiral`. Recovered student work is never
 moved automatically. A repository is opened only through **Open project**, so
-unrelated Python files cannot replace the current starter.
+unrelated Python files cannot replace the current project.
 
 The same **Install or repair XRP** action is intentionally idempotent: matching
 files are not rewritten, changed files are replaced and hashed, the runtime is
@@ -206,25 +211,12 @@ Detailed recovery and remaining floor-calibration work are in
 
 ## Student version control
 
-Use a course-owned GitHub repository and the same project folder in both the
-UCSBXRP IDE and [GitHub Desktop](https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop).
-GitHub Desktop runs on current Windows and macOS and provides review, commit,
-pull, and push without a command-line Git installation. The student workflow
-is: clone once, select **Open project** for that cloned folder in the IDE, work
-normally with automatic source saving, then review and commit in GitHub Desktop.
-
-Uploading files through github.com is an installation-free fallback for
-defined milestones, but it is not continuous folder synchronization. The
-static UCSBXRP page deliberately never requests or stores a GitHub password or
-personal access token. Secure one-click repository synchronization would need
-a registered GitHub App and a course-operated token broker, which is
-unnecessary for the current workflow.
-
-GitHub Classroom is not the basis of this design because GitHub is
-[decommissioning it on August 28, 2026](https://github.blog/changelog/2026-05-26-github-classroom-sign-ups-are-no-longer-available/).
-Use ordinary repositories in a course organization; evaluate the replacement
-Classroom 50 service separately if its roster and assignment automation become
-useful.
+Each course team maintains one GitHub repository. Clone it with
+[GitHub Desktop](https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop),
+then select that cloned folder with **Open project** in the UCSBXRP IDE. Pull
+before editing. The IDE saves source changes into the folder; GitHub Desktop
+shows those changes for review, commit, and push. This works on current Windows
+and macOS without a command-line Git installation.
 
 ## Course library
 
@@ -265,19 +257,20 @@ closed and without an internet connection; no Node.js server or separate
 installation is required. Robot commands and telemetry still use the selected
 local robot connection.
 
-The saved app is separate from student project files. A selected workspace
+The saved app is separate from student project files. A selected course folder
 remains an ordinary folder on the computer; without one, project recovery data
-belongs to Chrome. The course app is not copied into the workspace. Clearing
-the site's Chrome data removes the saved app and browser-only recovery data,
-but does not remove files in a selected workspace. The optional **Install
+belongs to Chrome. The course app is not copied into the course folder. Clearing
+the site's Chrome data removes the saved app and browser recovery data, but does
+not remove files in a selected course folder. The optional **Install
 course tools** button on the landing page adds a launcher and standalone app
 window when Chrome offers it; the installed app uses the same browser storage
 and update process. Browser storage is not a permanent project backup and can
-also be removed under storage pressure; workspace files are unaffected.
+also be removed under storage pressure; course-folder files are unaffected.
 
 The saved release includes the applications, workers, MicroPython WebAssembly,
-course package, starters, and reference bytecode; private reference source is
-excluded. While online, each page checks for a complete newer release. It
+course package, challenge projects, demos, tutorial, and reference bytecode;
+private reference source is excluded. While online, each page checks for a
+complete newer release. It
 activates the update only after every required asset is present, so an
 interrupted update leaves the preceding complete release available. Local
 development deliberately reports **Local development** and does not save a

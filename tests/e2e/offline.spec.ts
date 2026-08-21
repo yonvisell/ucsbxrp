@@ -151,17 +151,37 @@ test("reloads the complete production course shell without a network", async ({
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
     guide.getByRole("heading", {
-      name: "Physical XRP",
+      name: "Set up and run a physical XRP",
+    }),
+  ).toBeVisible();
+  await expect(
+    guide.getByRole("heading", { name: "Challenges" }),
+  ).toBeVisible();
+  await expect(
+    guide.getByRole("heading", {
+      name: "Use the course apps without internet",
     }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);
+
+  const reference = await context.newPage();
+  recordErrors(reference);
+  await reference.goto(coursePath("reference/"), {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    reference.getByRole("heading", { name: "UCSB XRP API", exact: true }),
+  ).toBeVisible();
+  await expect(reference.locator("#sensor-model")).toContainText("Maintains");
+  await expect(reference.locator("#sensor-model")).toContainText("Used by");
+  await expectOfflineShellReady(reference);
 
   const landing = await context.newPage();
   recordErrors(landing);
   await landing.goto(coursePath(), { waitUntil: "domcontentloaded" });
   await expect(
     landing.getByRole("heading", {
-      name: "Program, simulate, and inspect the XRP.",
+      name: "Program, Simulate, and Run Live Telemetry for the XRP robot",
     }),
   ).toBeVisible();
   expect(
@@ -169,6 +189,11 @@ test("reloads the complete production course shell without a network", async ({
       .getByRole("link", { name: "Open IDE" })
       .evaluate((link) => (link as HTMLAnchorElement).href),
   ).toBe(new URL(coursePath("ide/"), landing.url()).toString());
+  expect(
+    await landing
+      .getByRole("link", { name: "UCSB XRP API" })
+      .evaluate((link) => (link as HTMLAnchorElement).href),
+  ).toBe(new URL(coursePath("reference/"), landing.url()).toString());
   await expectOfflineShellReady(landing);
 
   const installButton = landing.getByTestId("install-course-tools");

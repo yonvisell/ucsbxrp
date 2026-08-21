@@ -52,6 +52,7 @@ export default defineConfig({
         monitor: path.resolve(projectRoot, "monitor/index.html"),
         dashboard: path.resolve(projectRoot, "dashboard/index.html"),
         guide: path.resolve(projectRoot, "guide/index.html"),
+        reference: path.resolve(projectRoot, "reference/index.html"),
         commission: path.resolve(projectRoot, "commission/index.html"),
       },
     },

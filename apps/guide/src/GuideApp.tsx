@@ -1,516 +1,682 @@
+import type { ReactNode } from "react";
+
+const componentReference = "../reference/#student-components";
+
 export function GuideApp() {
   return (
     <div className="guide-app">
       <header className="guide-header">
-        <div className="brand" aria-label="UCSB XRP course guide">
+        <div className="brand" aria-label="UCSBXRP Guide">
           <span className="brand-mark">UCSB</span>
-          <span className="brand-name">XRP Course Guide</span>
+          <span className="brand-xrp">XRP</span>
+          <span aria-hidden="true" className="brand-separator">
+            |
+          </span>
+          <span className="brand-product">Guide</span>
         </div>
         <nav aria-label="Course applications">
           <a className="tool-link" href="../ide/">
-            Open IDE
-          </a>
-          <a className="tool-link" href="../commission/">
-            Set up / repair XRP
+            IDE
           </a>
           <a className="tool-link" href="../monitor/">
-            Open XRP Monitor
+            Monitor
+          </a>
+          <a className="tool-link" href="../reference/">
+            UCSB XRP API
+          </a>
+          <a className="tool-link" href="../commission/">
+            Set up XRP
           </a>
         </nav>
       </header>
 
       <div className="guide-layout">
-        <nav className="guide-toc" aria-label="On this page">
-          <span>On this page</span>
-          <a href="#first-run">First virtual run</a>
-          <a href="#projects">Projects and workspace</a>
-          <a href="#physical-xrp">Physical XRP</a>
-          <a href="#monitor">Monitor and data</a>
-          <a href="#course-api">How the course code fits</a>
-          <a href="#version-control">Version control</a>
-          <a href="#shortcuts">Shortcuts</a>
-          <a href="#troubleshooting">Recovery</a>
+        <nav className="guide-toc" aria-label="Guide sections">
+          <span>Guide</span>
+          <a href="#virtual-run">Run the virtual XRP</a>
+          <a href="#projects">Choose and save a project</a>
+          <a href="#components">Test one component</a>
+          <a href="#physical-xrp">Set up a physical XRP</a>
+          <a href="#monitor">Use the Monitor</a>
+          <a href="#project-structure">Understand code roles</a>
+          <a href="#offline-use">Use the apps without internet</a>
+          <a href="#github">Use GitHub</a>
+          <a href="#shortcuts">Keyboard shortcuts</a>
+          <a href="#troubleshooting">Troubleshooting</a>
         </nav>
 
         <main className="guide-content">
           <section className="guide-intro">
-            <p className="eyebrow">UCSB Mobile Robotics</p>
-            <h1>Write once. Run virtually or on the XRP.</h1>
+            <p className="eyebrow">Student guide</p>
+            <h1>Program, test, and analyze the XRP robot.</h1>
             <p>
-              The IDE, course library, reference components, telemetry, and
-              Monitor use one project format and one target selector. Start in
-              simulation, then choose the physical robot without rewriting the
-              program.
+              Begin with the virtual XRP, save the project in a course folder,
+              test each component you implement, and then run the same project
+              on a physical XRP. Use the{" "}
+              <a href="../reference/">UCSB XRP API reference</a> for Python
+              classes, method requirements, state, return values, and units.
             </p>
           </section>
 
-          <section id="first-run">
-            <div className="section-number">01</div>
-            <div>
-              <h2>First virtual run</h2>
-              <ol className="procedure">
-                <li>
-                  Open the <a href="../ide/">IDE</a> and leave the target set to{" "}
-                  <strong>Virtual XRP</strong>. The Expanding spiral project is
-                  already open.
-                </li>
-                <li>
-                  Select <strong>Run</strong>. Run performs any required
-                  validation before starting and reports a problem instead of
-                  running invalid code.
-                </li>
-                <li>
-                  Open the <a href="../monitor/">XRP Monitor</a> in another tab
-                  to watch the robot, signals, and program output. Run and Stop
-                  work from either app.
-                </li>
-              </ol>
-              <p>
-                Use <strong>Stop</strong> to end the program and{" "}
-                <strong>Reset</strong> to return the virtual XRP to its starting
-                state. <strong>Validate</strong> is an optional code-only check;
-                you do not need to select it before Run.
-              </p>
-            </div>
-          </section>
+          <GuideSection
+            id="virtual-run"
+            number="01"
+            title="Run a program on the virtual XRP"
+          >
+            <ol className="procedure">
+              <li>
+                Open the <a href="../ide/">IDE</a>. Leave the target set to{" "}
+                <strong>Virtual XRP</strong>. The Expanding spiral project is
+                ready to run.
+              </li>
+              <li>
+                Select <strong>Run</strong>. Run validates the project when
+                needed, then starts it.
+              </li>
+              <li>
+                Open the <a href="../monitor/">Monitor</a> in another tab. The
+                same Run/Stop state is available in both apps.
+              </li>
+            </ol>
+            <p>
+              <strong>Stop</strong> ends the program. <strong>Reset</strong>{" "}
+              returns the virtual robot to its starting state.{" "}
+              <strong>Validate</strong> checks Python files without running the
+              project; it is optional because Run validates when needed.
+            </p>
+          </GuideSection>
 
-          <section id="projects">
-            <div className="section-number">02</div>
-            <div>
-              <h2>Projects and workspace</h2>
-              <p>
-                Choose one <strong>workspace</strong>: the parent folder that
-                will hold all of your XRP work. Each project gets its own named
-                subfolder containing Python files, project settings, run output,
-                and telemetry. The folder path above the file list identifies
-                the active project.
-              </p>
-              <p>
-                <strong>New project from template</strong> asks for a project
-                name, creates its subfolder, and opens it. Use{" "}
-                <strong>Open project</strong> for a folder that already exists.
-                Changes are saved to the active project;{" "}
-                <strong>Duplicate</strong> copies a file, and{" "}
-                <strong>Make main</strong> selects the file that Run starts.
-              </p>
-              <p>
-                The templates include demonstrations, MicroPython lessons, and
-                the five course challenges. In a challenge,{" "}
-                <code>challenge.py</code> contains task values,{" "}
-                <code>robot_config.py</code> contains robot settings, and{" "}
-                <code>course_setup.py</code> selects supplied or student
-                components. Start with the supplied components, implement one
-                student component at a time, use{" "}
-                <strong>Test components</strong> for the hardware-free
-                PASS/PENDING/FAIL checks, and exercise each change on the
-                virtual XRP before selecting the physical target.
-              </p>
-              <div className="callout">
-                If no workspace is connected, the IDE keeps a recovery copy in
-                Chrome. Connect a workspace to keep ordinary files you can open
-                from Finder or File Explorer. The course app itself is stored
-                separately from your project files.
+          <GuideSection
+            id="projects"
+            number="02"
+            title="Choose and save a project"
+          >
+            <p>
+              A <strong>course folder</strong> is the parent folder on your
+              computer that contains all of your UCSBXRP projects. Each project
+              is a named subfolder. The path above the IDE file list shows the
+              active project as <code>./ProjectName</code>.
+            </p>
+            <div className="folder-example" aria-label="Course folder example">
+              <code>UCSBXRP/</code>
+              <span>├─ SpiralLab/</span>
+              <span>├─ Challenge1/</span>
+              <span>└─ TeamDelivery/</span>
+            </div>
+            <p>
+              <strong>New project from template</strong> asks for a project
+              name, creates that folder, and opens it.{" "}
+              <strong>Open project</strong> opens an existing project folder.
+              After you grant the IDE access to that folder, edits save
+              automatically. <strong>Duplicate file</strong> creates a copy;{" "}
+              <strong>Make main</strong> chooses the file Run starts.
+            </p>
+            <div
+              className="project-catalog"
+              aria-label="Available project templates"
+            >
+              <section>
+                <h3>Challenges</h3>
+                <ol>
+                  <li>
+                    <strong>Straight Run</strong> — implement wheel measurement
+                    and wheel-speed control.
+                  </li>
+                  <li>
+                    <strong>Turn and Return</strong> — add differential-drive
+                    kinematics and odometry.
+                  </li>
+                  <li>
+                    <strong>Waypoint Courier</strong> — add ordered-goal
+                    navigation.
+                  </li>
+                  <li>
+                    <strong>Mapped Route</strong> — add shortest-path grid
+                    planning.
+                  </li>
+                  <li>
+                    <strong>Delivery Mission</strong> — estimate range, update a
+                    map, plan, and deliver.
+                  </li>
+                </ol>
+              </section>
+              <section>
+                <h3>Demos</h3>
+                <ul>
+                  <li>
+                    <strong>Expanding spiral</strong> — adjustable speed and
+                    winding rate with an obstacle stop.
+                  </li>
+                  <li>
+                    <strong>Obstacle, left, obstacle</strong> — approach, turn
+                    90°, and approach again.
+                  </li>
+                </ul>
+                <h3>Tutorial</h3>
+                <ul>
+                  <li>
+                    <strong>MicroPython foundations</strong> — seven short files
+                    covering values, functions, collections, classes,
+                    exceptions, modules, robot motion, and a finite-state
+                    machine.
+                  </li>
+                </ul>
+              </section>
+            </div>
+            <div className="callout">
+              Before you choose a course folder, Chrome keeps a recovery copy in
+              this site&apos;s browser data. That copy is not a normal file on
+              your computer and is removed if the site&apos;s browser data is
+              cleared. Choose a course folder before relying on the project.
+            </div>
+          </GuideSection>
+
+          <GuideSection
+            id="components"
+            number="03"
+            title="Test one student component"
+          >
+            <p>
+              Challenge projects provide one focused file for each component you
+              implement. <strong>Validate</strong> checks Python syntax.{" "}
+              <strong>Test components</strong> runs{" "}
+              <code>component_checks.py</code> in MicroPython without starting
+              either robot.
+            </p>
+            <div className="result-key" aria-label="Component check results">
+              <div>
+                <strong>PASS</strong>
+                <span>The tested behavior matches the stated requirement.</span>
+              </div>
+              <div>
+                <strong>PENDING</strong>
+                <span>
+                  The method still raises <code>NotImplementedError</code>.
+                </span>
+              </div>
+              <div>
+                <strong>FAIL</strong>
+                <span>The output or state differs from the requirement.</span>
               </div>
             </div>
-          </section>
+            <ol className="procedure">
+              <li>Implement one component in its named Python file.</li>
+              <li>
+                Run <strong>Test components</strong> and inspect Program output.
+              </li>
+              <li>
+                In <code>course_setup.py</code>, select that student component
+                with its <code>USE_STUDENT_*</code> setting.
+              </li>
+              <li>Run the complete challenge on the virtual XRP.</li>
+            </ol>
+            <p>
+              A PENDING result identifies a method that remains to be written;
+              it does not prevent tests of other components. Each check examines
+              a stated behavior, but the complete challenge must also be tested.
+              Component responsibilities and method requirements are in the{" "}
+              <a href={componentReference}>student component reference</a>.
+            </p>
+          </GuideSection>
 
-          <section id="physical-xrp">
-            <div className="section-number">03</div>
-            <div>
-              <h2>Physical XRP</h2>
-              <p>
-                Open <a href="../commission/">Set up or repair XRP</a> in
-                current desktop Chrome or Edge. The same action is available in
-                IDE Settings. The wizard checks the connected controller,
-                installs or repairs the course software, and configures the
-                robot's Wi-Fi connection.
-              </p>
-              <ol className="procedure">
-                <li>
-                  Connect the XRP by USB-C and select it when the device chooser
-                  opens. Leave USB connected until the wizard finishes.
-                </li>
-                <li>
-                  Choose the XRP's own hotspot or an existing local Wi-Fi
-                  network. A new robot defaults to a device-specific{" "}
-                  <code>UCSB-XRP-…</code> hotspot.
-                </li>
-                <li>
-                  If the wizard requests firmware repair, put the XRP in its
-                  firmware mode and select the temporary <code>RP2350</code>
-                  drive. The wizard continues after the controller restarts.
-                </li>
-                <li>
-                  Follow the displayed Wi-Fi instruction. When the connection
-                  check passes, the wizard opens the IDE with{" "}
-                  <strong>Physical XRP</strong> selected.
-                </li>
-              </ol>
-              <p>
-                Leave USB connected if convenient. Setup and repair use USB;
-                ordinary project transfer, Run, and telemetry use the selected
-                Wi-Fi connection.
-              </p>
-              <div className="command-guide" aria-label="IDE command guide">
+          <GuideSection
+            id="physical-xrp"
+            number="04"
+            title="Set up and run a physical XRP"
+          >
+            <p>
+              Open <a href="../commission/">Set up or repair XRP</a> in current
+              desktop Chrome or Edge. The same action is available in IDE
+              Settings. The wizard uses USB-C to identify the RP2350 controller,
+              install or repair the required files, verify them, configure
+              Wi-Fi, and reset the XRP. IDE Run and Monitor telemetry then use
+              the selected Wi-Fi connection.
+            </p>
+            <ol className="procedure">
+              <li>
+                Connect the XRP by USB-C, then select it in the browser's device
+                chooser. Leave USB connected until setup finishes.
+              </li>
+              <li>
+                Choose the XRP's own <code>UCSB-XRP-…</code> hotspot or an
+                existing local Wi-Fi network.
+              </li>
+              <li>
+                If firmware repair is requested, put the controller in firmware
+                mode and choose the temporary <code>RP2350</code> drive.
+              </li>
+              <li>
+                Follow the displayed network instruction. After the connection
+                check, the wizard opens the IDE in Physical XRP mode.
+              </li>
+            </ol>
+            <div className="command-guide" aria-label="IDE target commands">
+              <Command name="Validate">
+                Check every Python file without running it.
+              </Command>
+              <Command name="Flash project">
+                Transfer and verify without starting.
+              </Command>
+              <Command name="Run">
+                Validate and transfer when needed, then start.
+              </Command>
+              <Command name="Stop">
+                End the program and command zero drive.
+              </Command>
+              <Command name="Reset">Restart the selected target.</Command>
+            </div>
+            <p>
+              In hotspot mode, join the network named by the wizard. In
+              existing-Wi-Fi mode, the computer and XRP must be on the same
+              local network. Reopen setup from IDE Settings to change the
+              network or repair course software.
+            </p>
+          </GuideSection>
+
+          <GuideSection id="monitor" number="05" title="Read the Monitor">
+            <p>
+              The Monitor shows the simulated or measured world, live telemetry,
+              controls and watch values created by the running program, signal
+              histories, Program output, and the System log. The target selected
+              in the IDE is also selected in the Monitor.
+            </p>
+            <dl className="term-list">
+              <div>
+                <dt>Program output</dt>
+                <dd>Text printed by the project and Python exceptions.</dd>
+              </div>
+              <div>
+                <dt>System log</dt>
+                <dd>
+                  Connection, validation, transfer, Run, Stop, and reset events.
+                </dd>
+              </div>
+              <div>
+                <dt>Measured wheel speed</dt>
+                <dd>
+                  Calculated and regularized by <code>SensorModel</code> from
+                  encoder counts and sample time. The wheel controller and plot
+                  use the same value.
+                </dd>
+              </div>
+              <div>
+                <dt>Odometry check (virtual)</dt>
+                <dd>
+                  Difference between student odometry and simulator truth.
+                  Simulator truth is not available to robot code or a physical
+                  XRP.
+                </dd>
+              </div>
+            </dl>
+            <p>
+              Choose signals and a time window under <strong>Controls</strong>.{" "}
+              <strong>Clear plots</strong> starts a new visible history without
+              resetting the robot. Drag a separator to resize the world,
+              telemetry, plots, or output.
+            </p>
+            <p>
+              A program can create sliders, toggles, and choices with{" "}
+              <code>ucsb_xrp.live</code>. It may publish current intermediate
+              values with <code>live.watch()</code>. These appear in Live
+              controls and Watch values without repeated print statements.
+            </p>
+            <ol className="procedure">
+              <li>
+                Select <strong>Start recording</strong>, then run or observe the
+                robot.
+              </li>
+              <li>
+                Select <strong>Stop recording</strong> when the evidence is
+                complete.
+              </li>
+              <li>
+                Export telemetry as CSV, selected plots as SVG or PNG, or a
+                recorded world replay as WebM.
+              </li>
+            </ol>
+          </GuideSection>
+
+          <GuideSection
+            id="project-structure"
+            number="06"
+            title="Understand each file and component"
+          >
+            <p>
+              <code>main.py</code> is mission control: it selects the task,
+              obtains the configured components from{" "}
+              <code>course_setup.py</code>, sends one body-motion command per
+              sample, and decides when to stop. <code>Robot.step()</code> owns
+              sample timing and performs the command/measurement loop below.
+            </p>
+            <figure className="feedback-figure">
+              <div className="mission-node">
+                <strong>Mission</strong>
+                <code>main.py</code>
+                <span>selects the task and stop condition</span>
+              </div>
+              <div className="flow-arrow mission-command" aria-hidden="true">
+                ↓ MotionCommand
+              </div>
+              <div className="actuation-path" aria-label="Actuation path">
+                <a href="../reference/#differential-drive">
+                  <strong>DifferentialDrive*</strong>
+                  <span>body motion → target wheel speeds</span>
+                </a>
+                <b>→</b>
+                <a href="../reference/#wheel-speed-controller">
+                  <strong>WheelSpeedController*</strong>
+                  <span>target + measured speed → drive command</span>
+                </a>
+                <b>→</b>
                 <div>
-                  <strong>Validate</strong>
-                  <span>
-                    Optional: check every Python file without transferring or
-                    running it.
-                  </span>
-                </div>
-                <div>
-                  <strong>Flash project</strong>
-                  <span>
-                    Optional: transfer and verify the current project without
-                    starting it.
-                  </span>
-                </div>
-                <div>
-                  <strong>Run</strong>
-                  <span>
-                    Perform any required validation and transfer, then start the
-                    project on the selected XRP.
-                  </span>
-                </div>
-                <div>
-                  <strong>Stop</strong>
-                  <span>
-                    End the active program and return drive commands to zero.
-                  </span>
-                </div>
-                <div>
-                  <strong>Reset</strong>
-                  <span>
-                    Restart the selected target and clear its run state.
-                  </span>
+                  <strong>XRP</strong>
+                  <span>motors, encoders, range sensor</span>
                 </div>
               </div>
-              <p>
-                In hotspot mode, join the network shown by the wizard; its
-                initial password is <code>ucsb-xrp</code>. In Existing Wi-Fi
-                mode, the computer and XRP must be on the same local network.
-                Reopen the wizard from IDE Settings whenever the network or
-                course software needs repair.
-              </p>
-            </div>
-          </section>
-
-          <section id="monitor">
-            <div className="section-number">04</div>
-            <div>
-              <h2>Monitor motion, sensors, and program output</h2>
-              <p>
-                The Monitor shares the IDE target selection. It displays pose
-                when available, motion commands, wheel speed, encoder counts,
-                range, USER button, supply voltage, and IMU data. Use{" "}
-                <strong>Program output</strong> for text and Python errors from
-                the project; use <strong>System log</strong> for validation,
-                transfer, connection, and target events.
-              </p>
-              <p>
-                Choose the signals and time window in <strong>Controls</strong>.
-                Every selected plot keeps the same height; additional plots
-                scroll. Drag a separator to change the space given to the world,
-                telemetry, plots, or output.
-              </p>
-              <p>
-                Controls declared with <code>ucsb_xrp.live</code> appear under{" "}
-                <strong>Live controls</strong> while the program runs. Values
-                published with <code>live.watch()</code> appear below{" "}
-                <strong>Live telemetry</strong>. These are useful for tuning a
-                parameter or watching a mode without adding repeated print
-                statements.
-              </p>
-              <ol className="procedure">
-                <li>
-                  Select <strong>Start recording</strong> before or during a
-                  run, then select <strong>Stop recording</strong>. Recording
-                  and robot Run/Stop are independent.
-                </li>
-                <li>
-                  Right-click a signal plot at the time you want to mark, type a
-                  short note, and press Enter. Notes can be shown or hidden
-                  together.
-                </li>
-                <li>
-                  Under <strong>Export</strong>, save unit-labeled telemetry as
-                  CSV, the selected plots as SVG or PNG, or the world replay as
-                  WebM video. <strong>Export world replay after Stop</strong>{" "}
-                  performs the video export automatically when a recording ends.
-                </li>
-              </ol>
-              <p>
-                A world video is rendered from recorded telemetry; it is not a
-                screen recording and does not rerun the simulation. If a project
-                folder is connected, exports are written there. Otherwise the
-                Monitor asks where to save them. Completed runs also keep
-                rotating recovery copies of output, run information, and
-                telemetry in <code>UCSB_XRP_Autosaves</code>.
-              </p>
-            </div>
-          </section>
-
-          <section id="course-api">
-            <div className="section-number">05</div>
-            <div>
-              <h2>How the course code fits</h2>
-              <p>
-                <code>main.py</code> is mission control: it chooses the task,
-                assembles the selected components, runs the measured robot loop,
-                and decides when to stop. The arrows below show which object
-                produces the next one.
-              </p>
-              <div
-                className="api-map"
-                id="code-flow"
-                aria-label="Course project and robot data flow"
-              >
-                <div className="flow-group">
-                  <strong>Project assembly</strong>
-                  <div className="flow-line">
-                    <span>
-                      <code>challenge.py</code> + <code>robot_config.py</code>
-                    </span>
-                    <b aria-hidden="true">→</b>
-                    <code>main.py</code>
-                    <b aria-hidden="true">→</b>
-                    <code>course_setup.py</code>
-                    <b aria-hidden="true">→</b>
-                    <span className="flow-node">Robot loop</span>
-                  </div>
-                </div>
-                <div className="flow-group">
-                  <strong>Motion and actuation</strong>
-                  <div className="flow-line">
-                    <code>MotionCommand</code>
-                    <b aria-hidden="true">→</b>
-                    <a href="#student-component-files">
-                      <code>DifferentialDrive*</code>
-                    </a>
-                    <b aria-hidden="true">→</b>
-                    <code>WheelSpeeds</code>
-                    <b aria-hidden="true">→</b>
-                    <a href="#student-component-files">
-                      <code>WheelSpeedController*</code>
-                    </a>
-                    <b aria-hidden="true">→</b>
-                    <code>DriveCommand</code>
-                    <b aria-hidden="true">→</b>
-                    <code>XRPBot</code>
-                  </div>
-                </div>
-                <div className="flow-group">
-                  <strong>Measurement and pose estimate</strong>
-                  <div className="flow-line">
-                    <code>XRPBot</code>
-                    <b aria-hidden="true">→</b>
-                    <code>RawSensors</code>
-                    <b aria-hidden="true">→</b>
-                    <a href="#student-component-files">
-                      <code>SensorModel*</code>
-                    </a>
-                    <b aria-hidden="true">→</b>
-                    <code>Measurements</code>
-                    <b aria-hidden="true">→</b>
-                    <a href="#student-component-files">
-                      <code>Odometry*</code>
-                    </a>
-                    <b aria-hidden="true">→</b>
-                    <code>Pose</code>
-                  </div>
-                </div>
-                <div className="flow-group">
-                  <strong>Planning and navigation</strong>
-                  <div className="flow-line">
-                    <a href="#student-component-files">
-                      <code>GridPlanner*</code>
-                    </a>
-                    <b aria-hidden="true">→</b>
-                    <span className="flow-node">goals</span>
-                    <b aria-hidden="true">→</b>
-                    <a href="#student-component-files">
-                      <code>NavigationController*</code>
-                    </a>
-                    <b aria-hidden="true">→</b>
-                    <code>MotionCommand</code>
-                  </div>
-                </div>
+              <div className="flow-arrow sensor-sample" aria-hidden="true">
+                ↓ RawSensors
               </div>
-              <p id="student-component-files">
-                <strong>* Student implementation.</strong> The corresponding
-                files are <code>sensor_model.py</code>,{" "}
-                <code>wheel_speed_controller.py</code>,{" "}
-                <code>differential_drive.py</code>, <code>odometry.py</code>,{" "}
-                <code>navigation_controller.py</code>, and{" "}
-                <code>grid_planner.py</code>. Each file contains one focused
-                component and its named public methods.
-              </p>
-              <p>
-                The course supplies <code>XRPBot</code>, the measured Robot
-                loop, starter implementations, maps, and mission sequence. Your
-                component should depend on the data objects shown next to it,
-                rather than reaching around the loop to control hardware
-                directly.
-              </p>
-              <p>
-                Distances are millimeters, linear speeds are millimeters per
-                second, and angles are radians. <code>MotionCommand</code>
-                requests body speed and yaw rate;{" "}
-                <code>DriveCommand(left, right)</code> is the resulting
-                normalized motor input from −1 to +1. <code>Robot</code> keeps
-                the sample clock, so challenge loops do not add sleep calls.
-              </p>
+              <div className="measurement-path" aria-label="Measurement path">
+                <a href="../reference/#sensor-model">
+                  <strong>SensorModel*</strong>
+                  <span>counts + time → distance and measured speed</span>
+                </a>
+                <div className="measurement-branches">
+                  <span>measured wheel speed ↖ WheelSpeedController</span>
+                  <span>distance increments ↓</span>
+                </div>
+                <a href="../reference/#odometry">
+                  <strong>Odometry*</strong>
+                  <span>wheel increments → Pose</span>
+                </a>
+              </div>
+              <div className="flow-arrow pose-return" aria-hidden="true">
+                Pose returns to mission/navigation ↑
+              </div>
+              <figcaption>
+                * Student-implemented component.{" "}
+                <a href="../reference/#grid-planner">
+                  <code>GridPlanner</code>
+                </a>{" "}
+                creates a route before NavigationController follows its goals.
+              </figcaption>
+            </figure>
+            <div className="project-files-summary">
+              <div>
+                <code>challenge.py</code>
+                <span>Task values, goals, and map.</span>
+              </div>
+              <div>
+                <code>robot_config.py</code>
+                <span>Geometry, calibration, and gains.</span>
+              </div>
+              <div>
+                <code>course_setup.py</code>
+                <span>Select and assemble components.</span>
+              </div>
+              <div>
+                <code>main.py</code>
+                <span>Run the mission and stop cleanly.</span>
+              </div>
             </div>
-          </section>
+            <p>
+              Distances are millimeters, speeds are millimeters per second,
+              angles are radians, and yaw rates are radians per second. Do not
+              add <code>sleep_ms()</code> inside a <code>Robot.step()</code>{" "}
+              loop.
+            </p>
+            <p>
+              See the <a href="../reference/">UCSB XRP API reference</a> for
+              records, component base classes, supplied services, maps,
+              configuration, live values, and numerical helpers.
+            </p>
+          </GuideSection>
 
-          <section id="version-control">
-            <div className="section-number">06</div>
-            <div>
-              <h2>Version control</h2>
-              <p>
-                Use the same project folder for the IDE and Git. The simplest
-                Windows and macOS workflow is to clone the assigned repository
-                with{" "}
+          <GuideSection
+            id="offline-use"
+            number="07"
+            title="Use the course apps without internet"
+          >
+            <p>
+              First open the course site while the computer has internet access.
+              Wait until the IDE or Monitor reports{" "}
+              <strong>saved in Chrome</strong>. Chrome has then stored the
+              application files, virtual XRP, Guide, API reference, and XRP
+              setup files for this site.
+            </p>
+            <div className="offline-capabilities">
+              <section>
+                <h3>Available without internet</h3>
+                <ul>
+                  <li>
+                    Close and reopen the IDE, Monitor, Guide, and API reference
+                    in the same Chrome profile.
+                  </li>
+                  <li>Validate and run projects on the virtual XRP.</li>
+                  <li>
+                    Read and write project files after granting access to their
+                    course folder.
+                  </li>
+                  <li>
+                    Connect to a physical XRP while the computer is joined to
+                    its hotspot or local network.
+                  </li>
+                </ul>
+              </section>
+              <section>
+                <h3>Requires internet or retained Chrome data</h3>
+                <ul>
+                  <li>
+                    The first complete load and later course-app updates require
+                    internet access.
+                  </li>
+                  <li>
+                    GitHub pull, push, and web pages require internet access.
+                  </li>
+                  <li>
+                    Clearing this site&apos;s browser data removes Chrome&apos;s
+                    saved app and browser recovery copy.
+                  </li>
+                  <li>
+                    The saved app is not copied into the course folder; native
+                    project files remain separate.
+                  </li>
+                </ul>
+              </section>
+            </div>
+            <p>
+              <strong>Install course tools</strong> on the landing page is
+              optional. It adds a launcher and a separate app window, but uses
+              the same Chrome storage and has the same offline limits. When the
+              site is opened with internet access, Chrome checks for a newer
+              course-app version.
+            </p>
+          </GuideSection>
+
+          <GuideSection
+            id="github"
+            number="08"
+            title="Use GitHub with your team"
+          >
+            <p>
+              Keep one GitHub repository for each course team. Use the
+              repository assigned by the course; if none is assigned, one
+              teammate creates it and adds the other team members as
+              collaborators.
+            </p>
+            <ol className="procedure">
+              <li>
+                Install{" "}
                 <a
-                  href="https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop"
+                  href="https://desktop.github.com/download/"
                   rel="noreferrer"
                   target="_blank"
                 >
                   GitHub Desktop
-                </a>
-                , then open that project folder in the UCSBXRP IDE.
-              </p>
-              <ol className="procedure">
-                <li>Make and test a small, coherent change in the IDE.</li>
-                <li>Review the changed files in GitHub Desktop.</li>
-                <li>Write a short commit message, commit, and push.</li>
-              </ol>
-              <p>
-                The IDE saves ordinary files in the project folder. It does not
-                store GitHub credentials or perform Git operations.
-              </p>
+                </a>{" "}
+                on Windows or macOS and sign in.
+              </li>
+              <li>
+                Clone the team repository into your UCSBXRP course folder. In
+                the IDE, choose <strong>Open project</strong> and select the
+                cloned folder.
+              </li>
+              <li>Pull before beginning a work session.</li>
+              <li>
+                After a working checkpoint, review the changed files, write a
+                short message describing the result, commit, and push.
+              </li>
+              <li>
+                Before another teammate continues, they pull the latest commit.
+              </li>
+            </ol>
+            <div className="callout">
+              Do not pass a project back and forth as renamed folders or email
+              attachments. The team repository is the shared history and current
+              source of the project.
             </div>
-          </section>
+          </GuideSection>
 
-          <section id="shortcuts">
-            <div className="section-number">07</div>
-            <div>
-              <h2>Keyboard shortcuts</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Action</th>
-                    <th>macOS</th>
-                    <th>Windows/Linux</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Save all files</td>
-                    <td>
-                      <kbd>⌘</kbd> <kbd>S</kbd>
-                    </td>
-                    <td>
-                      <kbd>Ctrl</kbd> <kbd>S</kbd>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Validate</td>
-                    <td>
-                      <kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>
-                    </td>
-                    <td>
-                      <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Run selected target</td>
-                    <td>
-                      <kbd>⌘</kbd> <kbd>Enter</kbd>
-                    </td>
-                    <td>
-                      <kbd>Ctrl</kbd> <kbd>Enter</kbd>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Open or close settings</td>
-                    <td>
-                      <kbd>⌘</kbd> <kbd>,</kbd>
-                    </td>
-                    <td>
-                      <kbd>Ctrl</kbd> <kbd>,</kbd>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <p>
-                <kbd>Tab</kbd> indents by the configured two or four spaces;
-                file tabs switch among open project files.
-              </p>
-            </div>
-          </section>
+          <GuideSection
+            id="shortcuts"
+            number="09"
+            title="Use keyboard shortcuts"
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>macOS</th>
+                  <th>Windows</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Save</td>
+                  <td>
+                    <kbd>⌘</kbd> <kbd>S</kbd>
+                  </td>
+                  <td>
+                    <kbd>Ctrl</kbd> <kbd>S</kbd>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Validate</td>
+                  <td>
+                    <kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>
+                  </td>
+                  <td>
+                    <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Run</td>
+                  <td>
+                    <kbd>⌘</kbd> <kbd>Enter</kbd>
+                  </td>
+                  <td>
+                    <kbd>Ctrl</kbd> <kbd>Enter</kbd>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Settings</td>
+                  <td>
+                    <kbd>⌘</kbd> <kbd>,</kbd>
+                  </td>
+                  <td>
+                    <kbd>Ctrl</kbd> <kbd>,</kbd>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              <kbd>Tab</kbd> indents according to the editor setting.
+            </p>
+          </GuideSection>
 
-          <section id="troubleshooting">
-            <div className="section-number">08</div>
-            <div>
-              <h2>Recovery and troubleshooting</h2>
-              <ul className="procedure">
-                <li>
-                  <strong>Physical XRP is unreachable:</strong> confirm both
-                  devices are using the network mode selected in IDE Settings.
-                  In hotspot mode, join its <code>UCSB-XRP-…</code> network. If
-                  that fails, connect USB-C and open{" "}
-                  <a href="../commission/">Set up or repair XRP</a>.
-                </li>
-                <li>
-                  <strong>Code does not run:</strong> open Program output for
-                  Python errors from the project and <strong>System log</strong>
-                  for validation, transfer, connection, and target events.
-                </li>
-                <li>
-                  <strong>Workspace is disconnected:</strong> select{" "}
-                  <strong>Reconnect</strong> and choose the same workspace. The
-                  recovery copy in Chrome remains available while the folder is
-                  disconnected.
-                </li>
-                <li>
-                  <strong>Working without internet:</strong> open the course
-                  site once while online and wait until the header confirms that
-                  the IDE and Monitor are saved in Chrome. The apps, virtual
-                  XRP, Guide, and course release can then reopen without
-                  internet; physical XRP use still requires its local Wi-Fi
-                  connection. Project files remain in the workspace you
-                  selected. Closing Chrome does not remove the saved app, but
-                  clearing the course site's data does.
-                </li>
-                <li>
-                  <strong>No physical world pose:</strong> live sensor data can
-                  still be valid. A physical pose appears when the project uses
-                  the course <code>Robot</code> loop and publishes its odometry
-                  estimate.
-                </li>
-              </ul>
-              <div className="source-links">
-                <a
-                  href="https://www.micropython.org/download/SPARKFUN_XRP_CONTROLLER/"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Official SparkFun XRP Controller firmware ↗
-                </a>
-                <a
-                  href="https://open-stem.github.io/XRP_MicroPython/api.html"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  XRPLib API reference ↗
-                </a>
-              </div>
+          <GuideSection
+            id="troubleshooting"
+            number="10"
+            title="Troubleshooting"
+          >
+            <ul className="procedure troubleshooting-list">
+              <li>
+                <strong>Code does not run:</strong> read Program output for a
+                Python exception and System log for validation, transfer, and
+                target events.
+              </li>
+              <li>
+                <strong>The physical XRP is unreachable:</strong> confirm that
+                the computer is using the robot network chosen during setup. If
+                needed, connect USB-C and open{" "}
+                <a href="../commission/">Set up or repair XRP</a>.
+              </li>
+              <li>
+                <strong>The course folder is disconnected:</strong> select{" "}
+                <strong>Reconnect</strong> and choose the same folder again.
+              </li>
+              <li>
+                <strong>No physical pose appears:</strong> stationary sensors
+                can still be valid. Pose appears when the project uses the
+                course <code>Robot</code> loop and publishes its odometry
+                estimate.
+              </li>
+              <li>
+                <strong>A component check says PENDING:</strong> open the named
+                student file and implement that method; other component work can
+                continue.
+              </li>
+            </ul>
+            <div className="source-links">
+              <a
+                href="https://www.micropython.org/download/SPARKFUN_XRP_CONTROLLER/"
+                rel="noreferrer"
+                target="_blank"
+              >
+                SparkFun XRP Controller firmware ↗
+              </a>
+              <a
+                href="https://open-stem.github.io/XRP_MicroPython/api.html"
+                rel="noreferrer"
+                target="_blank"
+              >
+                XRPLib reference ↗
+              </a>
             </div>
-          </section>
+          </GuideSection>
         </main>
       </div>
+    </div>
+  );
+}
+
+function GuideSection({
+  children,
+  id,
+  number,
+  title,
+}: {
+  children: ReactNode;
+  id: string;
+  number: string;
+  title: string;
+}) {
+  return (
+    <section id={id}>
+      <div className="section-number">{number}</div>
+      <div>
+        <h2>{title}</h2>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Command({ children, name }: { children: ReactNode; name: string }) {
+  return (
+    <div>
+      <strong>{name}</strong>
+      <span>{children}</span>
     </div>
   );
 }

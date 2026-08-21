@@ -462,10 +462,26 @@ attenuation and response without requiring that particular internal formula.
 
 The Web App Manifest provides an optional standalone installation and launcher;
 the service worker remains the offline authority. Installation does not copy a
-runnable site into the workspace and does not make browser storage permanent.
+runnable site into the course folder and does not make browser storage permanent.
 
 Manual Monitor exports use `exports/` inside the active project when available.
 Without a project folder, the browser chooses a destination before expensive
 rendering begins. World replay deterministically renders recorded telemetry to
 a private canvas and records WebM; it neither screen-records nor reruns the
 simulation. Recording and robot execution remain independent states.
+
+## 11. Student documentation and responsibility boundaries
+
+The Guide is task-oriented: it names the available challenges, demos, and
+tutorial, then presents virtual execution, course-folder storage, component
+tests, physical setup, Monitor evidence, code roles, offline use, GitHub, and
+troubleshooting in that order. It avoids internal deployment vocabulary and
+defines each student-visible storage or target term where it first appears.
+
+The separately built `UCSB XRP API` page is the detailed code reference. Every
+student component entry states what the component owns, what it receives, what
+state it maintains, what it provides, and which module consumes that output.
+Method signatures and units follow those responsibilities. The IDE maps known
+component/configuration filenames to the corresponding reference anchor, while
+the Guide retains the high-level closed command/measurement loop. Both pages
+are part of the verified offline shell.

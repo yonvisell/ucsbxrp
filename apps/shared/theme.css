@@ -463,29 +463,26 @@ input[type="radio"] {
 .landing-shell h1 {
   max-width: 560px;
   margin: 0;
-  font-size: clamp(1.5rem, 3.8vw, 2.4rem);
-  font-weight: 720;
-  letter-spacing: -0.045em;
-  line-height: 1.02;
+  font-size: clamp(1.05rem, 2.5vw, 1.45rem);
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
 }
 
-.landing-copy {
-  max-width: 560px;
-  margin: 0.85rem 0 1rem;
-  color: var(--muted);
-  font-size: 0.76rem;
-  line-height: 1.5;
+.landing-shell > .eyebrow {
+  color: var(--ucsb-blue);
 }
 
 .landing-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.32rem;
+  margin-top: 1rem;
 }
 
 .landing-setup-action {
   display: flex;
-  margin-top: 1.6rem;
+  margin-top: 2.7rem;
 }
 
 .primary-link,
@@ -515,6 +512,12 @@ input[type="radio"] {
   color: var(--quiet);
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
+}
+
+.release-note a {
+  color: var(--muted);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .visually-hidden {

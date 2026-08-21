@@ -1,0 +1,340 @@
+.reference-app {
+  min-height: 100vh;
+  background: #fff;
+}
+
+.reference-header {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  min-height: var(--app-header-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--pane-line);
+  padding: 2px 8px;
+  background: rgb(255 255 255 / 96%);
+}
+
+.reference-header nav {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.reference-header .tool-link:first-child {
+  border-left: 0;
+}
+
+.reference-layout {
+  display: grid;
+  width: min(1180px, calc(100% - 24px));
+  margin: 0 auto;
+  grid-template-columns: 184px minmax(0, 1fr);
+  gap: 32px;
+  padding: 22px 0 60px;
+}
+
+.reference-toc {
+  position: sticky;
+  top: 47px;
+  display: grid;
+  max-height: calc(100vh - 58px);
+  align-self: start;
+  gap: 1px;
+  overflow-y: auto;
+}
+
+.reference-toc > span {
+  margin-bottom: 4px;
+  color: var(--quiet);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.reference-toc a {
+  border-left: 2px solid transparent;
+  padding: 3px 7px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.reference-toc a:hover,
+.reference-toc a:focus-visible {
+  border-left-color: var(--cyan);
+  color: var(--ink);
+}
+
+.reference-toc .toc-child {
+  padding-left: 16px;
+  color: var(--quiet);
+  font-size: 9px;
+}
+
+.reference-content {
+  min-width: 0;
+}
+
+.reference-intro {
+  max-width: 830px;
+  border-bottom: 1px solid var(--line);
+  padding: 4px 0 22px;
+}
+
+.reference-intro .eyebrow {
+  margin: 0 0 5px;
+  color: var(--cyan-deep);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.reference-intro h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(23px, 3vw, 34px);
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+}
+
+.reference-intro > p:last-child {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.reference-content > section:not(.reference-intro) {
+  max-width: 900px;
+  scroll-margin-top: 44px;
+  border-bottom: 1px solid var(--line);
+  padding: 22px 0;
+}
+
+.reference-content h2 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.reference-content h3 {
+  margin: 17px 0 7px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reference-content p,
+.reference-content dd,
+.reference-content span {
+  color: #39474f;
+  font-size: 11px;
+  line-height: 1.52;
+}
+
+.reference-content p {
+  max-width: 800px;
+  margin: 0.55rem 0;
+}
+
+.reference-content code {
+  border-radius: 2px;
+  padding: 0.05em 0.22em;
+  background: #edf0f1;
+  color: #23343e;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.flow-code,
+.code-example {
+  max-width: 800px;
+  overflow-x: auto;
+  border-left: 2px solid #007e73;
+  margin: 11px 0;
+  padding: 10px 12px;
+  background: #f5f7f7;
+  color: #26363f;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.responsibility-table {
+  max-width: 880px;
+  border-top: 1px solid var(--pane-line);
+  margin-top: 12px;
+}
+
+.responsibility-head,
+.responsibility-row {
+  display: grid;
+  grid-template-columns: 130px minmax(220px, 1fr) minmax(220px, 0.8fr);
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 5px;
+}
+
+.responsibility-head {
+  background: #f3f5f5;
+}
+
+.responsibility-head span {
+  color: var(--quiet);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.responsibility-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.responsibility-row:hover {
+  background: #f8fafa;
+}
+
+.responsibility-row strong {
+  color: var(--cyan-deep);
+  font-size: 10px;
+}
+
+.component-identity {
+  color: var(--quiet) !important;
+}
+
+.component-details {
+  display: grid;
+  max-width: 880px;
+  margin: 10px 0 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.component-details > div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 7px;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 8px 7px 0;
+}
+
+.component-details > div:nth-child(odd) {
+  border-right: 1px solid var(--line);
+}
+
+.component-details > div:nth-child(even) {
+  padding-left: 8px;
+}
+
+.component-details dt {
+  color: var(--quiet);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.component-details dd {
+  margin: 0;
+}
+
+.signature-list,
+.api-table {
+  max-width: 880px;
+  border-top: 1px solid var(--line);
+}
+
+.signature,
+.api-table > div {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(300px, 1fr);
+  gap: 15px;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 4px;
+}
+
+.signature > code,
+.api-table > div > code {
+  align-self: start;
+  padding: 0;
+  background: transparent;
+  color: #1e465d;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.signature > p,
+.api-table > div > p {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .reference-header {
+    flex-wrap: wrap;
+  }
+
+  .reference-layout {
+    display: block;
+    width: min(100% - 20px, 900px);
+    padding-top: 12px;
+  }
+
+  .reference-toc {
+    position: static;
+    display: flex;
+    max-height: none;
+    margin-bottom: 14px;
+    gap: 2px;
+    overflow-x: auto;
+  }
+
+  .reference-toc > span,
+  .reference-toc .toc-child {
+    display: none;
+  }
+
+  .reference-toc a {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    padding: 4px 7px;
+  }
+
+  .responsibility-head,
+  .responsibility-row {
+    grid-template-columns: 110px minmax(200px, 1fr);
+  }
+
+  .responsibility-head span:last-child,
+  .responsibility-row span:last-child {
+    display: none;
+  }
+
+  .component-details {
+    grid-template-columns: 1fr;
+  }
+
+  .component-details > div:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .component-details > div:nth-child(even) {
+    padding-left: 0;
+  }
+
+  .signature,
+  .api-table > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

@@ -46,6 +46,7 @@ for (const requiredPath of [
   "monitor/index.html",
   "dashboard/index.html",
   "guide/index.html",
+  "reference/index.html",
   "commission/index.html",
   "favicon.svg",
   "manifest.webmanifest",
@@ -111,6 +112,7 @@ for (const entryPath of [
   "monitor/index.html",
   "dashboard/index.html",
   "guide/index.html",
+  "reference/index.html",
   "commission/index.html",
 ]) {
   const html = await readFile(path.join(outputDirectory, entryPath), "utf8");

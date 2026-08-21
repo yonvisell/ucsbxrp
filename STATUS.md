@@ -4,6 +4,21 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 25 adds a complete student-facing documentation path. The Guide now
+names every challenge, demo, and tutorial; defines the course-folder/project
+relationship; distinguishes Validate from Test components; gives the physical
+USB/Wi-Fi sequence; explains Monitor evidence and exports; and states exactly
+what the Chrome-saved PWA can and cannot do without internet. Its project
+diagram shows a closed command/measurement loop rather than an unrelated row of
+boxes. A separately navigable, offline `UCSB XRP API` page documents each
+student component's ownership, inputs, maintained state, output, consumers, and
+methods, then covers records, Robot, live values, maps, configuration, low-level
+XRP access, and utilities. IDE tabs link directly to the relevant entry. Stable
+Chrome inspections at 864 × 996 covered the landing page, Guide flow/offline
+sections, API summary, and detailed SensorModel entry without horizontal
+overflow; the six focused offline/commissioning Chrome workflows pass,
+including offline API navigation and the 375 px landing layout.
+
 Refinement 24 moves encoder quantization handling into the measurement
 component that owns it. The supplied `SensorModel` keeps exact wheel position
 and distance increments while maintaining a time-aware, constant-memory

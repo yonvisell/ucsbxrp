@@ -130,6 +130,7 @@ function navigationFallback(pathname) {
     "monitor",
     "dashboard",
     "guide",
+    "reference",
     "commission",
   ]) {
     if (relativePath === application || relativePath === application + "/index.html") {

@@ -2,7 +2,7 @@
   "id": "./",
   "name": "UCSBXRP Course Tools",
   "short_name": "UCSBXRP",
-  "description": "Program, simulate, and inspect the XRP with the UCSB mobile robotics course tools.",
+  "description": "Program, simulate, and run live telemetry for the XRP with the UCSB wheeled robotics course tools.",
   "start_url": "./ide/",
   "scope": "./",
   "display": "standalone",

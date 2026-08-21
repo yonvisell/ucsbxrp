@@ -1,6 +1,6 @@
 # UCSBXRP User Reference
 
-This is the student-facing reference for course API revision `0.4-draft`
+This is the student-facing reference for UCSB XRP API revision `0.4-draft`
 (`ucsb_xrp` `0.4.0-dev`). It describes the public behavior that student code
 may rely on. The supplied reference components are examples, not prescribed
 algorithms.
@@ -56,7 +56,7 @@ Use public names from `ucsb_xrp` in `main.py`, `challenge.py`, and
 `robot_config.py`. Student component classes inherit their named base from
 `ucsb_xrp.student_api`.
 
-`course_setup.py` supplies the project-level factories used by the starters:
+`course_setup.py` supplies the project-level factories used by the challenges:
 
 - `make_robot(config)` -> assembled `Robot`
 - `make_navigation_controller(config)` -> selected navigation controller,
@@ -175,9 +175,20 @@ usable range was requested or returned.
 
 ## Components students implement
 
-Each starter initially selects the supplied component. After a student
+Each challenge project initially selects the supplied component. After a student
 implementation passes its software tests, change only its corresponding
 `USE_STUDENT_*` flag in `course_setup.py`.
+
+### Responsibility and data flow
+
+| Component | Owns | Receives | State it maintains | Output and users |
+| --- | --- | --- | --- | --- |
+| `SensorModel` | Encoder-to-distance conversion, regularized wheel-speed estimation, and robust range estimation | `RawSensors`; robot geometry, encoder signs, and speed-filter setting from `RobotConfig` | Encoder/time origins, previous counts and time, current wheel-speed estimates | `Measurements`; wheel speeds go to `WheelSpeedController`, increments go to `Odometry`, and range/travel/button values go to mission code |
+| `WheelSpeedController` | Wheel-speed feedback and bounded motor command | Target `WheelSpeeds` from `DifferentialDrive`; measured `WheelSpeeds` from `SensorModel`; calibration and gains | Any controller memory selected by the implementation; the supplied proportional example has no error history | `DriveCommand`, passed by `Robot` to `XRPBot` |
+| `DifferentialDrive` | Body-to-wheel inverse kinematics | `MotionCommand` and track width | No time history is required | Target `WheelSpeeds` for `WheelSpeedController` |
+| `Odometry` | Integration of measured wheel-distance increments into pose | Initial `Pose`, left/right increments from `SensorModel`, and track width | Latest estimated `Pose` | `Pose` for navigation, mission code, `RobotState`, and telemetry; simulator truth is not an input |
+| `NavigationController` | Progress through ordered position and optional-heading goals | Goals, latest odometry `Pose`, navigation speeds and tolerances | Goal list, active goal, and any turn/drive/alignment mode | `MotionCommand` for the next `Robot.step()` |
+| `GridPlanner` | Shortest-path search through free occupancy-grid cells | Grid, start cell, and goal cell | Search-local frontier, visited, and predecessor data; no persistent state is required | `GridPath`, converted to goals before navigation |
 
 ### `SensorModel(SensorModelBase)`
 
@@ -187,8 +198,9 @@ implementation passes its software tests, change only its corresponding
   range, and USER-button state.
 - `update(raw)` -> `Measurements`
   Converts signed encoder-count changes and elapsed device time into total
-  wheel positions, latest increments, and wheel speeds. It must be called
-  after `reset()`.
+  wheel positions, latest increments, and regularized wheel-speed estimates.
+  Exact distance increments remain unfiltered. It must be called after
+  `reset()`.
 - `estimate_range(samples, minimum_usable)` -> number or `None`
   Rejects missing, nonfinite, and nonpositive readings. It returns the median
   of the usable ranges when at least `minimum_usable` remain; otherwise it
@@ -378,6 +390,7 @@ RobotConfig(
     right_start_command=0.0,
     left_speed_command_gain=0.0,
     right_speed_command_gain=0.0,
+    wheel_speed_filter_time_constant_ms=80.0,
     wheel_speed_kp=0.0,
     max_drive_command=1.0,
 )
@@ -389,6 +402,8 @@ are the numerical values shown above. The record is immutable. Construct a new
 one in `robot_config.py` when values change. Signs must be `-1` or `1`;
 `max_drive_command` must be in `[0.0, 1.0]`. The left/right start commands and
 speed-command gains provide separately measured feedforward calibration;
+`wheel_speed_filter_time_constant_ms` sets the response time of the
+encoder-derived speed estimate (`0.0` disables regularization), and
 `wheel_speed_kp` is the proportional feedback gain.
 
 ### `NavigationConfig`

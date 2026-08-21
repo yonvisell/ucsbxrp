@@ -8,13 +8,14 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: "Program, simulate, and inspect the XRP.",
+      name: "Program, Simulate, and Run Live Telemetry for the XRP robot",
     }),
   ).toBeVisible();
   for (const name of [
     "Open IDE",
     "Open Monitor",
     "Getting started",
+    "UCSB XRP API",
     "Open wizard for XRP initial set up or repair",
   ]) {
     await expect(page.getByRole("link", { name, exact: true })).toBeVisible();

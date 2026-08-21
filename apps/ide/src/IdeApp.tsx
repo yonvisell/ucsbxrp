@@ -138,6 +138,46 @@ function editorLanguage(path: string): string {
   return "plaintext";
 }
 
+const apiReferenceByFilename: Record<string, { href: string; label: string }> =
+  {
+    "main.py": { href: "../reference/#working-loop", label: "Working loop" },
+    "course_setup.py": {
+      href: "../reference/#student-components",
+      label: "Components",
+    },
+    "sensor_model.py": {
+      href: "../reference/#sensor-model",
+      label: "SensorModel",
+    },
+    "wheel_speed_controller.py": {
+      href: "../reference/#wheel-speed-controller",
+      label: "Wheel controller",
+    },
+    "differential_drive.py": {
+      href: "../reference/#differential-drive",
+      label: "DifferentialDrive",
+    },
+    "odometry.py": { href: "../reference/#odometry", label: "Odometry" },
+    "navigation_controller.py": {
+      href: "../reference/#navigation-controller",
+      label: "Navigation",
+    },
+    "grid_planner.py": {
+      href: "../reference/#grid-planner",
+      label: "GridPlanner",
+    },
+    "robot_config.py": {
+      href: "../reference/#configuration",
+      label: "Configuration",
+    },
+    "challenge.py": { href: "../reference/#maps", label: "Maps and tasks" },
+    "world.py": { href: "../reference/#maps", label: "World" },
+  };
+
+function apiReferenceForPath(path: string) {
+  return apiReferenceByFilename[path.split("/").at(-1) ?? ""] ?? null;
+}
+
 const templateGroups: readonly {
   kind: CourseProjectKind;
   label: string;
@@ -1236,6 +1276,7 @@ export function IdeApp() {
     target.kind === "physical"
       ? `${targetDetail}. Project ${physicalStatus}.`
       : targetDetail;
+  const activeReference = apiReferenceForPath(activePath);
 
   return (
     <div className="app-shell ide-app">
@@ -1324,6 +1365,15 @@ export function IdeApp() {
             title="Open course guidance and robot setup in a new tab."
           >
             Guide ↗
+          </a>
+          <a
+            className="tool-link"
+            href="../reference/"
+            rel="noopener noreferrer"
+            target="_blank"
+            title="Open the UCSB XRP API reference in a new tab."
+          >
+            API ↗
           </a>
         </div>
         <div className="header-statuses">
@@ -1583,6 +1633,17 @@ export function IdeApp() {
                 <span className="autosave-label">
                   {folderSaveState === "error" ? "Save failed" : "Saving…"}
                 </span>
+              ) : null}
+              {activeReference ? (
+                <a
+                  className="editor-api-link"
+                  href={activeReference.href}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  title={`Open the ${activeReference.label} API entry for ${activePath}.`}
+                >
+                  {activeReference.label} API ↗
+                </a>
               ) : null}
             </div>
             <div className="editor-frame" data-testid="python-editor">
