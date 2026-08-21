@@ -177,7 +177,9 @@ export function GuideApp() {
               implement. <strong>Validate</strong> checks Python syntax.{" "}
               <strong>Test components</strong> runs{" "}
               <code>component_checks.py</code> in MicroPython without starting
-              either robot.
+              either robot. That project file only lists the component classes
+              included in the challenge; the course library supplies the check
+              cases. Students normally do not edit it.
             </p>
             <div className="result-key" aria-label="Component check results">
               <div>

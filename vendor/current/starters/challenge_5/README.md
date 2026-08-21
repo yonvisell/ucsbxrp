@@ -2,11 +2,11 @@
 
 ## Objective
 
-Complete a delivery after observing whether the center gate is blocked. The XRP
-takes several stationary ultrasound readings, combines the usable values,
-updates the named gate in its map, plans a route to the destination, and follows
-that route. If no valid path exists, it reports the result without attempting
-the delivery.
+Complete the observation and delivery task defined by `DELIVERY_TASK` in
+`challenge.py`. The XRP takes the specified stationary ultrasound readings,
+combines the usable values, updates the named feature in its map, plans a route
+to the destination, and follows that route. If no valid path exists, it reports
+the result without attempting the delivery.
 
 This challenge integrates sensing, map update, planning, navigation, odometry,
 wheel control, and hardware access. The complete sequence runs with supplied

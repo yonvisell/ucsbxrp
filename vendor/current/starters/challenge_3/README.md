@@ -2,10 +2,11 @@
 
 ## Objective
 
-Program the XRP to visit three ordered world-coordinate goals. The first two
-goals require position; the final goal also requires a heading of π radians.
-The navigation controller must use the current odometry pose to decide when to
-turn, drive, slow, advance to the next goal, align the final heading, and stop.
+Program the XRP to visit the ordered world-coordinate goals in
+`challenge.py`. `ROUTE` defines the number, position, order, and optional final
+heading of the current goals. The navigation controller must use the current
+odometry pose to decide when to turn, drive, slow, advance to the next goal,
+align a required final heading, and stop.
 
 This challenge adds world-goal navigation to the four components developed in
 Challenges 1 and 2. With all selection flags `False`, supplied components run

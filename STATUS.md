@@ -4,6 +4,19 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 28 removes two sources of course-document drift. Challenge READMEs
+describe each task through the named values in `challenge.py` instead of copying
+their current numerical values into prose. Each visible `component_checks.py`
+is now a 24–33-line selector with instructions, one concrete use example, and
+the meanings of PASS, PENDING, and FAIL. The detailed fixtures and assertions
+live once in the supplied `ucsb_xrp.component_checks` module. Its wheel-control
+check verifies returned type, direction, command bound, and exact zero for a
+zero target without requiring the supplied controller formula. All five
+student wrappers execute with the expected cumulative PENDING count; 26 focused
+Python tests, three catalog tests, release verification, commissioning-bundle
+verification, and MicroPython 1.28 source/bytecode parity pass. The dev.8 course
+source manifest now contains 14 canonical files.
+
 Refinement 27 gives storage and navigation terms one student-visible meaning.
 The parent directory is always the **course folder**; each runnable body of work
 is a named **project folder**; and an unsaved project has a **recovery copy in

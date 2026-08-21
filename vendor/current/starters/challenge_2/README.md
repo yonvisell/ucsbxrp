@@ -2,10 +2,11 @@
 
 ## Objective
 
-Program the XRP to travel 500 mm, turn to a heading of π radians, and travel
-500 mm back toward its starting location. The robot must convert a requested
-body motion into separate wheel-speed targets and estimate its heading and
-position from measured wheel travel.
+Program the XRP to complete the outbound, turn, and return task defined in
+`challenge.py`. `OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, and
+`RETURN_DISTANCE_MM` define the current task instance. The robot must convert a
+requested body motion into separate wheel-speed targets and estimate its
+heading and position from measured wheel travel.
 
 This challenge adds differential-drive kinematics and odometry to the two
 Challenge 1 components. The unchanged project runs with supplied components so
@@ -39,7 +40,7 @@ requirements for all four classes.
 ## Program flow
 
 ```text
-main.py: outbound → turn to π → return
+main.py: outbound → configured heading → return
         │ MotionCommand
         ▼
 DifferentialDrive* ── target WheelSpeeds ── WheelSpeedController*

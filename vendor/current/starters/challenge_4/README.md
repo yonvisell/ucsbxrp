@@ -2,11 +2,12 @@
 
 ## Objective
 
-Plan and execute a collision-free route through a known 1200 × 800 mm arena.
-The map contains one rectangular obstacle. The planner must find a shortest
-four-neighbor path through the free cells of a 100 mm occupancy grid, after
-accounting for 35 mm robot clearance. The navigation controller then follows a
-compact set of world-coordinate goals derived from that path.
+Plan and execute a collision-free route through the arena defined in
+`challenge.py`. `ARENA_MAP`, `INITIAL_POSE`, `DESTINATION`,
+`GRID_RESOLUTION_MM`, and `CLEARANCE_MM` define the current task instance. The
+planner must find a shortest four-neighbor path through free occupancy-grid
+cells. The navigation controller then follows a compact set of world-coordinate
+goals derived from that path.
 
 This challenge adds grid planning to all previously implemented components.
 With all selection flags `False`, supplied components plan and run the complete

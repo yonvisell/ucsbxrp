@@ -436,10 +436,15 @@ the target protocol or student workflow.
 
 IDE **Validate** compiles every Python file; it does not claim algorithmic
 correctness. Challenge projects separately include `component_checks.py` and a
-**Test components** action. These small deterministic checks execute in an
+**Test components** action. These small repeatable checks execute in an
 isolated MicroPython worker without commanding either target. PASS, PENDING,
 and FAIL remain visible in Program output, and PENDING is not a gate: students
-can implement and select one component at a time.
+can implement and select one component at a time. The project file only imports
+the classes introduced by that challenge and calls the supplied check runner;
+fixtures and assertions live once in `ucsb_xrp.component_checks`. This keeps the
+student-visible use case short and prevents five challenge copies of test logic
+from drifting. Checks state externally visible behavior and avoid requiring the
+supplied internal algorithm.
 
 Telemetry names its evidence source. A physical pose is the course Odometry
 estimate. A virtual sample carries both that estimate and simulator ground

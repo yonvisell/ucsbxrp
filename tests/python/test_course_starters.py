@@ -1,5 +1,9 @@
 import ast
+import contextlib
+import io
 import pathlib
+import runpy
+import sys
 import unittest
 
 
@@ -79,6 +83,63 @@ class CourseStarterTests(unittest.TestCase):
             }
             self.assertEqual(len(switches), expected_count, challenge)
 
+    def test_component_check_files_expose_instructions_not_check_machinery(self):
+        expected_components = {
+            "challenge_1": 2,
+            "challenge_2": 4,
+            "challenge_3": 5,
+            "challenge_4": 6,
+            "challenge_5": 6,
+        }
+        project_module_names = (
+            "sensor_model",
+            "wheel_speed_controller",
+            "differential_drive",
+            "odometry",
+            "navigation_controller",
+            "grid_planner",
+        )
+        for challenge, component_count in expected_components.items():
+            directory = STARTERS / challenge
+            path = directory / "component_checks.py"
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(challenge=challenge):
+                self.assertLessEqual(len(source.splitlines()), 40)
+                self.assertIn("# Normal use:", source)
+                self.assertIn("# Example:", source)
+                self.assertIn("run_component_checks(", source)
+                self.assertNotIn("def check_", source)
+                self.assertNotIn("RawSensors", source)
+
+                saved_modules = {
+                    name: sys.modules.pop(name)
+                    for name in project_module_names
+                    if name in sys.modules
+                }
+                output = io.StringIO()
+                course_source = str(ROOT / "vendor" / "current")
+                sys.path.insert(0, course_source)
+                sys.path.insert(0, str(directory))
+                try:
+                    with contextlib.redirect_stdout(output):
+                        runpy.run_path(str(path), run_name="__main__")
+                finally:
+                    sys.path.remove(str(directory))
+                    sys.path.remove(course_source)
+                    for name in project_module_names:
+                        sys.modules.pop(name, None)
+                    sys.modules.update(saved_modules)
+
+                text = output.getvalue()
+                self.assertIn(
+                    "Component checks use MicroPython without starting either robot.",
+                    text,
+                )
+                self.assertIn(
+                    "0 passed · {} pending · 0 failed".format(component_count),
+                    text,
+                )
+
     def test_each_challenge_readme_defines_student_and_supplied_responsibilities(self):
         expected_student_files = {
             "challenge_1": ("sensor_model.py", "wheel_speed_controller.py"),
@@ -112,6 +173,23 @@ class CourseStarterTests(unittest.TestCase):
                 "grid_planner.py",
             ),
         }
+        expected_task_parameters = {
+            "challenge_1": ("TRAVEL_DISTANCE_MM", "TARGET_TIME_S"),
+            "challenge_2": (
+                "OUTBOUND_DISTANCE_MM",
+                "TURN_HEADING_RAD",
+                "RETURN_DISTANCE_MM",
+            ),
+            "challenge_3": ("ROUTE",),
+            "challenge_4": (
+                "ARENA_MAP",
+                "INITIAL_POSE",
+                "DESTINATION",
+                "GRID_RESOLUTION_MM",
+                "CLEARANCE_MM",
+            ),
+            "challenge_5": ("DELIVERY_TASK",),
+        }
         required_sections = (
             "## Objective",
             "## Student implementations",
@@ -131,6 +209,8 @@ class CourseStarterTests(unittest.TestCase):
                 self.assertIn("course_setup.py", text)
                 for filename in student_files:
                     self.assertIn("`%s`" % filename, text)
+                for parameter in expected_task_parameters[challenge]:
+                    self.assertIn("`%s`" % parameter, text)
 
     def test_navigation_settings_are_named_and_show_units(self):
         expected_names = {

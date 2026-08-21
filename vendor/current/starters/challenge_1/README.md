@@ -2,11 +2,12 @@
 
 ## Objective
 
-Program the XRP to travel 1000 mm in a straight line using measured wheel
-motion. The target time is 8 s. The challenge separates two tasks: converting
-encoder readings into usable wheel measurements, and using measured wheel speed
-to command the motors. A supplied straight-line service decides when to slow
-and stop from wheel travel.
+Program the XRP to complete the straight-line task defined in `challenge.py`
+using measured wheel motion. `TRAVEL_DISTANCE_MM` and `TARGET_TIME_S` define the
+current task instance. The challenge separates two tasks: converting encoder
+readings into usable wheel measurements, and using measured wheel speed to
+command the motors. A supplied straight-line service decides when to slow and
+stop from wheel travel.
 
 The complete project runs with supplied components before student work is
 selected. This provides a working behavior for inspecting the program flow and
