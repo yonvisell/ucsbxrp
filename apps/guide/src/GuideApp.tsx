@@ -58,12 +58,13 @@ export function GuideApp() {
                   .
                 </li>
                 <li>
-                  Select <strong>Validate</strong>. Every Python file is
-                  compiled by the same MicroPython version used by the course.
+                  Select <strong>Validate</strong> when you want a code check
+                  without starting the program. <strong>Run</strong> also
+                  validates automatically and stops if the check fails.
                 </li>
                 <li>
                   Open the <a href="../dashboard/">XRP Monitor</a> in another
-                  tab and select <strong>Run</strong> in the IDE.
+                  tab and select <strong>Run</strong> in either app.
                 </li>
               </ol>
               <p>
@@ -71,7 +72,8 @@ export function GuideApp() {
                 pose come from the same deterministic simulation.{" "}
                 <strong>Stop</strong> and <strong>Reset</strong> are available
                 in both apps. After an IDE run, the Monitor can run that same
-                project directly.
+                project directly; a fresh virtual Monitor starts with the
+                Expanding spiral demo.
               </p>
             </div>
           </section>
@@ -81,8 +83,8 @@ export function GuideApp() {
             <div>
               <h2>Projects, files, and templates</h2>
               <p>
-                Browser recovery preserves edits continuously. Select{" "}
-                <strong>Save</strong> to choose a normal local project folder;
+                A browser backup preserves edits continuously. Select{" "}
+                <strong>Save</strong> to choose a normal local working folder;
                 after that, edits save there automatically. Use{" "}
                 <strong>Open folder</strong> to resume another project. The IDE
                 supports nested files, multiple editor tabs, rename, duplicate,
@@ -115,7 +117,7 @@ export function GuideApp() {
                 four previous folder states are kept as readable JSON in{" "}
                 <code>UCSB_XRP_Autosaves</code>. If Chrome cannot restore folder
                 permission after a restart, select <strong>Reconnect</strong>;
-                browser recovery remains available meanwhile.
+                the browser backup remains available meanwhile.
               </div>
             </div>
           </section>
@@ -180,15 +182,16 @@ export function GuideApp() {
               </p>
               <ol className="procedure">
                 <li>
-                  Choose a normal local folder for project files and automatic
-                  copies. The wizard separately waits until Chrome has saved the
-                  complete web release for offline use.
+                  Choose a working folder for one project, setup logs, run data,
+                  and automatic copies, or choose it later in the IDE. Chrome
+                  stores the web application separately.
                 </li>
                 <li>
                   Connect the XRP by USB-C, select it in the browser device
-                  picker, and choose its network. A new robot defaults to its
-                  own device-specific hotspot; a repair keeps the current
-                  network unless you change it.
+                  picker, and keep USB connected while the wizard checks the
+                  controller. Then choose the robot network. A new robot
+                  defaults to its own device-specific hotspot; a repair keeps
+                  the current network unless you change it.
                 </li>
                 <li>
                   If firmware repair is needed, follow the one additional prompt
@@ -203,16 +206,17 @@ export function GuideApp() {
                 </li>
               </ol>
               <p>
-                The folder step writes and reads a small test file before setup
-                continues. The latest events remain available under{" "}
-                <strong>Setup log</strong> and in{" "}
-                <code>UCSB_XRP_Autosaves/xrp-setup-latest.txt</code>; Wi-Fi
-                passwords are not logged. <strong>Connect to the XRP</strong>{" "}
-                appears only after USB installation and reset have finished, so
-                do not press RESET or BOOT there. Join the displayed network and
-                allow Chrome's local-network request. On macOS, also enable
-                Chrome under System Settings → Privacy &amp; Security → Local
-                Network if it is disabled.
+                The optional folder step writes and reads a small test file. The
+                latest events remain available under <strong>Setup log</strong>{" "}
+                and in <code>UCSB_XRP_Autosaves/xrp-setup-latest.txt</code>;
+                Wi-Fi passwords are not logged.{" "}
+                <strong>Verify robot connection</strong> appears only after USB
+                installation and reset. Existing-Wi-Fi mode can verify
+                immediately while the computer stays online; hotspot mode
+                requires joining the displayed network. Allow Chrome's
+                local-network request. On macOS, also enable Chrome under System
+                Settings → Privacy &amp; Security → Local Network if it is
+                disabled.
               </p>
               <p>
                 The XRP keeps the last complete project if a transfer is
@@ -238,8 +242,9 @@ export function GuideApp() {
                 <div>
                   <strong>Run</strong>
                   <span>
-                    Flash only when the project changed, then start its main
-                    file. On a virtual XRP, run the same files in simulation.
+                    Validate the current files, flash only when a physical
+                    project changed, then start its main file. On a virtual XRP,
+                    run the same files in simulation.
                   </span>
                 </div>
                 <div>
@@ -266,11 +271,11 @@ export function GuideApp() {
                 reopen setup later to change or repair the profile.
               </p>
               <div className="callout">
-                Browser security keeps four actions explicit when they are
-                needed: choosing a project folder, selecting the USB device,
-                selecting the temporary firmware drive, and granting this web
-                origin access to the local robot network. No instructor account
-                or command line is required for normal student setup.
+                Browser security keeps the relevant platform choices explicit:
+                an optional working folder, the USB device, the temporary
+                firmware drive when repair needs it, and local-network access.
+                No instructor account or command line is required for normal
+                student setup.
               </div>
               <p>
                 Instructors retaining a scripted fleet workflow can use{" "}
@@ -485,7 +490,7 @@ export function GuideApp() {
                 <li>
                   <strong>Offline use:</strong> open the production course site
                   while online and wait for{" "}
-                  <strong>Saved for offline use</strong> before changing
+                  <strong>Works without internet</strong> before changing
                   networks. Whenever the site is opened online, it checks for a
                   newer complete release, saves that release, and reloads once;
                   an interrupted update leaves the prior complete copy usable.

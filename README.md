@@ -36,21 +36,22 @@ each named `USE_STUDENT_*` switch independently.
 
 ## IDE workflow
 
-The IDE keeps a recoverable browser copy of the project. **Open folder** resumes
+The IDE keeps a browser backup of the project. **Open folder** resumes
 a local project; **Save** selects or immediately updates its folder. After a
 folder is selected, edits save there automatically after a short pause. The
 visible `UCSB_XRP_Autosaves` subfolder retains the four prior complete project
 states before overwrite. New, renamed, duplicated, and deleted files remain
 project-relative, and the selected main Python file is saved in
 `.ucsb-xrp-project.json`. Chrome remembers the folder handle when permitted and
-otherwise offers a one-click reconnect; browser recovery never depends on that
+otherwise offers a one-click reconnect; the browser backup never depends on that
 permission.
 
 - **Validate** compiles every Python file with MicroPython without running
   it.
 - **Flash project** atomically writes the complete project to a physical XRP.
-- The play button runs the selected main file and becomes a stop button while
-  the project is active. Stopping commands zero drive input.
+- The play button validates first, runs the selected main file if validation
+  passes, and becomes a stop button while the project is active. Stopping
+  commands zero drive input.
 - The reset button returns the selected target to its initial state.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
@@ -83,6 +84,9 @@ signals are added or removed; additional charts scroll instead of shrinking.
 One unlabeled grid line divides each pair of labeled time lines. When no pose
 has been published, the world remains visible with a clearly labeled XRP
 preview centered at the origin.
+In a fresh virtual session, Monitor Run validates and starts the default
+expanding-spiral project without requiring the IDE to run first. Once another
+project is prepared by the IDE, both applications control that same revision.
 
 **Live controls** remains open below the time window and shows controls declared
 with `ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use
@@ -110,8 +114,8 @@ Open **Open wizard for XRP initial set up or repair** on the landing page, or
 **Set up or repair XRP** in IDE Settings, using current desktop Chrome or Edge
 on Windows or macOS. The wizard:
 
-1. connects a normal local project folder and waits for the complete offline
-   web release;
+1. optionally connects a working folder for one project, logs, run data, and
+   automatic copies, and waits for the complete offline web release;
 2. selects the USB-C XRP through the browser's device picker;
 3. checks the RP2350 controller, MicroPython 1.28.0, XRPLib, course library,
    supplied bytecode, and robot service;
@@ -120,7 +124,10 @@ on Windows or macOS. The wizard:
 5. restarts the XRP, verifies its Wi-Fi service, and opens the IDE with
    **Physical XRP** selected.
 
-The first setup defaults to a distinct hotspot such as `UCSB-XRP-9EDE`, with
+USB-C remains connected while the wizard inspects, installs, and verifies the
+controller. The physical Run/Monitor/telemetry service then uses the selected
+local Wi-Fi transport; USB remains the setup and repair path. The first setup
+defaults to a distinct hotspot such as `UCSB-XRP-9EDE`, with
 password `ucsb-xrp` and service address `http://192.168.42.1`. Join the named
 network when the wizard asks. The web tools continue from Chrome's verified
 offline copy. A repaired robot keeps its existing network unless another mode
@@ -128,14 +135,21 @@ is selected. **Existing Wi-Fi** is also available in the wizard and later from
 IDE Settings; credentials pass directly to the XRP over USB and are not stored
 by the web application.
 
-Selecting the project folder performs a real write-and-read check and creates
+Selecting a working folder performs a real write-and-read check and creates
 `UCSB_XRP_Autosaves/xrp-setup-latest.txt`. The collapsed **Setup log** records
 the controller check, changed-file count, reset, and each robot-service probe;
-it never records the Wi-Fi password. **Connect to the XRP** begins after USB
-installation and reset have completed, so RESET and BOOT are not used at that
-step. If the XRP does not reply, join the network shown by the wizard and allow
-this site to access the local network when Chrome asks. On macOS, Chrome must
-also be enabled under **System Settings → Privacy & Security → Local Network**.
+it never records the Wi-Fi password. The folder can be chosen later in the IDE;
+the visible log remains copyable meanwhile. **Verify robot connection** begins
+after USB installation and reset. Existing-Wi-Fi mode can verify without
+changing the computer's network; hotspot mode requires joining the network
+shown by the wizard. Allow this site to access the local network when Chrome
+asks. On macOS, Chrome must also be enabled under **System Settings → Privacy &
+Security → Local Network**.
+
+The commissioning handoff opens only a folder with UCSBXRP project metadata or
+initializes an empty folder. A repository containing unrelated readable files
+is never imported automatically; use **Open folder** in the IDE when that is
+intentional.
 
 The same **Install or repair XRP** action is intentionally idempotent: matching
 files are not rewritten, changed files are replaced and hashed, the runtime is
@@ -224,7 +238,7 @@ npm run build
 npm run preview
 ```
 
-Load each production application once and wait for **Saved for offline use**.
+Load each production application once and wait for **Works without internet**.
 The web application and course release then operate locally without further
 exchange with the web host; robot commands and telemetry remain local network
 traffic. The saved release includes the applications, workers, MicroPython

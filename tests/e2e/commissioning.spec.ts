@@ -33,17 +33,52 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   await page.goto("/commission/");
 
   await expect(
-    page.getByRole("heading", { name: "Choose a project folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Choose project folder" }),
+    page.getByRole("button", { name: "Choose working folder" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await expect(page.getByText("Connect to XRP", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Verify robot connection", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Choose later" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+});
+
+test("explains a cancelled XRP device selection without an error", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: async () => [],
+        requestPort: async () => {
+          throw new DOMException(
+            "No port selected by the user.",
+            "NotFoundError",
+          );
+        },
+      },
+    });
+  });
+  await page.goto("/commission/");
+  await page.getByRole("button", { name: "Choose later" }).click();
+  await page.getByRole("button", { name: "Select connected XRP" }).click();
+
+  await expect(page.getByText("No XRP was selected.")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.getByText("Setup log", { exact: true }).click();
+  await expect(page.getByLabel("Setup log")).toContainText(
+    "Device selection was cancelled",
+  );
 });
 
 test("commissions a new XRP from the public wizard and hands it to the IDE", async ({
@@ -335,9 +370,9 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
   await page.goto("/commission/");
   await expect(
-    page.getByRole("heading", { name: "Choose a project folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Choose project folder" }).click();
+  await page.getByRole("button", { name: "Choose working folder" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
@@ -355,13 +390,13 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await page.getByRole("button", { name: "Select connected XRP" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Choose how the XRP connects" }),
+    page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
   await expect(page.getByLabel("Robot hotspot")).toBeChecked();
   await page.getByRole("button", { name: "Install or repair XRP" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Connect to the XRP" }),
+    page.getByRole("heading", { name: "Verify the robot connection" }),
   ).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText("UCSB-XRP-4A21", { exact: true })).toBeVisible();
   await expect(page.getByText("ucsb-xrp", { exact: true })).toBeVisible();
@@ -421,13 +456,13 @@ test("does not advance when the selected folder fails its write check", async ({
   });
 
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Choose project folder" }).click();
+  await page.getByRole("button", { name: "Choose working folder" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Choose a project folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
   await expect(page.getByRole("alert")).toContainText(
-    "project folder write check failed",
+    "working-folder write check failed",
   );
   await page.getByText("Setup log", { exact: true }).click();
   await expect(page.getByLabel("Setup log")).toContainText(

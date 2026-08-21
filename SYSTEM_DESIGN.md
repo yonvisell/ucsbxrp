@@ -60,7 +60,7 @@ folder, and any Python file can be selected as its main file (entrypoint).
 The selected native folder handle is retained in IndexedDB when the browser
 permits structured handle storage. If read/write permission survives, the IDE
 reattaches it; otherwise one explicit Reconnect gesture restores access.
-Browser recovery remains independent. Folder writes are debounced, serialized,
+The browser backup remains independent. Folder writes are debounced, serialized,
 and revision/epoch checked so an older queued snapshot cannot overwrite a newer
 edit or explicit save. Before overwriting source, the previous complete project
 is rotated through four JSON generations in `UCSB_XRP_Autosaves`.
@@ -68,14 +68,14 @@ is rotated through four JSON generations in `UCSB_XRP_Autosaves`.
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,
-outdated, or damaged XRP. It first obtains a project-folder handle and confirms
-that the complete production shell is available offline. The folder stores
-projects and rotated data copies; the application cache remains browser-owned.
-That distinction is explicit because a web application cannot choose its own
-disk cache location. Before continuing, the wizard writes and reads back a
-small setup log in that folder. Meaningful controller, installation, reset, and
-network-probe events append to the same password-free log; raw serial traffic is
-not retained.
+outdated, or damaged XRP. A working folder is useful but not a commissioning
+prerequisite: students may select one for a project, rotated data, and setup
+logs, or defer it until the IDE. The application cache remains browser-owned;
+a page cannot place that cache inside a user-selected folder. When a folder is
+selected, the wizard writes and reads back a small setup log before continuing.
+Meaningful controller, installation, reset, and network-probe events append to
+the same password-free log; without a folder the visible log remains copyable.
+Raw serial traffic is not retained.
 
 One user-selected Web Serial connection enters the MicroPython raw REPL. The
 wizard then performs a credential-free controller inspection, maintains any
@@ -96,10 +96,16 @@ repairs retain a valid existing profile unless the user chooses hotspot or
 station mode. Station credentials move directly from the page to the XRP over
 USB and are neither persisted nor returned to the page.
 
-After network activation and reset, the wizard reports every service-probe
+The XRP remains connected by USB throughout inspection and installation. USB
+is the firmware, repair, and network-configuration path; the installed HTTP
+service uses either the XRP hotspot or existing Wi-Fi for physical Run,
+Monitor, and telemetry. After network activation and reset, the wizard reports every service-probe
 attempt and distinguishes an unreachable network from an incompatible service.
-An exact service/release reply stores the physical endpoint, hands the selected
-folder to the IDE, and opens the IDE in physical mode. It cannot silently choose
+An exact service/release reply stores the physical endpoint, hands any selected
+folder to the IDE, and opens the IDE in physical mode. The IDE automatically
+opens only a folder containing UCSBXRP metadata, initializes an empty folder,
+and leaves an unrecognized nonempty folder unchanged until **Open folder** is
+selected explicitly. It cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
 firmware-volume, and local-network permissions; these are the only intentional
 user-mediated boundaries.
@@ -209,6 +215,13 @@ exact reference `.mpy` files, the project, and a simulated XRPLib. It
 compiles every project file, runs the selected entrypoint, and forwards output
 and authoritative simulator state. Terminating the worker stops non-yielding
 student code without freezing either application.
+
+Run in the IDE validates changed or previously unchecked files before launch.
+A fresh Monitor has one intentional fallback: it validates and prepares the
+default expanding-spiral project when no shared project exists, then starts it.
+Once a project exists, Monitor Run uses only that exact retained revision and
+remains disabled if IDE edits make it stale. Bounded console history is retained
+across runs and cleared only by an explicit UI action or target replacement.
 
 The deterministic plant uses fixed 20 ms integration, differential-drive
 kinematics, drive-command deadbands, asymmetric response, first-order acceleration and

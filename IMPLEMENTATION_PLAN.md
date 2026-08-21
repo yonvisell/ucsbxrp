@@ -398,9 +398,10 @@ slice moves the existing deterministic USB installation boundary into the
 public local-first application without changing the Wi-Fi runtime or course
 API.
 
-- Add a landing-page and IDE-Settings commissioning entrypoint that first
-  selects the student's normal project folder and waits for the complete
-  offline release.
+- Add a landing-page and IDE-Settings commissioning entrypoint with an optional
+  working-folder choice, and wait for the complete offline release. Folder
+  selection must not block robot repair or conflate project storage with the
+  browser's offline application cache.
 - Use a user-selected Web Serial XRP connection to enter MicroPython raw REPL,
   inspect the exact RP2350 controller/runtime, and keep an existing hardware
   watchdog alive throughout repair.
@@ -415,8 +416,9 @@ API.
   during repair, and retain explicit hotspot or existing-Wi-Fi selection. Never
   persist or echo a station password in the browser.
 - Activate the profile, reset, probe for the exact release/service reply, store
-  the physical target and endpoint, hand the selected folder to the IDE, and
-  open it automatically. The operating-system Wi-Fi selection remains the one
+  the physical target and endpoint, hand a selected working folder to the IDE
+  only when it is a recognized UCSBXRP project or a new empty folder, and open
+  the IDE automatically. The operating-system Wi-Fi selection remains the one
   manual hotspot handoff browsers cannot perform.
 - Exercise the raw-paste protocol, standard raw fallback, controller rejection,
   firmware integrity, changed-only and repeated installs, readback failure,
@@ -499,3 +501,31 @@ Usable result: an undergraduate can determine what belongs in each project
 file, what each student method receives and returns, and which supplied
 functions are available without reading package internals or treating the
 reference source as definitive.
+
+### Refinement 18 — Fresh-session recovery and truthful execution state
+
+Status: implemented and validated in unit, production/offline, Stable Chrome,
+direct Chrome, and attached-controller checks.
+
+- Keep USB as the complete commissioning, repair, and network-configuration
+  transport. Explain that physical Run, Monitor, and telemetry use the robot's
+  selected local Wi-Fi after setup; USB may remain attached but is not a second
+  runtime transport.
+- Make the setup working folder optional. Accept a remembered folder for
+  automatic IDE handoff only when it contains UCSBXRP metadata; initialize an
+  empty folder, but never replace the default project with unrelated source
+  files merely because a prior directory permission exists.
+- Let a fresh virtual Monitor prepare and run the shared Expanding spiral
+  default without requiring the IDE to run first. Continue requiring an
+  explicit physical flash when no verified project exists on the robot.
+- Make Run validate the current project automatically and stop with the
+  compiler error in Details when validation fails. Preserve prior validation,
+  output, completion, and exception messages across subsequent runs and reset.
+- Present one literal project identity first in IDE Status, followed by Target,
+  Validation, and Robot project. Use **working folder** for optional native
+  storage, **browser backup** for recovery data, and **Works without internet**
+  for the verified cached application.
+
+Usable result: a fresh browser session starts with one predictable project,
+either app can start the virtual default, Run and Details agree about what
+happened, and setup does not silently import an unrelated repository.

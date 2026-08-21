@@ -64,7 +64,7 @@ course browser:
 
 1. open the commissioning wizard, IDE, Monitor, and guide at their final Pages
    paths;
-2. wait for **Saved for offline use**;
+2. wait for **Works without internet**;
 3. reload the applications with networking disabled and run one virtual
    project;
 4. restore networking, run one USB commission/repair, join the selected robot

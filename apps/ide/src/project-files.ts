@@ -1,6 +1,7 @@
 import {
+  DEFAULT_COURSE_PROJECT,
+  DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
   STAGE_ONE_PROJECT,
-  courseProjectTemplate,
   type CourseProject,
 } from "@ucsb-xrp/target";
 
@@ -80,15 +81,34 @@ const ignoredDirectories = new Set([
 ]);
 const maximumFiles = 250;
 const maximumFileBytes = 1024 * 1024;
-export const defaultProjectTemplateId = "demo_spiral";
+export const defaultProjectTemplateId = DEFAULT_COURSE_PROJECT_TEMPLATE_ID;
 
 function defaultProject(): ProjectSnapshot {
-  const project = courseProjectTemplate(defaultProjectTemplateId).project;
+  const project = DEFAULT_COURSE_PROJECT;
   return {
     name: project.name ?? "Expanding spiral",
     entrypoint: project.entrypoint,
     files: { ...project.files },
   };
+}
+
+export async function hasProjectFolderMetadata(
+  root: CourseDirectoryHandle,
+): Promise<boolean> {
+  try {
+    await root.getFileHandle(projectMetadataFile);
+    return true;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "NotFoundError"
+    ) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

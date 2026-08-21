@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import {
+  DEFAULT_COURSE_PROJECT,
   PhysicalTargetClient,
   TelemetryRecorder,
   VirtualTargetClient,
@@ -246,6 +247,7 @@ export function DashboardApp() {
   const [targetDetail, setTargetDetail] = useState("Not connected");
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
+  const [runStarting, setRunStarting] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [recordingActive, setRecordingActive] = useState(false);
   const [runtimeState, setRuntimeState] =
@@ -262,7 +264,7 @@ export function DashboardApp() {
   const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [runAutosaveDetail, setRunAutosaveDetail] = useState(
-    "Choose a project folder in the IDE, or choose a data folder here.",
+    "Choose a working folder in the IDE, or choose a data folder here.",
   );
   const nextConsoleId = useRef(1);
   const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
@@ -576,7 +578,6 @@ export function DashboardApp() {
   const reset = async () => {
     try {
       await target.reset();
-      setConsoleEntries([]);
     } catch (error: unknown) {
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
@@ -584,15 +585,25 @@ export function DashboardApp() {
   };
 
   const runOrStop = async () => {
+    if (runStarting) return;
     try {
       if (targetState === "running" || targetState === "loading") {
         await target.stop();
       } else {
+        setRunStarting(true);
+        if (target.kind === "virtual" && currentProject === null) {
+          setTargetDetail(
+            `Validating ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}…`,
+          );
+          await target.synchronize(DEFAULT_COURSE_PROJECT);
+        }
         await target.runCurrent();
       }
     } catch (error: unknown) {
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      setRunStarting(false);
     }
   };
 
@@ -773,8 +784,8 @@ export function DashboardApp() {
   const isRunning = targetState === "running" || targetState === "loading";
   const canRunCurrent =
     (targetState === "ready" || targetState === "error") &&
-    currentProject !== null &&
-    !currentProject.stale;
+    ((currentProject !== null && !currentProject.stale) ||
+      (target.kind === "virtual" && currentProject === null));
   const worldPreviewSample = useMemo(
     () => centeredWorldPreview(target.kind),
     [target.kind],
@@ -800,16 +811,20 @@ export function DashboardApp() {
           <button
             aria-label={isRunning ? "Stop" : "Run"}
             className={`command-run-button monitor-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
-            disabled={!isRunning && !canRunCurrent}
+            disabled={runStarting || (!isRunning && !canRunCurrent)}
             onClick={runOrStop}
             title={
               isRunning
                 ? "Stop the running program."
-                : currentProject?.stale
-                  ? "The IDE project changed. Run or flash it in the IDE first."
-                  : currentProject
-                    ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                    : "Run or flash a project in the IDE first."
+                : runStarting
+                  ? "Validating the default project before Run."
+                  : currentProject?.stale
+                    ? "The IDE project changed. Run or flash it in the IDE first."
+                    : currentProject
+                      ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                      : target.kind === "virtual"
+                        ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                        : "Run or flash a project in the IDE first."
             }
           >
             <RunStopIcon running={isRunning} />

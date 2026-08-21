@@ -191,14 +191,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   });
   const conciseStatus = ide.locator(".status-grid");
   await expect(
-    conciseStatus.getByText("Code check", { exact: true }),
+    conciseStatus.getByText("Validation", { exact: true }),
   ).toBeVisible();
   await expect(
     conciseStatus.getByText("Not checked", { exact: true }),
   ).toBeVisible();
   await expect(
-    conciseStatus.getByText("Project files", { exact: true }),
+    conciseStatus.getByText("Project", { exact: true }),
   ).toBeVisible();
+  await expect(conciseStatus.getByText("virtual-browser-check")).toBeVisible();
   await expect(
     conciseStatus.getByText("File operation", { exact: true }),
   ).toHaveCount(0);
@@ -297,6 +298,12 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(dashboardStatus).toContainText("Virtual XRP · running");
+  await expect(ide.getByRole("log")).toContainText("Virtual run complete");
+  await ide.getByRole("tab", { name: "Status" }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
+    "Python files compiled with MicroPython",
+  );
+  await ide.getByRole("tab", { name: /Details/ }).click();
   await dashboard
     .locator(".app-header")
     .getByRole("button", { name: "Stop", exact: true })
@@ -498,14 +505,14 @@ test("keeps project and output controls usable on a narrow screen", async ({
   );
 
   const showProjectFiles = ide.getByRole("button", {
-    name: /Project files/,
+    name: "Project ›",
   });
   await expect(showProjectFiles).toBeVisible();
   await showProjectFiles.click();
   await expect(
-    ide.getByRole("complementary", { name: "Project files" }),
+    ide.getByRole("complementary", { name: "Project" }),
   ).toBeVisible();
-  await ide.getByRole("button", { name: "Collapse project files" }).click();
+  await ide.getByRole("button", { name: "Collapse project" }).click();
   await expect(showProjectFiles).toBeVisible();
 
   await ide.getByRole("button", { name: "Collapse output" }).click();

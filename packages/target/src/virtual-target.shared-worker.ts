@@ -176,7 +176,6 @@ function prepareRuntime(
   }
   stopRuntime();
   clearRuntimeState();
-  consoleHistory.length = 0;
   simulatorState = simulator.reset();
   runOwnerLease.begin(port, activeRunId, performance.now());
   broadcast(telemetryEvent());

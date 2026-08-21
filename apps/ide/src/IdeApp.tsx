@@ -39,6 +39,7 @@ import {
   defaultProjectTemplateId,
   deleteProjectFile,
   duplicateProjectFile,
+  hasProjectFolderMetadata,
   loadRecoveredProject,
   normalizedProjectPath,
   projectPathError,
@@ -168,12 +169,14 @@ export function IdeApp() {
     useState<CourseDirectoryHandle | null>(null);
   const [rememberedFolder, setRememberedFolder] =
     useState<CourseDirectoryHandle | null>(null);
+  const [rememberedFolderCanAttach, setRememberedFolderCanAttach] =
+    useState(true);
   const [folderSaveState, setFolderSaveState] = useState<
     "browser" | "pending" | "saving" | "current" | "permission" | "error"
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
   const [operationDetail, setOperationDetail] = useState(
-    "Browser recovery is active. Choose Save to select a project folder, or Open folder to resume one.",
+    "This project is backed up in this browser. Choose Save to select its working folder, or Open folder to open another project.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -293,21 +296,21 @@ export function IdeApp() {
         return;
       }
       setRememberedFolder(folder);
+      const commissioningHandoff = courseFolderIsWaitingForIde();
+      if (folder.name !== projectRef.current.name && !commissioningHandoff) {
+        setRememberedFolderCanAttach(false);
+        return;
+      }
       const permission = await courseFolderPermission(folder);
       if (disposed) {
         return;
       }
       if (permission === "granted") {
-        const commissioningHandoff = courseFolderIsWaitingForIde();
-        if (folder.name !== projectRef.current.name && !commissioningHandoff) {
-          return;
-        }
         if (commissioningHandoff) {
-          try {
+          const isUcsbProject = await hasProjectFolderMetadata(folder);
+          if (isUcsbProject) {
             const opened = await readProjectFolder(folder);
-            if (disposed) {
-              return;
-            }
+            if (disposed) return;
             projectRef.current = opened.project;
             setProject(opened.project);
             setActivePath(opened.project.entrypoint);
@@ -321,21 +324,33 @@ export function IdeApp() {
             );
             setFolderDirty(false);
             setFolderSaveState("current");
-          } catch (error) {
-            if (
-              !(error instanceof Error) ||
-              !error.message.includes("no supported text project files")
-            ) {
-              throw error;
+          } else {
+            try {
+              await readProjectFolder(folder);
+              if (disposed) return;
+              setRememberedFolderCanAttach(false);
+              setOperationDetail(
+                `${folder.name} contains files but is not yet a UCSBXRP project, so the current project was left unchanged. Use Open folder if you intend to import it.`,
+              );
+              finishCourseFolderIdeHandoff();
+              return;
+            } catch (error) {
+              if (
+                !(error instanceof Error) ||
+                !error.message.includes("no supported text project files")
+              ) {
+                throw error;
+              }
+              setFolderDirty(true);
+              setFolderSaveState("pending");
+              setOperationDetail(
+                `${folder.name} is ready. The current project will be saved there automatically.`,
+              );
             }
-            setFolderDirty(true);
-            setFolderSaveState("pending");
-            setOperationDetail(
-              `${folder.name} is empty. The current project will be saved there automatically.`,
-            );
           }
           finishCourseFolderIdeHandoff();
         }
+        setRememberedFolderCanAttach(true);
         setWorkingFolder(folder);
         if (!commissioningHandoff) {
           setFolderDirty(true);
@@ -347,7 +362,7 @@ export function IdeApp() {
       } else {
         setFolderSaveState("permission");
         setOperationDetail(
-          `Reconnect ${folder.name} once to resume automatic folder saves.`,
+          `Reconnect ${folder.name} once to resume automatic working-folder saves.`,
         );
       }
     };
@@ -427,8 +442,8 @@ export function IdeApp() {
       setFolderDirty(true);
       setOperationDetail(
         workingFolder
-          ? "Changes are recovered in this browser and will save to the project folder automatically."
-          : "Changes are recovered in this browser.",
+          ? "Changes are backed up in this browser and save to the working folder automatically."
+          : "Changes are backed up in this browser.",
       );
     },
     [activePath, workingFolder],
@@ -477,15 +492,44 @@ export function IdeApp() {
       return;
     }
     setOutputPanelOpen(true);
-    setConsoleEntries([]);
     setConsoleTab("details");
+    let validationPassed = checkOk === true;
     try {
+      if (!validationPassed) {
+        setCheckDetail("Compiling Python project files with MicroPython…");
+        const result = await target.check(project);
+        setCheckOk(result.ok);
+        setCheckDetail(result.detail);
+        validationPassed = result.ok;
+        setConsoleEntries((entries) => [
+          ...entries.slice(-199),
+          {
+            id: nextConsoleId.current++,
+            stream: result.ok ? "system" : "stderr",
+            line: `${result.ok ? "Validation passed" : "Validation failed"}: ${result.detail}`,
+          },
+        ]);
+      }
+      if (!validationPassed) return;
       await target.run(project);
+      if (target.kind === "physical") {
+        setSyncOk(true);
+        setSyncDetail("The current project is flashed and ready on the XRP.");
+      }
     } catch (error) {
+      const detail = errorDetail(error);
       setTargetState("error");
-      setTargetDetail(errorDetail(error));
+      setTargetDetail(detail);
+      setConsoleEntries((entries) => [
+        ...entries.slice(-199),
+        {
+          id: nextConsoleId.current++,
+          stream: "stderr",
+          line: detail,
+        },
+      ]);
     }
-  }, [canCommand, isRunning, project, target]);
+  }, [canCommand, checkOk, isRunning, project, target]);
 
   const stopProgram = useCallback(async () => {
     if (!isRunning) {
@@ -513,6 +557,7 @@ export function IdeApp() {
       const result = await readProjectFolder(folder);
       setWorkingFolder(folder);
       setRememberedFolder(folder);
+      setRememberedFolderCanAttach(true);
       setFolderSaveState("current");
       void rememberCourseFolder(folder);
       projectRef.current = result.project;
@@ -537,7 +582,7 @@ export function IdeApp() {
   }, [replacePendingFolderDeletions]);
 
   const reconnectWorkingFolder = useCallback(async () => {
-    if (!rememberedFolder) {
+    if (!rememberedFolder || !rememberedFolderCanAttach) {
       return;
     }
     try {
@@ -545,7 +590,7 @@ export function IdeApp() {
       if (permission !== "granted") {
         setFolderSaveState("permission");
         setOperationDetail(
-          `Folder access was not granted. Browser recovery remains current.`,
+          `Folder access was not granted. The browser backup remains current.`,
         );
         return;
       }
@@ -561,7 +606,7 @@ export function IdeApp() {
         setOperationDetail(errorDetail(error));
       }
     }
-  }, [rememberedFolder]);
+  }, [rememberedFolder, rememberedFolderCanAttach]);
 
   const saveProjectFiles = useCallback(async () => {
     try {
@@ -588,6 +633,7 @@ export function IdeApp() {
       if (!workingFolder) {
         setWorkingFolder(folder);
         setRememberedFolder(folder);
+        setRememberedFolderCanAttach(true);
         projectRef.current = savedProject;
         setProject(savedProject);
         void rememberCourseFolder(folder);
@@ -966,11 +1012,11 @@ export function IdeApp() {
               ? "autosave pending"
               : "autosaved"
       }`
-    : rememberedFolder
+    : rememberedFolder && rememberedFolderCanAttach
       ? `${rememberedFolder.name} · reconnect to resume autosave`
       : folderDirty
-        ? "Browser recovery · choose Save to select a folder"
-        : "Browser recovery";
+        ? "Browser backup · choose Save for a working folder"
+        : "Browser backup only";
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
   const flashState =
     syncOk === false
@@ -1099,14 +1145,14 @@ export function IdeApp() {
         className={`ide-workspace ${projectPanelOpen ? "" : "project-collapsed"}`}
       >
         {projectPanelOpen ? (
-          <aside className="project-rail panel" aria-label="Project files">
+          <aside className="project-rail panel" aria-label="Project">
             <div className="panel-header project-heading">
-              <h2 className="panel-title">Project files</h2>
+              <h2 className="panel-title">Project</h2>
               <button
-                aria-label="Collapse project files"
+                aria-label="Collapse project"
                 className="icon-button"
                 onClick={() => setProjectPanelOpen(false)}
-                title="Collapse project files"
+                title="Collapse project"
               >
                 ‹
               </button>
@@ -1234,9 +1280,11 @@ export function IdeApp() {
                 </div>
               </div>
               <div className="project-storage">
-                <span>PROJECT FOLDER</span>
+                <span>WORKING FOLDER</span>
                 <strong title={storageDetail}>{storageDetail}</strong>
-                {!workingFolder && rememberedFolder ? (
+                {!workingFolder &&
+                rememberedFolder &&
+                rememberedFolderCanAttach ? (
                   <button
                     className="folder-reconnect"
                     onClick={reconnectWorkingFolder}
@@ -1266,9 +1314,9 @@ export function IdeApp() {
                 <button
                   className="project-reopen"
                   onClick={() => setProjectPanelOpen(true)}
-                  title="Show project files"
+                  title="Show project"
                 >
-                  Project files ›
+                  Project ›
                 </button>
               ) : null}
               {openPaths.map((path) => (
@@ -1306,7 +1354,7 @@ export function IdeApp() {
                       : folderDirty
                         ? "Autosave pending"
                         : "Autosaved"
-                  : "Browser recovery"}
+                  : "Browser backup"}
               </span>
             </div>
             <div className="editor-frame" data-testid="python-editor">
@@ -1403,12 +1451,21 @@ export function IdeApp() {
             {outputPanelOpen && consoleTab === "status" ? (
               <div className="status-grid" role="tabpanel">
                 <div>
+                  <span>Project</span>
+                  <strong>{project.name}</strong>
+                  <small aria-live="polite">
+                    {projectFiles.length} file
+                    {projectFiles.length === 1 ? "" : "s"} · main:{" "}
+                    {project.entrypoint}. {operationDetail}
+                  </small>
+                </div>
+                <div>
                   <span>Target</span>
                   <strong>{targetState}</strong>
                   <small>{targetDetail}</small>
                 </div>
                 <div>
-                  <span>Code check</span>
+                  <span>Validation</span>
                   <strong
                     className={
                       checkOk === true
@@ -1445,14 +1502,6 @@ export function IdeApp() {
                     <small aria-live="polite">{syncDetail}</small>
                   </div>
                 ) : null}
-                <div>
-                  <span>Project files</span>
-                  <strong>
-                    {projectFiles.length} file
-                    {projectFiles.length === 1 ? "" : "s"}
-                  </strong>
-                  <small aria-live="polite">{operationDetail}</small>
-                </div>
               </div>
             ) : outputPanelOpen ? (
               <div
@@ -1463,8 +1512,8 @@ export function IdeApp() {
               >
                 {consoleEntries.length === 0 ? (
                   <span className="console-placeholder">
-                    No run yet. Validate the project, then run it on the{" "}
-                    {target.kind === "virtual" ? "virtual" : "physical"} XRP.
+                    Program output and validation messages appear here. Run
+                    validates first.
                   </span>
                 ) : (
                   consoleEntries.map((entry) => (

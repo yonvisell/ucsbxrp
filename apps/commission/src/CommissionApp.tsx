@@ -85,7 +85,12 @@ function errorDetail(error: unknown): string {
 }
 
 function wasCancelled(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error.name === "AbortError" || error.name === "NotFoundError")
+  );
 }
 
 function manifestLocation(): URL {
@@ -124,6 +129,7 @@ export function CommissionApp() {
   const [stationPassword, setStationPassword] = useState("");
   const [progress, setProgress] = useState<CommissioningProgress | null>(null);
   const [result, setResult] = useState<CommissioningResult | null>(null);
+  const [selectingRobot, setSelectingRobot] = useState(false);
   const [checkingWifi, setCheckingWifi] = useState(false);
   const [wifiAttempts, setWifiAttempts] = useState(0);
   const [wifiIssue, setWifiIssue] = useState("");
@@ -207,7 +213,7 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is ready for project files and automatic copies.`,
+                `${rememberedFolder.name} is ready for project files, setup logs, and automatic copies.`,
               );
               setStage("usb");
               return;
@@ -227,7 +233,7 @@ export function CommissionApp() {
         if (!disposed) {
           setStage("folder");
           setDetail(
-            "Choose the local project folder the IDE will use after setup.",
+            "Choose a working folder for one XRP project, logs, and automatic copies, or continue and choose one later in the IDE.",
           );
         }
       } catch (initializationError) {
@@ -267,7 +273,6 @@ export function CommissionApp() {
         manifestReleaseRef.current,
       );
       await rememberCourseFolder(selected);
-      handCourseFolderToIde();
       folderNeedsPickerRef.current = false;
       folderRef.current = selected;
       setFolder(selected);
@@ -277,17 +282,29 @@ export function CommissionApp() {
         "success",
       );
       setDetail(
-        `${selected.name} is ready. The web tools are also saving their offline copy in Chrome.`,
+        `${selected.name} is ready. Chrome stores the web app separately so it can work without internet.`,
       );
       setStage("usb");
     } catch (folderError) {
       if (!wasCancelled(folderError)) {
         folderNeedsPickerRef.current = true;
         const message = errorDetail(folderError);
-        setError(`The project folder write check failed. ${message}`);
+        setError(`The working-folder write check failed. ${message}`);
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
     }
+  }, [recordSetup]);
+
+  const skipFolder = useCallback(() => {
+    setError("");
+    setDetail(
+      "Connect the XRP by USB-C and keep it connected through setup. Choose Save in the IDE later to add a working folder.",
+    );
+    recordSetup(
+      "Folder",
+      "Continued without a working folder; the visible setup log remains available to copy.",
+    );
+    setStage("usb");
   }, [recordSetup]);
 
   const inspectPort = useCallback(
@@ -361,19 +378,30 @@ export function CommissionApp() {
   );
 
   const selectRobot = useCallback(async () => {
-    if (!manifest) return;
+    if (!manifest || selectingRobot) return;
     setError("");
+    setSelectingRobot(true);
+    setDetail(
+      "Chrome opened its device picker. Select the SparkFun XRP controller and choose Connect; setup then continues automatically.",
+    );
     recordSetup("USB", "Opening the browser device picker.");
     try {
       await inspectPort(await requestXrpPort(manifest.controller));
     } catch (serialError) {
-      if (!wasCancelled(serialError)) {
+      if (wasCancelled(serialError)) {
+        setDetail(
+          "No XRP was selected. Select the connected XRP when you are ready.",
+        );
+        recordSetup("USB", "Device selection was cancelled.");
+      } else {
         const message = errorDetail(serialError);
         setError(message);
         recordSetup("USB", `Device selection failed: ${message}`, "error");
       }
+    } finally {
+      setSelectingRobot(false);
     }
-  }, [inspectPort, manifest, recordSetup]);
+  }, [inspectPort, manifest, recordSetup, selectingRobot]);
 
   useEffect(() => {
     if ((stage !== "network" && stage !== "firmware") || !sessionRef.current) {
@@ -525,7 +553,9 @@ export function CommissionApp() {
         physicalEndpoint: `http://${completed.network.address}`,
       };
       storeTargetPreference(preference);
-      handCourseFolderToIde();
+      if (folderRef.current) {
+        handCourseFolderToIde();
+      }
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";
       setWifiAttempts(0);
@@ -700,10 +730,10 @@ export function CommissionApp() {
       <main className="commission-layout">
         <aside aria-label="Setup progress" className="commission-steps">
           {[
-            [1, "Course folder"],
+            [1, "Working folder"],
             [2, "XRP over USB"],
             [3, "Install and verify"],
-            [4, "Connect to XRP"],
+            [4, "Verify robot connection"],
           ].map(([number, label]) => (
             <div
               className={
@@ -721,21 +751,21 @@ export function CommissionApp() {
           ))}
           <div className="commission-offline">
             <OfflineReadiness />
-            {folder ? <small>Projects: {folder.name}</small> : null}
+            {folder ? <small>Working folder: {folder.name}</small> : null}
           </div>
         </aside>
 
         <section className="commission-panel" aria-live="polite">
           <p className="commission-kicker">ROBOT SETUP &amp; REPAIR</p>
           {stage === "loading" ? <h1>Preparing setup</h1> : null}
-          {stage === "folder" ? <h1>Choose a project folder</h1> : null}
+          {stage === "folder" ? <h1>Choose a working folder</h1> : null}
           {stage === "usb" ? <h1>Connect the XRP by USB-C</h1> : null}
-          {stage === "network" ? <h1>Choose how the XRP connects</h1> : null}
+          {stage === "network" ? <h1>Choose the robot network</h1> : null}
           {stage === "installing" ? <h1>Updating the XRP</h1> : null}
           {stage === "firmware" || stage === "firmware-volume" ? (
             <h1>Install course firmware</h1>
           ) : null}
-          {stage === "wifi" ? <h1>Connect to the XRP</h1> : null}
+          {stage === "wifi" ? <h1>Verify the robot connection</h1> : null}
           {stage === "complete" ? <h1>XRP ready</h1> : null}
           <p className="commission-detail">{detail}</p>
 
@@ -747,12 +777,21 @@ export function CommissionApp() {
 
           {stage === "folder" ? (
             <div className="commission-actions">
-              <button className="primary-button" onClick={chooseFolder}>
-                Choose project folder
-              </button>
+              <div className="commission-action-row">
+                <button className="primary-button" onClick={chooseFolder}>
+                  Choose working folder
+                </button>
+                <button onClick={skipFolder}>Choose later</button>
+              </div>
               <p>
-                Source files and four automatic copies go here. Chrome keeps the
-                web application itself available offline.
+                Choose a new folder or an existing UCSBXRP project folder.
+                Source, setup logs, run data, and four automatic copies go
+                there. Chrome stores the web app itself separately.
+              </p>
+              <p>
+                For version control, clone the course repository with GitHub
+                Desktop and open that project folder in the IDE. This site never
+                requests or stores GitHub credentials.
               </p>
             </div>
           ) : null}
@@ -761,14 +800,16 @@ export function CommissionApp() {
             <div className="commission-actions">
               <button
                 className="primary-button"
-                disabled={!manifest || !supportsWebSerial()}
+                disabled={!manifest || !supportsWebSerial() || selectingRobot}
                 onClick={selectRobot}
               >
-                Select connected XRP
+                {selectingRobot
+                  ? "Waiting for device choice…"
+                  : "Select connected XRP"}
               </button>
               <p>
                 {supportsWebSerial()
-                  ? "Chrome shows one device picker. Setup then checks and repairs the controller automatically."
+                  ? "Chrome shows one device picker. The controller may appear as Board in FS mode. Keep USB-C connected through the automatic check and repair."
                   : "Open this page in current desktop Chrome or Edge to use USB setup."}
               </p>
             </div>
@@ -776,6 +817,13 @@ export function CommissionApp() {
 
           {stage === "network" ? (
             <div className="network-options">
+              <p className="network-explainer">
+                USB-C remains connected while the wizard installs and verifies
+                the robot. The selected network is then used locally for Run,
+                Monitor, and telemetry. Existing Wi-Fi needs no computer network
+                change; robot-hotspot mode requires joining the named hotspot
+                once.
+              </p>
               {existingNetwork?.present ? (
                 <label>
                   <input
@@ -975,7 +1023,7 @@ export function CommissionApp() {
                 {setupLogEntries.length === 1 ? "event" : "events"} ·{" "}
                 {folder
                   ? `saved to ${setupLogPath}`
-                  : "saved after folder selection"}
+                  : "copy available; no folder selected"}
               </small>
             </summary>
             <div className="setup-log-body">

@@ -16,6 +16,60 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("runs the default project directly from a fresh Monitor", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  const run = page
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true });
+  await expect(run).toBeEnabled();
+  await expect(run).toHaveAttribute("title", /Expanding spiral/);
+  await run.click();
+
+  await expect(page.getByRole("log")).toContainText(
+    "Project prepared for the virtual XRP",
+  );
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+});
+
+test("Run reports a validation error before starting invalid code", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "ucsb-xrp-course-project-v1",
+      JSON.stringify({
+        name: "invalid-project",
+        entrypoint: "main.py",
+        files: { "main.py": "def broken(:\n    pass\n" },
+      }),
+    );
+  });
+  await page.goto("/ide/");
+
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Validation failed");
+  await page.getByRole("tab", { name: "Status" }).click();
+  await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+});
+
 for (const starter of starters) {
   test(`${starter.option} validates and completes on the virtual XRP`, async ({
     page,

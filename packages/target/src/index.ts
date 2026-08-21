@@ -24,6 +24,8 @@ export { describeProject, projectRevision } from "./project-identity";
 export {
   COURSE_PROJECT_TEMPLATES,
   COURSE_STARTERS,
+  DEFAULT_COURSE_PROJECT,
+  DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
   STAGE_ONE_PROJECT,
   courseProjectTemplate,
   courseStarter,

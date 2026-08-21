@@ -10,10 +10,10 @@ import {
 
 const stateText: Record<OfflineShellState, string> = {
   development: "Development build",
-  installing: "Saving offline copy",
-  ready: "Saved for offline use",
-  unsupported: "Offline copy unavailable",
-  error: "Offline copy incomplete",
+  installing: "Preparing offline use",
+  ready: "Works without internet",
+  unsupported: "Offline use unavailable",
+  error: "Offline setup incomplete",
 };
 
 export function OfflineReadiness() {

@@ -1,8 +1,26 @@
 # Project status
 
-Last updated: 2026-08-07
+Last updated: 2026-08-20
 
 ## Current result
+
+Refinement 18 closes the fresh-session inconsistencies found in delayed user
+review. Run now validates automatically and leaves compiler errors in Details;
+program and validation history no longer disappears at the next run. A fresh
+virtual Monitor prepares and runs the same Expanding spiral default without an
+IDE prerequisite. IDE Status begins with the literal project name and entry
+file, followed by Target, Validation, and Robot project. Student-facing storage
+terms now distinguish the optional **working folder**, resilient **browser
+backup**, and the verified **Works without internet** application state.
+
+Commissioning remains USB-first. USB inspects, repairs, installs, and selects
+the robot network; normal physical Run, Monitor, and telemetry use that local
+Wi-Fi service afterward. The working folder is optional during the wizard. An
+automatic handoff opens only a recognized UCSBXRP project folder or initializes
+a new empty folder, preventing a remembered repository from replacing the
+default project with unrelated Python files. GitHub Desktop remains the
+recommended credential-free version-control path using that same folder; the
+static site does not request or store GitHub credentials.
 
 The seven delivery slices in `IMPLEMENTATION_PLAN.md` form one usable course
 development release: five cumulative starters, a canonical MicroPython
@@ -33,7 +51,7 @@ selection remain explicit.
 Refinement 15 completes the first physical dev.7 repair slice and simplifies
 the student-facing project workflow. The landing page separates initial
 setup/repair from the ordinary IDE, Monitor, and Guide actions. The IDE file
-rail now begins directly with **Project files**, keeps the file list primary,
+rail now begins directly with **Project**, keeps the file list primary,
 places Rename/Duplicate/Main/Delete and folder controls below it, and creates a
 new project from one compact template control. **Save** is explicit while the
 connected-folder status explains subsequent autosave. The Guide separately
@@ -81,7 +99,7 @@ far right. IDE and Monitor links carry a
 visible diagonal arrow and open a separate tab in both directions. In the
 Monitor, Signals and Time window precede permanently open Live controls, named
 watches appear below Live values in the right panel, and
-`Guide | • Saved for offline use` occupies the bottom of the controls sidebar
+`Guide | Works without internet` occupies the bottom of the controls sidebar
 only while that sidebar is open.
 In the IDE, offline readiness occupies the lower-left edge of the file rail
 only while the rail is open.
@@ -273,7 +291,7 @@ command was issued.
   output, and plots in one viewport. Narrow layouts use a compact top sheet and
   a vertically scrolling content order.
 - Status text is no longer styled like a button. Offline readiness is labeled
-  **Saved for offline use** and explicitly distinguishes the web copy from the
+  **Works without internet** and explicitly distinguishes the web copy from the
   robot connection.
 
 ### Virtual and physical targets
@@ -312,7 +330,7 @@ command was issued.
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, supplied bytecode, commissioning payload,
   exact RP2350 UF2, and dependency license notices. The interface says
-  **Saved for offline use**; robot connectivity remains a separate status.
+  **Works without internet**; robot connectivity remains a separate status.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
   later physical calibration.
@@ -328,21 +346,22 @@ The latest complete software pass includes:
 - 124 CPython API and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 122 Vitest tests for project identity and handling, folder rotation, target
+- 123 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, commissioning,
   raw REPL transport, plot data, and measured contrast;
 - a production build and verification of the exact 183-file offline manifest,
   including the 1,725,952-byte firmware against its pinned SHA-256 digest; and
-- 25 passing Stable Chrome software workflows covering all starters, the two
+- 28 passing Stable Chrome software workflows covering all starters, the two
   robot demos and tutorial project, flat IDE geometry, four-generation source
   autosave, per-run telemetry/output autosave, blocked-gate replanning,
   two-app target sharing,
   run-owner loss, narrow layouts, selectable/collapsed Monitor controls,
   typed live parameter updates and named watches, recording/CSV export, and a
   network-blocked offline reload, XRP-hotspot/existing-Wi-Fi selection, and the
-  fresh-browser spiral default, folder write failure, visible connection
-  diagnostics, and a complete browser commissioning session against a raw-REPL
-  RP2350 state machine using all 23 real payload files;
+  fresh-browser spiral default, fresh-Monitor direct Run, automatic validation
+  failure reporting, folder write failure, explicit serial-picker cancellation,
+  visible connection diagnostics, and a complete browser commissioning session
+  against a raw-REPL RP2350 state machine using all 23 real payload files;
   one opt-in physical-hardware workflow skipped because the ordinary software
   suite does not mutate an attached robot;
   plus direct Chrome and harness repetitions on the previously attached RP2350. The
@@ -374,7 +393,7 @@ project controls; a 6 px right inset for Settings; exact matching
 `rgb(0, 88, 138)` UCSB-mark and enabled-Run colors; a lower-left offline status
 whose bottom edge matches the open file rail; and no offline status in either
 header. The IDE calls the selected entrypoint **Main file** and its Status view
-now separates only Target, Code check, Robot files, and Project files. The
+now separates Project, Target, Validation, and Robot project. The
 constrained pass found and corrected multiline toolbar clipping by making the
 middle command region single-line and horizontally scrollable. Direct Chrome
 reported no console warnings or errors.
@@ -393,7 +412,7 @@ x-grid line appeared between adjacent labeled values. XRP zoom confirmed one
 dark gray chassis shade, and the Monitor header displayed `IDE ↗ |`. A separate
 Stable Chrome path used an unreachable physical endpoint and verified that the
 full-size map and centered, explicitly non-pose XRP preview remained visible.
-All 25 current software Chrome workflows pass and the physical opt-in workflow
+All 28 current software Chrome workflows pass and the physical opt-in workflow
 is intentionally skipped.
 
 The conservative efficiency/distribution refinement then removed the unused
@@ -420,7 +439,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The current local
-production build is `9b1caf4fc4efb34f110c` with 183 verified payload files.
+production build is `2bfd4e25238fe393b921` with 183 verified payload files.
 
 The commissioning workflow additionally passes focused controller/version
 rejection, raw-paste flow control and standard-raw fallback, changed-only
@@ -437,6 +456,14 @@ collapsed and expanded. The remaining live browser evidence is a repeat from
 the revised Pages origin through local-network permission and automatic IDE
 handoff. Firmware-volume repair was not forced on a controller that already had
 the exact pinned runtime.
+
+On 2026-08-20 the reattached RP2350 was detected at the expected SparkFun
+VID/PID and passed another complete changed-file comparison, readback, reset,
+and re-enumeration: all 23 release files were unchanged and no payload was
+rewritten. It retained hotspot mode at `192.168.42.1`. A station-mode repetition
+was not started because the formerly referenced local `Details.md` credential
+file was no longer present; the robot and computer network settings were left
+unchanged.
 
 ## Physical evidence
 

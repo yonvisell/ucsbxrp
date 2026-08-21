@@ -4,7 +4,7 @@
 
 Open **Open wizard for XRP initial set up or repair** from the public landing
 page, or **Set up or repair XRP** in IDE Settings, in current desktop Chrome or
-Edge. Choose a project folder, connect the RP2350 XRP by USB-C, select it once,
+Edge. Choose a working folder or defer it, connect the RP2350 XRP by USB-C, select it once,
 and choose **Robot hotspot** or **Existing Wi-Fi**.
 The wizard waits for the verified offline web copy, installs and read-verifies
 only changed course files, repairs MicroPython when needed, restarts the XRP,

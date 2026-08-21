@@ -155,6 +155,7 @@ export const COURSE_PROJECT_TEMPLATES: readonly CourseProjectTemplate[] =
   ]);
 
 export const STAGE_ONE_PROJECT = COURSE_STARTERS[0]!.project;
+export const DEFAULT_COURSE_PROJECT_TEMPLATE_ID = "demo_spiral";
 
 export function courseStarter(starterId: string): CourseStarter {
   const starter = COURSE_STARTERS.find(
@@ -177,3 +178,7 @@ export function courseProjectTemplate(
   }
   return template;
 }
+
+export const DEFAULT_COURSE_PROJECT = courseProjectTemplate(
+  DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
+).project;

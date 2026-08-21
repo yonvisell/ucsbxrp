@@ -172,6 +172,12 @@
   padding: 0 11px;
 }
 
+.commission-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .commission-actions p {
   margin: 0;
   color: var(--quiet);
@@ -183,6 +189,13 @@
   display: grid;
   max-width: 500px;
   gap: 1px;
+}
+
+.network-explainer {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.5;
 }
 
 .network-options > label {

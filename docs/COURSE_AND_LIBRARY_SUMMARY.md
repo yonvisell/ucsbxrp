@@ -198,10 +198,13 @@ device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
 student project changes with the network choice.
 
 The public commissioning wizard is the normal physical-robot entrypoint.
-Students choose their project folder, connect an RP2350 XRP by USB-C, and use
-one safe-to-repeat setup/repair action. The browser checks firmware and required
+Students may choose a working folder immediately or later, connect an RP2350
+XRP by USB-C, and use one safe-to-repeat setup/repair action. The browser checks firmware and required
 runtime versions, installs and read-verifies only changed course files, prepares
-the selected Wi-Fi profile, then opens the IDE on the verified physical target.
+the selected Wi-Fi profile, verifies the local robot service, then opens the IDE
+on the verified physical target. USB handles installation and repair; the
+existing physical Run, Monitor, and telemetry service uses the selected local
+Wi-Fi network.
 New robots default to their unique hotspot; an existing robot keeps its working
 network unless the student changes it. Instructor command-line provisioning is
 an optional fleet interface to the same exact release file set.

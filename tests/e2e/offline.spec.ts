@@ -59,7 +59,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Saved for offline use",
+    "Works without internet",
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -110,7 +110,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Saved for offline use",
+    "Works without internet",
   );
 
   await ide.getByRole("button", { name: "Validate" }).click();
@@ -128,7 +128,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Saved for offline use",
+    "Works without internet",
   );
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();

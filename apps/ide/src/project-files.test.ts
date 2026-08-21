@@ -5,6 +5,7 @@ import { STAGE_ONE_PROJECT, courseProjectTemplate } from "@ucsb-xrp/target";
 import {
   deleteProjectFile,
   duplicateProjectFile,
+  hasProjectFolderMetadata,
   loadRecoveredProject,
   normalizedProjectPath,
   projectPathError,
@@ -462,6 +463,23 @@ describe("project file operations", () => {
 });
 
 describe("working-folder reads", () => {
+  it("recognizes only folders with UCSBXRP project metadata", async () => {
+    const ordinaryFolder = new WritableDirectoryHandle(
+      "repository-root",
+      new Map([["unrelated.py", "print('not a project yet')\n"]]),
+    );
+    const ucsbProject = new WritableDirectoryHandle(
+      "course-project",
+      new Map([
+        ["main.py", "print('project')\n"],
+        [".ucsb-xrp-project.json", '{"entrypoint":"main.py"}\n'],
+      ]),
+    );
+
+    await expect(hasProjectFolderMetadata(ordinaryFolder)).resolves.toBe(false);
+    await expect(hasProjectFolderMetadata(ucsbProject)).resolves.toBe(true);
+  });
+
   it("loads supported nested files, prefers main.py, and counts skipped items", async () => {
     const root = new ReadonlyDirectoryHandle("course-project", [
       ["main.py", new ReadonlyFileHandle("main.py", "print('main')\n")],
