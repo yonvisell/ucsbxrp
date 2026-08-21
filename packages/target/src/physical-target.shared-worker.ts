@@ -22,6 +22,7 @@ let latestStatus: TargetEvent = {
 let latestTelemetry: TargetEvent | null = null;
 let latestProject: TargetEvent = { type: "project", project: null };
 let latestRuntime: TargetEvent | null = null;
+let latestWorld: TargetEvent | null = null;
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -40,6 +41,8 @@ function broadcast(event: TargetEvent): void {
     latestProject = event;
   } else if (event.type === "runtime") {
     latestRuntime = event;
+  } else if (event.type === "world") {
+    latestWorld = event;
   } else if (event.type === "console") {
     consoleHistory.push(event);
     if (consoleHistory.length > 200) {
@@ -59,6 +62,9 @@ function sendCurrentState(port: MessagePort): void {
   send(port, { type: "event", event: latestProject });
   if (latestRuntime) {
     send(port, { type: "event", event: latestRuntime });
+  }
+  if (latestWorld) {
+    send(port, { type: "event", event: latestWorld });
   }
   for (const event of consoleHistory) {
     send(port, { type: "event", event });
@@ -81,6 +87,7 @@ async function connectTarget(endpoint: string): Promise<void> {
   latestTelemetry = null;
   latestProject = { type: "project", project: null };
   latestRuntime = null;
+  latestWorld = null;
   nextTarget.subscribe(broadcast);
   const pendingConnection = nextTarget.connect();
   connection = pendingConnection;
@@ -118,6 +125,7 @@ async function handleCommand(
       latestTelemetry = null;
       latestProject = { type: "project", project: null };
       latestRuntime = null;
+      latestWorld = null;
       consoleHistory.length = 0;
     }
     return;

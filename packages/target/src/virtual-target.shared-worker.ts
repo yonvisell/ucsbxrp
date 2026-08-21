@@ -1,13 +1,18 @@
 /// <reference lib="webworker" />
 
 import {
+  DEFAULT_WORLD_CATALOG,
   XrpSimulator,
-  simulatorConfigForScenario,
+  simulatorConfigForWorld,
+  worldById,
   type SimulationScenario,
+  type WorldCatalog,
+  type WorldDefinition,
   type XrpSimulatorState,
 } from "@ucsb-xrp/simulator";
 
 import { RunOwnerLease } from "./run-owner-lease";
+import { worldCatalogForProject } from "./project-world";
 import {
   EMPTY_RUNTIME_STATE,
   encodeRuntimeParameter,
@@ -29,9 +34,13 @@ import { virtualTelemetrySample } from "./virtual-telemetry";
 
 declare const self: SharedWorkerGlobalScope;
 
-let currentScenario: SimulationScenario = "open";
-let simulator = new XrpSimulator(simulatorConfigForScenario(currentScenario));
-let simulatorState: XrpSimulatorState = simulator.state;
+let currentCatalog: WorldCatalog = DEFAULT_WORLD_CATALOG;
+let currentScenario: SimulationScenario = currentCatalog.defaultWorldId;
+let currentWorld: WorldDefinition = worldById(currentCatalog, currentScenario);
+let simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
+let simulatorState: XrpSimulatorState = simulator.reset(
+  currentWorld.initialPose,
+);
 const ports = new Set<MessagePort>();
 const consoleHistory: TargetEvent[] = [];
 const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
@@ -132,9 +141,20 @@ function storeProject(
   project: CourseProject,
   descriptor: SynchronizedProject,
 ): void {
+  currentCatalog = worldCatalogForProject(project);
+  currentScenario = currentCatalog.defaultWorldId;
+  currentWorld = worldById(currentCatalog, currentScenario);
+  simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
+  simulatorState = simulator.reset(currentWorld.initialPose);
   currentProject = project;
   currentProjectDescriptor = { ...descriptor, stale: false };
   broadcast({ type: "project", project: currentProjectDescriptor });
+  broadcast({
+    type: "world",
+    catalog: currentCatalog,
+    selectedWorldId: currentScenario,
+  });
+  broadcast(telemetryEvent());
 }
 
 function prepareRuntime(
@@ -172,7 +192,7 @@ function prepareRuntime(
   }
   stopRuntime();
   clearRuntimeState();
-  simulatorState = simulator.reset();
+  simulatorState = simulator.reset(currentWorld.initialPose);
   runOwnerLease.begin(port, activeRunId, performance.now());
   broadcast(telemetryEvent());
   broadcast({
@@ -188,6 +208,7 @@ function prepareRuntime(
     result: {
       runId: activeRunId,
       scenario: currentScenario,
+      world: currentWorld,
       project: currentProject,
       descriptor: currentProjectDescriptor,
     },
@@ -285,6 +306,14 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       type: "event",
       event: { type: "project", project: currentProjectDescriptor },
     });
+    send(port, {
+      type: "event",
+      event: {
+        type: "world",
+        catalog: currentCatalog,
+        selectedWorldId: currentScenario,
+      },
+    });
     for (const event of consoleHistory) {
       send(port, { type: "event", event });
     }
@@ -322,10 +351,26 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       });
       return;
     }
+    try {
+      currentWorld = worldById(currentCatalog, command.scenario);
+    } catch (error) {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
     currentScenario = command.scenario;
-    simulator = new XrpSimulator(simulatorConfigForScenario(currentScenario));
-    simulatorState = simulator.state;
+    simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
+    simulatorState = simulator.reset(currentWorld.initialPose);
     consoleHistory.length = 0;
+    broadcast({
+      type: "world",
+      catalog: currentCatalog,
+      selectedWorldId: currentScenario,
+    });
     broadcast(telemetryEvent());
     status("ready", "Virtual environment changed and XRP reset");
     broadcast({
@@ -429,7 +474,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         runId: stoppedRunId,
       });
     }
-    simulatorState = simulator.reset();
+    simulatorState = simulator.reset(currentWorld.initialPose);
     consoleHistory.length = 0;
     broadcast(telemetryEvent());
     broadcast({

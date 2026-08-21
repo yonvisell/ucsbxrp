@@ -9,6 +9,7 @@ import {
 
 import {
   DEFAULT_COURSE_PROJECT,
+  DEFAULT_WORLD_CATALOG,
   PhysicalTargetClient,
   TelemetryRecorder,
   VirtualTargetClient,
@@ -22,7 +23,7 @@ import {
   type TargetEvent,
   type TargetRunState,
   type TelemetrySample,
-  type SimulationScenario,
+  type WorldCatalog,
   type SynchronizedProject,
   type RuntimeParameterValue,
   type RuntimeState,
@@ -68,7 +69,6 @@ interface ConsoleEntry {
   line: string;
 }
 
-const simulationScenarioKey = "ucsb-xrp-simulation-scenario-v1";
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
 const maximumPlotSamples = 1_200;
 const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
@@ -241,11 +241,6 @@ function initiallyShowMonitorControls(): boolean {
     return true;
   }
   return window.matchMedia("(min-width: 901px)").matches;
-}
-
-function loadSimulationScenario(): SimulationScenario {
-  const stored = window.localStorage.getItem(simulationScenarioKey);
-  return stored === "delivery-gate-blocked" ? stored : "open";
 }
 
 function value(value: number | null, digits = 1): string {
@@ -456,15 +451,17 @@ function centeredWorldPreview(
 export function DashboardApp() {
   const [targetPreference, setTargetPreference] =
     useState(loadTargetPreference);
-  const [simulationScenario, setSimulationScenario] = useState(
-    loadSimulationScenario,
+  const [worldCatalog, setWorldCatalog] = useState<WorldCatalog>(
+    DEFAULT_WORLD_CATALOG,
+  );
+  const [selectedWorldId, setSelectedWorldId] = useState(
+    DEFAULT_WORLD_CATALOG.defaultWorldId,
   );
   const [monitorSettings, setMonitorSettings] =
     useState<MonitorSettings>(loadMonitorSettings);
   const [controlsOpen, setControlsOpen] = useState(
     initiallyShowMonitorControls,
   );
-  const simulationScenarioRef = useRef(simulationScenario);
   const target = useMemo<TargetClient>(
     () =>
       targetPreference.kind === "physical"
@@ -553,11 +550,6 @@ export function DashboardApp() {
     runtimeUpdateTimers.current.clear();
     setRuntimeDrafts({});
   }, [targetState]);
-
-  useEffect(() => {
-    simulationScenarioRef.current = simulationScenario;
-    window.localStorage.setItem(simulationScenarioKey, simulationScenario);
-  }, [simulationScenario]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -805,6 +797,9 @@ export function DashboardApp() {
             ),
           );
         }
+      } else if (event.type === "world") {
+        setWorldCatalog(event.catalog);
+        setSelectedWorldId(event.selectedWorldId);
       } else if (event.type === "console") {
         const entry = {
           id: nextConsoleId.current++,
@@ -830,9 +825,6 @@ export function DashboardApp() {
     const connect = async () => {
       try {
         await target.connect();
-        if (target.kind === "virtual") {
-          await target.setSimulationScenario?.(simulationScenarioRef.current);
-        }
       } catch (error: unknown) {
         if (!disposed) {
           setTargetState("error");
@@ -889,10 +881,10 @@ export function DashboardApp() {
     }
   };
 
-  const changeSimulationScenario = async (nextScenario: SimulationScenario) => {
-    setSimulationScenario(nextScenario);
+  const changeWorld = async (nextWorldId: string) => {
+    setSelectedWorldId(nextWorldId);
     try {
-      await target.setSimulationScenario?.(nextScenario);
+      await target.setSimulationScenario?.(nextWorldId);
     } catch (error: unknown) {
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
@@ -1124,7 +1116,9 @@ export function DashboardApp() {
       const blob = await createWorldReplayWebm({
         samples,
         annotations: annotationsVisible ? annotations : [],
-        scenario: simulationScenario,
+        world:
+          worldCatalog.worlds.find((world) => world.id === selectedWorldId) ??
+          worldCatalog.worlds[0]!,
         onProgress: (fraction) => {
           const progress = Math.floor(fraction * 100);
           if (progress !== shownProgress) {
@@ -1620,15 +1614,15 @@ export function DashboardApp() {
             <section className="world-panel dashboard-pane">
               <WorldView
                 annotations={annotations}
-                onScenarioChange={
+                catalog={worldCatalog}
+                onWorldChange={
                   target.kind === "virtual"
-                    ? (nextScenario) =>
-                        void changeSimulationScenario(nextScenario)
+                    ? (nextWorldId) => void changeWorld(nextWorldId)
                     : undefined
                 }
                 sample={worldSample}
-                scenario={target.kind === "virtual" ? simulationScenario : null}
-                scenarioDisabled={
+                selectedWorldId={selectedWorldId}
+                worldSelectionDisabled={
                   targetState === "loading" || targetState === "running"
                 }
                 showAnnotations={annotationsVisible}

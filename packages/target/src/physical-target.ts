@@ -14,7 +14,9 @@ import type {
   PhysicalWorkerMessage,
 } from "./physical-worker-protocol";
 import { describeProject } from "./project-identity";
+import { worldCatalogForProject } from "./project-world";
 import { EMPTY_RUNTIME_STATE, parseRuntimeState } from "./runtime-controls";
+import { parseWorldCatalog } from "@ucsb-xrp/simulator";
 
 interface PhysicalProjectManifest {
   name: string;
@@ -22,6 +24,7 @@ interface PhysicalProjectManifest {
   revision?: string;
   files?: string[];
   bytes?: number;
+  worldJson?: string;
 }
 
 interface PhysicalInfo {
@@ -145,6 +148,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private info: PhysicalInfo | null = null;
   private lastRuntimeJson = "";
   private runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
+  private lastWorldJson = "";
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -266,6 +270,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async synchronize(project: CourseProject): Promise<void> {
+    const catalog = worldCatalogForProject(project);
     const descriptor = await describeProject(project);
     const result = await this.command<{
       detail: string;
@@ -277,6 +282,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
       name: result.project?.name ?? descriptor.name,
       entrypoint: result.project?.entrypoint ?? descriptor.entrypoint,
       stale: false,
+    });
+    this.emit({
+      type: "world",
+      catalog,
+      selectedWorldId: catalog.defaultWorldId,
     });
     this.emit({ type: "console", stream: "system", line: result.detail });
   }
@@ -630,6 +640,26 @@ export class DirectPhysicalTargetClient implements TargetClient {
       revision: manifest.revision,
       stale,
     });
+    if (
+      typeof manifest.worldJson === "string" &&
+      manifest.worldJson !== this.lastWorldJson
+    ) {
+      this.lastWorldJson = manifest.worldJson;
+      try {
+        const catalog = parseWorldCatalog(manifest.worldJson);
+        this.emit({
+          type: "world",
+          catalog,
+          selectedWorldId: catalog.defaultWorldId,
+        });
+      } catch (error) {
+        this.emit({
+          type: "console",
+          stream: "system",
+          line: `The XRP project has an invalid world.json: ${errorDetail(error)}`,
+        });
+      }
+    }
   }
 
   private setCurrentProject(project: SynchronizedProject | null): void {

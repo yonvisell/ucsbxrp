@@ -4,6 +4,21 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 30 makes the world part of each project. Every challenge, demo, and
+tutorial contains a readable `world.json` with millimeter bounds, initial pose,
+obstacles, and visual markers. The same validated file now configures the
+virtual plant, the Monitor grid, and WebM replay; changing its named world in
+the Monitor resets the virtual XRP to that world's initial pose. Challenge 4
+loads its arena, start pose, and destination from `world.json`; Challenge 5
+loads the same arena and named destination while retaining its observed gate as
+a map feature. The physical service stores the world definition with the
+flashed-project manifest, so a newly opened Monitor can recover it without the
+IDE tab. A new `ProjectWorld`/`load_world()` API provides the MicroPython side
+without executable drawing code. Chrome ran the default spiral through the new
+project-directory runtime path, and the coordinated course/service release is
+`2026.08-dev.10`. The complete Python, MicroPython, TypeScript, unit-build, and
+commissioning/offline build checks pass.
+
 Refinement 29 adds analysis signals without introducing print-based logging.
 `SensorModel` now publishes signed left/right wheel distance alongside its
 regularized wheel speed. Students may publish up to 16 finite numerical values
@@ -15,7 +30,7 @@ snap ordinary in-range values to their declared slider step instead of rejecting
 floating-point representations or ranges whose endpoint is between steps.
 Challenge 5 has a separate ultrasound-estimation check, and every challenge
 wrapper now names the exact IDE action, output location, and an example result.
-The coordinated course/service release is `2026.08-dev.9`.
+That slice introduced coordinated release `2026.08-dev.9`.
 
 Refinement 28 removes two sources of course-document drift. Challenge READMEs
 describe each task through the named values in `challenge.py` instead of copying

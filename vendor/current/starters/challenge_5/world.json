@@ -1,0 +1,108 @@
+{
+  "default_world": "gate-blocked",
+  "worlds": [
+    {
+      "id": "gate-blocked",
+      "label": "Center gate blocked",
+      "bounds": {
+        "minimum_x_mm": -200,
+        "minimum_y_mm": -500,
+        "maximum_x_mm": 1100,
+        "maximum_y_mm": 500
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": 350,
+          "minimum_y_mm": -350,
+          "maximum_x_mm": 450,
+          "maximum_y_mm": -100,
+          "label": "Lower wall"
+        },
+        {
+          "type": "wall",
+          "minimum_x_mm": 350,
+          "minimum_y_mm": 100,
+          "maximum_x_mm": 450,
+          "maximum_y_mm": 350,
+          "label": "Upper wall"
+        },
+        {
+          "type": "block",
+          "feature": "center_gate",
+          "minimum_x_mm": 350,
+          "minimum_y_mm": -100,
+          "maximum_x_mm": 450,
+          "maximum_y_mm": 100,
+          "label": "Center gate"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_line",
+          "x1_mm": 0,
+          "y1_mm": -140,
+          "x2_mm": 0,
+          "y2_mm": 140,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 900,
+          "y_mm": 0,
+          "heading_rad": 0,
+          "label": "Delivery"
+        }
+      ]
+    },
+    {
+      "id": "gate-open",
+      "label": "Center gate open",
+      "bounds": {
+        "minimum_x_mm": -200,
+        "minimum_y_mm": -500,
+        "maximum_x_mm": 1100,
+        "maximum_y_mm": 500
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": 350,
+          "minimum_y_mm": -350,
+          "maximum_x_mm": 450,
+          "maximum_y_mm": -100,
+          "label": "Lower wall"
+        },
+        {
+          "type": "wall",
+          "minimum_x_mm": 350,
+          "minimum_y_mm": 100,
+          "maximum_x_mm": 450,
+          "maximum_y_mm": 350,
+          "label": "Upper wall"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_line",
+          "x1_mm": 0,
+          "y1_mm": -140,
+          "x2_mm": 0,
+          "y2_mm": 140,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 900,
+          "y_mm": 0,
+          "heading_rad": 0,
+          "label": "Delivery"
+        }
+      ]
+    }
+  ]
+}

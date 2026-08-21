@@ -1,8 +1,4 @@
-import {
-  SIMULATION_SCENARIOS,
-  type SimulationScenario,
-  type TelemetrySample,
-} from "@ucsb-xrp/target";
+import { type TelemetrySample, type WorldDefinition } from "@ucsb-xrp/target";
 
 import {
   signalPlotDataForDefinition,
@@ -20,8 +16,6 @@ export interface MonitorAnnotation {
   yMm: number;
 }
 
-const WORLD_WIDTH_MM = 2_400;
-const WORLD_HEIGHT_MM = 1_800;
 const XRP_LENGTH_MM = 192.5;
 const XRP_WIDTH_MM = 190.5;
 
@@ -305,31 +299,41 @@ function drawWorldFrame(
   samples: readonly TelemetrySample[],
   currentIndex: number,
   annotations: readonly MonitorAnnotation[],
-  scenario: SimulationScenario,
+  world: WorldDefinition,
   plan: WorldReplayPlan,
 ): void {
   const canvas = context.canvas;
   const width = canvas.width;
   const height = canvas.height;
+  const worldWidth = world.bounds.maximumXmm - world.bounds.minimumXmm;
+  const worldHeight = world.bounds.maximumYmm - world.bounds.minimumYmm;
   const x = (worldX: number) =>
-    ((worldX + WORLD_WIDTH_MM / 2) / WORLD_WIDTH_MM) * width;
+    ((worldX - world.bounds.minimumXmm) / worldWidth) * width;
   const y = (worldY: number) =>
-    height - ((worldY + WORLD_HEIGHT_MM / 2) / WORLD_HEIGHT_MM) * height;
-  const xScale = width / WORLD_WIDTH_MM;
-  const yScale = height / WORLD_HEIGHT_MM;
+    height - ((worldY - world.bounds.minimumYmm) / worldHeight) * height;
+  const xScale = width / worldWidth;
+  const yScale = height / worldHeight;
   const sample = samples[currentIndex]!;
 
   context.fillStyle = "#eef1f2";
   context.fillRect(0, 0, width, height);
   context.lineWidth = 1;
-  for (let value = -1_200; value <= 1_200; value += 100) {
+  for (
+    let value = Math.ceil(world.bounds.minimumXmm / 100) * 100;
+    value <= world.bounds.maximumXmm;
+    value += 100
+  ) {
     context.strokeStyle = value % 500 === 0 ? "#aeb8bd" : "#d5dadd";
     context.beginPath();
     context.moveTo(x(value), 0);
     context.lineTo(x(value), height);
     context.stroke();
   }
-  for (let value = -900; value <= 900; value += 100) {
+  for (
+    let value = Math.ceil(world.bounds.minimumYmm / 100) * 100;
+    value <= world.bounds.maximumYmm;
+    value += 100
+  ) {
     context.strokeStyle = value % 500 === 0 ? "#aeb8bd" : "#d5dadd";
     context.beginPath();
     context.moveTo(0, y(value));
@@ -340,7 +344,7 @@ function drawWorldFrame(
   context.lineWidth = 2;
   context.strokeRect(1, 1, width - 2, height - 2);
 
-  for (const obstacle of SIMULATION_SCENARIOS[scenario].obstacles) {
+  for (const obstacle of world.obstacles) {
     context.fillStyle = "#a7423c";
     context.fillRect(
       x(obstacle.minimumXmm),
@@ -348,6 +352,29 @@ function drawWorldFrame(
       (obstacle.maximumXmm - obstacle.minimumXmm) * xScale,
       (obstacle.maximumYmm - obstacle.minimumYmm) * yScale,
     );
+  }
+
+  context.strokeStyle = "#315f85";
+  context.fillStyle = "#315f85";
+  context.lineWidth = 2;
+  for (const marker of world.markers) {
+    if (marker.type === "start_line") {
+      context.beginPath();
+      context.moveTo(x(marker.x1Mm), y(marker.y1Mm));
+      context.lineTo(x(marker.x2Mm), y(marker.y2Mm));
+      context.stroke();
+    } else if (marker.type === "start_box") {
+      context.strokeRect(
+        x(marker.minimumXmm),
+        y(marker.maximumYmm),
+        (marker.maximumXmm - marker.minimumXmm) * xScale,
+        (marker.maximumYmm - marker.minimumYmm) * yScale,
+      );
+    } else {
+      context.beginPath();
+      context.arc(x(marker.xMm), y(marker.yMm), 7, 0, Math.PI * 2);
+      context.fill();
+    }
   }
 
   context.strokeStyle = "#006c64";
@@ -469,7 +496,7 @@ export function webmExportSupported(): boolean {
 export async function createWorldReplayWebm(options: {
   samples: readonly TelemetrySample[];
   annotations?: readonly MonitorAnnotation[];
-  scenario: SimulationScenario;
+  world: WorldDefinition;
   onProgress?: (fraction: number) => void;
   maximumOutputSeconds?: number;
 }): Promise<Blob> {
@@ -529,7 +556,7 @@ export async function createWorldReplayWebm(options: {
         replaySamples,
         frame,
         options.annotations ?? [],
-        options.scenario,
+        options.world,
         plan,
       );
       videoTrack.requestFrame?.();

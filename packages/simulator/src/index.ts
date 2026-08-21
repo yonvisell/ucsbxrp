@@ -1,17 +1,26 @@
+import {
+  DEFAULT_WORLD_CATALOG,
+  worldById,
+  type AxisAlignedRectangle,
+  type WorldDefinition,
+} from "./world";
+
+export { DEFAULT_WORLD_CATALOG, parseWorldCatalog, worldById } from "./world";
+export type {
+  AxisAlignedRectangle,
+  WorldCatalog,
+  WorldDefinition,
+  WorldMarker,
+  WorldObstacle,
+} from "./world";
+
 export interface Pose2d {
   xMm: number;
   yMm: number;
   headingRad: number;
 }
 
-export interface AxisAlignedRectangle {
-  minimumXmm: number;
-  minimumYmm: number;
-  maximumXmm: number;
-  maximumYmm: number;
-}
-
-export type SimulationScenario = "open" | "delivery-gate-blocked";
+export type SimulationScenario = string;
 
 export const SIMULATION_SCENARIOS: Readonly<
   Record<
@@ -36,11 +45,20 @@ export const SIMULATION_SCENARIOS: Readonly<
 export function simulatorConfigForScenario(
   scenario: SimulationScenario = "open",
 ): Partial<XrpSimulatorConfig> {
-  const preset = SIMULATION_SCENARIOS[scenario];
-  if (!preset) {
-    throw new Error(`Unknown simulation scenario '${scenario}'`);
-  }
-  return { obstacles: preset.obstacles };
+  return simulatorConfigForWorld(defaultWorld(scenario));
+}
+
+export function simulatorConfigForWorld(
+  world: WorldDefinition,
+): Partial<XrpSimulatorConfig> {
+  return {
+    worldBounds: world.bounds,
+    obstacles: world.obstacles,
+  };
+}
+
+export function defaultWorld(scenario: SimulationScenario = "open") {
+  return worldById(DEFAULT_WORLD_CATALOG, scenario);
 }
 
 export interface XrpSimulatorConfig {

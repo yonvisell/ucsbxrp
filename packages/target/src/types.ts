@@ -120,6 +120,11 @@ export type TargetEvent =
       state: RuntimeState;
     }
   | {
+      type: "world";
+      catalog: WorldCatalog;
+      selectedWorldId: string;
+    }
+  | {
       type: "console";
       stream: "stdout" | "stderr" | "system";
       line: string;
@@ -144,3 +149,4 @@ export interface TargetClient {
   subscribe(listener: (event: TargetEvent) => void): () => void;
 }
 import type { SimulationScenario } from "@ucsb-xrp/simulator";
+import type { WorldCatalog } from "@ucsb-xrp/simulator";

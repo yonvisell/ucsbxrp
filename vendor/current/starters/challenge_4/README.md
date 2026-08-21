@@ -3,9 +3,10 @@
 ## Objective
 
 Plan and execute a collision-free route through the arena defined in
-`challenge.py`. `ARENA_MAP`, `INITIAL_POSE`, `DESTINATION`,
-`GRID_RESOLUTION_MM`, and `CLEARANCE_MM` define the current task instance. The
-planner must find a shortest four-neighbor path through free occupancy-grid
+`world.json`. `challenge.py` loads `ARENA_MAP`, `INITIAL_POSE`, and
+`DESTINATION` from that world; `GRID_RESOLUTION_MM` and `CLEARANCE_MM` define
+how it becomes a planning grid. These named values define the current task
+instance. The planner must find a shortest four-neighbor path through free occupancy-grid
 cells. The navigation controller then follows a compact set of world-coordinate
 goals derived from that path.
 
@@ -32,7 +33,8 @@ tie-breaking rule. See `GridPlanner`, `OccupancyGrid`, and `GridPath` in the
 
 | File or service | Use in this challenge |
 | --- | --- |
-| `challenge.py` | Defines arena bounds, obstacle, initial pose, destination, grid resolution, and clearance. |
+| `world.json` | Defines the arena bounds, obstacle, initial pose, and destination marker used by the simulator and Monitor. |
+| `challenge.py` | Loads the world geometry and defines the grid resolution and clearance. |
 | `main.py` | Builds the occupancy grid, requests a path, converts it to navigation goals, runs the route, and reports no-path or completion. |
 | `robot_config.py` | Defines robot calibration and navigation values. |
 | `course_setup.py` | Selects each supplied or student component independently. |

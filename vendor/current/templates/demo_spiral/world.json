@@ -1,0 +1,27 @@
+{
+  "default_world": "open-field",
+  "worlds": [
+    {
+      "id": "open-field",
+      "label": "Open field",
+      "bounds": {
+        "minimum_x_mm": -1200,
+        "minimum_y_mm": -900,
+        "maximum_x_mm": 1200,
+        "maximum_y_mm": 900
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -120,
+          "minimum_y_mm": -120,
+          "maximum_x_mm": 120,
+          "maximum_y_mm": 120,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

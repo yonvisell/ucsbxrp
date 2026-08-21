@@ -30,7 +30,8 @@ documented under `NavigationController` in the **UCSB XRP API**.
 | File or service | Use in this challenge |
 | --- | --- |
 | `main.py` | Starts the route, passes each new pose to navigation, sends the returned command to `Robot`, and stops in `finally`. |
-| `challenge.py` | Defines the initial pose and ordered `NavigationGoal` values. |
+| `world.json` | Defines the dimensioned world, initial pose, and ordered waypoint markers used by the simulator and Monitor. |
+| `challenge.py` | Loads the initial pose and ordered `NavigationGoal` values from the world file. |
 | `robot_config.py` | Defines robot calibration plus cruise, approach, turn, and tolerance values. |
 | `course_setup.py` | Selects every component independently and constructs the robot and navigator. |
 | `component_checks.py` | Tests isolated component behavior without starting either robot. |

@@ -30,7 +30,8 @@ integration; it does not change the responsibility of any component.
 
 | File or service | Use in this challenge |
 | --- | --- |
-| `challenge.py` | Defines the `DeliveryTask`: initial pose, dimensioned arena, named gate, destination, grid settings, range sample count, and gate decision threshold. |
+| `world.json` | Defines the two visible gate conditions, shared arena, initial pose, named gate, and destination used by the simulator and Monitor. |
+| `challenge.py` | Loads the world and defines the remaining `DeliveryTask` settings: planning grid, range sample count, and gate decision threshold. |
 | `main.py` | Constructs `DeliveryMission`, runs it, and reports the mission result and final pose. |
 | `robot_config.py` | Defines robot calibration and navigation values. |
 | `course_setup.py` | Selects each supplied or student component independently. |

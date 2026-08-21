@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.9"
+COURSE_RELEASE = "2026.08-dev.10"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -193,6 +193,13 @@ def _read_manifest():
                     "files": files,
                 }
             )
+        if (
+            "worldJson" not in _active_manifest
+            and "world.json" in _active_manifest.get("files", ())
+        ):
+            _active_manifest["worldJson"] = open(
+                _active_slot_path() + "/world.json"
+            ).read()
         return _active_manifest
     except Exception:
         return None
@@ -219,6 +226,8 @@ def _write_project(project):
             "bytes": project["bytes"],
             "revision": project_revision(project),
         }
+        if "world.json" in project["files"]:
+            manifest["worldJson"] = project["files"]["world.json"]
         with open(slot_path + "/.project.json", "w") as handle:
             json.dump(manifest, handle)
         pointer_tmp = ACTIVE_POINTER + ".tmp"

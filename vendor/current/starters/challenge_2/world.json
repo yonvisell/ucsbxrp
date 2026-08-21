@@ -1,0 +1,34 @@
+{
+  "default_world": "turn-and-return",
+  "worlds": [
+    {
+      "id": "turn-and-return",
+      "label": "Turn and return",
+      "bounds": {
+        "minimum_x_mm": -300,
+        "minimum_y_mm": -500,
+        "maximum_x_mm": 800,
+        "maximum_y_mm": 500
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -100,
+          "minimum_y_mm": -100,
+          "maximum_x_mm": 100,
+          "maximum_y_mm": 100,
+          "label": "Start and finish"
+        },
+        {
+          "type": "waypoint",
+          "name": "turn",
+          "x_mm": 500,
+          "y_mm": 0,
+          "label": "Turn"
+        }
+      ]
+    }
+  ]
+}

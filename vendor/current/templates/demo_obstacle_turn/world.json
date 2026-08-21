@@ -1,0 +1,44 @@
+{
+  "default_world": "two-obstacles",
+  "worlds": [
+    {
+      "id": "two-obstacles",
+      "label": "Two obstacles",
+      "bounds": {
+        "minimum_x_mm": -300,
+        "minimum_y_mm": -300,
+        "maximum_x_mm": 1000,
+        "maximum_y_mm": 1000
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": 600,
+          "minimum_y_mm": -220,
+          "maximum_x_mm": 650,
+          "maximum_y_mm": 320,
+          "label": "First obstacle"
+        },
+        {
+          "type": "wall",
+          "minimum_x_mm": 250,
+          "minimum_y_mm": 650,
+          "maximum_x_mm": 750,
+          "maximum_y_mm": 700,
+          "label": "Second obstacle"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -80,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": 80,
+          "maximum_y_mm": 80,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

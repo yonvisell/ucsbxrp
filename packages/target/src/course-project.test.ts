@@ -64,6 +64,9 @@ describe("course starter catalog", () => {
     expect(tutorial.project.files["7_finite_state_machine.py"]).toContain(
       "next_state",
     );
-    expect(Object.keys(tutorial.project.files)).toHaveLength(9);
+    expect(Object.keys(tutorial.project.files)).toHaveLength(10);
+    for (const template of COURSE_PROJECT_TEMPLATES) {
+      expect(template.project.files["world.json"]).toContain('"worlds"');
+    }
   });
 });

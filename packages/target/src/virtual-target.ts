@@ -3,7 +3,7 @@ import type {
   TargetWorkerCommand,
   TargetWorkerMessage,
 } from "./worker-protocol";
-import type { SimulationScenario } from "@ucsb-xrp/simulator";
+import type { SimulationScenario, WorldDefinition } from "@ucsb-xrp/simulator";
 import type {
   CheckResult,
   CourseProject,
@@ -24,6 +24,7 @@ interface PendingRequest {
 interface PreparedRun {
   runId: number;
   scenario: SimulationScenario;
+  world: WorldDefinition;
   project: CourseProject;
   descriptor: SynchronizedProject;
 }
@@ -208,7 +209,7 @@ export class VirtualTargetClient implements TargetClient {
         },
   ): Promise<void> {
     this.terminateRuntime();
-    const { runId, scenario, project } = (await this.request(
+    const { runId, scenario, world, project } = (await this.request(
       command,
     )) as PreparedRun;
     let runtimeWorker: Worker;
@@ -262,6 +263,7 @@ export class VirtualTargetClient implements TargetClient {
       mode: "run",
       project,
       scenario,
+      world,
       liveParameterBuffer: this.liveValues?.buffer,
     });
   }

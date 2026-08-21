@@ -29,7 +29,8 @@ internal algorithm.
 | File or service | Use in this challenge |
 | --- | --- |
 | `main.py` | Starts the robot, runs `StraightLineController`, reports completion, and stops the robot in `finally`. |
-| `challenge.py` | Defines the initial pose, travel distance, and target time. |
+| `world.json` | Defines the dimensioned world, initial pose, start line, and finish marker used by the simulator and Monitor. |
+| `challenge.py` | Loads the world, derives the travel distance from its finish marker, and defines the target time. |
 | `robot_config.py` | Defines robot geometry/calibration and straight-line speeds and tolerances. |
 | `course_setup.py` | Selects supplied or student components and assembles `Robot`. |
 | `component_checks.py` | Tests each component in MicroPython without starting either robot. |

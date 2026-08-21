@@ -1,0 +1,34 @@
+{
+  "default_world": "straight-run",
+  "worlds": [
+    {
+      "id": "straight-run",
+      "label": "Straight run",
+      "bounds": {
+        "minimum_x_mm": -200,
+        "minimum_y_mm": -500,
+        "maximum_x_mm": 1400,
+        "maximum_y_mm": 500
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_line",
+          "x1_mm": 0,
+          "y1_mm": -150,
+          "x2_mm": 0,
+          "y2_mm": 150,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "finish",
+          "x_mm": 1000,
+          "y_mm": 0,
+          "label": "Finish"
+        }
+      ]
+    }
+  ]
+}

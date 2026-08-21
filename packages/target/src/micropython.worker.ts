@@ -2,7 +2,11 @@
 
 import { loadMicroPython } from "@micropython/micropython-webassembly-pyscript";
 import micropythonWasmUrl from "@micropython/micropython-webassembly-pyscript/micropython.wasm?url";
-import { XrpSimulator, simulatorConfigForScenario } from "@ucsb-xrp/simulator";
+import {
+  XrpSimulator,
+  defaultWorld,
+  simulatorConfigForWorld,
+} from "@ucsb-xrp/simulator";
 
 import { COURSE_PACKAGE_FILES, COURSE_REFERENCE_FILES } from "./course-python";
 import { prepareProject } from "./project-validation";
@@ -51,9 +55,9 @@ function telemetryNumber(value: unknown): number | null {
 }
 
 self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
-  const simulator = new XrpSimulator(
-    simulatorConfigForScenario(event.data.scenario),
-  );
+  const world = event.data.world ?? defaultWorld(event.data.scenario);
+  const simulator = new XrpSimulator(simulatorConfigForWorld(world));
+  simulator.reset(world.initialPose);
   let leftEncoderOrigin = 0;
   let rightEncoderOrigin = 0;
   let lastSimulationTime = performance.now();
@@ -282,7 +286,10 @@ for __ucsb_path in __ucsb_check_paths:
       const entrypoint = project.entrypoint;
       runtime.runPython(`
 import sys
+import os
 sys.path.insert(0, "/project")
+sys.path.insert(1, "/")
+os.chdir("/project")
 __ucsb_entrypoint = "/project/${entrypoint}"
 exec(
     compile(
@@ -304,6 +311,7 @@ exec(
     const entrypoint = project.entrypoint;
     runtime.runPython(`
 import sys
+import os
 import time
 import xrp_sim_bridge
 
@@ -314,6 +322,8 @@ def __ucsb_simulated_sleep_ms(duration_ms):
 time.sleep_ms = __ucsb_simulated_sleep_ms
 
 sys.path.insert(0, "/project")
+sys.path.insert(1, "/")
+os.chdir("/project")
 from ucsb_xrp.robot import _set_managed_start
 _set_managed_start(True)
 __ucsb_entrypoint = "/project/${entrypoint}"

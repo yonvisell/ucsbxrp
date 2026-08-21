@@ -1,6 +1,8 @@
 import math
+import json
 import pathlib
 import sys
+import tempfile
 import unittest
 
 
@@ -26,6 +28,7 @@ from ucsb_xrp import (  # noqa: E402
     distance_to_goal,
     elapsed_time_s,
     wrap_angle_rad,
+    load_world,
 )
 from ucsb_xrp.student_api import (  # noqa: E402
     SensorModelBase,
@@ -198,6 +201,68 @@ class UtilityContractTests(unittest.TestCase):
             self.assertLess(wrapped, math.pi)
         self.assertAlmostEqual(wrap_angle_rad(math.pi), -math.pi)
         self.assertGreater(wrap_angle_rad(math.pi - 2e-6), 0.0)
+
+    def test_project_world_loads_geometry_and_named_waypoint(self):
+        catalog = {
+            "default_world": "lab",
+            "worlds": [
+                {
+                    "id": "lab",
+                    "label": "Lab",
+                    "bounds": {
+                        "minimum_x_mm": 0,
+                        "minimum_y_mm": 0,
+                        "maximum_x_mm": 800,
+                        "maximum_y_mm": 600,
+                    },
+                    "initial_pose": {
+                        "x_mm": 100,
+                        "y_mm": 120,
+                        "heading_rad": 0,
+                    },
+                    "obstacles": [
+                        {
+                            "type": "wall",
+                            "minimum_x_mm": 300,
+                            "minimum_y_mm": 0,
+                            "maximum_x_mm": 330,
+                            "maximum_y_mm": 400,
+                        },
+                        {
+                            "type": "block",
+                            "feature": "gate",
+                            "minimum_x_mm": 500,
+                            "minimum_y_mm": 200,
+                            "maximum_x_mm": 550,
+                            "maximum_y_mm": 300,
+                        },
+                    ],
+                    "markers": [
+                        {
+                            "type": "waypoint",
+                            "name": "finish",
+                            "x_mm": 700,
+                            "y_mm": 500,
+                            "heading_rad": 1.0,
+                        }
+                    ],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "world.json"
+            path.write_text(json.dumps(catalog), encoding="utf-8")
+            world = load_world(str(path))
+
+        self.assertEqual(world.id, "lab")
+        self.assertEqual(world.initial_pose, Pose(100, 120, 0))
+        self.assertEqual(world.feature_names, ("gate",))
+        self.assertEqual(world.waypoint("finish"), NavigationGoal(700, 500, 1.0))
+        self.assertFalse(world.arena_map().is_free(310, 100))
+        self.assertTrue(world.arena_map().is_free(525, 250))
+        self.assertFalse(
+            world.arena_map(blocked_features=("gate",)).is_free(525, 250)
+        )
 
 
 class StudentInterfaceContractTests(unittest.TestCase):

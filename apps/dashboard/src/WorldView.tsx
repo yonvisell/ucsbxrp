@@ -2,25 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import {
-  SIMULATION_SCENARIOS,
-  type SimulationScenario,
   type TelemetrySample,
+  type WorldCatalog,
+  type WorldDefinition,
 } from "@ucsb-xrp/target";
 
 import type { MonitorAnnotation } from "./monitor-export";
 
 interface WorldViewProps {
   annotations?: readonly MonitorAnnotation[];
-  onScenarioChange?: (scenario: SimulationScenario) => void;
+  catalog: WorldCatalog;
+  onWorldChange?: (worldId: string) => void;
   sample: TelemetrySample;
-  scenario: SimulationScenario | null;
-  scenarioDisabled?: boolean;
+  selectedWorldId: string;
+  worldSelectionDisabled?: boolean;
   showAnnotations?: boolean;
 }
 
-const WORLD_WIDTH_MM = 2_400;
-const WORLD_HEIGHT_MM = 1_800;
-const WORLD_VERTICAL_SPAN_MM = 1_950;
 const MINOR_GRID_MM = 100;
 const MAJOR_GRID_MM = 500;
 
@@ -80,71 +78,96 @@ function textSprite(text: string, widthMm = 176): THREE.Sprite {
   return sprite;
 }
 
-function addBoundedGrid(scene: THREE.Scene): void {
-  const halfWidth = WORLD_WIDTH_MM / 2;
-  const halfHeight = WORLD_HEIGHT_MM / 2;
+function addBoundedGrid(
+  scene: THREE.Scene,
+  bounds: WorldDefinition["bounds"],
+): void {
   const minor: THREE.Vector3[] = [];
   const major: THREE.Vector3[] = [];
 
-  for (let x = -halfWidth + MINOR_GRID_MM; x < halfWidth; x += MINOR_GRID_MM) {
+  for (
+    let x = Math.ceil(bounds.minimumXmm / MINOR_GRID_MM) * MINOR_GRID_MM;
+    x < bounds.maximumXmm;
+    x += MINOR_GRID_MM
+  ) {
     const points = x % MAJOR_GRID_MM === 0 ? major : minor;
     points.push(
-      new THREE.Vector3(x, -halfHeight, 0),
-      new THREE.Vector3(x, halfHeight, 0),
+      new THREE.Vector3(x, bounds.minimumYmm, 0),
+      new THREE.Vector3(x, bounds.maximumYmm, 0),
     );
   }
   for (
-    let y = -halfHeight + MINOR_GRID_MM;
-    y < halfHeight;
+    let y = Math.ceil(bounds.minimumYmm / MINOR_GRID_MM) * MINOR_GRID_MM;
+    y < bounds.maximumYmm;
     y += MINOR_GRID_MM
   ) {
     const points = y % MAJOR_GRID_MM === 0 ? major : minor;
     points.push(
-      new THREE.Vector3(-halfWidth, y, 0),
-      new THREE.Vector3(halfWidth, y, 0),
+      new THREE.Vector3(bounds.minimumXmm, y, 0),
+      new THREE.Vector3(bounds.maximumXmm, y, 0),
     );
   }
 
   addSegments(scene, minor, "#d5dadd", -9);
   addSegments(scene, major, "#aeb8bd", -8);
-  addSegments(
-    scene,
-    [
-      new THREE.Vector3(-halfWidth, 0, 0),
-      new THREE.Vector3(halfWidth, 0, 0),
-      new THREE.Vector3(0, -halfHeight, 0),
-      new THREE.Vector3(0, halfHeight, 0),
-    ],
-    "#687a84",
-    -7,
-  );
+  const axes: THREE.Vector3[] = [];
+  if (bounds.minimumYmm <= 0 && bounds.maximumYmm >= 0) {
+    axes.push(
+      new THREE.Vector3(bounds.minimumXmm, 0, 0),
+      new THREE.Vector3(bounds.maximumXmm, 0, 0),
+    );
+  }
+  if (bounds.minimumXmm <= 0 && bounds.maximumXmm >= 0) {
+    axes.push(
+      new THREE.Vector3(0, bounds.minimumYmm, 0),
+      new THREE.Vector3(0, bounds.maximumYmm, 0),
+    );
+  }
+  addSegments(scene, axes, "#687a84", -7);
 
   const border = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-halfWidth, -halfHeight, -6),
-      new THREE.Vector3(halfWidth, -halfHeight, -6),
-      new THREE.Vector3(halfWidth, halfHeight, -6),
-      new THREE.Vector3(-halfWidth, halfHeight, -6),
+      new THREE.Vector3(bounds.minimumXmm, bounds.minimumYmm, -6),
+      new THREE.Vector3(bounds.maximumXmm, bounds.minimumYmm, -6),
+      new THREE.Vector3(bounds.maximumXmm, bounds.maximumYmm, -6),
+      new THREE.Vector3(bounds.minimumXmm, bounds.maximumYmm, -6),
     ]),
     new THREE.LineBasicMaterial({ color: "#596a73" }),
   );
   scene.add(border);
 
-  for (let x = -1_000; x <= 1_000; x += MAJOR_GRID_MM) {
+  const labelInset = Math.min(
+    42,
+    (bounds.maximumYmm - bounds.minimumYmm) * 0.035,
+  );
+  for (
+    let x = Math.ceil(bounds.minimumXmm / MAJOR_GRID_MM) * MAJOR_GRID_MM;
+    x <= bounds.maximumXmm;
+    x += MAJOR_GRID_MM
+  ) {
     const label = textSprite(String(x), 190);
-    label.position.set(x, -864, 4);
+    label.position.set(x, bounds.minimumYmm + labelInset, 4);
     scene.add(label);
   }
-  for (const y of [-500, 500]) {
+  for (
+    let y = Math.ceil(bounds.minimumYmm / MAJOR_GRID_MM) * MAJOR_GRID_MM;
+    y <= bounds.maximumYmm;
+    y += MAJOR_GRID_MM
+  ) {
+    if (y === 0) continue;
     const label = textSprite(String(y), 165);
-    label.position.set(-1_105, y, 4);
+    label.position.set(bounds.minimumXmm + 72, y, 4);
     scene.add(label);
   }
   const xAxisLabel = textSprite("x (mm)", 160);
-  xAxisLabel.position.set(1_105, -816, 4);
+  xAxisLabel.position.set(
+    bounds.maximumXmm - 95,
+    bounds.minimumYmm + labelInset * 2.1,
+    4,
+  );
   scene.add(xAxisLabel);
   const yAxisLabel = textSprite("y (mm)", 160);
-  yAxisLabel.position.set(-1_105, 816, 4);
+  yAxisLabel.position.set(bounds.minimumXmm + 95, bounds.maximumYmm - 45, 4);
   scene.add(yAxisLabel);
 }
 
@@ -277,12 +300,20 @@ function disposeObject(object: THREE.Object3D): void {
 
 export function WorldView({
   annotations = [],
-  onScenarioChange,
+  catalog,
+  onWorldChange,
   sample,
-  scenario,
-  scenarioDisabled = false,
+  selectedWorldId,
+  worldSelectionDisabled = false,
   showAnnotations = true,
 }: WorldViewProps) {
+  const world =
+    catalog.worlds.find((candidate) => candidate.id === selectedWorldId) ??
+    catalog.worlds[0]!;
+  const worldWidthMm = world.bounds.maximumXmm - world.bounds.minimumXmm;
+  const worldHeightMm = world.bounds.maximumYmm - world.bounds.minimumYmm;
+  const worldCenterX = (world.bounds.minimumXmm + world.bounds.maximumXmm) / 2;
+  const worldCenterY = (world.bounds.minimumYmm + world.bounds.maximumYmm) / 2;
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -308,15 +339,15 @@ export function WorldView({
     scene.background = new THREE.Color("#f7f8f8");
     sceneRef.current = scene;
     const camera = new THREE.OrthographicCamera(
-      -1_200,
-      1_200,
-      900,
-      -900,
+      world.bounds.minimumXmm,
+      world.bounds.maximumXmm,
+      world.bounds.maximumYmm,
+      world.bounds.minimumYmm,
       1,
       4_000,
     );
-    camera.position.set(sample.xMm, sample.yMm, 2_200);
-    camera.lookAt(sample.xMm, sample.yMm, 0);
+    camera.position.set(worldCenterX, worldCenterY, 2_200);
+    camera.lookAt(worldCenterX, worldCenterY, 0);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -332,19 +363,20 @@ export function WorldView({
     scene.add(key);
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(WORLD_WIDTH_MM, WORLD_HEIGHT_MM),
+      new THREE.PlaneGeometry(worldWidthMm, worldHeightMm),
       new THREE.MeshStandardMaterial({
         color: "#eef1f2",
         metalness: 0,
         roughness: 0.94,
       }),
     );
+    floor.position.x = worldCenterX;
+    floor.position.y = worldCenterY;
     floor.position.z = -12;
     scene.add(floor);
-    addBoundedGrid(scene);
+    addBoundedGrid(scene, world.bounds);
 
-    const obstacles = scenario ? SIMULATION_SCENARIOS[scenario].obstacles : [];
-    for (const obstacle of obstacles) {
+    for (const obstacle of world.obstacles) {
       const width = obstacle.maximumXmm - obstacle.minimumXmm;
       const height = obstacle.maximumYmm - obstacle.minimumYmm;
       const mesh = new THREE.Mesh(
@@ -361,6 +393,39 @@ export function WorldView({
         1,
       );
       scene.add(mesh);
+    }
+
+    for (const marker of world.markers) {
+      if (marker.type === "waypoint") {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(18, 23, 28),
+          new THREE.MeshBasicMaterial({
+            color: "#315f85",
+            side: THREE.DoubleSide,
+          }),
+        );
+        ring.position.set(marker.xMm, marker.yMm, 2);
+        scene.add(ring);
+      } else {
+        const points =
+          marker.type === "start_line"
+            ? [
+                new THREE.Vector3(marker.x1Mm, marker.y1Mm, 2),
+                new THREE.Vector3(marker.x2Mm, marker.y2Mm, 2),
+              ]
+            : [
+                new THREE.Vector3(marker.minimumXmm, marker.minimumYmm, 2),
+                new THREE.Vector3(marker.maximumXmm, marker.minimumYmm, 2),
+                new THREE.Vector3(marker.maximumXmm, marker.maximumYmm, 2),
+                new THREE.Vector3(marker.minimumXmm, marker.maximumYmm, 2),
+                new THREE.Vector3(marker.minimumXmm, marker.minimumYmm, 2),
+              ];
+        const line = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({ color: "#315f85" }),
+        );
+        scene.add(line);
+      }
     }
 
     robotRef.current = addRobotModel(scene);
@@ -387,7 +452,7 @@ export function WorldView({
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
-      const vertical = WORLD_VERTICAL_SPAN_MM / viewZoomRef.current;
+      const vertical = (worldHeightMm + 150) / viewZoomRef.current;
       const horizontal = vertical * (width / height);
       camera.left = -horizontal / 2;
       camera.right = horizontal / 2;
@@ -427,7 +492,7 @@ export function WorldView({
       trailPoints.current = [];
       lastSequence.current = -1;
     };
-  }, [scenario]);
+  }, [world, worldCenterX, worldCenterY, worldHeightMm, worldWidthMm]);
 
   useEffect(() => {
     const robot = robotRef.current;
@@ -461,9 +526,9 @@ export function WorldView({
       camera.position.y = sample.yMm - 40;
       camera.lookAt(sample.xMm, sample.yMm, 0);
     } else {
-      camera.position.x = 0;
-      camera.position.y = 0;
-      camera.lookAt(0, 0, 0);
+      camera.position.x = worldCenterX;
+      camera.position.y = worldCenterY;
+      camera.lookAt(worldCenterX, worldCenterY, 0);
     }
 
     range.geometry.dispose();
@@ -486,7 +551,7 @@ export function WorldView({
     }
     resizeRef.current?.();
     renderer.render(scene, camera);
-  }, [sample, viewZoom]);
+  }, [sample, viewZoom, worldCenterX, worldCenterY]);
 
   useEffect(() => {
     const group = annotationGroupRef.current;
@@ -520,37 +585,33 @@ export function WorldView({
       }
     }
     renderer.render(scene, camera);
-  }, [annotations, scenario, showAnnotations]);
+  }, [annotations, showAnnotations, world]);
 
   return (
     <div
       aria-describedby="world-grid-description"
       aria-label="Top-down XRP world with millimeter grid"
       className="world-view"
-      data-arena-mm={`${WORLD_WIDTH_MM} × ${WORLD_HEIGHT_MM}`}
+      data-arena-mm={`${worldWidthMm} × ${worldHeightMm}`}
       data-pose-state={sample.poseAvailable ? "published" : "centered-preview"}
       data-testid="world-view"
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
     >
       <div className="world-toolbar">
         <b className="world-section-label">World</b>
-        {scenario && onScenarioChange ? (
+        {onWorldChange ? (
           <select
-            aria-label="Virtual scene"
-            disabled={scenarioDisabled}
-            onChange={(event) =>
-              onScenarioChange(event.target.value as SimulationScenario)
-            }
-            title="Choose the virtual arena condition. Changing it resets the virtual XRP."
-            value={scenario}
+            aria-label="World configuration"
+            disabled={worldSelectionDisabled}
+            onChange={(event) => onWorldChange(event.target.value)}
+            title="Choose a world defined by this project's world.json file. Changing it resets the virtual XRP."
+            value={world.id}
           >
-            {Object.entries(SIMULATION_SCENARIOS).map(
-              ([scenarioId, configuration]) => (
-                <option key={scenarioId} value={scenarioId}>
-                  {configuration.label}
-                </option>
-              ),
-            )}
+            {catalog.worlds.map((configuration) => (
+              <option key={configuration.id} value={configuration.id}>
+                {configuration.label}
+              </option>
+            ))}
           </select>
         ) : null}
         <button
@@ -569,9 +630,10 @@ export function WorldView({
       </div>
       <div className="world-canvas" ref={hostRef}>
         <span className="visually-hidden" id="world-grid-description">
-          The arena spans x from −1200 to 1200 millimeters and y from −900 to
-          900 millimeters. Major grid lines and values are labeled every 500
-          millimeters.
+          The arena spans x from {world.bounds.minimumXmm} to{" "}
+          {world.bounds.maximumXmm} millimeters and y from{" "}
+          {world.bounds.minimumYmm} to {world.bounds.maximumYmm} millimeters.
+          Major grid lines and values are labeled every 500 millimeters.
         </span>
         <div
           aria-label="World line legend: green is path; ochre is ultrasound distance"

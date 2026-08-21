@@ -25,6 +25,11 @@ const rawStarterFiles = {
     import: "default",
     query: "?raw",
   }) as Record<string, string>),
+  ...(import.meta.glob("../../../vendor/current/starters/challenge_*/*.json", {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  }) as Record<string, string>),
 };
 
 const rawTemplateFiles = {
@@ -34,6 +39,11 @@ const rawTemplateFiles = {
     query: "?raw",
   }) as Record<string, string>),
   ...(import.meta.glob("../../../vendor/current/templates/**/*.md", {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  }) as Record<string, string>),
+  ...(import.meta.glob("../../../vendor/current/templates/**/*.json", {
     eager: true,
     import: "default",
     query: "?raw",

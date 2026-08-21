@@ -1,0 +1,49 @@
+{
+  "default_world": "waypoint-route",
+  "worlds": [
+    {
+      "id": "waypoint-route",
+      "label": "Waypoint route",
+      "bounds": {
+        "minimum_x_mm": -200,
+        "minimum_y_mm": -200,
+        "maximum_x_mm": 700,
+        "maximum_y_mm": 600
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -80,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": 80,
+          "maximum_y_mm": 80,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "route_1",
+          "x_mm": 400,
+          "y_mm": 0,
+          "label": "1"
+        },
+        {
+          "type": "waypoint",
+          "name": "route_2",
+          "x_mm": 400,
+          "y_mm": 300,
+          "label": "2"
+        },
+        {
+          "type": "waypoint",
+          "name": "route_3",
+          "x_mm": 0,
+          "y_mm": 300,
+          "heading_rad": 3.141592653589793,
+          "label": "3"
+        }
+      ]
+    }
+  ]
+}

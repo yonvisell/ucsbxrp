@@ -36,6 +36,7 @@ from .utils import (
     wrap_angle_rad,
 )
 from .xrpbot import XRPBot
+from .world import ProjectWorld, load_world
 
 __version__ = "0.4.0-dev"
 
@@ -59,6 +60,7 @@ __all__ = (
     "MotorEfforts",
     "NavigationGoal",
     "Pose",
+    "ProjectWorld",
     "RawSensors",
     "Robot",
     "RobotState",
@@ -74,4 +76,5 @@ __all__ = (
     "elapsed_time_s",
     "wrap_angle_rad",
     "live",
+    "load_world",
 )

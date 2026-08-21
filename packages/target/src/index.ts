@@ -7,9 +7,20 @@ export {
 export type { PhysicalTargetOptions } from "./physical-target";
 export {
   SIMULATION_SCENARIOS,
+  DEFAULT_WORLD_CATALOG,
+  parseWorldCatalog,
   simulatorConfigForScenario,
+  simulatorConfigForWorld,
+  worldById,
 } from "@ucsb-xrp/simulator";
-export type { SimulationScenario } from "@ucsb-xrp/simulator";
+export type {
+  SimulationScenario,
+  WorldCatalog,
+  WorldDefinition,
+  WorldMarker,
+  WorldObstacle,
+} from "@ucsb-xrp/simulator";
+export { PROJECT_WORLD_FILE, worldCatalogForProject } from "./project-world";
 export {
   TelemetryRecorder,
   telemetryRecordingToCsv,

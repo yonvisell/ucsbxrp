@@ -2,10 +2,11 @@
 
 from math import pi
 
-from ucsb_xrp import Pose
+from ucsb_xrp import distance_to_goal, load_world
 
 
-INITIAL_POSE = Pose(0.0, 0.0, 0.0)
-OUTBOUND_DISTANCE_MM = 500.0
+WORLD = load_world()
+INITIAL_POSE = WORLD.initial_pose
+OUTBOUND_DISTANCE_MM = distance_to_goal(INITIAL_POSE, WORLD.waypoint("turn"))
 TURN_HEADING_RAD = pi
-RETURN_DISTANCE_MM = 500.0
+RETURN_DISTANCE_MM = OUTBOUND_DISTANCE_MM

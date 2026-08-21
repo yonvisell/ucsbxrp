@@ -1,5 +1,6 @@
 import type {
   SimulationScenario,
+  WorldDefinition,
   XrpSimulatorState,
 } from "@ucsb-xrp/simulator";
 
@@ -81,6 +82,7 @@ export type TargetWorkerMessage =
       result?: {
         runId?: number;
         scenario?: SimulationScenario;
+        world?: WorldDefinition;
         project?: CourseProject;
         descriptor?: SynchronizedProject;
       };
@@ -96,6 +98,7 @@ export interface RuntimeWorkerRequest {
   mode: "check" | "test" | "run";
   project: CourseProject;
   scenario?: SimulationScenario;
+  world?: WorldDefinition;
   liveParameterBuffer?: SharedArrayBuffer;
 }
 

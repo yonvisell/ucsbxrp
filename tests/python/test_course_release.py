@@ -18,7 +18,7 @@ class CourseReleaseHashTest(unittest.TestCase):
             COURSE_RELEASE.DEFAULT_SOURCE, COURSE_RELEASE.DEFAULT_RELEASE
         )
         self.assertEqual(identity["algorithm"], "sha256-file-manifest-v1")
-        self.assertEqual(identity["file_count"], 14)
+        self.assertEqual(identity["file_count"], 15)
 
     def test_manifest_is_ordered_and_includes_paths_and_content_hashes(self):
         with tempfile.TemporaryDirectory() as directory:

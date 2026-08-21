@@ -55,6 +55,14 @@ current code. Length-prefixing makes that calculation unambiguous. The shared
 target publishes only `{name, entrypoint, revision, stale}` to the UI; source
 remains inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
+Each runnable project may contain `world.json`. It is a bounded declarative
+catalog of named worlds: millimeter bounds, initial pose, rectangular blocks or
+walls, start lines or boxes, and waypoints. Validation parses this file before a
+run. The selected definition configures the simulator, Monitor, and replay
+export; `ucsb_xrp.load_world()` exposes the same geometry to project Python.
+This keeps the simulated environment, visible course figure, and challenge map
+from drifting into separate copies. The flashed-project manifest retains the
+world text so Monitor can recover it from a physical XRP after a page reload.
 Catalog entries are complete `CourseProject` values, not a persistent special
 mode. A workspace is a parent directory; each project is one named child
 directory containing source, metadata, rotated copies, run output, and
@@ -122,9 +130,9 @@ The Monitor is the observation surface. It subscribes to the same target as the
 IDE and presents only available data. It contains:
 
 - target and run state;
-- a dimensioned top-down world view with bounded 100 mm grid lines, labeled
-  500 mm x/y values, robot pose, heading, trail, range ray, obstacle, contact
-  state, and arena/XRP zoom views;
+- a project-defined, dimensioned top-down world view with bounded 100 mm grid
+  lines, labeled 500 mm x/y values, start and waypoint markers, blocks or walls,
+  robot pose, heading, trail, range ray, contact state, and arena/XRP zoom views;
 - a compact collapsible sidebar with selectable 2–30 second histories of wheel
   speed, dimensionless drive command, simulation-only odometry comparison,
   forward range, acceleration, and yaw rate;
@@ -186,9 +194,9 @@ a checkpoint fallback rather than a second synchronization system.
 `TargetClient` exposes `connect`, `disconnect`, `check`, `synchronize`, `run`,
 `runCurrent`, `markProjectStale`, `stop`, `reset`, `setRuntimeParameter`, and
 event subscription. The
-virtual target additionally accepts a named simulation scenario. Events are
-typed as status, synchronized-project state, runtime state, console, or
-telemetry; samples
+virtual target additionally accepts a world ID from the active project's world
+catalog. Events are typed as status, synchronized-project state, project world,
+runtime state, console, or telemetry; samples
 carry source, sequence/time, pose availability, motion,
 encoders, collision, range, button, IMU, temperature, battery, and sensor-error
 fields.
@@ -221,7 +229,7 @@ versioned browser-storage record.
 
 A `SharedWorker` owns the target state shared by IDE and Monitor tabs:
 
-- simulation scenario and latest plant state;
+- project world catalog, selected world, and latest plant state;
 - target status, console history, and telemetry fan-out;
 - the current complete project and its public revision descriptor;
 - active run identity and owner lease; and

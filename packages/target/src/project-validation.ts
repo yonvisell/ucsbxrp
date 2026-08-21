@@ -1,4 +1,5 @@
 import type { CourseProject } from "./types";
+import { worldCatalogForProject } from "./project-world";
 
 export interface PreparedProject {
   entrypoint: string;
@@ -21,6 +22,7 @@ export function normalizeProjectPath(path: string): string {
 }
 
 export function prepareProject(project: CourseProject): PreparedProject {
+  worldCatalogForProject(project);
   const entrypoint = normalizeProjectPath(project.entrypoint);
   if (!entrypoint.endsWith(".py")) {
     throw new Error("The project entry point must be a Python (.py) file");
