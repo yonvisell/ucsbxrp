@@ -104,7 +104,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   const webmDownloadPromise = monitor.waitForEvent("download", {
     timeout: 20_000,
   });
-  await monitor.getByRole("button", { name: "World WebM" }).click();
+  await monitor.getByRole("button", { name: "Video", exact: true }).click();
   const webmDownload = await webmDownloadPromise;
   expect(webmDownload.suggestedFilename()).toMatch(/^xrp-world-.*\.webm$/);
   const webmPath = await webmDownload.path();

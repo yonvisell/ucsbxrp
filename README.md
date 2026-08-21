@@ -121,7 +121,7 @@ each strip plot; **Hide notes** and **Show notes** change all views together.
 At most 24 current notes are retained, and monitored-run metadata saves them
 with the run. **Plots SVG** exports all selected plots as one editable vector
 figure; **Plots PNG** exports the same figure as a high-resolution image.
-After stopping a telemetry recording, **World WebM** creates a 960×720 replay
+After stopping a telemetry recording, **Video** creates a 960×720 WebM world replay
 with the path, ultrasound ray, robot pose, scene, and visible notes. Replays
 preserve real time up to 20 seconds and label the acceleration factor used for
 longer recordings. The export path uses browser-native graphics and video

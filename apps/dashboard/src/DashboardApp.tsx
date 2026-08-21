@@ -1326,7 +1326,7 @@ export function DashboardApp() {
                       onClick={() => void exportWorldReplay()}
                       title="Create a WebM world animation from the stopped telemetry recording. Long recordings are accelerated to at most 20 seconds."
                     >
-                      World WebM
+                      Video
                     </button>
                   </div>
                   {exportDetail ? (

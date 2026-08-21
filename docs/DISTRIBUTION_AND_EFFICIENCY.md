@@ -14,12 +14,12 @@ and canvas-renderer modules it uses. The initial reduction moved its minified
 JavaScript from 1,687,014 to 1,081,536 bytes and gzip size from 511,939 to
 315,685 bytes without changing behavior. Combined SVG/PNG figures,
 telemetry-driven WebM replay, and timestamped annotations bring the current
-Monitor to 1,096,729 bytes minified and 319,455 bytes under ordinary gzip: an
-increase of 15,193 and 3,770 bytes respectively, with no new package. Export
+Monitor to 1,096,724 bytes minified and 319,454 bytes under ordinary gzip: an
+increase of 15,188 and 3,769 bytes respectively, with no new package. Export
 canvases, SVG strings, and media encoders exist only while an export is being
 made.
 
-The complete self-commissioning release is 9,122,965 bytes across 183 verified
+The complete self-commissioning release is 9,122,960 bytes across 183 verified
 payloads. Its largest addition remains the exact 1,725,952-byte RP2350 UF2
 needed for repair after the computer leaves internet Wi-Fi. The commissioning
 application is 33,204 bytes minified and about 10.9 kB gzip.

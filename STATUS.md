@@ -465,7 +465,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The current local
-production build is `a5fd9d1ad5d47912e691` with 183 verified payload files.
+production build is `5461ae859e6470a5dcd0` with 183 verified payload files.
 
 The commissioning workflow additionally passes focused controller/version
 rejection, raw-paste flow control and standard-raw fallback, changed-only
