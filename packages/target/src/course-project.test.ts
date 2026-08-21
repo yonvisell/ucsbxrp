@@ -19,6 +19,10 @@ describe("course starter catalog", () => {
     for (const starter of COURSE_STARTERS) {
       expect(starter.project.entrypoint).toBe("main.py");
       expect(starter.project.files["main.py"]).toBeTruthy();
+      expect(starter.project.files["README.md"]).toContain("Challenge");
+      expect(starter.project.files["component_checks.py"]).toContain(
+        "hardware-free checks",
+      );
       expect(Object.keys(starter.project.files).length).toBeGreaterThanOrEqual(
         5,
       );

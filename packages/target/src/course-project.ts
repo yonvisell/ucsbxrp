@@ -14,14 +14,18 @@ export interface CourseProjectTemplate extends CourseStarter {
   kind: CourseProjectKind;
 }
 
-const rawStarterFiles = import.meta.glob(
-  "../../../vendor/current/starters/challenge_*/*.py",
-  {
+const rawStarterFiles = {
+  ...(import.meta.glob("../../../vendor/current/starters/challenge_*/*.py", {
     eager: true,
     import: "default",
     query: "?raw",
-  },
-) as Record<string, string>;
+  }) as Record<string, string>),
+  ...(import.meta.glob("../../../vendor/current/starters/challenge_*/*.md", {
+    eager: true,
+    import: "default",
+    query: "?raw",
+  }) as Record<string, string>),
+};
 
 const rawTemplateFiles = {
   ...(import.meta.glob("../../../vendor/current/templates/**/*.py", {

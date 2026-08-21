@@ -32,6 +32,46 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+export async function testCourseProjectComponents(
+  project: CourseProject,
+): Promise<CheckResult> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL("./micropython.worker.ts", import.meta.url),
+      {
+        type: "module",
+        name: "ucsb-xrp-component-checks",
+      },
+    );
+    const output: string[] = [];
+    const finish = () => {
+      clearTimeout(timeout);
+      worker.terminate();
+    };
+    const timeout = setTimeout(() => {
+      finish();
+      reject(new Error("Component checks timed out"));
+    }, 20_000);
+    worker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
+      const message = event.data;
+      if (message.type === "console") {
+        output.push(message.line);
+      } else if (message.type === "test-complete") {
+        finish();
+        resolve({ ok: true, detail: message.detail, output });
+      } else if (message.type === "error") {
+        finish();
+        resolve({ ok: false, detail: message.detail, output });
+      }
+    };
+    worker.onerror = (event) => {
+      finish();
+      reject(new Error(event.message || "Component checker failed"));
+    };
+    worker.postMessage({ mode: "test", project });
+  });
+}
+
 export class VirtualTargetClient implements TargetClient {
   readonly kind = "virtual" as const;
   private worker: SharedWorker | null = null;

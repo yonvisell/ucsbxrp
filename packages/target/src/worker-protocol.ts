@@ -11,6 +11,18 @@ import type {
   TargetEvent,
 } from "./types";
 
+export interface CourseTelemetryState {
+  estimatedXmm: number;
+  estimatedYmm: number;
+  estimatedHeadingRad: number;
+  measuredLeftWheelSpeedMmS: number;
+  measuredRightWheelSpeedMmS: number;
+  requestedForwardSpeedMmS: number | null;
+  requestedTurnRateRadS: number | null;
+  targetLeftWheelSpeedMmS: number | null;
+  targetRightWheelSpeedMmS: number | null;
+}
+
 export type TargetWorkerCommand =
   | { type: "connect"; requestId: string }
   | { type: "disconnect" }
@@ -79,7 +91,7 @@ export type TargetWorkerMessage =
     };
 
 export interface RuntimeWorkerRequest {
-  mode: "check" | "run";
+  mode: "check" | "test" | "run";
   project: CourseProject;
   scenario?: SimulationScenario;
   liveParameterBuffer?: SharedArrayBuffer;
@@ -89,8 +101,10 @@ export type RuntimeWorkerMessage =
   | { type: "runtime-ready"; version: string }
   | { type: "effort"; side: "left" | "right"; effort: number }
   | { type: "simulator-state"; state: XrpSimulatorState }
+  | { type: "course-state"; state: CourseTelemetryState }
   | { type: "console"; stream: "stdout" | "stderr"; line: string }
   | { type: "check-complete"; detail: string }
+  | { type: "test-complete"; detail: string }
   | { type: "run-complete" }
   | {
       type: "runtime-state";

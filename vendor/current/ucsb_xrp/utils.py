@@ -6,7 +6,7 @@ from ._validation import require_number
 
 try:
     from time import ticks_diff as _ticks_diff
-except ImportError:  # CPython contract tests do not wrap their monotonic clock.
+except ImportError:  # CPython interface tests do not wrap their monotonic clock.
     def _ticks_diff(later, earlier):
         return later - earlier
 

@@ -1,4 +1,4 @@
-"""Narrow component contracts implemented progressively by students."""
+"""Small component interfaces implemented progressively by students."""
 
 from .config import NavigationConfig, RobotConfig
 
@@ -17,7 +17,7 @@ class _ConfiguredComponent:
 
 
 class SensorModelBase(_ConfiguredComponent):
-    """Contract for encoder/range conversion; algorithms belong to students."""
+    """Interface for encoder/range conversion; algorithms belong to students."""
 
     __slots__ = ()
 
@@ -32,7 +32,7 @@ class SensorModelBase(_ConfiguredComponent):
 
 
 class WheelSpeedControllerBase(_ConfiguredComponent):
-    """Contract for converting wheel-speed error to a drive command."""
+    """Interface for converting wheel-speed error to a drive command."""
 
     __slots__ = ()
 
@@ -44,7 +44,7 @@ class WheelSpeedControllerBase(_ConfiguredComponent):
 
 
 class DifferentialDriveBase(_ConfiguredComponent):
-    """Contract for differential-drive inverse kinematics."""
+    """Interface for differential-drive inverse kinematics."""
 
     __slots__ = ()
 
@@ -53,7 +53,7 @@ class DifferentialDriveBase(_ConfiguredComponent):
 
 
 class OdometryBase(_ConfiguredComponent):
-    """Contract for differential-drive pose integration."""
+    """Interface for differential-drive pose integration."""
 
     __slots__ = ()
 
@@ -69,7 +69,7 @@ class OdometryBase(_ConfiguredComponent):
 
 
 class NavigationControllerBase:
-    """Contract for ordered world-goal navigation."""
+    """Interface for ordered world-goal navigation."""
 
     __slots__ = ("_config",)
 
@@ -96,7 +96,7 @@ class NavigationControllerBase:
 
 
 class GridPlannerBase:
-    """Contract for shortest four-neighbor grid planning."""
+    """Interface for shortest four-neighbor grid planning."""
 
     __slots__ = ()
 

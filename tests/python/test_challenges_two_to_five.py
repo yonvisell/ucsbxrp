@@ -38,6 +38,7 @@ from ucsb_xrp_reference import (  # noqa: E402
     WheelSpeedController,
 )
 from ucsb_xrp._telemetry import clear_state, state_snapshot  # noqa: E402
+from ucsb_xrp import _telemetry as course_telemetry  # noqa: E402
 from ucsb_xrp.robot import _set_managed_start  # noqa: E402
 
 
@@ -257,8 +258,13 @@ class RobotAndMissionTests(unittest.TestCase):
         published = state_snapshot()
         self.assertEqual(published["xMm"], 10)
         self.assertGreater(published["leftEffort"], 0)
+        self.assertEqual(published["requestedForwardSpeedMmS"], 100)
+        self.assertEqual(published["requestedTurnRateRadS"], 0)
+        self.assertEqual(published["targetLeftWheelSpeedMmS"], 100)
+        self.assertEqual(published["targetRightWheelSpeedMmS"], 100)
         robot.stop()
         self.assertEqual(state_snapshot()["leftEffort"], 0)
+        self.assertIsNone(state_snapshot()["requestedForwardSpeedMmS"])
 
     def test_managed_run_starts_without_waiting_for_user_button(self):
         robot, bot = self.make_robot()
@@ -270,6 +276,29 @@ class RobotAndMissionTests(unittest.TestCase):
             _set_managed_start(False)
 
         self.assertEqual(bot.events[:2], ["reset", "read"])
+
+    def test_virtual_bridge_receives_estimate_request_and_wheel_targets(self):
+        class BrowserBridge:
+            def __init__(self):
+                self.calls = []
+
+            def publish_course_state(self, *values):
+                self.calls.append(values)
+
+        bridge = BrowserBridge()
+        original_publisher = course_telemetry._publish_browser_state
+        course_telemetry._publish_browser_state = bridge.publish_course_state
+        try:
+            robot, _bot = self.make_robot()
+            robot.start(Pose(0, 0, 0))
+            robot.step(MotionCommand(100, 0))
+        finally:
+            course_telemetry._publish_browser_state = original_publisher
+
+        self.assertEqual(
+            bridge.calls[-1],
+            (10, 0, 0, 500.0, 500.0, 100, 0, 100.0, 100.0),
+        )
 
     def test_robot_uses_absolute_wrap_safe_sample_deadlines(self):
         config = RobotConfig(sample_period_ms=20, max_drive_command=0.5)

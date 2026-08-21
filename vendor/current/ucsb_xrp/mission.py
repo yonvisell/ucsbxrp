@@ -144,9 +144,9 @@ class DeliveryMission:
             callable(getattr(navigation, name, None))
             for name in ("start", "update", "is_complete")
         ):
-            raise TypeError("navigation must implement the NavigationController contract")
+            raise TypeError("navigation must implement the NavigationController interface")
         if not callable(getattr(planner, "plan", None)):
-            raise TypeError("planner must implement the GridPlanner contract")
+            raise TypeError("planner must implement the GridPlanner interface")
         self._task = task
         self._navigation = navigation
         self._planner = planner

@@ -46,6 +46,7 @@ class CourseStarterTests(unittest.TestCase):
             component_count = (2, 4, 5, 6, 6)[challenge_number - 1]
             required = {
                 "challenge.py",
+                "component_checks.py",
                 "course_setup.py",
                 "main.py",
                 "robot_config.py",

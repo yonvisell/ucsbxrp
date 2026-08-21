@@ -152,6 +152,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._logs.clear()
         self.service._last_reply_by_id.clear()
         self.service._reply_order.clear()
+        self.service._last_hardware = None
+        self.service._last_sample = None
 
     def test_run_reply_precedes_second_core_launch(self):
         with tempfile.TemporaryDirectory() as project_dir:
@@ -212,6 +214,55 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "stop test loop"):
             asyncio.run(self.service._feed_service_watchdog(watchdog))
         self.assertEqual(watchdog.feeds, 2)
+
+    def test_physical_sample_labels_odometry_without_claiming_ground_truth(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        published = {
+            "xMm": 125.0,
+            "yMm": -30.0,
+            "headingRad": 0.4,
+            "leftWheelSpeedMmS": 88.0,
+            "rightWheelSpeedMmS": 102.0,
+            "rangeMm": 450.0,
+            "buttonPressed": False,
+            "leftEffort": 0.2,
+            "rightEffort": 0.24,
+            "requestedForwardSpeedMmS": 95.0,
+            "requestedTurnRateRadS": 0.1,
+            "targetLeftWheelSpeedMmS": 87.25,
+            "targetRightWheelSpeedMmS": 102.75,
+        }
+        self.service._thread_active = True
+        self.service._last_hardware = {
+            "leftEncoderCount": 40,
+            "rightEncoderCount": 44,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": 26.0,
+            "batteryV": 6.0,
+            "sensorError": None,
+        }
+
+        with patch.object(
+            course_telemetry,
+            "state_snapshot",
+            return_value=published,
+            create=True,
+        ):
+            sample = self.service._hardware_sample()
+
+        self.assertTrue(sample["poseAvailable"])
+        self.assertEqual(sample["xMm"], 125.0)
+        self.assertTrue(sample["estimatedPoseAvailable"])
+        self.assertEqual(sample["estimatedXmm"], 125.0)
+        self.assertFalse(sample["groundTruthPoseAvailable"])
+        self.assertIsNone(sample["groundTruthXmm"])
+        self.assertEqual(sample["requestedForwardSpeedMmS"], 95.0)
+        self.assertEqual(sample["requestedTurnRateRadS"], 0.1)
+        self.assertEqual(sample["targetLeftWheelSpeedMmS"], 87.25)
+        self.assertEqual(sample["targetRightWheelSpeedMmS"], 102.75)
 
     def test_wifi_connection_uses_the_shared_profile_and_feeds_watchdog(self):
         class Watchdog:

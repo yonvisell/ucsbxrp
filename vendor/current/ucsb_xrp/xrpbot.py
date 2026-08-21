@@ -34,7 +34,7 @@ class XRPBot:
     """Read XRP hardware and apply a bounded, signed drive command.
 
     ``_devices`` and ``_ticks_ms`` are private seams for the virtual XRP and
-    contract tests. Student programs construct ``XRPBot(config)``.
+    interface tests. Student programs construct ``XRPBot(config)``.
     """
 
     __slots__ = ("_config", "_devices", "_ticks_ms")

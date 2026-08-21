@@ -13,6 +13,7 @@ import {
   encodeRuntimeParameter,
 } from "./runtime-controls";
 import type {
+  CourseTelemetryState,
   RuntimeWorkerMessage,
   TargetWorkerCommand,
   TargetWorkerMessage,
@@ -24,6 +25,7 @@ import type {
   TargetEvent,
   TargetRunState,
 } from "./types";
+import { virtualTelemetrySample } from "./virtual-telemetry";
 
 declare const self: SharedWorkerGlobalScope;
 
@@ -40,6 +42,7 @@ let currentProject: CourseProject | null = null;
 let currentProjectDescriptor: SynchronizedProject | null = null;
 let runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
 let runtimeSlots: Record<string, number> = {};
+let courseTelemetryState: CourseTelemetryState | null = null;
 
 function send(port: MessagePort, message: TargetWorkerMessage): void {
   port.postMessage(message);
@@ -72,40 +75,29 @@ function status(state: TargetRunState, detail: string): void {
 function clearRuntimeState(): void {
   runtimeState = EMPTY_RUNTIME_STATE;
   runtimeSlots = {};
+  courseTelemetryState = null;
   broadcast({ type: "runtime", state: runtimeState });
 }
 
 function telemetryEvent(): TargetEvent {
-  const state = simulatorState;
   return {
     type: "telemetry",
-    sample: {
-      tMs: state.tMs,
-      seq: state.seq,
-      source: "virtual",
-      poseAvailable: true,
-      xMm: state.pose.xMm,
-      yMm: state.pose.yMm,
-      headingRad: state.pose.headingRad,
-      leftEffort: state.leftEffort,
-      rightEffort: state.rightEffort,
-      leftWheelSpeedMmS: state.leftWheelSpeedMmS,
-      rightWheelSpeedMmS: state.rightWheelSpeedMmS,
-      leftEncoderCount: state.leftEncoderCount,
-      rightEncoderCount: state.rightEncoderCount,
-      collision: state.collision,
-      rangeMm: state.rangeMm,
-      buttonPressed: state.buttonPressed,
-      accelerationMg: state.accelerationMg,
-      angularRateMdps: state.angularRateMdps,
-      temperatureC: state.temperatureC,
-      batteryV: state.batteryV,
-      sensorError: null,
-    },
+    sample: virtualTelemetrySample(simulatorState, courseTelemetryState),
   };
 }
 
 function stopRuntime(): void {
+  if (courseTelemetryState) {
+    courseTelemetryState = {
+      ...courseTelemetryState,
+      measuredLeftWheelSpeedMmS: 0,
+      measuredRightWheelSpeedMmS: 0,
+      requestedForwardSpeedMmS: null,
+      requestedTurnRateRadS: null,
+      targetLeftWheelSpeedMmS: null,
+      targetRightWheelSpeedMmS: null,
+    };
+  }
   simulatorState = {
     ...simulatorState,
     seq: simulatorState.seq + 1,
@@ -209,6 +201,8 @@ function handleRuntimeMessage(
   } else if (message.type === "simulator-state") {
     simulatorState = message.state;
     broadcast(telemetryEvent());
+  } else if (message.type === "course-state") {
+    courseTelemetryState = message.state;
   } else if (message.type === "console") {
     broadcast({
       type: "console",

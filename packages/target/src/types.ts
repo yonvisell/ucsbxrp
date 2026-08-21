@@ -14,6 +14,7 @@ export interface SynchronizedProject {
 export interface CheckResult {
   ok: boolean;
   detail: string;
+  output?: string[];
 }
 
 export type RuntimeParameterValue = number | boolean | string;
@@ -52,10 +53,27 @@ export interface TelemetrySample {
   tMs: number;
   seq: number;
   source: "virtual" | "physical";
+  /**
+   * Compatibility pose used by existing Monitor releases. It is simulator
+   * ground truth for the virtual XRP and student odometry for a physical XRP.
+   * New views should use the explicit pose channels below.
+   */
   poseAvailable: boolean;
   xMm: number;
   yMm: number;
   headingRad: number;
+  estimatedPoseAvailable?: boolean;
+  estimatedXmm?: number | null;
+  estimatedYmm?: number | null;
+  estimatedHeadingRad?: number | null;
+  groundTruthPoseAvailable?: boolean;
+  groundTruthXmm?: number | null;
+  groundTruthYmm?: number | null;
+  groundTruthHeadingRad?: number | null;
+  requestedForwardSpeedMmS?: number | null;
+  requestedTurnRateRadS?: number | null;
+  targetLeftWheelSpeedMmS?: number | null;
+  targetRightWheelSpeedMmS?: number | null;
   leftEffort: number;
   rightEffort: number;
   leftWheelSpeedMmS: number;

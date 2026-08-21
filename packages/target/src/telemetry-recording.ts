@@ -112,6 +112,18 @@ const csvColumns = [
   "temperature_c",
   "battery_v",
   "sensor_error",
+  "estimated_pose_available",
+  "estimated_x_mm",
+  "estimated_y_mm",
+  "estimated_heading_rad",
+  "ground_truth_pose_available",
+  "ground_truth_x_mm",
+  "ground_truth_y_mm",
+  "ground_truth_heading_rad",
+  "requested_forward_speed_mm_s",
+  "requested_turn_rate_rad_s",
+  "target_left_wheel_speed_mm_s",
+  "target_right_wheel_speed_mm_s",
 ] as const;
 
 function copySample(sample: TelemetrySample): TelemetrySample {
@@ -124,8 +136,8 @@ function copySample(sample: TelemetrySample): TelemetrySample {
   };
 }
 
-function csvValue(value: string | number | boolean | null): string {
-  if (value === null) {
+function csvValue(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) {
     return "";
   }
   if (typeof value === "boolean") {
@@ -177,6 +189,18 @@ export function telemetryRecordingToCsv(
       sample.temperatureC,
       sample.batteryV,
       sample.sensorError,
+      sample.estimatedPoseAvailable,
+      sample.estimatedXmm,
+      sample.estimatedYmm,
+      sample.estimatedHeadingRad,
+      sample.groundTruthPoseAvailable,
+      sample.groundTruthXmm,
+      sample.groundTruthYmm,
+      sample.groundTruthHeadingRad,
+      sample.requestedForwardSpeedMmS,
+      sample.requestedTurnRateRadS,
+      sample.targetLeftWheelSpeedMmS,
+      sample.targetRightWheelSpeedMmS,
     ]
       .map(csvValue)
       .join(","),

@@ -19,7 +19,10 @@ export {
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
 } from "./telemetry-units";
-export { VirtualTargetClient } from "./virtual-target";
+export {
+  VirtualTargetClient,
+  testCourseProjectComponents,
+} from "./virtual-target";
 export { describeProject, projectRevision } from "./project-identity";
 export {
   COURSE_PROJECT_TEMPLATES,

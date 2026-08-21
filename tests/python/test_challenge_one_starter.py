@@ -142,6 +142,7 @@ class ChallengeOneStarterTests(unittest.TestCase):
             [path.name for path in paths],
             [
                 "challenge.py",
+                "component_checks.py",
                 "course_setup.py",
                 "main.py",
                 "robot_config.py",

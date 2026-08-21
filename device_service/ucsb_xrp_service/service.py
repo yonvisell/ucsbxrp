@@ -486,7 +486,7 @@ def _hardware_sample():
 
     left_speed = 0.0
     right_speed = 0.0
-    if pose is not None:
+    if _thread_active and pose is not None:
         left_speed = pose["leftWheelSpeedMmS"]
         right_speed = pose["rightWheelSpeedMmS"]
     elif not _thread_active and _last_sample is not None:
@@ -509,14 +509,30 @@ def _hardware_sample():
         "xMm": 0.0 if pose is None else pose["xMm"],
         "yMm": 0.0 if pose is None else pose["yMm"],
         "headingRad": 0.0 if pose is None else pose["headingRad"],
+        "estimatedPoseAvailable": pose is not None,
+        "estimatedXmm": None if pose is None else pose["xMm"],
+        "estimatedYmm": None if pose is None else pose["yMm"],
+        "estimatedHeadingRad": None if pose is None else pose["headingRad"],
+        "groundTruthPoseAvailable": False,
+        "groundTruthXmm": None,
+        "groundTruthYmm": None,
+        "groundTruthHeadingRad": None,
+        "requestedForwardSpeedMmS": (
+            None if pose is None else pose.get("requestedForwardSpeedMmS")
+        ),
+        "requestedTurnRateRadS": (
+            None if pose is None else pose.get("requestedTurnRateRadS")
+        ),
+        "targetLeftWheelSpeedMmS": (
+            None if pose is None else pose.get("targetLeftWheelSpeedMmS")
+        ),
+        "targetRightWheelSpeedMmS": (
+            None if pose is None else pose.get("targetRightWheelSpeedMmS")
+        ),
         "leftEffort": 0.0 if pose is None else pose["leftEffort"],
         "rightEffort": 0.0 if pose is None else pose["rightEffort"],
-        "leftWheelSpeedMmS": (
-            left_speed if pose is None else pose["leftWheelSpeedMmS"]
-        ),
-        "rightWheelSpeedMmS": (
-            right_speed if pose is None else pose["rightWheelSpeedMmS"]
-        ),
+        "leftWheelSpeedMmS": left_speed,
+        "rightWheelSpeedMmS": right_speed,
         "leftEncoderCount": left_count,
         "rightEncoderCount": right_count,
         "collision": False,

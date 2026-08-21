@@ -42,6 +42,14 @@ function errorDetail(error: unknown): string {
   return String(error);
 }
 
+function telemetryNumber(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   const simulator = new XrpSimulator(
     simulatorConfigForScenario(event.data.scenario),
@@ -158,6 +166,46 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
           slots: Object.fromEntries(liveSlots),
         });
       },
+      publish_course_state(
+        estimatedXmm: unknown,
+        estimatedYmm: unknown,
+        estimatedHeadingRad: unknown,
+        measuredLeftWheelSpeedMmS: unknown,
+        measuredRightWheelSpeedMmS: unknown,
+        requestedForwardSpeedMmS: unknown,
+        requestedTurnRateRadS: unknown,
+        targetLeftWheelSpeedMmS: unknown,
+        targetRightWheelSpeedMmS: unknown,
+      ) {
+        const estimatedX = telemetryNumber(estimatedXmm);
+        const estimatedY = telemetryNumber(estimatedYmm);
+        const estimatedHeading = telemetryNumber(estimatedHeadingRad);
+        const measuredLeft = telemetryNumber(measuredLeftWheelSpeedMmS);
+        const measuredRight = telemetryNumber(measuredRightWheelSpeedMmS);
+        if (
+          estimatedX === null ||
+          estimatedY === null ||
+          estimatedHeading === null ||
+          measuredLeft === null ||
+          measuredRight === null
+        ) {
+          return;
+        }
+        post({
+          type: "course-state",
+          state: {
+            estimatedXmm: estimatedX,
+            estimatedYmm: estimatedY,
+            estimatedHeadingRad: estimatedHeading,
+            measuredLeftWheelSpeedMmS: measuredLeft,
+            measuredRightWheelSpeedMmS: measuredRight,
+            requestedForwardSpeedMmS: telemetryNumber(requestedForwardSpeedMmS),
+            requestedTurnRateRadS: telemetryNumber(requestedTurnRateRadS),
+            targetLeftWheelSpeedMmS: telemetryNumber(targetLeftWheelSpeedMmS),
+            targetRightWheelSpeedMmS: telemetryNumber(targetRightWheelSpeedMmS),
+          },
+        });
+      },
     });
 
     const createdDirectories = new Set<string>(["/"]);
@@ -214,6 +262,28 @@ for __ucsb_path in __ucsb_check_paths:
       post({
         type: "check-complete",
         detail: `${projectPaths.length} Python file${projectPaths.length === 1 ? "" : "s"} compiled with MicroPython ${runtimeVersion}`,
+      });
+      return;
+    }
+
+    if (event.data.mode === "test") {
+      const entrypoint = project.entrypoint;
+      runtime.runPython(`
+import sys
+sys.path.insert(0, "/project")
+__ucsb_entrypoint = "/project/${entrypoint}"
+exec(
+    compile(
+        open(__ucsb_entrypoint).read(),
+        __ucsb_entrypoint,
+        "exec",
+    ),
+    {"__name__": "__main__", "__file__": __ucsb_entrypoint},
+)
+`);
+      post({
+        type: "test-complete",
+        detail: `Component checks completed with MicroPython ${runtimeVersion}`,
       });
       return;
     }

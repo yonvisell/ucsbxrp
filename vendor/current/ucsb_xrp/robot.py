@@ -161,7 +161,7 @@ class Robot:
                 measurements.right_increment_mm,
             )
             self._state = RobotState(measurements, pose)
-            publish_state(self._state, drive_command)
+            publish_state(self._state, drive_command, command, target)
             apply_updates()
             self._advance_deadline()
             return self._state

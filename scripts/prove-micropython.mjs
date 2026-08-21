@@ -257,7 +257,7 @@ assert navigation.update(Pose(0, 0, 0)).forward_speed_mm_s == 120
 
 print("MicroPython", ".".join(str(part) for part in sys.implementation.version[:3]))
 print("MicroPython _mpy", getattr(sys.implementation, "_mpy", None))
-print("reference .mpy public contracts passed")
+print("reference .mpy public interfaces passed")
 print("canonical ucsb_xrp source parity passed")
 `);
 
@@ -274,7 +274,7 @@ if (!output.includes("canonical ucsb_xrp source parity passed")) {
     `Expected parity output was not captured: ${output.join("\n")}`,
   );
 }
-if (!output.includes("reference .mpy public contracts passed")) {
+if (!output.includes("reference .mpy public interfaces passed")) {
   throw new Error(
     `Expected reference bytecode output was not captured: ${output.join("\n")}`,
   );
