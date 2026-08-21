@@ -39,10 +39,30 @@ describe("monitor signal plots", () => {
     expect(SIGNAL_PLOTS.map((plot) => plot.id)).toEqual([
       "wheel-speed",
       "motor-effort",
+      "pose-error",
       "range",
       "acceleration",
       "angular-rate",
     ]);
+  });
+
+  it("plots virtual odometry position error separately from ground truth", () => {
+    const data = signalPlotData(
+      [
+        sample(0, {
+          estimatedPoseAvailable: true,
+          estimatedXmm: 103,
+          estimatedYmm: 104,
+          groundTruthPoseAvailable: true,
+          groundTruthXmm: 100,
+          groundTruthYmm: 100,
+        }),
+      ],
+      "pose-error",
+      5,
+    );
+
+    expect(data[0]?.values).toEqual([[0, 5]]);
   });
 
   it("keeps only the selected trailing time window and makes now zero", () => {

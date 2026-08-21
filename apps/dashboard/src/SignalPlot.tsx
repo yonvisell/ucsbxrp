@@ -7,7 +7,7 @@ import {
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   millidegreesPerSecondToRadiansPerSecond,
@@ -27,7 +27,12 @@ echarts.use([
 ]);
 
 export type SignalPlotId =
-  "wheel-speed" | "motor-effort" | "range" | "acceleration" | "angular-rate";
+  | "wheel-speed"
+  | "motor-effort"
+  | "pose-error"
+  | "range"
+  | "acceleration"
+  | "angular-rate";
 
 interface SignalSeriesDefinition {
   label: string;
@@ -50,18 +55,30 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
     id: "wheel-speed",
     label: "Wheel speed",
     unit: "mm/s",
-    description: "Measured left and right wheel speed",
+    description: "Target and measured left and right wheel speed",
     series: [
       {
-        label: "Left",
+        label: "Measured L",
         color: "#08736b",
         value: (sample) => sample.leftWheelSpeedMmS,
       },
       {
-        label: "Right",
+        label: "Measured R",
         color: "#a66b08",
         dash: "dashed",
         value: (sample) => sample.rightWheelSpeedMmS,
+      },
+      {
+        label: "Target L",
+        color: "#205f99",
+        dash: "dotted",
+        value: (sample) => sample.targetLeftWheelSpeedMmS ?? null,
+      },
+      {
+        label: "Target R",
+        color: "#87515d",
+        dash: "dotted",
+        value: (sample) => sample.targetRightWheelSpeedMmS ?? null,
       },
     ],
   },
@@ -82,6 +99,35 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
         color: "#a66b08",
         dash: "dashed",
         value: (sample) => sample.rightEffort,
+      },
+    ],
+  },
+  {
+    id: "pose-error",
+    label: "Odometry position error",
+    unit: "mm",
+    description:
+      "Distance between the student odometry estimate and virtual ground truth",
+    series: [
+      {
+        label: "Position error",
+        color: "#87515d",
+        value: (sample) =>
+          sample.estimatedPoseAvailable &&
+          sample.groundTruthPoseAvailable &&
+          sample.estimatedXmm !== null &&
+          sample.estimatedXmm !== undefined &&
+          sample.estimatedYmm !== null &&
+          sample.estimatedYmm !== undefined &&
+          sample.groundTruthXmm !== null &&
+          sample.groundTruthXmm !== undefined &&
+          sample.groundTruthYmm !== null &&
+          sample.groundTruthYmm !== undefined
+            ? Math.hypot(
+                sample.estimatedXmm - sample.groundTruthXmm,
+                sample.estimatedYmm - sample.groundTruthYmm,
+              )
+            : null,
       },
     ],
   },
@@ -179,6 +225,7 @@ export function signalPlotData(
 interface SignalPlotProps {
   annotations?: readonly MonitorAnnotation[];
   id: SignalPlotId;
+  onAddAnnotation?: (tMs: number, label: string) => void;
   samples: readonly TelemetrySample[];
   showAnnotations?: boolean;
   timeWindowS: number;
@@ -206,13 +253,25 @@ export function signalXAxis(timeWindowS: number) {
 export function SignalPlot({
   annotations = [],
   id,
+  onAddAnnotation,
   samples,
   showAnnotations = true,
   timeWindowS,
 }: SignalPlotProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  const noteInputRef = useRef<HTMLInputElement>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteLocation, setNoteLocation] = useState<{
+    left: number;
+    tMs: number;
+  } | null>(null);
   const definition = useMemo(() => signalPlotDefinition(id), [id]);
+
+  useEffect(() => {
+    noteInputRef.current?.focus();
+  }, [noteLocation]);
 
   useEffect(() => {
     if (!elementRef.current) {
@@ -319,15 +378,100 @@ export function SignalPlot({
     );
   }, [annotations, definition, id, samples, showAnnotations, timeWindowS]);
 
+  const openNoteAt = (clientX?: number) => {
+    const shell = shellRef.current;
+    const latestMs = samples.at(-1)?.tMs;
+    if (!shell || latestMs === undefined || !onAddAnnotation) return;
+    const bounds = shell.getBoundingClientRect();
+    const plotLeft = 36;
+    const plotRight = 6;
+    const width = Math.max(1, bounds.width - plotLeft - plotRight);
+    const relative = Math.min(
+      width,
+      Math.max(
+        0,
+        (clientX ?? bounds.right - plotRight) - bounds.left - plotLeft,
+      ),
+    );
+    const fraction = relative / width;
+    setNoteLocation({
+      left: Math.min(
+        Math.max(73, bounds.width - 73),
+        Math.max(73, plotLeft + relative),
+      ),
+      tMs: latestMs + (-timeWindowS + fraction * timeWindowS) * 1_000,
+    });
+    setNoteDraft("");
+  };
+
+  const saveNote = () => {
+    const label = noteDraft.trim();
+    if (!label || !noteLocation || !onAddAnnotation) return;
+    onAddAnnotation(noteLocation.tMs, label);
+    setNoteLocation(null);
+    setNoteDraft("");
+  };
+
   return (
     <div
       aria-label={`${definition.description} over the last ${timeWindowS} seconds`}
-      className="signal-plot"
-      data-testid={
-        id === "wheel-speed" ? "wheel-speed-plot" : `strip-chart-${id}`
-      }
-      ref={elementRef}
-      role="img"
-    />
+      className="signal-plot-shell"
+      onContextMenu={(event) => {
+        if (!onAddAnnotation || samples.length === 0) return;
+        event.preventDefault();
+        openNoteAt(event.clientX);
+      }}
+      onKeyDown={(event) => {
+        if (
+          (event.key === "Enter" || event.key.toLowerCase() === "n") &&
+          event.target === event.currentTarget
+        ) {
+          event.preventDefault();
+          openNoteAt();
+        }
+      }}
+      ref={shellRef}
+      role="group"
+      tabIndex={onAddAnnotation && samples.length > 0 ? 0 : -1}
+      title="Right-click a time to add a note. Keyboard: focus the plot and press N."
+    >
+      <div
+        className="signal-plot"
+        data-testid={
+          id === "wheel-speed" ? "wheel-speed-plot" : `strip-chart-${id}`
+        }
+        ref={elementRef}
+        role="img"
+      />
+      {noteLocation ? (
+        <form
+          aria-label={`Add note to ${definition.label}`}
+          className="plot-note-editor"
+          onSubmit={(event) => {
+            event.preventDefault();
+            saveNote();
+          }}
+          style={{ left: `${noteLocation.left}px` }}
+        >
+          <input
+            aria-label="Note label"
+            maxLength={72}
+            onChange={(event) => setNoteDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setNoteLocation(null);
+              }
+            }}
+            placeholder="Short note"
+            ref={noteInputRef}
+            value={noteDraft}
+          />
+          <button disabled={!noteDraft.trim()} type="submit">
+            Add
+          </button>
+        </form>
+      ) : null}
+    </div>
   );
 }

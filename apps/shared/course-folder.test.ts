@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   autosaveDirectoryName,
   courseFolderPermission,
+  writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
 } from "./course-folder";
@@ -13,11 +14,12 @@ class MemoryFileHandle {
   constructor(
     readonly name: string,
     private readonly path: string,
-    private readonly files: Map<string, string>,
+    private readonly files: Map<string, string | Blob>,
   ) {}
 
   async getFile(): Promise<File> {
-    const content = this.files.get(this.path) ?? "";
+    const stored = this.files.get(this.path) ?? "";
+    const content = typeof stored === "string" ? stored : await stored.text();
     return {
       size: new TextEncoder().encode(content).byteLength,
       text: async () => content,
@@ -26,7 +28,7 @@ class MemoryFileHandle {
 
   async createWritable() {
     return {
-      write: async (content: string) => {
+      write: async (content: string | Blob) => {
         this.files.set(this.path, content);
       },
       close: async () => undefined,
@@ -39,7 +41,7 @@ class MemoryDirectoryHandle implements CourseDirectoryHandle {
 
   constructor(
     readonly name: string,
-    readonly files: Map<string, string>,
+    readonly files: Map<string, string | Blob>,
     private readonly prefix = "",
   ) {}
 
@@ -101,7 +103,7 @@ class MemoryDirectoryHandle implements CourseDirectoryHandle {
 
 describe("course-folder autosaves", () => {
   it("rotates four aligned generations before writing the newest bundle", async () => {
-    const files = new Map<string, string>();
+    const files = new Map<string, string | Blob>();
     for (let generation = 1; generation <= 4; generation += 1) {
       files.set(
         `${autosaveDirectoryName}/run-${generation}.txt`,
@@ -141,5 +143,17 @@ describe("course-folder autosaves", () => {
   it("treats simple test and compatibility handles as already granted", async () => {
     const root = new MemoryDirectoryHandle("course", new Map());
     await expect(courseFolderPermission(root)).resolves.toBe("granted");
+  });
+
+  it("writes binary exports into a nested project folder", async () => {
+    const files = new Map<string, string | Blob>();
+    const root = new MemoryDirectoryHandle("course", files);
+    const video = new Blob(["webm-data"], { type: "video/webm" });
+
+    await writeCourseFile(root, "exports/world.webm", video);
+
+    const stored = files.get("exports/world.webm");
+    expect(stored).toBeInstanceOf(Blob);
+    await expect((stored as Blob).text()).resolves.toBe("webm-data");
   });
 });

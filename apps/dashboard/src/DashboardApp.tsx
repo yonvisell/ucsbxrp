@@ -39,8 +39,10 @@ import {
   rememberProjectFolder,
   requestCourseFolderPermission,
   withCourseFolderWriteLock,
+  writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
+  type CourseFileHandle,
 } from "../../shared/course-folder";
 import { SIGNAL_PLOTS, SignalPlot, type SignalPlotId } from "./SignalPlot";
 import { WorldView } from "./WorldView";
@@ -78,6 +80,70 @@ function wasCancelled(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
+interface ExportDestination {
+  description: string;
+  save(blob: Blob): Promise<void>;
+}
+
+async function prepareExportDestination(
+  folder: CourseDirectoryHandle | null,
+  fileName: string,
+  mimeType: string,
+): Promise<ExportDestination | null> {
+  if (folder) {
+    const path = `exports/${fileName}`;
+    return {
+      description: `./${folder.name}/${path}`,
+      save: (blob) =>
+        withCourseFolderWriteLock("run", () =>
+          writeCourseFile(folder, path, blob),
+        ),
+    };
+  }
+
+  const picker = (
+    window as Window & {
+      showSaveFilePicker?: (options: {
+        suggestedName: string;
+        types: Array<{
+          description: string;
+          accept: Record<string, string[]>;
+        }>;
+      }) => Promise<CourseFileHandle>;
+    }
+  ).showSaveFilePicker;
+  if (picker) {
+    const extension = `.${fileName.split(".").at(-1) ?? "data"}`;
+    try {
+      const handle = await picker({
+        suggestedName: fileName,
+        types: [
+          {
+            description: "UCSBXRP export",
+            accept: { [mimeType]: [extension] },
+          },
+        ],
+      });
+      return {
+        description: handle.name,
+        save: async (blob) => {
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        },
+      };
+    } catch (error) {
+      if (wasCancelled(error)) return null;
+      throw error;
+    }
+  }
+
+  return {
+    description: `Downloads/${fileName}`,
+    save: async (blob) => downloadBlob(blob, fileName),
+  };
+}
+
 interface MonitorSettings {
   timeWindowS: number;
   plots: Record<SignalPlotId, boolean>;
@@ -93,6 +159,7 @@ const defaultMonitorSettings: MonitorSettings = {
   plots: {
     "wheel-speed": true,
     "motor-effort": true,
+    "pose-error": true,
     range: false,
     acceleration: false,
     "angular-rate": false,
@@ -258,6 +325,9 @@ export function DashboardApp() {
     useState<SynchronizedProject | null>(null);
   const [runStarting, setRunStarting] = useState(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
+  const [monitorLogTab, setMonitorLogTab] = useState<"output" | "log">(
+    "output",
+  );
   const [recordingActive, setRecordingActive] = useState(false);
   const [runtimeState, setRuntimeState] =
     useState<RuntimeState>(emptyRuntimeState);
@@ -277,8 +347,8 @@ export function DashboardApp() {
     "Open or create a project in the IDE to save run data with its source.",
   );
   const [annotations, setAnnotations] = useState<MonitorAnnotation[]>([]);
-  const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
+  const [exportReplayAfterStop, setExportReplayAfterStop] = useState(false);
   const [exportState, setExportState] = useState<
     "idle" | "plots-svg" | "plots-png" | "world-webm"
   >("idle");
@@ -524,7 +594,6 @@ export function DashboardApp() {
         if (nextRunActive && !automaticRunActive.current) {
           annotationsRef.current = [];
           setAnnotations([]);
-          setAnnotationDraft("");
           automaticRunActive.current = true;
           automaticRunStartedAt.current = new Date().toISOString();
           automaticRunProject.current = currentProjectRef.current;
@@ -571,7 +640,6 @@ export function DashboardApp() {
     setPlotSamples([]);
     annotationsRef.current = [];
     setAnnotations([]);
-    setAnnotationDraft("");
     currentProjectRef.current = null;
     let disposed = false;
     const connect = async () => {
@@ -691,7 +759,6 @@ export function DashboardApp() {
     recorder.start();
     annotationsRef.current = [];
     setAnnotations([]);
-    setAnnotationDraft("");
     recordingStartedAt.current = performance.now();
     setRecordingActive(true);
     setRecordedSamples(0);
@@ -700,7 +767,7 @@ export function DashboardApp() {
     setRecordingElapsedMs(0);
   };
 
-  const stopRecording = () => {
+  const finishRecording = () => {
     const recording = recorder.stop();
     if (recordingStartedAt.current !== null) {
       setRecordingElapsedMs(performance.now() - recordingStartedAt.current);
@@ -712,6 +779,7 @@ export function DashboardApp() {
       recording.samples.filter((recorded) => recorded.poseAvailable).length,
     );
     setDroppedSamples(recording.droppedSamples);
+    return recording;
   };
 
   const clearRecording = () => {
@@ -724,13 +792,20 @@ export function DashboardApp() {
     setRecordingElapsedMs(0);
     annotationsRef.current = [];
     setAnnotations([]);
-    setAnnotationDraft("");
   };
 
-  const exportRecording = () => {
+  const exportRecording = async () => {
+    const fileName = timestampedName("xrp-telemetry", "csv");
+    const destination = await prepareExportDestination(
+      autosaveFolder,
+      fileName,
+      "text/csv",
+    );
+    if (!destination) return;
     const csv = telemetryRecordingToCsv(recorder.snapshot());
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    downloadBlob(blob, timestampedName("xrp-telemetry", "csv"));
+    await destination.save(blob);
+    setExportDetail(`Saved ${destination.description}`);
   };
 
   const commitRuntimeParameter = async (
@@ -785,25 +860,37 @@ export function DashboardApp() {
     (plot) => monitorSettings.plots[plot.id],
   );
 
-  const addAnnotation = () => {
-    const label = annotationDraft.trim();
-    if (!sample || !label) return;
+  const addAnnotation = (tMs: number, label: string) => {
+    const nearest = plotSamples.reduce<TelemetrySample | null>(
+      (best, candidate) =>
+        !best || Math.abs(candidate.tMs - tMs) < Math.abs(best.tMs - tMs)
+          ? candidate
+          : best,
+      null,
+    );
+    if (!nearest || !label.trim()) return;
     const annotation: MonitorAnnotation = {
-      id: `${sample.source}-${sample.seq}-${Date.now()}`,
-      label,
-      tMs: sample.tMs,
-      poseAvailable: sample.poseAvailable,
-      xMm: sample.xMm,
-      yMm: sample.yMm,
+      id: `${nearest.source}-${nearest.seq}-${Date.now()}`,
+      label: label.trim(),
+      tMs,
+      poseAvailable: nearest.poseAvailable,
+      xMm: nearest.xMm,
+      yMm: nearest.yMm,
     };
     annotationsRef.current = [...annotationsRef.current, annotation].slice(-24);
     setAnnotations(annotationsRef.current);
-    setAnnotationDraft("");
     setAnnotationsVisible(true);
   };
 
   const exportPlots = async (format: "svg" | "png") => {
     if (visiblePlots.length === 0 || plotSamples.length === 0) return;
+    const fileName = timestampedName("xrp-plots", format);
+    const destination = await prepareExportDestination(
+      autosaveFolder,
+      fileName,
+      format === "svg" ? "image/svg+xml" : "image/png",
+    );
+    if (!destination) return;
     const nextState = format === "svg" ? "plots-svg" : "plots-png";
     setExportState(nextState);
     setExportDetail(`Preparing ${format.toUpperCase()}…`);
@@ -814,15 +901,14 @@ export function DashboardApp() {
         monitorSettings.timeWindowS,
         annotationsVisible ? annotations : [],
       );
+      let blob: Blob;
       if (format === "svg") {
-        downloadBlob(
-          new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
-          timestampedName("xrp-plots", "svg"),
-        );
+        blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
       } else {
-        downloadBlob(await svgToPng(svg), timestampedName("xrp-plots", "png"));
+        blob = await svgToPng(svg);
       }
-      setExportDetail("");
+      await destination.save(blob);
+      setExportDetail(`Saved ${destination.description}`);
     } catch (error) {
       setExportDetail(error instanceof Error ? error.message : String(error));
     } finally {
@@ -830,29 +916,48 @@ export function DashboardApp() {
     }
   };
 
-  const exportWorldReplay = async () => {
+  const exportWorldReplay = async (
+    samples: readonly TelemetrySample[] = recorder.snapshot().samples,
+  ) => {
+    const fileName = timestampedName("xrp-world-replay", "webm");
+    const destination = await prepareExportDestination(
+      autosaveFolder,
+      fileName,
+      "video/webm",
+    );
+    if (!destination) return;
     setExportState("world-webm");
-    setExportDetail("Preparing world animation…");
+    setExportDetail("Preparing world replay…");
     let shownProgress = -1;
     try {
       const blob = await createWorldReplayWebm({
-        samples: recorder.snapshot().samples,
+        samples,
         annotations: annotationsVisible ? annotations : [],
         scenario: simulationScenario,
         onProgress: (fraction) => {
           const progress = Math.floor(fraction * 100);
           if (progress !== shownProgress) {
             shownProgress = progress;
-            setExportDetail(`Encoding world animation · ${progress}%`);
+            setExportDetail(`Rendering replay · ${progress}%`);
           }
         },
       });
-      downloadBlob(blob, timestampedName("xrp-world", "webm"));
-      setExportDetail("");
+      await destination.save(blob);
+      setExportDetail(`Saved ${destination.description}`);
     } catch (error) {
       setExportDetail(error instanceof Error ? error.message : String(error));
     } finally {
       setExportState("idle");
+    }
+  };
+
+  const stopRecording = async () => {
+    const recording = finishRecording();
+    const poseSamples = recording.samples.filter(
+      (recorded) => recorded.poseAvailable,
+    ).length;
+    if (exportReplayAfterStop && poseSamples >= 2 && webmExportSupported()) {
+      await exportWorldReplay(recording.samples);
     }
   };
 
@@ -900,6 +1005,41 @@ export function DashboardApp() {
   const recordingCapacity = observedRecordingRateHz
     ? compactDuration(recorder.maximumSamples / observedRecordingRateHz)
     : "10 min at 50 Hz";
+  const replayExportUnavailable =
+    exportState !== "idle"
+      ? "Another export is in progress."
+      : recordingActive
+        ? "Stop recording before exporting a replay."
+        : recordedPoseSamples < 2
+          ? "Record at least two pose samples before exporting a replay."
+          : !webmExportSupported()
+            ? "WebM replay export is unavailable in this browser."
+            : "";
+  const visibleMonitorEntries = consoleEntries.filter((entry) =>
+    monitorLogTab === "output"
+      ? entry.stream !== "system"
+      : entry.stream === "system",
+  );
+  const groundTruthPose =
+    sample &&
+    (sample.groundTruthPoseAvailable ??
+      (sample.source === "virtual" && sample.poseAvailable))
+      ? {
+          x: sample.groundTruthXmm ?? sample.xMm,
+          y: sample.groundTruthYmm ?? sample.yMm,
+          heading: sample.groundTruthHeadingRad ?? sample.headingRad,
+        }
+      : null;
+  const estimatedPose =
+    sample &&
+    (sample.estimatedPoseAvailable ??
+      (sample.source === "physical" && sample.poseAvailable))
+      ? {
+          x: sample.estimatedXmm ?? sample.xMm,
+          y: sample.estimatedYmm ?? sample.yMm,
+          heading: sample.estimatedHeadingRad ?? sample.headingRad,
+        }
+      : null;
 
   return (
     <div className="app-shell">
@@ -1011,7 +1151,7 @@ export function DashboardApp() {
               <div className="monitor-controls-scroll">
                 <section
                   aria-labelledby="signal-controls-title"
-                  className="monitor-control-group"
+                  className="monitor-control-group signal-control-group"
                 >
                   <h2 id="signal-controls-title">Signals</h2>
                   <div className="signal-choices">
@@ -1201,7 +1341,7 @@ export function DashboardApp() {
 
                 <section
                   aria-labelledby="recording-controls-title"
-                  className="monitor-control-group"
+                  className="monitor-control-group recording-control-group"
                 >
                   <h2 id="recording-controls-title">Recording</h2>
                   <div
@@ -1227,58 +1367,47 @@ export function DashboardApp() {
                   </div>
                   <div className="recording-actions">
                     <button
-                      disabled={recordingActive || sample === null}
-                      onClick={startRecording}
-                      title="Begin keeping incoming telemetry in this browser session."
+                      disabled={!recordingActive && sample === null}
+                      onClick={
+                        recordingActive
+                          ? () => void stopRecording()
+                          : startRecording
+                      }
+                      title={
+                        recordingActive
+                          ? "Stop adding telemetry to this recording."
+                          : "Begin keeping incoming telemetry in this browser session."
+                      }
                     >
-                      Record
-                    </button>
-                    <button
-                      disabled={!recordingActive}
-                      onClick={stopRecording}
-                      title="Stop adding samples to the current recording."
-                    >
-                      Stop
-                    </button>
-                    <button
-                      disabled={recordedSamples === 0}
-                      onClick={exportRecording}
-                      title="Download the recorded telemetry as a unit-labeled CSV file."
-                    >
-                      Export CSV
+                      {recordingActive ? "Stop recording" : "Start recording"}
                     </button>
                     <button
                       disabled={recordedSamples === 0 && !recordingActive}
                       onClick={clearRecording}
                       title="Discard the current in-browser recording."
                     >
-                      Clear
+                      Clear recording
                     </button>
                   </div>
+                  <label
+                    className="replay-after-stop"
+                    title="After Stop recording, render the retained telemetry into a WebM world replay and save it. This does not screen-record or rerun the simulator."
+                  >
+                    <input
+                      checked={exportReplayAfterStop}
+                      disabled={!webmExportSupported()}
+                      onChange={(event) =>
+                        setExportReplayAfterStop(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    <span>Export world replay after Stop</span>
+                  </label>
                   <div className="annotation-tools">
-                    <div className="annotation-entry">
-                      <input
-                        aria-label="Plot annotation"
-                        disabled={sample === null}
-                        maxLength={72}
-                        onChange={(event) =>
-                          setAnnotationDraft(event.target.value)
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") addAnnotation();
-                        }}
-                        placeholder="Note at current time"
-                        title="Enter a short note, then add it at the current telemetry time."
-                        value={annotationDraft}
-                      />
-                      <button
-                        disabled={sample === null || !annotationDraft.trim()}
-                        onClick={addAnnotation}
-                        title="Add this note to the world and every visible signal plot at the current time."
-                      >
-                        Add note
-                      </button>
-                    </div>
+                    <span className="annotation-hint">
+                      Right-click a plot to mark a time. Keyboard: focus it and
+                      press N.
+                    </span>
                     <button
                       aria-pressed={annotationsVisible}
                       className="annotation-visibility"
@@ -1293,41 +1422,56 @@ export function DashboardApp() {
                         : `${annotationsVisible ? "Hide" : "Show"} notes · ${annotations.length}`}
                     </button>
                   </div>
-                  <div className="export-actions" aria-label="Export views">
-                    <button
-                      disabled={
-                        exportState !== "idle" ||
-                        plotSamples.length === 0 ||
-                        visiblePlots.length === 0
-                      }
-                      onClick={() => void exportPlots("svg")}
-                      title="Download every visible strip plot as one editable vector graphic."
+                  <div className="export-section">
+                    <h3>Export</h3>
+                    <div
+                      className="export-actions"
+                      aria-label="Export data and views"
                     >
-                      Plots SVG
-                    </button>
-                    <button
-                      disabled={
-                        exportState !== "idle" ||
-                        plotSamples.length === 0 ||
-                        visiblePlots.length === 0
-                      }
-                      onClick={() => void exportPlots("png")}
-                      title="Download every visible strip plot as one high-resolution PNG image."
-                    >
-                      Plots PNG
-                    </button>
-                    <button
-                      disabled={
-                        exportState !== "idle" ||
-                        recordingActive ||
-                        recordedPoseSamples < 2 ||
-                        !webmExportSupported()
-                      }
-                      onClick={() => void exportWorldReplay()}
-                      title="Create a WebM world animation from the stopped telemetry recording. Long recordings are accelerated to at most 20 seconds."
-                    >
-                      Video
-                    </button>
+                      <button
+                        disabled={
+                          exportState !== "idle" || recordedSamples === 0
+                        }
+                        onClick={() => void exportRecording()}
+                        title="Save the recorded telemetry as a unit-labeled CSV file."
+                      >
+                        Export telemetry CSV
+                      </button>
+                      <button
+                        disabled={
+                          exportState !== "idle" ||
+                          plotSamples.length === 0 ||
+                          visiblePlots.length === 0
+                        }
+                        onClick={() => void exportPlots("svg")}
+                        title="Save every visible strip plot as one editable vector graphic."
+                      >
+                        Export plots as SVG
+                      </button>
+                      <button
+                        disabled={
+                          exportState !== "idle" ||
+                          plotSamples.length === 0 ||
+                          visiblePlots.length === 0
+                        }
+                        onClick={() => void exportPlots("png")}
+                        title="Save every visible strip plot as one high-resolution PNG image."
+                      >
+                        Export plots as PNG
+                      </button>
+                      <button
+                        aria-describedby="world-replay-export-hint"
+                        disabled={Boolean(replayExportUnavailable)}
+                        onClick={() => void exportWorldReplay()}
+                        title="Render the stopped telemetry recording into a WebM world replay. Long recordings are accelerated to at most 20 seconds."
+                      >
+                        Export world replay as WebM
+                      </button>
+                    </div>
+                    <span className="export-hint" id="world-replay-export-hint">
+                      {replayExportUnavailable ||
+                        "Replay uses the stopped telemetry recording; it does not rerun the robot."}
+                    </span>
                   </div>
                   {exportDetail ? (
                     <span className="export-detail" role="status">
@@ -1410,29 +1554,72 @@ export function DashboardApp() {
               <div className="values-content">
                 {sample ? (
                   <dl className="live-values">
-                    {sample.poseAvailable ? (
+                    {groundTruthPose ? (
                       <>
-                        <div title="World x position in millimeters.">
-                          <dt>x</dt>
-                          <dd data-testid="x-mm">{value(sample.xMm)} mm</dd>
+                        <div title="Simulator ground-truth x position in millimeters.">
+                          <dt>actual x</dt>
+                          <dd data-testid="x-mm">
+                            {value(groundTruthPose.x)} mm
+                          </dd>
                         </div>
-                        <div title="World y position in millimeters.">
-                          <dt>y</dt>
-                          <dd>{value(sample.yMm)} mm</dd>
+                        <div title="Simulator ground-truth y position in millimeters.">
+                          <dt>actual y</dt>
+                          <dd>{value(groundTruthPose.y)} mm</dd>
                         </div>
-                        <div title="Counterclockwise heading from world +x.">
-                          <dt>heading θ</dt>
-                          <dd>{value(sample.headingRad, 3)} rad</dd>
+                        <div title="Simulator ground-truth counterclockwise heading from world +x.">
+                          <dt>actual heading θ</dt>
+                          <dd>{value(groundTruthPose.heading, 3)} rad</dd>
                         </div>
                       </>
                     ) : null}
-                    <div title="Measured left and right wheel speed.">
+                    {estimatedPose ? (
+                      <>
+                        <div title="Position estimated by the course Odometry component.">
+                          <dt>odometry x</dt>
+                          <dd
+                            data-testid={groundTruthPose ? undefined : "x-mm"}
+                          >
+                            {value(estimatedPose.x)} mm
+                          </dd>
+                        </div>
+                        <div title="Position estimated by the course Odometry component.">
+                          <dt>odometry y</dt>
+                          <dd>{value(estimatedPose.y)} mm</dd>
+                        </div>
+                        <div title="Heading estimated by the course Odometry component.">
+                          <dt>odometry heading θ</dt>
+                          <dd>{value(estimatedPose.heading, 3)} rad</dd>
+                        </div>
+                      </>
+                    ) : null}
+                    <div title="Wheel speeds measured by the course sensor and control loop.">
                       <dt>wheel speed L/R</dt>
                       <dd data-testid="left-speed">
                         {value(sample.leftWheelSpeedMmS)} /{" "}
                         {value(sample.rightWheelSpeedMmS)} mm/s
                       </dd>
                     </div>
+                    {sample.targetLeftWheelSpeedMmS != null ||
+                    sample.targetRightWheelSpeedMmS != null ? (
+                      <div title="Left and right wheel speeds requested by DifferentialDrive.">
+                        <dt>target wheel speed L/R</dt>
+                        <dd>
+                          {value(sample.targetLeftWheelSpeedMmS ?? null)} /{" "}
+                          {value(sample.targetRightWheelSpeedMmS ?? null)} mm/s
+                        </dd>
+                      </div>
+                    ) : null}
+                    {sample.requestedForwardSpeedMmS != null ||
+                    sample.requestedTurnRateRadS != null ? (
+                      <div title="Forward speed and turn rate requested by the running program.">
+                        <dt>requested v / ω</dt>
+                        <dd>
+                          {value(sample.requestedForwardSpeedMmS ?? null)} mm/s
+                          · {value(sample.requestedTurnRateRadS ?? null, 3)}{" "}
+                          rad/s
+                        </dd>
+                      </div>
+                    ) : null}
                     <div title="Dimensionless left and right motor drive command, from −1 to +1.">
                       <dt>drive command uL/uR</dt>
                       <dd data-testid="motor-effort">
@@ -1560,6 +1747,7 @@ export function DashboardApp() {
                       <SignalPlot
                         annotations={annotations}
                         id={plot.id}
+                        onAddAnnotation={addAnnotation}
                         samples={plotSamples}
                         showAnnotations={annotationsVisible}
                         timeWindowS={monitorSettings.timeWindowS}
@@ -1587,22 +1775,55 @@ export function DashboardApp() {
 
             <section className="logs-panel dashboard-pane">
               <div className="section-heading">
-                <h2>Program output</h2>
+                <div
+                  aria-label="Monitor messages"
+                  className="dashboard-log-tabs"
+                  role="tablist"
+                >
+                  <button
+                    aria-selected={monitorLogTab === "output"}
+                    className={monitorLogTab === "output" ? "active" : ""}
+                    onClick={() => setMonitorLogTab("output")}
+                    role="tab"
+                    title="Show text printed by the program and Python exceptions."
+                  >
+                    Program output
+                  </button>
+                  <button
+                    aria-selected={monitorLogTab === "log"}
+                    className={monitorLogTab === "log" ? "active" : ""}
+                    onClick={() => setMonitorLogTab("log")}
+                    role="tab"
+                    title="Show target connection, validation, flash, and service events."
+                  >
+                    System log
+                  </button>
+                </div>
                 <button
-                  disabled={consoleEntries.length === 0}
-                  onClick={() => setConsoleEntries([])}
-                  title="Remove visible program and service output."
+                  disabled={visibleMonitorEntries.length === 0}
+                  onClick={() =>
+                    setConsoleEntries((entries) =>
+                      entries.filter((entry) =>
+                        monitorLogTab === "output"
+                          ? entry.stream === "system"
+                          : entry.stream !== "system",
+                      ),
+                    )
+                  }
+                  title={`Clear ${monitorLogTab === "output" ? "program output" : "system log"}.`}
                 >
                   Clear
                 </button>
               </div>
               <div className="dashboard-logs" role="log" aria-live="polite">
-                {consoleEntries.length === 0 ? (
+                {visibleMonitorEntries.length === 0 ? (
                   <span className="log-placeholder">
-                    Program output appears here when a run starts.
+                    {monitorLogTab === "output"
+                      ? "Program output appears here after Run."
+                      : "Connection, validation, flash, and service events appear here."}
                   </span>
                 ) : (
-                  consoleEntries.map((entry) => (
+                  visibleMonitorEntries.map((entry) => (
                     <div className={`log-line ${entry.stream}`} key={entry.id}>
                       <span>{entry.stream === "stderr" ? "!" : "›"}</span>
                       <span>{entry.line}</span>

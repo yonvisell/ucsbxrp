@@ -25,6 +25,13 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   context,
   page: ide,
 }) => {
+  test.setTimeout(60_000);
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "showSaveFilePicker", {
+      configurable: true,
+      value: undefined,
+    });
+  });
   await ide.goto("/ide/");
   const monitor = await context.newPage();
   await monitor.goto("/dashboard/");
@@ -37,7 +44,9 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   );
   await expect(monitor.getByTestId("x-mm")).toBeVisible();
 
-  await monitor.getByRole("button", { name: "Record", exact: true }).click();
+  await monitor
+    .getByRole("button", { name: "Start recording", exact: true })
+    .click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
     "Recording · 0 samples",
   );
@@ -53,22 +62,25 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
     )
     .toBeGreaterThan(3);
 
-  await monitor.getByLabel("Plot annotation").fill("turn begins");
-  await monitor.getByRole("button", { name: "Add note" }).click();
+  await monitor
+    .getByTestId("wheel-speed-plot")
+    .click({ button: "right", position: { x: 160, y: 60 } });
+  await monitor.getByLabel("Note label").fill("turn begins");
+  await monitor.getByRole("button", { name: "Add", exact: true }).click();
   await expect(
     monitor.getByRole("button", { name: "Hide notes · 1" }),
   ).toBeVisible();
 
   await monitor
     .locator(".monitor-controls")
-    .getByRole("button", { name: "Stop", exact: true })
+    .getByRole("button", { name: "Stop recording", exact: true })
     .click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
     "Stopped ·",
   );
 
   const downloadPromise = monitor.waitForEvent("download");
-  await monitor.getByRole("button", { name: "Export CSV" }).click();
+  await monitor.getByRole("button", { name: "Export telemetry CSV" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(
     /^xrp-telemetry-\d{4}-\d{2}-\d{2}T.*\.csv$/,
@@ -78,13 +90,13 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   const csv = await readFile(path!, "utf8");
   const rows = csv.trimEnd().split("\n");
   expect(rows[0]).toBe(
-    "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error",
+    "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s",
   );
   expect(rows.length).toBeGreaterThan(4);
-  expect(rows[1]?.split(",")).toHaveLength(25);
+  expect(rows[1]?.split(",")).toHaveLength(37);
 
   const svgDownloadPromise = monitor.waitForEvent("download");
-  await monitor.getByRole("button", { name: "Plots SVG" }).click();
+  await monitor.getByRole("button", { name: "Export plots as SVG" }).click();
   const svgDownload = await svgDownloadPromise;
   expect(svgDownload.suggestedFilename()).toMatch(/^xrp-plots-.*\.svg$/);
   const svgPath = await svgDownload.path();
@@ -94,7 +106,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   expect(svg).toContain("turn begins");
 
   const pngDownloadPromise = monitor.waitForEvent("download");
-  await monitor.getByRole("button", { name: "Plots PNG" }).click();
+  await monitor.getByRole("button", { name: "Export plots as PNG" }).click();
   const pngDownload = await pngDownloadPromise;
   expect(pngDownload.suggestedFilename()).toMatch(/^xrp-plots-.*\.png$/);
   const pngPath = await pngDownload.path();
@@ -104,23 +116,107 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   const webmDownloadPromise = monitor.waitForEvent("download", {
     timeout: 20_000,
   });
-  await monitor.getByRole("button", { name: "Video", exact: true }).click();
+  await monitor
+    .getByRole("button", { name: "Export world replay as WebM" })
+    .click();
   const webmDownload = await webmDownloadPromise;
-  expect(webmDownload.suggestedFilename()).toMatch(/^xrp-world-.*\.webm$/);
+  expect(webmDownload.suggestedFilename()).toMatch(
+    /^xrp-world-replay-.*\.webm$/,
+  );
   const webmPath = await webmDownload.path();
   expect(webmPath).not.toBeNull();
   expect((await readFile(webmPath!)).byteLength).toBeGreaterThan(1_000);
 
   await monitor
     .locator(".monitor-controls")
-    .getByRole("button", { name: "Clear", exact: true })
+    .getByRole("button", { name: "Clear recording", exact: true })
     .click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
     "0 samples · 10 min at 50 Hz capacity",
   );
   await expect(
-    monitor.getByRole("button", { name: "Export CSV" }),
+    monitor.getByRole("button", { name: "Export telemetry CSV" }),
   ).toBeDisabled();
+});
+
+test("explains why world replay export is unavailable while recording", async ({
+  page,
+}) => {
+  await page.goto("/dashboard/");
+
+  const replay = page.getByRole("button", {
+    name: "Export world replay as WebM",
+  });
+  await expect(replay).toBeDisabled();
+  await expect(
+    page.getByText(/Record at least two pose samples/),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Start recording" }).click();
+  await expect(page.getByText(/Stop recording before exporting/)).toBeVisible();
+  await page.getByRole("button", { name: "Stop recording" }).click();
+});
+
+test("can save a world replay automatically when recording stops", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const saved: Array<{ name: string; blob: Blob }> = [];
+    Object.defineProperty(window, "__savedReplayExports", { value: saved });
+    Object.defineProperty(window, "showSaveFilePicker", {
+      configurable: true,
+      value: async (options: { suggestedName: string }) => ({
+        kind: "file",
+        name: options.suggestedName,
+        getFile: async () => new File([], options.suggestedName),
+        createWritable: async () => ({
+          write: async (blob: Blob) =>
+            saved.push({ name: options.suggestedName, blob }),
+          close: async () => undefined,
+        }),
+      }),
+    });
+  });
+  await page.goto("/dashboard/");
+  await page
+    .getByRole("checkbox", { name: "Export world replay after Stop" })
+    .check();
+  await page.getByRole("button", { name: "Start recording" }).click();
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      recordedCount(await page.getByTestId("recording-count").textContent()),
+    )
+    .toBeGreaterThan(3);
+
+  await page.getByRole("button", { name: "Stop recording" }).click();
+  await expect(page.getByText(/^Saved xrp-world-replay-/)).toBeVisible();
+  const saved = await page.evaluate(async () => {
+    const exports = (
+      window as unknown as {
+        __savedReplayExports: Array<{ name: string; blob: Blob }>;
+      }
+    ).__savedReplayExports;
+    return Promise.all(
+      exports.map(async (item) => ({
+        name: item.name,
+        size: item.blob.size,
+        type: item.blob.type,
+      })),
+    );
+  });
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.name).toMatch(/^xrp-world-replay-.*\.webm$/);
+  expect(saved[0]?.type).toContain("video/webm");
+  expect(saved[0]?.size).toBeGreaterThan(1_000);
+
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
 });
 
 test("selects scrolling signals from a collapsible monitor sidebar", async ({
@@ -202,6 +298,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
     "strip-chart-motor-effort": 180,
+    "strip-chart-pose-error": 180,
   });
   const controlsBox = await page.getByTestId("monitor-controls").boundingBox();
   const dashboardBox = await page.locator(".dashboard-grid").boundingBox();
@@ -239,12 +336,14 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
     "strip-chart-motor-effort": 180,
+    "strip-chart-pose-error": 180,
     "strip-chart-range": 180,
   });
   await page.getByRole("checkbox", { name: /Drive command/ }).uncheck();
   await expect(page.getByTestId("strip-chart-motor-effort")).toHaveCount(0);
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
+    "strip-chart-pose-error": 180,
     "strip-chart-range": 180,
   });
 
@@ -290,6 +389,40 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
 
   await page.getByRole("button", { name: "Collapse monitor controls" }).click();
   await expect(page.getByTestId("world-view")).toBeVisible();
+});
+
+test("keeps every header command reachable without hidden scrolling at phone width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await page.goto("/dashboard/");
+
+  const header = page.locator(".app-header");
+  await expect(header).toHaveCSS("overflow-x", "visible");
+  await expect(
+    page.getByRole("button", { name: "Run", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Reset", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "IDE ↗", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Guide ↗", exact: true }),
+  ).toBeVisible();
+
+  const boxes = await Promise.all(
+    [
+      page.getByRole("button", { name: "Run", exact: true }),
+      page.getByRole("button", { name: "Reset", exact: true }),
+      page.getByRole("link", { name: "IDE ↗", exact: true }),
+      page.getByRole("link", { name: "Guide ↗", exact: true }),
+    ].map((item) => item.boundingBox()),
+  );
+  expect(
+    boxes.every((box) => box && box.x >= 0 && box.x + box.width <= 375),
+  ).toBe(true);
 });
 
 test("keeps a centered world preview visible without a published physical pose", async ({

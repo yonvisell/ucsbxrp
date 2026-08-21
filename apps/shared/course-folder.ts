@@ -3,7 +3,7 @@ export interface CourseFileHandle {
   readonly name: string;
   getFile(): Promise<File>;
   createWritable(): Promise<{
-    write(data: string): Promise<void>;
+    write(data: string | Blob): Promise<void>;
     close(): Promise<void>;
   }>;
 }
@@ -125,7 +125,7 @@ async function chooseFolder(id: string): Promise<CourseDirectoryHandle> {
   ).showDirectoryPicker;
   if (!picker) {
     throw new Error(
-      "Folder access requires a current Chromium browser on localhost or HTTPS.",
+      "Local folders require desktop Chrome or Edge opened from the UCSBXRP course site.",
     );
   }
   return picker({ id, mode: "readwrite" });
@@ -335,6 +335,18 @@ export async function writeCourseTextFile(
   root: CourseDirectoryHandle,
   path: string,
   content: string,
+): Promise<void> {
+  const { directory, name } = await directoryForPath(root, path, true);
+  const handle = await directory.getFileHandle(name, { create: true });
+  const writable = await handle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+export async function writeCourseFile(
+  root: CourseDirectoryHandle,
+  path: string,
+  content: string | Blob,
 ): Promise<void> {
   const { directory, name } = await directoryForPath(root, path, true);
   const handle = await directory.getFileHandle(name, { create: true });
