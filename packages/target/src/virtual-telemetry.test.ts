@@ -47,6 +47,8 @@ describe("virtualTelemetrySample", () => {
       estimatedHeadingRad: 0.35,
       measuredLeftWheelSpeedMmS: 88,
       measuredRightWheelSpeedMmS: 99,
+      measuredLeftWheelDistanceMm: 42,
+      measuredRightWheelDistanceMm: 44,
       requestedForwardSpeedMmS: 100,
       requestedTurnRateRadS: 0.2,
       targetLeftWheelSpeedMmS: 84.5,
@@ -72,6 +74,8 @@ describe("virtualTelemetrySample", () => {
       // Wheel-speed plots compare targets with course-loop measurements.
       leftWheelSpeedMmS: 88,
       rightWheelSpeedMmS: 99,
+      leftWheelDistanceMm: 42,
+      rightWheelDistanceMm: 44,
     });
   });
 });

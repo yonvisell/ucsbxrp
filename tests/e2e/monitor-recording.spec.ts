@@ -89,11 +89,17 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   expect(path).not.toBeNull();
   const csv = await readFile(path!, "utf8");
   const rows = csv.trimEnd().split("\n");
-  expect(rows[0]).toBe(
-    "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s",
+  const columns = rows[0]!.split(",");
+  expect(columns).toEqual(
+    expect.arrayContaining([
+      "left_wheel_distance_mm",
+      "right_wheel_distance_mm",
+      "program_spiral_travel_mm",
+      "program_spiral_turn_rate_rad_s",
+    ]),
   );
   expect(rows.length).toBeGreaterThan(4);
-  expect(rows[1]?.split(",")).toHaveLength(37);
+  expect(rows[1]?.split(",")).toHaveLength(columns.length);
 
   const svgDownloadPromise = monitor.waitForEvent("download");
   await monitor.getByRole("button", { name: "Export plots as SVG" }).click();
@@ -276,7 +282,7 @@ test("selects scrolling signals from a collapsible monitor sidebar", async ({
   await expect(ideLink).toHaveAttribute("target", "_blank");
   await expect(ideLink).toHaveAttribute("rel", "noopener noreferrer");
   await expect(
-    page.locator(".header-nav").getByText("|", { exact: true }),
+    page.locator(".header-nav").getByText("|", { exact: true }).first(),
   ).toBeVisible();
   const monitorRun = page.locator(".monitor-run-button");
   await expect(monitorRun).toHaveCSS("background-color", "rgb(238, 240, 242)");

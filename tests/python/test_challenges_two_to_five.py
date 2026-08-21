@@ -262,6 +262,8 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertEqual(published["requestedTurnRateRadS"], 0)
         self.assertEqual(published["targetLeftWheelSpeedMmS"], 100)
         self.assertEqual(published["targetRightWheelSpeedMmS"], 100)
+        self.assertEqual(published["leftWheelDistanceMm"], 10)
+        self.assertEqual(published["rightWheelDistanceMm"], 10)
         robot.stop()
         self.assertEqual(state_snapshot()["leftEffort"], 0)
         self.assertIsNone(state_snapshot()["requestedForwardSpeedMmS"])
@@ -299,7 +301,8 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertEqual(published[:3], (10, 0, 0))
         self.assertAlmostEqual(published[3], 100.0)
         self.assertAlmostEqual(published[4], 100.0)
-        self.assertEqual(published[5:], (100, 0, 100.0, 100.0))
+        self.assertEqual(published[5:7], (10.0, 10.0))
+        self.assertEqual(published[7:], (100, 0, 100.0, 100.0))
 
     def test_robot_uses_absolute_wrap_safe_sample_deadlines(self):
         config = RobotConfig(sample_period_ms=20, max_drive_command=0.5)

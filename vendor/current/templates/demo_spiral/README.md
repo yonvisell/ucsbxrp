@@ -11,6 +11,9 @@ parameters:
 - **Forward speed** changes how quickly the XRP travels along the spiral.
 - **Spiral winding rate** changes how tightly the spiral winds.
 
+The program also publishes **Spiral travel** and **Spiral yaw rate**. They
+appear as unchecked green choices under **Monitor → Controls → Signals**.
+
 The same project runs on the virtual or physical XRP. IDE Run starts it
 immediately on either target; a copy launched directly outside the course
 service waits for USER. Motor output always returns to zero through the

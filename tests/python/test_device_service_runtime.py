@@ -223,6 +223,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             "headingRad": 0.4,
             "leftWheelSpeedMmS": 88.0,
             "rightWheelSpeedMmS": 102.0,
+            "leftWheelDistanceMm": 345.0,
+            "rightWheelDistanceMm": 351.0,
             "rangeMm": 450.0,
             "buttonPressed": False,
             "leftEffort": 0.2,
@@ -263,6 +265,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(sample["requestedTurnRateRadS"], 0.1)
         self.assertEqual(sample["targetLeftWheelSpeedMmS"], 87.25)
         self.assertEqual(sample["targetRightWheelSpeedMmS"], 102.75)
+        self.assertEqual(sample["leftWheelDistanceMm"], 345.0)
+        self.assertEqual(sample["rightWheelDistanceMm"], 351.0)
 
     def test_wifi_connection_uses_the_shared_profile_and_feeds_watchdog(self):
         class Watchdog:

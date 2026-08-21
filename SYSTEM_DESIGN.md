@@ -198,9 +198,9 @@ XRP storage. Connection state and current/stale project identity are shown
 separately, so a connected robot cannot be mistaken for a flashed one.
 
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
-descriptors and 16 watch values. For the virtual target, each parameter has one
-fixed shared-memory slot; numbers are encoded as integers so a browser update
-cannot be read halfway through. The physical service queues
+descriptors, 16 watch values, and 16 numerical plot values. For the virtual
+target, each parameter has one fixed shared-memory slot; numbers are encoded as
+integers so a browser update cannot be read halfway through. The physical service queues
 the validated value behind the `ucsb_xrp.live` lock. In both targets,
 `Robot.start()` and `Robot.step()` apply the latest queued values together at a
 measured sample boundary. Programs that do not use `Robot` may expose their own
@@ -457,11 +457,19 @@ the simulator knows the true state. Integer encoder counts are the authoritative
 measurement on both targets. `SensorModel` owns both exact encoder-to-distance
 conversion and a time-aware regularized wheel-speed estimate. Exact wheel
 increments feed odometry; the same regularized speed feeds the wheel controller,
-telemetry, plots, and CSV. This prevents a display-only filter from concealing
+telemetry, plots, and CSV. Cumulative left/right wheel distance is also carried
+from `Measurements` rather than reconstructed in the browser. This prevents a display-only filter from concealing
 the value that closed-loop code actually uses. The supplied implementation is
 a constant-memory first-order estimate configured by
 `wheel_speed_filter_time_constant_ms`; student checks require sensible
 attenuation and response without requiring that particular internal formula.
+
+Programs may add up to 16 numerical analysis signals with `live.plot`. A signal
+has a stable identifier, student-facing label, unit, and current finite value.
+It travels with the bounded runtime snapshot and is copied into each recorded
+telemetry sample; the Monitor never executes student expressions. New signals
+are listed but not plotted until the user selects them, which avoids changing a
+student's display merely because a program publishes diagnostics.
 
 ## 10. Install and export boundaries
 

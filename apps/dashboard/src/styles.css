@@ -299,6 +299,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+.program-signal-choice,
+.program-signal-choice small {
+  color: var(--cyan-deep);
+}
+
+.program-signal-choice input {
+  accent-color: var(--cyan-deep);
+}
+
 .monitor-field {
   display: grid;
   min-width: 0;

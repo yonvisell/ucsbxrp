@@ -32,7 +32,9 @@ drive_command = wheel_controller.update(
 )
 
 expected_increment_mm = pi * 2.0
+instantaneous_speed_mm_s = expected_increment_mm / measurements.dt_s
 print("wheel_increment_mm:", measurements.left_increment_mm)
 print("expected_increment_mm:", expected_increment_mm)
-print("wheel_speed_mm_s:", measurements.left_speed_mm_s)
+print("instantaneous_wheel_speed_mm_s:", instantaneous_speed_mm_s)
+print("regularized_wheel_speed_mm_s:", measurements.left_speed_mm_s)
 print("calculated_drive_command:", drive_command)

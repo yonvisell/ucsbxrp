@@ -44,6 +44,8 @@ def publish_state(
         "headingRad": state.pose.heading_rad,
         "leftWheelSpeedMmS": state.measurements.left_speed_mm_s,
         "rightWheelSpeedMmS": state.measurements.right_speed_mm_s,
+        "leftWheelDistanceMm": state.measurements.left_position_mm,
+        "rightWheelDistanceMm": state.measurements.right_position_mm,
         "rangeMm": state.measurements.range_mm,
         "buttonPressed": state.measurements.button_pressed,
         # The physical-service wire keys remain stable for older app builds.
@@ -62,6 +64,8 @@ def publish_state(
                 state.pose.heading_rad,
                 state.measurements.left_speed_mm_s,
                 state.measurements.right_speed_mm_s,
+                state.measurements.left_position_mm,
+                state.measurements.right_position_mm,
                 requested_forward,
                 requested_turn,
                 target_left,

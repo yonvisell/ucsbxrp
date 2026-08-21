@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.8"
+COURSE_RELEASE = "2026.08-dev.9"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -533,6 +533,12 @@ def _hardware_sample():
         "rightEffort": 0.0 if pose is None else pose["rightEffort"],
         "leftWheelSpeedMmS": left_speed,
         "rightWheelSpeedMmS": right_speed,
+        "leftWheelDistanceMm": (
+            None if pose is None else pose.get("leftWheelDistanceMm")
+        ),
+        "rightWheelDistanceMm": (
+            None if pose is None else pose.get("rightWheelDistanceMm")
+        ),
         "leftEncoderCount": left_count,
         "rightEncoderCount": right_count,
         "collision": False,
@@ -563,7 +569,7 @@ def _runtime_snapshot_json():
             raise ValueError("runtime snapshot is invalid")
         return value
     except Exception:
-        return '{"revision":0,"parameters":[],"watches":[]}'
+        return '{"revision":0,"parameters":[],"watches":[],"plots":[]}'
 
 
 def _state_result(after_log_seq=0):

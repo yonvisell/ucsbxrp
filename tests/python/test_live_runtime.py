@@ -81,9 +81,29 @@ class LiveRuntimeTests(unittest.TestCase):
         self.assertEqual(state["watches"][0]["unit"], "mm")
         self.assertEqual(state["watches"][1]["value"], "turning")
 
+    def test_plot_publishes_a_bounded_numeric_signal_without_printing(self):
+        live.plot("cross_track_error", 42.5, unit="mm", label="Path error")
+        live.plot("cross_track_error", 18, unit="mm", label="Path error")
+
+        self.assertEqual(self.snapshot()["plots"], [])
+        self.assertFalse(live.apply_updates())
+        self.assertEqual(
+            self.snapshot()["plots"],
+            [
+                {
+                    "name": "cross_track_error",
+                    "label": "Path error",
+                    "value": 18.0,
+                    "unit": "mm",
+                }
+            ],
+        )
+        with self.assertRaisesRegex(ValueError, "finite"):
+            live.plot("bad", float("nan"))
+
     def test_rejects_ambiguous_or_unrenderable_parameters(self):
-        with self.assertRaisesRegex(ValueError, "step"):
-            live.number("speed", 101, 0, 200, 10)
+        speed = live.number("speed", 101, 0, 200, 10)
+        self.assertEqual(speed.value, 100)
         with self.assertRaisesRegex(ValueError, "letters, digits"):
             live.toggle("not valid", True)
         with self.assertRaisesRegex(ValueError, "2 to 6"):

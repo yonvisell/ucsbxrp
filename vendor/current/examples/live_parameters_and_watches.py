@@ -28,6 +28,7 @@ correction = GAIN.value * error_mm if CONTROLLER_ENABLED.value else 0.0
 
 live.watch("error_mm", error_mm, unit="mm", label="Position error")
 live.watch("correction", correction, label="Controller correction")
+live.plot("error_mm", error_mm, unit="mm", label="Position error")
 live.apply_updates()
 
 print("final_correction:", correction)

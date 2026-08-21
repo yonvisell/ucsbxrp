@@ -57,6 +57,7 @@ export type {
   RuntimeParameter,
   RuntimeParameterKind,
   RuntimeParameterValue,
+  RuntimePlot,
   RuntimeState,
   RuntimeWatch,
   SynchronizedProject,

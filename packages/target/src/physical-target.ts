@@ -144,6 +144,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private projectStateKnown = false;
   private info: PhysicalInfo | null = null;
   private lastRuntimeJson = "";
+  private runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -548,7 +549,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.consumeRuntimeState(state.runtimeJson);
     this.emitStatus(state.state, state.detail);
     if (state.sample) {
-      this.emit({ type: "telemetry", sample: state.sample });
+      this.emit({
+        type: "telemetry",
+        sample: {
+          ...state.sample,
+          plotValues: this.runtimeState.plots.map((plot) => ({ ...plot })),
+        },
+      });
     }
     for (const entry of state.logs) {
       this.lastLogSeq = Math.max(this.lastLogSeq, entry.seq);
@@ -646,10 +653,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
     this.lastRuntimeJson = runtimeJson;
     try {
-      this.emit({ type: "runtime", state: parseRuntimeState(runtimeJson) });
+      this.runtimeState = parseRuntimeState(runtimeJson);
     } catch {
-      this.emit({ type: "runtime", state: EMPTY_RUNTIME_STATE });
+      this.runtimeState = EMPTY_RUNTIME_STATE;
     }
+    this.emit({ type: "runtime", state: this.runtimeState });
   }
 
   private emit(event: TargetEvent): void {

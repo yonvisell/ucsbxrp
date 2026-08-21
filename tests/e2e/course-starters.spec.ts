@@ -331,6 +331,17 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   );
   const liveControls = monitor.locator(".live-controls-panel");
   await expect(liveControls).toContainText("2 controls");
+  const openMonitorControls = monitor.getByRole("button", {
+    name: "Open monitor controls",
+  });
+  if (await openMonitorControls.isVisible()) {
+    await openMonitorControls.click();
+  }
+  const programPlot = monitor.getByRole("checkbox", {
+    name: "Spiral travel mm",
+  });
+  await expect(programPlot).toBeVisible();
+  await expect(programPlot).not.toBeChecked();
 
   const speed = liveControls.getByRole("slider", { name: "Forward speed" });
   await speed.fill("100");
@@ -364,6 +375,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
     "Virtual XRP · ready",
   );
   await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+  await expect(programPlot).toBeVisible();
 
   await monitor
     .getByLabel("Virtual scene")

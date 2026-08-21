@@ -40,10 +40,18 @@ export interface RuntimeWatch {
   unit?: string;
 }
 
+export interface RuntimePlot {
+  name: string;
+  label: string;
+  value: number;
+  unit?: string;
+}
+
 export interface RuntimeState {
   revision: number;
   parameters: RuntimeParameter[];
   watches: RuntimeWatch[];
+  plots: RuntimePlot[];
 }
 
 export type TargetRunState =
@@ -78,6 +86,9 @@ export interface TelemetrySample {
   rightEffort: number;
   leftWheelSpeedMmS: number;
   rightWheelSpeedMmS: number;
+  leftWheelDistanceMm?: number | null;
+  rightWheelDistanceMm?: number | null;
+  plotValues?: RuntimePlot[];
   leftEncoderCount: number;
   rightEncoderCount: number;
   collision: boolean;

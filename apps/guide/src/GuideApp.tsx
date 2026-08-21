@@ -319,8 +319,10 @@ export function GuideApp() {
             <p>
               A program can create sliders, toggles, and choices with{" "}
               <code>ucsb_xrp.live</code>. It may publish current intermediate
-              values with <code>live.watch()</code>. These appear in Live
-              controls and Watch values without repeated print statements.
+              values with <code>live.watch()</code>, or a numerical value that
+              can be plotted with <code>live.plot()</code>. Plot values appear
+              as unchecked green signal choices. These tools expose useful state
+              without repeated print statements.
             </p>
             <ol className="procedure">
               <li>

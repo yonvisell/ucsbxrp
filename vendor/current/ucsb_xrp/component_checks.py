@@ -73,6 +73,14 @@ def _wheel_speed_controller(component_class):
         raise AssertionError("a zero target should command exact zero")
 
 
+def _range_estimator(component_class):
+    model = component_class(RobotConfig())
+    samples = (None, 400.0, float("nan"), -2.0, 100.0, 300.0, 200.0)
+    _close(model.estimate_range(samples, 3), 250.0)
+    if model.estimate_range(samples, 5) is not None:
+        raise AssertionError("too few usable readings should return None")
+
+
 def _differential_drive(component_class):
     drive = component_class(RobotConfig(track_width_mm=100.0))
     speeds = drive.wheel_speeds(MotionCommand(100.0, 2.0))
@@ -136,6 +144,11 @@ _CHECKS = (
         "WheelSpeedController · signed and bounded motor command",
         "wheel_speed_controller",
         _wheel_speed_controller,
+    ),
+    (
+        "SensorModel · robust ultrasound estimate",
+        "range_estimator",
+        _range_estimator,
     ),
     (
         "DifferentialDrive · body command to wheel targets",

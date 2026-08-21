@@ -1,11 +1,13 @@
 import type {
   RuntimeParameter,
   RuntimeParameterValue,
+  RuntimePlot,
   RuntimeState,
 } from "./types";
 
 export const MAX_RUNTIME_PARAMETERS = 16;
 export const MAX_RUNTIME_WATCHES = 16;
+export const MAX_RUNTIME_PLOTS = 16;
 export const MAX_RUNTIME_STATE_LENGTH = 32_768;
 const MAX_ENCODED_PARAMETER_VALUE = 2_147_483_647;
 
@@ -13,6 +15,7 @@ export const EMPTY_RUNTIME_STATE: RuntimeState = Object.freeze({
   revision: 0,
   parameters: [],
   watches: [],
+  plots: [],
 });
 
 export function encodeRuntimeParameter(
@@ -33,10 +36,6 @@ export function encodeRuntimeParameter(
       throw new Error(`${parameter.label} is outside its declared range`);
     }
     const encoded = Math.round((value - parameter.minimum) / parameter.step);
-    const snapped = parameter.minimum + encoded * parameter.step;
-    if (Math.abs(value - snapped) > Math.max(1e-9, parameter.step * 1e-6)) {
-      throw new Error(`${parameter.label} must follow its declared step`);
-    }
     if (encoded < 0 || encoded > MAX_ENCODED_PARAMETER_VALUE) {
       throw new Error(`${parameter.label} declares too many steps`);
     }
@@ -59,6 +58,7 @@ export function parseRuntimeState(value: string): RuntimeState {
     throw new Error("Student runtime state is malformed");
   }
   const candidate = JSON.parse(value) as Partial<RuntimeState> | null;
+  const plots = candidate?.plots ?? [];
   if (
     candidate === null ||
     typeof candidate !== "object" ||
@@ -66,18 +66,22 @@ export function parseRuntimeState(value: string): RuntimeState {
     (candidate.revision ?? -1) < 0 ||
     !Array.isArray(candidate.parameters) ||
     !Array.isArray(candidate.watches) ||
+    !Array.isArray(plots) ||
     candidate.parameters.length > MAX_RUNTIME_PARAMETERS ||
     candidate.watches.length > MAX_RUNTIME_WATCHES ||
+    plots.length > MAX_RUNTIME_PLOTS ||
     !candidate.parameters.every(isRuntimeParameter) ||
     !candidate.watches.every(isRuntimeWatch) ||
+    !plots.every(isRuntimePlot) ||
     new Set(candidate.parameters.map((parameter) => parameter.name)).size !==
       candidate.parameters.length ||
     new Set(candidate.watches.map((watch) => watch.name)).size !==
-      candidate.watches.length
+      candidate.watches.length ||
+    new Set(plots.map((plot) => plot.name)).size !== plots.length
   ) {
     throw new Error("Student runtime state is malformed");
   }
-  return candidate as RuntimeState;
+  return { ...(candidate as RuntimeState), plots };
 }
 
 function isRuntimeValue(value: unknown): value is RuntimeParameterValue {
@@ -134,11 +138,8 @@ function isRuntimeParameter(value: unknown): value is RuntimeParameter {
       parameter.maximum <= parameter.minimum ||
       parameter.step <= 0 ||
       parameter.step > parameter.maximum - parameter.minimum ||
-      !hasRepresentableNumericRange(
-        parameter.minimum,
-        parameter.maximum,
-        parameter.step,
-      ))
+      Math.round((parameter.maximum - parameter.minimum) / parameter.step) >
+        MAX_ENCODED_PARAMETER_VALUE)
   ) {
     return false;
   }
@@ -181,16 +182,16 @@ function isRuntimeWatch(value: unknown): boolean {
   );
 }
 
-function hasRepresentableNumericRange(
-  minimum: number,
-  maximum: number,
-  step: number,
-): boolean {
-  const stepCount = (maximum - minimum) / step;
-  const encodedMaximum = Math.round(stepCount);
+function isRuntimePlot(value: unknown): value is RuntimePlot {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const plot = value as Record<string, unknown>;
   return (
-    encodedMaximum <= MAX_ENCODED_PARAMETER_VALUE &&
-    Math.abs(stepCount - encodedMaximum) <=
-      Math.max(1e-9, Math.abs(stepCount) * 1e-9)
+    isRuntimeName(plot.name) &&
+    isNonemptyText(plot.label) &&
+    hasOptionalText(plot.unit) &&
+    typeof plot.value === "number" &&
+    Number.isFinite(plot.value)
   );
 }

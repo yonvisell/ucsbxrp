@@ -89,7 +89,7 @@ class CourseStarterTests(unittest.TestCase):
             "challenge_2": 4,
             "challenge_3": 5,
             "challenge_4": 6,
-            "challenge_5": 6,
+            "challenge_5": 7,
         }
         project_module_names = (
             "sensor_model",

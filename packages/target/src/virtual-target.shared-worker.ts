@@ -82,7 +82,11 @@ function clearRuntimeState(): void {
 function telemetryEvent(): TargetEvent {
   return {
     type: "telemetry",
-    sample: virtualTelemetrySample(simulatorState, courseTelemetryState),
+    sample: virtualTelemetrySample(
+      simulatorState,
+      courseTelemetryState,
+      runtimeState.plots,
+    ),
   };
 }
 

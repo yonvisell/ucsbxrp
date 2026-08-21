@@ -54,6 +54,19 @@ try:
         expansion = 1.0 + travel_mm / SPIRAL_EXPANSION_MM
         turn_rate_rad_s = 2.0 * pi * speed_mm_s * turns_per_mm / expansion
 
+        live.plot(
+            "spiral_travel_mm",
+            travel_mm,
+            unit="mm",
+            label="Spiral travel",
+        )
+        live.plot(
+            "spiral_turn_rate_rad_s",
+            turn_rate_rad_s,
+            unit="rad/s",
+            label="Spiral yaw rate",
+        )
+
         state = robot.step(
             MotionCommand(speed_mm_s, turn_rate_rad_s),
             read_range=True,

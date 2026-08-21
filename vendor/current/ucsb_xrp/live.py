@@ -24,14 +24,17 @@ except ImportError:
 
 MAX_PARAMETERS = 16
 MAX_WATCHES = 16
+MAX_PLOTS = 16
 MAX_ENCODED_VALUE = 2147483647
 
 _parameters = []
 _parameters_by_name = {}
 _watches = []
 _watches_by_name = {}
+_plots = []
+_plots_by_name = {}
 _revision = 0
-_runtime_json = '{"revision":0,"parameters":[],"watches":[]}'
+_runtime_json = '{"revision":0,"parameters":[],"watches":[],"plots":[]}'
 _snapshot_dirty = False
 
 
@@ -114,6 +117,7 @@ def _refresh_snapshot():
         "revision": _revision,
         "parameters": [_parameter_record(item) for item in _parameters],
         "watches": [dict(item) for item in _watches],
+        "plots": [dict(item) for item in _plots],
     }
     _runtime_json = json.dumps(value, separators=(",", ":"))
     _snapshot_dirty = False
@@ -194,11 +198,7 @@ class LiveParameter:
                     + str(self.maximum)
                 )
             encoded = self._encode(value)
-            snapped = self._decode(encoded)
-            tolerance = max(1e-9, abs(self.step) * 1e-6)
-            if abs(value - snapped) > tolerance:
-                raise ValueError(self.name + " must follow its declared step")
-            return snapped
+            return self._decode(encoded)
         if self.kind == "toggle":
             if not isinstance(value, bool):
                 raise TypeError(self.name + " must be True or False")
@@ -321,6 +321,38 @@ def watch(name, value, unit="", label=None):
         _release()
 
 
+def plot(name, value, unit="", label=None):
+    """Stage one numeric value for an optional Monitor strip plot."""
+    global _snapshot_dirty
+    name = _clean_text(name, "name", 32, identifier=True)
+    label = _clean_text(label or _default_label(name), "label", 48)
+    unit = "" if unit == "" else _clean_text(unit, "unit", 16)
+    value = _finite_number(value, "plot value")
+    _acquire()
+    try:
+        existing = _plots_by_name.get(name)
+        if existing is None:
+            if len(_plots) >= MAX_PLOTS:
+                raise ValueError(
+                    "at most " + str(MAX_PLOTS) + " plot values may be published"
+                )
+            existing = {"name": name, "label": label, "value": value}
+            if unit:
+                existing["unit"] = unit
+            _plots.append(existing)
+            _plots_by_name[name] = existing
+        else:
+            existing["label"] = label
+            existing["value"] = value
+            if unit:
+                existing["unit"] = unit
+            else:
+                existing.pop("unit", None)
+        _snapshot_dirty = True
+    finally:
+        _release()
+
+
 def apply_updates():
     """Apply the most recent Monitor values as one control-loop update."""
     changed = False
@@ -376,6 +408,8 @@ def clear():
         _parameters_by_name.clear()
         _watches[:] = []
         _watches_by_name.clear()
+        _plots[:] = []
+        _plots_by_name.clear()
         _revision = 0
         _snapshot_dirty = False
         _refresh_snapshot()
@@ -388,6 +422,7 @@ __all__ = (
     "apply_updates",
     "choice",
     "number",
+    "plot",
     "toggle",
     "watch",
 )

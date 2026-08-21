@@ -17,6 +17,8 @@ export interface CourseTelemetryState {
   estimatedHeadingRad: number;
   measuredLeftWheelSpeedMmS: number;
   measuredRightWheelSpeedMmS: number;
+  measuredLeftWheelDistanceMm: number;
+  measuredRightWheelDistanceMm: number;
   requestedForwardSpeedMmS: number | null;
   requestedTurnRateRadS: number | null;
   targetLeftWheelSpeedMmS: number | null;

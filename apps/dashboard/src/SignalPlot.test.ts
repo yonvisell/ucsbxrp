@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
-import { SIGNAL_PLOTS, signalPlotData, signalXAxis } from "./SignalPlot";
+import {
+  SIGNAL_PLOTS,
+  runtimePlotDefinition,
+  signalPlotData,
+  signalPlotDataForDefinition,
+  signalXAxis,
+} from "./SignalPlot";
 
 function sample(
   tMs: number,
@@ -38,6 +44,7 @@ describe("monitor signal plots", () => {
   it("offers distinct course-relevant signal choices", () => {
     expect(SIGNAL_PLOTS.map((plot) => plot.id)).toEqual([
       "wheel-speed",
+      "wheel-distance",
       "motor-effort",
       "pose-error",
       "range",
@@ -94,6 +101,37 @@ describe("monitor signal plots", () => {
 
     expect(data[0]?.name).toBe("Measured L");
     expect(data[0]?.values.map((point) => point[1])).toEqual([80, 120, 100]);
+  });
+
+  it("plots measured wheel distance and values declared by the program", () => {
+    const wheelDistance = signalPlotData(
+      [
+        sample(0, { leftWheelDistanceMm: 0, rightWheelDistanceMm: 0 }),
+        sample(20, { leftWheelDistanceMm: 2, rightWheelDistanceMm: 1.8 }),
+      ],
+      "wheel-distance",
+      5,
+    );
+    const pathError = runtimePlotDefinition({
+      name: "path_error",
+      label: "Path error",
+      value: 4,
+      unit: "mm",
+    });
+    const programData = signalPlotDataForDefinition(
+      [
+        sample(0, {
+          plotValues: [
+            { name: "path_error", label: "Path error", value: 4, unit: "mm" },
+          ],
+        }),
+      ],
+      pathError,
+      5,
+    );
+
+    expect(wheelDistance[0]?.values.map((point) => point[1])).toEqual([0, 2]);
+    expect(programData[0]?.values).toEqual([[0, 4]]);
   });
 
   it("preserves missing physical sensor values as chart gaps", () => {

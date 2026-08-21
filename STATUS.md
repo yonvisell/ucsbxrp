@@ -4,6 +4,19 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 29 adds analysis signals without introducing print-based logging.
+`SensorModel` now publishes signed left/right wheel distance alongside its
+regularized wheel speed. Students may publish up to 16 finite numerical values
+with `live.plot(name, value, unit, label)`; each appears as an unchecked green
+signal choice, follows the normal telemetry stream on virtual and physical
+targets, and is included in plot export and recorded CSV. The default spiral
+publishes travel and yaw rate as working examples. Numeric live controls now
+snap ordinary in-range values to their declared slider step instead of rejecting
+floating-point representations or ranges whose endpoint is between steps.
+Challenge 5 has a separate ultrasound-estimation check, and every challenge
+wrapper now names the exact IDE action, output location, and an example result.
+The coordinated course/service release is `2026.08-dev.9`.
+
 Refinement 28 removes two sources of course-document drift. Challenge READMEs
 describe each task through the named values in `challenge.py` instead of copying
 their current numerical values into prose. Each visible `component_checks.py`

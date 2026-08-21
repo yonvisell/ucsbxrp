@@ -19,6 +19,8 @@ function sample(seq: number): TelemetrySample {
     rightEffort: 0.19,
     leftWheelSpeedMmS: 100,
     rightWheelSpeedMmS: 98,
+    leftWheelDistanceMm: seq * 2,
+    rightWheelDistanceMm: seq * 1.9,
     leftEncoderCount: seq * 4,
     rightEncoderCount: seq * 4 - 1,
     collision: seq === 3,
@@ -75,7 +77,7 @@ describe("TelemetryRecorder", () => {
     expect(recorder.sampleCount).toBe(0);
     recorder.clear();
     expect(recorder.snapshot()).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       samples: [],
       droppedSamples: 0,
     });
@@ -90,7 +92,7 @@ describe("telemetryRecordingToCsv", () => {
 
     const csv = telemetryRecordingToCsv(recorder.stop());
     expect(csv.split("\n")[0]).toBe(
-      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s",
+      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_wheel_distance_mm,right_wheel_distance_mm,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s",
     );
     expect(csv).toContain("virtual,1,3,0.06,4.5,-3,0.30000000000000004");
     expect(csv).toContain(",1,,0,,,,,,,,,");
@@ -148,7 +150,7 @@ describe("telemetryRecordingToCsv", () => {
       .trimEnd()
       .split("\n")[1]!
       .split(",");
-    expect(values.slice(16, 22).map(Number)).toEqual([
+    expect(values.slice(18, 24).map(Number)).toEqual([
       9.80665,
       -4.903325,
       0,
@@ -158,10 +160,32 @@ describe("telemetryRecordingToCsv", () => {
     ]);
   });
 
+  it("adds program plot values as unit-labeled columns", () => {
+    const recorder = new TelemetryRecorder();
+    recorder.start();
+    recorder.capture({
+      ...sample(1),
+      plotValues: [
+        {
+          name: "cross_track_error",
+          label: "Path error",
+          value: 12.5,
+          unit: "mm",
+        },
+      ],
+    });
+
+    const lines = telemetryRecordingToCsv(recorder.stop())
+      .trimEnd()
+      .split("\n");
+    expect(lines[0]).toMatch(/,program_cross_track_error_mm$/);
+    expect(lines[1]).toMatch(/,12\.5$/);
+  });
+
   it("exports a header-only file for an empty recording", () => {
     const recorder = new TelemetryRecorder();
     expect(telemetryRecordingToCsv(recorder.snapshot()).split("\n")).toEqual([
-      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s",
+      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_wheel_distance_mm,right_wheel_distance_mm,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s",
       "",
     ]);
   });

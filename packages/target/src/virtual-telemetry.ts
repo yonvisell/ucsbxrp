@@ -1,6 +1,7 @@
 import type { XrpSimulatorState } from "@ucsb-xrp/simulator";
 
 import type { TelemetrySample } from "./types";
+import type { RuntimePlot } from "./types";
 import type { CourseTelemetryState } from "./worker-protocol";
 
 /**
@@ -10,6 +11,7 @@ import type { CourseTelemetryState } from "./worker-protocol";
 export function virtualTelemetrySample(
   state: XrpSimulatorState,
   courseState: CourseTelemetryState | null,
+  plots: readonly RuntimePlot[] = [],
 ): TelemetrySample {
   return {
     tMs: state.tMs,
@@ -37,6 +39,9 @@ export function virtualTelemetrySample(
       courseState?.measuredLeftWheelSpeedMmS ?? state.leftWheelSpeedMmS,
     rightWheelSpeedMmS:
       courseState?.measuredRightWheelSpeedMmS ?? state.rightWheelSpeedMmS,
+    leftWheelDistanceMm: courseState?.measuredLeftWheelDistanceMm ?? null,
+    rightWheelDistanceMm: courseState?.measuredRightWheelDistanceMm ?? null,
+    plotValues: plots.map((plot) => ({ ...plot })),
     leftEncoderCount: state.leftEncoderCount,
     rightEncoderCount: state.rightEncoderCount,
     collision: state.collision,

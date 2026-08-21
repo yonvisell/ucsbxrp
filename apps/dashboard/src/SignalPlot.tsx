@@ -7,11 +7,12 @@ import {
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
+  type RuntimePlot,
   type TelemetrySample,
 } from "@ucsb-xrp/target";
 
@@ -28,6 +29,7 @@ echarts.use([
 
 export type SignalPlotId =
   | "wheel-speed"
+  | "wheel-distance"
   | "motor-effort"
   | "pose-error"
   | "range"
@@ -42,7 +44,7 @@ interface SignalSeriesDefinition {
 }
 
 export interface SignalPlotDefinition {
-  id: SignalPlotId;
+  id: string;
   label: string;
   unit: string;
   description: string;
@@ -50,7 +52,11 @@ export interface SignalPlotDefinition {
   series: readonly SignalSeriesDefinition[];
 }
 
-export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
+interface BuiltInSignalPlotDefinition extends SignalPlotDefinition {
+  id: SignalPlotId;
+}
+
+export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "wheel-speed",
     label: "Wheel speed",
@@ -80,6 +86,26 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
         color: "#87515d",
         dash: "dotted",
         value: (sample) => sample.targetRightWheelSpeedMmS ?? null,
+      },
+    ],
+  },
+  {
+    id: "wheel-distance",
+    label: "Wheel distance",
+    unit: "mm",
+    description:
+      "Signed left and right wheel distance calculated by SensorModel from encoder counts.",
+    series: [
+      {
+        label: "Left",
+        color: "#08736b",
+        value: (sample) => sample.leftWheelDistanceMm ?? null,
+      },
+      {
+        label: "Right",
+        color: "#a66b08",
+        dash: "dashed",
+        value: (sample) => sample.rightWheelDistanceMm ?? null,
       },
     ],
   },
@@ -197,6 +223,24 @@ export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   },
 ] as const;
 
+export function runtimePlotDefinition(plot: RuntimePlot): SignalPlotDefinition {
+  return {
+    id: `program:${plot.name}`,
+    label: plot.label,
+    unit: plot.unit || "unitless",
+    description: `${plot.label} published by the running program.`,
+    series: [
+      {
+        label: plot.label,
+        color: "#08736b",
+        value: (sample) =>
+          sample.plotValues?.find((value) => value.name === plot.name)?.value ??
+          null,
+      },
+    ],
+  };
+}
+
 export function signalPlotDefinition(id: SignalPlotId): SignalPlotDefinition {
   const definition = SIGNAL_PLOTS.find((candidate) => candidate.id === id);
   if (!definition) {
@@ -210,7 +254,18 @@ export function signalPlotData(
   id: SignalPlotId,
   timeWindowS: number,
 ): Array<{ name: string; values: Array<[number, number | null]> }> {
-  const definition = signalPlotDefinition(id);
+  return signalPlotDataForDefinition(
+    samples,
+    signalPlotDefinition(id),
+    timeWindowS,
+  );
+}
+
+export function signalPlotDataForDefinition(
+  samples: readonly TelemetrySample[],
+  definition: SignalPlotDefinition,
+  timeWindowS: number,
+): Array<{ name: string; values: Array<[number, number | null]> }> {
   const latestMs = samples.at(-1)?.tMs ?? 0;
   const startMs = latestMs - timeWindowS * 1_000;
   const firstVisibleIndex = Math.max(
@@ -232,7 +287,7 @@ export function signalPlotData(
 
 interface SignalPlotProps {
   annotations?: readonly MonitorAnnotation[];
-  id: SignalPlotId;
+  definition: SignalPlotDefinition;
   onAddAnnotation?: (tMs: number, label: string) => void;
   samples: readonly TelemetrySample[];
   showAnnotations?: boolean;
@@ -260,7 +315,7 @@ export function signalXAxis(timeWindowS: number) {
 
 export function SignalPlot({
   annotations = [],
-  id,
+  definition,
   onAddAnnotation,
   samples,
   showAnnotations = true,
@@ -275,7 +330,6 @@ export function SignalPlot({
     left: number;
     tMs: number;
   } | null>(null);
-  const definition = useMemo(() => signalPlotDefinition(id), [id]);
 
   useEffect(() => {
     noteInputRef.current?.focus();
@@ -299,7 +353,7 @@ export function SignalPlot({
   }, []);
 
   useEffect(() => {
-    const data = signalPlotData(samples, id, timeWindowS);
+    const data = signalPlotDataForDefinition(samples, definition, timeWindowS);
     const latestMs = samples.at(-1)?.tMs ?? 0;
     const startMs = latestMs - timeWindowS * 1_000;
     const visibleAnnotations = showAnnotations
@@ -386,7 +440,7 @@ export function SignalPlot({
       },
       { notMerge: true, lazyUpdate: true },
     );
-  }, [annotations, definition, id, samples, showAnnotations, timeWindowS]);
+  }, [annotations, definition, samples, showAnnotations, timeWindowS]);
 
   const openNoteAt = (clientX?: number) => {
     const shell = shellRef.current;
@@ -448,7 +502,9 @@ export function SignalPlot({
       <div
         className="signal-plot"
         data-testid={
-          id === "wheel-speed" ? "wheel-speed-plot" : `strip-chart-${id}`
+          definition.id === "wheel-speed"
+            ? "wheel-speed-plot"
+            : `strip-chart-${definition.id.replace(/[^A-Za-z0-9_-]/g, "-")}`
         }
         ref={elementRef}
         role="img"

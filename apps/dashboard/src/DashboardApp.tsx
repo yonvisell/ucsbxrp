@@ -44,7 +44,13 @@ import {
   type CourseDirectoryHandle,
   type CourseFileHandle,
 } from "../../shared/course-folder";
-import { SIGNAL_PLOTS, SignalPlot, type SignalPlotId } from "./SignalPlot";
+import {
+  SIGNAL_PLOTS,
+  SignalPlot,
+  runtimePlotDefinition,
+  type SignalPlotDefinition,
+  type SignalPlotId,
+} from "./SignalPlot";
 import { WorldView } from "./WorldView";
 import {
   createSignalPlotsSvg,
@@ -70,6 +76,7 @@ const emptyRuntimeState: RuntimeState = {
   revision: 0,
   parameters: [],
   watches: [],
+  plots: [],
 };
 
 function isActiveRunState(state: TargetRunState): boolean {
@@ -158,6 +165,7 @@ const defaultMonitorSettings: MonitorSettings = {
   timeWindowS: 10,
   plots: {
     "wheel-speed": true,
+    "wheel-distance": false,
     "motor-effort": true,
     "pose-error": false,
     range: false,
@@ -489,6 +497,12 @@ export function DashboardApp() {
   const [recordingActive, setRecordingActive] = useState(false);
   const [runtimeState, setRuntimeState] =
     useState<RuntimeState>(emptyRuntimeState);
+  const [availableProgramPlots, setAvailableProgramPlots] = useState(
+    emptyRuntimeState.plots,
+  );
+  const [programPlotVisibility, setProgramPlotVisibility] = useState<
+    Record<string, boolean>
+  >({});
   const [runtimeDrafts, setRuntimeDrafts] = useState<
     Record<string, RuntimeParameterValue>
   >({});
@@ -714,6 +728,8 @@ export function DashboardApp() {
     setConsoleEntries([]);
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
+    setAvailableProgramPlots([]);
+    setProgramPlotVisibility({});
     setRuntimeDrafts({});
     setRuntimeUpdateError("");
     nextConsoleId.current = 1;
@@ -778,6 +794,17 @@ export function DashboardApp() {
         setCurrentProject(event.project);
       } else if (event.type === "runtime") {
         setRuntimeState(event.state);
+        if (event.state.plots.length > 0) {
+          setAvailableProgramPlots(event.state.plots);
+          setProgramPlotVisibility((current) =>
+            Object.fromEntries(
+              event.state.plots.map((plot) => [
+                plot.name,
+                current[plot.name] ?? false,
+              ]),
+            ),
+          );
+        }
       } else if (event.type === "console") {
         const entry = {
           id: nextConsoleId.current++,
@@ -1014,9 +1041,15 @@ export function DashboardApp() {
     );
   };
 
-  const visiblePlots = SIGNAL_PLOTS.filter(
-    (plot) => monitorSettings.plots[plot.id],
+  const programPlotDefinitions = availableProgramPlots.map(
+    runtimePlotDefinition,
   );
+  const visiblePlots: SignalPlotDefinition[] = [
+    ...SIGNAL_PLOTS.filter((plot) => monitorSettings.plots[plot.id]),
+    ...programPlotDefinitions.filter((plot) =>
+      Boolean(programPlotVisibility[plot.id.replace(/^program:/, "")]),
+    ),
+  ];
 
   const addAnnotation = (tMs: number, label: string) => {
     const nearest = plotSamples.reduce<TelemetrySample | null>(
@@ -1055,7 +1088,7 @@ export function DashboardApp() {
     try {
       const svg = createSignalPlotsSvg(
         plotSamples,
-        visiblePlots.map((plot) => plot.id),
+        visiblePlots,
         monitorSettings.timeWindowS,
         annotationsVisible ? annotations : [],
       );
@@ -1124,6 +1157,10 @@ export function DashboardApp() {
       ...current,
       plots: { ...current.plots, [id]: visible },
     }));
+  };
+
+  const setProgramPlotVisible = (name: string, visible: boolean) => {
+    setProgramPlotVisibility((current) => ({ ...current, [name]: visible }));
   };
 
   const setLayoutValue = (
@@ -1353,6 +1390,26 @@ export function DashboardApp() {
                         />
                         <span>{plot.label}</span>
                         <small>{plot.unit}</small>
+                      </label>
+                    ))}
+                    {availableProgramPlots.map((plot) => (
+                      <label
+                        className="check-row program-signal-choice"
+                        key={plot.name}
+                        title={`${plot.label} is published by the running program.`}
+                      >
+                        <input
+                          checked={programPlotVisibility[plot.name] ?? false}
+                          onChange={(event) =>
+                            setProgramPlotVisible(
+                              plot.name,
+                              event.target.checked,
+                            )
+                          }
+                          type="checkbox"
+                        />
+                        <span>{plot.label}</span>
+                        <small>{plot.unit ?? ""}</small>
                       </label>
                     ))}
                   </div>
@@ -1646,6 +1703,13 @@ export function DashboardApp() {
                         {value(sample.rightWheelSpeedMmS)} mm/s
                       </dd>
                     </div>
+                    <div title="Signed left and right wheel distance calculated by SensorModel from encoder counts.">
+                      <dt>wheel distance L/R</dt>
+                      <dd>
+                        {value(sample.leftWheelDistanceMm ?? null)} /{" "}
+                        {value(sample.rightWheelDistanceMm ?? null)} mm
+                      </dd>
+                    </div>
                     {sample.targetLeftWheelSpeedMmS != null ||
                     sample.targetRightWheelSpeedMmS != null ? (
                       <div title="Left and right wheel speeds requested by DifferentialDrive.">
@@ -1793,7 +1857,7 @@ export function DashboardApp() {
                     <section className="strip-chart" key={plot.id}>
                       <SignalPlot
                         annotations={annotations}
-                        id={plot.id}
+                        definition={plot}
                         onAddAnnotation={addAnnotation}
                         samples={plotSamples}
                         showAnnotations={annotationsVisible}

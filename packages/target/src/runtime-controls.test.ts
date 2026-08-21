@@ -47,7 +47,7 @@ describe("runtime controls", () => {
       step: 5,
     };
     expect(() => encodeRuntimeParameter(speed, 203)).toThrow(/range/);
-    expect(() => encodeRuntimeParameter(speed, 103)).toThrow(/step/);
+    expect(encodeRuntimeParameter(speed, 103)).toBe(11);
     expect(() =>
       encodeRuntimeParameter(
         {
@@ -66,6 +66,16 @@ describe("runtime controls", () => {
         '{"revision":3,"parameters":[],"watches":[{"name":"error","label":"Error","value":2.5,"unit":"mm"}]}',
       ).watches[0]?.unit,
     ).toBe("mm");
+    expect(
+      parseRuntimeState(
+        '{"revision":4,"parameters":[],"watches":[],"plots":[{"name":"error","label":"Position error","value":2.5,"unit":"mm"}]}',
+      ).plots[0],
+    ).toEqual({
+      name: "error",
+      label: "Position error",
+      value: 2.5,
+      unit: "mm",
+    });
     expect(() => parseRuntimeState('{"parameters":[]}')).toThrow(/malformed/);
   });
 
@@ -85,10 +95,10 @@ describe("runtime controls", () => {
         '{"revision":1,"parameters":[],"watches":[{"name":"error","label":"Error","value":null}]}',
       ),
     ).toThrow(/malformed/);
-    expect(() =>
+    expect(
       parseRuntimeState(
         '{"revision":1,"parameters":[{"name":"speed","label":"Speed","kind":"number","value":0,"minimum":0,"maximum":1,"step":0.3}],"watches":[]}',
-      ),
-    ).toThrow(/malformed/);
+      ).parameters[0]?.maximum,
+    ).toBe(1);
   });
 });

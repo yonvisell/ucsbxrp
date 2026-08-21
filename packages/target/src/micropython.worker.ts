@@ -172,6 +172,8 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         estimatedHeadingRad: unknown,
         measuredLeftWheelSpeedMmS: unknown,
         measuredRightWheelSpeedMmS: unknown,
+        measuredLeftWheelDistanceMm: unknown,
+        measuredRightWheelDistanceMm: unknown,
         requestedForwardSpeedMmS: unknown,
         requestedTurnRateRadS: unknown,
         targetLeftWheelSpeedMmS: unknown,
@@ -182,12 +184,20 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         const estimatedHeading = telemetryNumber(estimatedHeadingRad);
         const measuredLeft = telemetryNumber(measuredLeftWheelSpeedMmS);
         const measuredRight = telemetryNumber(measuredRightWheelSpeedMmS);
+        const measuredLeftDistance = telemetryNumber(
+          measuredLeftWheelDistanceMm,
+        );
+        const measuredRightDistance = telemetryNumber(
+          measuredRightWheelDistanceMm,
+        );
         if (
           estimatedX === null ||
           estimatedY === null ||
           estimatedHeading === null ||
           measuredLeft === null ||
-          measuredRight === null
+          measuredRight === null ||
+          measuredLeftDistance === null ||
+          measuredRightDistance === null
         ) {
           return;
         }
@@ -199,6 +209,8 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
             estimatedHeadingRad: estimatedHeading,
             measuredLeftWheelSpeedMmS: measuredLeft,
             measuredRightWheelSpeedMmS: measuredRight,
+            measuredLeftWheelDistanceMm: measuredLeftDistance,
+            measuredRightWheelDistanceMm: measuredRightDistance,
             requestedForwardSpeedMmS: telemetryNumber(requestedForwardSpeedMmS),
             requestedTurnRateRadS: telemetryNumber(requestedTurnRateRadS),
             targetLeftWheelSpeedMmS: telemetryNumber(targetLeftWheelSpeedMmS),

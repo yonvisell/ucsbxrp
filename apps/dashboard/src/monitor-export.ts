@@ -5,8 +5,9 @@ import {
 } from "@ucsb-xrp/target";
 
 import {
-  signalPlotData,
+  signalPlotDataForDefinition,
   signalPlotDefinition,
+  type SignalPlotDefinition,
   type SignalPlotId,
 } from "./SignalPlot";
 
@@ -63,16 +64,16 @@ function numberLabel(value: number): string {
 
 export function createSignalPlotsSvg(
   samples: readonly TelemetrySample[],
-  plotIds: readonly SignalPlotId[],
+  plots: readonly (SignalPlotId | SignalPlotDefinition)[],
   timeWindowS: number,
   annotations: readonly MonitorAnnotation[] = [],
 ): string {
-  if (plotIds.length === 0) {
+  if (plots.length === 0) {
     throw new Error("Choose at least one signal before exporting plots.");
   }
   const width = 1_200;
   const sectionHeight = 240;
-  const height = sectionHeight * plotIds.length;
+  const height = sectionHeight * plots.length;
   const left = 62;
   const right = 18;
   const top = 34;
@@ -83,9 +84,14 @@ export function createSignalPlotsSvg(
   const startMs = latestMs - timeWindowS * 1_000;
   const body: string[] = [];
 
-  plotIds.forEach((id, plotIndex) => {
-    const definition = signalPlotDefinition(id);
-    const seriesData = signalPlotData(samples, id, timeWindowS);
+  plots.forEach((plot, plotIndex) => {
+    const definition =
+      typeof plot === "string" ? signalPlotDefinition(plot) : plot;
+    const seriesData = signalPlotDataForDefinition(
+      samples,
+      definition,
+      timeWindowS,
+    );
     const sectionY = plotIndex * sectionHeight;
     const chartTop = sectionY + top;
     const allValues = seriesData.flatMap((series) =>
@@ -176,7 +182,7 @@ export function createSignalPlotsSvg(
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">
   <title id="title">UCSBXRP signal plots</title>
-  <desc id="description">${plotIds.length} signal histories over ${timeWindowS} seconds</desc>
+  <desc id="description">${plots.length} signal histories over ${timeWindowS} seconds</desc>
   <style>
     text { font-family: system-ui, -apple-system, sans-serif; fill: #17232b; }
     .title { font-size: 14px; font-weight: 650; }

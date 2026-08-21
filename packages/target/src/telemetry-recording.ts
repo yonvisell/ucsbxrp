@@ -5,7 +5,7 @@ import {
 } from "./telemetry-units";
 
 export interface TelemetryRecordingSnapshot {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly samples: readonly TelemetrySample[];
   readonly droppedSamples: number;
 }
@@ -79,7 +79,7 @@ export class TelemetryRecorder {
             ...this.samples.slice(0, this.nextWriteIndex),
           ];
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       samples: orderedSamples.map(copySample),
       droppedSamples: this.droppedSamples,
     };
@@ -98,6 +98,8 @@ const csvColumns = [
   "right_drive_command",
   "left_wheel_speed_mm_s",
   "right_wheel_speed_mm_s",
+  "left_wheel_distance_mm",
+  "right_wheel_distance_mm",
   "left_encoder_count",
   "right_encoder_count",
   "collision",
@@ -133,6 +135,7 @@ function copySample(sample: TelemetrySample): TelemetrySample {
     angularRateMdps: sample.angularRateMdps
       ? [...sample.angularRateMdps]
       : null,
+    plotValues: sample.plotValues?.map((plot) => ({ ...plot })),
   };
 }
 
@@ -147,9 +150,28 @@ function csvValue(value: string | number | boolean | null | undefined): string {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+function plotCsvHeader(plot: { name: string; unit?: string }): string {
+  const unit = plot.unit
+    ?.replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .toLowerCase();
+  const suffix =
+    unit && !plot.name.toLowerCase().endsWith(`_${unit}`) ? `_${unit}` : "";
+  return `program_${plot.name}${suffix}`;
+}
+
 export function telemetryRecordingToCsv(
   recording: TelemetryRecordingSnapshot,
 ): string {
+  const plots = new Map<string, { name: string; unit?: string }>();
+  for (const sample of recording.samples) {
+    for (const plot of sample.plotValues ?? []) {
+      if (!plots.has(plot.name)) {
+        plots.set(plot.name, { name: plot.name, unit: plot.unit });
+      }
+    }
+  }
+  const plotColumns = [...plots.values()];
   const rows = recording.samples.map((sample) =>
     [
       sample.source,
@@ -163,6 +185,8 @@ export function telemetryRecordingToCsv(
       sample.rightEffort,
       sample.leftWheelSpeedMmS,
       sample.rightWheelSpeedMmS,
+      sample.leftWheelDistanceMm,
+      sample.rightWheelDistanceMm,
       sample.leftEncoderCount,
       sample.rightEncoderCount,
       sample.collision,
@@ -201,9 +225,14 @@ export function telemetryRecordingToCsv(
       sample.requestedTurnRateRadS,
       sample.targetLeftWheelSpeedMmS,
       sample.targetRightWheelSpeedMmS,
+      ...plotColumns.map(
+        (column) =>
+          sample.plotValues?.find((plot) => plot.name === column.name)?.value,
+      ),
     ]
       .map(csvValue)
       .join(","),
   );
-  return `${csvColumns.join(",")}\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
+  const headers = [...csvColumns, ...plotColumns.map(plotCsvHeader)];
+  return `${headers.join(",")}\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
 }
