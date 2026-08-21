@@ -11,7 +11,7 @@ from .records import _ValueRecord
 
 
 class RobotConfig(_ValueRecord):
-    """Geometry, signs, calibration, controller gains, and command limit."""
+    """Geometry, signs, calibration, estimator setting, gains, and limit."""
 
     __slots__ = (
         "_sample_period_ms",
@@ -26,6 +26,7 @@ class RobotConfig(_ValueRecord):
         "_right_start_command",
         "_left_speed_command_gain",
         "_right_speed_command_gain",
+        "_wheel_speed_filter_time_constant_ms",
         "_wheel_speed_kp",
         "_max_drive_command",
     )
@@ -42,6 +43,7 @@ class RobotConfig(_ValueRecord):
         "right_start_command",
         "left_speed_command_gain",
         "right_speed_command_gain",
+        "wheel_speed_filter_time_constant_ms",
         "wheel_speed_kp",
         "max_drive_command",
     )
@@ -60,6 +62,7 @@ class RobotConfig(_ValueRecord):
         right_start_command=None,
         left_speed_command_gain=None,
         right_speed_command_gain=None,
+        wheel_speed_filter_time_constant_ms=80.0,
         wheel_speed_kp=0.0,
         max_drive_command=None,
         **legacy,
@@ -131,6 +134,10 @@ class RobotConfig(_ValueRecord):
         )
         self._right_speed_command_gain = require_nonnegative(
             "right_speed_command_gain", right_speed_command_gain
+        )
+        self._wheel_speed_filter_time_constant_ms = require_nonnegative(
+            "wheel_speed_filter_time_constant_ms",
+            wheel_speed_filter_time_constant_ms,
         )
         self._wheel_speed_kp = require_nonnegative("wheel_speed_kp", wheel_speed_kp)
         self._max_drive_command = require_number(
@@ -207,6 +214,11 @@ class RobotConfig(_ValueRecord):
     @property
     def right_speed_command_gain(self):
         return self._right_speed_command_gain
+
+    @property
+    def wheel_speed_filter_time_constant_ms(self):
+        """Time constant of the encoder-derived wheel-speed estimate."""
+        return self._wheel_speed_filter_time_constant_ms
 
     @property
     def wheel_speed_kp(self):

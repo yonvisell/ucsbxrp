@@ -38,7 +38,6 @@ interface SignalSeriesDefinition {
   label: string;
   color: string;
   dash?: "dashed" | "dotted";
-  displayAverageMs?: number;
   value: (sample: TelemetrySample) => number | null;
 }
 
@@ -54,22 +53,20 @@ export interface SignalPlotDefinition {
 export const SIGNAL_PLOTS: readonly SignalPlotDefinition[] = [
   {
     id: "wheel-speed",
-    label: "Wheel speed (120 ms mean)",
+    label: "Wheel speed",
     unit: "mm/s",
     description:
-      "Target wheel speeds and 120 ms display averages of encoder-derived measurements. Telemetry recordings retain every raw sample.",
+      "Target wheel speeds and the regularized encoder-derived measurements used by the wheel controller.",
     series: [
       {
-        label: "Encoder L",
+        label: "Measured L",
         color: "#08736b",
-        displayAverageMs: 120,
         value: (sample) => sample.leftWheelSpeedMmS,
       },
       {
-        label: "Encoder R",
+        label: "Measured R",
         color: "#a66b08",
         dash: "dashed",
-        displayAverageMs: 120,
         value: (sample) => sample.rightWheelSpeedMmS,
       },
       {
@@ -221,38 +218,13 @@ export function signalPlotData(
     samples.findIndex((sample) => sample.tMs >= startMs),
   );
   return definition.series.map((series) => {
-    const raw = samples.map(series.value);
-    let display = raw;
-    if (series.displayAverageMs !== undefined) {
-      let first = 0;
-      let sum = 0;
-      let count = 0;
-      display = raw.map((current, index) => {
-        if (current !== null) {
-          sum += current;
-          count += 1;
-        }
-        while (
-          first < index &&
-          samples[index]!.tMs - samples[first]!.tMs > series.displayAverageMs!
-        ) {
-          const removed = raw[first];
-          if (removed !== null && removed !== undefined) {
-            sum -= removed;
-            count -= 1;
-          }
-          first += 1;
-        }
-        return count > 0 ? sum / count : null;
-      });
-    }
     return {
       name: series.label,
       values: samples
         .slice(firstVisibleIndex)
         .map((sample, offset) => [
           (sample.tMs - latestMs) / 1_000,
-          display[firstVisibleIndex + offset] ?? null,
+          series.value(samples[firstVisibleIndex + offset]!) ?? null,
         ]),
     };
   });

@@ -18,6 +18,8 @@ class SensorModel(SensorModelBase):
         "_previous_left_count",
         "_previous_right_count",
         "_previous_time_ms",
+        "_left_speed_mm_s",
+        "_right_speed_mm_s",
         "_has_reset",
     )
 
@@ -31,6 +33,8 @@ class SensorModel(SensorModelBase):
         self._previous_left_count = 0
         self._previous_right_count = 0
         self._previous_time_ms = 0
+        self._left_speed_mm_s = 0.0
+        self._right_speed_mm_s = 0.0
         self._has_reset = False
 
     def reset(self, raw):
@@ -41,6 +45,8 @@ class SensorModel(SensorModelBase):
         self._previous_left_count = raw.left_encoder_count
         self._previous_right_count = raw.right_encoder_count
         self._previous_time_ms = raw.time_ms
+        self._left_speed_mm_s = 0.0
+        self._right_speed_mm_s = 0.0
         self._has_reset = True
         return Measurements(
             raw.time_ms,
@@ -56,7 +62,7 @@ class SensorModel(SensorModelBase):
         )
 
     def update(self, raw):
-        """Return wheel position, increment, and average speed for ``raw``."""
+        """Return exact wheel travel and regularized wheel speed for ``raw``."""
         self._require_raw(raw)
         if not self._has_reset:
             raise RuntimeError("call reset(raw) before update(raw)")
@@ -84,11 +90,16 @@ class SensorModel(SensorModelBase):
         self._previous_time_ms = raw.time_ms
 
         if dt_s > 0.0:
-            left_speed_mm_s = left_increment_mm / dt_s
-            right_speed_mm_s = right_increment_mm / dt_s
+            alpha = self._speed_filter_weight(dt_s)
+            left_observation_mm_s = left_increment_mm / dt_s
+            right_observation_mm_s = right_increment_mm / dt_s
+            self._left_speed_mm_s += alpha * (
+                left_observation_mm_s - self._left_speed_mm_s
+            )
+            self._right_speed_mm_s += alpha * (
+                right_observation_mm_s - self._right_speed_mm_s
+            )
         else:
-            left_speed_mm_s = 0.0
-            right_speed_mm_s = 0.0
             dt_s = 0.0
 
         return Measurements(
@@ -98,8 +109,8 @@ class SensorModel(SensorModelBase):
             right_position_mm,
             left_increment_mm,
             right_increment_mm,
-            left_speed_mm_s,
-            right_speed_mm_s,
+            self._left_speed_mm_s,
+            self._right_speed_mm_s,
             raw.range_mm,
             raw.button_pressed,
         )
@@ -130,6 +141,14 @@ class SensorModel(SensorModelBase):
 
     def _count_distance_mm(self, count_change, encoder_sign):
         return count_change * encoder_sign * self._millimeters_per_count
+
+    def _speed_filter_weight(self, dt_s):
+        time_constant_s = (
+            self.config.wheel_speed_filter_time_constant_ms / 1000.0
+        )
+        if time_constant_s == 0.0:
+            return 1.0
+        return dt_s / (time_constant_s + dt_s)
 
     @staticmethod
     def _require_raw(raw):

@@ -49,14 +49,17 @@ def check_sensor_model():
     config = RobotConfig(
         wheel_diameter_mm=60.0,
         encoder_counts_per_revolution=600.0,
+        wheel_speed_filter_time_constant_ms=80.0,
     )
     model = SensorModel(config)
     zero = model.reset(RawSensors(100, 10, 20, 500.0, False))
     close(zero.left_position_mm, 0.0)
-    measured = model.update(RawSensors(1100, 110, 120, 450.0, True))
-    close(measured.left_increment_mm, 10.0 * pi)
-    close(measured.right_increment_mm, 10.0 * pi)
-    close(measured.left_speed_mm_s, 10.0 * pi)
+    measured = model.update(RawSensors(120, 11, 21, 450.0, True))
+    close(measured.left_increment_mm, pi / 10.0)
+    close(measured.right_increment_mm, pi / 10.0)
+    raw_speed_mm_s = 5.0 * pi
+    if not 0.0 < measured.left_speed_mm_s < raw_speed_mm_s:
+        raise AssertionError("wheel speed should attenuate one-count steps")
     if not measured.button_pressed:
         raise AssertionError("USER button state was not preserved")
 

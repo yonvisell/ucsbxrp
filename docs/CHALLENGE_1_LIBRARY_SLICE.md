@@ -16,6 +16,7 @@ runs with simulated XRPLib in browser MicroPython or real XRPLib on the RP2350.
   explicit Boolean flags.
 
 `SensorModel` converts timestamped encoder counts to wheel positions,
+distance increments, and time-aware regularized wheel-speed estimates,
 increments, and speeds. `WheelSpeedController` converts requested and measured
 `WheelSpeeds` to bounded `DriveCommand`, with an exact zero command for a zero
 target. `StraightLineController` uses mean measured travel, slows near the

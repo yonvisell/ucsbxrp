@@ -1270,6 +1270,18 @@ export function DashboardApp() {
             >
               Guide ↗
             </a>
+            <span aria-hidden="true" className="header-link-separator">
+              |
+            </span>
+            <a
+              className="tool-link"
+              href="../reference/"
+              rel="noopener noreferrer"
+              target="_blank"
+              title="Open the UCSB XRP API reference in a new tab."
+            >
+              API ↗
+            </a>
           </nav>
         </div>
         <div className="header-statuses">
@@ -1627,8 +1639,8 @@ export function DashboardApp() {
                         </div>
                       </>
                     ) : null}
-                    <div title="Wheel speeds calculated from successive encoder counts. Signal plots show a short display average; telemetry recordings retain each sample.">
-                      <dt>encoder wheel speed L/R</dt>
+                    <div title="Regularized wheel speeds calculated by SensorModel from encoder counts and sample time. These are also used by the wheel controller.">
+                      <dt>measured wheel speed L/R</dt>
                       <dd data-testid="left-speed">
                         {value(sample.leftWheelSpeedMmS)} /{" "}
                         {value(sample.rightWheelSpeedMmS)} mm/s

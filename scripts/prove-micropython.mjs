@@ -178,6 +178,7 @@ from ucsb_xrp_reference import (
 )
 
 assert RobotConfig().max_drive_command == 1.0
+assert RobotConfig().wheel_speed_filter_time_constant_ms == 80.0
 
 configured = XRPBot(
     RobotConfig(
@@ -208,7 +209,7 @@ sensor_model = SensorModel(component_config)
 sensor_model.reset(RawSensors(1000, 100, 200, None, False))
 measurements = sensor_model.update(RawSensors(1250, 110, 185, None, False))
 assert abs(measurements.left_position_mm - 10.0) < 0.0001
-assert abs(measurements.right_speed_mm_s - 60.0) < 0.0001
+assert 0.0 < measurements.right_speed_mm_s < 60.0
 
 wheel_controller = WheelSpeedController(component_config)
 component_efforts = wheel_controller.update(

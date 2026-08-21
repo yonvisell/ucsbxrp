@@ -270,7 +270,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
               library: "0.4.0-dev",
-              service: "2026.08-dev.7",
+              service: "2026.08-dev.8",
               modules: [
                 "XRPLib.board",
                 "XRPLib.encoded_motor",
@@ -347,8 +347,8 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         return new Response(
           JSON.stringify({
             protocol: 1,
-            serviceVersion: "2026.08-dev.7",
-            courseRelease: "2026.08-dev.7",
+            serviceVersion: "2026.08-dev.8",
+            courseRelease: "2026.08-dev.8",
             robotName: "UCSB-XRP-4A21",
             address: "192.168.42.1",
             bootId: "test-boot",

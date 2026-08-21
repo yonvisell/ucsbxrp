@@ -24,8 +24,8 @@ function digest(value: Uint8Array): string {
 function manifest(): CommissioningManifest {
   return {
     schemaVersion: 1,
-    releaseId: "2026.08-dev.7",
-    serviceVersion: "2026.08-dev.7",
+    releaseId: "2026.08-dev.8",
+    serviceVersion: "2026.08-dev.8",
     courseLibraryVersion: "0.4.0-dev",
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
@@ -116,7 +116,7 @@ class FakeSession implements MicroPythonSession {
       return result(
         `__UCSB_XRP_VERIFY__=${JSON.stringify({
           library: "0.4.0-dev",
-          service: "2026.08-dev.7",
+          service: "2026.08-dev.8",
           modules: this.requiredModules,
         })}\r\n`,
       );

@@ -51,7 +51,7 @@ describe("monitor exports", () => {
     ]);
 
     expect(svg).toContain('width="1200" height="480"');
-    expect(svg).toContain("Wheel speed (120 ms mean) · mm/s");
+    expect(svg).toContain("Wheel speed · mm/s");
     expect(svg).toContain("Ultrasound distance · mm");
     expect(svg).toContain("5.00 s · turn &amp; inspect");
     expect(svg).toContain("<path");

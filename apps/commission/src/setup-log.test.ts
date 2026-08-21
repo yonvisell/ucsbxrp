@@ -82,10 +82,10 @@ describe("commissioning setup log", () => {
       ),
     ];
 
-    await verifySetupLogFolder(root, entries, "2026.08-dev.7");
+    await verifySetupLogFolder(root, entries, "2026.08-dev.8");
 
     expect(files.get(setupLogPath)).toBe(
-      renderSetupLog(entries, "2026.08-dev.7"),
+      renderSetupLog(entries, "2026.08-dev.8"),
     );
   });
 

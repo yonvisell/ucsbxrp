@@ -81,7 +81,7 @@ describe("monitor signal plots", () => {
     ]);
   });
 
-  it("uses a short display mean for quantized encoder wheel speeds", () => {
+  it("plots the regularized wheel-speed values supplied by SensorModel", () => {
     const data = signalPlotData(
       [
         sample(0, { leftWheelSpeedMmS: 80 }),
@@ -92,8 +92,8 @@ describe("monitor signal plots", () => {
       5,
     );
 
-    expect(data[0]?.name).toBe("Encoder L");
-    expect(data[0]?.values.map((point) => point[1])).toEqual([80, 100, 110]);
+    expect(data[0]?.name).toBe("Measured L");
+    expect(data[0]?.values.map((point) => point[1])).toEqual([80, 120, 100]);
   });
 
   it("preserves missing physical sensor values as chart gaps", () => {

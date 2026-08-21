@@ -449,8 +449,14 @@ pose fields remain, but new analysis uses explicit fields. The Monitor exposes
 target-versus-measured wheel speed and virtual odometry position error so an
 incorrect student estimator or controller cannot look correct merely because
 the simulator knows the true state. Integer encoder counts are the authoritative
-measurement on both targets. The wheel-speed chart applies a labeled 120 ms
-display mean to that quantized signal; recording and CSV preserve raw samples.
+measurement on both targets. `SensorModel` owns both exact encoder-to-distance
+conversion and a time-aware regularized wheel-speed estimate. Exact wheel
+increments feed odometry; the same regularized speed feeds the wheel controller,
+telemetry, plots, and CSV. This prevents a display-only filter from concealing
+the value that closed-loop code actually uses. The supplied implementation is
+a constant-memory first-order estimate configured by
+`wheel_speed_filter_time_constant_ms`; student checks require sensible
+attenuation and response without requiring that particular internal formula.
 
 ## 10. Install and export boundaries
 

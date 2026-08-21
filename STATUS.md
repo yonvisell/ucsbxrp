@@ -4,12 +4,23 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 24 moves encoder quantization handling into the measurement
+component that owns it. The supplied `SensorModel` keeps exact wheel position
+and distance increments while maintaining a time-aware, constant-memory
+wheel-speed estimate. The wheel controller, live telemetry, plot, and CSV now
+receive that same estimate; the Monitor no longer applies a second
+presentation-only mean. `RobotConfig.wheel_speed_filter_time_constant_ms`
+defaults to 80 ms and may be set to zero for an unregularized diagnostic.
+Component checks require attenuation and response without prescribing the
+exact internal filtering formula. The canonical source, deterministic
+MicroPython bytecode, service, commissioning manifest, and development release
+have advanced together to `2026.08-dev.8`.
+
 Refinement 23 makes the Monitor's evidence and layout literal. Validation,
 project preparation, program startup, runtime readiness, completion, reset,
 stop, and physical reconnect actions now populate the persistent System log.
-The wheel-speed plot compares requested values with a clearly identified
-120 ms display mean of encoder-derived measurements; telemetry recordings
-retain every raw sample. The simulator-only odometry comparison is named as a
+The wheel-speed plot compares requested values with the wheel-speed estimate
+published by `SensorModel`. The simulator-only odometry comparison is named as a
 virtual check, explains that ground truth is unavailable to robot code, and is
 off by default. **Clear plots** discards visible history without stopping new
 samples.

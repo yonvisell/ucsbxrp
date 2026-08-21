@@ -159,6 +159,7 @@ class ConfigurationContractTests(unittest.TestCase):
         self.assertEqual(config.wheel_diameter_mm, 60.0)
         self.assertEqual(config.encoder_counts_per_revolution, 585.0)
         self.assertEqual(config.track_width_mm, 155.0)
+        self.assertEqual(config.wheel_speed_filter_time_constant_ms, 80.0)
         self.assertEqual(config.max_drive_command, 1.0)
 
     def test_robot_config_rejects_invalid_signs_limits_and_nonfinite_values(self):
@@ -170,6 +171,8 @@ class ConfigurationContractTests(unittest.TestCase):
             RobotConfig(left_start_command=0.2, max_drive_command=0.1)
         with self.assertRaises(ValueError):
             RobotConfig(track_width_mm=float("nan"))
+        with self.assertRaises(ValueError):
+            RobotConfig(wheel_speed_filter_time_constant_ms=-1.0)
 
     def test_navigation_config_rejects_inverted_speed_and_heading_ranges(self):
         with self.assertRaises(ValueError):
