@@ -64,7 +64,7 @@ selects a workspace and names its project folder.
 Settings are collapsible and include editor/output font size (9 px default,
 8 px minimum), indentation, word wrap, code overview, target selection, and
 the XRP Wi-Fi mode and existing-Wi-Fi address. Status, Program output, and
-connection/validation Details are separate tabs.
+the connection/validation System log are separate tabs.
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
@@ -258,22 +258,30 @@ npm run build
 npm run preview
 ```
 
-Load each production application once and wait for its explicit status, such as
-**IDE available offline** or **Monitor available offline**. Chrome then runs the
-web application and course release from browser-managed storage without further
-exchange with the web host; robot commands and telemetry remain local-network
-traffic. This browser copy is not written into the selected workspace, and it
-does not require Node.js or another local server. A double-clicked `file://`
-copy would not reliably support the required modules, workers, WebAssembly, and
-service worker. The saved release includes the applications, workers, MicroPython
-WebAssembly, course package, starters, and reference bytecode; private
-reference source is excluded. While online, each page explicitly checks for a
-new complete release without reusing a stale service-worker response. A new
-release replaces the active cache only after every required asset is present;
-the preceding complete release remains available during an interrupted
-update. Clearing this site's browser data removes the offline copy. Local development deliberately reports
-**Development build** and does not save an offline browser copy, so stale
-assets do not hide changes.
+Open the public HTTPS course site once while online and wait for a status such
+as **IDE saved in Chrome** or **Monitor saved in Chrome**. Chrome has then saved
+the complete course apps and course release. They can reopen after Chrome is
+closed and without an internet connection; no Node.js server or separate
+installation is required. Robot commands and telemetry still use the selected
+local robot connection.
+
+The saved app is separate from student project files. A selected workspace
+remains an ordinary folder on the computer; without one, project recovery data
+belongs to Chrome. The course app is not copied into the workspace. Clearing
+the site's Chrome data removes the saved app and browser-only recovery data,
+but does not remove files in a selected workspace. The optional **Install
+course tools** button on the landing page adds a launcher and standalone app
+window when Chrome offers it; the installed app uses the same browser storage
+and update process. Browser storage is not a permanent project backup and can
+also be removed under storage pressure; workspace files are unaffected.
+
+The saved release includes the applications, workers, MicroPython WebAssembly,
+course package, starters, and reference bytecode; private reference source is
+excluded. While online, each page checks for a complete newer release. It
+activates the update only after every required asset is present, so an
+interrupted update leaves the preceding complete release available. Local
+development deliberately reports **Local development** and does not save a
+browser copy, so stale assets do not hide changes.
 
 ## Validation
 

@@ -9,10 +9,10 @@ import {
 } from "./offline-shell";
 
 const stateText: Record<Exclude<OfflineShellState, "ready">, string> = {
-  development: "Development build",
-  installing: "Preparing offline use",
-  unsupported: "Offline use unavailable",
-  error: "Offline setup incomplete",
+  development: "Local development",
+  installing: "Saving course tools in Chrome",
+  unsupported: "Course tools not saved",
+  error: "Course tools not fully saved",
 };
 
 interface OfflineReadinessProps {
@@ -35,13 +35,13 @@ export function OfflineReadiness({
 
   const stateLabel =
     status.state === "ready"
-      ? `${appName} available offline`
+      ? `${appName} saved in Chrome`
       : stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `Chrome has saved the web apps and course release in browser storage. No Node server or internet connection is needed after this page loads; robot connectivity and project folders are separate. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
+      ? `Chrome has saved the course apps and course release in this site's browser storage, including ${appName}. They can reopen without internet and do not need a Node server. Project files remain in the selected workspace or browser recovery storage; clearing site data removes the saved apps. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
       : status.state === "development"
-        ? `Course release ${courseRelease.release_id}; this development build does not save an offline browser copy.`
+        ? `Course release ${courseRelease.release_id}; the local development server does not save a browser copy.`
         : (status.message ??
           `Course release ${courseRelease.release_id}: ${stateLabel}.`);
 

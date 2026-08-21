@@ -47,6 +47,9 @@ for (const requiredPath of [
   "guide/index.html",
   "commission/index.html",
   "favicon.svg",
+  "manifest.webmanifest",
+  "app-icon-192.png",
+  "app-icon-512.png",
   "third-party-licenses/README.txt",
   "third-party-licenses/echarts/LICENSE",
   "third-party-licenses/echarts/NOTICE",
@@ -59,6 +62,59 @@ for (const requiredPath of [
   assert.ok(
     assets.some((asset) => asset.path === requiredPath),
     `offline shell is missing ${requiredPath}`,
+  );
+}
+
+const webAppManifest = JSON.parse(
+  await readFile(path.join(outputDirectory, "manifest.webmanifest"), "utf8"),
+);
+assert.equal(
+  webAppManifest.id,
+  "./",
+  "installed app id must follow its base URL",
+);
+assert.equal(
+  webAppManifest.start_url,
+  "./ide/",
+  "installed app must open the IDE",
+);
+assert.equal(
+  webAppManifest.scope,
+  "./",
+  "installed app scope must follow its deployment base URL",
+);
+assert.equal(
+  webAppManifest.display,
+  "standalone",
+  "installed app must open without browser chrome",
+);
+assert.deepEqual(
+  webAppManifest.icons?.map(({ sizes, src, type }) => ({ sizes, src, type })),
+  [
+    {
+      sizes: "192x192",
+      src: "./app-icon-192.png",
+      type: "image/png",
+    },
+    {
+      sizes: "512x512",
+      src: "./app-icon-512.png",
+      type: "image/png",
+    },
+  ],
+  "installed app must declare both required PNG icons",
+);
+for (const entryPath of [
+  "index.html",
+  "ide/index.html",
+  "dashboard/index.html",
+  "guide/index.html",
+  "commission/index.html",
+]) {
+  const html = await readFile(path.join(outputDirectory, entryPath), "utf8");
+  assert.ok(
+    html.includes(`rel="manifest" href="${basePath}manifest.webmanifest"`),
+    `${entryPath} must link the installed-app manifest`,
   );
 }
 

@@ -46,7 +46,7 @@ The IDE is the programming surface. It provides:
   and an existing-Wi-Fi address setting;
 - a flat white workspace with compact collapsible project, settings, and
   output regions, literal file names, and concise hover/focus help; and
-- separate concise Status, Program output, and validation/service Details.
+- separate concise Status, Program output, and validation/service System log.
 
 Project state is represented as `{name, entrypoint, files}` at every execution
 boundary. The entrypoint, file paths, and file contents produce one SHA-256
@@ -430,3 +430,33 @@ Floor-dependent calibration—wheel response, effective geometry, stopping
 distance, motion-induced sensors, and full arena runs—remains the only separate
 hardware slice. It refines configuration and model envelopes without changing
 the target protocol or student workflow.
+
+## 9. Student checks and explicit telemetry evidence
+
+IDE **Validate** compiles every Python file; it does not claim algorithmic
+correctness. Challenge projects separately include `component_checks.py` and a
+**Test components** action. These small deterministic checks execute in an
+isolated MicroPython worker without commanding either target. PASS, PENDING,
+and FAIL remain visible in Program output, and PENDING is not a gate: students
+can implement and select one component at a time.
+
+Telemetry names its evidence source. A physical pose is the course Odometry
+estimate. A virtual sample carries both that estimate and simulator ground
+truth. The same sample may carry requested body motion, target wheel speeds,
+measured wheel speeds, and final normalized drive commands. Compatibility
+pose fields remain, but new analysis uses explicit fields. The Monitor exposes
+target-versus-measured wheel speed and virtual odometry position error so an
+incorrect student estimator or controller cannot look correct merely because
+the simulator knows the true state.
+
+## 10. Install and export boundaries
+
+The Web App Manifest provides an optional standalone installation and launcher;
+the service worker remains the offline authority. Installation does not copy a
+runnable site into the workspace and does not make browser storage permanent.
+
+Manual Monitor exports use `exports/` inside the active project when available.
+Without a project folder, the browser chooses a destination before expensive
+rendering begins. World replay deterministically renders recorded telemetry to
+a private canvas and records WebM; it neither screen-records nor reruns the
+simulation. Recording and robot execution remain independent states.

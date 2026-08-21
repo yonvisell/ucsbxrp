@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#00588a" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -24,6 +26,15 @@
         <a class="primary-link" href="./ide/">Open IDE</a>
         <a class="secondary-link" href="./dashboard/">Open Monitor</a>
         <a class="secondary-link" href="./guide/">Getting started</a>
+        <button
+          class="secondary-link"
+          data-testid="install-course-tools"
+          hidden
+          id="install-course-tools"
+          type="button"
+        >
+          Install course tools
+        </button>
       </nav>
       <nav class="landing-setup-action" aria-label="XRP setup and repair">
         <a class="secondary-link" href="./commission/">
@@ -31,14 +42,51 @@
         </a>
       </nav>
       <p class="release-note">
-        Challenges 1–5 · Virtual + physical XRP · Available without internet
+        Challenges 1–5 · Virtual + physical XRP · Course tools save in Chrome
         after one complete load
       </p>
+      <p
+        aria-live="polite"
+        class="visually-hidden"
+        id="install-course-tools-status"
+      ></p>
     </main>
     <script type="module">
       import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
 
       registerOfflineShell();
+
+      const installButton = document.querySelector("#install-course-tools");
+      const installStatus = document.querySelector(
+        "#install-course-tools-status",
+      );
+      let installPrompt = null;
+
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        installPrompt = event;
+        installButton.hidden = false;
+      });
+
+      installButton.addEventListener("click", async () => {
+        if (!installPrompt) return;
+        installButton.disabled = true;
+        await installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        installPrompt = null;
+        installButton.hidden = true;
+        installButton.disabled = false;
+        installStatus.textContent =
+          outcome === "accepted"
+            ? "UCSBXRP Course Tools installed."
+            : "Installation was not completed.";
+      });
+
+      window.addEventListener("appinstalled", () => {
+        installPrompt = null;
+        installButton.hidden = true;
+        installStatus.textContent = "UCSBXRP Course Tools installed.";
+      });
     </script>
   </body>
 </html>

@@ -574,3 +574,42 @@ and direct Chrome passes.
 Usable result: students can produce publication-ready plot figures, a portable
 world replay, and compact synchronized observations directly from the Monitor
 without screen recording or manual plot reconstruction.
+
+### Refinement 21 — Literal export, storage, and responsive application state
+
+Status: implemented and validated in focused unit, production, offline, Stable
+Chrome, and direct-Chrome visual passes.
+
+- Separate Recording from Export, use one Start/Stop recording command, name
+  every export action, and show why WebM export is unavailable.
+- Retain explicit replay export and add an optional replay-after-Stop control.
+  Save exports under the active project or ask for a destination.
+- Replace global note entry with a time-anchored plot editor and keyboard path.
+- Separate Program output from System log in both apps. Preserve prior output.
+- Replace hidden narrow-header scrolling with visible responsive wrapping and
+  strengthen only the principal panel dividers.
+- Add a manifest/install path while describing browser-owned offline storage,
+  workspace files, clearing, and updates literally.
+- Reduce the Guide to student tasks, course data flow, and recovery.
+
+Usable result: controls remain discoverable at every supported desktop width,
+students know what is recording, exporting, stored, or disconnected, and the
+offline release needs neither Node nor a second installation workflow.
+
+### Refinement 22 — Component evidence and telemetry provenance
+
+Status: implemented in software and validated with Python, MicroPython,
+TypeScript, production build, and focused Stable Chrome tests. Physical values
+remain optional for compatibility with an older commissioned service.
+
+- Ship a concise README and deterministic `component_checks.py` with every
+  challenge; run checks in hardware-free MicroPython with PASS/PENDING/FAIL.
+- Keep Validate as compilation rather than silently redefining it as testing.
+- Propagate requested body motion, target wheel speeds, measured wheel speeds,
+  student odometry, and virtual ground truth as distinct telemetry evidence.
+- Append explicit fields to CSV without moving or deleting existing columns.
+- Show target-versus-measured wheel speed and virtual odometry position error.
+
+Usable result: course instructions to test a module have a concrete tool, and
+the virtual Monitor no longer lets simulator truth conceal an incorrect student
+controller or odometry implementation.

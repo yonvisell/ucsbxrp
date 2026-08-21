@@ -4,6 +4,49 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 22 corrects the student-facing evidence and storage model. Challenge
+projects now include their README plus one hardware-free
+`component_checks.py`; **Test components** runs it in isolated MicroPython and
+reports PASS, PENDING, or FAIL without changing the selected target. It is an
+advisory debugging tool, not a prerequisite or gate. Virtual telemetry keeps
+simulator ground truth separate from student odometry, carries requested body
+motion and target wheel speeds through the same course loop, and plots target
+versus measured wheel speed plus odometry position error. Physical telemetry
+labels its published pose as the student odometry estimate and does not invent
+ground truth. Existing flat pose fields and CSV columns remain compatible; the
+explicit evidence fields are appended.
+
+Refinement 21 replaces the Monitor's ambiguous export cluster with one
+stateful Start/Stop recording control and a literal **Export** section. CSV,
+SVG, PNG, and WebM actions name their result; a disabled replay explains what
+is missing. A replay is rendered from retained telemetry rather than
+transcoded or resimulated. Students may export explicitly after recording or
+select **Export world replay after Stop**. Exports write to `exports/` inside
+the connected project folder, use a browser Save As dialog when no folder is
+connected, and fall back to the ordinary download facility only where that
+dialog is unavailable. Plot notes are placed at a chosen time by right-click,
+with plot focus plus N as the keyboard path.
+
+The IDE and Monitor now separate **Program output** from a persistent **System
+log**. Principal editor/world/telemetry/plot/output boundaries use a dedicated
+darker two-pixel hierarchy; internal rows retain light one-pixel rules. At
+phone width, headers wrap into two visible rows rather than hiding commands in
+an unmarked horizontal scroller. The Monitor's narrow control sheet groups
+Signals and Live controls in one column and Recording/Export in the other.
+IDE storage is presented as one state—browser only, reconnect needed, or saved
+automatically in `./<project>`—instead of repeated workspace/project/browser
+headings.
+
+The course release is also installable as a small PWA. After one complete
+online load, the app shells, virtual XRP, Guide, and course release can reopen
+from Chrome storage without Node or internet; project files remain in the
+workspace or browser recovery. The optional install action adds a launcher and
+standalone window but uses the same browser-owned storage. Clearing or evicting
+site data removes the saved app, not native project folders. The visible state
+now says, for example, **IDE saved in Chrome**. The Guide is task-first and
+contains the literal course assembly, actuation, sensing, and navigation data
+flow instead of framework and deployment internals.
+
 Refinement 19 makes local storage correspond to the student mental model. A
 **workspace** is the chosen parent folder; every project has one named child
 folder shown as `./<name>` above the file list. With a workspace connected,
@@ -32,10 +75,10 @@ waits for the browser encoder's start event; five repeated real WebM downloads
 close the start-up race found under a loaded Stable Chrome run.
 
 The IDE bottom panel now separates **Program output** from validation and
-target-service **Details**, while retaining concise Status. The Monitor removes
+target-service **System log**, while retaining concise Status. The Monitor removes
 its duplicate Guide/footer row and redundant Recorder-ready heading; the IDE
-also removes its dedicated footer row. Readiness now says **IDE available
-offline**, **Monitor available offline**, or **Setup available offline**, with a
+also removes its dedicated footer row. Readiness now says **IDE saved in
+Chrome**, **Monitor saved in Chrome**, or **Setup saved in Chrome**, with a
 precise explanation that Chrome stores the complete web release in browser
 storage, separately from project folders and without a Node server.
 
@@ -118,9 +161,9 @@ Both application headers are now 27 px high and use a contiguous `UCSBXRP`
 wordmark: UCSB blue and a restrained grey-red product name share the same type,
 size, and weight. The UCSB mark and enabled Run control use the same darker
 `#00588a` blue. Header selectors and buttons are 19 px high; Run/Stop and Reset
-use compact labeled icons. The IDE command region remains one line and scrolls
-horizontally when necessary, while target state and Settings stay fixed at the
-far right. IDE and Monitor links carry a
+use compact labeled icons. The IDE command region remains one line at ordinary
+widths and wraps into a visible second row at phone width, while target state
+and Settings stay fixed at the far right. IDE and Monitor links carry a
 visible diagonal arrow and open a separate tab in both directions. In the
 Monitor, Signals and Time window precede permanently open Live controls, named
 watches appear below Live telemetry in the right panel, and the single Guide link
@@ -252,9 +295,9 @@ command was issued.
 - Sensor-feedback obstacle-turn and expanding-spiral demos plus a seven-lesson
   MicroPython project; all are editable, folder-saveable,
   MicroPython-validated, and runnable in the virtual target.
-- Separate Status and Details views, grouped XRP-hotspot/existing-Wi-Fi
-  selection and station-address editing, local Monaco workers, and MicroPython
-  compilation.
+- Separate Status, Program output, and System log views; grouped
+  XRP-hotspot/existing-Wi-Fi selection and station-address editing; local
+  Monaco workers; and MicroPython compilation.
 - A concise **Set up or repair XRP** entry in Settings, available for both
   virtual and physical target state, with the selected project folder and
   physical endpoint handed back automatically after setup.
@@ -316,7 +359,7 @@ command was issued.
   output, and plots in one viewport. Narrow layouts use a compact top sheet and
   a vertically scrolling content order.
 - Status text is no longer styled like a button. Offline readiness names the
-  current application, such as **IDE available offline**, and explicitly
+  current application, such as **IDE saved in Chrome**, and explicitly
   distinguishes the browser copy from robot connectivity and project folders.
 
 ### Virtual and physical targets
@@ -351,11 +394,11 @@ command was issued.
 
 ### Offline and guidance
 
-- The production service worker verifies all 183 public payload files,
+- The production service worker verifies all 191 public payload files,
   including the applications, workers, MicroPython WebAssembly, course source,
   starters, demo/tutorial templates, supplied bytecode, commissioning payload,
   exact RP2350 UF2, and dependency license notices. Each application reports a
-  literal **available offline** state; robot connectivity remains separate.
+  literal **saved in Chrome** state; robot connectivity remains separate.
 - The guide and repository README cover the virtual workflow, project files,
   physical setup, target operations, Monitor signals, shortcuts, recovery, and
   later physical calibration.
@@ -368,15 +411,15 @@ The latest complete software pass includes:
 
 - Prettier, TypeScript, repository whitespace, and zero-advisory npm audit
   checks;
-- 124 CPython API and harness tests;
+- 126 CPython API and harness tests;
 - MicroPython 1.28 WebAssembly behavior parity for the canonical package and
   exact supplied bytecode;
-- 130 Vitest tests for project identity and handling, folder rotation, target
+- 135 Vitest tests for project identity and handling, folder rotation, target
   clients and lifecycle, simulator, telemetry, offline state, commissioning,
   raw REPL transport, plot data, and measured contrast;
-- a production build and verification of the exact 183-file offline manifest,
+- a production build and verification of the exact 191-file offline manifest,
   including the 1,725,952-byte firmware against its pinned SHA-256 digest; and
-- 29 passing Stable Chrome software workflows covering all starters, the two
+- 33 passing Stable Chrome software workflows covering all starters, the two
   robot demos and tutorial project, flat IDE geometry, four-generation source
   autosave, per-run telemetry/output autosave, blocked-gate replanning,
   two-app target sharing,
@@ -420,9 +463,9 @@ project controls; a 6 px right inset for Settings; exact matching
 whose bottom edge matches the open file rail; and no offline status in either
 header. The IDE calls the selected entrypoint **Main file** and its Status view
 now separates Project, Target, Validation, and Robot project. The
-constrained pass found and corrected multiline toolbar clipping by making the
-middle command region single-line and horizontally scrollable. Direct Chrome
-reported no console warnings or errors.
+constrained pass originally led to a horizontally scrollable command region.
+Refinement 21 replaced that hidden narrow-width behavior with visible wrapping.
+Direct Chrome reported no console warnings or errors.
 
 The subsequent command-density pass retained the 27 px headers while reducing
 header text to 9 px, command/select heights to 19 px, and the execution-target
@@ -465,7 +508,7 @@ Monitor/course workflow pass. Direct Chrome then reached the attached XRP from
 both IDE and Monitor on Pink with live telemetry and no console warnings or
 errors. Final origin-specific Pages-to-device permission remains a deployment
 check because permission is scoped to the deployed origin. The current local
-production build is `5461ae859e6470a5dcd0` with 183 verified payload files.
+production build is `5f0688fa0a431f977237` with 191 verified payload files.
 
 The commissioning workflow additionally passes focused controller/version
 rejection, raw-paste flow control and standard-raw fallback, changed-only

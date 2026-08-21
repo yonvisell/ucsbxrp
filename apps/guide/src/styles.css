@@ -188,54 +188,51 @@ kbd {
   margin: 0.9rem 0;
 }
 
-.api-main,
-.api-branches > div {
+.flow-group {
   display: grid;
-  gap: 0.18rem;
+  gap: 0.38rem;
   border: 1px solid var(--line-bright);
   border-radius: 3px;
-  padding: 0.45rem 0.52rem;
+  padding: 0.52rem 0.58rem;
   background: var(--panel);
 }
 
-.api-main strong,
-.api-branches strong {
+.flow-group > strong {
   color: var(--ink);
   font-size: 0.66rem;
 }
 
-.api-main span,
-.api-branches span {
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.4;
-}
-
-.api-branches {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.api-cycle {
+.flow-line {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
-  overflow-x: auto;
-  padding-bottom: 0.2rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
 }
 
-.api-cycle span {
-  flex: 0 0 auto;
+.flow-line code,
+.flow-node {
   border: 1px solid var(--line);
   border-radius: 3px;
-  padding: 0.34rem 0.42rem;
+  padding: 0.18rem 0.34rem;
   background: #f5f7f8;
   color: var(--ink);
-  font-size: 0.6rem;
+  font-size: 0.63rem;
+  white-space: nowrap;
 }
 
-.api-cycle b {
+.flow-line a {
+  text-decoration: none;
+}
+
+.flow-line a:hover code,
+.flow-line a:focus-visible code {
+  border-color: var(--cyan);
+}
+
+.flow-line b {
   color: var(--quiet);
   font-weight: 400;
 }
@@ -323,7 +320,6 @@ td:first-child {
     min-width: auto;
   }
 
-  .api-branches,
   .command-guide {
     grid-template-columns: 1fr;
   }

@@ -59,7 +59,11 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "IDE available offline",
+    "IDE saved in Chrome",
+  );
+  await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
+    "title",
+    /course apps and course release.*Project files remain/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -111,7 +115,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "IDE available offline",
+    "IDE saved in Chrome",
   );
 
   await ide.getByRole("button", { name: "Validate" }).click();
@@ -129,7 +133,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Monitor available offline",
+    "Monitor saved in Chrome",
   );
   await expect(monitor.locator(".monitor-controls-footer")).toHaveCount(0);
 
@@ -166,6 +170,61 @@ test("reloads the complete production course shell without a network", async ({
       .evaluate((link) => (link as HTMLAnchorElement).href),
   ).toBe(new URL(coursePath("ide/"), landing.url()).toString());
   await expectOfflineShellReady(landing);
+
+  const installButton = landing.getByTestId("install-course-tools");
+  await expect(installButton).toBeHidden();
+  await landing.evaluate(() => {
+    const testWindow = window as typeof window & {
+      __installPromptCalls?: number;
+    };
+    testWindow.__installPromptCalls = 0;
+    const promptEvent = new Event("beforeinstallprompt", {
+      cancelable: true,
+    });
+    Object.defineProperties(promptEvent, {
+      prompt: {
+        value: () => {
+          testWindow.__installPromptCalls =
+            (testWindow.__installPromptCalls ?? 0) + 1;
+        },
+      },
+      userChoice: {
+        value: Promise.resolve({ outcome: "accepted", platform: "web" }),
+      },
+    });
+    window.dispatchEvent(promptEvent);
+  });
+  await expect(installButton).toBeVisible();
+  await installButton.click();
+  await expect(installButton).toBeHidden();
+  expect(
+    await landing.evaluate(
+      () =>
+        (window as typeof window & { __installPromptCalls?: number })
+          .__installPromptCalls,
+    ),
+  ).toBe(1);
+
+  const webAppManifest = await landing.evaluate(async (manifestPath) => {
+    const response = await fetch(manifestPath);
+    return (await response.json()) as {
+      display: string;
+      icons: Array<{ sizes: string; src: string }>;
+      name: string;
+      scope: string;
+      start_url: string;
+    };
+  }, coursePath("manifest.webmanifest"));
+  expect(webAppManifest).toMatchObject({
+    display: "standalone",
+    name: "UCSBXRP Course Tools",
+    scope: "./",
+    start_url: "./ide/",
+  });
+  expect(webAppManifest.icons.map((icon) => icon.sizes)).toEqual([
+    "192x192",
+    "512x512",
+  ]);
 
   expect(browserErrors).toEqual([]);
   expect(externalRequests).toEqual([]);
