@@ -4,6 +4,15 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 34 completes the active-document terminology pass. The course
+context and instructor/student summary now use **Wheeled Robotics**, **course
+folder**, **challenge project**, concrete component responsibilities, and
+plain descriptions of repeatable simulator inputs. Challenge READMEs replace
+`owns` and `inverse kinematics` shorthand with the specific work performed by
+each supplied or student class. The remaining-hardware note now distinguishes
+the dev.7 release last installed on the physical XRP from the current dev.11
+bundle that still requires one wizard update and physical repetition.
+
 Refinement 33 corrects the newly visible encoder-quantization ripple at its
 source. The Monitor had begun plotting the course `SensorModel` estimate used
 by the wheel controller rather than a simulator-only smooth value, which made

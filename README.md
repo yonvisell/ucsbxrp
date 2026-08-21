@@ -88,7 +88,7 @@ coordinate grid labeled in millimetres, and a small legend for the green path
 and ochre ultrasound ray. The compact left sidebar collapses to a narrow rail and selects a
 2–30 second scrolling history for wheel speed, normalized drive command,
 ultrasound distance,
-acceleration, or angular rate. Signals can be combined or hidden for the
+acceleration, or yaw rate. Signals can be combined or hidden for the
 current experiment. Each strip chart keeps the same vertical scale area as
 signals are added or removed; additional charts scroll instead of shrinking.
 One unlabeled grid line divides each pair of labeled time lines. When no pose

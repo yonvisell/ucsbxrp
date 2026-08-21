@@ -36,9 +36,9 @@ integration; it does not change the responsibility of any component.
 | `robot_config.py` | Defines robot calibration and navigation values. |
 | `course_setup.py` | Selects each supplied or student component independently. |
 | `component_checks.py` | Tests range estimation, planning, and prior components without starting either robot. |
-| `DeliveryMission` | Owns the observation → map update → planning → navigation sequence and always stops the robot. |
+| `DeliveryMission` | Runs the observation → map update → planning → navigation sequence and always stops the robot. |
 | `ArenaMap`, `OccupancyGrid`, and `GridPath` | Represent the observed world, planning grid, and route. |
-| `Robot` and `XRPBot` | Own the measured loop and hardware boundary. |
+| `Robot` and `XRPBot` | Run the measured loop and isolate direct hardware access. |
 
 ## Program flow
 

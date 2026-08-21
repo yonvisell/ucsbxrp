@@ -36,7 +36,7 @@ requirements for all four classes.
 | `course_setup.py` | Selects each supplied or student class independently and assembles `Robot`. |
 | `component_checks.py` | Tests the four component classes without starting either robot. |
 | `StraightLineController` | Produces the outbound and return forward commands from measured wheel travel. |
-| `Robot` and `XRPBot` | Own sample timing, component calls, telemetry, and the hardware boundary. |
+| `Robot` and `XRPBot` | Maintain sample timing, call the selected components, publish telemetry, and isolate direct hardware access. |
 
 ## Program flow
 

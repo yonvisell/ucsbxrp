@@ -34,7 +34,7 @@ internal algorithm.
 | `robot_config.py` | Defines robot geometry/calibration and straight-line speeds and tolerances. |
 | `course_setup.py` | Selects supplied or student components and assembles `Robot`. |
 | `component_checks.py` | Tests each component in MicroPython without starting either robot. |
-| `Robot` and `XRPBot` | Own the measured sample loop and the XRPLib hardware boundary. |
+| `Robot` and `XRPBot` | Run the measured sample loop and isolate direct XRPLib hardware access. |
 | `StraightLineController` | Produces forward motion commands from measured mean wheel travel. |
 | Supplied `DifferentialDrive` and `Odometry` | Convert body motion to wheel targets and wheel increments to pose; students implement these in Challenge 2. |
 

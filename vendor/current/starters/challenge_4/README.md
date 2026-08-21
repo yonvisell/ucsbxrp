@@ -21,7 +21,7 @@ route so map, grid, path, goals, and robot telemetry can be inspected.
 | `grid_planner.py` | `GridPlanner` | Return a shortest free four-neighbor `GridPath` from start to goal, including both endpoints; return `None` when either endpoint is invalid or no route exists. |
 | `sensor_model.py` | `SensorModel` | Continue the tested wheel-measurement implementation. |
 | `wheel_speed_controller.py` | `WheelSpeedController` | Continue the tested wheel-control implementation. |
-| `differential_drive.py` | `DifferentialDrive` | Continue the tested inverse-kinematics implementation. |
+| `differential_drive.py` | `DifferentialDrive` | Continue the tested body-motion to wheel-speed implementation. |
 | `odometry.py` | `Odometry` | Continue the tested pose-estimation implementation. |
 | `navigation_controller.py` | `NavigationController` | Continue the tested ordered-goal navigation implementation. |
 

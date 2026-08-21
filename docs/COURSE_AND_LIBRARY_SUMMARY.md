@@ -1,4 +1,4 @@
-# Mobile Robotics with the XRP: Course and Library Summary
+# Wheeled Robotics with the XRP: Course and Library Summary
 
 This ten-week laboratory course introduces mobile robotics through five
 progressive challenges completed in pairs on the XRP robot. Students begin with
@@ -58,12 +58,12 @@ reference counterpart. Student templates inherit the corresponding base class
 from `ucsb_xrp.student_api`. In `course_setup.py`, one named
 `USE_STUDENT_*` Boolean independently selects each component. A flag starts as
 `False` for the supplied implementation and changes to `True` only after that
-student component passes its software tests. Early starters include only the
+student component passes its software tests. Early challenge projects include only the
 flags for components introduced so far.
 
 Each student component has a literal file: `sensor_model.py`,
 `wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
-`navigation_controller.py`, or `grid_planner.py`. A starter includes only the
+`navigation_controller.py`, or `grid_planner.py`. A challenge project includes only the
 components introduced so far. Robot-specific measurements and reusable
 controller settings belong in `robot_config.py`; challenge values belong in
 `challenge.py`; `main.py` constructs the selected objects and runs the task.
@@ -90,7 +90,7 @@ make_grid_planner()
 A normal run calls `Robot.start(initial_pose)`, repeatedly calls
 `Robot.step(command, read_range=False)`, and places `Robot.stop()` in a
 `finally` clause. Each step returns a `RobotState` containing the newest
-`Measurements` and `Pose`. `Robot` owns absolute, wrap-safe sample deadlines;
+`Measurements` and `Pose`. `Robot` maintains absolute, wrap-safe sample deadlines;
 student control loops do not call `sleep_ms`.
 
 For experiments and debugging, `ucsb_xrp.live` supplies bounded numeric,
@@ -173,7 +173,7 @@ lookup, and `neighbors()` returns free four-neighbor cells.
   `is_complete()` manage an ordered route and return motion commands.
 - `GridPlanner.plan(grid, start, goal)` returns a `GridPath` or `None`.
 
-These interfaces let each component be tested with deterministic records before
+These interfaces let each component be tested with known input records before
 it is selected for a physical robot run.
 
 ## Browser tools and execution targets
@@ -187,7 +187,7 @@ robot/world view.
 Both applications use one target interface. A physical target runs the student
 project through `ucsb_xrp`, `XRPBot`, XRPLib, and the XRP hardware. A virtual
 target runs the same student MicroPython and `ucsb_xrp` against a simulated
-XRPLib and deterministic planar XRP model. The simulator supplies hardware and
+XRPLib and a repeatable planar XRP model. The simulator supplies hardware and
 world effects—motor response, encoders, range, button and payload state,
 collisions, and ground-truth pose—but does not perform course sensing,
 odometry, mapping, planning, navigation, or mission logic.
@@ -197,28 +197,28 @@ browser. Physical traffic uses the same target service in either the default
 device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
 student project changes with the network choice.
 
-The public commissioning wizard is the normal physical-robot entrypoint.
-Students may choose a workspace for named project folders immediately or later, connect an RP2350
-XRP by USB-C, and use one safe-to-repeat setup/repair action. The browser checks firmware and required
-runtime versions, installs and read-verifies only changed course files, prepares
-the selected Wi-Fi profile, verifies the local robot service, then opens the IDE
-on the verified physical target. USB handles installation and repair; the
-existing physical Run, Monitor, and telemetry service uses the selected local
-Wi-Fi network.
+The public commissioning wizard is the normal physical-robot entry point.
+Students may choose a course folder immediately or later, connect an RP2350 XRP
+by USB-C, and use one repeatable setup/repair action. The browser checks firmware
+and required runtime versions, installs and read-verifies only changed course
+files, prepares the selected Wi-Fi profile, verifies the local robot service,
+then opens the IDE on the verified physical target. USB handles installation
+and repair; physical Run, Monitor, and telemetry use the selected local Wi-Fi
+network.
 New robots default to their unique hotspot; an existing robot keeps its working
 network unless the student changes it. Instructor command-line provisioning is
 an optional fleet interface to the same exact release file set.
 
 ## Current implementation note
 
-No contradiction was found among the three active `v2_` documents. The current
-RP2350, firmware, portable reference bytecode, virtual-target path, and
-browser-to-robot LAN transport have been exercised in earlier releases. The
-dev.7 changed-only comparison, controlled one-file repair, full readback,
-runtime import, and reset path now pass on the attached RP2350. The remaining
-wizard observation is the public-origin native folder-picker, Web Serial, and
-local-network permission handoff. Reference algorithms
-remain revisable; course outcomes, units, component ownership, and the concise
+No contradiction was found among the three active `v2_` documents. The RP2350,
+firmware, portable reference bytecode, virtual-target path, and browser-to-robot
+LAN transport have been exercised in earlier releases. The attached robot
+passed changed-file comparison, controlled one-file repair, full readback,
+runtime import, and reset on dev.7. The current browser/device bundle is
+dev.11; it must be installed through the wizard before that exact release can
+be claimed as physically verified. Reference algorithms remain revisable;
+course outcomes, units, component responsibilities, and the concise
 student workflow are the compatibility target. Physical floor calibration is
 kept in per-robot configuration rather than promoted into the public API.
 `MotorEfforts`, `XRPBot.set_efforts()`, and the earlier RobotConfig effort

@@ -1,4 +1,4 @@
-# UCSB Mobile Robotics with the XRP
+# UCSB Wheeled Robotics with the XRP
 
 This folder is the working source for a ten-week undergraduate laboratory course, its `ucsb_xrp` MicroPython library, and the browser tools used to program, simulate, and inspect the robot.
 
@@ -57,9 +57,15 @@ The browser applications will be published from `yonvisell.github.io` and will c
 
 ## Principal boundary
 
-`ucsb_xrp` owns the course abstractions and robot behavior. Localization, mapping, navigation, planning, and mission logic belong in this Python package.
+`ucsb_xrp` defines the course interfaces and recurring robot behavior.
+Localization, mapping, navigation, planning, and mission logic belong in this
+Python package.
 
-The simulator supplies only the virtual hardware and world needed by that code: motor response, encoder readings, range readings, button and payload state, collision geometry, and ground-truth pose. Its deterministic planar model is authoritative. Three.js renders that state and performs useful geometric queries; it does not determine robot motion.
+The simulator supplies only the virtual hardware and world needed by that code:
+motor response, encoder readings, range readings, button and payload state,
+collision geometry, and ground-truth pose. Its repeatable planar model determines
+virtual robot motion. Three.js renders that state and performs geometric queries;
+it does not determine robot motion.
 
 The same student project and `ucsb_xrp` interfaces must run with either target:
 

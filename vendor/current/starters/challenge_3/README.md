@@ -19,7 +19,7 @@ the complete route for inspection.
 | `navigation_controller.py` | `NavigationController` | Maintain the ordered goals and active goal; return the next `MotionCommand` from the latest `Pose`; report the active goal and completion state. |
 | `sensor_model.py` | `SensorModel` | Continue the tested encoder measurement implementation. |
 | `wheel_speed_controller.py` | `WheelSpeedController` | Continue the tested wheel-control implementation. |
-| `differential_drive.py` | `DifferentialDrive` | Continue the tested inverse-kinematics implementation. |
+| `differential_drive.py` | `DifferentialDrive` | Continue the tested body-motion to wheel-speed implementation. |
 | `odometry.py` | `Odometry` | Continue the tested pose-estimation implementation. |
 
 The required goal semantics, state, method results, units, and tolerances are
@@ -35,7 +35,7 @@ documented under `NavigationController` in the **UCSB XRP API**.
 | `robot_config.py` | Defines robot calibration plus cruise, approach, turn, and tolerance values. |
 | `course_setup.py` | Selects every component independently and constructs the robot and navigator. |
 | `component_checks.py` | Tests isolated component behavior without starting either robot. |
-| `Robot` and `XRPBot` | Own the measured wheel-control loop, target interface, and hardware access. |
+| `Robot` and `XRPBot` | Run the measured wheel-control loop and isolate target-specific hardware access. |
 
 ## Program flow
 
