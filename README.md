@@ -243,6 +243,10 @@ reproducibly generated ordinary `.mpy` artifacts in
 `vendor/current/reference_mpy/`. Public behavior and course clarity govern
 future revisions.
 
+Instructors can create a checked, initially unpublished challenge without
+editing application code. See
+[`docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`](docs/INSTRUCTOR_CHALLENGE_AUTHORING.md).
+
 ## Offline use
 
 ```sh

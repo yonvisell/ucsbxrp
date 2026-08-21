@@ -1,0 +1,82 @@
+[
+  {
+    "id": "challenge_1",
+    "kind": "challenge",
+    "source": "starters/challenge_1",
+    "label": "Challenge 1 · Straight Run",
+    "short_label": "1 · Straight Run",
+    "summary": "Measure wheel motion and control a straight-line run.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "challenge_2",
+    "kind": "challenge",
+    "source": "starters/challenge_2",
+    "label": "Challenge 2 · Turn and Return",
+    "short_label": "2 · Turn and Return",
+    "summary": "Add differential-drive kinematics and planar odometry.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "challenge_3",
+    "kind": "challenge",
+    "source": "starters/challenge_3",
+    "label": "Challenge 3 · Waypoint Courier",
+    "short_label": "3 · Waypoint Courier",
+    "summary": "Follow ordered world-coordinate goals.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "challenge_4",
+    "kind": "challenge",
+    "source": "starters/challenge_4",
+    "label": "Challenge 4 · Mapped Route",
+    "short_label": "4 · Mapped Route",
+    "summary": "Plan a shortest free grid path and execute it.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "challenge_5",
+    "kind": "challenge",
+    "source": "starters/challenge_5",
+    "label": "Challenge 5 · Delivery Mission",
+    "short_label": "5 · Delivery Mission",
+    "summary": "Observe, update the map, plan, and deliver.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_obstacle_turn",
+    "kind": "demo",
+    "source": "templates/demo_obstacle_turn",
+    "label": "Demo · Obstacle, Left, Obstacle",
+    "short_label": "Obstacle, left, obstacle",
+    "summary": "Drive to a nearby obstacle, turn left 90 degrees, then drive to the next obstacle.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_spiral",
+    "kind": "demo",
+    "source": "templates/demo_spiral",
+    "label": "Demo · Expanding Spiral",
+    "short_label": "Expanding spiral",
+    "summary": "Drive an expanding spiral and stop when the forward range sensor detects a nearby obstacle.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "micropython_tutorial",
+    "kind": "tutorial",
+    "source": "templates/micropython_tutorial",
+    "label": "Tutorial · MicroPython Foundations",
+    "short_label": "MicroPython foundations",
+    "summary": "Seven short lessons covering functions, collections, classes, exceptions, modules, a virtual robot, and state machines.",
+    "entrypoint": "1_values_and_functions.py",
+    "published": true
+  }
+]

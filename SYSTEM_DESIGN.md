@@ -78,6 +78,14 @@ queued snapshot cannot overwrite a newer edit or explicit save. Before
 overwriting source, the previous complete project is rotated through four JSON
 generations in the project's `UCSB_XRP_Autosaves`.
 
+The project catalog is declarative. The instructor authoring command copies the
+closest working challenge into a draft, registers it with `published: false`,
+and marks only the mission, world, and documentation decisions that cannot be
+inferred safely. Its validator checks Python syntax, required project files,
+README sections, and world geometry. Publishing repeats those checks before
+the catalog entry becomes visible to students; it does not synthesize or bless
+a robot behavior that has not been run by the instructor.
+
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,

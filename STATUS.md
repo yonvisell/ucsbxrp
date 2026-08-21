@@ -4,6 +4,18 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 31 adds a bounded instructor challenge-authoring path. The IDE
+catalog now reads one data file instead of hard-coded TypeScript metadata.
+`scripts/challenge_authoring.py` creates a new challenge from the closest
+working project as an unpublished draft, marks mission/world/documentation
+decisions that require instructor judgment, validates the complete Python,
+world, and README structure, and publishes the entry only after those tasks are
+resolved. Drafts cannot appear in the student IDE. The concise instructor guide
+defines the authoring order and required virtual/component evidence. Three
+authoring tests include a temporary draft and prove that an unresolved draft
+cannot be published; all 134 Python tests, 140 TypeScript tests, and the full
+production/offline build pass.
+
 Refinement 30 makes the world part of each project. Every challenge, demo, and
 tutorial contains a readable `world.json` with millimeter bounds, initial pose,
 obstacles, and visual markers. The same validated file now configures the
