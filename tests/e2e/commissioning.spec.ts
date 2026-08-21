@@ -462,7 +462,7 @@ test("does not advance when the selected folder fails its write check", async ({
     page.getByRole("heading", { name: "Choose a workspace" }),
   ).toBeVisible();
   await expect(page.getByRole("alert")).toContainText(
-    "workspace write check failed",
+    "selected workspace could not be written and read",
   );
   await page.getByText("Setup log", { exact: true }).click();
   await expect(page.getByLabel("Setup log")).toContainText(

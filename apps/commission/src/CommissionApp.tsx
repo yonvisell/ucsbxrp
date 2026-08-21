@@ -289,7 +289,9 @@ export function CommissionApp() {
       if (!wasCancelled(folderError)) {
         folderNeedsPickerRef.current = true;
         const message = errorDetail(folderError);
-        setError(`The workspace write check failed. ${message}`);
+        setError(
+          "The selected workspace could not be written and read. Choose it again or select another folder.",
+        );
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
     }
@@ -564,7 +566,7 @@ export function CommissionApp() {
       setDetail(
         completed.network.mode === "station"
           ? `XRP joined ${completed.network.ssid}. Verifying its course service…`
-          : `Join ${completed.network.ssid} from the computer's Wi-Fi menu. This page will remain available offline.`,
+          : `Join ${completed.network.ssid} from the computer's Wi-Fi menu. This setup page stays open while the computer changes networks.`,
       );
       recordSetup(
         "Install",
@@ -789,11 +791,6 @@ export function CommissionApp() {
                 automatic copies stay with that project. Setup logs remain at
                 the workspace level. Chrome stores the web apps separately.
               </p>
-              <p>
-                For version control, clone the course repository with GitHub
-                Desktop and choose the cloned repository as a project in the
-                IDE. This site never requests or stores GitHub credentials.
-              </p>
             </div>
           ) : null}
 
@@ -810,8 +807,8 @@ export function CommissionApp() {
               </button>
               <p>
                 {supportsWebSerial()
-                  ? "Chrome shows one device picker. The controller may appear as Board in FS mode. Keep USB-C connected through the automatic check and repair."
-                  : "Open this page in current desktop Chrome or Edge to use USB setup."}
+                  ? "Chrome shows one device picker. Select XRP Controller; it may appear as ‘Board in FS mode’. Keep USB-C connected through the automatic check and repair."
+                  : "Robot setup requires desktop Chrome or Edge; this browser does not provide USB device access."}
               </p>
             </div>
           ) : null}

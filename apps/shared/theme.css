@@ -16,6 +16,8 @@
   --panel-raised: #f1f3f4;
   --line: #adb5ba;
   --line-bright: #737f88;
+  --pane-line: #4f5a61;
+  --pane-divider-width: 2px;
   --brand: #003660;
   --ucsb-blue: #00588a;
   --wordmark-secondary: #76545e;
@@ -138,7 +140,7 @@ button:disabled {
   min-height: var(--app-header-height);
   align-items: center;
   gap: 0.28rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--pane-line);
   padding: 1px 0.3rem;
   background: var(--panel);
   overflow-x: auto;
@@ -540,31 +542,38 @@ input[type="range"]:disabled {
   opacity: 0.55;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 560px) {
+  :root {
+    --app-header-height: 49px;
+  }
+
   .app-header {
+    display: grid;
+    height: var(--app-header-height);
+    min-height: var(--app-header-height);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: 22px 25px;
     align-items: center;
-    flex-wrap: nowrap;
+    gap: 0 4px;
+    overflow: visible;
   }
 
   .brand {
+    grid-column: 1;
+    grid-row: 1;
     min-width: auto;
   }
 
   .toolbar {
-    order: initial;
-    width: auto;
-    flex: 1;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .toolbar::-webkit-scrollbar {
-    display: none;
+    width: 100%;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow: visible;
   }
 
   .header-statuses {
-    order: initial;
-    margin-left: auto;
+    grid-column: 3;
+    grid-row: 1;
     justify-content: flex-start;
   }
 
@@ -575,5 +584,26 @@ input[type="range"]:disabled {
   .offline-readiness > span:last-child {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-header {
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+
+  .target-select {
+    width: 74px;
+    min-width: 74px;
+    padding-left: 3px;
+  }
+
+  .toolbar {
+    gap: 2px;
+  }
+
+  .tool-link {
+    padding-left: 3px;
   }
 }

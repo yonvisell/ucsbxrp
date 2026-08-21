@@ -31,6 +31,7 @@ test("runs the default project directly from a fresh Monitor", async ({
   await expect(run).toHaveAttribute("title", /Expanding spiral/);
   await run.click();
 
+  await page.getByRole("tab", { name: "System log" }).click();
   await expect(page.getByRole("log")).toContainText(
     "Project prepared for the virtual XRP",
   );
@@ -65,6 +66,29 @@ test("Run reports a validation error before starting invalid code", async ({
   await expect(page.getByRole("log")).toContainText("Validation failed");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+});
+
+test("runs hardware-free student component checks without changing the target", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.getByLabel("Project template").selectOption("challenge_1");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Open README.md" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Test components" }).click();
+  await expect(page.getByRole("log")).toContainText("PENDING · SensorModel");
+  await expect(page.getByRole("log")).toContainText(
+    "PENDING · WheelSpeedController",
+  );
+  await expect(page.getByRole("log")).toContainText(
+    "Component checks completed with MicroPython",
+  );
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );

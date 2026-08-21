@@ -343,7 +343,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(ide.getByTestId("check-result")).toContainText(
     "Python files compiled with MicroPython",
   );
-  await ide.getByRole("tab", { name: /Details/ }).click();
+  await ide.getByRole("tab", { name: /System log/ }).click();
   await dashboard
     .locator(".app-header")
     .getByRole("button", { name: "Stop", exact: true })
@@ -545,6 +545,7 @@ while True:
     )
     .not.toContain("running");
   await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+  await monitor.getByRole("tab", { name: "System log" }).click();
   await expect(monitor.getByRole("log")).toContainText(
     "drive command set to zero",
   );

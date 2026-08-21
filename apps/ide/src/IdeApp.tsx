@@ -15,6 +15,7 @@ import {
   loadTargetPreference,
   physicalEndpointForPreference,
   storeTargetPreference,
+  testCourseProjectComponents,
   type TargetClient,
   type TargetEvent,
   type TargetKind,
@@ -219,6 +220,7 @@ export function IdeApp() {
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
   const [newFileError, setNewFileError] = useState("");
+  const [componentCheckRunning, setComponentCheckRunning] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectDraft, setNewProjectDraft] = useState("");
   const [newProjectError, setNewProjectError] = useState("");
@@ -497,6 +499,60 @@ export function IdeApp() {
       setCheckDetail(errorDetail(error));
     }
   }, [canCommand, isRunning, project, target]);
+
+  const testComponents = useCallback(async () => {
+    if (componentCheckRunning || !("component_checks.py" in project.files)) {
+      return;
+    }
+    setComponentCheckRunning(true);
+    setOutputPanelOpen(true);
+    setConsoleTab("output");
+    setOperationDetail("Running hardware-free component checks…");
+    try {
+      const result = await testCourseProjectComponents({
+        ...project,
+        entrypoint: "component_checks.py",
+      });
+      const lines = [
+        ...(result.output ?? []).map((line) => ({
+          id: nextConsoleId.current++,
+          category: "program" as const,
+          stream: line.startsWith("FAIL")
+            ? ("stderr" as const)
+            : ("stdout" as const),
+          line,
+        })),
+        {
+          id: nextConsoleId.current++,
+          category: "program" as const,
+          stream: result.ok ? ("system" as const) : ("stderr" as const),
+          line: result.ok
+            ? result.detail
+            : `Component checks stopped: ${result.detail}`,
+        },
+      ];
+      setConsoleEntries((entries) => [...entries.slice(-199), ...lines]);
+      setOperationDetail(
+        result.ok
+          ? "Component checks finished; review PASS and PENDING results below."
+          : "One or more component checks failed; review Program output.",
+      );
+    } catch (error) {
+      const detail = errorDetail(error);
+      setConsoleEntries((entries) => [
+        ...entries.slice(-199),
+        {
+          id: nextConsoleId.current++,
+          category: "program",
+          stream: "stderr",
+          line: `Component checks could not run: ${detail}`,
+        },
+      ]);
+      setOperationDetail("Component checks could not run.");
+    } finally {
+      setComponentCheckRunning(false);
+    }
+  }, [componentCheckRunning, project]);
 
   const flashProject = useCallback(async () => {
     if (!canCommand || isRunning) {
@@ -1167,7 +1223,14 @@ export function IdeApp() {
         : "Connected · changes save automatically"
     : rememberedFolder && rememberedFolderCanAttach
       ? `${rememberedFolder.name} · reconnect to resume saving`
-      : "Browser backup · no project folder";
+      : "Saved in this browser only";
+  const storageSummary = workingFolder
+    ? `Saved automatically in ./${workingFolder.name}`
+    : rememberedFolder && rememberedFolderCanAttach
+      ? `${rememberedFolder.name} · reconnect to resume automatic saving`
+      : workspaceFolder
+        ? `Saved in this browser only · workspace ${workspaceFolder.name} selected`
+        : "Saved in this browser only";
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
@@ -1313,7 +1376,7 @@ export function IdeApp() {
             <div className="project-root" data-testid="project-folder">
               {workingFolder
                 ? `./${workingFolder.name}`
-                : "Browser project · no folder"}
+                : `${project.name} · browser only`}
             </div>
             <div className="file-list">
               {projectFiles.map((path) => (
@@ -1406,6 +1469,18 @@ export function IdeApp() {
                   Save
                 </button>
               </div>
+              {"component_checks.py" in project.files ? (
+                <button
+                  className="component-check-button"
+                  disabled={componentCheckRunning}
+                  onClick={() => void testComponents()}
+                  title="Run deterministic student-component checks in MicroPython without using the robot. PASS, PENDING, and FAIL results appear in Program output."
+                >
+                  {componentCheckRunning
+                    ? "Testing components…"
+                    : "Test components"}
+                </button>
+              ) : null}
               <div className="template-control">
                 <span>New project from template</span>
                 <div className="template-actions">
@@ -1438,12 +1513,8 @@ export function IdeApp() {
                 </div>
               </div>
               <div className="project-storage">
-                <span>WORKSPACE</span>
-                <strong
-                  title={workspaceFolder?.name ?? "No workspace selected"}
-                >
-                  {workspaceFolder?.name ?? "Not selected"}
-                </strong>
+                <span>STORAGE</span>
+                <strong title={storageDetail}>{storageSummary}</strong>
                 <button
                   className="folder-reconnect"
                   disabled={!supportsWorkingFolders()}
@@ -1452,8 +1523,6 @@ export function IdeApp() {
                 >
                   {workspaceFolder ? "Change workspace" : "Choose workspace"}
                 </button>
-                <span>PROJECT FOLDER</span>
-                <strong title={storageDetail}>{storageDetail}</strong>
                 {!workingFolder &&
                 rememberedFolder &&
                 rememberedFolderCanAttach ? (
@@ -1592,9 +1661,9 @@ export function IdeApp() {
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
-                  title="Show validation, connection, and target-service messages."
+                  title="Show validation, connection, flash, and target-service messages."
                 >
-                  Details
+                  System log
                   {serviceDetails.length > 0
                     ? ` (${serviceDetails.length})`
                     : ""}
@@ -1614,7 +1683,7 @@ export function IdeApp() {
                         ),
                       )
                     }
-                    title={`Clear ${consoleTab === "output" ? "program output" : "service details"}.`}
+                    title={`Clear ${consoleTab === "output" ? "program output" : "system log"}.`}
                   >
                     Clear
                   </button>
@@ -1699,7 +1768,7 @@ export function IdeApp() {
                   <span className="console-placeholder">
                     {consoleTab === "output"
                       ? "Program output appears here after Run."
-                      : "Validation, connection, and target-service messages appear here. Run validates before starting."}
+                      : "Validation, connection, flash, and target-service messages appear here."}
                   </span>
                 ) : (
                   visibleConsoleEntries.map((entry) => (
@@ -1912,7 +1981,8 @@ export function IdeApp() {
             <h3>Physical workflow</h3>
             <p>
               Virtual and physical targets use the same project. On a physical
-              XRP, validate, flash the complete project, then run.
+              XRP, Run performs any required validation and project transfer.
+              Validate and Flash project remain available as separate checks.
             </p>
           </section>
           <section className="settings-note shortcuts-note">
