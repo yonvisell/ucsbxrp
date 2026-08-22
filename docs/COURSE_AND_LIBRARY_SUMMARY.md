@@ -176,7 +176,7 @@ lookup, and `neighbors()` returns free four-neighbor cells.
 These interfaces let each component be tested with known input records before
 it is selected for a physical robot run.
 
-## Browser tools and execution targets
+## IDE, Monitor, and robot selection
 
 The browser IDE is the focused programming surface: students edit a small
 MicroPython project, check it, transfer it, run or stop it, and follow

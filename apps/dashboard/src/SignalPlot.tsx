@@ -209,7 +209,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
     id: "angular-rate",
     label: "Yaw rate ωz",
     unit: "rad/s",
-    description: "IMU angular rate about the vertical z axis",
+    description: "IMU yaw rate about the vertical z axis",
     series: [
       {
         label: "ωz",

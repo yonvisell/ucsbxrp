@@ -711,6 +711,30 @@ was not started because the formerly referenced local `Details.md` credential
 file was no longer present; the robot and computer network settings were left
 unchanged.
 
+Refinement 36 completed the student-facing documentation, evidence, and visual
+pass. The UCSB XRP API now documents each student base class with its purpose,
+state, constructor, properties, parameters, return values, exceptions, and
+required behavior. Each challenge now includes an objective, student and
+supplied components, program flow, work sequence, and isolated MicroPython
+component checks. The simulator and CSV distinguish simulator ground truth from
+student odometry, expose requested and target motion, and retain project-owned
+world selection across unchanged runs. Encoder-derived wheel speed is now a
+regularized estimate from cumulative wheel travel rather than a one-sample tick
+difference; exact increments remain unchanged for odometry.
+
+The complete local check passed with 135 Python tests, MicroPython 1.28
+source/bytecode parity, 140 Vitest tests, production and commissioning builds,
+the 208-file offline shell, and all 34 non-hardware Stable Chrome workflows.
+The opt-in physical workflow was skipped. Direct production-Chrome inspection
+then covered the landing page, commissioning wizard, IDE, Monitor, Guide, and
+API reference. A fresh Monitor Run automatically validated and started the
+spiral, retained the System log, showed student plots and wheel distance,
+tracked target wheel speed with a smooth measured estimate, and stopped with a
+zero drive command. The final documentation-only grid correction passed a new
+production build and offline-shell verification. There was no page-level
+horizontal overflow in the inspected layouts. The current course release is
+`2026.08-dev.11`; it has not yet been installed on the physical XRP.
+
 ## Physical evidence
 
 `docs/hardware/2026-08-01-final-app-and-rp2350-validation.json` records the
@@ -757,12 +781,12 @@ folder-picker-to-Web-Serial handoff.
 
 ## Remaining work
 
-1. Complete the public Pages-origin native folder chooser and Web Serial
-   permission handoff, then join the default hotspot once to confirm the exact
-   service reply, automatic physical IDE selection, Flash project, Run/Stop,
-   and telemetry. The underlying dev.7 inspection and repair operations already
-   pass on this attached robot. Exercise the UF2 branch later only on a robot
-   whose firmware is actually incompatible.
+1. Use the public setup/repair wizard once with the attached XRP to install
+   `2026.08-dev.11`, select hotspot or station Wi-Fi, and confirm the automatic
+   physical IDE handoff, Flash project, Run/Stop, and live telemetry. The
+   underlying dev.7 inspection and repair operations already pass on this
+   robot. Exercise the UF2 branch later only on a robot whose firmware is
+   actually incompatible.
 2. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.

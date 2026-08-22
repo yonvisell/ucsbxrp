@@ -160,7 +160,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     settingsBox,
     targetStatusBox,
   ] = await Promise.all([
-    ide.getByLabel("Execution target").boundingBox(),
+    ide.getByLabel("Run on").boundingBox(),
     ide.getByRole("button", { name: "Run", exact: true }).boundingBox(),
     ide.locator(".app-header").boundingBox(),
     ide.locator(".brand").boundingBox(),
@@ -608,7 +608,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
     await Promise.all([
       ide.locator(".app-header").boundingBox(),
       ide.locator(".toolbar").boundingBox(),
-      ide.getByLabel("Execution target").boundingBox(),
+      ide.getByLabel("Run on").boundingBox(),
     ]);
   expect(narrowToolbarBox?.height).toBeLessThanOrEqual(
     narrowHeaderBox?.height ?? 29,

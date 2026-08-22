@@ -225,7 +225,7 @@ test("can save a world replay automatically when recording stops", async ({
     .click();
 });
 
-test("selects scrolling signals from a collapsible monitor sidebar", async ({
+test("selects plotted signals from the Monitor controls", async ({
   context,
   page,
 }) => {

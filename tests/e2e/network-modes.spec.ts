@@ -8,7 +8,7 @@ test("selects robot hotspot or existing Wi-Fi without losing either endpoint", a
   await page.getByRole("button", { name: "Settings", exact: true }).click();
 
   const settings = page.getByTestId("settings-panel");
-  await settings.getByLabel("Execution target").selectOption("physical");
+  await settings.getByLabel("Run on").selectOption("physical");
 
   const wifi = settings.getByRole("group", { name: "XRP Wi-Fi" });
   await expect(wifi).toContainText(

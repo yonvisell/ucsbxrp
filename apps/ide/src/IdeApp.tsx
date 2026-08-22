@@ -1294,7 +1294,7 @@ export function IdeApp() {
         </div>
         <div className="toolbar" role="toolbar" aria-label="Project commands">
           <select
-            aria-label="Execution target"
+            aria-label="Run on"
             className="target-select"
             onChange={(event) =>
               setTargetPreference((current) => ({
@@ -1874,7 +1874,7 @@ export function IdeApp() {
             </button>
           </div>
           <label className="setting-row">
-            <span>Execution target</span>
+            <span>Run on</span>
             <select
               onChange={(event) =>
                 setTargetPreference((current) => ({
