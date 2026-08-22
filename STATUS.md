@@ -732,8 +732,22 @@ spiral, retained the System log, showed student plots and wheel distance,
 tracked target wheel speed with a smooth measured estimate, and stopped with a
 zero drive command. The final documentation-only grid correction passed a new
 production build and offline-shell verification. There was no page-level
-horizontal overflow in the inspected layouts. The current course release is
-`2026.08-dev.11`; it has not yet been installed on the physical XRP.
+horizontal overflow in the inspected layouts.
+
+The first public dev.11 repair then exposed one commissioning defect after all
+25 installed file hashes matched: runtime verification imported the pre-repair
+`ucsb_xrp_service` module still retained by the active MicroPython session and
+compared its stale version constant. Commit `13d1754` clears only the three
+course-package namespaces before importing the installed files and reports
+actual and expected versions on any future mismatch. Seven focused
+commissioner tests, two setup-log tests, the production/offline build, and five
+commissioning Chrome workflows pass. GitHub Pages run `32543192621` succeeded.
+The corrected public Chrome wizard then verified 0 changed and 25 unchanged
+files, loaded release `2026.08-dev.11`, retained Pink at `192.168.7.37`, reset
+the XRP, discovered service/protocol versions `2026.08-dev.11`/1 on attempt 5,
+selected the physical IDE automatically, and flashed the four-file Expanding
+spiral project. Stationary telemetry returned live range, IMU, temperature,
+encoder, and zero-effort values. No motor command was issued for this repair.
 
 ## Physical evidence
 
@@ -779,14 +793,16 @@ direct-rename activation, final 23-file no-change repeat, runtime imports, and
 normal-service reset. It separately identifies the uncompleted native macOS
 folder-picker-to-Web-Serial handoff.
 
+`docs/hardware/2026-08-21-dev11-browser-commissioning-validation.json` closes
+that handoff and records the dev.11 verifier correction, successful public
+deployment, complete physical wizard path, station-mode service discovery,
+project transfer, and stationary telemetry.
+
 ## Remaining work
 
-1. Use the public setup/repair wizard once with the attached XRP to install
-   `2026.08-dev.11`, select hotspot or station Wi-Fi, and confirm the automatic
-   physical IDE handoff, Flash project, Run/Stop, and live telemetry. The
-   underlying dev.7 inspection and repair operations already pass on this
-   robot. Exercise the UF2 branch later only on a robot whose firmware is
-   actually incompatible.
+1. Exercise the UF2 branch later on a controller whose MicroPython firmware is
+   genuinely incompatible; the attached controller already has the pinned
+   firmware, so forcing that branch would not validate a realistic repair.
 2. On the final course surface, measure wheel-speed response, effective wheel
    diameter and track width, stopping distance, and motion-induced IMU/range
    behavior; update `robot_config.py` and simulator comparison envelopes.

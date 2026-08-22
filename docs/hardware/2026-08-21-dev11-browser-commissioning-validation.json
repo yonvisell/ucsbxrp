@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-21T18:24:17-07:00",
+  "purpose": "Close the public browser commissioning failure at installed-runtime verification.",
+  "repository": {
+    "remote": "https://github.com/yonvisell/ucsbxrp.git",
+    "branch": "main",
+    "correctionCommit": "13d1754",
+    "pagesWorkflow": "https://github.com/yonvisell/ucsbxrp/actions/runs/32543192621",
+    "pagesResult": "success",
+    "pagesDurationSeconds": 46
+  },
+  "webRelease": {
+    "origin": "https://yonvisell.github.io/ucsbxrp/",
+    "courseRelease": "2026.08-dev.11",
+    "offlineBuild": "ba4b1a73259e393401c7",
+    "offlinePayloadFiles": 208,
+    "browser": "Google Chrome 151.0.7922.137"
+  },
+  "initialFailure": {
+    "stage": "Verifying installed files",
+    "message": "The installed XRP runtime does not match this course release.",
+    "repeated": true,
+    "fileReadback": "All installed file SHA-256 values matched the release before the runtime import check.",
+    "cause": "MicroPython returned pre-repair ucsb_xrp and ucsb_xrp_service modules retained in sys.modules by the running pre-repair service. The verifier compared those in-memory version constants after replacing their files."
+  },
+  "correction": {
+    "behavior": "Before import verification, remove only ucsb_xrp, ucsb_xrp_reference, and ucsb_xrp_service package entries from sys.modules, collect unused objects, and import the newly written files.",
+    "diagnostics": "A remaining mismatch reports each installed and expected library or service version and any missing XRPLib module.",
+    "progress": [
+      "Verifying installed files",
+      "Loading the installed course software",
+      "Installed course release 2026.08-dev.11 verified"
+    ]
+  },
+  "physicalResult": {
+    "controller": "SparkFun XRP Controller with RP2350",
+    "usbPort": "/dev/cu.usbmodem2101",
+    "network": {
+      "mode": "station",
+      "ssid": "Pink",
+      "address": "192.168.7.37",
+      "fallback": false
+    },
+    "install": {
+      "changedFiles": 0,
+      "unchangedFiles": 25,
+      "releaseVerified": "2026.08-dev.11",
+      "resetCompleted": true
+    },
+    "service": {
+      "robotName": "ucsb-xrp",
+      "protocol": 1,
+      "serviceVersion": "2026.08-dev.11",
+      "courseRelease": "2026.08-dev.11",
+      "bootId": "8f3e3e78326b",
+      "connectionAttempt": 5,
+      "automaticIdeHandoff": true
+    },
+    "projectTransfer": {
+      "project": "Expanding spiral",
+      "files": 4,
+      "publicIdeReported": "Physical XRP ready; Project flashed"
+    },
+    "stationaryTelemetry": {
+      "state": "ready",
+      "sequence": 82,
+      "rangeMm": 383.677,
+      "temperatureC": 33.492188,
+      "leftEncoderCount": -1,
+      "rightEncoderCount": 0,
+      "leftEffort": 0.0,
+      "rightEffort": 0.0
+    }
+  },
+  "motion": {
+    "commanded": false,
+    "reason": "Commissioning, service discovery, telemetry, and project transfer close this defect without a motor run."
+  },
+  "softwareValidation": {
+    "commissionerUnitTests": 7,
+    "setupLogUnitTests": 2,
+    "commissioningChromeWorkflows": 5,
+    "typescript": "passed",
+    "productionBuild": "passed",
+    "commissioningBundleFiles": 25,
+    "offlinePayloadFiles": 208
+  }
+}

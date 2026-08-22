@@ -4,6 +4,14 @@ This directory retains machine-readable observations from the attached
 SparkFun XRP Controller with RP2350. Records are evidence of what one device did
 with an exact software revision; they are not a checklist for students.
 
+`2026-08-21-dev11-browser-commissioning-validation.json` closes the complete
+public Chrome workflow for release dev.11: retained course-folder permission,
+Web Serial selection, no-change file readback, fresh-module runtime import,
+Pink station activation, reset, local-network permission, service discovery,
+automatic physical IDE handoff, project transfer, and stationary telemetry. It
+also records the stale MicroPython module-cache defect exposed by the preceding
+failed repair and the bounded correction in commit `13d1754`.
+
 `2026-08-07-dev7-commissioning-repair-validation.json` records the attached
 dev.7 changed-only install, no-change repetition, two deliberate one-file
 repairs, verified direct-rename activation, final runtime imports, and reset.
