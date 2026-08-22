@@ -141,8 +141,17 @@ function storeProject(
   project: CourseProject,
   descriptor: SynchronizedProject,
 ): void {
-  currentCatalog = worldCatalogForProject(project);
-  currentScenario = currentCatalog.defaultWorldId;
+  const nextCatalog = worldCatalogForProject(project);
+  const worldFileUnchanged =
+    currentProject?.files["world.json"] === project.files["world.json"];
+  const selectedWorldStillExists = nextCatalog.worlds.some(
+    (world) => world.id === currentScenario,
+  );
+  currentCatalog = nextCatalog;
+  currentScenario =
+    worldFileUnchanged && selectedWorldStillExists
+      ? currentScenario
+      : currentCatalog.defaultWorldId;
   currentWorld = worldById(currentCatalog, currentScenario);
   simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
   simulatorState = simulator.reset(currentWorld.initialPose);
@@ -365,7 +374,6 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     currentScenario = command.scenario;
     simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
     simulatorState = simulator.reset(currentWorld.initialPose);
-    consoleHistory.length = 0;
     broadcast({
       type: "world",
       catalog: currentCatalog,

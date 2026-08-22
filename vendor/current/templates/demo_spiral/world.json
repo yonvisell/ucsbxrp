@@ -22,6 +22,37 @@
           "label": "Start"
         }
       ]
+    },
+    {
+      "id": "obstacle-ahead",
+      "label": "Obstacle ahead",
+      "bounds": {
+        "minimum_x_mm": -1200,
+        "minimum_y_mm": -900,
+        "maximum_x_mm": 1200,
+        "maximum_y_mm": 900
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "block",
+          "minimum_x_mm": 320,
+          "minimum_y_mm": -100,
+          "maximum_x_mm": 420,
+          "maximum_y_mm": 100,
+          "label": "Test obstacle"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -120,
+          "minimum_y_mm": -120,
+          "maximum_x_mm": 120,
+          "maximum_y_mm": 120,
+          "label": "Start"
+        }
+      ]
     }
   ]
 }

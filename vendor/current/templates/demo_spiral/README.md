@@ -13,6 +13,8 @@ parameters:
 
 The program also publishes **Spiral travel** and **Spiral yaw rate**. They
 appear as unchecked green choices under **Monitor → Controls → Signals**.
+Select **Obstacle ahead** in the Monitor's World control to exercise the
+ultrasound stop; **Open field** exercises the travel limit.
 
 The same project runs on the virtual or physical XRP. IDE Run starts it
 immediately on either target; a copy launched directly outside the course

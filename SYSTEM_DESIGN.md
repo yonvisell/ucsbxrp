@@ -16,10 +16,10 @@ virtual:  student project -> ucsb_xrp -> XRPBot -> simulated XRPLib -> plant
 
 The simulator supplies device observations and planar physics. It does not
 estimate pose, navigate, plan, or execute a mission. Three.js renders the
-authoritative planar state and never owns dynamics.
+authoritative planar state; it does not calculate robot motion.
 
 The active `v2_` documents define the learning sequence and component
-ownership. Implementations and exact APIs can improve when the coordinated
+responsibilities. Implementations and exact APIs can improve when the coordinated
 change makes student reasoning or instructor operation clearer.
 
 ## 2. Browser applications
@@ -31,7 +31,7 @@ guide, landing page, and shared packages.
 
 The IDE is the programming surface. It provides:
 
-- a workspace containing named project folders, automatic project writes, and
+- a course folder containing named project folders, automatic project writes, and
   an independent browser backup;
 - multi-file creation, rename, duplicate, delete, tabs, and main-file
   metadata;
@@ -44,7 +44,7 @@ The IDE is the programming surface. It provides:
   Run/Stop control and Reset;
 - virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
   and an existing-Wi-Fi address setting;
-- a flat white workspace with compact collapsible project, settings, and
+- a flat white layout with compact collapsible project, settings, and
   output regions, literal file names, and concise hover/focus help; and
 - separate concise Status, Program output, and validation/service System log.
 
@@ -63,14 +63,16 @@ export; `ucsb_xrp.load_world()` exposes the same geometry to project Python.
 This keeps the simulated environment, visible course figure, and challenge map
 from drifting into separate copies. The flashed-project manifest retains the
 world text so Monitor can recover it from a physical XRP after a page reload.
+A virtual Run retains the selected world when `world.json` is unchanged;
+replacing that file selects its declared default world.
 Catalog entries are complete `CourseProject` values, not a persistent special
-mode. A workspace is a parent directory; each project is one named child
+mode. A course folder is a parent directory; each project is one named child
 directory containing source, metadata, rotated copies, run output, and
-telemetry. When a workspace is active, loading a template first asks for the
+telemetry. When a course folder is active, loading a template first asks for the
 child-directory name and writes the complete project immediately. Without a
-workspace, it remains in the independent browser backup until Save selects a
-workspace and names the project folder. Any Python file can be selected as its
-entrypoint. Workspace and active-project handles are retained separately in
+course folder, it remains in the independent browser backup until Save selects a
+course folder and names the project folder. Any Python file can be selected as its
+entrypoint. Course-folder and active-project handles are retained separately in
 IndexedDB when structured handle storage is available. If project read/write
 permission does not survive, one explicit Reconnect gesture restores it.
 Folder writes are debounced, serialized, and revision/epoch checked so an older
@@ -89,13 +91,13 @@ a robot behavior that has not been run by the instructor.
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,
-outdated, or damaged XRP. A workspace is useful but not a commissioning
+outdated, or damaged XRP. A course folder is useful but not a commissioning
 prerequisite: students may select one for project folders and setup
 logs, or defer it until the IDE. The application cache remains browser-owned;
-a page cannot place that cache inside a user-selected folder. When a workspace
+a page cannot place that cache inside a user-selected folder. When a course folder
 is selected, the wizard writes and reads back a small setup log before continuing.
 Meaningful controller, installation, reset, and network-probe events append to
-the same password-free log; without a workspace the visible log remains copyable.
+the same password-free log; without a course folder the visible log remains copyable.
 Raw serial traffic is not retained.
 
 One user-selected Web Serial connection enters the MicroPython raw REPL. The
@@ -123,9 +125,9 @@ service uses either the XRP hotspot or existing Wi-Fi for physical Run,
 Monitor, and telemetry. After network activation and reset, the wizard reports every service-probe
 attempt and distinguishes an unreachable network from an incompatible service.
 An exact service/release reply stores the physical endpoint, hands any selected
-workspace to the IDE, and opens the IDE in physical mode. For a new browser,
-the untouched spiral starter becomes `./Expanding-Spiral` inside that workspace.
-Recovered work is not moved automatically. The workspace itself is not imported
+course folder to the IDE, and opens the IDE in physical mode. For a new browser,
+the untouched spiral demo becomes `./Expanding-Spiral` inside that course folder.
+Recovered work is not moved automatically. The course folder itself is not imported
 as a project; an existing repository is loaded only through **Open project**. It
 cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
@@ -253,7 +255,7 @@ versioned browser-storage record.
 
 ## 4. Virtual XRP
 
-A `SharedWorker` owns the target state shared by IDE and Monitor tabs:
+A `SharedWorker` maintains the target state shared by IDE and Monitor tabs:
 
 - project world catalog, selected world, and latest plant state;
 - target status, console history, and telemetry fan-out;
@@ -358,7 +360,7 @@ Browser commissioning defaults to the robot hotspot and needs no private
 network credential. Existing-Wi-Fi setup accepts a password only for the
 duration of the USB write and never includes it in a status reply or browser
 store. Every installed course/service/reference file is content-hashed before
-and after replacement. The browser and command-line provisioner consume one
+and after replacement. The browser and command-line provisioner use one
 exact release file map; the latter remains useful for instructor fleet
 automation and optional static station addressing, but is not a student
 prerequisite.
@@ -376,7 +378,7 @@ Students implement six independently selectable components:
 `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, `Odometry`,
 `NavigationController`, and `GridPlanner`. Supplied services keep hardware,
 control-loop, mapping, and mission boilerplate out of student code. `XRPBot`
-is the sole direct XRPLib adapter; `Robot` owns the measured sample/control
+is the sole direct XRPLib adapter; `Robot` runs the measured sample/control
 loop and publishes pose/drive-command state for physical telemetry. Its sample
 clock advances absolute wrap-safe deadlines and skips missed periods, so timing
 does not drift with student computation or produce catch-up bursts.
@@ -387,7 +389,7 @@ portable `.mpy` artifacts. Release metadata records source identity, compiler
 identity, artifact hashes, firmware, and XRPLib revision. Tests exercise source
 and exact bytecode against the same required public behavior.
 
-Five cumulative starters separate:
+Five cumulative challenge projects separate:
 
 - `main.py`: the readable task entrypoint;
 - `challenge.py`: task/environment values;
@@ -404,7 +406,7 @@ online start it checks for an updated service worker without accepting a stale
 cached response. It activates a new cache only after every required asset is
 present and retains the preceding complete release during an interrupted
 update. It caches the complete public release—application
-shells, workers, MicroPython WebAssembly, course source, starters, templates,
+shells, workers, MicroPython WebAssembly, course source, challenges, templates,
 reference bytecode, the pinned RP2350 UF2 and commissioning manifest, and
 third-party notices—and exposes a visible readiness state. One GitHub Pages
 artifact workflow obtains either the root or project
@@ -413,7 +415,7 @@ complete shell activates, a long-open tab reloads once for that build so an
 older interface does not remain in memory. Development disables caching to
 prevent stale bundles from masking changes. Private reference source and
 instructor credentials are not web assets. This application cache is owned by
-the HTTPS origin and is not copied into the selected workspace. It needs no
+the HTTPS origin and is not copied into the selected course folder. It needs no
 Node process after caching; a `file://` copy is not substituted because the
 module, worker, WebAssembly, and service-worker boundaries require an HTTP(S)
 origin. Clearing site data removes the cached release but not project folders.
@@ -529,11 +531,11 @@ troubleshooting in that order. It avoids internal deployment vocabulary and
 defines each student-visible storage or target term where it first appears.
 
 The separately built `UCSB XRP API` page is the detailed code reference. Every
-student component entry states what the component owns, what it receives, what
-state it maintains, what it provides, and which module consumes that output.
-Method signatures and units follow those responsibilities. The IDE maps known
+student component entry states its purpose, source and base class, state between
+calls, constructor, properties, method parameters and types, return values,
+exceptions, units, and required behavior. The IDE maps known
 component/configuration filenames to the corresponding reference anchor, while
 the Guide retains the high-level closed command/measurement loop. Each challenge
-README repeats only the challenge-specific objective, student/supplied ownership,
+README repeats only the challenge-specific objective, student and supplied responsibilities,
 flow, and work sequence needed to understand that project without leaving its
 folder. The Guide and API pages are part of the verified offline shell.

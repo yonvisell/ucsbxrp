@@ -172,8 +172,12 @@ test("reloads the complete production course shell without a network", async ({
   await expect(
     reference.getByRole("heading", { name: "UCSB XRP API", exact: true }),
   ).toBeVisible();
-  await expect(reference.locator("#sensor-model")).toContainText("Maintains");
-  await expect(reference.locator("#sensor-model")).toContainText("Used by");
+  await expect(reference.locator("#sensor-model")).toContainText(
+    "State between calls",
+  );
+  await expect(reference.locator("#sensor-model")).toContainText(
+    "Required behavior",
+  );
   await expectOfflineShellReady(reference);
 
   const landing = await context.newPage();

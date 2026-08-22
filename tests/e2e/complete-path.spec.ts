@@ -248,7 +248,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   ).toHaveCount(0);
   const [worldLabelBox, sceneSelectBox] = await Promise.all([
     dashboard.getByText("World", { exact: true }).boundingBox(),
-    dashboard.getByLabel("Virtual scene").boundingBox(),
+    dashboard.getByLabel("World configuration").boundingBox(),
   ]);
   expect(
     Math.abs((sceneSelectBox?.y ?? 0) - (worldLabelBox?.y ?? 0)),
@@ -483,7 +483,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       name: "Physical XRP",
     }),
   ).toBeVisible();
-  await expect(guide.getByText("DriveCommand(left, right)")).toBeVisible();
+  await expect(
+    guide.getByRole("heading", { name: "Project files and control flow" }),
+  ).toBeVisible();
+  const apiReference = await context.newPage();
+  collectBrowserErrors(apiReference, browserErrors);
+  await apiReference.goto("/reference/#records");
+  await expect(
+    apiReference.getByText("DriveCommand(left, right)", { exact: true }),
+  ).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });

@@ -4,6 +4,17 @@ Last updated: 2026-08-21
 
 ## Current result
 
+Refinement 35 closes two integration gaps exposed by the complete browser
+suite. The expanding-spiral project now includes its own **Obstacle ahead**
+world, so its ultrasound-stop behavior no longer depends on a world belonging
+to another challenge. A virtual Run preserves the selected world while the
+project's `world.json` is unchanged and selects the declared default only when
+that world file changes. Changing worlds no longer clears retained System-log
+history. The corresponding harness now selects **World configuration** and
+checks the current API structure rather than requiring removed UI labels or the
+rejected `Maintains / Used by` headings. All 51 target-package tests and the
+focused spiral, Challenge 5, multi-file, and offline Chrome workflows pass.
+
 Refinement 34 completes the active-document terminology pass. The course
 context and instructor/student summary now use **Wheeled Robotics**, **course
 folder**, **challenge project**, concrete component responsibilities, and

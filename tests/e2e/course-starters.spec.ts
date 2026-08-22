@@ -378,9 +378,9 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   await expect(programPlot).toBeVisible();
 
   await monitor
-    .getByLabel("Virtual scene")
-    .selectOption("delivery-gate-blocked");
-  await expect(monitor.getByTestId("range-mm")).toContainText("280.0 mm");
+    .getByLabel("World configuration")
+    .selectOption("obstacle-ahead");
+  await expect(monitor.getByTestId("range-mm")).toContainText("250.0 mm");
   await ide.getByRole("button", { name: "Run", exact: true }).click();
 
   await expect(ide.getByRole("log")).toContainText(
@@ -418,7 +418,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
     "Virtual XRP · ready",
   );
   await monitor
-    .getByLabel("Virtual scene")
+    .getByLabel("World configuration")
     .selectOption("delivery-gate-blocked");
   await expect(monitor.getByTestId("range-mm")).toContainText("280.0 mm");
 
