@@ -200,6 +200,7 @@ describe("browser XRP commissioning", () => {
 
   it("updates only changed files, verifies readback, configures Wi-Fi, and resets", async () => {
     const session = new FakeSession();
+    const progress: string[] = [];
     const fetchImplementation = (async (input: URL | RequestInfo) => {
       const url = input instanceof URL ? input.href : String(input);
       if (url.endsWith("files/lib/ucsb_xrp/example.py")) {
@@ -214,6 +215,7 @@ describe("browser XRP commissioning", () => {
       manifestUrl,
       network: { mode: "access_point" },
       fetch: fetchImplementation,
+      onProgress: (next) => progress.push(next.detail),
     });
 
     expect(completed).toMatchObject({
@@ -228,6 +230,20 @@ describe("browser XRP commissioning", () => {
     expect(activation).toContain("os.rename");
     expect(activation).not.toContain("os.remove");
     expect(session.files.has("/xrp_wifi.json")).toBe(true);
+    const runtimeVerification = session.commands.find((code) =>
+      code.includes("__UCSB_XRP_VERIFY__="),
+    );
+    expect(runtimeVerification).toContain("del sys.modules[name]");
+    expect(runtimeVerification).toContain(
+      "name.startswith('ucsb_xrp_service.')",
+    );
+    expect(runtimeVerification!.indexOf("del sys.modules[name]")).toBeLessThan(
+      runtimeVerification!.indexOf("import ucsb_xrp, ucsb_xrp_service"),
+    );
+    expect(progress).toContain("Loading the installed course software…");
+    expect(progress).toContain(
+      "Installed course release 2026.08-dev.11 verified.",
+    );
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
   });
@@ -274,6 +290,41 @@ describe("browser XRP commissioning", () => {
         fetch: (async () => new Response(courseFile)) as typeof fetch,
       }),
     ).rejects.toThrow("Readback verification failed");
+    expect(session.reset).toBe(false);
+  });
+
+  it("reports the installed and expected runtime versions", async () => {
+    const files = new Map<string, Uint8Array>([
+      ["/lib/ucsb_xrp/example.py", courseFile],
+    ]);
+    const session = new FakeSession(files);
+    const originalExecute = session.execute.bind(session);
+    session.execute = async (code: string) => {
+      if (code.includes("__UCSB_XRP_VERIFY__=")) {
+        return result(
+          `__UCSB_XRP_VERIFY__=${JSON.stringify({
+            library: "0.3.0",
+            service: "2026.08-dev.7",
+            modules: manifest().xrplib.requiredModules,
+          })}\r\n`,
+        );
+      }
+      return originalExecute(code);
+    };
+
+    await expect(
+      commissionDevice({
+        session,
+        manifest: manifest(),
+        manifestUrl,
+        network: { mode: "keep" },
+        fetch: (async () => {
+          throw new Error("matching files must not be fetched");
+        }) as typeof fetch,
+      }),
+    ).rejects.toThrow(
+      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.11)",
+    );
     expect(session.reset).toBe(false);
   });
 

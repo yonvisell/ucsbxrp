@@ -539,8 +539,9 @@ export function CommissionApp() {
         onProgress: (next) => {
           setProgress(next);
           setDetail(next.detail);
-          if (lastInstallProgressPhaseRef.current !== next.phase) {
-            lastInstallProgressPhaseRef.current = next.phase;
+          const logKey = `${next.phase}:${next.detail}`;
+          if (lastInstallProgressPhaseRef.current !== logKey) {
+            lastInstallProgressPhaseRef.current = logKey;
             recordSetup("Install", next.detail);
           }
         },

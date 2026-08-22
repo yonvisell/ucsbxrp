@@ -423,7 +423,12 @@ async function verifyInstalledRuntime(
   manifest: CommissioningManifest,
 ): Promise<void> {
   const result = await session.execute(
-    `import json, ucsb_xrp, ucsb_xrp_service\n` +
+    `import gc, json, sys\n` +
+      `for name in tuple(sys.modules):\n` +
+      ` if name=='ucsb_xrp' or name.startswith('ucsb_xrp.') or name=='ucsb_xrp_reference' or name.startswith('ucsb_xrp_reference.') or name=='ucsb_xrp_service' or name.startswith('ucsb_xrp_service.'):\n` +
+      `  del sys.modules[name]\n` +
+      `gc.collect()\n` +
+      `import ucsb_xrp, ucsb_xrp_service\n` +
       `mods=[]\n` +
       `for name in ${pythonLiteral(manifest.xrplib.requiredModules)}:\n` +
       ` __import__(name)\n mods.append(name)\n` +
@@ -436,16 +441,25 @@ async function verifyInstalledRuntime(
     service: string;
     modules: string[];
   }>(checkedResult(result, "Runtime verification"), VERIFY_MARKER);
-  if (
-    value.library !== manifest.courseLibraryVersion ||
-    value.service !== manifest.serviceVersion ||
-    manifest.xrplib.requiredModules.some(
-      (module) => !value.modules.includes(module),
-    )
-  ) {
-    throw new Error(
-      "The installed XRP runtime does not match this course release.",
+  const mismatches: string[] = [];
+  if (value.library !== manifest.courseLibraryVersion) {
+    mismatches.push(
+      `course library ${value.library} (expected ${manifest.courseLibraryVersion})`,
     );
+  }
+  if (value.service !== manifest.serviceVersion) {
+    mismatches.push(
+      `course service ${value.service} (expected ${manifest.serviceVersion})`,
+    );
+  }
+  const missingModules = manifest.xrplib.requiredModules.filter(
+    (module) => !value.modules.includes(module),
+  );
+  if (missingModules.length > 0) {
+    mismatches.push(`missing ${missingModules.join(", ")}`);
+  }
+  if (mismatches.length > 0) {
+    throw new Error(`Installed runtime mismatch: ${mismatches.join("; ")}.`);
   }
 }
 
@@ -522,7 +536,15 @@ export async function commissionDevice(options: {
       throw new Error(`Readback verification failed for ${path}.`);
     }
   }
+  onProgress({
+    phase: "verify",
+    detail: "Loading the installed course software…",
+  });
   await verifyInstalledRuntime(session, manifest);
+  onProgress({
+    phase: "verify",
+    detail: `Installed course release ${manifest.releaseId} verified.`,
+  });
 
   onProgress({ phase: "network", detail: "Preparing XRP Wi-Fi…" });
   await applyNetworkSelection(session, network, manifest.networkDefaults);
