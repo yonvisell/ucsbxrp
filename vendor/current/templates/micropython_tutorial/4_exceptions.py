@@ -1,19 +1,32 @@
-# Lesson 4: report expected failures and always perform cleanup.
+# Lesson 4: reject invalid input and stop the robot even after an error.
+
+from time import sleep_ms
+
+from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
 
 
-def positive_gain(value):
-    if value <= 0.0:
-        raise ValueError("gain must be positive")
-    return value
+def drive_for(bot, command, duration_ms):
+    if duration_ms <= 0:
+        raise ValueError("duration_ms must be positive")
+    bot.set_drive(command)
+    try:
+        sleep_ms(duration_ms)
+    finally:
+        # This cleanup runs whether sleep_ms finishes or raises an exception.
+        bot.stop()
 
 
-resource_open = False
+bot = XRPBot(RobotConfig(max_drive_command=0.35))
+safe_segments = 0
 try:
-    resource_open = True
-    gain = positive_gain(0.8)
-    print("gain:", gain)
+    drive_for(bot, DriveCommand(0.28, 0.28), 400)
+    safe_segments += 1
+
+    # The invalid duration demonstrates a controlled, expected failure.
+    drive_for(bot, DriveCommand(0.28, 0.28), -100)
 except ValueError as error:
-    print("invalid setting:", error)
+    print("Rejected setting:", error)
 finally:
-    resource_open = False
-    print("resource closed:", not resource_open)
+    bot.stop()
+
+print("Lesson 4 complete:", safe_segments, "safe segment")

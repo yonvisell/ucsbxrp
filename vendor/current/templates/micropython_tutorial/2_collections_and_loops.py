@@ -1,14 +1,18 @@
-# Lesson 2: lists, dictionaries, and iteration.
+# Lesson 2: store a route in a list and inspect it with a loop.
 
-range_samples_mm = [420.0, 405.0, 398.0, 390.0]
-summary = {
-    "count": len(range_samples_mm),
-    "nearest_mm": min(range_samples_mm),
-}
+route = [
+    {"name": "first straight", "distance_mm": 250.0},
+    {"name": "crossing", "distance_mm": 150.0},
+    {"name": "final straight", "distance_mm": 200.0},
+]
 
-total_mm = 0.0
-for sample_mm in range_samples_mm:
-    total_mm += sample_mm
+total_distance_mm = 0.0
+for segment in route:
+    distance_mm = segment["distance_mm"]
+    if distance_mm <= 0.0:
+        raise ValueError("every route distance must be positive")
+    total_distance_mm += distance_mm
+    print(segment["name"], "=", distance_mm, "mm")
 
-summary["mean_mm"] = total_mm / summary["count"]
-print("range summary:", summary)
+assert total_distance_mm == 600.0
+print("Lesson 2 complete:", len(route), "segments,", total_distance_mm, "mm")

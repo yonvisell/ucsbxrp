@@ -192,29 +192,122 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   await expect(page.locator(".file-type-icon")).toHaveCount(0);
 });
 
-test("loads and runs the staged MicroPython tutorial", async ({ page }) => {
-  await page.goto("/ide/");
-  await expect(page.getByTestId("target-status")).toContainText(
+test("validates and runs every staged tutorial lesson on the virtual XRP", async ({
+  context,
+  page: ide,
+}) => {
+  test.setTimeout(150_000);
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await page
-    .getByLabel("Project template")
-    .selectOption("micropython_tutorial");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await ide.getByLabel("Project template").selectOption("micropython_tutorial");
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Open 1_values_and_functions.py" }),
+    ide.getByRole("button", { name: /Open 1_values_and_functions\.py/ }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Open 7_finite_state_machine.py" }),
+    ide.getByRole("button", { name: /Open 7_finite_state_machine\.py/ }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Validate" }).click();
-  await expect(page.getByTestId("check-result")).toContainText(
+  await ide.getByRole("button", { name: "Validate" }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
     "8 Python files compiled with MicroPython",
   );
-  await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText(
-    "average speed: 150.0 mm/s",
-  );
+
+  const lessons = [
+    {
+      file: "1_values_and_functions.py",
+      output: "Lesson 1 complete: 150.0 mm/s",
+      xRange: [-1, 1],
+    },
+    {
+      file: "2_collections_and_loops.py",
+      output: "Lesson 2 complete: 3 segments, 600.0 mm",
+      xRange: [-1, 1],
+    },
+    {
+      file: "3_classes.py",
+      output: "Lesson 3 complete: 3 motion segments",
+      xRange: [10, 100],
+    },
+    {
+      file: "4_exceptions.py",
+      output: "Lesson 4 complete: 1 safe segment",
+      xRange: [1, 50],
+    },
+    {
+      file: "5_modules.py",
+      output: "Lesson 5 complete: imported helper ran 3 segments",
+      xRange: [10, 110],
+    },
+    {
+      file: "6_virtual_robot.py",
+      output: "Lesson 6 complete: obstacle detected at",
+      xRange: [150, 350],
+    },
+    {
+      file: "7_finite_state_machine.py",
+      output: "Lesson 7 complete: finite-state route finished",
+      xRange: [150, 450],
+    },
+  ] as const;
+
+  for (const lesson of lessons) {
+    await ide
+      .getByRole("button", { name: new RegExp(`Open ${lesson.file}`) })
+      .click();
+    const makeMain = ide.getByRole("button", { name: "Make main" });
+    if (await makeMain.isEnabled()) {
+      await makeMain.click();
+    }
+    await ide.getByRole("button", { name: "Reset", exact: true }).click();
+    await expect(ide.getByTestId("target-status")).toContainText(
+      "Virtual XRP · ready",
+    );
+    await ide.getByRole("button", { name: "Run", exact: true }).click();
+    await expect(ide.getByRole("log")).toContainText(lesson.output, {
+      timeout: 15_000,
+    });
+    await expect(ide.getByTestId("target-status")).toContainText(
+      "Virtual XRP · ready",
+      { timeout: 15_000 },
+    );
+    await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+    const finalX = Number.parseFloat(
+      (await monitor.getByTestId("x-mm").textContent()) ?? "NaN",
+    );
+    expect(finalX, lesson.file).toBeGreaterThanOrEqual(lesson.xRange[0]);
+    expect(finalX, lesson.file).toBeLessThanOrEqual(lesson.xRange[1]);
+
+    if (lesson.file === "6_virtual_robot.py") {
+      const finalRange = Number.parseFloat(
+        (await monitor.getByTestId("range-mm").textContent()) ?? "NaN",
+      );
+      expect(finalRange).toBeGreaterThan(250);
+      expect(finalRange).toBeLessThanOrEqual(325);
+    }
+
+    if (lesson.xRange[0] > 1) {
+      await ide.getByRole("button", { name: "Reset", exact: true }).click();
+      await ide.getByRole("button", { name: "Run", exact: true }).click();
+      await expect(ide.getByTestId("target-status")).toContainText(
+        "Virtual XRP · running",
+      );
+      await expect(ide.getByTestId("target-status")).toContainText(
+        "Virtual XRP · ready",
+        { timeout: 15_000 },
+      );
+      const repeatedX = Number.parseFloat(
+        (await monitor.getByTestId("x-mm").textContent()) ?? "NaN",
+      );
+      expect(Math.abs(repeatedX - finalX), lesson.file).toBeLessThanOrEqual(5);
+      await expect(monitor.getByTestId("motor-effort")).toHaveText(
+        "0.00 / 0.00",
+      );
+    }
+  }
 });
 
 test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({

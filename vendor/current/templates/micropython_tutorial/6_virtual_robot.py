@@ -1,23 +1,26 @@
-# Lesson 6: use short, bounded commands to draw an L with the virtual XRP.
+# Lesson 6: use repeated range measurements to decide when to stop.
 
-from time import sleep_ms
+from ucsb_xrp import RobotConfig, XRPBot
 
-from ucsb_xrp import DriveCommand, RobotConfig, XRPBot
-
-
-bot = XRPBot(RobotConfig(max_drive_command=0.4))
+from tutorial_helpers import drive_until_close
 
 
-def command_for(left, right, duration_ms):
-    bot.set_drive(DriveCommand(left, right))
-    sleep_ms(duration_ms)
-    bot.stop()
+STOP_RANGE_MM = 320.0
+TIME_LIMIT_MS = 3500
 
-
+bot = XRPBot(RobotConfig(max_drive_command=0.45))
 try:
-    command_for(0.32, 0.32, 1000)
-    command_for(-0.28, 0.28, 650)
-    command_for(0.32, 0.32, 700)
-    print("virtual drawing complete")
+    final_range_mm = drive_until_close(
+        bot,
+        left_command=0.42,
+        right_command=0.42,
+        stop_range_mm=STOP_RANGE_MM,
+        time_limit_ms=TIME_LIMIT_MS,
+    )
 finally:
     bot.stop()
+
+if final_range_mm is None:
+    print("Lesson 6 complete: time limit reached")
+else:
+    print("Lesson 6 complete: obstacle detected at", round(final_range_mm), "mm")

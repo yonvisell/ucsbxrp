@@ -64,6 +64,13 @@ describe("course starter catalog", () => {
     expect(tutorial.project.files["7_finite_state_machine.py"]).toContain(
       "next_state",
     );
+    expect(tutorial.project.files["6_virtual_robot.py"]).toContain(
+      "drive_until_close",
+    );
+    expect(tutorial.project.files["README.md"]).toContain(
+      "Lessons 3 through 7 move the virtual",
+    );
+    expect(tutorial.project.files["world.json"]).toContain("Range target");
     expect(Object.keys(tutorial.project.files)).toHaveLength(10);
     for (const template of COURSE_PROJECT_TEMPLATES) {
       expect(template.project.files["world.json"]).toContain('"worlds"');

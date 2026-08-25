@@ -1,6 +1,7 @@
 import ast
 import contextlib
 import io
+import json
 import pathlib
 import runpy
 import sys
@@ -29,6 +30,56 @@ class CourseStarterTests(unittest.TestCase):
 
         lessons = sorted((TEMPLATES / "micropython_tutorial").glob("[1-7]_*.py"))
         self.assertEqual([path.name[0] for path in lessons], list("1234567"))
+
+    def test_tutorial_is_progressive_bounded_and_student_facing(self):
+        tutorial = TEMPLATES / "micropython_tutorial"
+        readme = (tutorial / "README.md").read_text(encoding="utf-8")
+        for section in (
+            "## Run a lesson",
+            "## Lesson sequence",
+            "## Python essentials used here",
+            "## Suggested exercises",
+            "## Debugging method",
+            "## MicroPython and standard Python",
+        ):
+            self.assertIn(section, readme)
+        for lesson_number in range(1, 8):
+            self.assertIn("`{}_".format(lesson_number), readme)
+
+        for lesson_number in range(3, 8):
+            source = next(tutorial.glob("{}_*.py".format(lesson_number))).read_text(
+                encoding="utf-8"
+            )
+            with self.subTest(lesson=lesson_number):
+                self.assertIn("XRPBot", source)
+                self.assertIn("finally:", source)
+                self.assertIn("bot.stop()", source)
+                self.assertNotIn("while True", source)
+
+        helper = (tutorial / "tutorial_helpers.py").read_text(encoding="utf-8")
+        self.assertIn("elapsed_ms < time_limit_ms", helper)
+        self.assertIn("finally:", helper)
+        self.assertNotIn("while True", helper)
+
+        world = json.loads((tutorial / "world.json").read_text(encoding="utf-8"))
+        self.assertEqual(world["default_world"], "tutorial-field")
+        tutorial_world = world["worlds"][0]
+        self.assertEqual(tutorial_world["obstacles"][0]["label"], "Range target")
+        self.assertEqual(tutorial_world["initial_pose"]["heading_rad"], 0)
+
+    def test_first_two_tutorial_lessons_execute_with_expected_results(self):
+        tutorial = TEMPLATES / "micropython_tutorial"
+        expected_lines = {
+            "1_values_and_functions.py": "Lesson 1 complete: 150.0 mm/s",
+            "2_collections_and_loops.py": (
+                "Lesson 2 complete: 3 segments, 600.0 mm"
+            ),
+        }
+        for filename, expected in expected_lines.items():
+            output = io.StringIO()
+            with self.subTest(file=filename), contextlib.redirect_stdout(output):
+                runpy.run_path(str(tutorial / filename), run_name="__main__")
+            self.assertIn(expected, output.getvalue())
 
     def test_all_five_starters_are_complete_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())

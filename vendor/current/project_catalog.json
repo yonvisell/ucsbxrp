@@ -75,7 +75,7 @@
     "source": "templates/micropython_tutorial",
     "label": "Tutorial · MicroPython Foundations",
     "short_label": "MicroPython foundations",
-    "summary": "Seven short lessons covering functions, collections, classes, exceptions, modules, a virtual robot, and state machines.",
+    "summary": "Seven progressive lessons from Python fundamentals to sensor-driven finite-state behavior on the virtual XRP.",
     "entrypoint": "1_values_and_functions.py",
     "published": true
   }

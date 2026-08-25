@@ -1,17 +1,26 @@
 {
-  "default_world": "drawing-field",
+  "default_world": "tutorial-field",
   "worlds": [
     {
-      "id": "drawing-field",
-      "label": "Drawing field",
+      "id": "tutorial-field",
+      "label": "Tutorial field",
       "bounds": {
         "minimum_x_mm": -900,
         "minimum_y_mm": -700,
-        "maximum_x_mm": 900,
+        "maximum_x_mm": 1000,
         "maximum_y_mm": 700
       },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
-      "obstacles": [],
+      "obstacles": [
+        {
+          "type": "wall",
+          "label": "Range target",
+          "minimum_x_mm": 620,
+          "minimum_y_mm": -500,
+          "maximum_x_mm": 680,
+          "maximum_y_mm": 500
+        }
+      ],
       "markers": [
         {
           "type": "start_box",
@@ -20,6 +29,12 @@
           "maximum_x_mm": 100,
           "maximum_y_mm": 100,
           "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "x_mm": 300,
+          "y_mm": 0,
+          "label": "Range checkpoint"
         }
       ]
     }
