@@ -5,6 +5,10 @@ import { loadMicroPython } from "@micropython/micropython-webassembly-pyscript";
 
 const repositoryRoot = new URL("../", import.meta.url);
 const packageDirectory = new URL("vendor/current/ucsb_xrp/", repositoryRoot);
+const serviceDirectory = new URL(
+  "device_service/ucsb_xrp_service/",
+  repositoryRoot,
+);
 const referenceDirectory = new URL(
   "vendor/current/reference_mpy/ucsb_xrp_reference/",
   repositoryRoot,
@@ -68,6 +72,18 @@ for (const name of (await readdir(referenceDirectory)).sort()) {
   }
   const bytecode = await readFile(join(referenceDirectory.pathname, name));
   micropython.FS.writeFile(`/ucsb_xrp_reference/${name}`, bytecode);
+}
+
+// Parse every robot-service module with the exact MicroPython version used by
+// the virtual runtime. CPython accepts a few expressions that MicroPython does
+// not, so this gate must cover the installed service as well as the course API.
+ensureDirectory("/ucsb_xrp_service");
+for (const name of (await readdir(serviceDirectory)).sort()) {
+  if (!name.endsWith(".py")) {
+    continue;
+  }
+  const source = await readFile(join(serviceDirectory.pathname, name), "utf8");
+  micropython.FS.writeFile(`/ucsb_xrp_service/${name}`, source);
 }
 
 ensureDirectory("/XRPLib");
@@ -150,6 +166,15 @@ function runPythonChecked(source) {
 runPythonChecked(`
 import math
 import sys
+
+for service_module in (
+    "__init__.py",
+    "protocol.py",
+    "service.py",
+):
+    service_path = "/ucsb_xrp_service/" + service_module
+    with open(service_path, "r") as service_file:
+        compile(service_file.read(), service_path, "exec")
 
 from ucsb_xrp import (
     ArenaMap,
@@ -260,6 +285,7 @@ print("MicroPython", ".".join(str(part) for part in sys.implementation.version[:
 print("MicroPython _mpy", getattr(sys.implementation, "_mpy", None))
 print("reference .mpy public interfaces passed")
 print("canonical ucsb_xrp source parity passed")
+print("robot service MicroPython syntax passed")
 `);
 
 if (
@@ -278,6 +304,11 @@ if (!output.includes("canonical ucsb_xrp source parity passed")) {
 if (!output.includes("reference .mpy public interfaces passed")) {
   throw new Error(
     `Expected reference bytecode output was not captured: ${output.join("\n")}`,
+  );
+}
+if (!output.includes("robot service MicroPython syntax passed")) {
+  throw new Error(
+    `Expected robot-service syntax output was not captured: ${output.join("\n")}`,
   );
 }
 const finalLiveState = liveStates.at(-1);

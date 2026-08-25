@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.14"
+COURSE_RELEASE = "2026.08-dev.15"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -770,7 +770,7 @@ def telemetry(request):
         # the batch with a fresh stopped sample. A newly opened Monitor must
         # never present the last moving wheel speed as the current ready state.
         sample = _hardware_sample()
-        samples = [*samples, sample]
+        samples.append(sample)
     value["samples"] = samples
     value["sample"] = sample
     return _json_response(value)
