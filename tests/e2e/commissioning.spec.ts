@@ -271,7 +271,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
               library: "0.4.0-dev",
-              service: "2026.08-dev.11",
+              service: "2026.08-dev.12",
               modules: [
                 "XRPLib.board",
                 "XRPLib.encoded_motor",
@@ -291,7 +291,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
               fallback: false,
               status: "ready",
               ssid: "UCSB-XRP-4A21",
-              address: "192.168.42.1",
+              address: "192.168.4.1",
               channel: 6,
             })}\r\n`,
             stderr: "",
@@ -340,7 +340,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           : input instanceof URL
             ? input.href
             : input.url;
-      if (url === "http://192.168.42.1/api/v1/info") {
+      if (url === "http://192.168.4.1/api/v1/info") {
         serviceProbeCount += 1;
         if (serviceProbeCount < 3) {
           throw new TypeError("computer has not joined the XRP hotspot yet");
@@ -348,10 +348,10 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         return new Response(
           JSON.stringify({
             protocol: 1,
-            serviceVersion: "2026.08-dev.11",
-            courseRelease: "2026.08-dev.11",
+            serviceVersion: "2026.08-dev.12",
+            courseRelease: "2026.08-dev.12",
             robotName: "UCSB-XRP-4A21",
-            address: "192.168.42.1",
+            address: "192.168.4.1",
             bootId: "test-boot",
             capabilities: [
               "project.check",
@@ -421,7 +421,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     .toMatchObject({
       kind: "physical",
       physicalConnection: "access_point",
-      physicalEndpoint: "http://192.168.42.1",
+      physicalEndpoint: "http://192.168.4.1",
     });
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
   expect(browserErrors).toEqual([]);

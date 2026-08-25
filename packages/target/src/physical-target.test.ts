@@ -176,7 +176,7 @@ describe("physical target", () => {
         courseRelease: "test",
         bootId: "boot-ap",
         robotName: "ucsb-xrp",
-        address: "192.168.42.1",
+        address: "192.168.4.1",
         network: {
           mode: "access_point",
           requested_mode: "station",
@@ -193,7 +193,7 @@ describe("physical target", () => {
         ],
       }),
     );
-    const target = new DirectPhysicalTargetClient("192.168.42.1", {
+    const target = new DirectPhysicalTargetClient("192.168.4.1", {
       fetch: fetchMock as typeof fetch,
       pollIntervalMs: 60_000,
     });
@@ -205,7 +205,7 @@ describe("physical target", () => {
     expect(events).toContainEqual({
       type: "status",
       state: "ready",
-      detail: "ucsb-xrp · UCSB-XRP-AA71 fallback · 192.168.42.1 · course test",
+      detail: "ucsb-xrp · UCSB-XRP-AA71 fallback · 192.168.4.1 · course test",
     });
     target.disconnect();
   });

@@ -1,8 +1,18 @@
 # Project status
 
-Last updated: 2026-08-21
+Last updated: 2026-08-25
 
 ## Current result
+
+Refinement 37 corrects the physical hotspot subnet. Releases through dev.11
+configured the robot at `192.168.42.1`, but the RP2350 CYW43 firmware continued
+to lease client addresses on `192.168.4.x`; a laptop could therefore join the
+XRP hotspot without being able to route to the robot. Dev.12 uses the native
+`192.168.4.1` service address and transparently migrates the known old profile
+during repair. On the attached RP2350, macOS joined `UCSB-XRP-9EDE`, received
+`192.168.4.16`, reached the version-matched HTTP service, and polled physical
+telemetry before returning to Pink. The browser commissioning and complete
+physical project lifecycle remain the next validation in this slice.
 
 Refinement 35 closes two integration gaps exposed by the complete browser
 suite. The expanding-spiral project now includes its own **Obstacle ahead**
@@ -38,7 +48,7 @@ the targets without the former jagged steps.
 The same slice makes the Monitor's telemetry column fit without horizontal
 clipping, renders plot legends at the display pixel ratio with a consistent UI
 font, and replaces the final setup-wizard uses of **workspace** with **course
-folder**. The coordinated course and service release is `2026.08-dev.11`.
+folder**. The coordinated course and service release is `2026.08-dev.12`.
 All 135 Python tests, 140 TypeScript tests, MicroPython source/bytecode parity,
 the production build, commissioning bundle, and 208-file offline shell pass.
 

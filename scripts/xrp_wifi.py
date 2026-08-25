@@ -30,7 +30,9 @@ USB_WIFI_ATTEMPTS = 3
 MODE_STATION = "station"
 MODE_ACCESS_POINT = "access_point"
 DEFAULT_AP_PASSWORD = "ucsb-xrp"
-DEFAULT_AP_ADDRESS = "192.168.42.1"
+# The RP2350 Wi-Fi firmware serves DHCP leases on 192.168.4.x. Keep the robot
+# address on that subnet so laptops can reach the service after joining it.
+DEFAULT_AP_ADDRESS = "192.168.4.1"
 
 
 class WifiSetupError(RuntimeError):

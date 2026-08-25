@@ -64,8 +64,8 @@ class ProvisionXrpTest(unittest.TestCase):
                 "wait_for_service",
                 return_value={
                     "robotName": "ucsb-xrp",
-                    "courseRelease": "2026.08-dev.11",
-                    "serviceVersion": "2026.08-dev.11",
+                    "courseRelease": "2026.08-dev.12",
+                    "serviceVersion": "2026.08-dev.12",
                 },
             ),
         ):
@@ -73,7 +73,7 @@ class ProvisionXrpTest(unittest.TestCase):
 
         configure.assert_called_once()
         install.assert_called_once_with("/dev/test")
-        self.assertEqual(result["courseRelease"], "2026.08-dev.11")
+        self.assertEqual(result["courseRelease"], "2026.08-dev.12")
         self.assertEqual(result["installedFiles"], 1)
         self.assertEqual(result["unchangedFiles"], 2)
 
@@ -89,7 +89,7 @@ class ProvisionXrpTest(unittest.TestCase):
                 return_value={
                     "ready": True,
                     "connected": False,
-                    "address": "192.168.42.1",
+                    "address": "192.168.4.1",
                     "mode": "access_point",
                     "requested_mode": "access_point",
                     "fallback": False,
@@ -101,7 +101,7 @@ class ProvisionXrpTest(unittest.TestCase):
             patch.object(
                 PROVISION.install_xrp_service,
                 "install_with_usb_retry",
-                return_value={"address": "192.168.42.1", "files": [1]},
+                return_value={"address": "192.168.4.1", "files": [1]},
             ),
             patch.object(
                 PROVISION.install_xrp_service, "wait_for_service"
@@ -113,10 +113,10 @@ class ProvisionXrpTest(unittest.TestCase):
         wait_for_service.assert_not_called()
         self.assertEqual(result["mode"], "access_point")
         self.assertEqual(result["network"], "UCSB-XRP-AA71")
-        self.assertEqual(result["serviceVersion"], "2026.08-dev.11")
+        self.assertEqual(result["serviceVersion"], "2026.08-dev.12")
 
     def test_local_service_version_reads_the_device_protocol(self):
-        self.assertEqual(PROVISION.local_service_version(), "2026.08-dev.11")
+        self.assertEqual(PROVISION.local_service_version(), "2026.08-dev.12")
 
 
 if __name__ == "__main__":

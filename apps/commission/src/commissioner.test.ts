@@ -24,8 +24,8 @@ function digest(value: Uint8Array): string {
 function manifest(): CommissioningManifest {
   return {
     schemaVersion: 1,
-    releaseId: "2026.08-dev.11",
-    serviceVersion: "2026.08-dev.11",
+    releaseId: "2026.08-dev.12",
+    serviceVersion: "2026.08-dev.12",
     courseLibraryVersion: "0.4.0-dev",
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
@@ -49,7 +49,7 @@ function manifest(): CommissioningManifest {
     networkDefaults: {
       mode: "access_point",
       password: "ucsb-xrp",
-      address: "192.168.42.1",
+      address: "192.168.4.1",
     },
     files: [
       {
@@ -116,7 +116,7 @@ class FakeSession implements MicroPythonSession {
       return result(
         `__UCSB_XRP_VERIFY__=${JSON.stringify({
           library: "0.4.0-dev",
-          service: "2026.08-dev.11",
+          service: "2026.08-dev.12",
           modules: this.requiredModules,
         })}\r\n`,
       );
@@ -129,7 +129,7 @@ class FakeSession implements MicroPythonSession {
           requested_mode: "access_point",
           fallback: false,
           ssid: "UCSB-XRP-1234",
-          address: "192.168.42.1",
+          address: "192.168.4.1",
           status: "ready",
           channel: 6,
         })}\r\n`,
@@ -221,7 +221,7 @@ describe("browser XRP commissioning", () => {
     expect(completed).toMatchObject({
       installedFiles: 1,
       unchangedFiles: 0,
-      network: { ssid: "UCSB-XRP-1234", address: "192.168.42.1" },
+      network: { ssid: "UCSB-XRP-1234", address: "192.168.4.1" },
     });
     expect(session.files.get("/lib/ucsb_xrp/example.py")).toEqual(courseFile);
     const activation = session.commands.find((code) =>
@@ -242,7 +242,7 @@ describe("browser XRP commissioning", () => {
     );
     expect(progress).toContain("Loading the installed course software…");
     expect(progress).toContain(
-      "Installed course release 2026.08-dev.11 verified.",
+      "Installed course release 2026.08-dev.12 verified.",
     );
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
@@ -323,7 +323,7 @@ describe("browser XRP commissioning", () => {
         }) as typeof fetch,
       }),
     ).rejects.toThrow(
-      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.11)",
+      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.12)",
     );
     expect(session.reset).toBe(false);
   });

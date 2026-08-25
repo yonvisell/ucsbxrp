@@ -292,7 +292,7 @@ clock and one physical state.
 The RP2350 runs one on-robot MicroPython HTTP service over either of two network
 profiles. **Robot hotspot** is the default student profile: each XRP derives a
 distinct `UCSB-XRP-xxxx` SSID from its radio identity, uses the fixed course
-password and `192.168.42.1` service address, and selects channel 1, 6, or 11
+password and `192.168.4.1` service address, and selects channel 1, 6, or 11
 from the same identity. **Existing Wi-Fi** joins a private course router or an
 ordinary local network by DHCP or optional static configuration. A failed
 station association starts the recoverable robot hotspot until reset. These

@@ -5,7 +5,12 @@ MODE_ACCESS_POINT = "access_point"
 CONFIG_VERSION = 2
 
 DEFAULT_AP_PASSWORD = "ucsb-xrp"
-DEFAULT_AP_ADDRESS = "192.168.42.1"
+# Keep the access point on the CYW43 port's native subnet. The firmware's
+# built-in DHCP server assigns clients 192.168.4.x addresses and does not expose
+# a supported way to move that pool; using another static subnet makes the XRP
+# appear connected while leaving its HTTP service unreachable.
+DEFAULT_AP_ADDRESS = "192.168.4.1"
+LEGACY_AP_ADDRESS = "192.168.42.1"
 DEFAULT_AP_NETMASK = "255.255.255.0"
 DEFAULT_AP_CHANNELS = (1, 6, 11)
 
@@ -64,6 +69,15 @@ def normalize_config(value):
     ifconfig = access_point.get("ifconfig")
     if not isinstance(ifconfig, (list, tuple)) or len(ifconfig) != 4:
         raise ValueError("Access-point network settings must contain four values")
+    if ifconfig[0] == LEGACY_AP_ADDRESS:
+        # Releases through dev.11 moved the AP interface but could not move the
+        # firmware DHCP pool. Repair that known profile transparently.
+        access_point["ifconfig"] = [
+            DEFAULT_AP_ADDRESS,
+            DEFAULT_AP_NETMASK,
+            DEFAULT_AP_ADDRESS,
+            DEFAULT_AP_ADDRESS,
+        ]
 
     return {
         "version": CONFIG_VERSION,

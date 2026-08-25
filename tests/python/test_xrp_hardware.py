@@ -24,7 +24,7 @@ class HardwareHelpersTest(unittest.TestCase):
             "WiFi Mode: AP\n"
             "AP SSID: XRP-abcd-1234\n"
             "AP PASS: xrp-wpilib\n"
-            "IP Address: 192.168.42.1\n"
+            "IP Address: 192.168.4.1\n"
         )
         self.assertEqual(HARDWARE.classify_status(status), "xrp-wpilib")
         redacted = HARDWARE.redact_status(status)

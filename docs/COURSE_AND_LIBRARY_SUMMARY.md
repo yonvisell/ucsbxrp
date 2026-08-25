@@ -216,7 +216,7 @@ firmware, portable reference bytecode, virtual-target path, and browser-to-robot
 LAN transport have been exercised in earlier releases. The attached robot
 passed changed-file comparison, controlled one-file repair, full readback,
 runtime import, and reset on dev.7. The current browser/device bundle is
-dev.11; it must be installed through the wizard before that exact release can
+dev.12; it must be installed through the wizard before that exact release can
 be claimed as physically verified. Reference algorithms remain revisable;
 course outcomes, units, component responsibilities, and the concise
 student workflow are the compatibility target. Physical floor calibration is

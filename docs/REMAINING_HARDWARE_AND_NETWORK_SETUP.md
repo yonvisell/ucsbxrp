@@ -11,7 +11,7 @@ only changed course files, repairs MicroPython when needed, restarts the XRP,
 verifies its Wi-Fi service, and opens the IDE in physical mode.
 
 A new robot defaults to its uniquely named `UCSB-XRP-…` hotspot at
-`192.168.42.1`; its password is `ucsb-xrp`. A repaired robot keeps its current
+`192.168.4.1`; its password is `ucsb-xrp`. A repaired robot keeps its current
 network unless another mode is selected. The same wizard changes a network or
 repairs an interrupted installation. Browser-managed folder, USB-device,
 firmware-drive, and local-network permission prompts remain explicit.
@@ -22,7 +22,7 @@ the same installation file set; it is not part of the normal student path.
 The development robot last completed physical installation and repair evidence
 on release `2026.08-dev.7` in hotspot mode at `192.168.42.1`. Its 23-file USB
 repair passed no-change repetition and two controlled one-file repairs. The
-current bundle is `2026.08-dev.11`; use the same wizard once to update and verify
+current bundle is `2026.08-dev.12`; use the same wizard once to update and verify
 that exact release. Then verify Flash project, Run/Stop, telemetry, and live
 controls from the public Pages origin. The previously validated station profile
 was `Pink` at `192.168.7.34`.

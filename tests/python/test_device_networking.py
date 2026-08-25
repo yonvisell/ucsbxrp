@@ -131,6 +131,29 @@ class DeviceNetworkingTest(unittest.TestCase):
         self.assertEqual(config["station"]["ssid"], "Pink")
         self.assertTrue(config["fallback_to_access_point"])
 
+    def test_dev11_hotspot_profile_moves_to_the_native_dhcp_subnet(self):
+        config = NETWORKING.normalize_config(
+            {
+                "version": 2,
+                "mode": "access_point",
+                "hostname": "ucsb-xrp",
+                "access_point": {
+                    "password": "ucsb-xrp",
+                    "ifconfig": [
+                        "192.168.42.1",
+                        "255.255.255.0",
+                        "192.168.42.1",
+                        "192.168.42.1",
+                    ],
+                },
+            }
+        )
+
+        self.assertEqual(
+            config["access_point"]["ifconfig"],
+            ["192.168.4.1", "255.255.255.0", "192.168.4.1", "192.168.4.1"],
+        )
+
     def test_station_profile_connects_without_exposing_credentials(self):
         fake_network = FakeNetwork(station_connects=True)
         watchdog = Watchdog()
@@ -169,7 +192,7 @@ class DeviceNetworkingTest(unittest.TestCase):
         )
 
         self.assertEqual(result["ssid"], "UCSB-XRP-AA71")
-        self.assertEqual(result["address"], "192.168.42.1")
+        self.assertEqual(result["address"], "192.168.4.1")
         self.assertIn(result["channel"], (1, 6, 11))
         ap_events = fake_network.interfaces[1].events
         self.assertLess(
@@ -226,7 +249,7 @@ class DeviceNetworkingTest(unittest.TestCase):
             {
                 "mode": "access_point",
                 "ssid": "UCSB-XRP-AA71",
-                "address": "192.168.42.1",
+                "address": "192.168.4.1",
                 "password": "secret",
             }
         )

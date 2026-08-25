@@ -8,7 +8,7 @@ export interface TargetPreference {
 }
 
 export const TARGET_PREFERENCE_KEY = "ucsb-xrp-target-v1";
-export const XRP_ACCESS_POINT_ENDPOINT = "http://192.168.42.1";
+export const XRP_ACCESS_POINT_ENDPOINT = "http://192.168.4.1";
 export const DEFAULT_TARGET_PREFERENCE: TargetPreference = {
   kind: "virtual",
   physicalConnection: "access_point",

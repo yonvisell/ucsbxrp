@@ -95,7 +95,7 @@ def commissioning_manifest():
         "networkDefaults": {
             "mode": "access_point",
             "password": "ucsb-xrp",
-            "address": "192.168.42.1",
+            "address": "192.168.4.1",
         },
         "files": files,
     }
