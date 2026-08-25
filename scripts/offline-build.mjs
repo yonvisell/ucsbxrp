@@ -132,6 +132,8 @@ function navigationFallback(pathname) {
     "guide",
     "reference",
     "commission",
+    "author",
+    "overview",
   ]) {
     if (relativePath === application || relativePath === application + "/index.html") {
       return SCOPE_PATH + application + "/index.html";

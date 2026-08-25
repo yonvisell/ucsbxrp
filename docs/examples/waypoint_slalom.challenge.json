@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "source_id": "challenge_3",
+  "id": "challenge_6",
+  "title": "Waypoint Slalom",
+  "summary": "Compare route accuracy at two speeds on an alternating waypoint course.",
+  "objective": "Program the XRP to follow an alternating five-waypoint route, finish at the marked endpoint with heading zero, and compare route tracking at two cruise speeds. Students use the same NavigationController interface for both trials and explain the observed relationship between speed, turning, and final pose error.",
+  "student_implementations": [
+    {
+      "file": "navigation_controller.py",
+      "class_name": "NavigationController",
+      "responsibility": "Advance through the ordered goals and compute a bounded MotionCommand from the current Pose and active goal."
+    }
+  ],
+  "supplied_files": [
+    {
+      "name": "main.py",
+      "use": "Runs the route using the selected components and reports the final odometry pose."
+    },
+    {
+      "name": "world.json",
+      "use": "Defines the measured route, initial pose, waypoint order, and final heading used by the simulator and Monitor."
+    },
+    {
+      "name": "challenge.py",
+      "use": "Loads INITIAL_POSE and ROUTE from world.json without duplicating route coordinates."
+    },
+    {
+      "name": "robot_config.py",
+      "use": "Defines cruise_speed_mm_s and the navigation tolerances; the instructor assigns two values for separate trials."
+    },
+    {
+      "name": "Robot",
+      "use": "Runs the measured control loop and returns wheel measurements and the estimated pose."
+    }
+  ],
+  "program_flow": "world.json -> challenge.py ROUTE\n                         |\n                         v\nPose -> NavigationController -> MotionCommand -> Robot -> XRP\n ^                                                     |\n +---------------- Measurements -> Odometry <----------+",
+  "evidence": [
+    "A Monitor path export for one route at each cruise speed, with the same world and starting pose.",
+    "The final x, y, and heading estimate for each trial, reported in millimeters and radians.",
+    "A short comparison that identifies where the higher-speed route departs most from the waypoint path."
+  ],
+  "work_sequence": [
+    "Run the supplied route on the virtual XRP and identify the active waypoint, pose, and command at each turn.",
+    "Implement NavigationController and run Test components before selecting it in course_setup.py.",
+    "Run the complete route at the nominal cruise speed and export the path and final pose.",
+    "Increase only cruise_speed_mm_s, repeat the route, and export the same evidence.",
+    "Compare the two paths and explain the effect of speed using the measured pose and wheel-speed plots.",
+    "Repeat the two trials on the physical XRP without changing the route geometry."
+  ],
+  "world": {
+    "default_world": "waypoint-slalom",
+    "worlds": [
+      {
+        "id": "waypoint-slalom",
+        "label": "Waypoint slalom",
+        "bounds": {
+          "minimum_x_mm": -200,
+          "minimum_y_mm": -400,
+          "maximum_x_mm": 1400,
+          "maximum_y_mm": 400
+        },
+        "initial_pose": {
+          "x_mm": 0,
+          "y_mm": 0,
+          "heading_rad": 0
+        },
+        "obstacles": [],
+        "markers": [
+          {
+            "type": "start_box",
+            "minimum_x_mm": -80,
+            "minimum_y_mm": -80,
+            "maximum_x_mm": 80,
+            "maximum_y_mm": 80,
+            "label": "Start"
+          },
+          {
+            "type": "waypoint",
+            "name": "gate_1",
+            "x_mm": 250,
+            "y_mm": 180,
+            "label": "1"
+          },
+          {
+            "type": "waypoint",
+            "name": "gate_2",
+            "x_mm": 500,
+            "y_mm": -180,
+            "label": "2"
+          },
+          {
+            "type": "waypoint",
+            "name": "gate_3",
+            "x_mm": 750,
+            "y_mm": 180,
+            "label": "3"
+          },
+          {
+            "type": "waypoint",
+            "name": "gate_4",
+            "x_mm": 1000,
+            "y_mm": -180,
+            "label": "4"
+          },
+          {
+            "type": "waypoint",
+            "name": "finish",
+            "x_mm": 1250,
+            "y_mm": 0,
+            "heading_rad": 0,
+            "label": "Finish"
+          }
+        ]
+      }
+    ]
+  },
+  "files": {
+    "main.py": "\"\"\"Waypoint Slalom: follow the alternating waypoint route.\"\"\"\n\nfrom challenge import INITIAL_POSE, ROUTE\nfrom course_setup import make_navigation_controller, make_robot\nfrom robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG\n\n\nrobot = make_robot(ROBOT_CONFIG)\nnavigation = make_navigation_controller(NAVIGATION_CONFIG)\ntry:\n    state = robot.start(INITIAL_POSE)\n    navigation.start(ROUTE)\n    while not navigation.is_complete():\n        state = robot.step(navigation.update(state.pose))\n    print(\"Waypoint Slalom complete\")\n    print(\"final_pose:\", state.pose)\nfinally:\n    robot.stop()\n"
+  }
+}

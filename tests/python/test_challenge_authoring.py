@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -15,6 +16,24 @@ SPEC.loader.exec_module(AUTHORING)
 
 
 class ChallengeAuthoringTests(unittest.TestCase):
+    def make_draft_root(self, directory, source_id="challenge_3"):
+        draft_root = Path(directory)
+        vendor = draft_root / "vendor/current"
+        (vendor / "starters").mkdir(parents=True)
+        shutil.copytree(
+            ROOT / "vendor/current/starters" / source_id,
+            vendor / "starters" / source_id,
+        )
+        source_entry = next(
+            entry
+            for entry in AUTHORING.read_catalog(ROOT)
+            if entry["id"] == source_id
+        )
+        (vendor / "project_catalog.json").write_text(
+            json.dumps([source_entry]), encoding="utf-8"
+        )
+        return draft_root
+
     def test_published_catalog_is_complete(self):
         self.assertEqual(AUTHORING.catalog_errors(ROOT), [])
 
@@ -31,21 +50,7 @@ class ChallengeAuthoringTests(unittest.TestCase):
 
     def test_new_challenge_remains_a_checked_draft(self):
         with tempfile.TemporaryDirectory() as directory:
-            draft_root = Path(directory)
-            vendor = draft_root / "vendor/current"
-            (vendor / "starters").mkdir(parents=True)
-            shutil.copytree(
-                ROOT / "vendor/current/starters/challenge_5",
-                vendor / "starters/challenge_5",
-            )
-            source_entry = next(
-                entry
-                for entry in AUTHORING.read_catalog(ROOT)
-                if entry["id"] == "challenge_5"
-            )
-            (vendor / "project_catalog.json").write_text(
-                json.dumps([source_entry]), encoding="utf-8"
-            )
+            draft_root = self.make_draft_root(directory, "challenge_5")
 
             created = AUTHORING.create_draft(
                 draft_root,
@@ -70,6 +75,115 @@ class ChallengeAuthoringTests(unittest.TestCase):
             )
             with self.assertRaises(AUTHORING.AuthoringError):
                 AUTHORING.publish(draft_root, "challenge_6")
+
+    def test_complete_spec_creates_a_checked_unpublished_challenge(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory)
+            created = AUTHORING.create_draft_from_spec(draft_root, spec)
+
+            self.assertEqual(
+                AUTHORING.catalog_errors(
+                    draft_root, project_id="challenge_6", include_drafts=True
+                ),
+                [],
+            )
+            self.assertIn(
+                "## Evidence to collect",
+                (created / "README.md").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                '"waypoint-slalom"',
+                (created / "world.json").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                "Waypoint Slalom complete",
+                (created / "main.py").read_text(encoding="utf-8"),
+            )
+            entry = AUTHORING.catalog_entry(
+                AUTHORING.read_catalog(draft_root), "challenge_6"
+            )
+            self.assertFalse(entry["published"])
+            AUTHORING.publish(draft_root, "challenge_6")
+            self.assertTrue(
+                AUTHORING.catalog_entry(
+                    AUTHORING.read_catalog(draft_root), "challenge_6"
+                )["published"]
+            )
+
+    def test_documented_working_spec_matches_checked_example(self):
+        documentation = (
+            ROOT / "docs/INSTRUCTOR_CHALLENGE_AUTHORING.md"
+        ).read_text(encoding="utf-8")
+        match = re.search(
+            r"## Complete working example:.*?```json\n(.*?)\n```",
+            documentation,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        documented = json.loads(match.group(1))
+        checked = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(documented, checked)
+
+    def test_spec_rejects_unsafe_file_override(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        spec["files"] = {"../main.py": "print('unsafe')\n"}
+        with self.assertRaisesRegex(AUTHORING.AuthoringError, "invalid project"):
+            AUTHORING.validate_spec(spec)
+
+    def test_spec_requires_world_names_used_by_copied_program(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        spec["source_id"] = "challenge_2"
+        with self.assertRaisesRegex(AUTHORING.AuthoringError, "waypoint 'turn'"):
+            AUTHORING.validate_spec(spec)
+
+    def test_complete_challenge_override_may_define_different_world_names(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        spec["source_id"] = "challenge_2"
+        spec["files"]["challenge.py"] = "ROUTE = ()\n"
+        normalized = AUTHORING.validate_spec(spec)
+        self.assertIn("challenge.py", normalized["files"])
+
+    def test_create_command_accepts_downloaded_specification(self):
+        spec_source = ROOT / "docs/examples/waypoint_slalom.challenge.json"
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory)
+            result = AUTHORING.main(
+                [
+                    "--root",
+                    str(draft_root),
+                    "create",
+                    "--spec",
+                    str(spec_source),
+                ]
+            )
+            self.assertEqual(result, 0)
+            self.assertTrue(
+                (
+                    draft_root
+                    / "vendor/current/starters/challenge_6/README.md"
+                ).is_file()
+            )
 
 
 if __name__ == "__main__":

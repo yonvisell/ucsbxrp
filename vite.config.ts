@@ -54,6 +54,8 @@ export default defineConfig({
         guide: path.resolve(projectRoot, "guide/index.html"),
         reference: path.resolve(projectRoot, "reference/index.html"),
         commission: path.resolve(projectRoot, "commission/index.html"),
+        author: path.resolve(projectRoot, "author/index.html"),
+        overview: path.resolve(projectRoot, "overview/index.html"),
       },
     },
   },

@@ -180,6 +180,30 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(reference);
 
+  const author = await context.newPage();
+  recordErrors(author);
+  await author.goto(coursePath("author/"), {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    author.getByRole("heading", { name: "UCSBXRP challenge creation" }),
+  ).toBeVisible();
+  await expect(author.getByText("Specification complete.")).toBeVisible();
+  await expectOfflineShellReady(author);
+
+  const overview = await context.newPage();
+  recordErrors(overview);
+  await overview.goto(coursePath("overview/"), {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    overview.getByRole("heading", { name: "UCSBXRP technical overview" }),
+  ).toBeVisible();
+  await expect(
+    overview.getByRole("heading", { name: "Runtime architecture" }),
+  ).toBeVisible();
+  await expectOfflineShellReady(overview);
+
   const landing = await context.newPage();
   recordErrors(landing);
   await landing.goto(coursePath(), { waitUntil: "domcontentloaded" });

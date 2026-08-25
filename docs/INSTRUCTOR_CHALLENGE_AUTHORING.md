@@ -1,12 +1,276 @@
-# Creating a course challenge
+# Creating and publishing a UCSBXRP challenge
 
-The challenge-authoring tool starts from a working challenge, keeps the new
-draft out of the student IDE, and publishes it only after its project files pass
-the structural checks.
+The [challenge creation wizard](../author/) produces a version-controlled JSON
+specification. The repository tool reads that specification, copies the
+closest working challenge, generates an unpublished draft, and checks its
+structure. Drafts do not appear in the student IDE until an instructor runs the
+separate publish command.
 
-## 1. Create a draft
+This workflow separates three decisions:
 
-Choose the existing challenge with the closest program flow. For example:
+1. **Teaching design:** the robot task, student implementation boundary, and
+   evidence students must collect.
+2. **Executable project:** the Python files and `world.json` that implement the
+   complete task with supplied components.
+3. **Publication:** the explicit catalog change that makes a checked project
+   available to students.
+
+The [UCSBXRP instructor overview](../overview/) describes the runtime,
+component boundaries, project structure, browser applications, and release
+process used by the generated project.
+
+## 1. Design the challenge in the wizard
+
+### Select a proven program structure
+
+Choose the published challenge whose mission flow is closest to the new task:
+
+- Challenge 1 for measured straight travel;
+- Challenge 2 for explicit straight and turn segments;
+- Challenge 3 for ordered world-coordinate goals;
+- Challenge 4 for a route through a known map; or
+- Challenge 5 for stationary observation followed by planning and navigation.
+
+The selected challenge supplies working Python, component selectors,
+configuration, and component checks. It is a structural baseline, not a claim
+that the new learning objective is equivalent to the existing challenge.
+Select **Load this challenge's example world** when changing the structural
+baseline; this replaces the world editor with geometry that satisfies the
+names used by the copied `challenge.py`. Edit that geometry for the new task.
+
+Use an ID of the form `challenge_N`. The ID is the stable folder and catalog
+identifier. The title and summary are student-facing text.
+
+### Define student work and evidence
+
+The objective should state what the robot must do, which component or method
+students implement, which condition they vary or compare, and what measured
+result supports their conclusion.
+
+Select only the components assessed in the new challenge. A retained component
+may still be used by the project without being listed as new student work.
+Describe each selected responsibility in terms of inputs, required result, and
+state the implementation must maintain. Do not prescribe one algorithm unless
+the algorithm itself is the learning objective. **Add another component**
+supports a new file and class when a challenge introduces a responsibility not
+covered by the existing six course components.
+
+Evidence items should name observable quantities and units. Suitable evidence
+includes a saved path, final pose, wheel-speed plot, range samples, planned grid
+path, program output, or a comparison between two controlled trials. Avoid
+criteria that can be met only by a particular internal implementation.
+
+### Define the supplied project
+
+List every supplied file or service that students need to understand. Include
+`world.json` and explain the purpose of its geometry. The program-flow diagram
+should name the data exchanged between components, not only the component
+names.
+
+`world.json` is the sole source for world bounds, initial pose, obstacles, and
+markers. Distances use millimeters and headings use radians. The simulator and
+Monitor read the same file that Python accesses through `load_world()`.
+
+The optional `files` object maps project-relative names to complete replacement
+text. Leave it empty to retain the copied working source. Use it when a new
+mission needs a different `main.py`, task values, or component checks. The tool
+rejects absolute paths, parent-directory paths, unsupported file types, and
+Python syntax errors.
+
+### Validate and download
+
+The wizard checks required teaching fields, component descriptions, world IDs
+and bounds, the default world, and file-override paths. Download the JSON only
+after the page reports that the specification is complete. Keep it with the
+generated project; it is the concise source for future review or regeneration.
+Use **Open saved specification** to resume editing a downloaded specification.
+
+## 2. Create the unpublished project
+
+Move the downloaded specification into the repository, then run the command
+shown by the wizard. For the included example:
+
+```sh
+python3 scripts/challenge_authoring.py create \
+  --spec docs/examples/waypoint_slalom.challenge.json
+```
+
+The command validates the specification again, copies the selected challenge,
+generates `README.md` and `world.json`, applies complete file overrides,
+compiles every Python file, checks the project structure, and adds an
+unpublished catalog entry. If any operation fails, the incomplete target folder
+is removed and the catalog remains unchanged.
+
+## 3. Validate the task and component boundary
+
+Run:
+
+```sh
+python3 scripts/challenge_authoring.py check challenge_6
+npm run check:fast
+```
+
+Then perform the functional review:
+
+1. Run the complete challenge on the virtual XRP with all supplied components.
+   Confirm that the task completes and the Monitor world matches `world.json`.
+2. Confirm that each requested evidence item can be saved or read from the
+   current Monitor and program output.
+3. Select each assessed student component independently. Verify its documented
+   inputs, result, state, and units with `component_checks.py`.
+4. Insert one representative defect at a time and confirm that the relevant
+   component check fails for the intended reason. Restore the working source
+   after each trial.
+5. Run the complete student component set on the virtual XRP. Confirm that the
+   assignment permits more than one sound implementation.
+6. For a physical challenge, run the supplied task on the physical XRP and
+   record the release, project revision, calibration, and observed result.
+
+The structural tool cannot establish reachable geometry, adequate controller
+tolerances, meaningful evidence, physical repeatability, or the fairness of an
+assessment boundary. Those require functional instructor review.
+
+## 4. Publish
+
+```sh
+python3 scripts/challenge_authoring.py publish challenge_6
+npm run check
+```
+
+`publish` repeats the project checks before changing the catalog entry. The
+production build then includes the challenge in the student template list and
+offline package. Commit the specification, generated project, catalog change,
+tests, and documentation together.
+
+## Complete working example: Waypoint Slalom
+
+This variation retains the complete Challenge 3 mission structure and changes
+only the route, assignment, and student-facing completion text. Students
+implement `NavigationController`, execute the same alternating route at two
+speeds, and compare path and pose evidence. It is not part of the current
+five-challenge sequence.
+
+The complete checked specification is
+[`docs/examples/waypoint_slalom.challenge.json`](examples/waypoint_slalom.challenge.json):
+
+```json
+{
+  "schema_version": 1,
+  "source_id": "challenge_3",
+  "id": "challenge_6",
+  "title": "Waypoint Slalom",
+  "summary": "Compare route accuracy at two speeds on an alternating waypoint course.",
+  "objective": "Program the XRP to follow an alternating five-waypoint route, finish at the marked endpoint with heading zero, and compare route tracking at two cruise speeds. Students use the same NavigationController interface for both trials and explain the observed relationship between speed, turning, and final pose error.",
+  "student_implementations": [
+    {
+      "file": "navigation_controller.py",
+      "class_name": "NavigationController",
+      "responsibility": "Advance through the ordered goals and compute a bounded MotionCommand from the current Pose and active goal."
+    }
+  ],
+  "supplied_files": [
+    {
+      "name": "main.py",
+      "use": "Runs the route using the selected components and reports the final odometry pose."
+    },
+    {
+      "name": "world.json",
+      "use": "Defines the measured route, initial pose, waypoint order, and final heading used by the simulator and Monitor."
+    },
+    {
+      "name": "challenge.py",
+      "use": "Loads INITIAL_POSE and ROUTE from world.json without duplicating route coordinates."
+    },
+    {
+      "name": "robot_config.py",
+      "use": "Defines cruise_speed_mm_s and the navigation tolerances; the instructor assigns two values for separate trials."
+    },
+    {
+      "name": "Robot",
+      "use": "Runs the measured control loop and returns wheel measurements and the estimated pose."
+    }
+  ],
+  "program_flow": "world.json -> challenge.py ROUTE\n                         |\n                         v\nPose -> NavigationController -> MotionCommand -> Robot -> XRP\n ^                                                     |\n +---------------- Measurements -> Odometry <----------+",
+  "evidence": [
+    "A Monitor path export for one route at each cruise speed, with the same world and starting pose.",
+    "The final x, y, and heading estimate for each trial, reported in millimeters and radians.",
+    "A short comparison that identifies where the higher-speed route departs most from the waypoint path."
+  ],
+  "work_sequence": [
+    "Run the supplied route on the virtual XRP and identify the active waypoint, pose, and command at each turn.",
+    "Implement NavigationController and run Test components before selecting it in course_setup.py.",
+    "Run the complete route at the nominal cruise speed and export the path and final pose.",
+    "Increase only cruise_speed_mm_s, repeat the route, and export the same evidence.",
+    "Compare the two paths and explain the effect of speed using the measured pose and wheel-speed plots.",
+    "Repeat the two trials on the physical XRP without changing the route geometry."
+  ],
+  "world": {
+    "default_world": "waypoint-slalom",
+    "worlds": [
+      {
+        "id": "waypoint-slalom",
+        "label": "Waypoint slalom",
+        "bounds": {
+          "minimum_x_mm": -200,
+          "minimum_y_mm": -400,
+          "maximum_x_mm": 1400,
+          "maximum_y_mm": 400
+        },
+        "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+        "obstacles": [],
+        "markers": [
+          { "type": "start_box", "minimum_x_mm": -80, "minimum_y_mm": -80, "maximum_x_mm": 80, "maximum_y_mm": 80, "label": "Start" },
+          { "type": "waypoint", "name": "gate_1", "x_mm": 250, "y_mm": 180, "label": "1" },
+          { "type": "waypoint", "name": "gate_2", "x_mm": 500, "y_mm": -180, "label": "2" },
+          { "type": "waypoint", "name": "gate_3", "x_mm": 750, "y_mm": 180, "label": "3" },
+          { "type": "waypoint", "name": "gate_4", "x_mm": 1000, "y_mm": -180, "label": "4" },
+          { "type": "waypoint", "name": "finish", "x_mm": 1250, "y_mm": 0, "heading_rad": 0, "label": "Finish" }
+        ]
+      }
+    ]
+  },
+  "files": {
+    "main.py": "\"\"\"Waypoint Slalom: follow the alternating waypoint route.\"\"\"\n\nfrom challenge import INITIAL_POSE, ROUTE\nfrom course_setup import make_navigation_controller, make_robot\nfrom robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG\n\n\nrobot = make_robot(ROBOT_CONFIG)\nnavigation = make_navigation_controller(NAVIGATION_CONFIG)\ntry:\n    state = robot.start(INITIAL_POSE)\n    navigation.start(ROUTE)\n    while not navigation.is_complete():\n        state = robot.step(navigation.update(state.pose))\n    print(\"Waypoint Slalom complete\")\n    print(\"final_pose:\", state.pose)\nfinally:\n    robot.stop()\n"
+  }
+}
+```
+
+The generated source inherits `challenge.py` and applies the complete
+`main.py` override from the specification:
+
+```python
+# challenge.py
+from ucsb_xrp import load_world
+
+WORLD = load_world()
+INITIAL_POSE = WORLD.initial_pose
+ROUTE = WORLD.waypoints()
+```
+
+```python
+# main.py
+"""Waypoint Slalom: follow the alternating waypoint route."""
+
+from challenge import INITIAL_POSE, ROUTE
+from course_setup import make_navigation_controller, make_robot
+from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+
+robot = make_robot(ROBOT_CONFIG)
+navigation = make_navigation_controller(NAVIGATION_CONFIG)
+try:
+    state = robot.start(INITIAL_POSE)
+    navigation.start(ROUTE)
+    while not navigation.is_complete():
+        state = robot.step(navigation.update(state.pose))
+    print("Waypoint Slalom complete")
+    print("final_pose:", state.pose)
+finally:
+    robot.stop()
+```
+
+## Command-line creation without the wizard
+
+The earlier scaffold remains available for a deliberately open-ended draft:
 
 ```sh
 python3 scripts/challenge_authoring.py create \
@@ -16,43 +280,6 @@ python3 scripts/challenge_authoring.py create \
   --summary "Plan and execute a delivery route through several ordered stops."
 ```
 
-This copies the complete source project to
-`vendor/current/starters/challenge_6`, adds an unpublished catalog entry, and
-marks the decisions that still require instructor judgment with `AUTHOR_TODO`.
-The draft does not appear in the student IDE.
-
-## 2. Define the task and evidence
-
-Edit the files in this order:
-
-1. `world.json`: set the millimeter bounds, initial pose, obstacles, start
-   marks, and named waypoints. This file drives the simulator and Monitor.
-2. `challenge.py`: load the world and define the remaining task parameters.
-   Do not copy those numerical values into the README.
-3. `main.py`: implement the complete mission with supplied components first.
-4. Student component files and `course_setup.py`: expose only the components
-   students are expected to implement and retain one independent selector per
-   component.
-5. `component_checks.py`: select the supplied checks that isolate those
-   responsibilities. A check should accept more than one sound algorithm.
-6. `README.md`: state the objective, each student implementation, supplied
-   files, program flow, and the virtual/physical work sequence.
-
-Run the draft on the virtual XRP with all supplied components before asking
-students to implement any component. Then enable each student component
-separately and confirm that its check detects a representative defect.
-
-## 3. Check and publish
-
-```sh
-python3 scripts/challenge_authoring.py check challenge_6
-python3 scripts/challenge_authoring.py publish challenge_6
-npm run check:fast
-```
-
-`check` rejects unresolved author tasks, missing files or README sections,
-Python syntax errors, malformed world bounds, duplicate world IDs, and an
-unknown default world. `publish` repeats those checks and then makes the
-challenge visible in the IDE catalog. The full project check remains necessary
-because it also runs MicroPython, browser, commissioning, and offline-build
-validation.
+This inserts `AUTHOR_TODO` markers in `README.md`, `challenge.py`, `main.py`,
+and `world.json`. The project cannot be published until every marker is
+resolved.

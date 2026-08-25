@@ -151,7 +151,7 @@ USB-C remains connected while the wizard inspects, installs, and verifies the
 controller. The physical Run/Monitor/telemetry service then uses the selected
 local Wi-Fi transport; USB remains the setup and repair path. The first setup
 defaults to a distinct hotspot such as `UCSB-XRP-9EDE`, with
-password `ucsb-xrp` and service address `http://192.168.42.1`. Join the named
+password `ucsb-xrp` and service address `http://192.168.4.1`. Join the named
 network when the wizard asks. The web tools continue from Chrome's verified
 offline copy. A repaired robot keeps its existing network unless another mode
 is selected. **Existing Wi-Fi** is also available in the wizard and later from
@@ -243,9 +243,11 @@ reproducibly generated ordinary `.mpy` artifacts in
 `vendor/current/reference_mpy/`. Public behavior and course clarity govern
 future revisions.
 
-Instructors can create a checked, initially unpublished challenge without
-editing application code. See
-[`docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`](docs/INSTRUCTOR_CHALLENGE_AUTHORING.md).
+Instructors can define a checked, initially unpublished challenge in the
+[browser authoring wizard](author/) and create it from the downloaded
+specification with `scripts/challenge_authoring.py`. See
+[`docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`](docs/INSTRUCTOR_CHALLENGE_AUTHORING.md)
+and the [UCSBXRP instructor overview](overview/).
 
 ## Offline use
 
