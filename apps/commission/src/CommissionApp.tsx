@@ -7,15 +7,19 @@ import {
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
+import { AppNavigation } from "../../shared/AppNavigation";
 import {
   chooseWorkspaceFolder,
   courseFolderPermission,
+  forgetWorkspaceAndProjectFolders,
   handCourseFolderToIde,
+  loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
-  rememberWorkspaceFolder,
+  replaceRememberedWorkspaceFolder,
   requestCourseFolderPermission,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
+import { prepareDefaultProjectFolder } from "../../shared/default-project-folder";
 import { waitForOfflineShell } from "../../shared/offline-shell";
 import {
   FirmwareRequiredError,
@@ -35,7 +39,9 @@ import {
 } from "./commissioner";
 import {
   openRawRepl,
+  findGrantedXrpPort,
   requestXrpPort,
+  SerialPortOpenError,
   supportsWebSerial,
   touchUf2Bootloader,
   type MicroPythonSession,
@@ -118,6 +124,7 @@ export function CommissionApp() {
   const [manifest, setManifest] = useState<CommissioningManifest | null>(null);
   const [stage, setStage] = useState<Stage>("loading");
   const [folder, setFolder] = useState<CourseDirectoryHandle | null>(null);
+  const [folderVerified, setFolderVerified] = useState(false);
   const [detail, setDetail] = useState("Loading the current course release…");
   const [error, setError] = useState("");
   const [existingNetwork, setExistingNetwork] =
@@ -129,8 +136,13 @@ export function CommissionApp() {
   const [stationPassword, setStationPassword] = useState("");
   const [progress, setProgress] = useState<CommissioningProgress | null>(null);
   const [result, setResult] = useState<CommissioningResult | null>(null);
+  const [authorizedPort, setAuthorizedPort] = useState<SerialPortLike | null>(
+    null,
+  );
+  const [checkingAuthorizedPort, setCheckingAuthorizedPort] = useState(false);
   const [selectingRobot, setSelectingRobot] = useState(false);
   const [checkingWifi, setCheckingWifi] = useState(false);
+  const [wifiProbeEnabled, setWifiProbeEnabled] = useState(false);
   const [wifiAttempts, setWifiAttempts] = useState(0);
   const [wifiIssue, setWifiIssue] = useState("");
   const [wifiNeedsRepair, setWifiNeedsRepair] = useState(false);
@@ -146,7 +158,7 @@ export function CommissionApp() {
   const lastInstallProgressPhaseRef = useRef("");
   const watchdogFeedInFlightRef = useRef(false);
   const folderRef = useRef<CourseDirectoryHandle | null>(null);
-  const folderNeedsPickerRef = useRef(false);
+  const workspaceChangedRef = useRef(false);
   const manifestReleaseRef = useRef("");
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
   const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
@@ -207,18 +219,18 @@ export function CommissionApp() {
               if (disposed) return;
               folderRef.current = rememberedFolder;
               setFolder(rememberedFolder);
+              setFolderVerified(true);
               recordSetup(
                 "Folder",
                 `Write and read verified in ${rememberedFolder.name}.`,
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is ready as the course folder. Each project will have its own named subfolder.`,
+                `${rememberedFolder.name} is the current course folder. Use it, choose a different folder, or continue without one.`,
               );
-              setStage("usb");
+              setStage("folder");
               return;
             } catch (folderError) {
-              folderNeedsPickerRef.current = true;
               recordSetup(
                 "Folder",
                 `Remembered folder failed its write check: ${errorDetail(folderError)}`,
@@ -228,6 +240,15 @@ export function CommissionApp() {
                 "The remembered course folder could not be written and read. Choose it again or select another folder.",
               );
             }
+          } else if (!disposed) {
+            folderRef.current = rememberedFolder;
+            setFolder(rememberedFolder);
+            setFolderVerified(false);
+            setDetail(
+              `${rememberedFolder.name} is the remembered course folder. Reconnect it, choose a different folder, or continue without one.`,
+            );
+            setStage("folder");
+            return;
           }
         }
         if (!disposed) {
@@ -258,47 +279,106 @@ export function CommissionApp() {
   const chooseFolder = useCallback(async () => {
     setError("");
     try {
-      let selected = folderNeedsPickerRef.current
-        ? null
-        : await loadRememberedWorkspaceFolder();
-      if (selected) {
-        const permission = await requestCourseFolderPermission(selected);
-        if (permission !== "granted") selected = null;
-      }
-      selected ??= await chooseWorkspaceFolder();
+      const selected = await chooseWorkspaceFolder();
       recordSetup("Folder", `Checking write access to ${selected.name}.`);
       await verifySetupLogFolder(
         selected,
         setupLogEntriesRef.current,
         manifestReleaseRef.current,
       );
-      await rememberWorkspaceFolder(selected);
-      folderNeedsPickerRef.current = false;
+      const selection = await replaceRememberedWorkspaceFolder(selected);
+      if (!selection.remembered) {
+        throw new Error(
+          "Chrome could not remember this folder. Choose it again, or continue without a course folder.",
+        );
+      }
+      workspaceChangedRef.current = selection.changed;
       folderRef.current = selected;
       setFolder(selected);
+      setFolderVerified(true);
       recordSetup(
         "Folder",
-        `Write and read verified in ${selected.name}; setup log created.`,
+        `Write and read verified in ${selected.name}; it is now the course folder.`,
         "success",
       );
       setDetail(
-        `${selected.name} is ready for project folders. Chrome stores the web apps separately in browser storage.`,
+        `${selected.name} is ready. Continue to the USB step when you are ready.`,
       );
-      setStage("usb");
     } catch (folderError) {
       if (!wasCancelled(folderError)) {
-        folderNeedsPickerRef.current = true;
         const message = errorDetail(folderError);
         setError(
-          "The selected course folder could not be written and read. Choose it again or select another folder.",
+          `The selected course folder could not be written and read. ${message}`,
         );
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
     }
   }, [recordSetup]);
 
-  const skipFolder = useCallback(() => {
+  const continueWithFolder = useCallback(async () => {
+    const selected = folderRef.current;
+    if (!selected) return;
     setError("");
+    try {
+      if (!folderVerified) {
+        const permission = await requestCourseFolderPermission(selected);
+        if (permission !== "granted") {
+          setError(
+            `Chrome does not currently have write access to ${selected.name}. Reconnect it or choose a different folder.`,
+          );
+          return;
+        }
+        recordSetup("Folder", `Checking write access to ${selected.name}.`);
+        await verifySetupLogFolder(
+          selected,
+          setupLogEntriesRef.current,
+          manifestReleaseRef.current,
+        );
+        const selection = await replaceRememberedWorkspaceFolder(selected);
+        if (!selection.remembered) {
+          throw new Error(`Chrome could not remember ${selected.name}.`);
+        }
+        workspaceChangedRef.current ||= selection.changed;
+        setFolderVerified(true);
+        recordSetup(
+          "Folder",
+          `Write and read verified in ${selected.name}.`,
+          "success",
+        );
+      }
+      const rememberedProject = await loadRememberedProjectFolder();
+      if (workspaceChangedRef.current || !rememberedProject) {
+        setDetail("Preparing the default project folder…");
+        const prepared = await prepareDefaultProjectFolder(selected);
+        recordSetup(
+          "Project",
+          `${prepared.created ? "Created" : "Opened"} ./${prepared.folder.name} in ${selected.name}.`,
+          "success",
+        );
+      }
+      setDetail(
+        "Keep the XRP connected by USB-C through the controller check and course-software update.",
+      );
+      setStage("usb");
+    } catch (folderError) {
+      const message = errorDetail(folderError);
+      setError(message);
+      recordSetup("Folder", `Write check failed: ${message}`, "error");
+    }
+  }, [folderVerified, recordSetup]);
+
+  const skipFolder = useCallback(async () => {
+    setError("");
+    if (!(await forgetWorkspaceAndProjectFolders())) {
+      setError(
+        "Chrome could not clear the remembered folder. Reload this page, then try again.",
+      );
+      return;
+    }
+    folderRef.current = null;
+    setFolder(null);
+    setFolderVerified(false);
+    workspaceChangedRef.current = false;
     setDetail(
       "Connect the XRP by USB-C and keep it connected through setup. You can choose a course folder in the IDE later.",
     );
@@ -308,6 +388,33 @@ export function CommissionApp() {
     );
     setStage("usb");
   }, [recordSetup]);
+
+  useEffect(() => {
+    if (stage !== "usb" || !manifest || !supportsWebSerial()) return;
+    let disposed = false;
+    setCheckingAuthorizedPort(true);
+    void findGrantedXrpPort(manifest.controller)
+      .then((port) => {
+        if (disposed) return;
+        setAuthorizedPort(port);
+        setDetail(
+          port
+            ? "Chrome recognizes a previously approved SparkFun XRP controller. Confirm it below to start the USB check."
+            : "Connect the XRP by USB-C, then choose it. Chrome requires its device chooser the first time this site uses the controller.",
+        );
+      })
+      .catch((portError) => {
+        if (disposed) return;
+        setAuthorizedPort(null);
+        setError(errorDetail(portError));
+      })
+      .finally(() => {
+        if (!disposed) setCheckingAuthorizedPort(false);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [manifest, stage]);
 
   const inspectPort = useCallback(
     async (port: SerialPortLike) => {
@@ -321,6 +428,21 @@ export function CommissionApp() {
         session = await openRawRepl(port);
       } catch (replError) {
         sessionRef.current = null;
+        portRef.current = null;
+        if (replError instanceof SerialPortOpenError) {
+          const message = replError.message;
+          setError(message);
+          setDetail(
+            "The XRP was found, but Chrome could not use its USB connection.",
+          );
+          recordSetup(
+            "USB",
+            `USB connection could not be opened: ${message}`,
+            "error",
+          );
+          setStage("usb");
+          return;
+        }
         setStage("firmware");
         setDetail(
           "The XRP needs the course MicroPython firmware before its files can be installed.",
@@ -392,7 +514,7 @@ export function CommissionApp() {
     } catch (serialError) {
       if (wasCancelled(serialError)) {
         setDetail(
-          "No XRP was selected. Select the connected XRP when you are ready.",
+          "The device chooser closed without selecting an XRP. No changes were made.",
         );
         recordSetup("USB", "Device selection was cancelled.");
       } else {
@@ -404,6 +526,16 @@ export function CommissionApp() {
       setSelectingRobot(false);
     }
   }, [inspectPort, manifest, recordSetup, selectingRobot]);
+
+  const confirmAuthorizedRobot = useCallback(async () => {
+    if (!authorizedPort || selectingRobot) return;
+    setSelectingRobot(true);
+    try {
+      await inspectPort(authorizedPort);
+    } finally {
+      setSelectingRobot(false);
+    }
+  }, [authorizedPort, inspectPort, selectingRobot]);
 
   useEffect(() => {
     if ((stage !== "network" && stage !== "firmware") || !sessionRef.current) {
@@ -554,6 +686,7 @@ export function CommissionApp() {
       });
       sessionRef.current = null;
       setStationPassword("");
+      if (folderRef.current) handCourseFolderToIde();
       setResult(completed);
       const preference: TargetPreference = {
         kind: "physical",
@@ -562,18 +695,16 @@ export function CommissionApp() {
         physicalEndpoint: `http://${completed.network.address}`,
       };
       storeTargetPreference(preference);
-      if (folderRef.current) {
-        handCourseFolderToIde();
-      }
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";
       setWifiAttempts(0);
       setWifiIssue("");
       setWifiNeedsRepair(false);
+      setWifiProbeEnabled(false);
       setDetail(
         completed.network.mode === "station"
-          ? `XRP joined ${completed.network.ssid}. Verifying its course service…`
-          : `Join ${completed.network.ssid} from the computer's Wi-Fi menu. This setup page stays open while the computer changes networks.`,
+          ? `The XRP joined ${completed.network.ssid}. Confirm that this computer is on the same network before checking the robot connection.`
+          : `USB setup is complete. Before checking the robot, join ${completed.network.ssid} from the computer's Wi-Fi menu and return to this page.`,
       );
       recordSetup(
         "Install",
@@ -659,9 +790,8 @@ export function CommissionApp() {
         "success",
       );
       setStage("complete");
-      window.setTimeout(() => {
-        window.location.assign(new URL("../ide/", window.location.href));
-      }, 900);
+      await setupLogWriteRef.current.catch(() => undefined);
+      window.location.assign(new URL("../ide/", window.location.href));
     } catch (probeError) {
       const serviceFailure = probeError instanceof XrpServiceProbeError;
       const issue = wasCancelled(probeError)
@@ -693,17 +823,30 @@ export function CommissionApp() {
   }, [manifest, recordSetup, result]);
 
   useEffect(() => {
-    if (stage !== "wifi") return;
+    if (stage !== "wifi" || !wifiProbeEnabled) return;
     void verifyWifi();
     const timer = window.setInterval(() => void verifyWifi(), 2_000);
     return () => clearInterval(timer);
-  }, [stage, verifyWifi]);
+  }, [stage, verifyWifi, wifiProbeEnabled]);
+
+  const startWifiVerification = useCallback(() => {
+    if (!result || wifiProbeEnabled) return;
+    setError("");
+    setWifiIssue("");
+    setWifiProbeEnabled(true);
+    setDetail(`Checking the XRP at ${result.network.address}…`);
+    recordSetup(
+      "XRP connection",
+      `Computer network confirmed by the user; checking ${result.network.address}.`,
+    );
+  }, [recordSetup, result, wifiProbeEnabled]);
 
   const returnToUsb = useCallback(() => {
     setResult(null);
     setWifiAttempts(0);
     setWifiIssue("");
     setWifiNeedsRepair(false);
+    setWifiProbeEnabled(false);
     wifiAttemptRef.current = 0;
     lastWifiLoggedIssueRef.current = "";
     setDetail("Keep the XRP connected by USB-C, then select it again.");
@@ -725,6 +868,62 @@ export function CommissionApp() {
     }
   }, []);
 
+  const closeUsbSession = useCallback(async () => {
+    const session = sessionRef.current;
+    sessionRef.current = null;
+    portRef.current = null;
+    try {
+      await session?.close();
+    } catch {
+      // A disconnected controller may already have closed the browser stream.
+    }
+  }, []);
+
+  const goBack = useCallback(async () => {
+    if (stage === "loading" || stage === "installing" || stage === "complete")
+      return;
+    setError("");
+    if (stage === "folder") return;
+    if (stage === "usb") {
+      setStage("folder");
+      setDetail(
+        folderRef.current
+          ? `${folderRef.current.name} is the current course folder. Use it or choose a different folder.`
+          : "Choose a course folder, or continue without one.",
+      );
+      return;
+    }
+    if (stage === "wifi") {
+      returnToUsb();
+      return;
+    }
+    await closeUsbSession();
+    setExistingNetwork(null);
+    setAuthorizedPort(null);
+    setStage("usb");
+    setDetail("Select the connected XRP to repeat the USB check.");
+  }, [closeUsbSession, returnToUsb, stage]);
+
+  const exitSetup = useCallback(
+    async (destination: string) => {
+      if (stage === "installing") return;
+      navigatingRef.current = true;
+      await closeUsbSession();
+      window.location.assign(new URL(destination, window.location.href));
+    },
+    [closeUsbSession, stage],
+  );
+
+  useEffect(() => {
+    if (stage !== "installing") return;
+    const keepSetupOpen = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", keepSetupOpen);
+    return () => window.removeEventListener("beforeunload", keepSetupOpen);
+  }, [stage]);
+
   const activeStep = workflowStep(stage);
   const progressPercent =
     progress?.phase === "compare"
@@ -738,14 +937,36 @@ export function CommissionApp() {
             : progress?.phase === "reset"
               ? 100
               : 8;
+  const installPhaseOrder = [
+    "compare",
+    "install",
+    "verify",
+    "network",
+    "reset",
+  ];
+  const installPhaseIndex = progress
+    ? installPhaseOrder.indexOf(progress.phase)
+    : -1;
 
   return (
     <div className="commission-app">
-      <header className="commission-header">
-        <a className="commission-brand" href="../" aria-label="UCSBXRP home">
+      <header className="commission-header app-header">
+        <a
+          className="commission-brand"
+          href="../"
+          aria-label="UCSBXRP home"
+          onClick={(event) => {
+            event.preventDefault();
+            void exitSetup("../");
+          }}
+        >
           <span>UCSB</span>XRP
         </a>
-        <a href="../ide/">IDE ↗</a>
+        <AppNavigation
+          active="commission"
+          disabled={stage === "installing"}
+          onNavigate={(href) => void exitSetup(href)}
+        />
       </header>
       <main className="commission-layout">
         <aside aria-label="Setup progress" className="commission-steps">
@@ -798,10 +1019,23 @@ export function CommissionApp() {
           {stage === "folder" ? (
             <div className="commission-actions">
               <div className="commission-action-row">
-                <button className="primary-button" onClick={chooseFolder}>
-                  Choose course folder
+                {folder ? (
+                  <button
+                    className="primary-button"
+                    onClick={continueWithFolder}
+                  >
+                    {folderVerified
+                      ? `Use ${folder.name}`
+                      : `Reconnect ${folder.name}`}
+                  </button>
+                ) : null}
+                <button
+                  className={folder ? undefined : "primary-button"}
+                  onClick={chooseFolder}
+                >
+                  {folder ? "Choose different folder" : "Choose course folder"}
                 </button>
-                <button onClick={skipFolder}>Choose later</button>
+                <button onClick={skipFolder}>Continue without folder</button>
               </div>
               <p>
                 Choose one parent folder for your UCSBXRP projects. Each new
@@ -815,18 +1049,43 @@ export function CommissionApp() {
 
           {stage === "usb" ? (
             <div className="commission-actions">
+              {authorizedPort ? (
+                <div className="recognized-xrp">
+                  <span aria-hidden="true">✓</span>
+                  <div>
+                    <strong>SparkFun XRP Controller (RP2350)</strong>
+                    <small>Previously approved in this Chrome profile</small>
+                  </div>
+                  <button
+                    className="primary-button"
+                    disabled={selectingRobot}
+                    onClick={() => void confirmAuthorizedRobot()}
+                  >
+                    Use this XRP
+                  </button>
+                </div>
+              ) : null}
               <button
-                className="primary-button"
-                disabled={!manifest || !supportsWebSerial() || selectingRobot}
+                className={authorizedPort ? undefined : "primary-button"}
+                disabled={
+                  !manifest ||
+                  !supportsWebSerial() ||
+                  selectingRobot ||
+                  checkingAuthorizedPort
+                }
                 onClick={selectRobot}
               >
                 {selectingRobot
                   ? "Waiting for device choice…"
-                  : "Select connected XRP"}
+                  : checkingAuthorizedPort
+                    ? "Checking USB…"
+                    : authorizedPort
+                      ? "Choose another XRP"
+                      : "Choose connected XRP"}
               </button>
               <p>
                 {supportsWebSerial()
-                  ? "Chrome shows one device picker. Select XRP Controller; it may appear as ‘Board in FS mode’. Keep USB-C connected through the automatic check and repair."
+                  ? "Chrome can recognize only devices this site was previously allowed to use. On first use, Choose connected XRP opens the required system device chooser; select XRP Controller, which may appear as ‘Board in FS mode’."
                   : "Robot setup requires desktop Chrome or Edge; this browser does not provide USB device access."}
               </p>
             </div>
@@ -850,7 +1109,11 @@ export function CommissionApp() {
                     type="radio"
                   />
                   <span>
-                    <strong>Keep current network</strong>
+                    <strong>
+                      {existingNetwork.mode === "access_point"
+                        ? "Keep current robot hotspot"
+                        : "Keep current Wi-Fi"}
+                    </strong>
                     <small>
                       {existingNetwork.mode === "station"
                         ? (existingNetwork.stationSsid ?? "Existing Wi-Fi")
@@ -859,20 +1122,24 @@ export function CommissionApp() {
                   </span>
                 </label>
               ) : null}
-              <label>
-                <input
-                  checked={networkMode === "access_point"}
-                  name="network-mode"
-                  onChange={() => setNetworkMode("access_point")}
-                  type="radio"
-                />
-                <span>
-                  <strong>Robot hotspot</strong>
-                  <small>
-                    Recommended for student use; no router required.
-                  </small>
-                </span>
-              </label>
+              {existingNetwork?.mode !== "access_point" ? (
+                <label>
+                  <input
+                    checked={networkMode === "access_point"}
+                    name="network-mode"
+                    onChange={() => setNetworkMode("access_point")}
+                    type="radio"
+                  />
+                  <span>
+                    <strong>
+                      {existingNetwork?.present
+                        ? "Switch to robot hotspot"
+                        : "Robot hotspot"}
+                    </strong>
+                    <small>No router or campus network is required.</small>
+                  </span>
+                </label>
+              ) : null}
               <label>
                 <input
                   checked={networkMode === "station"}
@@ -881,7 +1148,11 @@ export function CommissionApp() {
                   type="radio"
                 />
                 <span>
-                  <strong>Existing Wi-Fi</strong>
+                  <strong>
+                    {existingNetwork?.mode === "station"
+                      ? "Use different Wi-Fi"
+                      : "Use existing Wi-Fi"}
+                  </strong>
                   <small>Use the same local network as this computer.</small>
                 </span>
               </label>
@@ -912,8 +1183,14 @@ export function CommissionApp() {
                   </small>
                 </div>
               ) : null}
-              <button className="primary-button" onClick={beginCommissioning}>
-                Install or repair XRP
+              <button
+                className="primary-button"
+                disabled={networkMode === "station" && !stationSsid.trim()}
+                onClick={beginCommissioning}
+              >
+                {existingNetwork?.present
+                  ? "Check and repair course software"
+                  : "Install course software"}
               </button>
             </div>
           ) : null}
@@ -928,6 +1205,33 @@ export function CommissionApp() {
                   ? `${progress.completed ?? 0} of ${progress.total} changed files`
                   : "Checking the installed release"}
               </small>
+              <ol aria-label="Installation stages">
+                {[
+                  "Compare installed files",
+                  "Update changed files",
+                  "Verify course software",
+                  "Configure robot network",
+                  "Restart the XRP",
+                ].map((label, index) => (
+                  <li
+                    className={
+                      index < installPhaseIndex
+                        ? "done"
+                        : index === installPhaseIndex
+                          ? "active"
+                          : ""
+                    }
+                    key={label}
+                  >
+                    <span>{index < installPhaseIndex ? "✓" : index + 1}</span>
+                    {label}
+                  </li>
+                ))}
+              </ol>
+              <p>
+                Keep this page and the USB-C connection open until restart
+                completes.
+              </p>
             </div>
           ) : null}
 
@@ -971,6 +1275,26 @@ export function CommissionApp() {
                   <dd>{result.network.address}</dd>
                 </div>
               </dl>
+              <ol className="wifi-steps">
+                {result.network.mode === "access_point" ? (
+                  <>
+                    <li>Open the computer&apos;s Wi-Fi menu.</li>
+                    <li>
+                      Join <strong>{result.network.ssid}</strong> using the
+                      password shown above.
+                    </li>
+                    <li>Return to this setup page and use the button below.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      Keep this computer connected to{" "}
+                      <strong>{result.network.ssid}</strong>.
+                    </li>
+                    <li>Use the button below to check the robot service.</li>
+                  </>
+                )}
+              </ol>
               <div
                 className={
                   wifiNeedsRepair
@@ -982,22 +1306,33 @@ export function CommissionApp() {
                 <strong>
                   {wifiNeedsRepair
                     ? "Robot service needs repair"
-                    : wifiAttempts
-                      ? `Waiting for XRP · attempt ${wifiAttempts}`
-                      : "Waiting for XRP"}
+                    : !wifiProbeEnabled
+                      ? "Connection not checked yet"
+                      : wifiAttempts
+                        ? `Waiting for XRP · attempt ${wifiAttempts}`
+                        : "Checking the XRP"}
                 </strong>
                 <span>
                   {wifiIssue ||
-                    "Checking the robot service at the address above."}
+                    (wifiProbeEnabled
+                      ? "Checking the robot service at the address above."
+                      : "The wizard waits for you to finish the computer network step before it checks the XRP.")}
                 </span>
               </div>
-              <button disabled={checkingWifi} onClick={verifyWifi}>
-                {checkingWifi ? "Checking…" : "Check connection"}
+              <button
+                className="primary-button"
+                disabled={checkingWifi}
+                onClick={wifiProbeEnabled ? verifyWifi : startWifiVerification}
+              >
+                {checkingWifi
+                  ? "Checking…"
+                  : wifiProbeEnabled
+                    ? "Check again now"
+                    : result.network.mode === "access_point"
+                      ? `I joined ${result.network.ssid} — check XRP`
+                      : `Check XRP on ${result.network.ssid}`}
               </button>
               <p className="wifi-instruction">
-                {result.network.mode === "access_point"
-                  ? `Join ${result.network.ssid} in the computer's Wi-Fi menu, then return to this page.`
-                  : `Keep this computer on ${result.network.ssid}.`}{" "}
                 If Chrome asks to find and connect to devices on the local
                 network, choose <strong>Allow</strong>. The IDE opens when the
                 robot replies.
@@ -1018,9 +1353,6 @@ export function CommissionApp() {
                     → Privacy &amp; Security → Local Network.
                   </li>
                 </ul>
-                <button type="button" onClick={returnToUsb}>
-                  Return to USB setup
-                </button>
               </details>
             </div>
           ) : null}
@@ -1062,6 +1394,29 @@ export function CommissionApp() {
               </div>
             </div>
           </details>
+          {stage !== "loading" && stage !== "complete" ? (
+            <nav
+              className="commission-navigation"
+              aria-label="Setup navigation"
+            >
+              {stage !== "folder" ? (
+                <button
+                  disabled={stage === "installing"}
+                  onClick={() => void goBack()}
+                  type="button"
+                >
+                  Back
+                </button>
+              ) : null}
+              <button
+                disabled={stage === "installing"}
+                onClick={() => void exitSetup("../")}
+                type="button"
+              >
+                Exit setup
+              </button>
+            </nav>
+          ) : null}
         </section>
       </main>
     </div>

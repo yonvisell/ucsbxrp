@@ -1,3 +1,5 @@
+import { AppNavigation } from "../../shared/AppNavigation";
+
 const sections = [
   ["scope", "System scope"],
   ["course", "Course progression"],
@@ -19,9 +21,7 @@ export function OverviewApp() {
   return (
     <div className="overview-layout">
       <aside className="overview-nav">
-        <a className="overview-home" href="../">
-          UCSBXRP course tools
-        </a>
+        <AppNavigation />
         <p>Instructor technical overview</p>
         <nav aria-label="Overview contents">
           {sections.map(([id, label]) => (
@@ -370,9 +370,10 @@ Pose -----------------------------> NavigationController ------+
           <p>
             The IDE and Monitor coordinate through a shared browser worker. A
             Run request validates when needed; either application can start or
-            stop the current project. System logs retain validation, transfer,
-            connection, run, stop, and error events rather than replacing
-            earlier entries.
+            stop the current project. The worker retains validation, transfer,
+            connection, run, stop, error, and program-output events; the IDE
+            terminal presents that shared history without replacing earlier
+            entries.
           </p>
         </section>
 

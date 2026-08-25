@@ -23,6 +23,7 @@ export interface CourseDirectoryHandle {
     options?: { create?: boolean },
   ): Promise<CourseFileHandle>;
   removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
+  isSameEntry?(other: CourseDirectoryHandle): Promise<boolean>;
   queryPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
   requestPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
 }
@@ -222,6 +223,88 @@ export async function rememberWorkspaceFolder(
   handle: CourseDirectoryHandle,
 ): Promise<boolean> {
   return rememberFolder(handle, workspaceFolderKey, workspaceFolderChangedKey);
+}
+
+async function sameDirectoryHandle(
+  first: CourseDirectoryHandle | null,
+  second: CourseDirectoryHandle,
+): Promise<boolean> {
+  if (!first) return false;
+  if (first === second) return true;
+  try {
+    if (first.isSameEntry) return await first.isSameEntry(second);
+    if (second.isSameEntry) return await second.isSameEntry(first);
+  } catch {
+    // If Chrome can no longer compare the retained handle, treat the explicit
+    // folder choice as a change. This prevents an old project from following a
+    // student into a newly selected course folder.
+  }
+  return false;
+}
+
+export interface WorkspaceFolderSelection {
+  changed: boolean;
+  remembered: boolean;
+}
+
+/**
+ * Make `handle` the active course folder. When it differs from the retained
+ * course folder, the old active-project handle is removed in the same IndexedDB
+ * transaction. Project files are never deleted.
+ */
+export async function replaceRememberedWorkspaceFolder(
+  handle: CourseDirectoryHandle,
+): Promise<WorkspaceFolderSelection> {
+  const previous = await loadRememberedWorkspaceFolder();
+  const changed = !(await sameDirectoryHandle(previous, handle));
+  if (typeof indexedDB === "undefined") {
+    return { changed, remembered: false };
+  }
+  try {
+    const database = await openFolderDatabase();
+    const transaction = database.transaction(handleStoreName, "readwrite");
+    const completed = transactionComplete(transaction);
+    const store = transaction.objectStore(handleStoreName);
+    store.put(handle, workspaceFolderKey);
+    if (changed) store.delete(projectFolderKey);
+    await completed;
+    database.close();
+    try {
+      const changedAt = String(Date.now());
+      localStorage.setItem(workspaceFolderChangedKey, changedAt);
+      if (changed) localStorage.setItem(courseFolderChangedKey, changedAt);
+    } catch {
+      // IndexedDB remains authoritative if localStorage is unavailable.
+    }
+    return { changed, remembered: true };
+  } catch {
+    return { changed, remembered: false };
+  }
+}
+
+/** Forget retained folder handles without deleting any files on disk. */
+export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
+  if (typeof indexedDB === "undefined") return false;
+  try {
+    const database = await openFolderDatabase();
+    const transaction = database.transaction(handleStoreName, "readwrite");
+    const completed = transactionComplete(transaction);
+    const store = transaction.objectStore(handleStoreName);
+    store.delete(workspaceFolderKey);
+    store.delete(projectFolderKey);
+    await completed;
+    database.close();
+    try {
+      const changedAt = String(Date.now());
+      localStorage.setItem(workspaceFolderChangedKey, changedAt);
+      localStorage.setItem(courseFolderChangedKey, changedAt);
+    } catch {
+      // IndexedDB remains authoritative if localStorage is unavailable.
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function forgetWorkspaceFolder(): Promise<boolean> {

@@ -12,6 +12,7 @@ import {
 } from "@ucsb-xrp/simulator";
 
 import { RunOwnerLease } from "./run-owner-lease";
+import { VirtualTargetEventHub } from "./virtual-target-event-hub";
 import { worldCatalogForProject } from "./project-world";
 import {
   EMPTY_RUNTIME_STATE,
@@ -41,8 +42,7 @@ let simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
 let simulatorState: XrpSimulatorState = simulator.reset(
   currentWorld.initialPose,
 );
-const ports = new Set<MessagePort>();
-const consoleHistory: TargetEvent[] = [];
+const events = new VirtualTargetEventHub();
 const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
 let activeRunId = 0;
 let currentState: TargetRunState = "ready";
@@ -54,25 +54,15 @@ let runtimeSlots: Record<string, number> = {};
 let courseTelemetryState: CourseTelemetryState | null = null;
 
 function send(port: MessagePort, message: TargetWorkerMessage): void {
-  port.postMessage(message);
+  events.send(port, message);
 }
 
 function broadcast(event: TargetEvent): void {
-  if (event.type === "console") {
-    consoleHistory.push(event);
-    if (consoleHistory.length > 200) {
-      consoleHistory.shift();
-    }
-  }
-  for (const port of ports) {
-    send(port, { type: "event", event });
-  }
+  events.broadcast(event);
 }
 
 function broadcastMessage(message: TargetWorkerMessage): void {
-  for (const port of ports) {
-    send(port, message);
-  }
+  events.broadcastMessage(message);
 }
 
 function status(state: TargetRunState, detail: string): void {
@@ -208,6 +198,9 @@ function prepareRuntime(
     type: "console",
     stream: "system",
     line: `Starting ${currentProjectDescriptor.name} (${currentProjectDescriptor.entrypoint}) on the virtual XRP`,
+    action: "run",
+    phase: "request",
+    requestId: `virtual-run-${activeRunId}`,
   });
   status("loading", "Loading MicroPython 1.28");
   send(port, {
@@ -238,6 +231,9 @@ function handleRuntimeMessage(
       type: "console",
       stream: "system",
       line: `MicroPython ${message.version} ready; program running`,
+      action: "run",
+      phase: "output",
+      requestId: `virtual-run-${runId}`,
     });
   } else if (message.type === "effort") {
     // The runtime-owned simulator sends the authoritative state immediately
@@ -252,6 +248,9 @@ function handleRuntimeMessage(
       type: "console",
       stream: message.stream,
       line: message.line,
+      action: "run",
+      phase: "output",
+      requestId: `virtual-run-${runId}`,
     });
   } else if (message.type === "runtime-state") {
     runtimeState = message.state;
@@ -264,17 +263,30 @@ function handleRuntimeMessage(
       type: "console",
       stream: "system",
       line: "Program completed; drive command is zero",
+      action: "run",
+      phase: "result",
+      requestId: `virtual-run-${runId}`,
     });
     status("ready", "Program completed; drive command is zero");
     broadcastMessage({ type: "terminate-runtime", runId });
   } else if (message.type === "error") {
     runOwnerLease.clear();
     stopRuntime();
-    broadcast({ type: "console", stream: "stderr", line: message.detail });
+    broadcast({
+      type: "console",
+      stream: "stderr",
+      line: message.detail,
+      action: "run",
+      phase: "error",
+      requestId: `virtual-run-${runId}`,
+    });
     broadcast({
       type: "console",
       stream: "system",
       line: "Program stopped after a MicroPython exception",
+      action: "run",
+      phase: "error",
+      requestId: `virtual-run-${runId}`,
     });
     status("error", "Program stopped after a MicroPython exception");
     broadcastMessage({ type: "terminate-runtime", runId });
@@ -286,9 +298,8 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     if (runOwnerLease.ownsPort(port)) {
       invalidateRun("Run owner disconnected; drive command set to zero");
     }
-    ports.delete(port);
-    port.close();
-    if (ports.size === 0) {
+    events.detach(port);
+    if (events.size === 0) {
       stopRuntime();
       currentState = "ready";
       currentDetail = "Virtual target ready";
@@ -323,9 +334,9 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         selectedWorldId: currentScenario,
       },
     });
-    for (const event of consoleHistory) {
-      send(port, { type: "event", event });
-    }
+    events.replayConsole(port);
+  } else if (command.type === "publish-console") {
+    broadcast(command.event);
   } else if (command.type === "prepare-run") {
     prepareRuntime(port, command);
   } else if (command.type === "store-project") {
@@ -467,6 +478,9 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       type: "console",
       stream: "system",
       line: "Run stopped; drive command set to zero",
+      action: "stop",
+      phase: "result",
+      requestId: command.requestId,
     });
     status("ready", "Stopped");
     send(port, { type: "response", requestId: command.requestId, ok: true });
@@ -483,12 +497,14 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       });
     }
     simulatorState = simulator.reset(currentWorld.initialPose);
-    consoleHistory.length = 0;
     broadcast(telemetryEvent());
     broadcast({
       type: "console",
       stream: "system",
       line: "Virtual XRP reset",
+      action: "reset",
+      phase: "result",
+      requestId: command.requestId,
     });
     status("ready", "Virtual XRP reset");
     send(port, { type: "response", requestId: command.requestId, ok: true });
@@ -500,7 +516,7 @@ self.onconnect = (event: MessageEvent) => {
   if (!port) {
     return;
   }
-  ports.add(port);
+  events.attach(port);
   port.onmessage = (message: MessageEvent<TargetWorkerCommand>) => {
     handleCommand(port, message.data);
   };

@@ -1,12 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  findGrantedXrpPort,
+  openRawRepl,
   RawReplSession,
   matchesXrpController,
+  SerialPortOpenError,
   type SerialPortLike,
 } from "./web-serial";
 
 const encoder = new TextEncoder();
+const originalSerial = Object.getOwnPropertyDescriptor(navigator, "serial");
+
+afterEach(() => {
+  if (originalSerial) {
+    Object.defineProperty(navigator, "serial", originalSerial);
+  } else {
+    Reflect.deleteProperty(navigator, "serial");
+  }
+});
 
 describe("Web Serial raw REPL", () => {
   it("filters the exact SparkFun controller identity", () => {
@@ -25,6 +37,60 @@ describe("Web Serial raw REPL", () => {
         usbProductId: 0x0001,
       }),
     ).toBe(false);
+  });
+
+  it("finds one previously approved XRP without opening a picker", async () => {
+    const matching = {
+      getInfo: () => ({ usbVendorId: 0x1b4f, usbProductId: 0x0046 }),
+    } as SerialPortLike;
+    const unrelated = {
+      getInfo: () => ({ usbVendorId: 1, usbProductId: 2 }),
+    } as SerialPortLike;
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: async () => [unrelated, matching],
+      },
+    });
+
+    await expect(
+      findGrantedXrpPort({
+        usbVendorId: 0x1b4f,
+        usbProductId: 0x0046,
+      }),
+    ).resolves.toBe(matching);
+  });
+
+  it("does not guess when two approved XRPs are connected", async () => {
+    const port = () =>
+      ({
+        getInfo: () => ({ usbVendorId: 0x1b4f, usbProductId: 0x0046 }),
+      }) as SerialPortLike;
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: { getPorts: async () => [port(), port()] },
+    });
+
+    await expect(
+      findGrantedXrpPort({
+        usbVendorId: 0x1b4f,
+        usbProductId: 0x0046,
+      }),
+    ).rejects.toThrow("More than one XRP is connected");
+  });
+
+  it("distinguishes a busy USB port from missing MicroPython firmware", async () => {
+    const port = {
+      readable: null,
+      writable: null,
+      open: async () => {
+        throw new DOMException("Port is already open", "InvalidStateError");
+      },
+      close: async () => undefined,
+      getInfo: () => ({ usbVendorId: 0x1b4f, usbProductId: 0x0046 }),
+    } as SerialPortLike;
+
+    await expect(openRawRepl(port)).rejects.toBeInstanceOf(SerialPortOpenError);
   });
 
   it("enters raw REPL and uses raw-paste flow control", async () => {

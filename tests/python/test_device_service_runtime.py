@@ -149,6 +149,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._thread_active = False
         self.service._launch_pending = False
         self.service._run_id = 0
+        self.service._lease_deadline = None
         self.service._logs.clear()
         self.service._last_reply_by_id.clear()
         self.service._reply_order.clear()
@@ -188,6 +189,38 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             asyncio.run(self.server.loop.tasks.pop())
             self.assertEqual(self.service._state, "running")
             self.assertEqual(len(self.thread_calls), 1)
+            self.assertEqual(
+                self.service._lease_deadline,
+                100 + self.service.STARTUP_LEASE_MS,
+            )
+
+            self.service._thread_active = True
+            lease_response = self.service.renew_lease(
+                types.SimpleNamespace(
+                    data={"requestId": "lease-test", "runId": 1}
+                )
+            )
+            lease_reply = json.loads(lease_response.body.decode("utf-8"))
+            self.assertTrue(lease_reply["ok"])
+            self.assertEqual(
+                self.service._lease_deadline,
+                100 + self.service.STARTUP_LEASE_MS,
+            )
+            self.assertGreater(
+                self.service.STARTUP_LEASE_MS,
+                self.service.LEASE_MS,
+            )
+
+            with patch.object(self.service.time, "ticks_ms", return_value=5000):
+                self.service.renew_lease(
+                    types.SimpleNamespace(
+                        data={"requestId": "lease-test-later", "runId": 1}
+                    )
+                )
+            self.assertEqual(
+                self.service._lease_deadline,
+                5000 + self.service.LEASE_MS,
+            )
 
     def test_project_runner_bypasses_then_restores_user_button_start(self):
         with tempfile.TemporaryDirectory() as project_dir:
@@ -202,6 +235,34 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
 
         self.assertEqual(self.managed_start_updates, [True, False])
+
+    def test_project_runner_captures_output_from_imported_modules(self):
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        with tempfile.TemporaryDirectory() as project_dir:
+            Path(project_dir, "helper.py").write_text(
+                "print('output from helper')\n"
+            )
+            self.service._stop_motors = lambda: None
+            try:
+                self.service._project_runner(
+                    project_dir,
+                    "main.py",
+                    compile("print('output from main')\n", "main.py", "exec"),
+                    ["helper"],
+                    0,
+                )
+            finally:
+                sys.modules.pop("helper", None)
+
+        output = [
+            entry["line"]
+            for entry in self.service._logs
+            if entry["stream"] == "stdout"
+        ]
+        self.assertEqual(output, ["output from helper", "output from main"])
+        self.assertIs(sys.stdout, original_stdout)
+        self.assertIs(sys.stderr, original_stderr)
 
     def test_watchdog_interval_fits_the_rp2350_limit(self):
         self.assertGreaterEqual(self.service.SERVICE_WATCHDOG_MS, 5000)

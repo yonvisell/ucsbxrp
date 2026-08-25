@@ -26,6 +26,7 @@ import {
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
+import { AppNavigation } from "../../shared/AppNavigation";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
 import {
@@ -68,10 +69,11 @@ import {
 } from "./project-files";
 
 interface ConsoleEntry {
-  id: number;
+  id: string;
   category: "program" | "service";
   stream: "stdout" | "stderr" | "system";
   line: string;
+  timestampMs?: number;
 }
 
 interface IdeSettings {
@@ -85,6 +87,19 @@ interface IdeSettings {
 type PathOperation = "rename" | "duplicate";
 
 const settingsKey = "ucsb-xrp-ide-settings-v2";
+const maximumSessionLogEntries = 5_000;
+
+function formatConsoleTime(timestampMs: number | undefined): string {
+  if (timestampMs === undefined) {
+    return "";
+  }
+  return new Date(timestampMs).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
 const defaultSettings: IdeSettings = {
   editorFontSize: 9,
   consoleFontSize: 9,
@@ -144,7 +159,6 @@ function editorLanguage(path: string): string {
 
 const apiReferenceByFilename: Record<string, { href: string; label: string }> =
   {
-    "main.py": { href: "../reference/#project-loop", label: "Project loop" },
     "course_setup.py": {
       href: "../reference/#student-components",
       label: "Components",
@@ -292,6 +306,7 @@ export function IdeApp() {
   const nextConsoleId = useRef(1);
   const initializedProjectEffect = useRef(false);
   const projectRef = useRef(project);
+  const settingsDrawerRef = useRef<HTMLElement | null>(null);
   const projectVersion = useRef(0);
   const folderWriteQueue = useRef<Promise<void>>(Promise.resolve());
   const folderWriteEpoch = useRef(0);
@@ -312,15 +327,22 @@ export function IdeApp() {
         setTargetState(event.state);
         setTargetDetail(event.detail);
       } else if (event.type === "console") {
-        setConsoleEntries((entries) => [
-          ...entries.slice(-199),
-          {
-            id: nextConsoleId.current++,
-            category: event.stream === "system" ? "service" : "program",
-            stream: event.stream,
-            line: event.line,
-          },
-        ]);
+        const id = event.eventId ?? `ide-target-${nextConsoleId.current++}`;
+        setConsoleEntries((entries) => {
+          if (entries.some((entry) => entry.id === id)) {
+            return entries;
+          }
+          return [
+            ...entries.slice(-(maximumSessionLogEntries - 1)),
+            {
+              id,
+              category: event.stream === "system" ? "service" : "program",
+              stream: event.stream,
+              line: event.line,
+              timestampMs: event.timestampMs,
+            },
+          ];
+        });
       } else if (event.type === "project") {
         setCurrentProject(event.project);
       }
@@ -614,7 +636,7 @@ export function IdeApp() {
       });
       const lines = [
         ...(result.output ?? []).map((line) => ({
-          id: nextConsoleId.current++,
+          id: `ide-local-${nextConsoleId.current++}`,
           category: "program" as const,
           stream: line.startsWith("FAIL")
             ? ("stderr" as const)
@@ -622,7 +644,7 @@ export function IdeApp() {
           line,
         })),
         {
-          id: nextConsoleId.current++,
+          id: `ide-local-${nextConsoleId.current++}`,
           category: "program" as const,
           stream: result.ok ? ("system" as const) : ("stderr" as const),
           line: result.ok
@@ -630,7 +652,10 @@ export function IdeApp() {
             : `Component checks stopped: ${result.detail}`,
         },
       ];
-      setConsoleEntries((entries) => [...entries.slice(-199), ...lines]);
+      setConsoleEntries((entries) => [
+        ...entries.slice(-(maximumSessionLogEntries - lines.length)),
+        ...lines,
+      ]);
       setOperationDetail(
         result.ok
           ? "Component checks finished; review PASS and PENDING results below."
@@ -639,12 +664,13 @@ export function IdeApp() {
     } catch (error) {
       const detail = errorDetail(error);
       setConsoleEntries((entries) => [
-        ...entries.slice(-199),
+        ...entries.slice(-(maximumSessionLogEntries - 1)),
         {
-          id: nextConsoleId.current++,
+          id: `ide-local-${nextConsoleId.current++}`,
           category: "program",
           stream: "stderr",
           line: `Component checks could not run: ${detail}`,
+          timestampMs: Date.now(),
         },
       ]);
       setOperationDetail("Component checks could not run.");
@@ -710,9 +736,9 @@ export function IdeApp() {
       setTargetState("error");
       setTargetDetail(detail);
       setConsoleEntries((entries) => [
-        ...entries.slice(-199),
+        ...entries.slice(-(maximumSessionLogEntries - 1)),
         {
-          id: nextConsoleId.current++,
+          id: `ide-local-${nextConsoleId.current++}`,
           category: "service",
           stream: "stderr",
           line: detail,
@@ -764,7 +790,6 @@ export function IdeApp() {
       replacePendingFolderDeletions(() => new Set());
       setCheckOk(null);
       setCheckDetail("Current files have not been checked.");
-      setConsoleEntries([]);
       setOperationDetail(
         `Opened project folder ${folder.name}: ${Object.keys(result.project.files).length} supported file${
           Object.keys(result.project.files).length === 1 ? "" : "s"
@@ -858,7 +883,6 @@ export function IdeApp() {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
-        setConsoleEntries([]);
         setOperationDetail(
           `${snapshot.name} has a recovery copy in Chrome. Choose a course folder to create its project folder.`,
         );
@@ -1083,7 +1107,6 @@ export function IdeApp() {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
-        setConsoleEntries([]);
         setNewProjectOpen(false);
         setPendingProject(null);
         setNewProjectDraft("");
@@ -1340,6 +1363,23 @@ export function IdeApp() {
     return () => window.removeEventListener("keydown", keepFocusInDialog);
   }, [deletePath, newFileOpen, newProjectOpen, pathOperation]);
 
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      const targetNode = event.target as Node | null;
+      const targetElement = event.target as Element | null;
+      if (
+        targetNode &&
+        !settingsDrawerRef.current?.contains(targetNode) &&
+        !targetElement?.closest(".settings-button")
+      ) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [settingsOpen]);
+
   const storageDetail = workingFolder
     ? folderSaveState === "error"
       ? "Automatic save failed"
@@ -1401,6 +1441,7 @@ export function IdeApp() {
           </span>
           <span className="brand-product">IDE</span>
         </div>
+        <AppNavigation active="ide" />
         <div className="toolbar" role="toolbar" aria-label="Project commands">
           <select
             aria-label="Run on"
@@ -1471,34 +1512,6 @@ export function IdeApp() {
             <ResetIcon />
             <span className="visually-hidden">Reset</span>
           </button>
-          <div className="toolbar-spacer" />
-          <a
-            className="tool-link"
-            href="../monitor/"
-            rel="noopener noreferrer"
-            target="_blank"
-            title="Open the XRP Monitor in a new tab."
-          >
-            Monitor ↗
-          </a>
-          <a
-            className="tool-link"
-            href="../guide/"
-            rel="noopener noreferrer"
-            target="_blank"
-            title="Open course guidance and robot setup in a new tab."
-          >
-            Guide ↗
-          </a>
-          <a
-            className="tool-link"
-            href="../reference/"
-            rel="noopener noreferrer"
-            target="_blank"
-            title="Open the UCSB XRP API reference in a new tab."
-          >
-            API ↗
-          </a>
         </div>
         <div className="header-statuses">
           <div
@@ -1972,6 +1985,16 @@ export function IdeApp() {
                       className={`console-line ${entry.stream}`}
                       key={entry.id}
                     >
+                      <time
+                        className="console-time"
+                        dateTime={
+                          entry.timestampMs === undefined
+                            ? undefined
+                            : new Date(entry.timestampMs).toISOString()
+                        }
+                      >
+                        {formatConsoleTime(entry.timestampMs)}
+                      </time>
                       <span className="console-marker">
                         {entry.stream === "stderr"
                           ? "!"
@@ -1994,6 +2017,7 @@ export function IdeApp() {
           aria-label="IDE settings"
           className="settings-drawer"
           data-testid="settings-panel"
+          ref={settingsDrawerRef}
         >
           <div className="settings-heading">
             <div>

@@ -41,6 +41,13 @@ export function supportsWebSerial(): boolean {
   return window.isSecureContext && serialApi() !== null;
 }
 
+export class SerialPortOpenError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "SerialPortOpenError";
+  }
+}
+
 export async function requestXrpPort(
   controller: ExpectedUsbController,
 ): Promise<SerialPortLike> {
@@ -399,7 +406,14 @@ export async function openRawRepl(
   port: SerialPortLike,
 ): Promise<RawReplSession> {
   const connection = new SerialByteConnection(port);
-  await connection.open();
+  try {
+    await connection.open();
+  } catch (error) {
+    throw new SerialPortOpenError(
+      "Chrome could not open the XRP USB connection. Close any other setup page using the XRP, then try again.",
+      { cause: error },
+    );
+  }
   const session = new RawReplSession(connection);
   try {
     await session.enter();

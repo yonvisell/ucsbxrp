@@ -25,12 +25,13 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.15"
+COURSE_RELEASE = "2026.08-dev.17"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
 SLOTS = ("a", "b")
-LEASE_MS = 2600
+LEASE_MS = 6000
+STARTUP_LEASE_MS = 10000
 LAUNCH_AFTER_RESPONSE_MS = 80
 SERVICE_WATCHDOG_MS = 7000
 LOG_LIMIT = 160
@@ -109,6 +110,17 @@ def _set_state(state, detail):
     _state = state
     _detail = detail
     _append_log("system", detail)
+
+
+def _extend_run_lease(duration_ms):
+    """Extend the active deadline without shortening an existing grace period."""
+    global _lease_deadline
+    candidate = time.ticks_add(time.ticks_ms(), duration_ms)
+    if (
+        _lease_deadline is None
+        or time.ticks_diff(candidate, _lease_deadline) > 0
+    ):
+        _lease_deadline = candidate
 
 
 def _stop_motors():
@@ -317,6 +329,9 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
     global _thread_active, _lease_deadline
     previous_cwd = os.getcwd()
     stdout = LineLogWriter("stdout", _append_log)
+    stderr = LineLogWriter("stderr", _append_log)
+    previous_stdout = sys.stdout
+    previous_stderr = sys.stderr
     inserted_path = False
     outcome_state = "ready"
     outcome_detail = "Program completed"
@@ -330,6 +345,11 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
 
         managed_start = _set_managed_start
         managed_start(True)
+        # Redirect the Python streams, rather than only replacing ``print`` in
+        # main.py. This captures ordinary print calls and trace output from
+        # every project module in the same terminal shown by the IDE.
+        sys.stdout = stdout
+        sys.stderr = stderr
         # Keep the HTTP handler paused while the student core performs its
         # first project imports. RP2350 flash reads are then isolated from
         # response allocation on the service core.
@@ -352,10 +372,13 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
         outcome_state = "error"
         outcome_detail = "Program stopped after an exception"
     finally:
+        sys.stdout = previous_stdout
+        sys.stderr = previous_stderr
         if managed_start is not None:
             managed_start(False)
         _stop_motors()
         stdout.flush()
+        stderr.flush()
         if inserted_path:
             try:
                 sys.path.remove(slot_path)
@@ -390,7 +413,11 @@ async def _launch_project_after_response(
         return
     _launch_pending = False
     _thread_active = True
-    _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
+    # The first browser lease is sent only after the startup quiet interval and
+    # a telemetry reply. Give that complete exchange time to finish even when
+    # core 1 is importing project code. Later renewals use the shorter normal
+    # lease; the hardware watchdog remains the faster recovery for a VM lock.
+    _extend_run_lease(STARTUP_LEASE_MS)
     _set_state("running", "Running " + entrypoint)
     try:
         _thread.start_new_thread(
@@ -869,10 +896,9 @@ def set_runtime_parameter(request):
 @server.route("/api/v1/lease", methods=["POST"])
 def renew_lease(request):
     def operation(body):
-        global _lease_deadline
         requested_run = body.get("runId")
         if _thread_active and requested_run == _run_id:
-            _lease_deadline = time.ticks_add(time.ticks_ms(), LEASE_MS)
+            _extend_run_lease(LEASE_MS)
         return {"state": _state, "runId": _run_id}
 
     return _command(request, operation)

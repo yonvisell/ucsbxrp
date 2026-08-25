@@ -5,7 +5,7 @@
 
 .commission-header {
   display: flex;
-  height: 34px;
+  min-height: var(--app-header-height);
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
@@ -32,7 +32,7 @@
 .commission-layout {
   display: grid;
   width: min(850px, calc(100% - 32px));
-  min-height: calc(100vh - 34px);
+  min-height: calc(100vh - var(--app-header-height));
   grid-template-columns: 180px minmax(0, 1fr);
   margin: 0 auto;
   padding: clamp(28px, 7vh, 70px) 0 40px;
@@ -185,6 +185,38 @@
   line-height: 1.5;
 }
 
+.recognized-xrp {
+  display: grid;
+  width: min(100%, 480px);
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line-bright);
+  padding: 7px 8px;
+  background: #f4f8fa;
+}
+
+.recognized-xrp > span {
+  color: var(--cyan-deep);
+  font-weight: 750;
+}
+
+.recognized-xrp > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.recognized-xrp strong {
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.recognized-xrp small {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+}
+
 .network-options {
   display: grid;
   max-width: 500px;
@@ -292,6 +324,43 @@
   font-size: var(--font-xs);
 }
 
+.commission-progress ol {
+  display: grid;
+  gap: 3px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commission-progress li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 5px;
+  color: var(--quiet);
+  font-size: var(--font-xs);
+}
+
+.commission-progress li > span {
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.commission-progress li.active {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.commission-progress li.done > span {
+  color: var(--cyan-deep);
+}
+
+.commission-progress p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
 .wifi-handoff {
   display: grid;
   max-width: 450px;
@@ -311,6 +380,20 @@
   border-bottom: 1px solid var(--line);
   padding: 7px 2px;
   font-size: var(--font-sm);
+}
+
+.wifi-steps {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.wifi-steps strong {
+  color: var(--ink);
 }
 
 .wifi-handoff dt {
@@ -442,6 +525,18 @@
   font-size: var(--font-xs);
 }
 
+.commission-navigation {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.commission-navigation button {
+  min-height: 25px;
+  padding: 0 9px;
+  font-size: var(--font-xs);
+}
+
 .commission-success {
   display: flex;
   align-items: center;
@@ -502,5 +597,14 @@
 
   .station-fields small {
     grid-column: 1;
+  }
+
+  .recognized-xrp {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .recognized-xrp button {
+    grid-column: 2;
+    justify-self: start;
   }
 }

@@ -4,6 +4,35 @@ Last updated: 2026-08-25
 
 ## Current result
 
+Refinement 42 repairs the complete first-use and repeated-run workflow exposed
+by the campus hotspot trial. The setup wizard now distinguishes the course
+folder from a project folder, detaches stale project handles when the course
+folder changes, recognizes a previously authorized RP2350 for explicit
+confirmation, removes duplicate hotspot choices, exposes installation stages,
+and presents the computer Wi-Fi handoff before probing the robot. A normal
+`./Expanding-Spiral` project is created in the selected course folder. All
+student applications now share one compact Home/IDE/Monitor/Guide/Set up or
+Repair/API navigation bar; narrow layouts wrap instead of clipping. Installing
+the PWA is explicitly optional and separate from storing project files.
+
+IDE and Monitor now use one serialized physical-target coordinator and one
+virtual-target session. Run state, project identity, world, telemetry, live
+controls, and a timestamped 2,000-event target history are shared across tabs.
+The complete terminal remains in the IDE; Monitor no longer duplicates partial
+logs. Device-side stream capture includes output from imported project modules.
+Run can be repeated after completion or an exception, command/poll races are
+removed, and one tab can restore both applications after a network handoff.
+
+The first attached-RP2350 pass installed and read-verified release dev.16, then
+proved initial shared IDE/Monitor Run and Stop. A second Run reproduced a real
+timing defect: the former 2.6-second run lease could expire before the first
+telemetry exchange completed. Release `2026.08-dev.17` gives startup a
+10-second initial lease, uses a 6-second steady lease, never shortens the
+startup grace on an early renewal, and treats one missed poll as a recoverable
+interruption. All 152 Python tests, 174 TypeScript tests, MicroPython 1.28
+source/service checks, type checking, and formatting pass. Dev.17 still needs
+one USB wizard update and the repeated hotspot Run/Stop path before deployment.
+
 Refinement 41 removes a misleading physical-target state exposed during a
 campus hotspot trial. The saved USB setup log proves that release dev.15 was
 verified, the XRP restarted as `UCSB-XRP-9EDE` at `192.168.4.1`, and Chrome

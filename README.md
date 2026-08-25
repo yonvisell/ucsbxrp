@@ -81,7 +81,8 @@ the connection/validation System log are separate tabs.
 The Monitor shares the active virtual or physical target with the IDE. It
 shows connection/run state, pose and trail when available, wheel speed,
 drive commands, encoders, ultrasound distance, USER button, IMU, temperature,
-battery, collision, and program output. For the virtual XRP, choose **Open field** or **Delivery
+battery, and contact state. Program output and the complete target-event history
+remain in the IDE terminal. For the virtual XRP, choose **Open field** or **Delivery
 gate blocked**; the second scene exercises Challenge 5 observation and
 replanning. The world uses the production XRP's dimensioned footprint, a
 coordinate grid labeled in millimetres, and a small legend for the green path

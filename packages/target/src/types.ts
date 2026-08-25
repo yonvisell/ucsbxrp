@@ -57,6 +57,28 @@ export interface RuntimeState {
 export type TargetRunState =
   "disconnected" | "connecting" | "loading" | "ready" | "running" | "error";
 
+/**
+ * Machine-readable context for one target console event. The same
+ * event may be replayed when another app tab opens; consumers must use
+ * `eventId`, rather than the displayed text, to recognize that replay.
+ */
+export interface TargetConsoleMetadata {
+  eventId?: string;
+  timestampMs?: number;
+  targetTimeMs?: number;
+  action?:
+    | "connect"
+    | "validate"
+    | "flash"
+    | "run"
+    | "stop"
+    | "reset"
+    | "parameter"
+    | "telemetry";
+  phase?: "request" | "result" | "error" | "output";
+  requestId?: string;
+}
+
 export interface TelemetrySample {
   tMs: number;
   seq: number;
@@ -124,11 +146,11 @@ export type TargetEvent =
       catalog: WorldCatalog;
       selectedWorldId: string;
     }
-  | {
+  | ({
       type: "console";
       stream: "stdout" | "stderr" | "system";
       line: string;
-    };
+    } & TargetConsoleMetadata);
 
 export interface TargetClient {
   readonly kind: "virtual" | "physical";

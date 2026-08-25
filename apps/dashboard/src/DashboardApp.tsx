@@ -30,6 +30,7 @@ import {
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
+import { AppNavigation } from "../../shared/AppNavigation";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
@@ -66,7 +67,7 @@ import {
 } from "./monitor-export";
 
 interface ConsoleEntry {
-  id: number;
+  id: string;
   stream: "stdout" | "stderr" | "system";
   line: string;
 }
@@ -497,10 +498,6 @@ export function DashboardApp() {
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
   const [runStarting, setRunStarting] = useState(false);
-  const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
-  const [monitorLogTab, setMonitorLogTab] = useState<"output" | "log">(
-    "output",
-  );
   const [recordingActive, setRecordingActive] = useState(false);
   const [runtimeState, setRuntimeState] =
     useState<RuntimeState>(emptyRuntimeState);
@@ -764,7 +761,6 @@ export function DashboardApp() {
   }, []);
 
   useEffect(() => {
-    setConsoleEntries([]);
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
     setAvailableProgramPlots([]);
@@ -849,17 +845,22 @@ export function DashboardApp() {
         setSelectedWorldId(event.selectedWorldId);
       } else if (event.type === "console") {
         const entry = {
-          id: nextConsoleId.current++,
+          id: event.eventId ?? `monitor-target-${nextConsoleId.current++}`,
           stream: event.stream,
           line: event.line,
         };
         if (automaticRunActive.current) {
-          automaticRunOutput.current = [
-            ...automaticRunOutput.current.slice(-1_999),
-            entry,
-          ];
+          if (
+            !automaticRunOutput.current.some(
+              (existing) => existing.id === entry.id,
+            )
+          ) {
+            automaticRunOutput.current = [
+              ...automaticRunOutput.current.slice(-1_999),
+              entry,
+            ];
+          }
         }
-        setConsoleEntries((entries) => [...entries.slice(-99), entry]);
       }
     });
     setTargetState("connecting");
@@ -1214,9 +1215,6 @@ export function DashboardApp() {
   const topRegionStyle = {
     "--monitor-primary-width": `${monitorSettings.layout.worldWidthPercent}%`,
   } as CSSProperties;
-  const bottomRegionStyle = {
-    "--monitor-primary-width": `${monitorSettings.layout.plotsWidthPercent}%`,
-  } as CSSProperties;
   const isRunning = targetState === "running" || targetState === "loading";
   const canRunCurrent =
     !virtualRuntimePreparing &&
@@ -1247,11 +1245,6 @@ export function DashboardApp() {
           : !webmExportSupported()
             ? "WebM replay export is unavailable in this browser."
             : "";
-  const visibleMonitorEntries = consoleEntries.filter((entry) =>
-    monitorLogTab === "output"
-      ? entry.stream !== "system"
-      : entry.stream === "system",
-  );
   const groundTruthPose =
     sample &&
     (sample.groundTruthPoseAvailable ??
@@ -1284,6 +1277,7 @@ export function DashboardApp() {
           </span>
           <span className="brand-product">Monitor</span>
         </div>
+        <AppNavigation active="monitor" />
         <div className="toolbar">
           <button
             aria-label={isRunning ? "Stop" : "Run"}
@@ -1325,42 +1319,6 @@ export function DashboardApp() {
             <ResetIcon />
             <span className="visually-hidden">Reset</span>
           </button>
-          <div className="toolbar-spacer" />
-          <nav aria-label="Application links" className="header-nav">
-            <a
-              className="tool-link"
-              href="../ide/"
-              rel="noopener noreferrer"
-              target="_blank"
-              title="Open the IDE in a new tab."
-            >
-              IDE ↗
-            </a>
-            <span aria-hidden="true" className="header-link-separator">
-              |
-            </span>
-            <a
-              className="tool-link"
-              href="../guide/"
-              rel="noopener noreferrer"
-              target="_blank"
-              title="Open course guidance in a new tab."
-            >
-              Guide ↗
-            </a>
-            <span aria-hidden="true" className="header-link-separator">
-              |
-            </span>
-            <a
-              className="tool-link"
-              href="../reference/"
-              rel="noopener noreferrer"
-              target="_blank"
-              title="Open the UCSB XRP API reference in a new tab."
-            >
-              API ↗
-            </a>
-          </nav>
         </div>
         <div className="header-statuses">
           <div
@@ -1907,10 +1865,7 @@ export function DashboardApp() {
             value={monitorSettings.layout.topHeightPercent}
           />
 
-          <div
-            className="dashboard-region bottom-region"
-            style={bottomRegionStyle}
-          >
+          <div className="dashboard-region bottom-region">
             <section
               aria-label="Signal histories"
               className="plots-panel dashboard-pane"
@@ -1937,75 +1892,6 @@ export function DashboardApp() {
                     : "Signal histories appear when telemetry connects."}
                 </div>
               )}
-            </section>
-
-            <ResizableSeparator
-              label="Resize plots and program output"
-              maximum={84}
-              minimum={42}
-              onChange={(next) => setLayoutValue("plotsWidthPercent", next)}
-              orientation="vertical"
-              value={monitorSettings.layout.plotsWidthPercent}
-            />
-
-            <section className="logs-panel dashboard-pane">
-              <div className="section-heading">
-                <div
-                  aria-label="Monitor messages"
-                  className="dashboard-log-tabs"
-                  role="tablist"
-                >
-                  <button
-                    aria-selected={monitorLogTab === "output"}
-                    className={monitorLogTab === "output" ? "active" : ""}
-                    onClick={() => setMonitorLogTab("output")}
-                    role="tab"
-                    title="Show text printed by the program and Python exceptions."
-                  >
-                    Program output
-                  </button>
-                  <button
-                    aria-selected={monitorLogTab === "log"}
-                    className={monitorLogTab === "log" ? "active" : ""}
-                    onClick={() => setMonitorLogTab("log")}
-                    role="tab"
-                    title="Show target connection, validation, flash, and service events."
-                  >
-                    System log
-                  </button>
-                </div>
-                <button
-                  disabled={visibleMonitorEntries.length === 0}
-                  onClick={() =>
-                    setConsoleEntries((entries) =>
-                      entries.filter((entry) =>
-                        monitorLogTab === "output"
-                          ? entry.stream === "system"
-                          : entry.stream !== "system",
-                      ),
-                    )
-                  }
-                  title={`Clear ${monitorLogTab === "output" ? "program output" : "system log"}.`}
-                >
-                  Clear
-                </button>
-              </div>
-              <div className="dashboard-logs" role="log" aria-live="polite">
-                {visibleMonitorEntries.length === 0 ? (
-                  <span className="log-placeholder">
-                    {monitorLogTab === "output"
-                      ? "Program output appears here after Run."
-                      : "Connection, validation, flash, and service events appear here."}
-                  </span>
-                ) : (
-                  visibleMonitorEntries.map((entry) => (
-                    <div className={`log-line ${entry.stream}`} key={entry.id}>
-                      <span>{entry.stream === "stderr" ? "!" : "›"}</span>
-                      <span>{entry.line}</span>
-                    </div>
-                  ))
-                )}
-              </div>
             </section>
           </div>
         </main>

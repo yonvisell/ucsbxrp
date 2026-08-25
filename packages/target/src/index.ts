@@ -73,6 +73,7 @@ export type {
   RuntimeWatch,
   SynchronizedProject,
   TargetClient,
+  TargetConsoleMetadata,
   TargetEvent,
   TargetRunState,
   TelemetrySample,

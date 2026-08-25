@@ -10,7 +10,10 @@ const starters = [
 test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
-  await expect(page.getByLabel("Project template")).toHaveValue("demo_spiral");
+  await expect(page.getByLabel("Project template")).toHaveValue("");
+  await expect(
+    page.getByRole("tabpanel").getByText("Expanding spiral", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
   ).toBeVisible();
@@ -25,6 +28,7 @@ test("keeps the former dashboard address as a Monitor redirect", async ({
 });
 
 test("runs the default project directly from a fresh Monitor", async ({
+  context,
   page,
 }) => {
   await page.goto("/monitor/");
@@ -39,12 +43,14 @@ test("runs the default project directly from a fresh Monitor", async ({
   await expect(run).toHaveAttribute("title", /Expanding spiral/);
   await run.click();
 
-  await page.getByRole("tab", { name: "System log" }).click();
-  await expect(page.getByRole("log")).toContainText(
-    "Project prepared for the virtual XRP",
-  );
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
+  );
+  const ide = await context.newPage();
+  await ide.goto("/ide/");
+  await ide.getByRole("tab", { name: /System log/ }).click();
+  await expect(ide.getByRole("log")).toContainText(
+    "Project prepared for the virtual XRP",
   );
   await page
     .locator(".app-header")
@@ -89,6 +95,7 @@ test("holds Virtual Run during the first isolated production refresh", async ({
 });
 
 test("runs with declared live defaults if isolation disappears", async ({
+  context,
   page,
 }) => {
   await page.goto("/monitor/");
@@ -114,10 +121,10 @@ test("runs with declared live defaults if isolation disappears", async ({
   );
   await expect(page.getByText("Forward speed", { exact: true })).toBeVisible();
   await page.waitForTimeout(1_000);
-  await page.getByRole("tab", { name: "System log" }).click();
-  await expect(page.getByRole("log")).not.toContainText(
-    "MicroPython exception",
-  );
+  const ide = await context.newPage();
+  await ide.goto("/ide/");
+  await ide.getByRole("tab", { name: /System log/ }).click();
+  await expect(ide.getByRole("log")).not.toContainText("MicroPython exception");
   await page
     .locator(".app-header")
     .getByRole("button", { name: "Stop", exact: true })
@@ -125,7 +132,7 @@ test("runs with declared live defaults if isolation disappears", async ({
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await expect(page.getByRole("log")).toContainText(
+  await expect(ide.getByRole("log")).toContainText(
     "Run stopped; drive command set to zero",
   );
 });

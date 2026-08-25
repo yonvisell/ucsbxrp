@@ -30,6 +30,10 @@ export type TargetWorkerCommand =
   | { type: "connect"; requestId: string }
   | { type: "disconnect" }
   | {
+      type: "publish-console";
+      event: Extract<TargetEvent, { type: "console" }>;
+    }
+  | {
       type: "prepare-run";
       requestId: string;
       project?: CourseProject;

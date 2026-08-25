@@ -9,6 +9,7 @@ import type {
   CourseProject,
   SynchronizedProject,
   TargetClient,
+  TargetConsoleMetadata,
   TargetEvent,
 } from "./types";
 import { describeProject } from "./project-identity";
@@ -82,6 +83,7 @@ export class VirtualTargetClient implements TargetClient {
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private readonly pending = new Map<string, PendingRequest>();
   private nextRequest = 1;
+  private nextAction = 1;
   private runHeartbeat: ReturnType<typeof setInterval> | null = null;
   private liveValues: Int32Array | null = null;
 
@@ -96,7 +98,7 @@ export class VirtualTargetClient implements TargetClient {
     }
     this.worker = new SharedWorker(
       new URL("./virtual-target.shared-worker.ts", import.meta.url),
-      { type: "module", name: "ucsb-xrp-virtual-target-v2" },
+      { type: "module", name: "ucsb-xrp-virtual-target-v3" },
     );
     this.worker.port.onmessage = (event: MessageEvent<TargetWorkerMessage>) =>
       this.handleMessage(event.data);
@@ -132,10 +134,14 @@ export class VirtualTargetClient implements TargetClient {
 
   async check(project: CourseProject): Promise<CheckResult> {
     const projectName = project.name?.trim() || project.entrypoint;
-    this.emit({
+    const requestId = `virtual-validate-${this.nextAction++}`;
+    this.publishConsole({
       type: "console",
       stream: "system",
       line: `Validating ${projectName}`,
+      action: "validate",
+      phase: "request",
+      requestId,
     });
     try {
       const result = await new Promise<CheckResult>((resolve, reject) => {
@@ -174,17 +180,23 @@ export class VirtualTargetClient implements TargetClient {
         };
         checker.postMessage({ mode: "check", project });
       });
-      this.emit({
+      this.publishConsole({
         type: "console",
         stream: "system",
         line: `${result.ok ? "Validation passed" : "Validation failed"} · ${result.detail}`,
+        action: "validate",
+        phase: result.ok ? "result" : "error",
+        requestId,
       });
       return result;
     } catch (error) {
-      this.emit({
+      this.publishConsole({
         type: "console",
         stream: "system",
         line: `Validation could not finish · ${errorDetail(error)}`,
+        action: "validate",
+        phase: "error",
+        requestId,
       });
       throw error;
     }
@@ -275,10 +287,12 @@ export class VirtualTargetClient implements TargetClient {
     }
     const descriptor = await describeProject(project);
     await this.request({ type: "store-project", project, descriptor });
-    this.emit({
+    this.publishConsole({
       type: "console",
       stream: "system",
       line: "Project prepared for the virtual XRP",
+      action: "flash",
+      phase: "result",
     });
   }
 
@@ -433,6 +447,23 @@ export class VirtualTargetClient implements TargetClient {
     for (const listener of this.listeners) {
       listener(event);
     }
+  }
+
+  private publishConsole(
+    event: Extract<TargetEvent, { type: "console" }> & TargetConsoleMetadata,
+  ): void {
+    if (this.worker) {
+      this.worker.port.postMessage({
+        type: "publish-console",
+        event,
+      } satisfies TargetWorkerCommand);
+      return;
+    }
+    this.emit({
+      ...event,
+      eventId: event.eventId ?? `virtual-client-${this.nextAction++}`,
+      timestampMs: event.timestampMs ?? Date.now(),
+    });
   }
 
   private terminateRuntime(runId?: number): void {

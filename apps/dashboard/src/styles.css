@@ -1,7 +1,7 @@
 .monitor-workspace {
   display: grid;
   width: 100%;
-  height: calc(100vh - var(--app-header-height));
+  height: 100%;
   min-width: 0;
   min-height: 0;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -533,6 +533,10 @@
   overflow: hidden;
 }
 
+.dashboard-region.bottom-region {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .dashboard-pane {
   min-width: 0;
   min-height: 0;
@@ -542,8 +546,7 @@
 
 .world-panel,
 .plots-panel,
-.values-panel,
-.logs-panel {
+.values-panel {
   display: grid;
   min-height: 0;
 }
@@ -551,10 +554,6 @@
 .world-panel,
 .plots-panel {
   grid-template-rows: minmax(0, 1fr);
-}
-
-.logs-panel {
-  grid-template-rows: 22px minmax(0, 1fr);
 }
 
 .values-panel {
@@ -909,54 +908,6 @@
   align-items: center;
 }
 
-.dashboard-logs {
-  overflow: auto;
-  padding: 4px 5px;
-  background: var(--panel);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
-  line-height: 1.4;
-}
-
-.dashboard-log-tabs {
-  display: flex;
-  height: 100%;
-  align-items: stretch;
-}
-
-.dashboard-log-tabs button {
-  border: 0;
-  border-radius: 0;
-  padding: 0 5px;
-  background: transparent;
-  color: var(--quiet);
-  font-size: var(--font-xs);
-  font-weight: 650;
-}
-
-.dashboard-log-tabs button.active {
-  border-bottom: 2px solid var(--cyan);
-  color: var(--ink);
-}
-
-.log-placeholder {
-  color: var(--muted);
-}
-
-.log-line {
-  display: grid;
-  grid-template-columns: 10px 1fr;
-  color: var(--ink);
-}
-
-.log-line.stderr {
-  color: var(--red);
-}
-
-.log-line.system {
-  color: var(--muted);
-}
-
 @media (max-width: 900px) {
   .monitor-workspace,
   .monitor-workspace.controls-open {
@@ -1043,10 +994,6 @@
   .plots-panel {
     height: 300px;
     border-bottom: var(--pane-divider-width) solid var(--pane-line);
-  }
-
-  .logs-panel {
-    height: 180px;
   }
 }
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
+import { AppNavigation } from "../../shared/AppNavigation";
 import {
   authoringCommand,
   linesFromText,
@@ -298,10 +299,7 @@ export function AuthorApp() {
             student catalog.
           </p>
         </div>
-        <nav aria-label="Instructor links">
-          <a href="../">Course tools</a>
-          <a href="../overview/">UCSBXRP overview</a>
-        </nav>
+        <AppNavigation />
       </header>
 
       <div className="author-actions" aria-label="Specification examples">

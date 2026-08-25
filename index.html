@@ -14,6 +14,19 @@
     <link rel="stylesheet" href="/apps/shared/theme.css" />
   </head>
   <body class="landing-body">
+    <header class="app-header landing-header">
+      <a class="brand" href="./" aria-label="UCSBXRP home">
+        <span class="brand-mark">UCSB</span><span class="brand-xrp">XRP</span>
+      </a>
+      <nav aria-label="Course applications" class="app-navigation">
+        <a aria-current="page" class="app-navigation-link" href="./">Home</a>
+        <a class="app-navigation-link" href="./ide/">IDE</a>
+        <a class="app-navigation-link" href="./monitor/">Monitor</a>
+        <a class="app-navigation-link" href="./guide/">Guide</a>
+        <a class="app-navigation-link" href="./commission/">Set up or Repair</a>
+        <a class="app-navigation-link" href="./reference/">API</a>
+      </nav>
+    </header>
     <main class="landing-shell">
       <p class="eyebrow">UCSB Wheeled Robotics</p>
       <h1>Program, Simulate, and Run Live Telemetry for the XRP robot</h1>
@@ -23,15 +36,21 @@
         <a class="secondary-link" href="./guide/">Getting started</a>
         <a class="secondary-link" href="./reference/">UCSB XRP API</a>
         <button
+          aria-describedby="install-course-tools-help"
           class="secondary-link"
           data-testid="install-course-tools"
           hidden
           id="install-course-tools"
           type="button"
         >
-          Install course tools
+          Install app for offline use (optional)
         </button>
       </nav>
+      <p class="landing-install-help" hidden id="install-course-tools-help">
+        This site works in Chrome without installation. Installing opens the
+        same tools in a standalone window and keeps them available after the
+        computer changes Wi-Fi.
+      </p>
       <nav class="landing-setup-action" aria-label="XRP setup and repair">
         <a class="secondary-link" href="./commission/">
           Open wizard for XRP initial set up or repair
@@ -49,7 +68,7 @@
       </nav>
       <p
         aria-live="polite"
-        class="visually-hidden"
+        class="landing-install-status"
         id="install-course-tools-status"
       ></p>
     </main>
@@ -62,12 +81,14 @@
       const installStatus = document.querySelector(
         "#install-course-tools-status",
       );
+      const installHelp = document.querySelector("#install-course-tools-help");
       let installPrompt = null;
 
       window.addEventListener("beforeinstallprompt", (event) => {
         event.preventDefault();
         installPrompt = event;
         installButton.hidden = false;
+        installHelp.hidden = false;
       });
 
       installButton.addEventListener("click", async () => {
@@ -77,6 +98,7 @@
         const { outcome } = await installPrompt.userChoice;
         installPrompt = null;
         installButton.hidden = true;
+        installHelp.hidden = true;
         installButton.disabled = false;
         installStatus.textContent =
           outcome === "accepted"
@@ -87,8 +109,15 @@
       window.addEventListener("appinstalled", () => {
         installPrompt = null;
         installButton.hidden = true;
-        installStatus.textContent = "UCSBXRP Course Tools installed.";
+        installHelp.hidden = true;
+        installStatus.textContent =
+          "Installed. UCSBXRP now opens in its own app window.";
       });
+
+      if (window.matchMedia("(display-mode: standalone)").matches) {
+        installStatus.textContent =
+          "Installed app · course pages are available after the offline copy finishes loading.";
+      }
     </script>
   </body>
 </html>

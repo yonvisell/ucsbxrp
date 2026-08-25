@@ -212,9 +212,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(
     conciseStatus.getByText("File operation", { exact: true }),
   ).toHaveCount(0);
-  await expect(dashboard.getByRole("log")).toContainText(
-    "Program output appears here",
-  );
+  await expect(dashboard.getByRole("log")).toHaveCount(0);
   const worldDimensions = await dashboard
     .getByTestId("world-view")
     .evaluate((element) => ({
@@ -556,8 +554,11 @@ while True:
     )
     .not.toContain("running");
   await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
-  await monitor.getByRole("tab", { name: "System log" }).click();
-  await expect(monitor.getByRole("log")).toContainText(
+  const terminal = await context.newPage();
+  collectBrowserErrors(terminal, browserErrors);
+  await terminal.goto("/ide/");
+  await terminal.getByRole("tab", { name: /System log/ }).click();
+  await expect(terminal.getByRole("log")).toContainText(
     "drive command set to zero",
   );
   expect(browserErrors).toEqual([]);
@@ -598,7 +599,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
   await expect(ide.getByTestId("check-result")).toBeVisible();
 
   const helpLink = ide.getByRole("link", { name: /Guide/ });
-  await expect(helpLink).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(helpLink).toHaveAttribute("href", "../guide/");
   await expect(ide.locator(".brand")).toHaveAttribute(
     "aria-label",
     "UCSBXRP IDE",
@@ -622,8 +623,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
   await expect(
     ide.getByRole("button", { name: "Settings", exact: true }),
   ).toBeVisible();
-  const monitorLink = ide.getByRole("link", { name: "Monitor ↗" });
-  await expect(monitorLink).toHaveAttribute("target", "_blank");
-  await expect(monitorLink).toHaveAttribute("rel", "noopener noreferrer");
+  const monitorLink = ide.getByRole("link", { name: "Monitor", exact: true });
+  await expect(monitorLink).toHaveAttribute("href", "../monitor/");
   expect(browserErrors).toEqual([]);
 });

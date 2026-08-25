@@ -3,6 +3,7 @@ import type {
   CourseProject,
   SynchronizedProject,
   TargetClient,
+  TargetConsoleMetadata,
   TargetEvent,
   TargetRunState,
   TelemetrySample,
@@ -50,6 +51,7 @@ interface PhysicalInfo {
 
 interface PhysicalLog {
   seq: number;
+  tMs?: number;
   stream: "stdout" | "stderr" | "system";
   line: string;
 }
@@ -138,6 +140,15 @@ function physicalConnectionRecovery(endpoint: string): string {
 
 const RUN_STARTUP_QUIET_MS = 500;
 const RESET_RECONNECT_TIMEOUT_MS = 30_000;
+const POLL_QUIESCE_WAIT_MS = 75;
+const POLL_FAILURES_BEFORE_ERROR = 2;
+const POLL_RECOVERY_DELAY_MS = 900;
+
+interface CommandActivity {
+  action: NonNullable<TargetConsoleMetadata["action"]>;
+  label: string;
+  detail?: string;
+}
 
 function assertCompatiblePhysicalInfo(info: PhysicalInfo): void {
   if (info.protocol !== 1) {
@@ -167,11 +178,17 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollInFlight: Promise<void> | null = null;
+  private pollAbortController: AbortController | null = null;
+  private pollGeneration = 0;
   private pollingPaused = false;
   private connected = false;
   private reconnecting = false;
+  private pollConnectionFailed = false;
+  private consecutivePollFailures = 0;
   private connectGeneration = 0;
   private nextRequest = 1;
+  private nextEvent = 1;
+  private readonly eventSession = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   private lastLogSeq = 0;
   private lastSampleSeq = 0;
   private bootId: string | null = null;
@@ -183,6 +200,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private lastRuntimeJson = "";
   private runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
   private lastWorldJson = "";
+  private currentState: TargetRunState = "disconnected";
+  private currentDetail = "Physical XRP disconnected";
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -191,7 +210,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.pollIntervalMs = options.pollIntervalMs ?? 250;
     this.activePollIntervalMs =
       options.activePollIntervalMs ?? options.pollIntervalMs ?? 60;
-    this.requestTimeoutMs = options.requestTimeoutMs ?? 8_000;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 4_000;
   }
 
   async connect(): Promise<void> {
@@ -200,41 +219,67 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
     const generation = this.connectGeneration + 1;
     this.connectGeneration = generation;
+    const requestId = `connect-${generation}`;
+    this.emitConsole("system", `Connecting to ${this.endpoint}`, {
+      action: "connect",
+      phase: "request",
+      requestId,
+    });
     this.emitStatus("connecting", `Connecting to ${this.endpoint}`);
-    const info = await this.getJson<PhysicalInfo>("/api/v1/info");
+    let info: PhysicalInfo;
+    try {
+      info = await this.getJson<PhysicalInfo>("/api/v1/info");
+      assertCompatiblePhysicalInfo(info);
+      const required = [
+        "project.check",
+        "project.sync",
+        "program.run",
+        "program.stop",
+        "target.reset",
+        "telemetry.poll",
+      ];
+      const missing = required.filter(
+        (capability) => !info.capabilities.includes(capability),
+      );
+      if (missing.length > 0) {
+        throw new PhysicalTargetError(
+          "capability_mismatch",
+          `XRP service is missing ${missing.join(", ")}`,
+        );
+      }
+    } catch (error) {
+      if (generation === this.connectGeneration) {
+        const detail = errorDetail(error);
+        this.emitConsole("system", `Connection failed · ${detail}`, {
+          action: "connect",
+          phase: "error",
+          requestId,
+        });
+        this.emitStatus("error", detail);
+      }
+      throw error;
+    }
     if (generation !== this.connectGeneration) {
       return;
-    }
-    assertCompatiblePhysicalInfo(info);
-    const required = [
-      "project.check",
-      "project.sync",
-      "program.run",
-      "program.stop",
-      "target.reset",
-      "telemetry.poll",
-    ];
-    const missing = required.filter(
-      (capability) => !info.capabilities.includes(capability),
-    );
-    if (missing.length > 0) {
-      throw new PhysicalTargetError(
-        "capability_mismatch",
-        `XRP service is missing ${missing.join(", ")}`,
-      );
     }
     this.info = info;
     this.bootId = info.bootId;
     this.connected = true;
+    this.pollConnectionFailed = false;
+    this.consecutivePollFailures = 0;
     this.emitStatus(
       "ready",
       `${info.robotName} · ${this.connectionDescription(info)} · course ${info.courseRelease}`,
     );
-    this.emit({
-      type: "console",
-      stream: "system",
-      line: `Connected to ${info.robotName} · ${this.connectionDescription(info)}`,
-    });
+    this.emitConsole(
+      "system",
+      `Connected to ${info.robotName} · ${this.connectionDescription(info)}`,
+      {
+        action: "connect",
+        phase: "result",
+        requestId,
+      },
+    );
     this.consumeProjectManifest(info.project);
     this.consumeRuntimeState(info.runtimeJson);
     this.schedulePoll(0);
@@ -243,7 +288,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
   disconnect(): void {
     this.connectGeneration += 1;
     this.connected = false;
+    this.pollGeneration += 1;
     this.stopPolling();
+    this.abortActivePoll();
     this.emitStatus("disconnected", "Physical XRP disconnected");
   }
 
@@ -262,49 +309,51 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async check(project: CourseProject): Promise<CheckResult> {
     const projectName = project.name?.trim() || project.entrypoint;
-    this.emit({
-      type: "console",
-      stream: "system",
-      line: `Validating ${projectName} on the physical XRP`,
-    });
+    await this.pausePollingForCommand();
     try {
-      const result = await this.command<{ detail: string }>("check", {
-        project,
-      });
-      this.emit({
-        type: "console",
-        stream: "system",
-        line: `Validation passed · ${result.detail}`,
-      });
+      const result = await this.command<{ detail: string }>(
+        "check",
+        { project },
+        {
+          action: "validate",
+          label: "Validate",
+          detail: projectName,
+        },
+      );
       return { ok: true, detail: result.detail };
     } catch (error) {
       if (
         error instanceof PhysicalTargetError &&
         error.code === "syntax_error"
       ) {
-        this.emit({
-          type: "console",
-          stream: "system",
-          line: `Validation failed · ${error.message}`,
-        });
         return { ok: false, detail: error.message };
       }
-      this.emit({
-        type: "console",
-        stream: "system",
-        line: `Validation could not finish · ${errorDetail(error)}`,
-      });
       throw error;
+    } finally {
+      this.resumePollingAfterCommand();
     }
   }
 
   async synchronize(project: CourseProject): Promise<void> {
     const catalog = worldCatalogForProject(project);
     const descriptor = await describeProject(project);
-    const result = await this.command<{
+    await this.pausePollingForCommand();
+    let result: {
       detail: string;
       project?: PhysicalProjectManifest;
-    }>("sync", { project });
+    };
+    try {
+      result = await this.command<{
+        detail: string;
+        project?: PhysicalProjectManifest;
+      }>(
+        "sync",
+        { project },
+        { action: "flash", label: "Flash", detail: descriptor.name },
+      );
+    } finally {
+      this.resumePollingAfterCommand();
+    }
     this.setCurrentProject({
       ...descriptor,
       revision: result.project?.revision ?? descriptor.revision,
@@ -317,8 +366,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
       catalog,
       selectedWorldId: catalog.defaultWorldId,
     });
-    // The service records this event in its persistent system log. Polling that
-    // log keeps the IDE and Monitor consistent without displaying Flash twice.
+    // The service also retains its own state transition. Its log event has a
+    // device sequence ID, while the request/result events above have browser
+    // IDs, so both remain traceable across the IDE and Monitor.
   }
 
   async run(project: CourseProject): Promise<void> {
@@ -335,27 +385,53 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async runCurrent(): Promise<void> {
     if (!this.currentProject) {
-      throw new PhysicalTargetError(
+      const error = new PhysicalTargetError(
         "no_project",
         "No project is ready. Run or flash a project in the IDE first.",
       );
+      this.emitConsole("system", `Run failed · ${error.message}`, {
+        action: "run",
+        phase: "error",
+      });
+      throw error;
     }
     if (this.currentProject.stale) {
-      throw new PhysicalTargetError(
+      const error = new PhysicalTargetError(
         "stale_project",
         "The IDE project has changed. Run or flash it in the IDE first.",
       );
+      this.emitConsole("system", `Run failed · ${error.message}`, {
+        action: "run",
+        phase: "error",
+      });
+      throw error;
+    }
+    if (this.currentState === "loading" || this.currentState === "running") {
+      this.emitConsole(
+        "system",
+        "Run request ignored · program already active",
+        {
+          action: "run",
+          phase: "result",
+        },
+      );
+      return;
     }
     // Let any current telemetry request finish, then leave the RP2350 service
     // core quiet while its second core loads the project. This avoids racing
     // Wi-Fi response allocation with MicroPython project startup.
-    this.pollingPaused = true;
-    this.stopPolling();
+    const previousState = this.currentState;
+    this.emitStatus("loading", `Starting ${this.currentProject.entrypoint}…`);
+    await this.pausePollingForCommand();
     try {
-      await this.pollInFlight;
       const result = await this.command<{ detail: string; runId: number }>(
         "run",
         {},
+        {
+          action: "run",
+          label: "Run",
+          detail: this.currentProject.name,
+        },
       );
       if (result.runId !== this.lastRunId) {
         this.lastSampleSeq = 0;
@@ -365,9 +441,18 @@ export class DirectPhysicalTargetClient implements TargetClient {
       // The service records the start event. Use that retained entry as the
       // console source; the status below still updates the controls immediately.
       this.emitStatus("loading", result.detail);
+    } catch (error) {
+      if (
+        error instanceof PhysicalTargetError &&
+        (error.code === "network_error" || error.code === "timeout")
+      ) {
+        this.emitStatus("error", error.message);
+      } else {
+        this.emitStatus(previousState, `Run failed · ${errorDetail(error)}`);
+      }
+      throw error;
     } finally {
-      this.pollingPaused = false;
-      this.schedulePoll(RUN_STARTUP_QUIET_MS);
+      this.resumePollingAfterCommand(RUN_STARTUP_QUIET_MS);
     }
   }
 
@@ -384,35 +469,49 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async stop(): Promise<void> {
     this.reconnecting = true;
-    this.stopPolling();
+    await this.pausePollingForCommand();
     try {
       const result = await this.command<{
         detail: string;
         reconnecting: boolean;
-      }>("stop", {});
-      this.emit({ type: "console", stream: "system", line: result.detail });
+      }>("stop", {}, { action: "stop", label: "Stop" });
       this.emitStatus("connecting", `${result.detail}; reconnecting…`);
       await this.reconnectAfterReset();
+    } catch (error) {
+      this.emitConsole(
+        "system",
+        `Stop recovery failed · ${errorDetail(error)}`,
+        { action: "stop", phase: "error" },
+      );
+      this.emitStatus("error", errorDetail(error));
+      throw error;
     } finally {
       this.reconnecting = false;
-      this.schedulePoll(0);
+      this.resumePollingAfterCommand(0);
     }
   }
 
   async reset(): Promise<void> {
     this.reconnecting = true;
-    this.stopPolling();
+    await this.pausePollingForCommand();
     try {
       const result = await this.command<{
         detail: string;
         reconnecting: boolean;
-      }>("reset", {});
-      this.emit({ type: "console", stream: "system", line: result.detail });
+      }>("reset", {}, { action: "reset", label: "Reset" });
       this.emitStatus("connecting", `${result.detail}; reconnecting…`);
       await this.reconnectAfterReset();
+    } catch (error) {
+      this.emitConsole(
+        "system",
+        `Reset recovery failed · ${errorDetail(error)}`,
+        { action: "reset", phase: "error" },
+      );
+      this.emitStatus("error", errorDetail(error));
+      throw error;
     } finally {
       this.reconnecting = false;
-      this.schedulePoll(0);
+      this.resumePollingAfterCommand(0);
     }
   }
 
@@ -426,11 +525,17 @@ export class DirectPhysicalTargetClient implements TargetClient {
         "This XRP service does not yet support live parameters",
       );
     }
-    const result = await this.command<{ runtimeJson: string }>("parameter", {
-      name,
-      value,
-    });
-    this.consumeRuntimeState(result.runtimeJson);
+    await this.pausePollingForCommand();
+    try {
+      const result = await this.command<{ runtimeJson: string }>(
+        "parameter",
+        { name, value },
+        { action: "parameter", label: "Live parameter", detail: name },
+      );
+      this.consumeRuntimeState(result.runtimeJson);
+    } finally {
+      this.resumePollingAfterCommand(0);
+    }
   }
 
   subscribe(listener: (event: TargetEvent) => void): () => void {
@@ -441,6 +546,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private async command<T>(
     name: string,
     value: Record<string, unknown>,
+    activity?: CommandActivity,
   ): Promise<T> {
     if (!this.connected) {
       throw new PhysicalTargetError(
@@ -449,39 +555,77 @@ export class DirectPhysicalTargetClient implements TargetClient {
       );
     }
     const requestId = `web-${Date.now()}-${this.nextRequest++}`;
-    const reply = await this.fetchJson<CommandReply<T>>(`/api/v1/${name}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...value, requestId }),
-    });
-    if (reply.requestId !== requestId) {
-      throw new PhysicalTargetError(
-        "uncorrelated_reply",
-        "The XRP returned a reply for a different request",
+    if (activity) {
+      this.emitConsole(
+        "system",
+        `${activity.label} requested${activity.detail ? ` · ${activity.detail}` : ""}`,
+        {
+          action: activity.action,
+          phase: "request",
+          requestId,
+        },
       );
     }
-    if (!reply.ok || !reply.result) {
-      throw new PhysicalTargetError(
-        reply.error?.code ?? "target_error",
-        reply.error?.detail ?? "The XRP rejected the request",
-      );
+    try {
+      const reply = await this.fetchJson<CommandReply<T>>(`/api/v1/${name}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...value, requestId }),
+      });
+      if (reply.requestId !== requestId) {
+        throw new PhysicalTargetError(
+          "uncorrelated_reply",
+          "The XRP returned a reply for a different request",
+        );
+      }
+      if (!reply.ok || !reply.result) {
+        throw new PhysicalTargetError(
+          reply.error?.code ?? "target_error",
+          reply.error?.detail ?? "The XRP rejected the request",
+        );
+      }
+      if (activity) {
+        const candidate = reply.result as { detail?: unknown };
+        const detail =
+          typeof candidate.detail === "string" ? candidate.detail : "accepted";
+        this.emitConsole("system", `${activity.label} · ${detail}`, {
+          action: activity.action,
+          phase: "result",
+          requestId,
+        });
+      }
+      return reply.result;
+    } catch (error) {
+      if (activity) {
+        this.emitConsole(
+          "system",
+          `${activity.label} failed · ${errorDetail(error)}`,
+          {
+            action: activity.action,
+            phase: "error",
+            requestId,
+          },
+        );
+      }
+      throw error;
     }
-    return reply.result;
   }
 
   private async getJson<T>(
     path: string,
     timeoutMs = this.requestTimeoutMs,
+    controller?: AbortController,
   ): Promise<T> {
-    return this.fetchJson<T>(path, { method: "GET" }, timeoutMs);
+    return this.fetchJson<T>(path, { method: "GET" }, timeoutMs, controller);
   }
 
   private async fetchJson<T>(
     path: string,
     init: RequestInit,
     timeoutMs = this.requestTimeoutMs,
+    requestController?: AbortController,
   ): Promise<T> {
-    const controller = new AbortController();
+    const controller = requestController ?? new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetchImplementation(this.endpoint + path, {
@@ -551,17 +695,61 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
   }
 
+  private abortActivePoll(): void {
+    this.pollAbortController?.abort();
+    this.pollAbortController = null;
+  }
+
+  private async pausePollingForCommand(): Promise<void> {
+    this.pollingPaused = true;
+    this.pollGeneration += 1;
+    this.stopPolling();
+    const activePoll = this.pollInFlight;
+    this.abortActivePoll();
+    if (activePoll) {
+      await Promise.race([
+        activePoll.catch(() => undefined),
+        new Promise<void>((resolve) =>
+          setTimeout(resolve, POLL_QUIESCE_WAIT_MS),
+        ),
+      ]);
+    }
+  }
+
+  private resumePollingAfterCommand(delay = 0): void {
+    this.pollingPaused = false;
+    this.schedulePoll(delay);
+  }
+
   private async poll(): Promise<void> {
     if (!this.connected || this.reconnecting) {
       return;
     }
+    const generation = this.pollGeneration;
+    const controller = new AbortController();
+    this.pollAbortController = controller;
     try {
       const state = await this.getJson<PhysicalState>(
         `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}`,
+        this.requestTimeoutMs,
+        controller,
       );
-      if (!this.connected || this.reconnecting) {
+      if (
+        !this.connected ||
+        this.reconnecting ||
+        generation !== this.pollGeneration
+      ) {
         return;
       }
+      if (this.pollConnectionFailed) {
+        this.pollConnectionFailed = false;
+        this.consecutivePollFailures = 0;
+        this.emitConsole("system", "XRP connection restored", {
+          action: "telemetry",
+          phase: "result",
+        });
+      }
+      this.consecutivePollFailures = 0;
       this.consumeState(state);
       if (
         state.state === "running" &&
@@ -576,9 +764,37 @@ export class DirectPhysicalTargetClient implements TargetClient {
           : this.pollIntervalMs,
       );
     } catch (error) {
-      if (this.connected && !this.reconnecting) {
-        this.emitStatus("error", errorDetail(error));
-        this.schedulePoll(900);
+      if (
+        this.connected &&
+        !this.reconnecting &&
+        !this.pollingPaused &&
+        generation === this.pollGeneration
+      ) {
+        this.consecutivePollFailures += 1;
+        if (!this.pollConnectionFailed) {
+          this.pollConnectionFailed = true;
+          this.emitConsole(
+            "system",
+            `Telemetry connection interrupted · ${errorDetail(error)}`,
+            {
+              action: "telemetry",
+              phase: "error",
+            },
+          );
+        }
+        if (this.consecutivePollFailures >= POLL_FAILURES_BEFORE_ERROR) {
+          this.emitStatus("error", errorDetail(error));
+        } else {
+          this.emitStatus(
+            "connecting",
+            "Telemetry was interrupted; reconnecting to the XRP…",
+          );
+        }
+        this.schedulePoll(POLL_RECOVERY_DELAY_MS);
+      }
+    } finally {
+      if (this.pollAbortController === controller) {
+        this.pollAbortController = null;
       }
     }
   }
@@ -596,7 +812,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.lastRunId = state.runId;
     this.consumeProjectManifest(state.project);
     this.consumeRuntimeState(state.runtimeJson);
-    this.emitStatus(state.state, state.detail);
     if (state.samples === undefined) {
       // Services released before telemetry batching return one fresh sample
       // per request and ignore afterSampleSeq. Preserve that behavior.
@@ -619,14 +834,42 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.lastSampleSeq = sample.seq;
       }
     }
-    for (const entry of state.logs) {
-      this.lastLogSeq = Math.max(this.lastLogSeq, entry.seq);
-      this.emit({
-        type: "console",
-        stream: entry.stream,
-        line: entry.line,
+    const orderedLogs = [...state.logs].sort(
+      (left, right) => left.seq - right.seq,
+    );
+    for (const entry of orderedLogs) {
+      if (!Number.isSafeInteger(entry.seq) || entry.seq <= this.lastLogSeq) {
+        continue;
+      }
+      if (entry.seq > this.lastLogSeq + 1) {
+        const firstMissing = this.lastLogSeq + 1;
+        const lastMissing = entry.seq - 1;
+        this.emitConsole(
+          "system",
+          `XRP log gap · ${lastMissing - firstMissing + 1} line${lastMissing === firstMissing ? "" : "s"} unavailable`,
+          {
+            action: "telemetry",
+            phase: "error",
+            eventId: `${state.bootId}:log-gap:${firstMissing}-${lastMissing}`,
+          },
+        );
+      }
+      this.lastLogSeq = entry.seq;
+      this.emitConsole(entry.stream, entry.line, {
+        phase: entry.stream === "system" ? "result" : "output",
+        eventId: `${state.bootId}:log:${entry.seq}`,
+        targetTimeMs: entry.tMs,
       });
     }
+    // Deliver all output from a finishing poll before the ready/error status.
+    // The Monitor can then archive the complete run rather than closing its
+    // capture immediately before the final stdout or traceback arrives.
+    const nextState =
+      state.state === "error" &&
+      state.detail.toLowerCase().includes("program stopped after an exception")
+        ? "ready"
+        : state.state;
+    this.emitStatus(nextState, state.detail);
   }
 
   private emitTelemetry(sample: TelemetrySample): void {
@@ -655,14 +898,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.bootId = info.bootId;
         this.lastLogSeq = 0;
         this.lastSampleSeq = 0;
+        this.pollConnectionFailed = false;
+        this.consecutivePollFailures = 0;
         this.emitStatus(
           "ready",
           `${info.robotName} · ${info.address} · course ${info.courseRelease}`,
         );
-        this.emit({
-          type: "console",
-          stream: "system",
-          line: `${info.robotName} reconnected and ready`,
+        this.emitConsole("system", `${info.robotName} reconnected and ready`, {
+          action: "connect",
+          phase: "result",
         });
         this.consumeProjectManifest(info.project);
         this.consumeRuntimeState(info.runtimeJson);
@@ -678,7 +922,34 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   private emitStatus(state: TargetRunState, detail: string): void {
+    if (this.currentState === state && this.currentDetail === detail) {
+      return;
+    }
+    this.currentState = state;
+    this.currentDetail = detail;
     this.emit({ type: "status", state, detail });
+  }
+
+  private emitConsole(
+    stream: "stdout" | "stderr" | "system",
+    line: string,
+    metadata: TargetConsoleMetadata = {},
+  ): void {
+    const eventId = metadata.eventId ?? this.nextConsoleEventId();
+    this.emit({
+      type: "console",
+      stream,
+      line,
+      ...metadata,
+      eventId,
+      timestampMs: metadata.timestampMs ?? Date.now(),
+    });
+  }
+
+  private nextConsoleEventId(): string {
+    const eventId = `physical-${this.eventSession}-${this.nextEvent}`;
+    this.nextEvent += 1;
+    return eventId;
   }
 
   private consumeProjectManifest(
@@ -720,11 +991,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
           selectedWorldId: catalog.defaultWorldId,
         });
       } catch (error) {
-        this.emit({
-          type: "console",
-          stream: "system",
-          line: `The XRP project has an invalid world.json: ${errorDetail(error)}`,
-        });
+        this.emitConsole(
+          "system",
+          `The XRP project has an invalid world.json: ${errorDetail(error)}`,
+          {
+            phase: "error",
+          },
+        );
       }
     }
   }
@@ -786,6 +1059,8 @@ export class PhysicalTargetClient implements TargetClient {
   private worker: SharedWorker | null = null;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private readonly pending = new Map<string, PendingWorkerRequest>();
+  private readonly seenConsoleEventIds = new Set<string>();
+  private readonly consoleEventOrder: string[] = [];
   private nextRequest = 1;
   private localNetworkPermissionPrimed = false;
 
@@ -802,30 +1077,42 @@ export class PhysicalTargetClient implements TargetClient {
       await this.direct.connect();
       return;
     }
-    if (this.worker) {
-      return;
+    if (!this.worker) {
+      try {
+        this.worker = new SharedWorker(
+          new URL("./physical-target.shared-worker.ts", import.meta.url),
+          { type: "module", name: "ucsb-xrp-physical-target-v2" },
+        );
+        this.worker.port.onmessage = (
+          event: MessageEvent<PhysicalWorkerMessage>,
+        ) => this.handleWorkerMessage(event.data);
+        this.worker.port.start();
+      } catch (error) {
+        this.releaseWorker(errorDetail(error));
+        await this.useDirectClient().connect();
+        return;
+      }
     }
-    await this.primeLocalNetworkPermission();
+    // Attach this tab before the document-level local-network probe. If that
+    // probe fails because the computer is on the wrong Wi-Fi, the tab still
+    // receives the authoritative state when the other app reconnects later.
     try {
-      this.worker = new SharedWorker(
-        new URL("./physical-target.shared-worker.ts", import.meta.url),
-        { type: "module", name: "ucsb-xrp-physical-target-v1" },
-      );
-      this.worker.port.onmessage = (
-        event: MessageEvent<PhysicalWorkerMessage>,
-      ) => this.handleWorkerMessage(event.data);
-      this.worker.port.start();
+      await this.primeLocalNetworkPermission();
     } catch (error) {
-      this.releaseWorker(errorDetail(error));
-      await this.useDirectClient().connect();
-      return;
-    }
-    try {
-      await this.request({ type: "connect", endpoint: this.endpoint });
-    } catch (error) {
-      this.releaseWorker(errorDetail(error));
+      this.emit({
+        type: "console",
+        stream: "system",
+        line: `Connection failed · ${errorDetail(error)}`,
+        eventId: `physical-document-connect-${Date.now()}-${this.nextRequest}`,
+        timestampMs: Date.now(),
+        action: "connect",
+        phase: "error",
+      });
       throw error;
     }
+    // Keep this port attached after a failed discovery. A retry from either
+    // tab can then restore one shared connection and one shared state stream.
+    await this.request({ type: "connect", endpoint: this.endpoint });
   }
 
   disconnect(): void {
@@ -926,7 +1213,7 @@ export class PhysicalTargetClient implements TargetClient {
     }
 
     const controller = new AbortController();
-    const timeoutMs = this.options.requestTimeoutMs ?? 8_000;
+    const timeoutMs = this.options.requestTimeoutMs ?? 4_000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       await globalThis.fetch(
@@ -1001,7 +1288,12 @@ export class PhysicalTargetClient implements TargetClient {
     if (message.ok) {
       pending.resolve(message.result);
     } else {
-      pending.reject(new Error(message.error));
+      pending.reject(
+        new PhysicalTargetError(
+          message.errorCode ?? "worker_request_failed",
+          message.error,
+        ),
+      );
     }
   }
 
@@ -1034,6 +1326,19 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   private emit(event: TargetEvent): void {
+    if (event.type === "console" && event.eventId) {
+      if (this.seenConsoleEventIds.has(event.eventId)) {
+        return;
+      }
+      this.seenConsoleEventIds.add(event.eventId);
+      this.consoleEventOrder.push(event.eventId);
+      if (this.consoleEventOrder.length > 4_000) {
+        const removed = this.consoleEventOrder.shift();
+        if (removed) {
+          this.seenConsoleEventIds.delete(removed);
+        }
+      }
+    }
     for (const listener of this.listeners) {
       listener(event);
     }

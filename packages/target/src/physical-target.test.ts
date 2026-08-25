@@ -553,7 +553,7 @@ describe("physical target", () => {
     }
   });
 
-  it("does not retry directly after shared discovery reaches the robot and fails", async () => {
+  it("keeps a failed shared port attached so another tab can restore it", async () => {
     vi.useFakeTimers();
     const originalDescriptor = Object.getOwnPropertyDescriptor(
       globalThis,
@@ -596,6 +596,12 @@ describe("physical target", () => {
       await expect(target.connect()).rejects.toThrow("XRP unavailable");
 
       expect(fetchMock).not.toHaveBeenCalled();
+      expect(posted.at(-1)).toEqual(
+        expect.objectContaining({ type: "connect" }),
+      );
+      await vi.advanceTimersByTimeAsync(100);
+      expect(port.close).not.toHaveBeenCalled();
+      target.disconnect();
       expect(posted.at(-1)).toEqual({ type: "disconnect" });
       await vi.advanceTimersByTimeAsync(100);
       expect(port.close).toHaveBeenCalledOnce();
@@ -1049,16 +1055,24 @@ describe("physical target", () => {
       state: "loading",
       detail: "Running main.py",
     });
-    expect(events).toContainEqual({
-      type: "console",
-      stream: "system",
-      line: "Validating main.py on the physical XRP",
-    });
-    expect(events).toContainEqual({
-      type: "console",
-      stream: "system",
-      line: "Validation passed · 1 Python files compiled",
-    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "console",
+        stream: "system",
+        line: "Validate requested · main.py",
+        action: "validate",
+        phase: "request",
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "console",
+        stream: "system",
+        line: "Validate · 1 Python files compiled",
+        action: "validate",
+        phase: "result",
+      }),
+    );
     expect(events).not.toContainEqual({
       type: "console",
       stream: "system",
@@ -1142,11 +1156,14 @@ describe("physical target", () => {
       expect(requestedUrls).toContain(
         "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0",
       );
-      expect(events).toContainEqual({
-        type: "console",
-        stream: "system",
-        line: "after reboot",
-      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          stream: "system",
+          line: "after reboot",
+          eventId: "boot-b:log:1",
+        }),
+      );
     } finally {
       target.disconnect();
       vi.useRealTimers();
@@ -1229,6 +1246,405 @@ describe("physical target", () => {
       expect.objectContaining({ type: "status", state: "ready" }),
     );
     target.disconnect();
+  });
+
+  it("delivers final output before completion and runs the retained project again", async () => {
+    vi.useFakeTimers();
+    let runId = 0;
+    let completedRun = 0;
+    const revision =
+      "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3";
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: {
+              name: "Retained project",
+              entrypoint: "main.py",
+              revision,
+            },
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          completedRun = runId;
+          return response({
+            bootId: "boot-a",
+            state: "ready",
+            detail: "Program completed",
+            runId,
+            logs: [
+              {
+                seq: runId,
+                tMs: runId * 100,
+                stream: "stdout",
+                line: `finished run ${runId}`,
+              },
+            ],
+            samples: [],
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        runId += 1;
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Starting main.py", runId },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 250,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await target.runCurrent();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(completedRun).toBe(1);
+
+      const outputIndex = events.findIndex(
+        (event) => event.type === "console" && event.line === "finished run 1",
+      );
+      const completionIndex = events.findIndex(
+        (event, index) =>
+          index > outputIndex &&
+          event.type === "status" &&
+          event.detail === "Program completed",
+      );
+      expect(outputIndex).toBeGreaterThan(-1);
+      expect(completionIndex).toBeGreaterThan(outputIndex);
+
+      await target.runCurrent();
+      expect(runId).toBe(2);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("recovers one transient telemetry interruption without a terminal error", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      telemetryRequests += 1;
+      if (telemetryRequests === 1) {
+        throw new TypeError("temporary Wi-Fi loss");
+      }
+      return response({
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [],
+        samples: [],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          action: "telemetry",
+          phase: "error",
+        }),
+      );
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "connecting",
+      });
+      expect(events).not.toContainEqual(
+        expect.objectContaining({ type: "status", state: "error" }),
+      );
+
+      await vi.advanceTimersByTimeAsync(900);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          line: "XRP connection restored",
+          action: "telemetry",
+          phase: "result",
+        }),
+      );
+      expect(events.at(-1)).toMatchObject({ type: "status", state: "ready" });
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps an accepted run recoverable when its first startup poll times out", async () => {
+    vi.useFakeTimers();
+    const revision =
+      "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3";
+    let runRequests = 0;
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: {
+              name: "Retained project",
+              entrypoint: "main.py",
+              revision,
+            },
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          telemetryRequests += 1;
+          if (telemetryRequests === 1) {
+            return await new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () =>
+                reject(new DOMException("Aborted", "AbortError")),
+              );
+            });
+          }
+          return response({
+            bootId: "boot-a",
+            state: "running",
+            detail: "Running main.py",
+            runId: 1,
+            logs: [],
+            samples: [],
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        if (url.endsWith("/api/v1/run")) {
+          runRequests += 1;
+          return response({
+            protocol: 1,
+            requestId: body.requestId,
+            ok: true,
+            result: { detail: "Starting main.py", runId: 1 },
+          });
+        }
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { state: "running", runId: 1 },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await target.runCurrent();
+      await vi.advanceTimersByTimeAsync(4_500);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "connecting",
+      });
+
+      await vi.advanceTimersByTimeAsync(900);
+      expect(runRequests).toBe(1);
+      expect(telemetryRequests).toBe(2);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "running",
+      });
+      expect(events).not.toContainEqual(
+        expect.objectContaining({ type: "status", state: "error" }),
+      );
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports an error only after two consecutive telemetry failures", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      telemetryRequests += 1;
+      throw new TypeError(`Wi-Fi loss ${telemetryRequests}`);
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "connecting",
+      });
+
+      await vi.advanceTimersByTimeAsync(900);
+      expect(telemetryRequests).toBe(2);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "error",
+      });
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps Run available after a program exception", async () => {
+    vi.useFakeTimers();
+    let runId = 0;
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: {
+              name: "Retained project",
+              entrypoint: "main.py",
+              revision:
+                "94c8db611816a391e40858466e242721dc446e44bf0b02688f5a63056c5d73e3",
+            },
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          return response({
+            bootId: "boot-a",
+            state: "error",
+            detail: "Program stopped after an exception",
+            runId,
+            logs: [
+              {
+                seq: runId,
+                stream: "stderr",
+                line: "ValueError: example",
+              },
+            ],
+            samples: [],
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        runId += 1;
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Starting main.py", runId },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await target.runCurrent();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "ready",
+        detail: "Program stopped after an exception",
+      });
+      await target.runCurrent();
+      expect(runId).toBe(2);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
   });
 
   it("rejects an uncorrelated command reply", async () => {

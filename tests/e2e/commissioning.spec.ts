@@ -47,10 +47,16 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   await expect(
     page.getByText("Verify robot connection", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Choose later" }).click();
+  await page.getByRole("button", { name: "Continue without folder" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Choose a course folder" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Exit setup" }).click();
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test("explains a cancelled XRP device selection without an error", async ({
@@ -71,15 +77,182 @@ test("explains a cancelled XRP device selection without an error", async ({
     });
   });
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Choose later" }).click();
-  await page.getByRole("button", { name: "Select connected XRP" }).click();
+  await page.getByRole("button", { name: "Continue without folder" }).click();
+  await page.getByRole("button", { name: "Choose connected XRP" }).click();
 
-  await expect(page.getByText("No XRP was selected.")).toBeVisible();
+  await expect(
+    page.getByText("The device chooser closed without selecting an XRP."),
+  ).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page.getByText("Setup log", { exact: true }).click();
   await expect(page.getByLabel("Setup log")).toContainText(
     "Device selection was cancelled",
   );
+});
+
+test("reports a busy USB port without misdiagnosing the XRP firmware", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const port = {
+      readable: null,
+      writable: null,
+      getInfo: () => ({ usbVendorId: 0x1b4f, usbProductId: 0x0046 }),
+      open: async () => {
+        throw new DOMException("Port is already open", "InvalidStateError");
+      },
+      close: async () => undefined,
+    };
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: async () => [port],
+        requestPort: async () => port,
+      },
+    });
+  });
+
+  await page.goto("/commission/");
+  await page.getByRole("button", { name: "Continue without folder" }).click();
+  await page.getByRole("button", { name: "Use this XRP" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "Close any other setup page using the XRP",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Install course firmware" }),
+  ).toHaveCount(0);
+});
+
+test("replaces a retained course root without carrying over its active project", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    localStorage.clear();
+    const root = await navigator.storage.getDirectory();
+    for (const name of ["old-course", "new-course"]) {
+      try {
+        await root.removeEntry(name, { recursive: true });
+      } catch (error) {
+        if (
+          !(error instanceof DOMException) ||
+          error.name !== "NotFoundError"
+        ) {
+          throw error;
+        }
+      }
+    }
+    const oldWorkspace = await root.getDirectoryHandle("old-course", {
+      create: true,
+    });
+    const oldProject = await oldWorkspace.getDirectoryHandle("Old-Project", {
+      create: true,
+    });
+    const write = async (
+      directory: FileSystemDirectoryHandle,
+      name: string,
+      content: string,
+    ) => {
+      const file = await directory.getFileHandle(name, { create: true });
+      const writable = await file.createWritable();
+      await writable.write(content);
+      await writable.close();
+    };
+    await write(
+      oldProject,
+      ".ucsb-xrp-project.json",
+      `${JSON.stringify({ name: "Old project", entrypoint: "main.py" })}\n`,
+    );
+    await write(oldProject, "main.py", 'print("old project")\n');
+    await root.getDirectoryHandle("new-course", { create: true });
+
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains("course-folders")) {
+          request.result.createObjectStore("course-folders");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction("course-folders", "readwrite");
+      const store = transaction.objectStore("course-folders");
+      store.put(oldWorkspace, "workspace-folder-v1");
+      store.put(oldProject, "project-folder-v1");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+    database.close();
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle(
+          "new-course",
+        ),
+    });
+  });
+
+  await page.goto("/commission/");
+  await expect(
+    page.getByRole("button", { name: "Use old-course" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Choose different folder" }).click();
+  await expect(
+    page.getByRole("button", { name: "Use new-course" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Use new-course" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+
+  const retained = await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const read = (key: string) =>
+      new Promise<FileSystemDirectoryHandle | undefined>((resolve, reject) => {
+        const transaction = database.transaction("course-folders", "readonly");
+        const request = transaction.objectStore("course-folders").get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    const workspace = await read("workspace-folder-v1");
+    const project = await read("project-folder-v1");
+    database.close();
+    const root = await navigator.storage.getDirectory();
+    const oldProject = await (
+      await root.getDirectoryHandle("old-course")
+    ).getDirectoryHandle("Old-Project");
+    const oldMain = await (await oldProject.getFileHandle("main.py")).getFile();
+    const newMain = await (
+      await (
+        await root.getDirectoryHandle("new-course")
+      ).getDirectoryHandle("Expanding-Spiral")
+    ).getFileHandle("main.py");
+    return {
+      workspace: workspace?.name,
+      project: project?.name,
+      oldMain: await oldMain.text(),
+      newMain: await (await newMain.getFile()).text(),
+    };
+  });
+  expect(retained).toMatchObject({
+    workspace: "new-course",
+    project: "Expanding-Spiral",
+    oldMain: 'print("old project")\n',
+  });
+  expect(retained.newMain).toContain("spiral_winding_turns_per_m");
 });
 
 test("commissions a new XRP from the public wizard and hands it to the IDE", async ({
@@ -95,47 +268,45 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await page.addInitScript(() => {
     localStorage.clear();
 
-    const courseFolderFiles = new Map<string, string>();
-    const makeCourseFolder = (prefix = "", name = "My XRP Project") => ({
-      kind: "directory",
-      name,
-      async *entries() {},
-      getDirectoryHandle: async (child: string) =>
-        makeCourseFolder(`${prefix}${child}/`, child),
-      getFileHandle: async (
-        fileName: string,
-        options?: { create?: boolean },
-      ) => {
-        const path = `${prefix}${fileName}`;
-        if (!options?.create && !courseFolderFiles.has(path)) {
-          throw new DOMException("File not found", "NotFoundError");
-        }
-        return {
-          kind: "file",
-          name: fileName,
-          getFile: async () =>
-            new File([courseFolderFiles.get(path) ?? ""], fileName),
-          createWritable: async () => ({
-            write: async (content: string) =>
-              courseFolderFiles.set(path, content),
-            close: async () => undefined,
-          }),
-        };
-      },
-      removeEntry: async (child: string) => {
-        courseFolderFiles.delete(`${prefix}${child}`);
-      },
-      queryPermission: async () => "granted",
-      requestPermission: async () => "granted",
-    });
-    const courseFolder = makeCourseFolder();
-    Object.defineProperty(window, "__ucsbTestCourseFiles", {
-      configurable: true,
-      value: courseFolderFiles,
-    });
+    const selectedFolderName = "My XRP Projects";
     Object.defineProperty(window, "showDirectoryPicker", {
       configurable: true,
-      value: async () => courseFolder,
+      value: async () => {
+        const root = await navigator.storage.getDirectory();
+        try {
+          await root.removeEntry(selectedFolderName, { recursive: true });
+        } catch (error) {
+          if (
+            !(error instanceof DOMException) ||
+            error.name !== "NotFoundError"
+          ) {
+            throw error;
+          }
+        }
+        return root.getDirectoryHandle(selectedFolderName, { create: true });
+      },
+    });
+    Object.defineProperty(window, "__readUcsbTestCourseFile", {
+      configurable: true,
+      value: async (path: string) => {
+        try {
+          const parts = path.split("/");
+          const fileName = parts.pop()!;
+          let directory = await (
+            await navigator.storage.getDirectory()
+          ).getDirectoryHandle(selectedFolderName);
+          for (const part of parts) {
+            directory = await directory.getDirectoryHandle(part);
+          }
+          const file = await directory.getFileHandle(fileName);
+          return (await file.getFile()).text();
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "NotFoundError") {
+            return "";
+          }
+          throw error;
+        }
+      },
     });
 
     const textEncoder = new TextEncoder();
@@ -255,7 +426,11 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         }
         if (code.includes("__UCSB_XRP_NETWORK_PROFILE__=")) {
           return {
-            stdout: `__UCSB_XRP_NETWORK_PROFILE__=${JSON.stringify({ present: false })}\r\n`,
+            stdout: `__UCSB_XRP_NETWORK_PROFILE__=${JSON.stringify({
+              present: true,
+              mode: "access_point",
+              accessPointSsid: "UCSB-XRP-4A21",
+            })}\r\n`,
             stderr: "",
           };
         }
@@ -275,7 +450,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
               library: "0.4.0-dev",
-              service: "2026.08-dev.15",
+              service: "2026.08-dev.17",
               modules: [
                 "XRPLib.board",
                 "XRPLib.encoded_motor",
@@ -337,6 +512,10 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
     const originalFetch = window.fetch.bind(window);
     let serviceProbeCount = 0;
+    Object.defineProperty(window, "__ucsbServiceProbeCount", {
+      configurable: true,
+      get: () => serviceProbeCount,
+    });
     window.fetch = async (input, init) => {
       const url =
         typeof input === "string"
@@ -352,8 +531,8 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         return new Response(
           JSON.stringify({
             protocol: 1,
-            serviceVersion: "2026.08-dev.15",
-            courseRelease: "2026.08-dev.15",
+            serviceVersion: "2026.08-dev.17",
+            courseRelease: "2026.08-dev.17",
             robotName: "UCSB-XRP-4A21",
             address: "192.168.4.1",
             bootId: "test-boot",
@@ -378,27 +557,33 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     page.getByRole("heading", { name: "Choose a course folder" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Choose course folder" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
-  ).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(() =>
         (
           window as unknown as {
-            __ucsbTestCourseFiles: Map<string, string>;
+            __readUcsbTestCourseFile: (path: string) => Promise<string>;
           }
-        ).__ucsbTestCourseFiles.get("UCSB_XRP_Autosaves/xrp-setup-latest.txt"),
+        ).__readUcsbTestCourseFile("UCSB_XRP_Autosaves/xrp-setup-latest.txt"),
       ),
     )
     .toContain("Write and read verified");
-  await page.getByRole("button", { name: "Select connected XRP" }).click();
+  await page.getByRole("button", { name: "Use My XRP Projects" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Use this XRP" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Robot hotspot")).toBeChecked();
-  await page.getByRole("button", { name: "Install or repair XRP" }).click();
+  await expect(page.getByLabel("Keep current robot hotspot")).toBeChecked();
+  await expect(page.getByLabel("Robot hotspot", { exact: true })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("button", { name: "Check and repair course software" })
+    .click();
 
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
@@ -407,17 +592,37 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     "simulated USB disconnect",
   );
   await expect(page.getByText("Setup log", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Select connected XRP" }).click();
+  await page.getByRole("button", { name: "Use this XRP" }).click();
   await expect(
     page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Install or repair XRP" }).click();
+  await page
+    .getByRole("button", { name: "Check and repair course software" })
+    .click();
 
   await expect(
     page.getByRole("heading", { name: "Verify the robot connection" }),
   ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("UCSB-XRP-4A21", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("definition").filter({ hasText: "UCSB-XRP-4A21" }),
+  ).toBeVisible();
   await expect(page.getByText("ucsb-xrp", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Connection not checked yet" }),
+  ).toContainText("waits for you");
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            __ucsbServiceProbeCount: number;
+          }
+        ).__ucsbServiceProbeCount,
+    ),
+  ).toBe(0);
+  await page
+    .getByRole("button", { name: "I joined UCSB-XRP-4A21 — check XRP" })
+    .click();
   const connectionStatus = page
     .getByRole("status")
     .filter({ hasText: "Waiting for XRP" });
@@ -441,6 +646,20 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       physicalEndpoint: "http://192.168.4.1",
     });
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "./Expanding-Spiral",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (
+          window as unknown as {
+            __readUcsbTestCourseFile: (path: string) => Promise<string>;
+          }
+        ).__readUcsbTestCourseFile("Expanding-Spiral/main.py"),
+      ),
+    )
+    .toContain("spiral_winding_turns_per_m");
   expect(browserErrors).toEqual([]);
 });
 

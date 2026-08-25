@@ -1,0 +1,406 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { PhysicalTargetCoordinator } from "./physical-target-coordinator";
+import type {
+  PhysicalWorkerCommand,
+  PhysicalWorkerMessage,
+} from "./physical-worker-protocol";
+import type {
+  CheckResult,
+  CourseProject,
+  RuntimeParameterValue,
+  TargetClient,
+  TargetEvent,
+} from "./types";
+
+const project: CourseProject = {
+  name: "Shared project",
+  entrypoint: "main.py",
+  files: { "main.py": "print('shared')\n" },
+};
+
+class FakePort {
+  readonly messages: PhysicalWorkerMessage[] = [];
+  closed = false;
+
+  postMessage(message: PhysicalWorkerMessage): void {
+    this.messages.push(message);
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+}
+
+class FakePhysicalTarget implements TargetClient {
+  readonly kind = "physical" as const;
+  readonly listeners = new Set<(event: TargetEvent) => void>();
+  connectError: Error | null = null;
+  connectCalls = 0;
+  disconnectCalls = 0;
+  runCalls = 0;
+  stopCalls = 0;
+  resetCalls = 0;
+  running = false;
+  nextRunError: Error | null = null;
+
+  constructor(readonly endpoint: string) {}
+
+  async connect(): Promise<void> {
+    this.connectCalls += 1;
+    this.emit({
+      type: "status",
+      state: "connecting",
+      detail: `Connecting to ${this.endpoint}`,
+    });
+    if (this.connectError) {
+      this.emit({
+        type: "status",
+        state: "error",
+        detail: this.connectError.message,
+      });
+      throw this.connectError;
+    }
+    this.emit({
+      type: "console",
+      stream: "system",
+      line: `Connected to ${this.endpoint}`,
+      eventId: `${this.endpoint}:connected`,
+      timestampMs: 1,
+    });
+    this.emit({
+      type: "project",
+      project: {
+        name: project.name!,
+        entrypoint: project.entrypoint,
+        revision: "revision-a",
+        stale: false,
+      },
+    });
+    this.emit({ type: "status", state: "ready", detail: this.endpoint });
+  }
+
+  disconnect(): void {
+    this.disconnectCalls += 1;
+  }
+
+  async check(): Promise<CheckResult> {
+    return { ok: true, detail: "checked" };
+  }
+
+  async synchronize(): Promise<void> {}
+
+  async run(): Promise<void> {
+    await this.runCurrent();
+  }
+
+  async runCurrent(): Promise<void> {
+    if (this.nextRunError) {
+      const error = this.nextRunError;
+      this.nextRunError = null;
+      throw error;
+    }
+    if (this.running) {
+      return;
+    }
+    this.running = true;
+    this.runCalls += 1;
+    this.emit({ type: "status", state: "loading", detail: "Starting main.py" });
+    await Promise.resolve();
+    this.emit({ type: "status", state: "running", detail: "Running main.py" });
+  }
+
+  complete(): void {
+    this.running = false;
+    this.emit({
+      type: "console",
+      stream: "stdout",
+      line: "finished",
+      eventId: `${this.endpoint}:run:${this.runCalls}:output`,
+      timestampMs: 2 + this.runCalls,
+    });
+    this.emit({ type: "status", state: "ready", detail: "Program completed" });
+  }
+
+  async markProjectStale(): Promise<void> {}
+
+  async stop(): Promise<void> {
+    this.stopCalls += 1;
+    this.running = false;
+    this.emit({ type: "status", state: "connecting", detail: "Stopping" });
+    this.emit({ type: "status", state: "ready", detail: "Stopped" });
+  }
+
+  async reset(): Promise<void> {
+    this.resetCalls += 1;
+    this.running = false;
+    this.emit({ type: "status", state: "connecting", detail: "Resetting" });
+    this.emit({ type: "status", state: "ready", detail: "Reset complete" });
+  }
+
+  async setRuntimeParameter(
+    _name: string,
+    _value: RuntimeParameterValue,
+  ): Promise<void> {}
+
+  subscribe(listener: (event: TargetEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  emit(event: TargetEvent): void {
+    for (const listener of this.listeners) {
+      listener(event);
+    }
+  }
+}
+
+function command(value: PhysicalWorkerCommand): PhysicalWorkerCommand {
+  return value;
+}
+
+function responses(port: FakePort, requestId: string) {
+  return port.messages.filter(
+    (message) => message.type === "response" && message.requestId === requestId,
+  );
+}
+
+function events(port: FakePort, type: TargetEvent["type"]): TargetEvent[] {
+  return port.messages
+    .filter((message) => message.type === "event")
+    .map((message) => message.event)
+    .filter((event) => event.type === type);
+}
+
+describe("physical target coordinator", () => {
+  it("shares one connection and replays each retained console event once", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      targets.push(target);
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+
+    const ideConnect = command({
+      type: "connect",
+      endpoint: "http://192.168.4.1",
+      requestId: "ide-connect",
+    });
+    coordinator.handle(ide, ideConnect);
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect")).toHaveLength(1),
+    );
+
+    const monitorConnect = command({
+      type: "connect",
+      endpoint: "http://192.168.4.1",
+      requestId: "monitor-connect",
+    });
+    coordinator.handle(monitor, monitorConnect);
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect")).toHaveLength(1),
+    );
+
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.connectCalls).toBe(1);
+    for (const port of [ide, monitor]) {
+      const connected = events(port, "console").filter(
+        (event) =>
+          event.type === "console" && event.eventId?.endsWith(":connected"),
+      );
+      expect(connected).toHaveLength(1);
+    }
+  });
+
+  it("restores every attached tab when either tab retries a failed connection", async () => {
+    let attempt = 0;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      attempt += 1;
+      if (attempt === 1) {
+        target.connectError = new Error("wrong Wi-Fi");
+      }
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "failed-connect",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "failed-connect")[0]).toMatchObject({
+        ok: false,
+      }),
+    );
+
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "retry-connect",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "retry-connect")[0]).toMatchObject({ ok: true }),
+    );
+
+    expect(events(ide, "status").at(-1)).toMatchObject({ state: "ready" });
+    expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
+  });
+
+  it("serializes two-tab commands and permits another run after completion", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "connect",
+      }),
+    );
+    await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+
+    coordinator.handle(
+      ide,
+      command({ type: "run-current", requestId: "run-ide" }),
+    );
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "run-monitor" }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "run-monitor")).toHaveLength(1),
+    );
+    expect(target.runCalls).toBe(1);
+
+    target.complete();
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "run-again" }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "run-again")).toHaveLength(1),
+    );
+    expect(target.runCalls).toBe(2);
+
+    coordinator.handle(ide, command({ type: "stop", requestId: "stop" }));
+    await vi.waitFor(() => expect(responses(ide, "stop")).toHaveLength(1));
+    coordinator.handle(monitor, command({ type: "reset", requestId: "reset" }));
+    await vi.waitFor(() => expect(responses(monitor, "reset")).toHaveLength(1));
+    expect(target.stopCalls).toBe(1);
+    expect(target.resetCalls).toBe(1);
+    expect(events(ide, "status").at(-1)).toMatchObject({ state: "ready" });
+    expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
+  });
+
+  it("changes the shared endpoint once for all attached tabs", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      targets.push(target);
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "hotspot",
+      }),
+    );
+    await vi.waitFor(() => expect(responses(ide, "hotspot")).toHaveLength(1));
+
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.7.30",
+        requestId: "station",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "station")).toHaveLength(1),
+    );
+
+    expect(targets).toHaveLength(2);
+    expect(targets[0]?.disconnectCalls).toBe(1);
+    expect(events(ide, "status").at(-1)).toMatchObject({
+      state: "ready",
+      detail: "http://192.168.7.30",
+    });
+    expect(events(monitor, "status").at(-1)).toMatchObject({
+      state: "ready",
+      detail: "http://192.168.7.30",
+    });
+  });
+
+  it("restores the shared state after one tab receives a command error", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "connect",
+      }),
+    );
+    await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+
+    target.nextRunError = new Error("project must be flashed");
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "failed-run" }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "failed-run")[0]).toMatchObject({ ok: false }),
+    );
+
+    expect(events(ide, "status").at(-1)).toMatchObject({ state: "ready" });
+    expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
+    const responseIndex = monitor.messages.findIndex(
+      (message) =>
+        message.type === "response" && message.requestId === "failed-run",
+    );
+    const restoredIndex = monitor.messages.findIndex(
+      (message, index) =>
+        index > responseIndex &&
+        message.type === "event" &&
+        message.event.type === "status" &&
+        message.event.state === "ready",
+    );
+    expect(restoredIndex).toBeGreaterThan(responseIndex);
+  });
+});

@@ -152,7 +152,8 @@ IDE and presents only available data. It contains:
   followed by a separated device-state group for the USER button, motor supply,
   IMU temperature, and encoder counts;
 - named program watch values below the sensor values in the right panel;
-- separate persistent Program output and System log streams;
+- one shared target-event and program-output history, presented as Program
+  output and System log tabs in the IDE;
 - bounded telemetry recording and deterministic CSV export;
 - timestamped notes shared by the world, strip plots, plot exports, and run
   metadata; and
@@ -161,7 +162,7 @@ IDE and presents only available data. It contains:
   convert hardware-native acceleration and angular-rate values to m/s² and
   rad/s; course geometry remains in millimeters.
 
-The world/values, plots/output, and upper/lower allocations have independent
+The world/values and upper/lower allocations have independent
 pointer- and keyboard-operable separators whose positions persist locally.
 The virtual scene and zoom controls share a compact toolbar above the world;
 target selection and the

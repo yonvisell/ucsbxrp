@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
 
 const release = JSON.parse(
   readFileSync(
@@ -8,39 +9,17 @@ const release = JSON.parse(
   ),
 ) as { release_id: string };
 
-const endpoint = "http://192.168.4.1";
+let mockXrp: Server;
+let mockXrpEndpoint = "";
+let reachable = false;
 
-test("blocks physical commands until the XRP Wi-Fi connection returns", async ({
-  context,
-  page: ide,
-}) => {
-  let reachable = false;
-
-  await context.addInitScript(() => {
-    localStorage.setItem(
-      "ucsb-xrp-target-v1",
-      JSON.stringify({
-        kind: "physical",
-        physicalConnection: "access_point",
-        physicalEndpoint: "http://192.168.7.30",
-      }),
-    );
-    Object.defineProperty(globalThis, "SharedWorker", {
-      configurable: true,
-      value: class UnavailableSharedWorker {
-        constructor() {
-          throw new Error("Use the direct test client");
-        }
-      },
-    });
-  });
-
-  await context.route(`${endpoint}/api/v1/**`, async (route) => {
+test.beforeAll(async () => {
+  mockXrp = createServer((request, response) => {
     if (!reachable) {
-      await route.abort("failed");
+      request.socket.destroy();
       return;
     }
-    const url = new URL(route.request().url());
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const common = {
       bootId: "network-recovery-boot",
       courseRelease: release.release_id,
@@ -53,11 +32,11 @@ test("blocks physical commands until the XRP Wi-Fi connection returns", async ({
       ? {
           ...common,
           robotName: "ucsb-xrp",
-          address: "192.168.4.1",
+          address: "127.0.0.1",
           network: {
-            mode: "access_point",
-            ssid: "UCSB-XRP-TEST",
-            address: "192.168.4.1",
+            mode: "station",
+            ssid: "TEST-NETWORK",
+            address: "127.0.0.1",
             fallback: false,
           },
           capabilities: [
@@ -78,13 +57,42 @@ test("blocks physical commands until the XRP Wi-Fi connection returns", async ({
           samples: [],
           sample: null,
         };
-    await route.fulfill({
-      body: JSON.stringify(body),
-      contentType: "application/json",
-      headers: { "Access-Control-Allow-Origin": "*" },
-      status: 200,
+    response.writeHead(200, {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "application/json",
     });
+    response.end(JSON.stringify(body));
   });
+  await new Promise<void>((resolve) => mockXrp.listen(0, "127.0.0.1", resolve));
+  const address = mockXrp.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Mock XRP did not bind a TCP port");
+  }
+  mockXrpEndpoint = `http://127.0.0.1:${address.port}`;
+});
+
+test.afterAll(async () => {
+  await new Promise<void>((resolve, reject) =>
+    mockXrp.close((error) => (error ? reject(error) : resolve())),
+  );
+});
+
+test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", async ({
+  context,
+  page: ide,
+}) => {
+  reachable = false;
+
+  await context.addInitScript((endpoint) => {
+    localStorage.setItem(
+      "ucsb-xrp-target-v1",
+      JSON.stringify({
+        kind: "physical",
+        physicalConnection: "station",
+        physicalEndpoint: endpoint,
+      }),
+    );
+  }, mockXrpEndpoint);
 
   await ide.goto("/ide/");
   await expect(
@@ -106,17 +114,6 @@ test("blocks physical commands until the XRP Wi-Fi connection returns", async ({
   ).toBeDisabled();
   await expect(ide.getByRole("button", { name: "Reset" })).toBeDisabled();
 
-  reachable = true;
-  await ide.getByRole("button", { name: "Retry XRP connection" }).click();
-  await expect(ide.getByTestId("target-status")).toContainText(
-    "Physical XRP · ready",
-  );
-  await expect(ide.getByRole("button", { name: "Validate" })).toBeEnabled();
-  await expect(
-    ide.getByRole("button", { name: "Flash project" }),
-  ).toBeEnabled();
-
-  reachable = false;
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
   await expect(monitor.getByTestId("target-status")).toContainText(
@@ -136,4 +133,17 @@ test("blocks physical commands until the XRP Wi-Fi connection returns", async ({
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Physical XRP · ready",
+  );
+  await expect(ide.getByRole("button", { name: "Validate" })).toBeEnabled();
+  await expect(
+    ide.getByRole("button", { name: "Flash project" }),
+  ).toBeEnabled();
+
+  await ide.getByRole("tab", { name: /System log/ }).click();
+  await expect(ide.getByRole("log")).toContainText("Connected to ucsb-xrp");
+  await expect(
+    ide.getByRole("log").getByText("Connected to ucsb-xrp"),
+  ).toHaveCount(1);
 });

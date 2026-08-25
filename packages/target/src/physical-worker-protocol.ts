@@ -39,4 +39,5 @@ export type PhysicalWorkerMessage =
       requestId: string;
       ok: false;
       error: string;
+      errorCode?: string;
     };

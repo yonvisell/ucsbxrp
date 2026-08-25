@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
+import { AppNavigation } from "../../shared/AppNavigation";
+
 const componentReference = "../reference/#student-components";
 
 export function GuideApp() {
   return (
     <div className="guide-app">
-      <header className="guide-header">
+      <header className="app-header guide-header">
         <div className="brand" aria-label="UCSBXRP Guide">
           <span className="brand-mark">UCSB</span>
           <span className="brand-xrp">XRP</span>
@@ -14,20 +16,7 @@ export function GuideApp() {
           </span>
           <span className="brand-product">Guide</span>
         </div>
-        <nav aria-label="Course applications">
-          <a className="tool-link" href="../ide/">
-            IDE
-          </a>
-          <a className="tool-link" href="../monitor/">
-            Monitor
-          </a>
-          <a className="tool-link" href="../reference/">
-            UCSB XRP API
-          </a>
-          <a className="tool-link" href="../commission/">
-            Set up XRP
-          </a>
-        </nav>
+        <AppNavigation active="guide" />
       </header>
 
       <div className="guide-layout">
@@ -232,8 +221,10 @@ export function GuideApp() {
             </p>
             <ol className="procedure">
               <li>
-                Connect the XRP by USB-C, then select it in the browser's device
-                chooser. Leave USB connected until setup finishes.
+                Connect the XRP by USB-C. If Chrome has used this XRP before,
+                confirm the identified controller. On first use, choose the XRP
+                Controller in Chrome&apos;s device chooser. Leave USB connected
+                until setup finishes.
               </li>
               <li>
                 Choose the XRP's own <code>UCSB-XRP-…</code> hotspot or an
@@ -274,23 +265,22 @@ export function GuideApp() {
           <GuideSection
             id="monitor"
             number="05"
-            title="Monitor: telemetry, controls, and output"
+            title="Monitor: telemetry and controls"
           >
             <p>
               The Monitor shows the simulated or measured world, live telemetry,
               controls and watch values created by the running program, signal
-              histories, Program output, and the System log. The target selected
-              in the IDE is also selected in the Monitor.
+              histories, and recording and export controls. The target selected
+              in the IDE is also selected in the Monitor. Program output and the
+              complete target event log remain in the IDE terminal, including
+              when Run is selected in the Monitor.
             </p>
             <dl className="term-list">
               <div>
-                <dt>Program output</dt>
-                <dd>Text printed by the project and Python exceptions.</dd>
-              </div>
-              <div>
-                <dt>System log</dt>
+                <dt>IDE terminal</dt>
                 <dd>
-                  Connection, validation, transfer, Run, Stop, and reset events.
+                  Program output, Python exceptions, connection events,
+                  validation, transfer, Run, Stop, and reset history.
                 </dd>
               </div>
               <div>
@@ -314,7 +304,7 @@ export function GuideApp() {
               Choose signals and a time window under <strong>Controls</strong>.{" "}
               <strong>Clear plots</strong> starts a new visible history without
               resetting the robot. Drag a separator to resize the world,
-              telemetry, plots, or output.
+              telemetry, or plots.
             </p>
             <p>
               A program can create sliders, toggles, and choices with{" "}
@@ -501,13 +491,14 @@ export function GuideApp() {
               </section>
             </div>
             <p>
-              <strong>Install course tools</strong> on the landing page is
-              optional. It adds a launcher and a separate app window, but uses
-              the same Chrome storage and has the same offline limits. When the
-              site is opened with internet access, Chrome checks for a newer
-              course-app version. No Node server or other local server is
-              required. This is a saved web application, not a native executable
-              or a copy that can be opened from a <code>file://</code> folder.
+              <strong>Install app for offline use</strong> on the landing page
+              is optional. It adds a launcher and a separate app window, but
+              uses the same Chrome storage and has the same offline limits. When
+              the site is opened with internet access, Chrome checks for a newer
+              course-app version and reloads once if the application changed. No
+              Node server or other local server is required. This is a saved web
+              application, not a native executable or a copy that can be opened
+              from a <code>file://</code> folder.
             </p>
           </GuideSection>
 
@@ -611,9 +602,9 @@ export function GuideApp() {
           >
             <ul className="procedure troubleshooting-list">
               <li>
-                <strong>Code does not run:</strong> read Program output for a
-                Python exception and System log for validation, transfer, and
-                target events.
+                <strong>Code does not run:</strong> in the IDE terminal, read
+                Program output for a Python exception and System log for
+                validation, transfer, connection, and target events.
               </li>
               <li>
                 <strong>The physical XRP is unreachable:</strong> confirm that

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { AppNavigation } from "../../shared/AppNavigation";
+
 type Parameter = {
   name: string;
   type: string;
@@ -93,7 +95,7 @@ const robotConfigFields: Parameter[] = [
 export function ReferenceApp() {
   return (
     <div className="reference-app">
-      <header className="reference-header">
+      <header className="app-header reference-header">
         <div className="brand" aria-label="UCSBXRP API Reference">
           <span className="brand-mark">UCSB</span>
           <span className="brand-xrp">XRP</span>
@@ -102,17 +104,7 @@ export function ReferenceApp() {
           </span>
           <span className="brand-product">API</span>
         </div>
-        <nav aria-label="Course applications">
-          <a className="tool-link" href="../ide/">
-            IDE
-          </a>
-          <a className="tool-link" href="../monitor/">
-            Monitor
-          </a>
-          <a className="tool-link" href="../guide/">
-            Guide
-          </a>
-        </nav>
+        <AppNavigation active="reference" />
       </header>
 
       <div className="reference-layout">
