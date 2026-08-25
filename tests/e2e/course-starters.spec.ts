@@ -56,9 +56,10 @@ test("runs the default project directly from a fresh Monitor", async ({
 });
 
 test("holds Virtual Run during the first isolated production refresh", async ({
+  context,
   page,
 }) => {
-  await page.addInitScript(() => {
+  await context.addInitScript(() => {
     Object.defineProperty(globalThis, "crossOriginIsolated", {
       configurable: true,
       value: false,
@@ -75,8 +76,9 @@ test("holds Virtual Run during the first isolated production refresh", async ({
     /preparing the Virtual XRP.*refreshes once automatically/i,
   );
 
-  await page.goto("/ide/");
-  const ideRun = page
+  const ide = await context.newPage();
+  await ide.goto("/ide/");
+  const ideRun = ide
     .locator(".app-header")
     .getByRole("button", { name: "Run", exact: true });
   await expect(ideRun).toBeDisabled();

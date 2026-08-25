@@ -14,7 +14,10 @@ declared live parameters retain their defaults instead of terminating the
 program, and Stop remains available. Cross-tab live adjustments still travel
 through the shared worker to the client that owns the run buffer. Two new
 Stable Chrome workflows exercise the preparation gate and the safe-default
-fallback. All 151 Python and 156 TypeScript tests pass; the 44 unaffected
+fallback. The preparation test uses separate IDE and Monitor tabs so the
+browser's intentional refresh is part of the test rather than a race with a
+second navigation; it passed 10 consecutive CI-mode repetitions. All 151
+Python and 156 TypeScript tests pass; the 44 unaffected
 non-hardware Chrome workflows passed in the complete run, and the corrected
 live-control path plus both new isolation workflows passed together afterward.
 The obstacle-demo harness now verifies its false-to-true toggle before that
