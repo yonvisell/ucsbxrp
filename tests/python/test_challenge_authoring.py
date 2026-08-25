@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -183,6 +184,25 @@ class ChallengeAuthoringTests(unittest.TestCase):
                     draft_root
                     / "vendor/current/starters/challenge_6/README.md"
                 ).is_file()
+            )
+
+    def test_catalog_replacement_is_atomic_if_the_final_replace_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory)
+            catalog_path = draft_root / AUTHORING.CATALOG_RELATIVE_PATH
+            original = catalog_path.read_bytes()
+            catalog = AUTHORING.read_catalog(draft_root)
+            catalog[0]["title"] = "Changed title"
+
+            with mock.patch.object(
+                AUTHORING.os, "replace", side_effect=OSError("replace failed")
+            ):
+                with self.assertRaisesRegex(OSError, "replace failed"):
+                    AUTHORING.write_catalog(draft_root, catalog)
+
+            self.assertEqual(catalog_path.read_bytes(), original)
+            self.assertEqual(
+                list(catalog_path.parent.glob(".project_catalog.json.*.tmp")), []
             )
 
 

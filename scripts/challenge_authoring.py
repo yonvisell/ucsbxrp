@@ -3,9 +3,11 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import shutil
+import tempfile
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -40,10 +42,27 @@ def read_catalog(root):
 
 
 def write_catalog(root, catalog):
-    _catalog_path(root).write_text(
-        json.dumps(catalog, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    catalog_path = _catalog_path(root)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=catalog_path.parent,
+            prefix="." + catalog_path.name + ".",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(
+                json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"
+            )
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(temporary_path, catalog_path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
 
 
 def catalog_entry(catalog, project_id):

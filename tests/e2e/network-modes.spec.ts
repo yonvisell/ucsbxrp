@@ -16,7 +16,7 @@ test("selects robot hotspot or existing Wi-Fi without losing either endpoint", a
   );
   const connection = wifi.getByLabel("Network", { exact: true });
   await expect(connection).toHaveValue("access_point");
-  await expect(wifi.getByText(/192\.168\.42\.1/)).toBeVisible();
+  await expect(wifi.getByText(/192\.168\.4\.1/)).toBeVisible();
   await expect(wifi.getByLabel("XRP address")).toHaveCount(0);
 
   await connection.selectOption("station");
