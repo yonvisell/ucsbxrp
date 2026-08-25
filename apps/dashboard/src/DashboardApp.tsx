@@ -453,6 +453,7 @@ function centeredWorldPreview(
 export function DashboardApp() {
   const [targetPreference, setTargetPreference] =
     useState(loadTargetPreference);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [worldCatalog, setWorldCatalog] = useState<WorldCatalog>(
     DEFAULT_WORLD_CATALOG,
   );
@@ -475,6 +476,7 @@ export function DashboardApp() {
       targetPreference.kind,
       targetPreference.physicalConnection,
       targetPreference.physicalEndpoint,
+      connectionAttempt,
     ],
   );
   const recorder = useMemo(() => new TelemetryRecorder(), []);
@@ -1218,7 +1220,8 @@ export function DashboardApp() {
   const isRunning = targetState === "running" || targetState === "loading";
   const canRunCurrent =
     !virtualRuntimePreparing &&
-    (targetState === "ready" || targetState === "error") &&
+    (targetState === "ready" ||
+      (target.kind === "virtual" && targetState === "error")) &&
     ((currentProject !== null && !currentProject.stale) ||
       (target.kind === "virtual" && currentProject === null));
   const worldPreviewSample = useMemo(
@@ -1312,7 +1315,9 @@ export function DashboardApp() {
             aria-label="Reset"
             className="header-icon-button"
             disabled={
-              targetState === "disconnected" || targetState === "connecting"
+              targetState === "disconnected" ||
+              targetState === "connecting" ||
+              (target.kind === "physical" && targetState === "error")
             }
             onClick={reset}
             title="Restart the target and restore its initial state."
@@ -1371,6 +1376,16 @@ export function DashboardApp() {
               {targetState}
             </span>
           </div>
+          {target.kind === "physical" && targetState === "error" ? (
+            <button
+              aria-label="Retry XRP connection"
+              className="quiet-button target-retry-button"
+              onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+              title="Try the configured XRP Wi-Fi connection again."
+            >
+              Retry
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -1396,6 +1411,19 @@ export function DashboardApp() {
                 </button>
               </div>
               <div className="monitor-controls-scroll">
+                {target.kind === "physical" && targetState === "error" ? (
+                  <div className="target-recovery" role="alert">
+                    <strong>XRP not reachable</strong>
+                    <p>
+                      {targetPreference.physicalConnection === "access_point"
+                        ? "Run and telemetry use Wi-Fi, not USB. Join the UCSB-XRP hotspot; this cached app does not need internet."
+                        : "Run and telemetry use Wi-Fi, not USB. Connect this computer to the same local Wi-Fi as the XRP."}
+                    </p>
+                    <a href="../ide/" target="_blank" rel="noopener noreferrer">
+                      Connection settings in IDE ↗
+                    </a>
+                  </div>
+                ) : null}
                 <section
                   aria-labelledby="signal-controls-title"
                   className="monitor-control-group signal-control-group"

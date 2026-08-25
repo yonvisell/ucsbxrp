@@ -64,6 +64,25 @@
   scrollbar-width: thin;
 }
 
+.target-recovery {
+  display: grid;
+  gap: 3px;
+  border-bottom: 1px solid var(--line-strong);
+  padding: 6px;
+  color: var(--ink);
+  font-size: var(--font-xs);
+  line-height: 1.3;
+}
+
+.target-recovery p {
+  margin: 0;
+}
+
+.target-recovery a {
+  width: fit-content;
+  font-weight: 650;
+}
+
 .monitor-controls-restore {
   display: flex;
   width: 100%;

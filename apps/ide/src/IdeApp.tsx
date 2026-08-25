@@ -45,7 +45,6 @@ import {
   chooseWorkingFolder,
   createProjectFolder,
   defaultProjectFolderName,
-  defaultProjectTemplateId,
   deleteProjectFile,
   duplicateProjectFile,
   ensureProjectFolder,
@@ -207,6 +206,7 @@ export function IdeApp() {
   const [settings, setSettings] = useState<IdeSettings>(loadSettings);
   const [targetPreference, setTargetPreference] =
     useState(loadTargetPreference);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const target = useMemo<TargetClient>(
     () =>
       targetPreference.kind === "physical"
@@ -218,6 +218,7 @@ export function IdeApp() {
       targetPreference.kind,
       targetPreference.physicalConnection,
       targetPreference.physicalEndpoint,
+      connectionAttempt,
     ],
   );
   const virtualRuntimePreparing =
@@ -268,9 +269,7 @@ export function IdeApp() {
     initiallyShowProjectPanel,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
-    defaultProjectTemplateId,
-  );
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
   const [newFileError, setNewFileError] = useState("");
@@ -512,9 +511,14 @@ export function IdeApp() {
   }, []);
 
   const isConnected =
-    targetState !== "disconnected" && targetState !== "connecting";
+    targetState === "ready" ||
+    targetState === "loading" ||
+    targetState === "running" ||
+    (target.kind === "virtual" && targetState === "error");
   const isRunning = targetState === "running" || targetState === "loading";
-  const canCommand = targetState === "ready" || targetState === "error";
+  const canCommand =
+    targetState === "ready" ||
+    (target.kind === "virtual" && targetState === "error");
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -1044,6 +1048,7 @@ export function IdeApp() {
       files: { ...template.project.files },
     };
     await prepareProjectCreation(snapshot);
+    setSelectedTemplateId("");
   }, [prepareProjectCreation, selectedTemplateId]);
 
   const createNamedProject = useCallback(
@@ -1354,16 +1359,34 @@ export function IdeApp() {
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
-  const flashState =
-    syncOk === false
+  const physicalConnectionActive =
+    targetState !== "disconnected" &&
+    targetState !== "connecting" &&
+    targetState !== "error";
+  const flashState = !physicalConnectionActive
+    ? targetState === "connecting"
+      ? "Checking connection"
+      : "Connection required"
+    : syncOk === false
       ? "Flash failed"
       : projectIsFlashed
         ? "Flashed"
         : "Flash needed";
-  const physicalStatus = projectIsFlashed ? "flashed" : "flash needed";
+  const physicalStatus = !physicalConnectionActive
+    ? targetState === "connecting"
+      ? "checking connection"
+      : "connection required"
+    : projectIsFlashed
+      ? "flashed"
+      : "flash needed";
+  const robotProjectDetail = !physicalConnectionActive
+    ? targetState === "connecting"
+      ? "Checking the configured XRP Wi-Fi connection."
+      : "Reconnect to the XRP before Flash or Run. USB-C is used by setup and repair; Run and telemetry use Wi-Fi."
+    : syncDetail;
   const targetStatusTitle =
     target.kind === "physical"
-      ? `${targetDetail}. Project ${physicalStatus}.`
+      ? `${targetDetail}${targetDetail.endsWith(".") ? "" : "."} Project ${physicalStatus}.`
       : targetDetail;
   const activeReference = apiReferenceForPath(activePath);
 
@@ -1397,7 +1420,11 @@ export function IdeApp() {
           <button
             disabled={!canCommand || isRunning}
             onClick={validateCode}
-            title="Compile all Python files with MicroPython (⌘/Ctrl+Shift+Enter)"
+            title={
+              target.kind === "physical" && targetState === "error"
+                ? targetDetail
+                : "Compile all Python files with MicroPython (⌘/Ctrl+Shift+Enter)"
+            }
           >
             Validate
           </button>
@@ -1405,7 +1432,11 @@ export function IdeApp() {
             <button
               disabled={!canCommand || isRunning}
               onClick={flashProject}
-              title="Write the complete project to the physical XRP"
+              title={
+                targetState === "error"
+                  ? targetDetail
+                  : "Write the complete project to the physical XRP"
+              }
             >
               Flash project
             </button>
@@ -1420,7 +1451,9 @@ export function IdeApp() {
                 ? "Stop the running program."
                 : virtualRuntimePreparing
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                  : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+                  : target.kind === "physical" && targetState === "error"
+                    ? targetDetail
+                    : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
             <RunStopIcon running={isRunning} />
@@ -1482,6 +1515,16 @@ export function IdeApp() {
               {target.kind === "physical" ? ` · ${physicalStatus}` : ""}
             </span>
           </div>
+          {target.kind === "physical" && targetState === "error" ? (
+            <button
+              aria-label="Retry XRP connection"
+              className="quiet-button target-retry-button"
+              onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+              title="Try the configured XRP Wi-Fi connection again."
+            >
+              Retry
+            </button>
+          ) : null}
           <button
             aria-expanded={settingsOpen}
             className="quiet-button settings-button"
@@ -1628,6 +1671,9 @@ export function IdeApp() {
                     title="Choose a complete challenge, demo, or tutorial project."
                     value={selectedTemplateId}
                   >
+                    <option disabled value="">
+                      Choose template…
+                    </option>
                     {templateGroups.map((group) => (
                       <optgroup key={group.kind} label={group.label}>
                         {COURSE_PROJECT_TEMPLATES.filter(
@@ -1641,6 +1687,7 @@ export function IdeApp() {
                     ))}
                   </select>
                   <button
+                    disabled={!selectedTemplateId}
                     onClick={loadProjectTemplate}
                     title="Create a new editable project from this template."
                   >
@@ -1893,16 +1940,16 @@ export function IdeApp() {
                     <span>Robot project</span>
                     <strong
                       className={
-                        projectIsFlashed
+                        physicalConnectionActive && projectIsFlashed
                           ? "pass"
-                          : syncOk === false
+                          : physicalConnectionActive && syncOk === false
                             ? "fail"
                             : ""
                       }
                     >
                       {flashState}
                     </strong>
-                    <small aria-live="polite">{syncDetail}</small>
+                    <small aria-live="polite">{robotProjectDetail}</small>
                   </div>
                 ) : null}
               </div>

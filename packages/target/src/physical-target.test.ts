@@ -133,6 +133,30 @@ describe("physical target", () => {
     }
   });
 
+  it("explains the Wi-Fi runtime when the browser cannot reach the XRP", async () => {
+    vi.stubGlobal("window", { location: { protocol: "https:" } });
+    vi.stubGlobal("location", { protocol: "https:" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+
+    const target = new PhysicalTargetClient("192.168.4.1");
+    try {
+      await expect(target.connect()).rejects.toThrow(
+        /Run and telemetry use Wi-Fi, not USB/,
+      );
+      await expect(target.connect()).rejects.toThrow(
+        /course app remains available without internet/,
+      );
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("discovers and applies physical live parameters with runtime feedback", async () => {
     const paths: string[] = [];
     const bodies: Array<Record<string, unknown>> = [];

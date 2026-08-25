@@ -126,6 +126,16 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function physicalConnectionRecovery(endpoint: string): string {
+  return (
+    "Run and telemetry use Wi-Fi, not USB. Connect this computer to the " +
+    "same Wi-Fi as the XRP, or join its UCSB-XRP hotspot and select Robot " +
+    "hotspot in Settings. The course app remains available without " +
+    `internet. If already connected, verify ${endpoint} and allow Chrome ` +
+    "to access devices on the local network."
+  );
+}
+
 const RUN_STARTUP_QUIET_MS = 500;
 const RESET_RECONNECT_TIMEOUT_MS = 30_000;
 
@@ -498,12 +508,12 @@ export class DirectPhysicalTargetClient implements TargetClient {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new PhysicalTargetError(
           "timeout",
-          `XRP did not reply within ${timeoutMs / 1000} seconds`,
+          `XRP did not reply within ${timeoutMs / 1000} seconds. ${physicalConnectionRecovery(this.endpoint)}`,
         );
       }
       throw new PhysicalTargetError(
         "network_error",
-        `Cannot reach ${this.endpoint}: ${errorDetail(error)}`,
+        `Cannot reach ${this.endpoint}: ${errorDetail(error)}. ${physicalConnectionRecovery(this.endpoint)}`,
       );
     } finally {
       clearTimeout(timeout);
@@ -939,7 +949,7 @@ export class PhysicalTargetClient implements TargetClient {
           : `Cannot reach ${this.endpoint}: ${errorDetail(error)}`;
       throw new PhysicalTargetError(
         "network_error",
-        `${detail}. Allow this page to access devices on the local network, then reconnect.`,
+        `${detail}. ${physicalConnectionRecovery(this.endpoint)}`,
       );
     } finally {
       clearTimeout(timeout);

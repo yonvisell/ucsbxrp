@@ -4,6 +4,30 @@ Last updated: 2026-08-25
 
 ## Current result
 
+Refinement 41 removes a misleading physical-target state exposed during a
+campus hotspot trial. The saved USB setup log proves that release dev.15 was
+verified, the XRP restarted as `UCSB-XRP-9EDE` at `192.168.4.1`, and Chrome
+reached it. A fresh radio scan found that hotspot, and a bounded direct probe
+joined it, received `192.168.4.16`, and successfully started the installed
+project; the target reported `running` with physical telemetry. The robot is
+therefore commissioned correctly and its Run service works.
+
+The IDE and Monitor had nevertheless left physical commands enabled after a
+connection error and could retain a visually stale **flashed** label. Physical
+Validate, Flash, Run, and Reset now remain disabled until the Wi-Fi service is
+actually reachable, the project state reads **connection required**, and an
+explicit Retry action reconnects without reloading either app. The error text
+states that Run and telemetry use Wi-Fi rather than USB and that the cached app
+does not require internet on the robot hotspot. The new-project selector now
+starts at **Choose template…** with Create disabled, so its former default
+**Expanding spiral** value cannot be mistaken for the open project. The focused
+physical-target test, all 157 TypeScript tests, type checking, formatting,
+production and offline builds, and a Stable Chrome disconnect/retry workflow
+pass. One direct diagnostic Stop request did not return before its eight-second
+client timeout after a large telemetry response; the seven-second run watchdog
+still stops and resets the robot, but hotspot Stop should be repeated through
+the browser before classifying that observation as a service defect.
+
 Refinement 40 closes a first-visit production race found by the independent
 post-deployment Chrome probe. GitHub Pages cannot attach the isolation headers
 needed by shared live-control memory until the generated service worker has
