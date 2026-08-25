@@ -32,6 +32,8 @@ import {
   courseFolderIsWaitingForIde,
   courseFolderPermission,
   finishCourseFolderIdeHandoff,
+  forgetProjectFolder,
+  forgetWorkspaceFolder,
   loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
   rememberProjectFolder,
@@ -46,6 +48,8 @@ import {
   deleteProjectFile,
   duplicateProjectFile,
   ensureProjectFolder,
+  hasProjectFolderMetadata,
+  isCourseRepositoryFolder,
   isDefaultProject,
   loadRecoveredProject,
   normalizedProjectPath,
@@ -358,12 +362,13 @@ export function IdeApp() {
   useEffect(() => {
     let disposed = false;
     const restoreFolders = async () => {
-      const [workspace, rememberedProject] = await Promise.all([
+      const [loadedWorkspace, rememberedProject] = await Promise.all([
         loadRememberedWorkspaceFolder(),
         loadRememberedProjectFolder(),
       ]);
       if (disposed) return;
       const commissioningHandoff = courseFolderIsWaitingForIde();
+      let workspace = loadedWorkspace;
       let folder = rememberedProject;
       let defaultProjectCreated = false;
       if (workspace) {
@@ -371,25 +376,18 @@ export function IdeApp() {
         const permission = await courseFolderPermission(workspace);
         if (disposed) return;
         if (permission === "granted") {
-          setWorkspaceFolder(workspace);
-          if (commissioningHandoff) {
+          if (await isCourseRepositoryFolder(workspace)) {
+            await forgetWorkspaceFolder();
+            workspace = null;
+            setRememberedWorkspaceFolder(null);
             setOperationDetail(
-              `${workspace.name} is ready. New projects will be created in named folders inside it.`,
+              "The UCSBXRP course software repository cannot be used as a course folder. Choose a folder for student projects.",
             );
-          }
-          if (!folder && isDefaultProject(projectRef.current)) {
-            try {
-              const result = await ensureProjectFolder(
-                workspace,
-                defaultProjectFolderName,
-                projectRef.current,
-              );
-              folder = result.folder;
-              defaultProjectCreated = result.created;
-              void rememberProjectFolder(folder);
-            } catch (error) {
+          } else {
+            setWorkspaceFolder(workspace);
+            if (commissioningHandoff) {
               setOperationDetail(
-                `${workspace.name} is ready, but the default project folder could not be created: ${errorDetail(error)}`,
+                `${workspace.name} is ready. New projects will be created in named folders inside it.`,
               );
             }
           }
@@ -400,29 +398,76 @@ export function IdeApp() {
         const permission = await courseFolderPermission(folder);
         if (disposed) return;
         if (permission === "granted") {
+          if (
+            (await isCourseRepositoryFolder(folder)) ||
+            !(await hasProjectFolderMetadata(folder))
+          ) {
+            await forgetProjectFolder();
+            folder = null;
+            setRememberedFolder(null);
+            setRememberedFolderCanAttach(false);
+            setFolderSaveState("browser");
+            setOperationDetail(
+              "The remembered folder is not a UCSBXRP project, so it was not opened or modified.",
+            );
+          } else {
+            const opened = await readProjectFolder(folder);
+            if (disposed) return;
+            projectRef.current = opened.project;
+            setProject(opened.project);
+            setActivePath(opened.project.entrypoint);
+            setOpenPaths([opened.project.entrypoint]);
+            setRememberedFolderCanAttach(true);
+            setWorkingFolder(folder);
+            setFolderDirty(false);
+            setFolderSaveState("current");
+            setOperationDetail(
+              `Opened ./${folder.name}.${
+                opened.skipped
+                  ? ` Skipped ${opened.skipped} unsupported item${opened.skipped === 1 ? "" : "s"}.`
+                  : ""
+              }`,
+            );
+          }
+        } else {
+          setFolderSaveState("permission");
+          setOperationDetail(
+            `Reconnect project folder ${folder.name} once to resume automatic saves.`,
+          );
+        }
+      }
+      if (
+        !folder &&
+        workspace &&
+        (await courseFolderPermission(workspace)) === "granted" &&
+        isDefaultProject(projectRef.current)
+      ) {
+        try {
+          const result = await ensureProjectFolder(
+            workspace,
+            defaultProjectFolderName,
+            projectRef.current,
+          );
+          folder = result.folder;
+          defaultProjectCreated = result.created;
+          void rememberProjectFolder(folder);
           const opened = await readProjectFolder(folder);
           if (disposed) return;
           projectRef.current = opened.project;
           setProject(opened.project);
           setActivePath(opened.project.entrypoint);
           setOpenPaths([opened.project.entrypoint]);
+          setRememberedFolder(folder);
           setRememberedFolderCanAttach(true);
           setWorkingFolder(folder);
           setFolderDirty(false);
           setFolderSaveState("current");
           setOperationDetail(
-            `${defaultProjectCreated ? "Created" : "Opened"} ./${folder.name}.${
-              opened.skipped
-                ? ` Skipped ${opened.skipped} unsupported item${opened.skipped === 1 ? "" : "s"}.`
-                : defaultProjectCreated
-                  ? " Edits and monitored runs save there automatically."
-                  : ""
-            }`,
+            `${defaultProjectCreated ? "Created" : "Opened"} ./${folder.name}. Edits and monitored runs save there automatically.`,
           );
-        } else {
-          setFolderSaveState("permission");
+        } catch (error) {
           setOperationDetail(
-            `Reconnect project folder ${folder.name} once to resume automatic saves.`,
+            `${workspace.name} is ready, but the default project folder could not be created: ${errorDetail(error)}`,
           );
         }
       }
@@ -710,6 +755,11 @@ export function IdeApp() {
   const selectWorkspaceFolder = useCallback(async () => {
     try {
       const folder = await chooseWorkspaceFolder();
+      if (await isCourseRepositoryFolder(folder)) {
+        throw new Error(
+          "Choose a course folder for student projects, not the UCSBXRP course software repository.",
+        );
+      }
       let projectAttached = false;
       setWorkspaceFolder(folder);
       setRememberedWorkspaceFolder(folder);
@@ -753,7 +803,7 @@ export function IdeApp() {
   const prepareProjectCreation = useCallback(
     async (snapshot: ProjectSnapshot, chooseWorkspaceIfMissing = false) => {
       let workspace = workspaceFolder;
-      if (!workspace && rememberedWorkspaceFolder) {
+      if (!workspace && chooseWorkspaceIfMissing && rememberedWorkspaceFolder) {
         const permission = await requestCourseFolderPermission(
           rememberedWorkspaceFolder,
         );
@@ -774,6 +824,8 @@ export function IdeApp() {
         setOpenPaths([snapshot.entrypoint]);
         setWorkingFolder(null);
         setRememberedFolder(null);
+        setRememberedFolderCanAttach(false);
+        await forgetProjectFolder();
         replacePendingFolderDeletions(() => new Set());
         setFolderDirty(true);
         setFolderSaveState("browser");
@@ -810,6 +862,19 @@ export function IdeApp() {
         setFolderSaveState("permission");
         setOperationDetail(
           `Folder access was not granted. The recovery copy in Chrome remains current.`,
+        );
+        return;
+      }
+      if (
+        (await isCourseRepositoryFolder(rememberedFolder)) ||
+        !(await hasProjectFolderMetadata(rememberedFolder))
+      ) {
+        await forgetProjectFolder();
+        setRememberedFolder(null);
+        setRememberedFolderCanAttach(false);
+        setFolderSaveState("browser");
+        setOperationDetail(
+          "That remembered folder is not a UCSBXRP project, so it was not opened or modified.",
         );
         return;
       }
@@ -1915,7 +1980,7 @@ export function IdeApp() {
                 </select>
                 <small id="physical-connection-help">
                   {targetPreference.physicalConnection === "access_point"
-                    ? "Join the UCSB-XRP network shown during USB setup; the robot is at 192.168.42.1."
+                    ? "Join the UCSB-XRP network shown during USB setup; the robot is at 192.168.4.1."
                     : "Use the same local Wi-Fi network as the XRP."}
                 </small>
               </label>

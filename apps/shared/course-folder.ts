@@ -189,6 +189,28 @@ async function rememberFolder(
   }
 }
 
+async function forgetFolder(key: string, changeKey: string): Promise<boolean> {
+  if (typeof indexedDB === "undefined") {
+    return false;
+  }
+  try {
+    const database = await openFolderDatabase();
+    const transaction = database.transaction(handleStoreName, "readwrite");
+    const completed = transactionComplete(transaction);
+    transaction.objectStore(handleStoreName).delete(key);
+    await completed;
+    database.close();
+    try {
+      localStorage.setItem(changeKey, String(Date.now()));
+    } catch {
+      // Deleting the retained handle does not depend on localStorage.
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** @deprecated Remember a workspace or project folder explicitly. */
 export async function rememberCourseFolder(
   handle: CourseDirectoryHandle,
@@ -202,10 +224,18 @@ export async function rememberWorkspaceFolder(
   return rememberFolder(handle, workspaceFolderKey, workspaceFolderChangedKey);
 }
 
+export async function forgetWorkspaceFolder(): Promise<boolean> {
+  return forgetFolder(workspaceFolderKey, workspaceFolderChangedKey);
+}
+
 export async function rememberProjectFolder(
   handle: CourseDirectoryHandle,
 ): Promise<boolean> {
   return rememberFolder(handle, projectFolderKey, courseFolderChangedKey);
+}
+
+export async function forgetProjectFolder(): Promise<boolean> {
+  return forgetFolder(projectFolderKey, courseFolderChangedKey);
 }
 
 export function handCourseFolderToIde(): void {

@@ -8,6 +8,7 @@ import {
   duplicateProjectFile,
   ensureProjectFolder,
   hasProjectFolderMetadata,
+  isCourseRepositoryFolder,
   loadRecoveredProject,
   normalizedProjectPath,
   projectPathError,
@@ -395,6 +396,28 @@ describe("project recovery", () => {
     expect(recovered.entrypoint).toBe(spiral.entrypoint);
     expect(recovered.files).toEqual(spiral.files);
   });
+
+  it("does not recover the UCSBXRP development repository as a student project", () => {
+    storage.setItem(
+      projectRecoveryKey,
+      JSON.stringify({
+        name: "Coursemobilerobotics",
+        entrypoint: "device_service.py",
+        files: {
+          "AGENTS.md": "project instructions\n",
+          "CODEX_IMPLEMENTATION_PROMPT.md": "implementation prompt\n",
+          "PROJECT_CONTEXT.md": "course repository\n",
+          "device_service.py": "print('service')\n",
+        },
+      }),
+    );
+
+    const recovered = loadRecoveredProject();
+    const spiral = courseProjectTemplate("demo_spiral").project;
+
+    expect(recovered.name).toBe(spiral.name);
+    expect(recovered.files).toEqual(spiral.files);
+  });
 });
 
 describe("project paths", () => {
@@ -566,6 +589,43 @@ describe("working-folder reads", () => {
     await expect(readProjectFolder(root)).rejects.toThrow(
       "contains no supported text project files",
     );
+  });
+
+  it("rejects the UCSBXRP development repository as an IDE project", async () => {
+    const root = new ReadonlyDirectoryHandle("Coursemobilerobotics", [
+      ["AGENTS.md", new ReadonlyFileHandle("AGENTS.md", "instructions")],
+      [
+        "CODEX_IMPLEMENTATION_PROMPT.md",
+        new ReadonlyFileHandle(
+          "CODEX_IMPLEMENTATION_PROMPT.md",
+          "implementation",
+        ),
+      ],
+      [
+        "device_service.py",
+        new ReadonlyFileHandle("device_service.py", "print('service')"),
+      ],
+    ]);
+
+    await expect(readProjectFolder(root)).rejects.toThrow(
+      "not the UCSBXRP course software repository",
+    );
+    await expect(isCourseRepositoryFolder(root)).resolves.toBe(true);
+  });
+
+  it("does not reject a student project for one documentation file name", async () => {
+    const root = new ReadonlyDirectoryHandle("student-project", [
+      ["AGENTS.md", new ReadonlyFileHandle("AGENTS.md", "group notes")],
+      ["main.py", new ReadonlyFileHandle("main.py", "print('ready')")],
+    ]);
+
+    await expect(isCourseRepositoryFolder(root)).resolves.toBe(false);
+    await expect(readProjectFolder(root)).resolves.toMatchObject({
+      project: {
+        entrypoint: "main.py",
+        files: { "main.py": "print('ready')" },
+      },
+    });
   });
 
   it("persists the main file and removes only explicitly deleted files", async () => {

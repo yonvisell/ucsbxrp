@@ -81,6 +81,13 @@ const ignoredDirectories = new Set([
 ]);
 const maximumFiles = 250;
 const maximumFileBytes = 1024 * 1024;
+const courseRepositoryMarkers = new Set([
+  "AGENTS.md",
+  "CODEX_IMPLEMENTATION_PROMPT.md",
+  "IMPLEMENTATION_PLAN.md",
+  "PROJECT_CONTEXT.md",
+  "SYSTEM_DESIGN.md",
+]);
 export const defaultProjectTemplateId = DEFAULT_COURSE_PROJECT_TEMPLATE_ID;
 export const defaultProjectFolderName = "Expanding-Spiral";
 
@@ -151,11 +158,42 @@ function recoveredProject(value: unknown): ProjectSnapshot | null {
   if (Object.keys(files).length === 0 || !(value.entrypoint in files)) {
     return null;
   }
+  if (isCourseRepositoryFileSet(files)) {
+    return null;
+  }
   return {
     name: value.name,
     entrypoint: value.entrypoint,
     files,
   };
+}
+
+function isCourseRepositoryFileSet(files: Record<string, string>): boolean {
+  let markerCount = 0;
+  for (const path of Object.keys(files)) {
+    if (!path.includes("/") && courseRepositoryMarkers.has(path)) {
+      markerCount += 1;
+      if (markerCount >= 2) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export async function isCourseRepositoryFolder(
+  root: CourseDirectoryHandle,
+): Promise<boolean> {
+  let markerCount = 0;
+  for await (const [name] of root.entries()) {
+    if (courseRepositoryMarkers.has(name)) {
+      markerCount += 1;
+      if (markerCount >= 2) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function migrateOriginalStageOneStarter(
@@ -511,6 +549,11 @@ export async function readProjectFolder(
   if (Object.keys(files).length === 0) {
     throw new Error(
       "The selected folder contains no supported text project files.",
+    );
+  }
+  if (isCourseRepositoryFileSet(files)) {
+    throw new Error(
+      "Choose a UCSBXRP project folder, not the UCSBXRP course software repository.",
     );
   }
   return {
