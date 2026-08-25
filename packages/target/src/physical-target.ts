@@ -17,6 +17,9 @@ import { describeProject } from "./project-identity";
 import { worldCatalogForProject } from "./project-world";
 import { EMPTY_RUNTIME_STATE, parseRuntimeState } from "./runtime-controls";
 import { parseWorldCatalog } from "@ucsb-xrp/simulator";
+import courseRelease from "../../../vendor/current/release.json";
+
+export const CURRENT_COURSE_RELEASE = courseRelease.release_id;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -124,6 +127,24 @@ function errorDetail(error: unknown): string {
 
 const RUN_STARTUP_QUIET_MS = 500;
 
+function assertCompatiblePhysicalInfo(info: PhysicalInfo): void {
+  if (info.protocol !== 1) {
+    throw new PhysicalTargetError(
+      "protocol_mismatch",
+      `XRP protocol ${info.protocol} is not supported by this app`,
+    );
+  }
+  if (
+    info.courseRelease !== CURRENT_COURSE_RELEASE ||
+    info.serviceVersion !== CURRENT_COURSE_RELEASE
+  ) {
+    throw new PhysicalTargetError(
+      "release_mismatch",
+      `This XRP has course release ${info.courseRelease} and service ${info.serviceVersion}; this web app requires ${CURRENT_COURSE_RELEASE}. Open Set up or repair XRP, update the robot, then reconnect.`,
+    );
+  }
+}
+
 export class DirectPhysicalTargetClient implements TargetClient {
   readonly kind = "physical" as const;
   readonly endpoint: string;
@@ -171,12 +192,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (generation !== this.connectGeneration) {
       return;
     }
-    if (info.protocol !== 1) {
-      throw new PhysicalTargetError(
-        "protocol_mismatch",
-        `XRP protocol ${info.protocol} is not supported by this app`,
-      );
-    }
+    assertCompatiblePhysicalInfo(info);
     const required = [
       "project.check",
       "project.sync",
@@ -585,6 +601,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       await new Promise((resolve) => setTimeout(resolve, 450));
       try {
         const info = await this.getJson<PhysicalInfo>("/api/v1/info", 1_500);
+        assertCompatiblePhysicalInfo(info);
         this.info = info;
         this.bootId = info.bootId;
         this.lastLogSeq = 0;

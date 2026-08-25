@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  CURRENT_COURSE_RELEASE,
   DirectPhysicalTargetClient,
   localNetworkRequestInit,
   PhysicalTargetClient,
@@ -117,8 +118,8 @@ describe("physical target", () => {
         if (!init || init.method === "GET") {
           return response({
             protocol: 1,
-            serviceVersion: "test",
-            courseRelease: "test",
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
             bootId: "boot-a",
             robotName: "xrp-test",
             address: "192.168.7.30",
@@ -172,8 +173,8 @@ describe("physical target", () => {
     const fetchMock = vi.fn(async () =>
       response({
         protocol: 1,
-        serviceVersion: "test",
-        courseRelease: "test",
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
         bootId: "boot-ap",
         robotName: "ucsb-xrp",
         address: "192.168.4.1",
@@ -205,10 +206,55 @@ describe("physical target", () => {
     expect(events).toContainEqual({
       type: "status",
       state: "ready",
-      detail: "ucsb-xrp · UCSB-XRP-AA71 fallback · 192.168.4.1 · course test",
+      detail: `ucsb-xrp · UCSB-XRP-AA71 fallback · 192.168.4.1 · course ${CURRENT_COURSE_RELEASE}`,
     });
     target.disconnect();
   });
+
+  it.each([
+    {
+      field: "course release",
+      serviceVersion: CURRENT_COURSE_RELEASE,
+      courseRelease: "older-release",
+    },
+    {
+      field: "service",
+      serviceVersion: "older-service",
+      courseRelease: CURRENT_COURSE_RELEASE,
+    },
+  ])(
+    "directs students to repair an XRP with an older $field",
+    async ({ serviceVersion, courseRelease }) => {
+      const fetchMock = vi.fn(async () =>
+        response({
+          protocol: 1,
+          serviceVersion,
+          courseRelease,
+          bootId: "boot-old",
+          robotName: "ucsb-xrp",
+          address: "192.168.4.1",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        }),
+      );
+      const target = new DirectPhysicalTargetClient("192.168.4.1", {
+        fetch: fetchMock as typeof fetch,
+        pollIntervalMs: 60_000,
+      });
+
+      await expect(target.connect()).rejects.toMatchObject({
+        code: "release_mismatch",
+        message: expect.stringContaining("Open Set up or repair XRP"),
+      });
+      target.disconnect();
+    },
+  );
 
   it("discovers and runs the retained project without another transfer", async () => {
     const revision =
@@ -218,8 +264,8 @@ describe("physical target", () => {
         if (!init || init.method === "GET") {
           return response({
             protocol: 1,
-            serviceVersion: "test",
-            courseRelease: "test",
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
             bootId: "boot-a",
             robotName: "xrp-test",
             address: "192.168.7.30",
@@ -287,8 +333,8 @@ describe("physical target", () => {
         if (!init || init.method === "GET") {
           return response({
             protocol: 1,
-            serviceVersion: "test",
-            courseRelease: "test",
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
             bootId: "boot-a",
             robotName: "xrp-test",
             address: "192.168.7.30",
@@ -375,8 +421,8 @@ describe("physical target", () => {
     resolveDiscovery?.(
       response({
         protocol: 1,
-        serviceVersion: "test",
-        courseRelease: "test",
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
         robotName: "xrp-test",
         address: "192.168.7.30",
         capabilities: [
@@ -519,8 +565,8 @@ describe("physical target", () => {
       return Promise.resolve(
         response({
           protocol: 1,
-          serviceVersion: "test",
-          courseRelease: "test",
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
           robotName: "xrp-test",
           address: "192.168.7.30",
           capabilities: [
@@ -574,8 +620,8 @@ describe("physical target", () => {
           }
           return response({
             protocol: 1,
-            serviceVersion: "test",
-            courseRelease: "test",
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
             bootId: "boot-a",
             robotName: "xrp-test",
             address: "192.168.7.30",
@@ -640,8 +686,8 @@ describe("physical target", () => {
       }
       return response({
         protocol: 1,
-        serviceVersion: "test",
-        courseRelease: "test",
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
         bootId: "boot-a",
         robotName: "xrp-test",
         address: "192.168.7.30",
@@ -687,8 +733,8 @@ describe("physical target", () => {
         if (!init || init.method === "GET") {
           return response({
             protocol: 1,
-            serviceVersion: "test",
-            courseRelease: "test",
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
             robotName: "xrp-test",
             address: "192.168.7.30",
             capabilities: [
@@ -787,8 +833,8 @@ describe("physical target", () => {
       if (url.endsWith("/api/v1/info")) {
         return response({
           protocol: 1,
-          serviceVersion: "test",
-          courseRelease: "test",
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
           bootId: "boot-a",
           robotName: "xrp-test",
           address: "192.168.7.30",
@@ -847,8 +893,8 @@ describe("physical target", () => {
     let bootId = "boot-a";
     const info = () => ({
       protocol: 1,
-      serviceVersion: "test",
-      courseRelease: "test",
+      serviceVersion: CURRENT_COURSE_RELEASE,
+      courseRelease: CURRENT_COURSE_RELEASE,
       bootId,
       robotName: "xrp-test",
       address: "192.168.7.30",
@@ -925,8 +971,8 @@ describe("physical target", () => {
         if (!init || init.method === "GET") {
           return response({
             protocol: 1,
-            serviceVersion: "test",
-            courseRelease: "test",
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
             robotName: "xrp-test",
             address: "192.168.7.30",
             capabilities: [

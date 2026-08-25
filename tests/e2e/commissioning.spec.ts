@@ -162,6 +162,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       private windowRemaining = 0;
       private temporaryPath = "";
       private temporaryData: number[] = [];
+      private failFirstInstall = true;
 
       getInfo() {
         return { usbVendorId: 0x1b4f, usbProductId: 0x0046 };
@@ -212,9 +213,12 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         if (this.rawPaste && chunk.length === 1 && chunk[0] === 4) {
           this.rawPaste = false;
           this.send(Uint8Array.of(4));
-          const response = await this.execute(
-            textDecoder.decode(Uint8Array.from(this.command)),
-          );
+          const code = textDecoder.decode(Uint8Array.from(this.command));
+          if (this.failFirstInstall && code.includes("__UCSB_XRP_HASHES__=")) {
+            this.failFirstInstall = false;
+            throw new Error("simulated USB disconnect");
+          }
+          const response = await this.execute(code);
           this.send(response.stdout);
           this.send(Uint8Array.of(4));
           this.send(response.stderr);
@@ -394,6 +398,19 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
   await expect(page.getByLabel("Robot hotspot")).toBeChecked();
+  await page.getByRole("button", { name: "Install or repair XRP" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "simulated USB disconnect",
+  );
+  await expect(page.getByText("Setup log", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Select connected XRP" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Choose the robot network" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Install or repair XRP" }).click();
 
   await expect(

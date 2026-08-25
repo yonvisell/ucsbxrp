@@ -418,9 +418,15 @@ export function CommissionApp() {
         const message = errorDetail(feedError);
         setError(message);
         recordSetup("USB", `Serial connection was lost: ${message}`, "error");
-        setStage("usb");
-        await sessionRef.current?.close();
+        const failedSession = sessionRef.current;
         sessionRef.current = null;
+        portRef.current = null;
+        try {
+          await failedSession?.close();
+        } catch {
+          // A USB disconnect can close the browser stream before cleanup runs.
+        }
+        setStage("usb");
       } finally {
         watchdogFeedInFlightRef.current = false;
       }
@@ -577,9 +583,20 @@ export function CommissionApp() {
       setStage("wifi");
     } catch (commissioningError) {
       const message = errorDetail(commissioningError);
+      const failedSession = sessionRef.current;
+      sessionRef.current = null;
+      portRef.current = null;
+      try {
+        await failedSession?.close();
+      } catch {
+        // A USB disconnect can close the browser stream before cleanup runs.
+      }
       setError(message);
       recordSetup("Install", `Repair failed: ${message}`, "error");
-      setStage("network");
+      setDetail(
+        "The USB session ended before setup completed. Select the connected XRP again; completed file updates are retained.",
+      );
+      setStage("usb");
     }
   }, [
     manifest,
