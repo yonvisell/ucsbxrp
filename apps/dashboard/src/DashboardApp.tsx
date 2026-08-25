@@ -524,6 +524,8 @@ export function DashboardApp() {
   const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
   const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const autosaveFolderEpoch = useRef(0);
+  const autosaveFolderRemembered = useRef(false);
   const currentProjectRef = useRef<SynchronizedProject | null>(null);
   const automaticRunActive = useRef(false);
   const automaticRunStartedAt = useRef("");
@@ -568,20 +570,38 @@ export function DashboardApp() {
 
   useEffect(() => {
     let disposed = false;
-    const refreshFolder = async () => {
+    let refreshRevision = 0;
+    const refreshFolder = async (preserveUnrememberedFolder = false) => {
+      const revision = ++refreshRevision;
       const folder = await loadRememberedProjectFolder();
-      if (disposed || folder === null) {
+      if (disposed || revision !== refreshRevision) {
         return;
       }
+      if (folder === null) {
+        if (preserveUnrememberedFolder && !autosaveFolderRemembered.current) {
+          return;
+        }
+        autosaveFolderRemembered.current = false;
+        autosaveFolderRef.current = null;
+        setRememberedAutosaveFolder(null);
+        setAutosaveFolder(null);
+        setRunAutosaveDetail(
+          "No project folder is connected. Runs remain visible in the Monitor but are not saved to the previous folder.",
+        );
+        return;
+      }
+      autosaveFolderRemembered.current = true;
       setRememberedAutosaveFolder(folder);
       const permission = await courseFolderPermission(folder);
-      if (disposed) {
+      if (disposed || revision !== refreshRevision) {
         return;
       }
       if (permission === "granted") {
+        autosaveFolderRef.current = folder;
         setAutosaveFolder(folder);
         setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
       } else {
+        autosaveFolderRef.current = null;
         setAutosaveFolder(null);
         setRunAutosaveDetail(
           `Reconnect project folder ${folder.name} to resume run saving.`,
@@ -590,7 +610,14 @@ export function DashboardApp() {
     };
     const folderChanged = (event: StorageEvent) => {
       if (event.key === courseFolderChangedKey) {
-        void refreshFolder();
+        const sharedFolderCanChange = autosaveFolderRemembered.current;
+        if (sharedFolderCanChange) {
+          // Stop writes immediately; loading the replacement handle is asynchronous.
+          autosaveFolderEpoch.current += 1;
+          autosaveFolderRef.current = null;
+          setAutosaveFolder(null);
+        }
+        void refreshFolder(!sharedFolderCanChange);
       }
     };
     void refreshFolder();
@@ -609,6 +636,7 @@ export function DashboardApp() {
       automaticRunActive.current = false;
       const recording = automaticRecorder.stop();
       const folder = autosaveFolderRef.current;
+      const folderEpoch = autosaveFolderEpoch.current;
       const startedAt = automaticRunStartedAt.current;
       const finishedAt = new Date().toISOString();
       const projectAtStart = automaticRunProject.current;
@@ -656,10 +684,16 @@ export function DashboardApp() {
         "",
       ].join("\n");
 
-      const writeArchive = async () => {
+      const writeArchive = async (): Promise<boolean> => {
+        if (
+          autosaveFolderRef.current === null ||
+          autosaveFolderEpoch.current !== folderEpoch
+        ) {
+          return false;
+        }
         try {
           if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
-            return;
+            return true;
           }
         } catch {
           // The folder write remains useful when localStorage is unavailable.
@@ -682,19 +716,22 @@ export function DashboardApp() {
         } catch {
           // The files are already complete.
         }
+        return true;
       };
 
       const queued = runArchiveQueue.current.then(async () => {
-        await withCourseFolderWriteLock("run", writeArchive);
+        return withCourseFolderWriteLock("run", writeArchive);
       });
       runArchiveQueue.current = queued.then(
         () => undefined,
         () => undefined,
       );
       void queued
-        .then(() => {
+        .then((saved) => {
           setRunAutosaveDetail(
-            `Saved ${recording.samples.length} telemetry samples and program output to ${folder.name}.`,
+            saved
+              ? `Saved ${recording.samples.length} telemetry samples and program output to ${folder.name}.`
+              : "Run finished; browser data remains visible, but no project folder is connected.",
           );
         })
         .catch((error: unknown) => {
@@ -894,10 +931,17 @@ export function DashboardApp() {
   const chooseRunAutosaveFolder = async () => {
     try {
       const folder = await chooseProjectFolder();
+      autosaveFolderEpoch.current += 1;
+      autosaveFolderRef.current = folder;
+      autosaveFolderRemembered.current = false;
       setRememberedAutosaveFolder(folder);
       setAutosaveFolder(folder);
       setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
-      void rememberProjectFolder(folder);
+      void rememberProjectFolder(folder).then((remembered) => {
+        if (autosaveFolderRef.current === folder) {
+          autosaveFolderRemembered.current = remembered;
+        }
+      });
     } catch (error: unknown) {
       if (!wasCancelled(error)) {
         setRunAutosaveDetail(
