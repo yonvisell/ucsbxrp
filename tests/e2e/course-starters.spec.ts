@@ -408,6 +408,30 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await expect(liveProgram).toBeVisible();
   await expect(liveProgram.locator("summary")).toHaveCount(0);
   await expect(liveProgram).toContainText("5 controls");
+  const secondApproach = liveProgram.getByRole("checkbox", {
+    name: "Drive after turn",
+  });
+  const secondApproachControl = liveProgram.locator(
+    '[data-runtime-parameter="second_approach"]',
+  );
+  await secondApproach.click();
+  await expect(secondApproachControl).toHaveAttribute(
+    "data-runtime-value",
+    "false",
+    { timeout: 5_000 },
+  );
+  await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
+  await secondApproach.click();
+  await expect(secondApproachControl).toHaveAttribute(
+    "data-runtime-value",
+    "true",
+    { timeout: 5_000 },
+  );
+  await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
+    timeout: 5_000,
+  });
   const speed = liveProgram.getByRole("slider", { name: "Forward speed" });
   await speed.fill("180");
   const speedControl = liveProgram.locator(
@@ -433,30 +457,6 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
     timeout: 5_000,
   });
   await expect(direction).toHaveAttribute("data-runtime-value", "left");
-  const secondApproach = liveProgram.getByRole("checkbox", {
-    name: "Drive after turn",
-  });
-  await secondApproach.click();
-  const secondApproachControl = liveProgram.locator(
-    '[data-runtime-parameter="second_approach"]',
-  );
-  await expect(secondApproachControl).toHaveAttribute(
-    "data-runtime-value",
-    "false",
-    { timeout: 5_000 },
-  );
-  await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
-    timeout: 5_000,
-  });
-  await secondApproach.click();
-  await expect(secondApproachControl).toHaveAttribute(
-    "data-runtime-value",
-    "true",
-    { timeout: 5_000 },
-  );
-  await expect(secondApproachControl).toHaveAttribute("data-pending", "false", {
-    timeout: 5_000,
-  });
   await expect(liveProgram.getByText("Phase")).toHaveCount(0);
   await expect(
     monitor.getByLabel("Program watch values").getByText("Phase"),

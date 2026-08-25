@@ -17,8 +17,11 @@ Stable Chrome workflows exercise the preparation gate and the safe-default
 fallback. All 151 Python and 156 TypeScript tests pass; the 44 unaffected
 non-hardware Chrome workflows passed in the complete run, and the corrected
 live-control path plus both new isolation workflows passed together afterward.
-The production build and 212-file offline shell pass. The attached XRP release
-remains `2026.08-dev.15` because no robot file changed.
+The obstacle-demo harness now verifies its false-to-true toggle before that
+value can select the mission branch; the complete mission then passed five
+consecutive CI-mode repetitions. The production build and 212-file offline
+shell pass. The attached XRP release remains `2026.08-dev.15` because no robot
+file changed.
 
 Refinement 39 closes the final deployment-gate failures without weakening the
 functional checks. Plot notes now attach their time and pose to the same nearest
