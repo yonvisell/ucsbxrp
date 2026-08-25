@@ -1,5 +1,11 @@
 # Hardware evidence
 
+`2026-08-25-dev15-comprehensive-validation.json` is the current attached-RP2350
+record. It covers USB installation readback, a reset in both network modes, an
+actual Mac join to the XRP hotspot, Pink station operation, an elevated-wheel
+spiral run, telemetry batching, the IDE/Monitor shared lifecycle, and the final
+zero-output state.
+
 This directory retains machine-readable observations from the attached
 SparkFun XRP Controller with RP2350. Records are evidence of what one device did
 with an exact software revision; they are not a checklist for students.

@@ -4,6 +4,28 @@ Last updated: 2026-08-25
 
 ## Current result
 
+Refinement 38 closes the complete local and attached-RP2350 validation pass for
+release `2026.08-dev.15`. A real reset exposed one service expression accepted
+by CPython but rejected by MicroPython 1.28.0. The expression now uses ordinary
+list append, and the required MicroPython gate parses the installed service as
+well as the course library. After repair, the Mac joined the robot hotspot,
+received `192.168.4.16`, and reached the version-matched service at
+`192.168.4.1`. The robot then returned to Pink at `192.168.7.42`; a fresh reset
+returned the station service in 17 seconds. The client now retains a 30-second
+automatic reconnect window for ordinary DHCP variation.
+
+The physical expanding spiral completed with one stable boot ID, ordered
+telemetry batches through sequence 91, ultrasound stopping, retained program
+output, and zero final drive commands and wheel speeds. The attached-hardware
+Chrome path passed Flash, Monitor Run, Stop/reconnect, stale-project detection,
+re-Flash, IDE Run, a second Stop/reconnect, and cross-tab zero-output
+confirmation. This path also exposed a redundant second validation after a
+successful physical Flash; Flash now marks the exact revision validated before
+Run. All 151 Python tests, 154 TypeScript tests, 43 non-hardware Chrome tests,
+the attached-hardware Chrome test, MicroPython source/service parsing, the
+production bundle, and the 212-file offline shell pass. The robot is back on
+Pink with the default **Expanding spiral** project and zero motor output.
+
 Refinement 37 corrects the physical hotspot subnet. Releases through dev.11
 configured the robot at `192.168.42.1`, but the RP2350 CYW43 firmware continued
 to lease client addresses on `192.168.4.x`; a laptop could therefore join the

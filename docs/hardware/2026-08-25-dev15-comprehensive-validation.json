@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-25T07:11:36-07:00",
+  "purpose": "Validate commissioning outputs, both supported Wi-Fi modes, the complete browser application set, and the retained physical project lifecycle on the attached course XRP.",
+  "repository": {
+    "branch": "main",
+    "serviceCompatibilityCorrection": "49c2a22",
+    "physicalRunCorrection": "146ea11",
+    "deploymentState": "local validation complete; publication recorded separately"
+  },
+  "robot": {
+    "controller": "SparkFun XRP Controller",
+    "processor": "RP2350",
+    "firmware": "MicroPython 1.28.0",
+    "usbPort": "/dev/cu.usbmodem101",
+    "courseRelease": "2026.08-dev.15",
+    "serviceVersion": "2026.08-dev.15",
+    "installedFilesReadVerified": 25,
+    "credentialsRecorded": false
+  },
+  "serviceCompatibilityFailureAndCorrection": {
+    "failure": "After reset, MicroPython rejected a CPython-valid list-spread assignment in the final stopped-sample path and main.py could not start the course service.",
+    "physicalTraceback": "SyntaxError: *x must be assignment target",
+    "correction": "Use list.append for the stopped sample and compile every installed service module with MicroPython 1.28.0 in the required parity gate.",
+    "resetAfterCorrection": "passed"
+  },
+  "networkModes": {
+    "robotHotspot": {
+      "ssid": "UCSB-XRP-9EDE",
+      "robotAddress": "192.168.4.1",
+      "macAddress": "192.168.4.16",
+      "channel": 6,
+      "resetPersistence": "passed",
+      "macJoin": "passed",
+      "versionMatchedHttpService": "passed"
+    },
+    "existingWifi": {
+      "ssid": "Pink",
+      "robotAddress": "192.168.7.42",
+      "macAddress": "192.168.7.191",
+      "addressMode": "dhcp",
+      "resetPersistence": "passed",
+      "secondsFromResetToHttp": 17,
+      "versionMatchedHttpService": "passed"
+    }
+  },
+  "physicalSpiralRun": {
+    "bootIdStableForRun": true,
+    "stateSequence": ["ready", "running", "ready"],
+    "runId": 1,
+    "telemetrySequenceObserved": [1, 19, 49, 75, 91],
+    "maximumSamplesInOneHttpBatch": 9,
+    "leftWheelDistanceMmAtStop": 911.5452,
+    "rightWheelDistanceMmAtStop": 1870.1338,
+    "ultrasoundStopRangeMm": 137.62886,
+    "programOutput": [
+      "Obstacle detected; spiral stopped",
+      "final_pose: Pose(x_mm=22.684048, y_mm=-164.48006, heading_rad=-0.09874272)"
+    ],
+    "finalLeftEffort": 0.0,
+    "finalRightEffort": 0.0,
+    "finalLeftWheelSpeedMmS": 0.0,
+    "finalRightWheelSpeedMmS": 0.0,
+    "result": "passed"
+  },
+  "physicalBrowserLifecycle": {
+    "browser": "Stable Google Chrome",
+    "steps": [
+      "IDE and Monitor connected to the same retained physical project",
+      "IDE flashed a zero-output project",
+      "Monitor started it and IDE observed running",
+      "Monitor stopped it and both tabs reconnected",
+      "an IDE file edit disabled stale Monitor Run",
+      "IDE re-flashed the changed project",
+      "IDE started it and Monitor observed running",
+      "Monitor stopped it and both tabs reconnected",
+      "Monitor confirmed zero final motor effort"
+    ],
+    "durationSeconds": 45.4,
+    "result": "passed"
+  },
+  "automatedValidation": {
+    "pythonTests": 151,
+    "typescriptTests": 154,
+    "microPythonCourseAndServiceSyntax": "passed",
+    "productionBuild": "passed",
+    "commissioningBundleFiles": 25,
+    "offlinePayloadFiles": 212,
+    "offlineBuild": "666222d74b69e931f408",
+    "nonHardwareChromeTests": 43,
+    "attachedHardwareChromeTests": 1,
+    "result": "passed"
+  },
+  "finalState": {
+    "macNetwork": "Pink",
+    "robotNetwork": "Pink",
+    "robotProject": "Expanding spiral",
+    "motorOutput": [0.0, 0.0]
+  },
+  "remainingPhysicalBoundary": "Course-floor travel, moving inertial response, moving ultrasound scenes, and final arena runs remain dependent on the course surface and arena geometry."
+}

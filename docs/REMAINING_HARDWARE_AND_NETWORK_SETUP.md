@@ -19,13 +19,14 @@ firmware-drive, and local-network permission prompts remain explicit.
 `scripts/provision_xrp.py` remains an optional instructor/fleet interface to
 the same installation file set; it is not part of the normal student path.
 
-The development robot last completed physical installation and repair evidence
-on release `2026.08-dev.7` in hotspot mode at `192.168.42.1`. Its 23-file USB
-repair passed no-change repetition and two controlled one-file repairs. The
-current bundle is `2026.08-dev.15`; use the same wizard once to update and verify
-that exact release. Then verify Flash project, Run/Stop, telemetry, and live
-controls from the public Pages origin. The previously validated station profile
-was `Pink` at `192.168.7.34`.
+The development robot is current on release `2026.08-dev.15`. Its 25 installed
+files passed USB readback. After reset, the Mac joined its
+`UCSB-XRP-9EDE` hotspot and reached the service at `192.168.4.1`; the robot then
+returned to `Pink` at `192.168.7.42`. Flash, Run, Stop/reconnect, telemetry,
+program output, live project state, and the shared IDE/Monitor lifecycle passed
+in Chrome. No repair or network change is currently needed for this robot.
+Use the wizard again only to change its Wi-Fi mode, repair an interrupted
+installation, or install a later coordinated course release.
 
 ## Remaining floor-dependent work
 
