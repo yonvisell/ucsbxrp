@@ -48,7 +48,7 @@ the targets without the former jagged steps.
 The same slice makes the Monitor's telemetry column fit without horizontal
 clipping, renders plot legends at the display pixel ratio with a consistent UI
 font, and replaces the final setup-wizard uses of **workspace** with **course
-folder**. The coordinated course and service release is `2026.08-dev.12`.
+folder**. The coordinated course and service release is `2026.08-dev.13`.
 All 135 Python tests, 140 TypeScript tests, MicroPython source/bytecode parity,
 the production build, commissioning bundle, and 208-file offline shell pass.
 

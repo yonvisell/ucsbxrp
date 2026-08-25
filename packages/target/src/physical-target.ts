@@ -61,6 +61,7 @@ interface PhysicalState {
   runId: number;
   logs: PhysicalLog[];
   sample?: TelemetrySample;
+  samples?: TelemetrySample[];
   project?: PhysicalProjectManifest | null;
   runtimeJson?: string;
 }
@@ -161,6 +162,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private connectGeneration = 0;
   private nextRequest = 1;
   private lastLogSeq = 0;
+  private lastSampleSeq = 0;
   private bootId: string | null = null;
   private lastRunId = 0;
   private lastLeaseAt = 0;
@@ -304,7 +306,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
       catalog,
       selectedWorldId: catalog.defaultWorldId,
     });
-    this.emit({ type: "console", stream: "system", line: result.detail });
+    // The service records this event in its persistent system log. Polling that
+    // log keeps the IDE and Monitor consistent without displaying Flash twice.
   }
 
   async run(project: CourseProject): Promise<void> {
@@ -343,9 +346,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
         "run",
         {},
       );
+      if (result.runId !== this.lastRunId) {
+        this.lastSampleSeq = 0;
+      }
       this.lastRunId = result.runId;
       this.lastLeaseAt = 0;
-      this.emit({ type: "console", stream: "system", line: result.detail });
+      // The service records the start event. Use that retained entry as the
+      // console source; the status below still updates the controls immediately.
       this.emitStatus("loading", result.detail);
     } finally {
       this.pollingPaused = false;
@@ -539,7 +546,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
     try {
       const state = await this.getJson<PhysicalState>(
-        `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}`,
+        `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}`,
       );
       if (!this.connected || this.reconnecting) {
         return;
@@ -566,22 +573,40 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   private consumeState(state: PhysicalState): void {
-    if (state.bootId !== this.bootId) {
+    const bootChanged = state.bootId !== this.bootId;
+    const runChanged = state.runId !== this.lastRunId;
+    if (bootChanged) {
       this.bootId = state.bootId;
       this.lastLogSeq = 0;
+    }
+    if (bootChanged || runChanged) {
+      this.lastSampleSeq = 0;
     }
     this.lastRunId = state.runId;
     this.consumeProjectManifest(state.project);
     this.consumeRuntimeState(state.runtimeJson);
     this.emitStatus(state.state, state.detail);
-    if (state.sample) {
-      this.emit({
-        type: "telemetry",
-        sample: {
-          ...state.sample,
-          plotValues: this.runtimeState.plots.map((plot) => ({ ...plot })),
-        },
-      });
+    if (state.samples === undefined) {
+      // Services released before telemetry batching return one fresh sample
+      // per request and ignore afterSampleSeq. Preserve that behavior.
+      if (state.sample) {
+        this.emitTelemetry(state.sample);
+        this.lastSampleSeq = state.sample.seq;
+      }
+    } else {
+      const ordered = [...state.samples].sort(
+        (left, right) => left.seq - right.seq,
+      );
+      for (const sample of ordered) {
+        if (
+          !Number.isSafeInteger(sample.seq) ||
+          sample.seq <= this.lastSampleSeq
+        ) {
+          continue;
+        }
+        this.emitTelemetry(sample);
+        this.lastSampleSeq = sample.seq;
+      }
     }
     for (const entry of state.logs) {
       this.lastLogSeq = Math.max(this.lastLogSeq, entry.seq);
@@ -591,6 +616,16 @@ export class DirectPhysicalTargetClient implements TargetClient {
         line: entry.line,
       });
     }
+  }
+
+  private emitTelemetry(sample: TelemetrySample): void {
+    this.emit({
+      type: "telemetry",
+      sample: {
+        ...sample,
+        plotValues: this.runtimeState.plots.map((plot) => ({ ...plot })),
+      },
+    });
   }
 
   private async reconnectAfterReset(): Promise<void> {
@@ -605,6 +640,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.info = info;
         this.bootId = info.bootId;
         this.lastLogSeq = 0;
+        this.lastSampleSeq = 0;
         this.emitStatus(
           "ready",
           `${info.robotName} · ${info.address} · course ${info.courseRelease}`,

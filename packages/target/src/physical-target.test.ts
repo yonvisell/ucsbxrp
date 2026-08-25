@@ -7,7 +7,7 @@ import {
   PhysicalTargetClient,
   normalizePhysicalEndpoint,
 } from "./physical-target";
-import type { CourseProject, TargetEvent } from "./types";
+import type { CourseProject, TargetEvent, TelemetrySample } from "./types";
 
 const project: CourseProject = {
   entrypoint: "main.py",
@@ -19,6 +19,35 @@ function response(value: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function physicalSample(
+  sequence: number,
+  timeMs = sequence * 20,
+): TelemetrySample {
+  return {
+    tMs: timeMs,
+    seq: sequence,
+    source: "physical",
+    poseAvailable: true,
+    xMm: sequence,
+    yMm: 0,
+    headingRad: 0,
+    leftEffort: 0.2,
+    rightEffort: 0.2,
+    leftWheelSpeedMmS: 100,
+    rightWheelSpeedMmS: 100,
+    leftEncoderCount: sequence,
+    rightEncoderCount: sequence,
+    collision: false,
+    rangeMm: null,
+    buttonPressed: false,
+    accelerationMg: null,
+    angularRateMdps: null,
+    temperatureC: null,
+    batteryV: null,
+    sensorError: null,
+  };
 }
 
 describe("physical target", () => {
@@ -392,7 +421,7 @@ describe("physical target", () => {
       state: "loading",
       detail: "Running main.py",
     });
-    expect(events).toContainEqual({
+    expect(events).not.toContainEqual({
       type: "console",
       stream: "system",
       line: "Running main.py",
@@ -726,6 +755,219 @@ describe("physical target", () => {
     }
   });
 
+  it("emits a physical telemetry batch in sequence order without duplicates", async () => {
+    vi.useFakeTimers();
+    const requestedUrls: string[] = [];
+    const replies = [
+      {
+        bootId: "boot-a",
+        state: "running",
+        detail: "Running main.py",
+        runId: 1,
+        logs: [],
+        samples: [
+          physicalSample(4),
+          physicalSample(2),
+          physicalSample(3),
+          physicalSample(3),
+        ],
+        sample: physicalSample(4),
+      },
+      {
+        bootId: "boot-a",
+        state: "running",
+        detail: "Running main.py",
+        runId: 1,
+        logs: [],
+        samples: [physicalSample(4), physicalSample(5), physicalSample(6)],
+        sample: physicalSample(6),
+      },
+    ];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response(
+        replies.shift() ?? {
+          bootId: "boot-a",
+          state: "ready",
+          detail: "Program completed",
+          runId: 1,
+          logs: [],
+          samples: [],
+          sample: physicalSample(6),
+        },
+      );
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(
+        events
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([2, 3, 4, 5, 6]);
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0",
+      );
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=4",
+      );
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts the sample cursor again when a new physical run begins", async () => {
+    vi.useFakeTimers();
+    const replies = [
+      {
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Program completed",
+        runId: 3,
+        logs: [],
+        samples: [physicalSample(7)],
+        sample: physicalSample(7),
+      },
+      {
+        bootId: "boot-a",
+        state: "running",
+        detail: "Running main.py",
+        runId: 4,
+        logs: [],
+        samples: [physicalSample(1, 0), physicalSample(2, 20)],
+        sample: physicalSample(2, 20),
+      },
+    ];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response(replies.shift());
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(
+        events
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([7, 1, 2]);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("retains single-sample polling for an older physical service", async () => {
+    vi.useFakeTimers();
+    let telemetryRequest = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      telemetryRequest += 1;
+      return response({
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [],
+        sample: physicalSample(telemetryRequest),
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(
+        events
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([1, 2]);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("discovers, checks, synchronizes, and runs with correlated replies", async () => {
     let requestCount = 0;
     const fetchMock = vi.fn(
@@ -793,7 +1035,7 @@ describe("physical target", () => {
       stream: "system",
       line: "Validation passed · 1 Python files compiled",
     });
-    expect(events).toContainEqual({
+    expect(events).not.toContainEqual({
       type: "console",
       stream: "system",
       line: "Running main.py",
@@ -871,10 +1113,10 @@ describe("physical target", () => {
       await vi.advanceTimersByTimeAsync(35);
 
       expect(requestedUrls).toContain(
-        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=10",
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=10&afterSampleSeq=0",
       );
       expect(requestedUrls).toContain(
-        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0",
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0",
       );
       expect(events).toContainEqual({
         type: "console",

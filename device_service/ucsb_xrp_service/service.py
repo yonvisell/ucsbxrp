@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.12"
+COURSE_RELEASE = "2026.08-dev.13"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -49,6 +49,7 @@ _lease_deadline = None
 _logs = []
 _log_seq = 0
 _sample_seq = 0
+_sample_epoch_start_ms = 0
 _last_sample = None
 _last_hardware = None
 _active_manifest = None
@@ -461,58 +462,27 @@ def _read_hardware():
     return values
 
 
-def _hardware_sample():
-    global _sample_seq, _last_sample
-    now = time.ticks_ms()
-    try:
-        from ucsb_xrp._telemetry import state_snapshot
+def _empty_hardware():
+    return {
+        "leftEncoderCount": 0,
+        "rightEncoderCount": 0,
+        "rangeMm": None,
+        "buttonPressed": False,
+        "accelerationMg": None,
+        "angularRateMdps": None,
+        "temperatureC": None,
+        "batteryV": None,
+        "sensorError": None,
+    }
 
-        pose = state_snapshot()
-    except Exception:
-        pose = None
 
-    # XRPLib's I2C and encoder drivers are not safe for concurrent access from
-    # both RP2350 cores. While a student program is active, use its published
-    # course state and the latest stationary peripheral sample. Direct device
-    # reads resume as soon as the program thread finishes.
-    if _thread_active:
-        hardware = _last_hardware or {
-            "leftEncoderCount": 0,
-            "rightEncoderCount": 0,
-            "rangeMm": None,
-            "buttonPressed": False,
-            "accelerationMg": None,
-            "angularRateMdps": None,
-            "temperatureC": None,
-            "batteryV": None,
-            "sensorError": None,
-        }
-    else:
-        hardware = _read_hardware()
-
+def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
+    """Build one wire sample without reading any device."""
     left_count = hardware["leftEncoderCount"]
     right_count = hardware["rightEncoderCount"]
-
-    left_speed = 0.0
-    right_speed = 0.0
-    if _thread_active and pose is not None:
-        left_speed = pose["leftWheelSpeedMmS"]
-        right_speed = pose["rightWheelSpeedMmS"]
-    elif not _thread_active and _last_sample is not None:
-        dt_ms = time.ticks_diff(now, _last_sample[0])
-        if dt_ms > 0:
-            millimeters_per_count = math.pi * 60.0 / 585.0
-            left_speed = (
-                (left_count - _last_sample[1]) * millimeters_per_count * 1000.0 / dt_ms
-            )
-            right_speed = (
-                (right_count - _last_sample[2]) * millimeters_per_count * 1000.0 / dt_ms
-            )
-    _last_sample = (now, left_count, right_count)
-    _sample_seq += 1
     return {
-        "tMs": time.ticks_diff(now, _boot_ms),
-        "seq": _sample_seq,
+        "tMs": time_ms,
+        "seq": sequence,
         "source": "physical",
         "poseAvailable": pose is not None,
         "xMm": 0.0 if pose is None else pose["xMm"],
@@ -567,6 +537,98 @@ def _hardware_sample():
         "batteryV": hardware["batteryV"],
         "sensorError": hardware["sensorError"],
     }
+
+
+def _course_sample(pose, hardware):
+    """Translate one retained Robot.step publication without device I/O."""
+    global _sample_seq
+    sequence = pose.get("sampleSeq")
+    if not isinstance(sequence, int) or sequence <= 0:
+        _sample_seq += 1
+        sequence = _sample_seq
+    elif sequence > _sample_seq:
+        _sample_seq = sequence
+    elapsed_ms = pose.get("sampleTimeMs")
+    if not isinstance(elapsed_ms, int) or elapsed_ms < 0:
+        time_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
+    else:
+        time_ms = _sample_epoch_start_ms + elapsed_ms
+    return _sample_value(
+        pose,
+        hardware,
+        sequence,
+        time_ms,
+        pose["leftWheelSpeedMmS"],
+        pose["rightWheelSpeedMmS"],
+    )
+
+
+def _hardware_sample():
+    global _sample_seq, _last_sample
+    now = time.ticks_ms()
+    try:
+        from ucsb_xrp._telemetry import state_snapshot
+
+        pose = state_snapshot()
+    except Exception:
+        pose = None
+
+    # XRPLib's I2C and encoder drivers are not safe for concurrent access from
+    # both RP2350 cores. While a student program is active, use its published
+    # course state and the latest stationary peripheral sample. Direct device
+    # reads resume as soon as the program thread finishes.
+    if _thread_active:
+        hardware = _last_hardware or _empty_hardware()
+        if pose is not None:
+            return _course_sample(pose, hardware)
+        return _sample_value(None, hardware, 0, 0, 0.0, 0.0)
+    else:
+        hardware = _read_hardware()
+
+    left_count = hardware["leftEncoderCount"]
+    right_count = hardware["rightEncoderCount"]
+    left_speed = 0.0
+    right_speed = 0.0
+    if not _thread_active and _last_sample is not None:
+        dt_ms = time.ticks_diff(now, _last_sample[0])
+        if dt_ms > 0:
+            millimeters_per_count = math.pi * 60.0 / 585.0
+            left_speed = (
+                (left_count - _last_sample[1]) * millimeters_per_count * 1000.0 / dt_ms
+            )
+            right_speed = (
+                (right_count - _last_sample[2]) * millimeters_per_count * 1000.0 / dt_ms
+            )
+    _last_sample = (now, left_count, right_count)
+    _sample_seq += 1
+    return _sample_value(
+        pose,
+        hardware,
+        _sample_seq,
+        time.ticks_diff(now, _boot_ms),
+        left_speed,
+        right_speed,
+    )
+
+
+def _buffered_course_samples(after_sample_seq):
+    """Read the bounded course-state ring and perform device I/O at most once."""
+    try:
+        from ucsb_xrp._telemetry import buffered_state_snapshots
+
+        snapshots = buffered_state_snapshots(after_sample_seq)
+    except (ImportError, AttributeError):
+        # A service installed beside an older course package still exposes the
+        # legacy single-sample response instead of failing the endpoint.
+        snapshots = ()
+    if not snapshots:
+        return []
+    hardware = (
+        (_last_hardware or _empty_hardware())
+        if _thread_active
+        else _read_hardware()
+    )
+    return [_course_sample(snapshot, hardware) for snapshot in snapshots]
 
 
 def _runtime_snapshot_json():
@@ -679,8 +741,35 @@ def telemetry(request):
         after = int(request.query.get("afterLogSeq", "0"))
     except ValueError:
         after = 0
+    try:
+        after_sample = int(request.query.get("afterSampleSeq", "0"))
+    except ValueError:
+        after_sample = 0
+    if after_sample < 0:
+        after_sample = 0
     value = _state_result(after)
-    value["sample"] = _hardware_sample()
+    samples = _buffered_course_samples(after_sample)
+    if samples:
+        sample = samples[-1]
+    elif _thread_active:
+        # No new Robot.step publication is available yet. Keep the legacy
+        # latest-sample field for older clients, but an empty batch tells newer
+        # clients not to duplicate it.
+        sample = _hardware_sample()
+    elif _launch_pending:
+        sample = _sample_value(
+            None,
+            _last_hardware or _empty_hardware(),
+            0,
+            0,
+            0.0,
+            0.0,
+        )
+    else:
+        sample = _hardware_sample()
+        samples = [sample]
+    value["samples"] = samples
+    value["sample"] = sample
     return _json_response(value)
 
 
@@ -712,6 +801,7 @@ def sync(request):
 def run_project(request):
     def operation(body):
         global _run_id, _launch_pending, _lease_deadline
+        global _sample_seq, _sample_epoch_start_ms, _last_sample
         if _thread_active or _launch_pending:
             raise ProtocolError("target_busy", "a program is already running")
         manifest = _read_manifest()
@@ -733,6 +823,12 @@ def run_project(request):
 
         clear_state()
         clear_runtime()
+        # The run ID and telemetry sequence together define one sample epoch.
+        # The browser resets its cursor when the run changes, so every project
+        # starts at sample 1 without colliding with prior idle telemetry.
+        _sample_seq = 0
+        _sample_epoch_start_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
+        _last_sample = None
         # Collect on the service core before the student core starts. Running
         # global collection from the student core while the HTTP loop allocates
         # request objects can stall RP2350 MicroPython.

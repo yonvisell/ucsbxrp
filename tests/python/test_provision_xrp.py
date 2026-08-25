@@ -64,8 +64,8 @@ class ProvisionXrpTest(unittest.TestCase):
                 "wait_for_service",
                 return_value={
                     "robotName": "ucsb-xrp",
-                    "courseRelease": "2026.08-dev.12",
-                    "serviceVersion": "2026.08-dev.12",
+                    "courseRelease": "2026.08-dev.13",
+                    "serviceVersion": "2026.08-dev.13",
                 },
             ),
         ):
@@ -73,7 +73,7 @@ class ProvisionXrpTest(unittest.TestCase):
 
         configure.assert_called_once()
         install.assert_called_once_with("/dev/test")
-        self.assertEqual(result["courseRelease"], "2026.08-dev.12")
+        self.assertEqual(result["courseRelease"], "2026.08-dev.13")
         self.assertEqual(result["installedFiles"], 1)
         self.assertEqual(result["unchangedFiles"], 2)
 
@@ -113,10 +113,10 @@ class ProvisionXrpTest(unittest.TestCase):
         wait_for_service.assert_not_called()
         self.assertEqual(result["mode"], "access_point")
         self.assertEqual(result["network"], "UCSB-XRP-AA71")
-        self.assertEqual(result["serviceVersion"], "2026.08-dev.12")
+        self.assertEqual(result["serviceVersion"], "2026.08-dev.13")
 
     def test_local_service_version_reads_the_device_protocol(self):
-        self.assertEqual(PROVISION.local_service_version(), "2026.08-dev.12")
+        self.assertEqual(PROVISION.local_service_version(), "2026.08-dev.13")
 
 
 if __name__ == "__main__":

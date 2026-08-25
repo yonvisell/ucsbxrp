@@ -154,6 +154,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._reply_order.clear()
         self.service._last_hardware = None
         self.service._last_sample = None
+        self.service._sample_seq = 0
+        self.service._sample_epoch_start_ms = 0
 
     def test_run_reply_precedes_second_core_launch(self):
         with tempfile.TemporaryDirectory() as project_dir:
@@ -168,6 +170,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.service._active_slot_path = lambda: project_dir
             self.service._clear_project_modules = lambda _manifest: None
             self.service._stop_motors = lambda: None
+            self.service._sample_seq = 41
+            self.service._last_sample = (90, 1, 1)
 
             response = self.service.run_project(
                 types.SimpleNamespace(data={"requestId": "runtime-test"})
@@ -176,6 +180,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
             self.assertEqual(reply["result"]["detail"], "Starting main.py")
             self.assertEqual(self.service._state, "loading")
+            self.assertEqual(self.service._sample_seq, 0)
+            self.assertIsNone(self.service._last_sample)
             self.assertEqual(self.thread_calls, [])
             self.assertEqual(len(self.server.loop.tasks), 1)
 
@@ -267,6 +273,107 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(sample["targetRightWheelSpeedMmS"], 102.75)
         self.assertEqual(sample["leftWheelDistanceMm"], 345.0)
         self.assertEqual(sample["rightWheelDistanceMm"], 351.0)
+
+    def test_telemetry_endpoint_returns_ordered_new_samples_and_legacy_latest(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        base = {
+            "xMm": 125.0,
+            "yMm": -30.0,
+            "headingRad": 0.4,
+            "leftWheelSpeedMmS": 88.0,
+            "rightWheelSpeedMmS": 102.0,
+            "leftWheelDistanceMm": 345.0,
+            "rightWheelDistanceMm": 351.0,
+            "rangeMm": 450.0,
+            "buttonPressed": False,
+            "leftEffort": 0.2,
+            "rightEffort": 0.24,
+            "requestedForwardSpeedMmS": 95.0,
+            "requestedTurnRateRadS": 0.1,
+            "targetLeftWheelSpeedMmS": 87.25,
+            "targetRightWheelSpeedMmS": 102.75,
+        }
+        retained = []
+        for sequence in range(1, 9):
+            retained.append(
+                {
+                    **base,
+                    "sampleSeq": sequence,
+                    "sampleTimeMs": (sequence - 1) * 20,
+                    "xMm": float(sequence),
+                }
+            )
+        self.service._thread_active = True
+        self.service._last_hardware = {
+            "leftEncoderCount": 40,
+            "rightEncoderCount": 44,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": 26.0,
+            "batteryV": 6.0,
+            "sensorError": None,
+        }
+
+        with (
+            patch.object(
+                course_telemetry,
+                "buffered_state_snapshots",
+                side_effect=lambda after: tuple(
+                    item for item in retained if item["sampleSeq"] > after
+                ),
+                create=True,
+            ),
+            patch.object(self.service, "_read_hardware") as read_hardware,
+        ):
+            response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={"afterLogSeq": "0", "afterSampleSeq": "2"}
+                )
+            )
+
+        result = json.loads(response.body.decode("utf-8"))
+        self.assertEqual([item["seq"] for item in result["samples"]], list(range(3, 9)))
+        self.assertEqual([item["tMs"] for item in result["samples"]], list(range(40, 160, 20)))
+        self.assertEqual(result["sample"], result["samples"][-1])
+        self.assertEqual(result["samples"][-1]["xMm"], 8.0)
+        read_hardware.assert_not_called()
+
+    def test_idle_telemetry_adds_one_fresh_sample_to_the_batch(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        hardware = {
+            "leftEncoderCount": 10,
+            "rightEncoderCount": 12,
+            "rangeMm": 300.0,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": 25.0,
+            "batteryV": 6.1,
+            "sensorError": None,
+        }
+        with (
+            patch.object(
+                course_telemetry,
+                "buffered_state_snapshots",
+                return_value=(),
+                create=True,
+            ),
+            patch.object(course_telemetry, "state_snapshot", return_value=None, create=True),
+            patch.object(self.service, "_read_hardware", return_value=hardware),
+        ):
+            response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                )
+            )
+
+        result = json.loads(response.body.decode("utf-8"))
+        self.assertEqual(len(result["samples"]), 1)
+        self.assertEqual(result["samples"][0]["seq"], 1)
+        self.assertEqual(result["sample"], result["samples"][0])
+        self.assertEqual(result["sample"]["rangeMm"], 300.0)
 
     def test_wifi_connection_uses_the_shared_profile_and_feeds_watchdog(self):
         class Watchdog:
