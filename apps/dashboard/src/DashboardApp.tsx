@@ -54,6 +54,7 @@ import {
 } from "./SignalPlot";
 import { WorldView } from "./WorldView";
 import {
+  createMonitorAnnotation,
   createSignalPlotsSvg,
   createWorldReplayWebm,
   downloadBlob,
@@ -1088,22 +1089,8 @@ export function DashboardApp() {
   ];
 
   const addAnnotation = (tMs: number, label: string) => {
-    const nearest = plotSamples.reduce<TelemetrySample | null>(
-      (best, candidate) =>
-        !best || Math.abs(candidate.tMs - tMs) < Math.abs(best.tMs - tMs)
-          ? candidate
-          : best,
-      null,
-    );
-    if (!nearest || !label.trim()) return;
-    const annotation: MonitorAnnotation = {
-      id: `${nearest.source}-${nearest.seq}-${Date.now()}`,
-      label: label.trim(),
-      tMs,
-      poseAvailable: nearest.poseAvailable,
-      xMm: nearest.xMm,
-      yMm: nearest.yMm,
-    };
+    const annotation = createMonitorAnnotation(plotSamples, tMs, label);
+    if (!annotation) return;
     annotationsRef.current = [...annotationsRef.current, annotation].slice(-24);
     setAnnotations(annotationsRef.current);
     setAnnotationsVisible(true);

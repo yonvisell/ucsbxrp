@@ -16,6 +16,32 @@ export interface MonitorAnnotation {
   yMm: number;
 }
 
+export function createMonitorAnnotation(
+  samples: readonly TelemetrySample[],
+  requestedTimeMs: number,
+  label: string,
+  createdAtMs = Date.now(),
+): MonitorAnnotation | null {
+  const cleanLabel = label.trim();
+  if (samples.length === 0 || cleanLabel === "") return null;
+
+  const nearest = samples.reduce((best, candidate) =>
+    Math.abs(candidate.tMs - requestedTimeMs) <
+    Math.abs(best.tMs - requestedTimeMs)
+      ? candidate
+      : best,
+  );
+  return {
+    id: `${nearest.source}-${nearest.seq}-${createdAtMs}`,
+    label: cleanLabel,
+    // Time and pose describe the same retained telemetry sample.
+    tMs: nearest.tMs,
+    poseAvailable: nearest.poseAvailable,
+    xMm: nearest.xMm,
+    yMm: nearest.yMm,
+  };
+}
+
 const XRP_LENGTH_MM = 192.5;
 const XRP_WIDTH_MM = 190.5;
 

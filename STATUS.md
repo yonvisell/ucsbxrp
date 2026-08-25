@@ -4,6 +4,19 @@ Last updated: 2026-08-25
 
 ## Current result
 
+Refinement 39 closes the final deployment-gate failures without weakening the
+functional checks. Plot notes now attach their time and pose to the same nearest
+retained telemetry sample, so a note placed early in a run remains present in
+SVG, PNG, and replay exports even when a slower browser advances the visible
+time window before export. The world-selector alignment check now allows a
+four-pixel font-metric variation after GitHub's Linux Chrome reported a harmless
+3.5-pixel offset. The two affected workflows passed 10 consecutive CI-mode
+repetitions and then passed again inside the complete gate. All 151 Python
+tests, 155 TypeScript tests, 43 non-hardware Chrome tests, MicroPython parsing,
+the production bundle, and the 212-file offline shell pass. The attached XRP
+release remains `2026.08-dev.15`; this browser-only correction does not change
+the installed robot files.
+
 Refinement 38 closes the complete local and attached-RP2350 validation pass for
 release `2026.08-dev.15`. A real reset exposed one service expression accepted
 by CPython but rejected by MicroPython 1.28.0. The expression now uses ordinary

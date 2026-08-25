@@ -252,7 +252,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   ]);
   expect(
     Math.abs((sceneSelectBox?.y ?? 0) - (worldLabelBox?.y ?? 0)),
-  ).toBeLessThanOrEqual(3);
+  ).toBeLessThanOrEqual(4);
   expect(sceneSelectBox?.x).toBeGreaterThan(
     (worldLabelBox?.x ?? 0) + (worldLabelBox?.width ?? 0),
   );

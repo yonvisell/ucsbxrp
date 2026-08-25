@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
 import {
+  createMonitorAnnotation,
   createSignalPlotsSvg,
   worldReplayPlan,
   type MonitorAnnotation,
@@ -44,6 +45,21 @@ describe("monitor exports", () => {
     xMm: 80,
     yMm: 40,
   };
+
+  it("anchors each note to the nearest retained telemetry sample", () => {
+    expect(
+      createMonitorAnnotation(samples, 6_200, "  turn begins  ", 123),
+    ).toEqual({
+      id: "virtual-5000-123",
+      label: "turn begins",
+      tMs: 5_000,
+      poseAvailable: true,
+      xMm: 80,
+      yMm: 40,
+    });
+    expect(createMonitorAnnotation([], 0, "note", 123)).toBeNull();
+    expect(createMonitorAnnotation(samples, 0, "  ", 123)).toBeNull();
+  });
 
   it("exports every selected plot as one self-contained vector graphic", () => {
     const svg = createSignalPlotsSvg(samples, ["wheel-speed", "range"], 10, [
