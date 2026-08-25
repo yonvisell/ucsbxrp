@@ -86,7 +86,7 @@
     "productionBuild": "passed",
     "commissioningBundleFiles": 25,
     "offlinePayloadFiles": 212,
-    "offlineBuild": "666222d74b69e931f408",
+    "offlineBuild": "afc65fd44e8d18834b67",
     "nonHardwareChromeTests": 43,
     "attachedHardwareChromeTests": 1,
     "result": "passed"
