@@ -4,6 +4,22 @@ Last updated: 2026-08-25
 
 ## Current result
 
+Refinement 40 closes a first-visit production race found by the independent
+post-deployment Chrome probe. GitHub Pages cannot attach the isolation headers
+needed by shared live-control memory until the generated service worker has
+installed and performed its single automatic refresh. IDE and Monitor now hold
+Virtual Run during that brief preparation and state exactly why; Physical Run
+is unaffected. If isolation is unexpectedly absent inside a virtual worker,
+declared live parameters retain their defaults instead of terminating the
+program, and Stop remains available. Cross-tab live adjustments still travel
+through the shared worker to the client that owns the run buffer. Two new
+Stable Chrome workflows exercise the preparation gate and the safe-default
+fallback. All 151 Python and 156 TypeScript tests pass; the 44 unaffected
+non-hardware Chrome workflows passed in the complete run, and the corrected
+live-control path plus both new isolation workflows passed together afterward.
+The production build and 212-file offline shell pass. The attached XRP release
+remains `2026.08-dev.15` because no robot file changed.
+
 Refinement 39 closes the final deployment-gate failures without weakening the
 functional checks. Plot notes now attach their time and pose to the same nearest
 retained telemetry sample, so a note placed early in a run remains present in

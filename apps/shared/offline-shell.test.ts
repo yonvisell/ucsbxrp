@@ -4,6 +4,7 @@ import {
   initialOfflineShellState,
   offlineShellIsolationNeedsReload,
   offlineShellUpdateNeedsReload,
+  virtualRunNeedsPreparation,
 } from "./offline-shell";
 
 describe("offline shell mode", () => {
@@ -32,5 +33,11 @@ describe("offline shell mode", () => {
       false,
     );
     expect(offlineShellIsolationNeedsReload(true, "build-a", null)).toBe(false);
+  });
+
+  it("holds virtual Run only while a production page awaits isolation", () => {
+    expect(virtualRunNeedsPreparation(true, false)).toBe(true);
+    expect(virtualRunNeedsPreparation(true, true)).toBe(false);
+    expect(virtualRunNeedsPreparation(false, false)).toBe(false);
   });
 });

@@ -48,6 +48,13 @@ export function offlineShellIsolationNeedsReload(
   return !isolated && lastReloadedVersion !== currentVersion;
 }
 
+export function virtualRunNeedsPreparation(
+  production: boolean,
+  isolated: boolean,
+): boolean {
+  return production && !isolated;
+}
+
 function publishState(
   state: OfflineShellState,
   options: { version?: string; message?: string } = {},

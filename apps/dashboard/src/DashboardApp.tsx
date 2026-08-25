@@ -32,6 +32,7 @@ import {
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
+import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
 import {
   chooseProjectFolder,
   courseFolderChangedKey,
@@ -477,6 +478,12 @@ export function DashboardApp() {
     ],
   );
   const recorder = useMemo(() => new TelemetryRecorder(), []);
+  const virtualRuntimePreparing =
+    target.kind === "virtual" &&
+    virtualRunNeedsPreparation(
+      import.meta.env.PROD,
+      globalThis.crossOriginIsolated,
+    );
   const automaticRecorder = useMemo(() => new TelemetryRecorder(), []);
   const [sample, setSample] = useState<TelemetrySample | null>(null);
   const [plotSamples, setPlotSamples] = useState<readonly TelemetrySample[]>(
@@ -897,9 +904,10 @@ export function DashboardApp() {
   };
 
   const runOrStop = async () => {
-    if (runStarting) return;
+    const stopping = targetState === "running" || targetState === "loading";
+    if (runStarting || (!stopping && virtualRuntimePreparing)) return;
     try {
-      if (targetState === "running" || targetState === "loading") {
+      if (stopping) {
         await target.stop();
       } else {
         setRunStarting(true);
@@ -1209,6 +1217,7 @@ export function DashboardApp() {
   } as CSSProperties;
   const isRunning = targetState === "running" || targetState === "loading";
   const canRunCurrent =
+    !virtualRuntimePreparing &&
     (targetState === "ready" || targetState === "error") &&
     ((currentProject !== null && !currentProject.stale) ||
       (target.kind === "virtual" && currentProject === null));
@@ -1281,15 +1290,17 @@ export function DashboardApp() {
             title={
               isRunning
                 ? "Stop the running program."
-                : runStarting
-                  ? "Validating the default project before Run."
-                  : currentProject?.stale
-                    ? "The IDE project changed. Run or flash it in the IDE first."
-                    : currentProject
-                      ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                      : target.kind === "virtual"
-                        ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
-                        : "Run or flash a project in the IDE first."
+                : virtualRuntimePreparing
+                  ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
+                  : runStarting
+                    ? "Validating the default project before Run."
+                    : currentProject?.stale
+                      ? "The IDE project changed. Run or flash it in the IDE first."
+                      : currentProject
+                        ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                        : target.kind === "virtual"
+                          ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                          : "Run or flash a project in the IDE first."
             }
           >
             <RunStopIcon running={isRunning} />

@@ -55,6 +55,79 @@ test("runs the default project directly from a fresh Monitor", async ({
   );
 });
 
+test("holds Virtual Run during the first isolated production refresh", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, "crossOriginIsolated", {
+      configurable: true,
+      value: false,
+    });
+  });
+
+  await page.goto("/monitor/");
+  const monitorRun = page
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true });
+  await expect(monitorRun).toBeDisabled();
+  await expect(monitorRun).toHaveAttribute(
+    "title",
+    /preparing the Virtual XRP.*refreshes once automatically/i,
+  );
+
+  await page.goto("/ide/");
+  const ideRun = page
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true });
+  await expect(ideRun).toBeDisabled();
+  await expect(ideRun).toHaveAttribute(
+    "title",
+    /preparing the Virtual XRP.*refreshes once automatically/i,
+  );
+});
+
+test("runs with declared live defaults if isolation disappears", async ({
+  page,
+}) => {
+  await page.goto("/monitor/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect
+    .poll(() => page.locator("html").getAttribute("data-offline-shell-state"))
+    .toBe("ready");
+  await page.evaluate(() => {
+    Object.defineProperty(globalThis, "crossOriginIsolated", {
+      configurable: true,
+      value: false,
+    });
+  });
+
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true })
+    .click();
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
+  await expect(page.getByText("Forward speed", { exact: true })).toBeVisible();
+  await page.waitForTimeout(1_000);
+  await page.getByRole("tab", { name: "System log" }).click();
+  await expect(page.getByRole("log")).not.toContainText(
+    "MicroPython exception",
+  );
+  await page
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(page.getByRole("log")).toContainText(
+    "Run stopped; drive command set to zero",
+  );
+});
+
 test("Run reports a validation error before starting invalid code", async ({
   page,
 }) => {

@@ -61,9 +61,19 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   let leftEncoderOrigin = 0;
   let rightEncoderOrigin = 0;
   let lastSimulationTime = performance.now();
+  const liveValuesAreShared = event.data.liveParameterBuffer !== undefined;
   const liveValues = event.data.liveParameterBuffer
     ? new Int32Array(event.data.liveParameterBuffer)
-    : null;
+    : new Int32Array(MAX_RUNTIME_PARAMETERS);
+  const storeLiveValue = (slot: number, value: number) => {
+    if (liveValuesAreShared) {
+      Atomics.store(liveValues, slot, value);
+    } else {
+      liveValues[slot] = value;
+    }
+  };
+  const readLiveValue = (slot: number) =>
+    liveValuesAreShared ? Atomics.load(liveValues, slot) : liveValues[slot]!;
   const liveSlots = new Map<string, number>();
   const postSimulatorState = () =>
     post({ type: "simulator-state", state: simulator.state });
@@ -134,11 +144,6 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         runtimeVersion = String(version);
       },
       register_live_parameter(descriptorJson: string, encodedDefault: number) {
-        if (!liveValues) {
-          throw new Error(
-            "Live parameters need an isolated browser context. Reload this page once and run again.",
-          );
-        }
         const descriptor = JSON.parse(String(descriptorJson)) as {
           name?: unknown;
         };
@@ -154,14 +159,14 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
           throw new Error("Too many live parameters");
         }
         liveSlots.set(descriptor.name, slot);
-        Atomics.store(liveValues, slot, Number(encodedDefault));
+        storeLiveValue(slot, Number(encodedDefault));
         return slot;
       },
       read_live_parameter(slot: number) {
-        if (!liveValues || slot < 0 || slot >= liveSlots.size) {
+        if (slot < 0 || slot >= liveSlots.size) {
           throw new Error("Live parameter slot is unavailable");
         }
-        return Atomics.load(liveValues, Number(slot));
+        return readLiveValue(Number(slot));
       },
       publish_runtime_state(runtimeJson: string) {
         post({

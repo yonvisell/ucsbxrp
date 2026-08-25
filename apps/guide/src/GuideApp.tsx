@@ -451,6 +451,11 @@ export function GuideApp() {
               application files, virtual XRP, Guide, API reference, and XRP
               setup files for this site.
             </p>
+            <p>
+              On the first load or after an update, Chrome may refresh the page
+              once automatically. Virtual Run becomes available after that
+              refresh.
+            </p>
             <div className="offline-capabilities">
               <section>
                 <h3>Available after one complete online load</h3>

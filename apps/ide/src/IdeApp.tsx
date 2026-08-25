@@ -27,6 +27,7 @@ import {
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
+import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
 import {
   chooseWorkspaceFolder,
   courseFolderIsWaitingForIde,
@@ -219,6 +220,12 @@ export function IdeApp() {
       targetPreference.physicalEndpoint,
     ],
   );
+  const virtualRuntimePreparing =
+    target.kind === "virtual" &&
+    virtualRunNeedsPreparation(
+      import.meta.env.PROD,
+      globalThis.crossOriginIsolated,
+    );
   const [project, setProject] = useState<ProjectSnapshot>(initialProject);
   const [activePath, setActivePath] = useState(initialProject.entrypoint);
   const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
@@ -671,7 +678,7 @@ export function IdeApp() {
   }, [canCommand, isRunning, project, target]);
 
   const runTarget = useCallback(async () => {
-    if (!canCommand || isRunning) {
+    if (!canCommand || isRunning || virtualRuntimePreparing) {
       return;
     }
     setOutputPanelOpen(true);
@@ -708,7 +715,14 @@ export function IdeApp() {
         },
       ]);
     }
-  }, [canCommand, checkOk, isRunning, project, target]);
+  }, [
+    canCommand,
+    checkOk,
+    isRunning,
+    project,
+    target,
+    virtualRuntimePreparing,
+  ]);
 
   const stopProgram = useCallback(async () => {
     if (!isRunning) {
@@ -1399,12 +1413,14 @@ export function IdeApp() {
           <button
             aria-label={isRunning ? "Stop" : "Run"}
             className={`command-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
-            disabled={!isRunning && !canCommand}
+            disabled={!isRunning && (!canCommand || virtualRuntimePreparing)}
             onClick={isRunning ? stopProgram : runTarget}
             title={
               isRunning
                 ? "Stop the running program."
-                : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+                : virtualRuntimePreparing
+                  ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
+                  : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
             <RunStopIcon running={isRunning} />
