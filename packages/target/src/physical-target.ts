@@ -127,6 +127,7 @@ function errorDetail(error: unknown): string {
 }
 
 const RUN_STARTUP_QUIET_MS = 500;
+const RESET_RECONNECT_TIMEOUT_MS = 30_000;
 
 function assertCompatiblePhysicalInfo(info: PhysicalInfo): void {
   if (info.protocol !== 1) {
@@ -630,7 +631,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   private async reconnectAfterReset(): Promise<void> {
     this.stopPolling();
-    const deadline = performance.now() + 20_000;
+    // Pink required 17 seconds from an RP2350 reset to a reachable HTTP
+    // service in physical testing. Retain margin for ordinary DHCP variance;
+    // this is an automatic retry window, not another student-facing step.
+    const deadline = performance.now() + RESET_RECONNECT_TIMEOUT_MS;
     let lastError: unknown = null;
     while (performance.now() < deadline && this.connected) {
       await new Promise((resolve) => setTimeout(resolve, 450));

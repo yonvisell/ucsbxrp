@@ -651,6 +651,13 @@ export function IdeApp() {
     setSyncDetail("Flashing the complete project…");
     try {
       await target.synchronize(project);
+      // The physical service compiles every Python file before it commits the
+      // new project slot. A successful Flash therefore also validates this
+      // exact project revision; Run must not repeat the same transfer/check.
+      if (target.kind === "physical") {
+        setCheckOk(true);
+        setCheckDetail("Python files compiled while flashing the project.");
+      }
       setSyncOk(true);
       setSyncDetail(
         target.kind === "physical"
