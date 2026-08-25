@@ -450,7 +450,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
               library: "0.4.0-dev",
-              service: "2026.08-dev.17",
+              service: "2026.08-dev.19",
               modules: [
                 "XRPLib.board",
                 "XRPLib.encoded_motor",
@@ -531,8 +531,8 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         return new Response(
           JSON.stringify({
             protocol: 1,
-            serviceVersion: "2026.08-dev.17",
-            courseRelease: "2026.08-dev.17",
+            serviceVersion: "2026.08-dev.19",
+            courseRelease: "2026.08-dev.19",
             robotName: "UCSB-XRP-4A21",
             address: "192.168.4.1",
             bootId: "test-boot",
@@ -581,6 +581,14 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(page.getByLabel("Robot hotspot", { exact: true })).toHaveCount(
     0,
   );
+  const hotspotName = page.getByLabel(
+    /Enter one team member's last name to give this robot a unique Wi-Fi hotspot name/,
+  );
+  await hotspotName.fill("Visell");
+  await expect(
+    page.getByText("Hotspot: UCSB-XRP-VISELL", { exact: false }),
+  ).toBeVisible();
+  await hotspotName.fill("");
   await page
     .getByRole("button", { name: "Check and repair course software" })
     .click();

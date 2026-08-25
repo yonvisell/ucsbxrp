@@ -281,12 +281,15 @@ export interface ReplResult {
 export interface MicroPythonSession {
   execute(code: string, timeoutMs?: number): Promise<ReplResult>;
   executeWithoutFollow(code: string): Promise<void>;
+  resetAndClose(): Promise<void>;
   close(): Promise<void>;
 }
 
 export class RawReplSession implements MicroPythonSession {
   private rawPasteSupported = true;
   private operation: Promise<void> = Promise.resolve();
+  private closed = false;
+  private resetAttempted = false;
 
   constructor(private readonly connection: SerialByteConnection) {}
 
@@ -318,6 +321,26 @@ export class RawReplSession implements MicroPythonSession {
 
   async executeWithoutFollow(code: string): Promise<void> {
     await this.enqueue(() => this.sendCommand(textEncoder.encode(code)));
+  }
+
+  /**
+   * Return the controller to normal boot execution before releasing Web Serial.
+   * Closing a raw-REPL stream alone leaves MicroPython in raw REPL and prevents
+   * boot.py/main.py from running.
+   */
+  async resetAndClose(): Promise<void> {
+    if (this.closed) return;
+    let resetError: unknown;
+    if (!this.resetAttempted) {
+      this.resetAttempted = true;
+      try {
+        await this.executeWithoutFollow("import machine\nmachine.reset()");
+      } catch (error) {
+        resetError = error;
+      }
+    }
+    await this.close();
+    if (resetError) throw resetError;
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -397,6 +420,8 @@ export class RawReplSession implements MicroPythonSession {
   }
 
   async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
     await this.operation;
     await this.connection.close();
   }
@@ -419,7 +444,11 @@ export async function openRawRepl(
     await session.enter();
     return session;
   } catch (error) {
-    await session.close();
+    try {
+      await session.resetAndClose();
+    } catch {
+      // A failed REPL entry may not accept a reset command.
+    }
     throw error;
   }
 }

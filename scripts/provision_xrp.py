@@ -82,6 +82,13 @@ def provision(
         "addressMode": wifi["address_mode"],
         "courseRelease": service["courseRelease"] if service else release["release_id"],
         "serviceVersion": service["serviceVersion"] if service else local_service_version(),
+        "serviceVerified": service is not None,
+        "releaseIdentitySource": "network probe" if service else "local release files",
+        "serviceVerification": (
+            "network probe passed"
+            if service
+            else "not network-verified; join the robot hotspot and probe /api/v1/info"
+        ),
         "installedFiles": installed.get("installed_count", len(installed["files"])),
         "unchangedFiles": installed.get("unchanged_count", 0),
     }

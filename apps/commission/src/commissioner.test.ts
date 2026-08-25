@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   FirmwareRequiredError,
   commissionDevice,
+  hotspotSsidForLastName,
   inspectDevice,
   installFirmware,
   type CommissioningManifest,
@@ -24,8 +25,8 @@ function digest(value: Uint8Array): string {
 function manifest(): CommissioningManifest {
   return {
     schemaVersion: 1,
-    releaseId: "2026.08-dev.17",
-    serviceVersion: "2026.08-dev.17",
+    releaseId: "2026.08-dev.19",
+    serviceVersion: "2026.08-dev.19",
     courseLibraryVersion: "0.4.0-dev",
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
@@ -116,19 +117,25 @@ class FakeSession implements MicroPythonSession {
       return result(
         `__UCSB_XRP_VERIFY__=${JSON.stringify({
           library: "0.4.0-dev",
-          service: "2026.08-dev.17",
+          service: "2026.08-dev.19",
           modules: this.requiredModules,
         })}\r\n`,
       );
     }
     if (code.includes("__UCSB_XRP_NETWORK__=")) {
+      const profileBytes = this.files.get("/xrp_wifi.json");
+      const profile = profileBytes
+        ? (JSON.parse(new TextDecoder().decode(profileBytes)) as {
+            access_point?: { ssid?: string };
+          })
+        : undefined;
       return result(
         `__UCSB_XRP_NETWORK__=${JSON.stringify({
           ready: true,
           mode: "access_point",
           requested_mode: "access_point",
           fallback: false,
-          ssid: "UCSB-XRP-1234",
+          ssid: profile?.access_point?.ssid ?? "UCSB-XRP-1234",
           address: "192.168.4.1",
           status: "ready",
           channel: 6,
@@ -164,12 +171,28 @@ class FakeSession implements MicroPythonSession {
     this.reset = true;
   }
 
+  async resetAndClose(): Promise<void> {
+    this.reset = true;
+    this.closed = true;
+  }
+
   async close(): Promise<void> {
     this.closed = true;
   }
 }
 
 describe("browser XRP commissioning", () => {
+  it("builds a portable optional hotspot name from a team member's last name", () => {
+    expect(hotspotSsidForLastName(" Visell ")).toBe("UCSB-XRP-VISELL");
+    expect(hotspotSsidForLastName(" ")).toBeUndefined();
+    expect(() => hotspotSsidForLastName("Van Buren")).toThrow(
+      "letters, numbers, and hyphens",
+    );
+    expect(() => hotspotSsidForLastName("A".repeat(24))).toThrow(
+      "at most 23 characters",
+    );
+  });
+
   it("accepts only the pinned MicroPython controller runtime", async () => {
     const session = new FakeSession();
     await expect(inspectDevice(session, manifest())).resolves.toMatchObject({
@@ -191,6 +214,7 @@ describe("browser XRP commissioning", () => {
           })}\r\n`,
         ),
       executeWithoutFollow: async () => undefined,
+      resetAndClose: async () => undefined,
       close: async () => undefined,
     };
     await expect(
@@ -213,7 +237,7 @@ describe("browser XRP commissioning", () => {
       session,
       manifest: manifest(),
       manifestUrl,
-      network: { mode: "access_point" },
+      network: { mode: "access_point", ssid: "UCSB-XRP-VISELL" },
       fetch: fetchImplementation,
       onProgress: (next) => progress.push(next.detail),
     });
@@ -221,7 +245,7 @@ describe("browser XRP commissioning", () => {
     expect(completed).toMatchObject({
       installedFiles: 1,
       unchangedFiles: 0,
-      network: { ssid: "UCSB-XRP-1234", address: "192.168.4.1" },
+      network: { ssid: "UCSB-XRP-VISELL", address: "192.168.4.1" },
     });
     expect(session.files.get("/lib/ucsb_xrp/example.py")).toEqual(courseFile);
     const activation = session.commands.find((code) =>
@@ -230,6 +254,10 @@ describe("browser XRP commissioning", () => {
     expect(activation).toContain("os.rename");
     expect(activation).not.toContain("os.remove");
     expect(session.files.has("/xrp_wifi.json")).toBe(true);
+    expect(
+      JSON.parse(new TextDecoder().decode(session.files.get("/xrp_wifi.json")!))
+        .access_point.ssid,
+    ).toBe("UCSB-XRP-VISELL");
     const runtimeVerification = session.commands.find((code) =>
       code.includes("__UCSB_XRP_VERIFY__="),
     );
@@ -242,7 +270,7 @@ describe("browser XRP commissioning", () => {
     );
     expect(progress).toContain("Loading the installed course software…");
     expect(progress).toContain(
-      "Installed course release 2026.08-dev.17 verified.",
+      "Installed course release 2026.08-dev.19 verified.",
     );
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
@@ -266,7 +294,7 @@ describe("browser XRP commissioning", () => {
     expect(completed.unchangedFiles).toBe(1);
   });
 
-  it("does not reset after a failed installed-file readback", async () => {
+  it("resets and closes after a failed installed-file readback", async () => {
     const session = new FakeSession();
     const originalExecute = session.execute.bind(session);
     let hashCalls = 0;
@@ -290,7 +318,8 @@ describe("browser XRP commissioning", () => {
         fetch: (async () => new Response(courseFile)) as typeof fetch,
       }),
     ).rejects.toThrow("Readback verification failed");
-    expect(session.reset).toBe(false);
+    expect(session.reset).toBe(true);
+    expect(session.closed).toBe(true);
   });
 
   it("reports the installed and expected runtime versions", async () => {
@@ -323,9 +352,10 @@ describe("browser XRP commissioning", () => {
         }) as typeof fetch,
       }),
     ).rejects.toThrow(
-      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.17)",
+      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.19)",
     );
-    expect(session.reset).toBe(false);
+    expect(session.reset).toBe(true);
+    expect(session.closed).toBe(true);
   });
 
   it("writes only an integrity-checked firmware image to the selected volume", async () => {

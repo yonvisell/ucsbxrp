@@ -46,6 +46,19 @@ def enter_raw_repl(transport, soft_reset):
     transport.enter_raw_repl(soft_reset=soft_reset)
 
 
+def reset_and_close(transport):
+    """Best-effort return from raw REPL to normal boot before closing USB."""
+    try:
+        transport.exec_raw_no_follow("import machine; machine.reset()")
+    except Exception:
+        # A reset can remove USB immediately; the caller still must release it.
+        pass
+    try:
+        transport.close()
+    except OSError:
+        pass
+
+
 def choose_port(explicit=None):
     if explicit:
         return explicit
@@ -237,9 +250,12 @@ def configure(
         separators=(",", ":"),
     ).encode("utf-8")
     transport = None
+    raw_repl_entered = False
+    reset_started = False
     try:
         transport = SerialTransport(port, timeout=max(5, timeout_s + 5))
         enter_raw_repl(transport, soft_reset=True)
+        raw_repl_entered = True
         transport.exec(
             "import machine\n"
             "machine.WDT(timeout={}).feed()".format(WIFI_WATCHDOG_MS)
@@ -249,21 +265,24 @@ def configure(
             "import machine\n"
             "machine.WDT(timeout={}).feed()".format(WIFI_WATCHDOG_MS)
         )
-        return execute_device_connect(transport, timeout_s)
+        result = execute_device_connect(transport, timeout_s)
+        reset_started = True
+        reset_and_close(transport)
+        transport = None
+        return result
     except Exception as exc:
         if isinstance(exc, WifiSetupError):
             raise
         raise WifiSetupError("USB Wi-Fi setup failed: {}".format(exc)) from exc
     finally:
         if transport is not None:
-            try:
-                transport.exit_raw_repl()
-            except Exception:
-                pass
-            try:
-                transport.close()
-            except OSError:
-                pass
+            if raw_repl_entered and not reset_started:
+                reset_and_close(transport)
+            else:
+                try:
+                    transport.close()
+                except OSError:
+                    pass
 
 
 def configure_with_usb_retry(*args, attempts=USB_WIFI_ATTEMPTS, **kwargs):

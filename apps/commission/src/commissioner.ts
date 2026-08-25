@@ -60,7 +60,7 @@ export interface ExistingNetworkProfile {
 
 export type NetworkSelection =
   | { mode: "keep" }
-  | { mode: "access_point" }
+  | { mode: "access_point"; ssid?: string }
   | { mode: "station"; ssid: string; password: string };
 
 export interface PublicNetworkState {
@@ -99,6 +99,23 @@ const VERIFY_MARKER = "__UCSB_XRP_VERIFY__=";
 const NETWORK_RESULT_MARKER = "__UCSB_XRP_NETWORK__=";
 const INSTALL_WATCHDOG_MS = 8_388;
 const textEncoder = new TextEncoder();
+export const HOTSPOT_SSID_PREFIX = "UCSB-XRP-";
+
+/** Convert the optional team name field into a portable Wi-Fi SSID. */
+export function hotspotSsidForLastName(value: string): string | undefined {
+  const suffix = value.trim().toUpperCase();
+  if (!suffix) return undefined;
+  if (!/^[A-Z0-9-]+$/.test(suffix)) {
+    throw new Error(
+      "Use only letters, numbers, and hyphens in the hotspot name.",
+    );
+  }
+  const ssid = `${HOTSPOT_SSID_PREFIX}${suffix}`;
+  if (textEncoder.encode(ssid).length > 32) {
+    throw new Error("The hotspot name can contain at most 23 characters.");
+  }
+  return ssid;
+}
 
 export class FirmwareRequiredError extends Error {
   constructor(message: string) {
@@ -377,6 +394,9 @@ function networkConfig(
       defaults.address,
       defaults.address,
     ],
+    ...(selection.mode === "access_point" && selection.ssid
+      ? { ssid: selection.ssid }
+      : {}),
   };
   const value: Record<string, unknown> = {
     version: 2,
@@ -502,66 +522,77 @@ export async function commissionDevice(options: {
     onProgress = () => undefined,
     fetch: fetchImplementation = globalThis.fetch,
   } = options;
-  onProgress({ phase: "compare", detail: "Comparing course files…" });
-  await ensureInstallDirectories(session);
-  const expected = new Map(
-    manifest.files.map((entry) => [entry.destination, entry.sha256]),
-  );
-  let hashes = await remoteHashes(session, [...expected.keys()]);
-  const changed = manifest.files.filter(
-    (entry) => hashes[entry.destination] !== entry.sha256,
-  );
-
-  let installed = 0;
-  for (const entry of changed) {
-    onProgress({
-      phase: "install",
-      detail: "Updating course software…",
-      completed: installed,
-      total: changed.length,
-    });
-    const data = await fetchVerifiedAsset(
-      manifestUrl,
-      entry,
-      fetchImplementation,
+  let resetStarted = false;
+  try {
+    onProgress({ phase: "compare", detail: "Comparing course files…" });
+    await ensureInstallDirectories(session);
+    const expected = new Map(
+      manifest.files.map((entry) => [entry.destination, entry.sha256]),
     );
-    await writeDeviceFile(session, entry.destination, data);
-    installed += 1;
-  }
+    let hashes = await remoteHashes(session, [...expected.keys()]);
+    const changed = manifest.files.filter(
+      (entry) => hashes[entry.destination] !== entry.sha256,
+    );
 
-  onProgress({ phase: "verify", detail: "Verifying installed files…" });
-  hashes = await remoteHashes(session, [...expected.keys()]);
-  for (const [path, hash] of expected) {
-    if (hashes[path] !== hash) {
-      throw new Error(`Readback verification failed for ${path}.`);
+    let installed = 0;
+    for (const entry of changed) {
+      onProgress({
+        phase: "install",
+        detail: "Updating course software…",
+        completed: installed,
+        total: changed.length,
+      });
+      const data = await fetchVerifiedAsset(
+        manifestUrl,
+        entry,
+        fetchImplementation,
+      );
+      await writeDeviceFile(session, entry.destination, data);
+      installed += 1;
     }
+
+    onProgress({ phase: "verify", detail: "Verifying installed files…" });
+    hashes = await remoteHashes(session, [...expected.keys()]);
+    for (const [path, hash] of expected) {
+      if (hashes[path] !== hash) {
+        throw new Error(`Readback verification failed for ${path}.`);
+      }
+    }
+    onProgress({
+      phase: "verify",
+      detail: "Loading the installed course software…",
+    });
+    await verifyInstalledRuntime(session, manifest);
+    onProgress({
+      phase: "verify",
+      detail: `Installed course release ${manifest.releaseId} verified.`,
+    });
+
+    onProgress({ phase: "network", detail: "Preparing XRP Wi-Fi…" });
+    await applyNetworkSelection(session, network, manifest.networkDefaults);
+    const activeNetwork = await activateNetwork(session);
+
+    onProgress({ phase: "reset", detail: "Restarting the XRP…" });
+    resetStarted = true;
+    await session.resetAndClose();
+    return {
+      releaseId: manifest.releaseId,
+      serviceVersion: manifest.serviceVersion,
+      installedFiles: installed,
+      unchangedFiles: manifest.files.length - installed,
+      network: activeNetwork,
+    };
+  } catch (error) {
+    if (!resetStarted) {
+      resetStarted = true;
+      try {
+        await session.resetAndClose();
+      } catch {
+        // USB may already have disappeared; preserve the original failure.
+      }
+    }
+    throw error;
   }
-  onProgress({
-    phase: "verify",
-    detail: "Loading the installed course software…",
-  });
-  await verifyInstalledRuntime(session, manifest);
-  onProgress({
-    phase: "verify",
-    detail: `Installed course release ${manifest.releaseId} verified.`,
-  });
-
-  onProgress({ phase: "network", detail: "Preparing XRP Wi-Fi…" });
-  await applyNetworkSelection(session, network, manifest.networkDefaults);
-  const activeNetwork = await activateNetwork(session);
-
-  onProgress({ phase: "reset", detail: "Restarting the XRP…" });
-  await session.executeWithoutFollow(
-    `import machine\nwd=machine.WDT(timeout=${INSTALL_WATCHDOG_MS})\nwd.feed()\nmachine.reset()`,
-  );
-  await session.close();
-  return {
-    releaseId: manifest.releaseId,
-    serviceVersion: manifest.serviceVersion,
-    installedFiles: installed,
-    unchangedFiles: manifest.files.length - installed,
-    network: activeNetwork,
-  };
 }
 
 interface FirmwareFileHandle {

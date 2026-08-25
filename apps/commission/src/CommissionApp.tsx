@@ -29,6 +29,8 @@ import {
   inspectDevice,
   installFirmware,
   loadCommissioningManifest,
+  hotspotSsidForLastName,
+  HOTSPOT_SSID_PREFIX,
   readExistingNetworkProfile,
   waitForReenumeratedPort,
   type CommissioningManifest,
@@ -134,6 +136,7 @@ export function CommissionApp() {
   >("access_point");
   const [stationSsid, setStationSsid] = useState("");
   const [stationPassword, setStationPassword] = useState("");
+  const [hotspotLastName, setHotspotLastName] = useState("");
   const [progress, setProgress] = useState<CommissioningProgress | null>(null);
   const [result, setResult] = useState<CommissioningResult | null>(null);
   const [authorizedPort, setAuthorizedPort] = useState<SerialPortLike | null>(
@@ -162,6 +165,17 @@ export function CommissionApp() {
   const manifestReleaseRef = useRef("");
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
   const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
+
+  const hotspotName = useMemo(() => {
+    try {
+      return {
+        error: "",
+        ssid: hotspotSsidForLastName(hotspotLastName),
+      };
+    } catch (hotspotError) {
+      return { error: errorDetail(hotspotError), ssid: undefined };
+    }
+  }, [hotspotLastName]);
 
   const recordSetup = useCallback(
     (step: string, message: string, level: SetupLogLevel = "info") => {
@@ -272,7 +286,9 @@ export function CommissionApp() {
     void initialize();
     return () => {
       disposed = true;
-      void sessionRef.current?.close();
+      const session = sessionRef.current;
+      sessionRef.current = null;
+      void session?.resetAndClose();
     };
   }, [manifestUrl, recordSetup]);
 
@@ -492,7 +508,7 @@ export function CommissionApp() {
           const message = errorDetail(inspectionError);
           setError(message);
           recordSetup("USB", `Inspection failed: ${message}`, "error");
-          await session.close();
+          await session.resetAndClose();
           sessionRef.current = null;
           setStage("usb");
         }
@@ -554,7 +570,7 @@ export function CommissionApp() {
         sessionRef.current = null;
         portRef.current = null;
         try {
-          await failedSession?.close();
+          await failedSession?.resetAndClose();
         } catch {
           // A USB disconnect can close the browser stream before cleanup runs.
         }
@@ -645,6 +661,9 @@ export function CommissionApp() {
 
   const beginCommissioning = useCallback(async () => {
     if (!manifest || !sessionRef.current) return;
+    const namedHotspotRequested =
+      hotspotName.ssid !== undefined &&
+      hotspotName.ssid !== existingNetwork?.accessPointSsid;
     const network: NetworkSelection =
       networkMode === "station"
         ? {
@@ -652,9 +671,9 @@ export function CommissionApp() {
             ssid: stationSsid,
             password: stationPassword,
           }
-        : networkMode === "keep"
+        : networkMode === "keep" && !namedHotspotRequested
           ? { mode: "keep" }
-          : { mode: "access_point" };
+          : { mode: "access_point", ssid: hotspotName.ssid };
     setError("");
     setProgress(null);
     lastInstallProgressPhaseRef.current = "";
@@ -665,7 +684,7 @@ export function CommissionApp() {
         ? `Starting repair and configuring existing Wi-Fi ${network.ssid}.`
         : network.mode === "keep"
           ? "Starting repair and retaining the installed network profile."
-          : "Starting repair and configuring the robot hotspot.",
+          : `Starting repair and configuring ${network.ssid ?? "the robot hotspot"}.`,
     );
     try {
       await waitForOfflineShell();
@@ -718,7 +737,7 @@ export function CommissionApp() {
       sessionRef.current = null;
       portRef.current = null;
       try {
-        await failedSession?.close();
+        await failedSession?.resetAndClose();
       } catch {
         // A USB disconnect can close the browser stream before cleanup runs.
       }
@@ -732,6 +751,8 @@ export function CommissionApp() {
   }, [
     manifest,
     manifestUrl,
+    existingNetwork?.accessPointSsid,
+    hotspotName.ssid,
     networkMode,
     recordSetup,
     stationPassword,
@@ -873,7 +894,7 @@ export function CommissionApp() {
     sessionRef.current = null;
     portRef.current = null;
     try {
-      await session?.close();
+      await session?.resetAndClose();
     } catch {
       // A disconnected controller may already have closed the browser stream.
     }
@@ -1183,9 +1204,43 @@ export function CommissionApp() {
                   </small>
                 </div>
               ) : null}
+              {networkMode === "access_point" ||
+              (networkMode === "keep" &&
+                existingNetwork?.mode === "access_point") ? (
+                <div className="hotspot-fields">
+                  <label>
+                    Enter one team member&apos;s last name to give this robot a
+                    unique Wi-Fi hotspot name (optional)
+                    <input
+                      aria-invalid={hotspotName.error ? "true" : undefined}
+                      autoComplete="off"
+                      maxLength={23}
+                      onChange={(event) =>
+                        setHotspotLastName(event.target.value)
+                      }
+                      placeholder="VISELL"
+                      spellCheck={false}
+                      value={hotspotLastName}
+                    />
+                  </label>
+                  <small>
+                    Hotspot:{" "}
+                    {hotspotName.ssid ?? `${HOTSPOT_SSID_PREFIX}<NAME>`}. Leave
+                    this blank to use the current or device-specific name.
+                  </small>
+                  {hotspotName.error ? (
+                    <small className="field-error" role="alert">
+                      {hotspotName.error}
+                    </small>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 className="primary-button"
-                disabled={networkMode === "station" && !stationSsid.trim()}
+                disabled={
+                  (networkMode === "station" && !stationSsid.trim()) ||
+                  (networkMode !== "station" && Boolean(hotspotName.error))
+                }
                 onClick={beginCommissioning}
               >
                 {existingNetwork?.present

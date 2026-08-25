@@ -33,6 +33,19 @@ def enter_raw_repl(transport):
     transport.enter_raw_repl(soft_reset=False)
 
 
+def reset_and_close(transport):
+    """Best-effort return from raw REPL to normal boot before closing USB."""
+    try:
+        transport.exec_raw_no_follow("import machine; machine.reset()")
+    except Exception:
+        # A reset can re-enumerate USB before the command reports completion.
+        pass
+    try:
+        transport.close()
+    except OSError:
+        pass
+
+
 def feed_install_watchdog(transport):
     """Keep an already-running RP2350 watchdog alive during USB transfer."""
     transport.exec(
@@ -123,12 +136,14 @@ def read_address_after_restart(port, timeout_s=25.0):
     time.sleep(1.5)
     while time.monotonic() < deadline:
         transport = None
+        reset_started = False
         try:
             remaining = max(1.0, deadline - time.monotonic())
             transport = SerialTransport(port, timeout=remaining + 5)
             enter_raw_repl(transport)
             output = transport.exec(device_address_code(remaining * 1000))
             address = parse_device_address(output)
+            reset_started = True
             transport.exec_raw_no_follow("import machine; machine.reset()")
             if address:
                 return address
@@ -137,10 +152,13 @@ def read_address_after_restart(port, timeout_s=25.0):
             last_error = str(exc)
         finally:
             if transport is not None:
-                try:
-                    transport.close()
-                except OSError:
-                    pass
+                if not reset_started:
+                    reset_and_close(transport)
+                else:
+                    try:
+                        transport.close()
+                    except OSError:
+                        pass
         time.sleep(0.4)
     raise InstallError(
         "could not read the XRP Wi-Fi address after restart: {}".format(last_error)
@@ -194,12 +212,15 @@ def install(port):
         raise InstallError("service or course release files are incomplete")
 
     transport = None
+    raw_repl_entered = False
+    reset_started = False
     files = []
     installed = []
     unchanged = []
     try:
         transport = SerialTransport(port, timeout=12)
         enter_raw_repl(transport)
+        raw_repl_entered = True
         feed_install_watchdog(transport)
         _ensure_remote_dirs(transport)
         feed_install_watchdog(transport)
@@ -218,6 +239,7 @@ def install(port):
             _replace_remote_file(transport, destination, data)
             feed_install_watchdog(transport)
             installed.append(record)
+        reset_started = True
         transport.exec_raw_no_follow(
             "import machine; "
             "machine.WDT(timeout={}).feed(); "
@@ -229,13 +251,16 @@ def install(port):
         raise InstallError("USB service installation failed: {}".format(exc)) from exc
     finally:
         if transport is not None:
-            try:
-                transport.close()
-            except OSError:
-                # A hard reset can re-enumerate USB before pyserial lowers DTR.
-                # Readback has already completed and the LAN check below confirms
-                # that the new service booted.
-                pass
+            if raw_repl_entered and not reset_started:
+                reset_and_close(transport)
+            else:
+                try:
+                    transport.close()
+                except OSError:
+                    # A hard reset can re-enumerate USB before pyserial lowers DTR.
+                    # Readback has already completed and the LAN check below confirms
+                    # that the new service booted.
+                    pass
     return {
         "address": read_address_after_restart(port),
         "files": files,

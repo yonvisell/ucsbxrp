@@ -157,4 +157,37 @@ describe("Web Serial raw REPL", () => {
     expect(writes.some((value) => value.join(",") === "5,65,1")).toBe(true);
     expect(writes.some((value) => value.join(",") === "4")).toBe(true);
   });
+
+  it("resets before closing a raw-REPL session", async () => {
+    const writes: Uint8Array[] = [];
+    let closed = false;
+    let exactReads = 0;
+    const connection = {
+      write: async (value: Uint8Array | string) => {
+        writes.push(typeof value === "string" ? encoder.encode(value) : value);
+      },
+      readUntil: async () => Uint8Array.of(62),
+      readExact: async () =>
+        ++exactReads === 1 ? Uint8Array.of(82, 0) : Uint8Array.of(79, 75),
+      close: async () => {
+        closed = true;
+      },
+    };
+    const session = new RawReplSession(connection as never);
+
+    await session.resetAndClose();
+    await session.resetAndClose();
+
+    expect(
+      writes.some((value) =>
+        new TextDecoder().decode(value).includes("machine.reset()"),
+      ),
+    ).toBe(true);
+    expect(closed).toBe(true);
+    expect(
+      writes.filter((value) =>
+        new TextDecoder().decode(value).includes("machine.reset()"),
+      ),
+    ).toHaveLength(1);
+  });
 });

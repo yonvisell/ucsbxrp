@@ -34,6 +34,24 @@ class XrpWifiTest(unittest.TestCase):
         self.assertEqual(transport.serial.writes, [b"\r\x03\x03\x03"])
         self.assertTrue(transport.soft_reset)
 
+    def test_reset_and_close_restarts_normal_boot_before_releasing_usb(self):
+        class Transport:
+            def __init__(self):
+                self.commands = []
+                self.closed = False
+
+            def exec_raw_no_follow(self, code):
+                self.commands.append(code)
+
+            def close(self):
+                self.closed = True
+
+        transport = Transport()
+        XRP_WIFI.reset_and_close(transport)
+
+        self.assertEqual(transport.commands, ["import machine; machine.reset()"])
+        self.assertTrue(transport.closed)
+
     def test_reads_password_only_file_without_echoing_it(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "credentials.txt"
