@@ -375,6 +375,64 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["sample"], result["samples"][0])
         self.assertEqual(result["sample"]["rangeMm"], 300.0)
 
+    def test_ready_telemetry_ends_a_retained_batch_with_a_fresh_stopped_sample(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        retained = {
+            "sampleSeq": 8,
+            "sampleTimeMs": 140,
+            "xMm": 20.0,
+            "yMm": 10.0,
+            "headingRad": 0.2,
+            "leftWheelSpeedMmS": 120.0,
+            "rightWheelSpeedMmS": 130.0,
+            "leftWheelDistanceMm": 80.0,
+            "rightWheelDistanceMm": 84.0,
+            "rangeMm": 250.0,
+            "buttonPressed": False,
+            "leftEffort": 0.0,
+            "rightEffort": 0.0,
+            "requestedForwardSpeedMmS": None,
+            "requestedTurnRateRadS": None,
+            "targetLeftWheelSpeedMmS": None,
+            "targetRightWheelSpeedMmS": None,
+        }
+        hardware = {
+            "leftEncoderCount": 250,
+            "rightEncoderCount": 260,
+            "rangeMm": 275.0,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": 25.0,
+            "batteryV": 6.1,
+            "sensorError": None,
+        }
+        self.service._sample_seq = 8
+        self.service._thread_active = False
+        with (
+            patch.object(
+                course_telemetry,
+                "buffered_state_snapshots",
+                return_value=(retained,),
+                create=True,
+            ),
+            patch.object(
+                course_telemetry, "state_snapshot", return_value=retained, create=True
+            ),
+            patch.object(self.service, "_read_hardware", return_value=hardware),
+        ):
+            response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                )
+            )
+
+        result = json.loads(response.body.decode("utf-8"))
+        self.assertEqual([item["seq"] for item in result["samples"]], [8, 9])
+        self.assertEqual(result["sample"], result["samples"][-1])
+        self.assertEqual(result["sample"]["leftWheelSpeedMmS"], 0.0)
+        self.assertEqual(result["sample"]["rightWheelSpeedMmS"], 0.0)
+
     def test_wifi_connection_uses_the_shared_profile_and_feeds_watchdog(self):
         class Watchdog:
             def __init__(self):

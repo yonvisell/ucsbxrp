@@ -25,7 +25,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.13"
+COURSE_RELEASE = "2026.08-dev.14"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -749,7 +749,7 @@ def telemetry(request):
         after_sample = 0
     value = _state_result(after)
     samples = _buffered_course_samples(after_sample)
-    if samples:
+    if _thread_active and samples:
         sample = samples[-1]
     elif _thread_active:
         # No new Robot.step publication is available yet. Keep the legacy
@@ -766,8 +766,11 @@ def telemetry(request):
             0.0,
         )
     else:
+        # Preserve any final course-loop samples not yet collected, then end
+        # the batch with a fresh stopped sample. A newly opened Monitor must
+        # never present the last moving wheel speed as the current ready state.
         sample = _hardware_sample()
-        samples = [sample]
+        samples = [*samples, sample]
     value["samples"] = samples
     value["sample"] = sample
     return _json_response(value)
