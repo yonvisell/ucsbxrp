@@ -228,7 +228,9 @@ export function GuideApp() {
               </li>
               <li>
                 Choose the XRP's own <code>UCSB-XRP-…</code> hotspot or an
-                existing local Wi-Fi network.
+                existing local Wi-Fi network. For a hotspot, you may enter one
+                team member&apos;s last name to label it{" "}
+                <code>UCSB-XRP-NAME</code>.
               </li>
               <li>
                 If firmware repair is requested, put the controller in firmware

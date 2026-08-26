@@ -347,9 +347,10 @@
     position: static;
     display: flex;
     max-height: none;
+    flex-wrap: wrap;
     margin-bottom: 14px;
     gap: 2px;
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   .reference-toc > span,

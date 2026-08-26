@@ -9,6 +9,7 @@ import {
 } from "@ucsb-xrp/simulator";
 
 import { COURSE_PACKAGE_FILES, COURSE_REFERENCE_FILES } from "./course-python";
+import { studentFacingMicroPythonError } from "./micropython-error";
 import { prepareProject } from "./project-validation";
 import { MAX_RUNTIME_PARAMETERS, parseRuntimeState } from "./runtime-controls";
 import { SIMULATED_XRPLIB_FILES } from "./simulated-python";
@@ -41,9 +42,9 @@ function createDirectories(
 
 function errorDetail(error: unknown): string {
   if (error instanceof Error) {
-    return error.message;
+    return studentFacingMicroPythonError(error.message);
   }
-  return String(error);
+  return studentFacingMicroPythonError(String(error));
 }
 
 function telemetryNumber(value: unknown): number | null {
@@ -61,6 +62,8 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   let leftEncoderOrigin = 0;
   let rightEncoderOrigin = 0;
   let lastSimulationTime = performance.now();
+  let pendingSimulationMs = 0;
+  let explicitSimulationClock = false;
   const liveValuesAreShared = event.data.liveParameterBuffer !== undefined;
   const liveValues = event.data.liveParameterBuffer
     ? new Int32Array(event.data.liveParameterBuffer)
@@ -77,15 +80,27 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   const liveSlots = new Map<string, number>();
   const postSimulatorState = () =>
     post({ type: "simulator-state", state: simulator.state });
-  const advanceSimulator = () => {
+  const advanceSimulator = (requestedElapsedMs?: number) => {
     const now = performance.now();
-    const elapsedMs = Math.max(0, Math.min(now - lastSimulationTime, 5000));
-    const steps = Math.floor(elapsedMs / simulator.config.fixedStepMs);
+    const elapsedMs =
+      requestedElapsedMs === undefined
+        ? explicitSimulationClock
+          ? 0
+          : Math.max(0, Math.min(now - lastSimulationTime, 5000))
+        : Math.max(0, Math.min(Number(requestedElapsedMs), 5000));
+    if (requestedElapsedMs !== undefined) {
+      explicitSimulationClock = true;
+    }
+    lastSimulationTime = now;
+    pendingSimulationMs += elapsedMs;
+    const steps = Math.floor(
+      pendingSimulationMs / simulator.config.fixedStepMs,
+    );
     for (let index = 0; index < steps; index += 1) {
       simulator.step();
     }
     if (steps > 0) {
-      lastSimulationTime += steps * simulator.config.fixedStepMs;
+      pendingSimulationMs -= steps * simulator.config.fixedStepMs;
       postSimulatorState();
     }
     return simulator.state;
@@ -137,8 +152,8 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
       get_battery_v() {
         return advanceSimulator().batteryV;
       },
-      advance_simulator() {
-        advanceSimulator();
+      advance_simulator(elapsedMs?: number) {
+        advanceSimulator(elapsedMs);
       },
       set_runtime_version(version: string) {
         runtimeVersion = String(version);
@@ -313,6 +328,11 @@ exec(
     }
 
     postSimulatorState();
+    // Program time begins here. Loading MicroPython and copying project files
+    // must not move the virtual robot before the student's code starts.
+    lastSimulationTime = performance.now();
+    pendingSimulationMs = 0;
+    explicitSimulationClock = false;
     const entrypoint = project.entrypoint;
     runtime.runPython(`
 import sys
@@ -321,10 +341,15 @@ import time
 import xrp_sim_bridge
 
 __ucsb_original_sleep_ms = time.sleep_ms
+__ucsb_original_sleep = time.sleep
 def __ucsb_simulated_sleep_ms(duration_ms):
     __ucsb_original_sleep_ms(duration_ms)
-    xrp_sim_bridge.advance_simulator()
+    xrp_sim_bridge.advance_simulator(duration_ms)
+def __ucsb_simulated_sleep(duration_s):
+    __ucsb_original_sleep(duration_s)
+    xrp_sim_bridge.advance_simulator(duration_s * 1000.0)
 time.sleep_ms = __ucsb_simulated_sleep_ms
+time.sleep = __ucsb_simulated_sleep
 
 sys.path.insert(0, "/project")
 sys.path.insert(1, "/")

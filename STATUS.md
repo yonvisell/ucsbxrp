@@ -4,6 +4,31 @@ Last updated: 2026-08-25
 
 ## Current result
 
+Refinement 43 removes the remaining intermittent physical-run failure rather
+than treating one successful run as sufficient evidence. The RP2350 HTTP
+library had appended every telemetry request to flash; the installed log had
+already reached 11,216 bytes. Release `2026.08-dev.20` disables that request
+log, feeds the hardware watchdog during project writes, returns a correlated
+Stop reply before requesting cooperative program termination, and keeps command
+polling and run leases serialized. After USB installation and exact file
+readback, one unchanged boot completed 200 telemetry requests, ten transactional
+project flashes, ten no-motion Run/Stop cycles, and two bounded motor runs. Both
+motor runs ended at zero command; measured wheel distance and encoder changes
+confirmed physical motion, and the request-log file did not grow by one byte.
+
+The browser suite now rejects stale project folders retained under a different
+course folder, reports failed Stop and Reset operations in the System log, and
+releases failed Web Serial sessions promptly. Narrow landing, setup, IDE,
+Monitor, world, signal-plot, and API layouts were inspected and corrected. The
+physical browser harness is now opt-in, uses a test-owned zero-output project,
+requires a separate raised-wheel motion gate, limits its motion program to four
+seconds, verifies shared IDE/Monitor state and ordered logs, and restores the
+default spiral in an unconditional cleanup. The non-hardware gate currently
+passes 162 Python tests, 188 TypeScript tests, MicroPython 1.28 source/service
+checks, the 214-file offline build, and 24 focused Stable Chrome workflows. The
+last browser-to-robot proof awaits one manual macOS Wi-Fi selection because the
+operating system rejects command-line switching to the saved XRP hotspot.
+
 Refinement 42 repairs the complete first-use and repeated-run workflow exposed
 by the campus hotspot trial. The setup wizard now distinguishes the course
 folder from a project folder, detaches stale project handles when the course

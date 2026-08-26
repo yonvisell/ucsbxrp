@@ -623,7 +623,38 @@ test("keeps project and output controls usable on a narrow screen", async ({
   await expect(
     ide.getByRole("button", { name: "Settings", exact: true }),
   ).toBeVisible();
+  await ide.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(ide.getByTestId("settings-panel")).toBeVisible();
+  const [openHeaderBox, settingsBox] = await Promise.all([
+    ide.locator(".app-header").boundingBox(),
+    ide.getByTestId("settings-panel").boundingBox(),
+  ]);
+  expect(settingsBox?.y).toBeGreaterThanOrEqual(
+    (openHeaderBox?.y ?? 0) + (openHeaderBox?.height ?? 0) - 1,
+  );
+  expect(
+    await ide.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await ide.getByRole("button", { name: "Close settings" }).click();
   const monitorLink = ide.getByRole("link", { name: "Monitor", exact: true });
   await expect(monitorLink).toHaveAttribute("href", "../monitor/");
   expect(browserErrors).toEqual([]);
+});
+
+test("collapses an open project drawer when the IDE becomes narrow", async ({
+  page: ide,
+}) => {
+  await ide.setViewportSize({ width: 1200, height: 800 });
+  await ide.goto("/ide/");
+  await expect(
+    ide.getByRole("complementary", { name: "Project" }),
+  ).toBeVisible();
+
+  await ide.setViewportSize({ width: 375, height: 800 });
+  await expect(ide.getByRole("button", { name: "Project ›" })).toBeVisible();
+  await expect(ide.getByRole("complementary", { name: "Project" })).toHaveCount(
+    0,
+  );
 });

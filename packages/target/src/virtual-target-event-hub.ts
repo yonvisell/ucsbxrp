@@ -1,4 +1,8 @@
 import type { TargetWorkerMessage } from "./worker-protocol";
+import {
+  TelemetryEventHistory,
+  type TelemetryEvent,
+} from "./telemetry-event-history";
 import type { TargetEvent } from "./types";
 
 export interface VirtualWorkerPort {
@@ -23,18 +27,26 @@ export class VirtualTargetEventHub {
     VirtualWorkerPort,
     { ids: Set<string>; order: string[] }
   >();
+  private readonly deliveredTelemetry = new Map<
+    VirtualWorkerPort,
+    WeakSet<TelemetryEvent>
+  >();
   private readonly consoleHistory: ConsoleEvent[] = [];
   private readonly retainedConsoleIds = new Set<string>();
+  private readonly telemetryHistory = new TelemetryEventHistory();
   private eventSequence = 0;
 
   attach(port: VirtualWorkerPort): void {
     this.ports.add(port);
     this.deliveredConsoleIds.set(port, { ids: new Set(), order: [] });
+    this.deliveredTelemetry.set(port, new WeakSet());
+    this.replayTelemetry(port);
   }
 
   detach(port: VirtualWorkerPort): void {
     this.ports.delete(port);
     this.deliveredConsoleIds.delete(port);
+    this.deliveredTelemetry.delete(port);
     port.close();
   }
 
@@ -61,6 +73,8 @@ export class VirtualTargetEventHub {
           this.retainedConsoleIds.delete(removed.eventId);
         }
       }
+    } else if (event.type === "telemetry") {
+      this.telemetryHistory.retain(event);
     }
     for (const port of this.ports) {
       this.send(port, { type: "event", event });
@@ -74,6 +88,17 @@ export class VirtualTargetEventHub {
   }
 
   send(port: VirtualWorkerPort, message: TargetWorkerMessage): void {
+    if (message.type === "event" && message.event.type === "telemetry") {
+      const delivered = this.deliveredTelemetry.get(port);
+      if (delivered?.has(message.event)) return;
+      try {
+        port.postMessage(message);
+        delivered?.add(message.event);
+      } catch {
+        // A closing tab must not interrupt the shared virtual session.
+      }
+      return;
+    }
     if (
       message.type === "event" &&
       message.event.type === "console" &&
@@ -106,6 +131,16 @@ export class VirtualTargetEventHub {
     for (const event of this.consoleHistory) {
       this.send(port, { type: "event", event });
     }
+  }
+
+  replayTelemetry(port: VirtualWorkerPort): number {
+    let replayed = 0;
+    for (const event of this.telemetryHistory.chronological()) {
+      const delivered = this.deliveredTelemetry.get(port);
+      if (!delivered?.has(event)) replayed += 1;
+      this.send(port, { type: "event", event });
+    }
+    return replayed;
   }
 
   private normalizeConsoleEvent(event: ConsoleEvent): ConsoleEvent {

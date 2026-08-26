@@ -14,6 +14,7 @@ interface WorldViewProps {
   catalog: WorldCatalog;
   onWorldChange?: (worldId: string) => void;
   sample: TelemetrySample;
+  samples?: readonly TelemetrySample[];
   selectedWorldId: string;
   worldSelectionDisabled?: boolean;
   showAnnotations?: boolean;
@@ -56,7 +57,7 @@ function textSprite(text: string, widthMm = 176): THREE.Sprite {
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.font = "650 40px system-ui, sans-serif";
+  context.font = "700 48px system-ui, sans-serif";
   context.lineWidth = 7;
   context.strokeStyle = "rgba(255, 255, 255, 0.96)";
   context.strokeText(text, canvas.width / 2, canvas.height / 2);
@@ -74,6 +75,8 @@ function textSprite(text: string, widthMm = 176): THREE.Sprite {
     }),
   );
   sprite.scale.set(widthMm, 42, 1);
+  sprite.userData.labelWidthMm = widthMm;
+  sprite.userData.labelHeightMm = 42;
   sprite.renderOrder = 5;
   return sprite;
 }
@@ -303,6 +306,7 @@ export function WorldView({
   catalog,
   onWorldChange,
   sample,
+  samples = [],
   selectedWorldId,
   worldSelectionDisabled = false,
   showAnnotations = true,
@@ -314,6 +318,7 @@ export function WorldView({
   const worldHeightMm = world.bounds.maximumYmm - world.bounds.minimumYmm;
   const worldCenterX = (world.bounds.minimumXmm + world.bounds.maximumXmm) / 2;
   const worldCenterY = (world.bounds.minimumYmm + world.bounds.maximumYmm) / 2;
+  const viewRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -454,6 +459,22 @@ export function WorldView({
       const height = Math.max(host.clientHeight, 1);
       const vertical = (worldHeightMm + 150) / viewZoomRef.current;
       const horizontal = vertical * (width / height);
+      const minimumLabelHeightMm = (vertical / height) * 12;
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Sprite)) return;
+        const baseWidth = Number(object.userData.labelWidthMm);
+        const baseHeight = Number(object.userData.labelHeightMm);
+        if (!Number.isFinite(baseWidth) || !Number.isFinite(baseHeight)) return;
+        const labelHeight = Math.max(baseHeight, minimumLabelHeightMm);
+        object.scale.set(
+          labelHeight * (baseWidth / baseHeight),
+          labelHeight,
+          1,
+        );
+      });
+      if (viewRef.current) {
+        viewRef.current.dataset.minimumLabelPixels = "12";
+      }
       camera.left = -horizontal / 2;
       camera.right = horizontal / 2;
       camera.top = vertical / 2;
@@ -505,11 +526,23 @@ export function WorldView({
       return;
     }
     if (sample.seq !== lastSequence.current) {
-      if (sample.seq === 0 && lastSequence.current > 0) {
+      const missedRenderedSamples =
+        samples.length > 1 &&
+        (lastSequence.current < 0 || sample.seq !== lastSequence.current + 1);
+      if (missedRenderedSamples) {
+        trailPoints.current = samples
+          .slice(-1_200)
+          .map(
+            (historicalSample) =>
+              new THREE.Vector3(historicalSample.xMm, historicalSample.yMm, 1),
+          );
+      } else if (sample.seq === 0 && lastSequence.current > 0) {
         trailPoints.current = [];
+        trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
+      } else {
+        trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
       }
       lastSequence.current = sample.seq;
-      trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
       if (trailPoints.current.length > 1_200) {
         trailPoints.current.shift();
       }
@@ -517,6 +550,11 @@ export function WorldView({
       trail.geometry = new THREE.BufferGeometry().setFromPoints(
         trailPoints.current,
       );
+      if (viewRef.current) {
+        viewRef.current.dataset.pathPointCount = String(
+          trailPoints.current.length,
+        );
+      }
     }
 
     robot.position.set(sample.xMm, sample.yMm, 0);
@@ -551,7 +589,7 @@ export function WorldView({
     }
     resizeRef.current?.();
     renderer.render(scene, camera);
-  }, [sample, viewZoom, worldCenterX, worldCenterY]);
+  }, [sample, samples, viewZoom, worldCenterX, worldCenterY]);
 
   useEffect(() => {
     const group = annotationGroupRef.current;
@@ -596,6 +634,7 @@ export function WorldView({
       data-pose-state={sample.poseAvailable ? "published" : "centered-preview"}
       data-testid="world-view"
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
+      ref={viewRef}
     >
       <div className="world-toolbar">
         <b className="world-section-label">World</b>

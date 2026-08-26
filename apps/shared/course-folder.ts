@@ -24,6 +24,7 @@ export interface CourseDirectoryHandle {
   ): Promise<CourseFileHandle>;
   removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
   isSameEntry?(other: CourseDirectoryHandle): Promise<boolean>;
+  resolve?(possibleDescendant: CourseDirectoryHandle): Promise<string[] | null>;
   queryPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
   requestPermission?(options: { mode: "readwrite" }): Promise<PermissionState>;
 }
@@ -240,6 +241,38 @@ async function sameDirectoryHandle(
     // student into a newly selected course folder.
   }
   return false;
+}
+
+/**
+ * Determine whether a retained project folder belongs to the selected course
+ * folder. `null` means the browser handle cannot prove either relationship;
+ * callers should preserve the handle rather than discard student work.
+ */
+export async function projectFolderIsInsideCourseFolder(
+  courseFolder: CourseDirectoryHandle,
+  projectFolder: CourseDirectoryHandle,
+): Promise<boolean | null> {
+  if (courseFolder === projectFolder) return false;
+  try {
+    if (courseFolder.resolve) {
+      const relativePath = await courseFolder.resolve(projectFolder);
+      return relativePath !== null && relativePath.length > 0;
+    }
+  } catch {
+    // Fall through to identity checks for compatibility handles and older
+    // browser implementations.
+  }
+
+  try {
+    if (courseFolder.isSameEntry) {
+      if (await courseFolder.isSameEntry(projectFolder)) return false;
+    } else if (projectFolder.isSameEntry) {
+      if (await projectFolder.isSameEntry(courseFolder)) return false;
+    }
+  } catch {
+    // Neither identity nor ancestry can be established safely.
+  }
+  return null;
 }
 
 export interface WorkspaceFolderSelection {

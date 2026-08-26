@@ -290,6 +290,7 @@ export class RawReplSession implements MicroPythonSession {
   private operation: Promise<void> = Promise.resolve();
   private closed = false;
   private resetAttempted = false;
+  private transportHealthy = true;
 
   constructor(private readonly connection: SerialByteConnection) {}
 
@@ -331,7 +332,7 @@ export class RawReplSession implements MicroPythonSession {
   async resetAndClose(): Promise<void> {
     if (this.closed) return;
     let resetError: unknown;
-    if (!this.resetAttempted) {
+    if (!this.resetAttempted && this.transportHealthy) {
       this.resetAttempted = true;
       try {
         await this.executeWithoutFollow("import machine\nmachine.reset()");
@@ -345,11 +346,21 @@ export class RawReplSession implements MicroPythonSession {
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.operation.then(operation, operation);
-    this.operation = result.then(
+    const tracked = result.then(
+      (value) => value,
+      (error: unknown) => {
+        // Python exceptions are returned through ReplResult.stderr. A rejected
+        // command therefore means the serial transport or REPL protocol can no
+        // longer be trusted to accept a cleanup command.
+        this.transportHealthy = false;
+        throw error;
+      },
+    );
+    this.operation = tracked.then(
       () => undefined,
       () => undefined,
     );
-    return result;
+    return tracked;
   }
 
   private async sendCommand(command: Uint8Array): Promise<void> {

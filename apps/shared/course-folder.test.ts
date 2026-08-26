@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   autosaveDirectoryName,
   courseFolderPermission,
+  projectFolderIsInsideCourseFolder,
   writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
@@ -99,6 +100,30 @@ class MemoryDirectoryHandle implements CourseDirectoryHandle {
       throw new DOMException("File not found", "NotFoundError");
     }
   }
+
+  async isSameEntry(other: CourseDirectoryHandle) {
+    return (
+      other instanceof MemoryDirectoryHandle &&
+      other.files === this.files &&
+      other.prefix === this.prefix
+    );
+  }
+
+  async resolve(
+    possibleDescendant: CourseDirectoryHandle,
+  ): Promise<string[] | null> {
+    if (
+      !(possibleDescendant instanceof MemoryDirectoryHandle) ||
+      possibleDescendant.files !== this.files ||
+      !possibleDescendant.prefix.startsWith(this.prefix)
+    ) {
+      return null;
+    }
+    const relative: string = possibleDescendant.prefix.slice(
+      this.prefix.length,
+    );
+    return relative.split("/").filter(Boolean);
+  }
 }
 
 describe("course-folder autosaves", () => {
@@ -155,5 +180,33 @@ describe("course-folder autosaves", () => {
     const stored = files.get("exports/world.webm");
     expect(stored).toBeInstanceOf(Blob);
     await expect((stored as Blob).text()).resolves.toBe("webm-data");
+  });
+
+  it("distinguishes projects inside a course folder from legacy cross-root handles", async () => {
+    const courseFiles = new Map<string, string | Blob>([
+      ["Project/main.py", "print('inside')\n"],
+      ["Group/Nested/main.py", "print('nested')\n"],
+    ]);
+    const course = new MemoryDirectoryHandle("course", courseFiles);
+    const project = await course.getDirectoryHandle("Project");
+    const group = await course.getDirectoryHandle("Group");
+    const nestedProject = await group.getDirectoryHandle("Nested");
+    const unrelated = new MemoryDirectoryHandle(
+      "Project",
+      new Map([["main.py", "print('outside')\n"]]),
+    );
+
+    await expect(
+      projectFolderIsInsideCourseFolder(course, project),
+    ).resolves.toBe(true);
+    await expect(
+      projectFolderIsInsideCourseFolder(course, nestedProject),
+    ).resolves.toBe(true);
+    await expect(
+      projectFolderIsInsideCourseFolder(course, unrelated),
+    ).resolves.toBe(false);
+    await expect(
+      projectFolderIsInsideCourseFolder(course, course),
+    ).resolves.toBe(false);
   });
 });

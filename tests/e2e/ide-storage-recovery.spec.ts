@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 interface RememberedFolderOptions {
   workspacePermission?: PermissionState;
   rememberRepositoryAsProject?: boolean;
+  rememberExternalProject?: boolean;
 }
 
 async function installRememberedFolders(
@@ -14,7 +15,9 @@ async function installRememberedFolders(
       pickerCount: 0,
       permissionRequestCount: 0,
       writeCount: 0,
-      projectHandleRetained: configuration.rememberRepositoryAsProject === true,
+      projectHandleRetained:
+        configuration.rememberRepositoryAsProject === true ||
+        configuration.rememberExternalProject === true,
     };
 
     class MemoryFileHandle {
@@ -45,6 +48,8 @@ async function installRememberedFolders(
         readonly name: string,
         private readonly files: Record<string, string>,
         private readonly permission: PermissionState,
+        private readonly rootId: string,
+        private readonly path: string[] = [],
       ) {}
 
       async *entries() {
@@ -69,6 +74,30 @@ async function installRememberedFolders(
         throw new DOMException("File not found", "NotFoundError");
       }
 
+      async isSameEntry(other: MemoryDirectoryHandle) {
+        return (
+          other instanceof MemoryDirectoryHandle &&
+          other.rootId === this.rootId &&
+          other.path.join("/") === this.path.join("/")
+        );
+      }
+
+      async resolve(
+        possibleDescendant: MemoryDirectoryHandle,
+      ): Promise<string[] | null> {
+        if (
+          !(possibleDescendant instanceof MemoryDirectoryHandle) ||
+          possibleDescendant.rootId !== this.rootId ||
+          possibleDescendant.path.length < this.path.length ||
+          !this.path.every(
+            (part, index) => possibleDescendant.path[index] === part,
+          )
+        ) {
+          return null;
+        }
+        return possibleDescendant.path.slice(this.path.length);
+      }
+
       async queryPermission() {
         return this.permission;
       }
@@ -83,6 +112,7 @@ async function installRememberedFolders(
       "xrp_test_2",
       {},
       configuration.workspacePermission ?? "prompt",
+      "workspace",
     );
     const repository = new MemoryDirectoryHandle(
       "Coursemobilerobotics",
@@ -93,6 +123,16 @@ async function installRememberedFolders(
         "device_service.py": "print('service')\n",
       },
       "granted",
+      "repository",
+    );
+    const externalProject = new MemoryDirectoryHandle(
+      "Previous-Project",
+      {
+        ".ucsb-xrp-project.json": `${JSON.stringify({ name: "Previous project", entrypoint: "main.py" })}\n`,
+        "main.py": 'print("previous course folder")\n',
+      },
+      "granted",
+      "previous-workspace",
     );
     const retainedHandles = new Map<string, unknown>();
     retainedHandles.set("workspace-folder-v1", workspace);
@@ -111,6 +151,9 @@ async function installRememberedFolders(
           },
         }),
       );
+    }
+    if (configuration.rememberExternalProject) {
+      retainedHandles.set("project-folder-v1", externalProject);
     }
 
     const database = {
@@ -212,9 +255,43 @@ test("does not restore a remembered repository as a student project", async ({
   ).toHaveCount(0);
   await expect(
     ide.getByText(
-      "The remembered folder is not a UCSBXRP project, so it was not opened or modified.",
+      "The remembered project belongs to a different course folder. It was detached without changing its files.",
     ),
   ).toBeVisible();
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                projectHandleRetained: boolean;
+                writeCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
+    .toMatchObject({ projectHandleRetained: false, writeCount: 0 });
+});
+
+test("detaches a valid project remembered from a different course folder", async ({
+  page: ide,
+}) => {
+  await installRememberedFolders(ide, {
+    rememberExternalProject: true,
+    workspacePermission: "granted",
+  });
+
+  await ide.goto("/ide/");
+
+  await expect(ide.getByTestId("project-folder")).toContainText(
+    "Expanding spiral",
+  );
+  await expect(ide.getByRole("button", { name: /Open main\.py/ })).toHaveCount(
+    1,
+  );
+  await expect(ide.getByText("previous course folder")).toHaveCount(0);
   await expect
     .poll(() =>
       ide.evaluate(

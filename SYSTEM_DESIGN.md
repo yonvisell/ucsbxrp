@@ -115,9 +115,10 @@ hashes only changed payloads, writes through a temporary name, re-hashes every
 destination, and import-checks `ucsb_xrp`, the on-robot service, and required
 XRPLib modules. Repeating the operation therefore repairs drift without
 rewriting matching files. New robots default to their device-specific hotspot;
-repairs retain a valid existing profile unless the user chooses hotspot or
-station mode. Station credentials move directly from the page to the XRP over
-USB and are neither persisted nor returned to the page.
+an optional team last name produces `UCSB-XRP-NAME`. Repairs retain a valid
+existing profile unless the user chooses hotspot or station mode. Station
+credentials move directly from the page to the XRP over USB and are neither
+persisted nor returned to the page.
 
 The XRP remains connected by USB throughout inspection and installation. USB
 is the firmware, repair, and network-configuration path; the installed HTTP
@@ -294,13 +295,14 @@ The RP2350 runs one on-robot MicroPython HTTP service over either of two network
 profiles. **Robot hotspot** is the default student profile: each XRP derives a
 distinct `UCSB-XRP-xxxx` SSID from its radio identity, uses the fixed course
 password and `192.168.4.1` service address, and selects channel 1, 6, or 11
-from the same identity. **Existing Wi-Fi** joins a private course router or an
-ordinary local network by DHCP or optional static configuration. A failed
-station association starts the recoverable robot hotspot until reset. These
-are alternative transports for the same service and target interface; the
-system does not depend on simultaneous AP and station operation. USB is
-retained for initial configuration, deterministic file installation, mode
-changes, and recovery.
+from the same identity. The wizard may instead store a validated
+`UCSB-XRP-NAME` SSID based on one team member's last name. **Existing Wi-Fi**
+joins a private course router or an ordinary local network by DHCP or optional
+static configuration. A failed station association starts the recoverable
+robot hotspot until reset. These are alternative transports for the same
+service and target interface; the system does not depend on simultaneous AP
+and station operation. USB is retained for initial configuration,
+deterministic file installation, mode changes, and recovery.
 
 The versioned JSON API provides:
 

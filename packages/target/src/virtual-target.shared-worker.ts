@@ -321,7 +321,6 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       type: "event",
       event: { type: "runtime", state: runtimeState },
     });
-    send(port, { type: "event", event: telemetryEvent() });
     send(port, {
       type: "event",
       event: { type: "project", project: currentProjectDescriptor },
@@ -334,6 +333,9 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         selectedWorldId: currentScenario,
       },
     });
+    if (events.replayTelemetry(port) === 0) {
+      send(port, { type: "event", event: telemetryEvent() });
+    }
     events.replayConsole(port);
   } else if (command.type === "publish-console") {
     broadcast(command.event);

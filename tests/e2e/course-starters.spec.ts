@@ -154,6 +154,7 @@ test("Run reports a validation error before starting invalid code", async ({
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("Validation failed");
+  await expect(page.getByRole("log")).not.toContainText("<stdin>");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
   await expect(page.getByTestId("target-status")).toContainText(

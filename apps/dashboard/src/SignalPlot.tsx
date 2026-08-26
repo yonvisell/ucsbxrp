@@ -325,6 +325,7 @@ export function SignalPlot({
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const noteInputRef = useRef<HTMLInputElement>(null);
+  const [compactLayout, setCompactLayout] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteLocation, setNoteLocation] = useState<{
     left: number;
@@ -344,8 +345,15 @@ export function SignalPlot({
       renderer: "canvas",
     });
     chartRef.current = chart;
-    const resizeObserver = new ResizeObserver(() => chart.resize());
+    const resize = () => {
+      const compact = elementRef.current!.clientWidth < 420;
+      elementRef.current!.dataset.compactLayout = compact ? "true" : "false";
+      setCompactLayout((current) => (current === compact ? current : compact));
+      chart.resize();
+    };
+    const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(elementRef.current);
+    resize();
     return () => {
       resizeObserver.disconnect();
       chart.dispose();
@@ -378,9 +386,14 @@ export function SignalPlot({
             fontWeight: 600,
           },
         },
-        grid: { left: 36, right: 6, top: 18, bottom: 21 },
+        grid: {
+          left: 36,
+          right: 6,
+          top: compactLayout ? 31 : 18,
+          bottom: 21,
+        },
         legend: {
-          top: 1,
+          top: compactLayout ? 14 : 1,
           right: 6,
           itemGap: 7,
           textStyle: {
@@ -446,7 +459,14 @@ export function SignalPlot({
       },
       { notMerge: true, lazyUpdate: true },
     );
-  }, [annotations, definition, samples, showAnnotations, timeWindowS]);
+  }, [
+    annotations,
+    compactLayout,
+    definition,
+    samples,
+    showAnnotations,
+    timeWindowS,
+  ]);
 
   const openNoteAt = (clientX?: number) => {
     const shell = shellRef.current;
@@ -486,6 +506,7 @@ export function SignalPlot({
     <div
       aria-label={`${definition.description} over the last ${timeWindowS} seconds`}
       className="signal-plot-shell"
+      data-sample-count={samples.length}
       onContextMenu={(event) => {
         if (!onAddAnnotation || samples.length === 0) return;
         event.preventDefault();

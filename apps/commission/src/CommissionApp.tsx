@@ -11,10 +11,12 @@ import { AppNavigation } from "../../shared/AppNavigation";
 import {
   chooseWorkspaceFolder,
   courseFolderPermission,
+  forgetProjectFolder,
   forgetWorkspaceAndProjectFolders,
   handCourseFolderToIde,
   loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
+  projectFolderIsInsideCourseFolder,
   replaceRememberedWorkspaceFolder,
   requestCourseFolderPermission,
   type CourseDirectoryHandle,
@@ -121,6 +123,14 @@ function workflowStep(stage: Stage): number {
   return 4;
 }
 
+function navigationDestinationName(destination: string): string {
+  if (destination.includes("/ide/")) return "IDE";
+  if (destination.includes("/monitor/")) return "Monitor";
+  if (destination.includes("/guide/")) return "Guide";
+  if (destination.includes("/reference/")) return "API reference";
+  return "Home";
+}
+
 export function CommissionApp() {
   const manifestUrl = useMemo(manifestLocation, []);
   const [manifest, setManifest] = useState<CommissioningManifest | null>(null);
@@ -152,6 +162,7 @@ export function CommissionApp() {
   const [setupLogEntries, setSetupLogEntries] = useState<SetupLogEntry[]>([]);
   const [setupLogSaveError, setSetupLogSaveError] = useState("");
   const [setupLogCopied, setSetupLogCopied] = useState(false);
+  const [navigationDestination, setNavigationDestination] = useState("");
   const sessionRef = useRef<MicroPythonSession | null>(null);
   const portRef = useRef<SerialPortLike | null>(null);
   const navigatingRef = useRef(false);
@@ -362,7 +373,23 @@ export function CommissionApp() {
           "success",
         );
       }
-      const rememberedProject = await loadRememberedProjectFolder();
+      let rememberedProject = await loadRememberedProjectFolder();
+      if (rememberedProject && !workspaceChangedRef.current) {
+        const belongsToCourseFolder = await projectFolderIsInsideCourseFolder(
+          selected,
+          rememberedProject,
+        );
+        if (belongsToCourseFolder === false) {
+          const detachedName = rememberedProject.name;
+          await forgetProjectFolder();
+          rememberedProject = null;
+          recordSetup(
+            "Project",
+            `Detached ./${detachedName} because it is not inside ${selected.name}; no project files were changed.`,
+            "warning",
+          );
+        }
+      }
       if (workspaceChangedRef.current || !rememberedProject) {
         setDetail("Preparing the default project folder…");
         const prepared = await prepareDefaultProjectFolder(selected);
@@ -927,8 +954,11 @@ export function CommissionApp() {
 
   const exitSetup = useCallback(
     async (destination: string) => {
-      if (stage === "installing") return;
+      if (stage === "installing" || navigatingRef.current) return;
+      const destinationName = navigationDestinationName(destination);
       navigatingRef.current = true;
+      setNavigationDestination(destinationName);
+      setDetail(`Closing the USB connection and opening ${destinationName}…`);
       await closeUsbSession();
       window.location.assign(new URL(destination, window.location.href));
     },
@@ -985,7 +1015,7 @@ export function CommissionApp() {
         </a>
         <AppNavigation
           active="commission"
-          disabled={stage === "installing"}
+          disabled={stage === "installing" || Boolean(navigationDestination)}
           onNavigate={(href) => void exitSetup(href)}
         />
       </header>
@@ -1030,6 +1060,15 @@ export function CommissionApp() {
           {stage === "wifi" ? <h1>Verify the robot connection</h1> : null}
           {stage === "complete" ? <h1>XRP ready</h1> : null}
           <p className="commission-detail">{detail}</p>
+          {navigationDestination ? (
+            <p
+              className="commission-navigation-status"
+              data-testid="setup-navigation-status"
+              role="status"
+            >
+              Opening {navigationDestination}…
+            </p>
+          ) : null}
 
           {error ? (
             <p className="commission-error" role="alert">
@@ -1456,7 +1495,9 @@ export function CommissionApp() {
             >
               {stage !== "folder" ? (
                 <button
-                  disabled={stage === "installing"}
+                  disabled={
+                    stage === "installing" || Boolean(navigationDestination)
+                  }
                   onClick={() => void goBack()}
                   type="button"
                 >
@@ -1464,7 +1505,9 @@ export function CommissionApp() {
                 </button>
               ) : null}
               <button
-                disabled={stage === "installing"}
+                disabled={
+                  stage === "installing" || Boolean(navigationDestination)
+                }
                 onClick={() => void exitSetup("../")}
                 type="button"
               >

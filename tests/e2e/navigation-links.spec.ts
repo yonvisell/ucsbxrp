@@ -108,3 +108,25 @@ test("student pages keep the complete course navigation visible without header c
     }
   }
 });
+
+test("API sections remain fully visible rather than clipping at phone width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 760 });
+  await page.goto("/reference/");
+
+  const navigation = page.locator(".reference-toc");
+  await expect(navigation).toBeVisible();
+  const geometry = await navigation.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    links: [...element.querySelectorAll("a")].map((link) => {
+      const bounds = link.getBoundingClientRect();
+      return { left: bounds.left, right: bounds.right };
+    }),
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  expect(
+    geometry.links.every((bounds) => bounds.left >= 0 && bounds.right <= 375),
+  ).toBe(true);
+});

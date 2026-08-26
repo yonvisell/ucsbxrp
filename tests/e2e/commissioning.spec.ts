@@ -11,6 +11,15 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
       name: "Program, Simulate, and Run Live Telemetry for the XRP robot",
     }),
   ).toBeVisible();
+  const landingGap = await page.evaluate(() => {
+    const header = document.querySelector(".landing-header")!;
+    const hero = document.querySelector(".landing-shell > .eyebrow")!;
+    return (
+      hero.getBoundingClientRect().top - header.getBoundingClientRect().bottom
+    );
+  });
+  expect(landingGap).toBeGreaterThanOrEqual(40);
+  expect(landingGap).toBeLessThan(140);
   for (const name of [
     "Open IDE",
     "Open Monitor",
@@ -47,6 +56,10 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   await expect(
     page.getByText("Verify robot connection", { exact: true }),
   ).toBeVisible();
+  const stepsHeight = await page
+    .locator(".commission-steps")
+    .evaluate((element) => element.getBoundingClientRect().height);
+  expect(stepsHeight).toBeLessThan(120);
   await page.getByRole("button", { name: "Continue without folder" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
@@ -334,6 +347,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       private temporaryPath = "";
       private temporaryData: number[] = [];
       private failFirstInstall = true;
+      resetDelayMs = 0;
 
       getInfo() {
         return { usbVendorId: 0x1b4f, usbProductId: 0x0046 };
@@ -383,8 +397,13 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         }
         if (this.rawPaste && chunk.length === 1 && chunk[0] === 4) {
           this.rawPaste = false;
-          this.send(Uint8Array.of(4));
           const code = textDecoder.decode(Uint8Array.from(this.command));
+          if (this.resetDelayMs > 0 && code.includes("machine.reset()")) {
+            await new Promise((resolve) =>
+              window.setTimeout(resolve, this.resetDelayMs),
+            );
+          }
+          this.send(Uint8Array.of(4));
           if (this.failFirstInstall && code.includes("__UCSB_XRP_HASHES__=")) {
             this.failFirstInstall = false;
             throw new Error("simulated USB disconnect");
@@ -450,7 +469,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
               library: "0.4.0-dev",
-              service: "2026.08-dev.19",
+              service: "2026.08-dev.20",
               modules: [
                 "XRPLib.board",
                 "XRPLib.encoded_motor",
@@ -502,6 +521,12 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     }
 
     const port = new MockXrpPort();
+    Object.defineProperty(window, "__setUcsbXrpResetDelay", {
+      configurable: true,
+      value: (milliseconds: number) => {
+        port.resetDelayMs = milliseconds;
+      },
+    });
     Object.defineProperty(navigator, "serial", {
       configurable: true,
       value: {
@@ -531,8 +556,8 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         return new Response(
           JSON.stringify({
             protocol: 1,
-            serviceVersion: "2026.08-dev.19",
-            courseRelease: "2026.08-dev.19",
+            serviceVersion: "2026.08-dev.20",
+            courseRelease: "2026.08-dev.20",
             robotName: "UCSB-XRP-4A21",
             address: "192.168.4.1",
             bootId: "test-boot",
@@ -668,6 +693,32 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       ),
     )
     .toContain("spiral_winding_turns_per_m");
+
+  await page.goto("/commission/");
+  await page.getByRole("button", { name: "Use My XRP Projects" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Use this XRP" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Choose the robot network" }),
+  ).toBeVisible();
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        __setUcsbXrpResetDelay: (milliseconds: number) => void;
+      }
+    ).__setUcsbXrpResetDelay(450),
+  );
+  await page.getByRole("link", { name: "Guide", exact: true }).click();
+  await expect(page.getByTestId("setup-navigation-status")).toHaveText(
+    "Opening Guide…",
+  );
+  await expect(
+    page.getByRole("link", { name: "IDE", exact: true }),
+  ).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByRole("button", { name: "Exit setup" })).toBeDisabled();
+  await expect(page).toHaveURL(/\/guide\/$/);
   expect(browserErrors).toEqual([]);
 });
 

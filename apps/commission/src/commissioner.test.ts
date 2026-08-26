@@ -25,8 +25,8 @@ function digest(value: Uint8Array): string {
 function manifest(): CommissioningManifest {
   return {
     schemaVersion: 1,
-    releaseId: "2026.08-dev.19",
-    serviceVersion: "2026.08-dev.19",
+    releaseId: "2026.08-dev.20",
+    serviceVersion: "2026.08-dev.20",
     courseLibraryVersion: "0.4.0-dev",
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
@@ -117,7 +117,7 @@ class FakeSession implements MicroPythonSession {
       return result(
         `__UCSB_XRP_VERIFY__=${JSON.stringify({
           library: "0.4.0-dev",
-          service: "2026.08-dev.19",
+          service: "2026.08-dev.20",
           modules: this.requiredModules,
         })}\r\n`,
       );
@@ -270,7 +270,7 @@ describe("browser XRP commissioning", () => {
     );
     expect(progress).toContain("Loading the installed course software…");
     expect(progress).toContain(
-      "Installed course release 2026.08-dev.19 verified.",
+      "Installed course release 2026.08-dev.20 verified.",
     );
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
@@ -352,7 +352,7 @@ describe("browser XRP commissioning", () => {
         }) as typeof fetch,
       }),
     ).rejects.toThrow(
-      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.19)",
+      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.20)",
     );
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);

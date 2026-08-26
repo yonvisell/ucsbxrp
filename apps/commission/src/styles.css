@@ -148,6 +148,14 @@
   line-height: 1.55;
 }
 
+.commission-navigation-status {
+  max-width: 510px;
+  margin: -12px 0 16px;
+  color: var(--ucsb-blue);
+  font-size: var(--font-sm);
+  font-weight: 650;
+}
+
 .commission-error {
   max-width: 520px;
   border-left: 3px solid var(--red);
@@ -598,6 +606,8 @@
   .commission-layout {
     width: min(100% - 20px, 540px);
     grid-template-columns: 1fr;
+    grid-template-rows: max-content auto;
+    align-content: start;
     padding-top: 12px;
   }
 

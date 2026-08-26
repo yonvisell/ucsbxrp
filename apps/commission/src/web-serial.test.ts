@@ -190,4 +190,37 @@ describe("Web Serial raw REPL", () => {
       ),
     ).toHaveLength(1);
   });
+
+  it("closes without waiting for another command after transport failure", async () => {
+    const writes: Uint8Array[] = [];
+    let readAttempts = 0;
+    let closed = false;
+    const connection = {
+      write: async (value: Uint8Array | string) => {
+        writes.push(typeof value === "string" ? encoder.encode(value) : value);
+      },
+      readUntil: async () => {
+        readAttempts += 1;
+        throw new Error("serial transport disconnected");
+      },
+      readExact: async () => Uint8Array.of(),
+      close: async () => {
+        closed = true;
+      },
+    };
+    const session = new RawReplSession(connection as never);
+
+    await expect(session.execute("print('test')")).rejects.toThrow(
+      "serial transport disconnected",
+    );
+    await expect(session.resetAndClose()).resolves.toBeUndefined();
+
+    expect(readAttempts).toBe(1);
+    expect(closed).toBe(true);
+    expect(
+      writes.some((value) =>
+        new TextDecoder().decode(value).includes("machine.reset()"),
+      ),
+    ).toBe(false);
+  });
 });

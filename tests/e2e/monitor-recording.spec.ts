@@ -278,12 +278,13 @@ test("selects plotted signals from the Monitor controls", async ({
   expect(brandStyle.typography.slice(0, 3)).toEqual(
     brandStyle.typography.slice(3),
   );
-  const ideLink = page.getByRole("link", { name: "IDE ↗", exact: true });
-  await expect(ideLink).toHaveAttribute("target", "_blank");
-  await expect(ideLink).toHaveAttribute("rel", "noopener noreferrer");
+  const appNavigation = page.locator(".app-navigation");
   await expect(
-    page.locator(".header-nav").getByText("|", { exact: true }).first(),
-  ).toBeVisible();
+    appNavigation.getByRole("link", { name: "IDE", exact: true }),
+  ).toHaveAttribute("href", "../ide/");
+  await expect(
+    appNavigation.getByRole("link", { name: "Monitor", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   const monitorRun = page.locator(".monitor-run-button");
   await expect(monitorRun).toHaveCSS("background-color", "rgb(238, 240, 242)");
   expect(
@@ -375,7 +376,12 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   );
 
   const headerBox = await page.locator(".app-header").boundingBox();
-  expect(headerBox?.height).toBeLessThanOrEqual(29);
+  expect(headerBox?.height).toBeLessThanOrEqual(74);
+  await expect(
+    page
+      .locator(".app-navigation")
+      .getByRole("link", { name: "Set up or Repair", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();
@@ -391,7 +397,10 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
     page.getByRole("heading", { name: "Recording", exact: true }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Collapse monitor controls" }).click();
+  await page.mouse.click(650, 200);
+  await expect(
+    page.getByRole("button", { name: "Open monitor controls" }),
+  ).toBeVisible();
   await expect(page.getByTestId("world-view")).toBeVisible();
 });
 
@@ -410,23 +419,38 @@ test("keeps every header command reachable without hidden scrolling at phone wid
     page.getByRole("button", { name: "Reset", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "IDE ↗", exact: true }),
+    page
+      .locator(".app-navigation")
+      .getByRole("link", { name: "IDE", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Guide ↗", exact: true }),
+    page
+      .locator(".app-navigation")
+      .getByRole("link", { name: "Guide", exact: true }),
   ).toBeVisible();
 
-  const boxes = await Promise.all(
-    [
-      page.getByRole("button", { name: "Run", exact: true }),
-      page.getByRole("button", { name: "Reset", exact: true }),
-      page.getByRole("link", { name: "IDE ↗", exact: true }),
-      page.getByRole("link", { name: "Guide ↗", exact: true }),
-    ].map((item) => item.boundingBox()),
-  );
+  const boxes = await Promise.all([
+    page.getByRole("button", { name: "Run", exact: true }).boundingBox(),
+    page.getByRole("button", { name: "Reset", exact: true }).boundingBox(),
+    ...["Home", "IDE", "Monitor", "Guide", "Set up or Repair", "API"].map(
+      (name) =>
+        page
+          .locator(".app-navigation")
+          .getByRole("link", { name, exact: true })
+          .boundingBox(),
+    ),
+  ]);
   expect(
     boxes.every((box) => box && box.x >= 0 && box.x + box.width <= 375),
   ).toBe(true);
+  await expect(page.getByTestId("world-view")).toHaveAttribute(
+    "data-minimum-label-pixels",
+    "12",
+  );
+  await expect(page.getByTestId("wheel-speed-plot")).toHaveAttribute(
+    "data-compact-layout",
+    "true",
+  );
 });
 
 test("keeps a centered world preview visible without a published physical pose", async ({

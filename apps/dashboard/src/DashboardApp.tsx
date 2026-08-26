@@ -466,6 +466,22 @@ export function DashboardApp() {
   const [controlsOpen, setControlsOpen] = useState(
     initiallyShowMonitorControls,
   );
+  const controlsRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!controlsOpen) return;
+    const closeOverlay = (event: PointerEvent) => {
+      if (
+        window.matchMedia("(max-width: 900px)").matches &&
+        controlsRef.current &&
+        !controlsRef.current.contains(event.target as Node)
+      ) {
+        setControlsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOverlay);
+    return () => document.removeEventListener("pointerdown", closeOverlay);
+  }, [controlsOpen]);
   const target = useMemo<TargetClient>(
     () =>
       targetPreference.kind === "physical"
@@ -1354,6 +1370,7 @@ export function DashboardApp() {
           aria-label="Monitor controls"
           className="monitor-controls"
           data-testid="monitor-controls"
+          ref={controlsRef}
         >
           {controlsOpen ? (
             <div className="monitor-controls-panel">
@@ -1649,6 +1666,7 @@ export function DashboardApp() {
                     : undefined
                 }
                 sample={worldSample}
+                samples={plotSamples}
                 selectedWorldId={selectedWorldId}
                 worldSelectionDisabled={
                   targetState === "loading" || targetState === "running"
@@ -1727,7 +1745,7 @@ export function DashboardApp() {
                     </div>
                     <div title="Signed left and right wheel distance calculated by SensorModel from encoder counts.">
                       <dt>wheel distance L/R</dt>
-                      <dd>
+                      <dd data-testid="wheel-distance">
                         {value(sample.leftWheelDistanceMm ?? null)} /{" "}
                         {value(sample.rightWheelDistanceMm ?? null)} mm
                       </dd>
@@ -1816,7 +1834,7 @@ export function DashboardApp() {
                     </div>
                     <div title="Raw left and right encoder counts.">
                       <dt>encoder counts L/R</dt>
-                      <dd>
+                      <dd data-testid="encoder-counts">
                         {sample.leftEncoderCount} / {sample.rightEncoderCount}
                       </dd>
                     </div>

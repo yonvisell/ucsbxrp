@@ -231,6 +231,10 @@ button:disabled {
 }
 
 @media (max-width: 820px) {
+  :root {
+    --app-header-height: 67px;
+  }
+
   .app-header {
     align-content: center;
     padding-top: 2px;
@@ -523,8 +527,8 @@ input[type="radio"] {
   width: min(620px, calc(100% - 1.5rem));
   flex: 1;
   flex-direction: column;
-  justify-content: center;
-  padding: 1.25rem 0;
+  justify-content: flex-start;
+  padding: clamp(3rem, 10vh, 5.5rem) 0 2rem;
 }
 
 .landing-shell h1 {

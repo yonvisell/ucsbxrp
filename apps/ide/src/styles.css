@@ -525,7 +525,7 @@
 .settings-drawer {
   position: fixed;
   z-index: 42;
-  top: 0;
+  top: var(--app-header-height);
   right: 0;
   bottom: 0;
   width: min(292px, 94vw);

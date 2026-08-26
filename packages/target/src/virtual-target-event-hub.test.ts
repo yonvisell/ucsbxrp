@@ -6,6 +6,7 @@ import {
   type VirtualWorkerPort,
 } from "./virtual-target-event-hub";
 import type { TargetWorkerMessage } from "./worker-protocol";
+import type { TelemetrySample } from "./types";
 
 class FakePort implements VirtualWorkerPort {
   readonly messages: TargetWorkerMessage[] = [];
@@ -25,6 +26,39 @@ function consoleEvents(port: FakePort) {
     .filter((message) => message.type === "event")
     .map((message) => message.event)
     .filter((event) => event.type === "console");
+}
+
+function telemetryEvents(port: FakePort) {
+  return port.messages
+    .filter((message) => message.type === "event")
+    .map((message) => message.event)
+    .filter((event) => event.type === "telemetry");
+}
+
+function sample(seq: number): TelemetrySample {
+  return {
+    tMs: seq * 20,
+    seq,
+    source: "virtual",
+    poseAvailable: true,
+    xMm: seq,
+    yMm: 0,
+    headingRad: 0,
+    leftEffort: 0,
+    rightEffort: 0,
+    leftWheelSpeedMmS: 0,
+    rightWheelSpeedMmS: 0,
+    leftEncoderCount: seq,
+    rightEncoderCount: seq,
+    collision: false,
+    rangeMm: null,
+    buttonPressed: false,
+    accelerationMg: null,
+    angularRateMdps: null,
+    temperatureC: null,
+    batteryV: null,
+    sensorError: null,
+  };
 }
 
 describe("virtual target event hub", () => {
@@ -112,5 +146,28 @@ describe("virtual target event hub", () => {
     hub.detach(active);
     expect(active.closed).toBe(true);
     expect(hub.size).toBe(1);
+  });
+
+  it("replays retained telemetry chronologically without duplicating live samples", () => {
+    const hub = new VirtualTargetEventHub();
+    const ide = new FakePort();
+    hub.attach(ide);
+    for (const seq of [1, 2, 3]) {
+      hub.broadcast({ type: "telemetry", sample: sample(seq) });
+    }
+
+    const monitor = new FakePort();
+    hub.attach(monitor);
+    expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
+      1, 2, 3,
+    ]);
+    hub.broadcast({ type: "telemetry", sample: sample(4) });
+    expect(hub.replayTelemetry(monitor)).toBe(0);
+    hub.broadcast({ type: "telemetry", sample: sample(5) });
+    expect(hub.replayTelemetry(monitor)).toBe(0);
+
+    expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
   });
 });

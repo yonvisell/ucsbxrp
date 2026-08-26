@@ -38,8 +38,9 @@ import {
   forgetWorkspaceFolder,
   loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
+  projectFolderIsInsideCourseFolder,
   rememberProjectFolder,
-  rememberWorkspaceFolder,
+  replaceRememberedWorkspaceFolder,
   requestCourseFolderPermission,
 } from "../../shared/course-folder";
 import {
@@ -308,6 +309,21 @@ export function IdeApp() {
   const projectRef = useRef(project);
   const settingsDrawerRef = useRef<HTMLElement | null>(null);
   const projectVersion = useRef(0);
+
+  useEffect(() => {
+    if (!window.matchMedia) {
+      return;
+    }
+    const narrowLayout = window.matchMedia("(max-width: 760px)");
+    const collapseProjectPanel = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setProjectPanelOpen(false);
+      }
+    };
+    narrowLayout.addEventListener("change", collapseProjectPanel);
+    return () =>
+      narrowLayout.removeEventListener("change", collapseProjectPanel);
+  }, []);
   const folderWriteQueue = useRef<Promise<void>>(Promise.resolve());
   const folderWriteEpoch = useRef(0);
   const pendingFolderDeletionsRef = useRef(new Set<string>());
@@ -419,6 +435,23 @@ export function IdeApp() {
               );
             }
           }
+        }
+      }
+      if (workspace && folder) {
+        const belongsToCourseFolder = await projectFolderIsInsideCourseFolder(
+          workspace,
+          folder,
+        );
+        if (disposed) return;
+        if (belongsToCourseFolder === false) {
+          await forgetProjectFolder();
+          folder = null;
+          setRememberedFolder(null);
+          setRememberedFolderCanAttach(false);
+          setFolderSaveState("browser");
+          setOperationDetail(
+            "The remembered project belongs to a different course folder. It was detached without changing its files.",
+          );
         }
       }
       if (folder) {
@@ -760,7 +793,23 @@ export function IdeApp() {
     }
     setOutputPanelOpen(true);
     setConsoleTab("details");
-    await target.stop();
+    try {
+      await target.stop();
+    } catch (error) {
+      const detail = errorDetail(error);
+      setTargetState("error");
+      setTargetDetail(detail);
+      setConsoleEntries((entries) => [
+        ...entries.slice(-(maximumSessionLogEntries - 1)),
+        {
+          id: `ide-local-${nextConsoleId.current++}`,
+          category: "service",
+          stream: "stderr",
+          line: `Stop did not complete · ${detail}. Check the target status, then try again.`,
+          timestampMs: Date.now(),
+        },
+      ]);
+    }
   }, [isRunning, target]);
 
   const resetTarget = useCallback(async () => {
@@ -768,13 +817,39 @@ export function IdeApp() {
       return;
     }
     setOutputPanelOpen(true);
-    setConsoleTab("status");
-    await target.reset();
+    setConsoleTab("details");
+    try {
+      await target.reset();
+    } catch (error) {
+      const detail = errorDetail(error);
+      setTargetState("error");
+      setTargetDetail(detail);
+      setConsoleEntries((entries) => [
+        ...entries.slice(-(maximumSessionLogEntries - 1)),
+        {
+          id: `ide-local-${nextConsoleId.current++}`,
+          category: "service",
+          stream: "stderr",
+          line: `Reset did not complete · ${detail}. Check the target status, then try again.`,
+          timestampMs: Date.now(),
+        },
+      ]);
+    }
   }, [isConnected, target]);
 
   const openWorkingFolder = useCallback(async () => {
     try {
       const folder = await chooseWorkingFolder();
+      const courseFolder = workspaceFolder ?? rememberedWorkspaceFolder;
+      if (
+        courseFolder &&
+        (await projectFolderIsInsideCourseFolder(courseFolder, folder)) ===
+          false
+      ) {
+        throw new Error(
+          `Choose a project folder inside the course folder ${courseFolder.name}.`,
+        );
+      }
       setOperationDetail(`Reading ${folder.name}…`);
       const result = await readProjectFolder(folder);
       setWorkingFolder(folder);
@@ -800,7 +875,11 @@ export function IdeApp() {
         setOperationDetail(errorDetail(error));
       }
     }
-  }, [replacePendingFolderDeletions]);
+  }, [
+    rememberedWorkspaceFolder,
+    replacePendingFolderDeletions,
+    workspaceFolder,
+  ]);
 
   const selectWorkspaceFolder = useCallback(async () => {
     try {
@@ -810,11 +889,28 @@ export function IdeApp() {
           "Choose a course folder for student projects, not the UCSBXRP course software repository.",
         );
       }
+      const selection = await replaceRememberedWorkspaceFolder(folder);
+      if (!selection.remembered) {
+        throw new Error(`Chrome could not remember ${folder.name}.`);
+      }
       let projectAttached = false;
+      let activeProjectFolder = workingFolder;
       setWorkspaceFolder(folder);
       setRememberedWorkspaceFolder(folder);
-      void rememberWorkspaceFolder(folder);
-      if (!workingFolder && isDefaultProject(projectRef.current)) {
+      if (
+        activeProjectFolder &&
+        (await projectFolderIsInsideCourseFolder(
+          folder,
+          activeProjectFolder,
+        )) === false
+      ) {
+        activeProjectFolder = null;
+        setWorkingFolder(null);
+        setRememberedFolder(null);
+        setRememberedFolderCanAttach(false);
+        setFolderSaveState("browser");
+      }
+      if (!activeProjectFolder && isDefaultProject(projectRef.current)) {
         const ensured = await ensureProjectFolder(
           folder,
           defaultProjectFolderName,
@@ -914,6 +1010,23 @@ export function IdeApp() {
         );
         return;
       }
+      const courseFolder = workspaceFolder ?? rememberedWorkspaceFolder;
+      if (
+        courseFolder &&
+        (await projectFolderIsInsideCourseFolder(
+          courseFolder,
+          rememberedFolder,
+        )) === false
+      ) {
+        await forgetProjectFolder();
+        setRememberedFolder(null);
+        setRememberedFolderCanAttach(false);
+        setFolderSaveState("browser");
+        setOperationDetail(
+          `That project is outside ${courseFolder.name}. Choose a project folder inside the course folder.`,
+        );
+        return;
+      }
       if (
         (await isCourseRepositoryFolder(rememberedFolder)) ||
         !(await hasProjectFolderMetadata(rememberedFolder))
@@ -940,7 +1053,12 @@ export function IdeApp() {
         setOperationDetail(errorDetail(error));
       }
     }
-  }, [rememberedFolder, rememberedFolderCanAttach]);
+  }, [
+    rememberedFolder,
+    rememberedFolderCanAttach,
+    rememberedWorkspaceFolder,
+    workspaceFolder,
+  ]);
 
   const saveProjectFiles = useCallback(async () => {
     try {
