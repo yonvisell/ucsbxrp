@@ -1285,13 +1285,9 @@ export function DashboardApp() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand" aria-label="UCSBXRP Monitor">
+        <div className="brand" aria-label="UCSBXRP">
           <span className="brand-mark">UCSB</span>
           <span className="brand-xrp">XRP</span>
-          <span aria-hidden="true" className="brand-separator">
-            |
-          </span>
-          <span className="brand-product">Monitor</span>
         </div>
         <AppNavigation active="monitor" />
         <div className="toolbar">

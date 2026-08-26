@@ -1551,13 +1551,9 @@ export function IdeApp() {
   return (
     <div className="app-shell ide-app">
       <header className="app-header">
-        <div className="brand" aria-label="UCSBXRP IDE">
+        <div className="brand" aria-label="UCSBXRP">
           <span className="brand-mark">UCSB</span>
           <span className="brand-xrp">XRP</span>
-          <span aria-hidden="true" className="brand-separator">
-            |
-          </span>
-          <span className="brand-product">IDE</span>
         </div>
         <AppNavigation active="ide" />
         <div className="toolbar" role="toolbar" aria-label="Project commands">

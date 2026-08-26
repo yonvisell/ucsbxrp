@@ -249,8 +249,8 @@ test("selects plotted signals from the Monitor controls", async ({
   await expect(page.locator(".monitor-run-button")).toBeEnabled();
 
   const brand = page.locator(".brand");
-  await expect(brand).toHaveAttribute("aria-label", "UCSBXRP Monitor");
-  await expect(brand).toHaveText("UCSBXRP|Monitor");
+  await expect(brand).toHaveAttribute("aria-label", "UCSBXRP");
+  await expect(brand).toHaveText("UCSBXRP");
   const brandStyle = await brand.evaluate((element) => {
     const mark = element.children[0] as HTMLElement;
     const name = element.children[1] as HTMLElement;

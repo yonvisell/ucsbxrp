@@ -109,11 +109,125 @@ test("student pages keep the complete course navigation visible without header c
   }
 });
 
-test("API sections remain fully visible rather than clipping at phone width", async ({
+test("IDE and Monitor title bars use navigation rather than duplicate page names", async ({
+  page,
+}) => {
+  for (const [path, active] of [
+    ["/ide/", "IDE"],
+    ["/monitor/", "Monitor"],
+  ] as const) {
+    await page.goto(path);
+    await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
+    await expect(page.locator(".brand").first()).toHaveAttribute(
+      "aria-label",
+      "UCSBXRP",
+    );
+    await expect(
+      page
+        .getByRole("navigation", { name: "Course applications" })
+        .getByRole("link", { name: active, exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+  }
+});
+
+test("Guide presents the student workflow in explicit objective sections", async ({
+  page,
+}) => {
+  await page.goto("/guide/");
+  await expect(
+    page.getByRole("heading", { name: "UCSBXRP student guide" }),
+  ).toBeVisible();
+  const workflow = page.getByRole("navigation", {
+    name: "Guide organization",
+  });
+  for (const label of [
+    "Start",
+    "Develop",
+    "Run and measure",
+    "Preserve and recover",
+  ]) {
+    await expect(
+      workflow.getByRole("link", { name: new RegExp(label) }),
+    ).toBeVisible();
+  }
+  await expect(
+    page.getByRole("heading", {
+      name: "Project files, units, and data flow",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Component development and checks" }),
+  ).toBeVisible();
+});
+
+test("API class entries contain signatures, parameters, defaults, returns, exceptions, and examples", async ({
+  page,
+}) => {
+  await page.goto("/reference/#sensor-model");
+  const section = page.locator("#sensor-model");
+  await expect(section).toContainText("Base class SensorModelBase");
+  await expect(section).toContainText("class SensorModel(SensorModelBase):");
+  await expect(
+    section.getByRole("heading", { name: "update()" }),
+  ).toBeVisible();
+  await expect(
+    section.getByText("Parameters", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    section.getByText("Return value", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    section.getByText("Exceptions", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    section.getByRole("heading", { name: "SensorModel call example" }),
+  ).toBeVisible();
+
+  await page.goto("/reference/#configuration");
+  const configuration = page.locator("#configuration");
+  await expect(
+    configuration.getByText("Default", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(configuration).toContainText(
+    "wheel_speed_filter_time_constant_ms",
+  );
+  await expect(configuration).toContainText("80.0");
+
+  await page.goto("/reference/#maps");
+  const occupancyGrid = page
+    .locator("#maps .class-reference")
+    .filter({ has: page.getByRole("heading", { name: "OccupancyGrid" }) });
+  await expect(
+    occupancyGrid.getByRole("heading", {
+      name: "OccupancyGrid.from_arena()",
+    }),
+  ).toBeVisible();
+  await expect(occupancyGrid).toContainText("clearance_mm");
+  await expect(occupancyGrid).toContainText("0.0");
+  await expect(occupancyGrid).toContainText("OccupancyGrid");
+  await expect(occupancyGrid).toContainText(
+    "ValueError if resolution_mm is not positive",
+  );
+
+  await page.goto("/reference/#missions");
+  const deliveryMission = page
+    .locator("#missions .class-reference")
+    .filter({ has: page.getByRole("heading", { name: "DeliveryMission" }) });
+  await expect(
+    deliveryMission.getByRole("heading", { name: "run()" }),
+  ).toBeVisible();
+  await expect(deliveryMission).toContainText("RobotState");
+  await expect(deliveryMission).toContainText("robot.stop() is attempted");
+  await expect(
+    page.getByRole("heading", { name: "Run the supplied delivery sequence" }),
+  ).toBeVisible();
+});
+
+test("API sections remain readable without page clipping at phone width", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 760 });
-  await page.goto("/reference/");
+  await page.goto("/reference/#sensor-model");
 
   const navigation = page.locator(".reference-toc");
   await expect(navigation).toBeVisible();
@@ -129,4 +243,42 @@ test("API sections remain fully visible rather than clipping at phone width", as
   expect(
     geometry.links.every((bounds) => bounds.left >= 0 && bounds.right <= 375),
   ).toBe(true);
+
+  const pageGeometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(pageGeometry.scrollWidth).toBeLessThanOrEqual(
+    pageGeometry.clientWidth + 1,
+  );
+
+  const parameterRows = page.locator("#sensor-model .parameter-row");
+  await expect(parameterRows.first()).toBeVisible();
+  const rowsFit = await parameterRows.evaluateAll((rows) =>
+    rows.every((row) => row.scrollWidth <= row.clientWidth + 1),
+  );
+  expect(rowsFit).toBe(true);
+
+  const signatureFontSize = await page
+    .locator("#sensor-model .method-signature")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(signatureFontSize).toBeGreaterThanOrEqual(11);
+});
+
+test("Guide remains usable without horizontal page scrolling at phone width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 760 });
+  await page.goto("/guide/");
+  await expect(
+    page.getByRole("heading", { name: "UCSBXRP student guide" }),
+  ).toBeVisible();
+  const geometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
 });

@@ -53,6 +53,10 @@
   text-transform: uppercase;
 }
 
+.guide-toc .toc-group {
+  margin-top: 10px;
+}
+
 .guide-toc a {
   border-left: 2px solid transparent;
   padding: 4px 7px;
@@ -97,12 +101,46 @@
   line-height: 1.08;
 }
 
-.guide-intro p:last-child {
+.guide-intro > p:not(.eyebrow) {
   max-width: 700px;
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
+}
+
+.guide-sequence {
+  display: grid;
+  max-width: 800px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  background: var(--line);
+}
+
+.guide-sequence a {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  background: #fff;
+  text-decoration: none;
+}
+
+.guide-sequence a:hover,
+.guide-sequence a:focus-visible {
+  background: #f3f6f7;
+}
+
+.guide-sequence strong {
+  color: var(--ucsb-blue);
+  font-size: 11px;
+}
+
+.guide-sequence span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .guide-content > section:not(.guide-intro) {
@@ -134,8 +172,8 @@
 .guide-content p,
 .guide-content li {
   color: #39474f;
-  font-size: 11px;
-  line-height: 1.56;
+  font-size: 12px;
+  line-height: 1.58;
 }
 
 .guide-content p {
@@ -155,7 +193,7 @@
   background: #edf0f1;
   color: #23343e;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.84em;
+  font-size: 0.92em;
 }
 
 .procedure {
@@ -220,7 +258,7 @@
 .result-key strong,
 .term-list dt {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 680;
 }
 
@@ -228,7 +266,7 @@
 .term-list dd {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -250,12 +288,12 @@
 
 .command-guide strong {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .command-guide span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
@@ -279,7 +317,7 @@
 .offline-capabilities h3 {
   margin: 0 0 5px;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .project-catalog ol,
@@ -293,7 +331,7 @@
 .offline-capabilities li {
   margin: 3px 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.42;
 }
 
@@ -440,7 +478,7 @@
 
 .project-files-summary span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 table {
@@ -453,7 +491,7 @@ td {
   border-bottom: 1px solid var(--line);
   padding: 6px 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   text-align: left;
 }
 
@@ -496,7 +534,8 @@ kbd {
 
   .guide-header nav {
     width: 100%;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow-x: visible;
   }
 
   .guide-layout {
@@ -509,6 +548,10 @@ kbd {
     display: none;
   }
 
+  .guide-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .guide-content > section:not(.guide-intro) {
     grid-template-columns: 25px minmax(0, 1fr);
     gap: 7px;
@@ -519,7 +562,8 @@ kbd {
   .command-guide,
   .project-files-summary,
   .project-catalog,
-  .offline-capabilities {
+  .offline-capabilities,
+  .guide-sequence {
     grid-template-columns: 1fr;
   }
 

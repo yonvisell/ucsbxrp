@@ -21,37 +21,57 @@ export function GuideApp() {
 
       <div className="guide-layout">
         <nav className="guide-toc" aria-label="Guide sections">
-          <span>Guide</span>
-          <a href="#virtual-run">Virtual XRP</a>
-          <a href="#projects">Projects and course folders</a>
-          <a href="#components">Component tests</a>
-          <a href="#physical-xrp">Physical XRP setup</a>
-          <a href="#monitor">Monitor</a>
-          <a href="#project-structure">Project files and control flow</a>
-          <a href="#offline-use">Offline use</a>
-          <a href="#github">GitHub version control</a>
-          <a href="#shortcuts">Keyboard shortcuts</a>
-          <a href="#troubleshooting">Troubleshooting</a>
+          <span>Start</span>
+          <a href="#virtual-run">01 First virtual run</a>
+          <a href="#projects">02 Project folders and storage</a>
+          <span className="toc-group">Develop</span>
+          <a href="#project-structure">03 Project files and data flow</a>
+          <a href="#components">04 Component development and checks</a>
+          <span className="toc-group">Run and measure</span>
+          <a href="#physical-xrp">05 Physical XRP connection</a>
+          <a href="#monitor">06 Telemetry and export</a>
+          <span className="toc-group">Preserve and recover</span>
+          <a href="#offline-use">07 Offline application and storage</a>
+          <a href="#github">08 Team version control</a>
+          <a href="#shortcuts">09 Keyboard commands</a>
+          <a href="#troubleshooting">10 Error diagnosis</a>
         </nav>
 
         <main className="guide-content">
           <section className="guide-intro">
-            <p className="eyebrow">Student guide</p>
-            <h1>Using the UCSBXRP course tools</h1>
+            <p className="eyebrow">Course tools and workflow</p>
+            <h1>UCSBXRP student guide</h1>
             <p>
-              Begin with the virtual XRP, save the project in a course folder,
-              test each component you implement, and then run the same project
-              on a physical XRP. Use the{" "}
+              Sections 1–6 form the normal development sequence: run a project
+              virtually, save it, understand its data flow, test each student
+              component, transfer the same project to the physical XRP, and
+              record evidence. Sections 7–10 cover storage, version control,
+              keyboard commands, and fault diagnosis. Use the{" "}
               <a href="../reference/">UCSB XRP API reference</a> for Python
-              classes, method requirements, state, return values, and units.
+              constructors, methods, parameters, return values, exceptions, and
+              examples.
             </p>
+            <nav className="guide-sequence" aria-label="Guide organization">
+              <a href="#virtual-run">
+                <strong>Start</strong>
+                <span>Virtual execution and project storage</span>
+              </a>
+              <a href="#project-structure">
+                <strong>Develop</strong>
+                <span>Program data flow and component checks</span>
+              </a>
+              <a href="#physical-xrp">
+                <strong>Run and measure</strong>
+                <span>Physical connection, telemetry, and exports</span>
+              </a>
+              <a href="#offline-use">
+                <strong>Preserve and recover</strong>
+                <span>Offline storage, Git, and error diagnosis</span>
+              </a>
+            </nav>
           </section>
 
-          <GuideSection
-            id="virtual-run"
-            number="01"
-            title="Virtual XRP: run a project"
-          >
+          <GuideSection id="virtual-run" number="01" title="First virtual run">
             <ol className="procedure">
               <li>
                 Open the <a href="../ide/">IDE</a>. Leave the target set to{" "}
@@ -78,7 +98,7 @@ export function GuideApp() {
           <GuideSection
             id="projects"
             number="02"
-            title="Projects and course folders"
+            title="Project folders and storage"
           >
             <p>
               A <strong>course folder</strong> is the parent folder on your
@@ -146,8 +166,8 @@ export function GuideApp() {
                   <li>
                     <strong>MicroPython foundations</strong> — seven short files
                     covering values, functions, collections, classes,
-                    exceptions, modules, robot motion, and a finite-state
-                    machine.
+                    exceptions, modules, robot motion, and a program organized
+                    into explicit operating states.
                   </li>
                 </ul>
               </section>
@@ -160,7 +180,121 @@ export function GuideApp() {
             </div>
           </GuideSection>
 
-          <GuideSection id="components" number="03" title="Component tests">
+          <GuideSection
+            id="project-structure"
+            number="03"
+            title="Project files, units, and data flow"
+          >
+            <p>
+              <code>main.py</code> is the program entry point. It reads the task
+              values, obtains the configured components from{" "}
+              <code>course_setup.py</code>, sends one <code>MotionCommand</code>{" "}
+              per sample, and defines the completion condition.{" "}
+              <code>Robot.step()</code> maintains sample timing and performs the
+              command and measurement sequence below.
+            </p>
+            <figure className="feedback-figure">
+              <div className="mission-node">
+                <strong>Program</strong>
+                <code>main.py</code>
+                <span>selects the task and completion condition</span>
+              </div>
+              <div className="flow-arrow mission-command" aria-hidden="true">
+                ↓ MotionCommand
+              </div>
+              <div className="actuation-path" aria-label="Actuation path">
+                <a href="../reference/#differential-drive">
+                  <strong>DifferentialDrive*</strong>
+                  <span>forward speed + turn rate → target wheel speeds</span>
+                </a>
+                <b>→</b>
+                <a href="../reference/#wheel-speed-controller">
+                  <strong>WheelSpeedController*</strong>
+                  <span>target + measured speed → drive command</span>
+                </a>
+                <b>→</b>
+                <div>
+                  <strong>XRP</strong>
+                  <span>motors, encoders, range sensor</span>
+                </div>
+              </div>
+              <div className="flow-arrow sensor-sample" aria-hidden="true">
+                ↓ RawSensors
+              </div>
+              <div className="measurement-path" aria-label="Measurement path">
+                <a href="../reference/#sensor-model">
+                  <strong>SensorModel*</strong>
+                  <span>counts + time → wheel travel and speed</span>
+                </a>
+                <div className="measurement-branches">
+                  <span>measured wheel speed ↖ WheelSpeedController</span>
+                  <span>wheel-distance increments ↓</span>
+                </div>
+                <a href="../reference/#odometry">
+                  <strong>Odometry*</strong>
+                  <span>wheel increments → Pose</span>
+                </a>
+              </div>
+              <div className="flow-arrow pose-return" aria-hidden="true">
+                Pose returns to the program or NavigationController ↑
+              </div>
+              <figcaption>
+                * Student-implemented component.{" "}
+                <a href="../reference/#grid-planner">
+                  <code>GridPlanner</code>
+                </a>{" "}
+                creates a route before <code>NavigationController</code> follows
+                its goals.
+              </figcaption>
+            </figure>
+            <div className="project-files-summary">
+              <div>
+                <code>challenge.py</code>
+                <span>Task values and completion conditions.</span>
+              </div>
+              <div>
+                <code>world.json</code>
+                <span>
+                  World choices, bounds, initial pose, obstacles, and markers.
+                </span>
+              </div>
+              <div>
+                <code>robot_config.py</code>
+                <span>Geometry, calibration, sample period, and gains.</span>
+              </div>
+              <div>
+                <code>course_setup.py</code>
+                <span>
+                  Selects and assembles supplied or student components.
+                </span>
+              </div>
+              <div>
+                <code>main.py</code>
+                <span>
+                  Runs the task and stops the motors in a finally block.
+                </span>
+              </div>
+            </div>
+            <p>
+              Distances are in millimeters; linear and wheel speeds are in
+              millimeters per second; headings are in radians; and turn rates
+              are in radians per second. Positive <var>x</var> is the initial
+              forward direction, positive <var>y</var> is left, and positive
+              heading is counterclockwise. Do not add <code>sleep_ms()</code>{" "}
+              inside a <code>Robot.step()</code> loop.
+            </p>
+            <p>
+              The <a href="../reference/">UCSB XRP API reference</a> defines the
+              records, component base classes, supplied services, maps,
+              configuration, live values, and numerical functions.
+            </p>
+          </GuideSection>
+
+          <GuideSection
+            id="components"
+            number="04"
+            title="Component development and checks"
+          >
             <p>
               Challenge projects provide one focused file for each component you
               implement. <strong>Validate</strong> checks Python syntax.{" "}
@@ -208,8 +342,8 @@ export function GuideApp() {
 
           <GuideSection
             id="physical-xrp"
-            number="04"
-            title="Physical XRP setup"
+            number="05"
+            title="Physical XRP connection"
           >
             <p>
               Open <a href="../commission/">Set up or repair XRP</a> in current
@@ -266,8 +400,8 @@ export function GuideApp() {
 
           <GuideSection
             id="monitor"
-            number="05"
-            title="Monitor: telemetry and controls"
+            number="06"
+            title="Telemetry, recording, and export"
           >
             <p>
               The Monitor shows the simulated or measured world, live telemetry,
@@ -288,9 +422,9 @@ export function GuideApp() {
               <div>
                 <dt>Measured wheel speed</dt>
                 <dd>
-                  Calculated and regularized by <code>SensorModel</code> from
-                  encoder counts and sample time. The wheel controller and plot
-                  use the same value.
+                  Estimated by <code>SensorModel</code> from recent encoder
+                  counts and sample times. The wheel controller and plot use the
+                  same estimate.
                 </dd>
               </div>
               <div>
@@ -312,9 +446,10 @@ export function GuideApp() {
               A program can create sliders, toggles, and choices with{" "}
               <code>ucsb_xrp.live</code>. It may publish current intermediate
               values with <code>live.watch()</code>, or a numerical value that
-              can be plotted with <code>live.plot()</code>. Plot values appear
-              as unchecked green signal choices. These tools expose useful state
-              without repeated print statements.
+              can be plotted with <code>live.plot()</code>. Each named plot
+              value appears as a selectable signal in Monitor Controls. Use
+              these functions for current state; use a recording when the full
+              time history is required.
             </p>
             <ol className="procedure">
               <li>
@@ -333,109 +468,10 @@ export function GuideApp() {
           </GuideSection>
 
           <GuideSection
-            id="project-structure"
-            number="06"
-            title="Project files and control flow"
+            id="offline-use"
+            number="07"
+            title="Offline application and storage"
           >
-            <p>
-              <code>main.py</code> is mission control: it selects the task,
-              obtains the configured components from{" "}
-              <code>course_setup.py</code>, sends one body-motion command per
-              sample, and decides when to stop. <code>Robot.step()</code>{" "}
-              maintains sample timing and performs the command/measurement loop
-              below.
-            </p>
-            <figure className="feedback-figure">
-              <div className="mission-node">
-                <strong>Mission</strong>
-                <code>main.py</code>
-                <span>selects the task and stop condition</span>
-              </div>
-              <div className="flow-arrow mission-command" aria-hidden="true">
-                ↓ MotionCommand
-              </div>
-              <div className="actuation-path" aria-label="Actuation path">
-                <a href="../reference/#differential-drive">
-                  <strong>DifferentialDrive*</strong>
-                  <span>body motion → target wheel speeds</span>
-                </a>
-                <b>→</b>
-                <a href="../reference/#wheel-speed-controller">
-                  <strong>WheelSpeedController*</strong>
-                  <span>target + measured speed → drive command</span>
-                </a>
-                <b>→</b>
-                <div>
-                  <strong>XRP</strong>
-                  <span>motors, encoders, range sensor</span>
-                </div>
-              </div>
-              <div className="flow-arrow sensor-sample" aria-hidden="true">
-                ↓ RawSensors
-              </div>
-              <div className="measurement-path" aria-label="Measurement path">
-                <a href="../reference/#sensor-model">
-                  <strong>SensorModel*</strong>
-                  <span>counts + time → distance and measured speed</span>
-                </a>
-                <div className="measurement-branches">
-                  <span>measured wheel speed ↖ WheelSpeedController</span>
-                  <span>distance increments ↓</span>
-                </div>
-                <a href="../reference/#odometry">
-                  <strong>Odometry*</strong>
-                  <span>wheel increments → Pose</span>
-                </a>
-              </div>
-              <div className="flow-arrow pose-return" aria-hidden="true">
-                Pose returns to mission/navigation ↑
-              </div>
-              <figcaption>
-                * Student-implemented component.{" "}
-                <a href="../reference/#grid-planner">
-                  <code>GridPlanner</code>
-                </a>{" "}
-                creates a route before NavigationController follows its goals.
-              </figcaption>
-            </figure>
-            <div className="project-files-summary">
-              <div>
-                <code>challenge.py</code>
-                <span>Task values and completion conditions.</span>
-              </div>
-              <div>
-                <code>world.json</code>
-                <span>
-                  World choices, bounds, starting pose, obstacles, and markers.
-                </span>
-              </div>
-              <div>
-                <code>robot_config.py</code>
-                <span>Geometry, calibration, and gains.</span>
-              </div>
-              <div>
-                <code>course_setup.py</code>
-                <span>Select and assemble components.</span>
-              </div>
-              <div>
-                <code>main.py</code>
-                <span>Run the mission and stop cleanly.</span>
-              </div>
-            </div>
-            <p>
-              Distances are millimeters, speeds are millimeters per second,
-              angles are radians, and yaw rates are radians per second. Do not
-              add <code>sleep_ms()</code> inside a <code>Robot.step()</code>{" "}
-              loop.
-            </p>
-            <p>
-              See the <a href="../reference/">UCSB XRP API reference</a> for
-              records, component base classes, supplied services, maps,
-              configuration, live values, and numerical helpers.
-            </p>
-          </GuideSection>
-
-          <GuideSection id="offline-use" number="07" title="Offline use">
             <p>
               First open the course site while the computer has internet access.
               Wait until the IDE or Monitor reports{" "}
@@ -504,7 +540,7 @@ export function GuideApp() {
             </p>
           </GuideSection>
 
-          <GuideSection id="github" number="08" title="GitHub version control">
+          <GuideSection id="github" number="08" title="Team version control">
             <p>
               Keep one GitHub repository for each course team. Use the
               repository assigned by the course; if none is assigned, one
@@ -544,7 +580,7 @@ export function GuideApp() {
             </div>
           </GuideSection>
 
-          <GuideSection id="shortcuts" number="09" title="Keyboard shortcuts">
+          <GuideSection id="shortcuts" number="09" title="Keyboard commands">
             <table>
               <thead>
                 <tr>
@@ -600,7 +636,7 @@ export function GuideApp() {
           <GuideSection
             id="troubleshooting"
             number="10"
-            title="Troubleshooting"
+            title="Error diagnosis"
           >
             <ul className="procedure troubleshooting-list">
               <li>

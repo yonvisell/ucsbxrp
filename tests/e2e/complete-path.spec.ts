@@ -482,7 +482,9 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     }),
   ).toBeVisible();
   await expect(
-    guide.getByRole("heading", { name: "Project files and control flow" }),
+    guide.getByRole("heading", {
+      name: "Project files, units, and data flow",
+    }),
   ).toBeVisible();
   const apiReference = await context.newPage();
   collectBrowserErrors(apiReference, browserErrors);
@@ -600,11 +602,8 @@ test("keeps project and output controls usable on a narrow screen", async ({
 
   const helpLink = ide.getByRole("link", { name: /Guide/ });
   await expect(helpLink).toHaveAttribute("href", "../guide/");
-  await expect(ide.locator(".brand")).toHaveAttribute(
-    "aria-label",
-    "UCSBXRP IDE",
-  );
-  await expect(ide.locator(".brand")).toHaveText("UCSBXRP|IDE");
+  await expect(ide.locator(".brand")).toHaveAttribute("aria-label", "UCSBXRP");
+  await expect(ide.locator(".brand")).toHaveText("UCSBXRP");
   const [narrowHeaderBox, narrowToolbarBox, narrowTargetBox] =
     await Promise.all([
       ide.locator(".app-header").boundingBox(),
