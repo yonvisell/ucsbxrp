@@ -11,6 +11,7 @@ import type {
   RuntimeParameterValue,
   TargetClient,
   TargetEvent,
+  TelemetrySample,
 } from "./types";
 
 const project: CourseProject = {
@@ -170,6 +171,32 @@ function events(port: FakePort, type: TargetEvent["type"]): TargetEvent[] {
     .filter((message) => message.type === "event")
     .map((message) => message.event)
     .filter((event) => event.type === type);
+}
+
+function telemetry(seq: number): TelemetrySample {
+  return {
+    tMs: seq * 60,
+    seq,
+    source: "physical",
+    poseAvailable: true,
+    xMm: seq,
+    yMm: 0,
+    headingRad: 0,
+    leftEffort: 0,
+    rightEffort: 0,
+    leftWheelSpeedMmS: 0,
+    rightWheelSpeedMmS: 0,
+    leftEncoderCount: seq,
+    rightEncoderCount: seq,
+    collision: false,
+    rangeMm: null,
+    buttonPressed: false,
+    accelerationMg: null,
+    angularRateMdps: null,
+    temperatureC: null,
+    batteryV: null,
+    sensorError: null,
+  };
 }
 
 describe("physical target coordinator", () => {
@@ -402,5 +429,68 @@ describe("physical target coordinator", () => {
         message.event.state === "ready",
     );
     expect(restoredIndex).toBeGreaterThan(responseIndex);
+  });
+
+  it("replays physical telemetry chronologically to a late tab without duplicates", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    coordinator.attach(ide);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "ide-connect-history",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect-history")).toHaveLength(1),
+    );
+    for (const seq of [1, 2, 3]) {
+      target.emit({ type: "telemetry", sample: telemetry(seq) });
+    }
+
+    const monitor = new FakePort();
+    coordinator.attach(monitor);
+    expect(
+      events(monitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1, 2, 3]);
+    target.emit({ type: "telemetry", sample: telemetry(4) });
+
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "monitor-connect-history",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect-history")).toHaveLength(1),
+    );
+    target.emit({ type: "telemetry", sample: telemetry(5) });
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "monitor-reconnect-history",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-reconnect-history")).toHaveLength(1),
+    );
+
+    expect(
+      events(monitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1, 2, 3, 4, 5]);
   });
 });

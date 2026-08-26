@@ -12,14 +12,27 @@ const release = JSON.parse(
 let mockXrp: Server;
 let mockXrpEndpoint = "";
 let reachable = false;
+let serviceState: "ready" | "running" = "ready";
+let rejectedCommand: "stop" | "reset" | null = null;
 
 test.beforeAll(async () => {
-  mockXrp = createServer((request, response) => {
+  mockXrp = createServer(async (request, response) => {
     if (!reachable) {
       request.socket.destroy();
       return;
     }
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const responseHeaders = {
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "application/json",
+    };
+    if (request.method === "OPTIONS") {
+      response.writeHead(204, responseHeaders);
+      response.end();
+      return;
+    }
     const common = {
       bootId: "network-recovery-boot",
       courseRelease: release.release_id,
@@ -28,6 +41,51 @@ test.beforeAll(async () => {
       runtimeJson: '{"revision":0,"parameters":[],"watches":[],"plots":[]}',
       project: null,
     };
+    if (request.method === "POST") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const requestBody = JSON.parse(
+        Buffer.concat(chunks).toString("utf8"),
+      ) as {
+        requestId?: string;
+      };
+      const command = url.pathname.split("/").pop() ?? "";
+      const commandRejected =
+        (command === "stop" || command === "reset") &&
+        command === rejectedCommand;
+      if (commandRejected) {
+        response.writeHead(200, responseHeaders);
+        response.end(
+          JSON.stringify({
+            protocol: 1,
+            requestId: requestBody.requestId,
+            ok: false,
+            error: {
+              code: "target_error",
+              detail: `simulated ${command} rejection`,
+            },
+          }),
+        );
+        return;
+      }
+      if (command === "stop") serviceState = "ready";
+      response.writeHead(200, responseHeaders);
+      response.end(
+        JSON.stringify({
+          protocol: 1,
+          requestId: requestBody.requestId,
+          ok: true,
+          result: {
+            detail: `${command} accepted`,
+            reconnecting: false,
+            runtimeJson: common.runtimeJson,
+          },
+        }),
+      );
+      return;
+    }
     const body = url.pathname.endsWith("/info")
       ? {
           ...common,
@@ -50,17 +108,14 @@ test.beforeAll(async () => {
         }
       : {
           ...common,
-          state: "ready",
+          state: serviceState,
           detail: "Physical XRP ready",
-          runId: 0,
+          runId: serviceState === "running" ? 1 : 0,
           logs: [],
           samples: [],
           sample: null,
         };
-    response.writeHead(200, {
-      "Access-Control-Allow-Origin": "*",
-      "Content-Type": "application/json",
-    });
+    response.writeHead(200, responseHeaders);
     response.end(JSON.stringify(body));
   });
   await new Promise<void>((resolve) => mockXrp.listen(0, "127.0.0.1", resolve));
@@ -82,6 +137,8 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   page: ide,
 }) => {
   reachable = false;
+  serviceState = "ready";
+  rejectedCommand = null;
 
   await context.addInitScript((endpoint) => {
     localStorage.setItem(
@@ -146,4 +203,69 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(
     ide.getByRole("log").getByText("Connected to ucsb-xrp"),
   ).toHaveCount(1);
+});
+
+test("reports a rejected physical Stop in the IDE System log", async ({
+  context,
+  page: ide,
+}) => {
+  reachable = true;
+  serviceState = "running";
+  rejectedCommand = "stop";
+  await context.addInitScript((endpoint) => {
+    localStorage.setItem(
+      "ucsb-xrp-target-v1",
+      JSON.stringify({
+        kind: "physical",
+        physicalConnection: "station",
+        physicalEndpoint: endpoint,
+      }),
+    );
+  }, mockXrpEndpoint);
+
+  try {
+    await ide.goto("/ide/");
+    await expect(
+      ide.getByRole("button", { name: "Stop", exact: true }),
+    ).toBeEnabled();
+    await ide.getByRole("button", { name: "Stop", exact: true }).click();
+    await expect(ide.getByRole("log")).toContainText(
+      "Stop did not complete · simulated stop rejection",
+    );
+  } finally {
+    rejectedCommand = null;
+    serviceState = "ready";
+  }
+});
+
+test("reports a rejected physical Reset in the IDE System log", async ({
+  context,
+  page: ide,
+}) => {
+  reachable = true;
+  serviceState = "ready";
+  rejectedCommand = "reset";
+  await context.addInitScript((endpoint) => {
+    localStorage.setItem(
+      "ucsb-xrp-target-v1",
+      JSON.stringify({
+        kind: "physical",
+        physicalConnection: "station",
+        physicalEndpoint: endpoint,
+      }),
+    );
+  }, mockXrpEndpoint);
+
+  try {
+    await ide.goto("/ide/");
+    await expect(
+      ide.getByRole("button", { name: "Reset", exact: true }),
+    ).toBeEnabled();
+    await ide.getByRole("button", { name: "Reset", exact: true }).click();
+    await expect(ide.getByRole("log")).toContainText(
+      "Reset did not complete · simulated reset rejection",
+    );
+  } finally {
+    rejectedCommand = null;
+  }
 });

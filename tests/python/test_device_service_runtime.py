@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 import importlib.util
 import json
 from pathlib import Path
@@ -54,19 +55,27 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         cls.thread_calls = []
         cls.live_updates = []
         cls.managed_start_updates = []
+        cls.reset_calls = []
+        cls.disabled_phew_logging = []
 
         fake_thread = types.ModuleType("_thread")
         fake_thread.start_new_thread = lambda function, args: cls.thread_calls.append(
             (function, args)
         )
         fake_machine = types.ModuleType("machine")
-        fake_machine.reset = lambda: None
+        fake_machine.reset = lambda: cls.reset_calls.append(True)
         fake_machine.WDT = lambda timeout: types.SimpleNamespace(feed=lambda: None)
         fake_network = types.ModuleType("network")
         fake_network.STA_IF = 0
         fake_network.WLAN = lambda _interface: None
         fake_phew = types.ModuleType("phew")
         fake_phew.server = cls.server
+        fake_phew_logging = types.ModuleType("phew.logging")
+        fake_phew_logging.LOG_ALL = 0x1F
+        fake_phew_logging.disable_logging_types = (
+            lambda value: cls.disabled_phew_logging.append(value)
+        )
+        fake_phew.logging = fake_phew_logging
         fake_uasyncio = types.ModuleType("uasyncio")
 
         async def sleep_ms(_delay):
@@ -87,6 +96,22 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         fake_course_robot._set_managed_start = (
             lambda enabled: cls.managed_start_updates.append(enabled)
         )
+        fake_course_run_control = types.ModuleType("ucsb_xrp._run_control")
+
+        class ProgramStopped(BaseException):
+            pass
+
+        fake_course_run_control.ProgramStopped = ProgramStopped
+        fake_course_run_control.stop_requested = False
+
+        def request_stop():
+            fake_course_run_control.stop_requested = True
+
+        def clear_stop():
+            fake_course_run_control.stop_requested = False
+
+        fake_course_run_control.request_stop = request_stop
+        fake_course_run_control.clear_stop = clear_stop
         fake_ucsb_xrp = types.ModuleType("ucsb_xrp")
         fake_ucsb_xrp.__path__ = []
 
@@ -104,11 +129,13 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "machine": fake_machine,
                 "network": fake_network,
                 "phew": fake_phew,
+                "phew.logging": fake_phew_logging,
                 "uasyncio": fake_uasyncio,
                 "ucsb_xrp": fake_ucsb_xrp,
                 "ucsb_xrp._telemetry": fake_course_telemetry,
                 "ucsb_xrp.live": fake_course_live,
                 "ucsb_xrp.robot": fake_course_robot,
+                "ucsb_xrp._run_control": fake_course_run_control,
                 "ucsb_xrp_service": package,
                 "ucsb_xrp_service.protocol": protocol,
             },
@@ -146,10 +173,15 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.thread_calls.clear()
         self.live_updates.clear()
         self.managed_start_updates.clear()
+        self.reset_calls.clear()
+        self.disabled_phew_logging.clear()
+        sys.modules["ucsb_xrp._run_control"].stop_requested = False
         self.service._thread_active = False
         self.service._launch_pending = False
         self.service._run_id = 0
         self.service._lease_deadline = None
+        self.service._stop_acknowledged_run_id = None
+        self.service._service_watchdog = None
         self.service._logs.clear()
         self.service._last_reply_by_id.clear()
         self.service._reply_order.clear()
@@ -236,9 +268,77 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
         self.assertEqual(self.managed_start_updates, [True, False])
 
+    def test_stop_requests_cooperative_exit_without_resetting_wifi(self):
+        self.service._thread_active = True
+        response = self.service.stop(
+            types.SimpleNamespace(data={"requestId": "stop-test"})
+        )
+        result = json.loads(response.body.decode("utf-8"))["result"]
+
+        self.assertEqual(result, {"detail": "Stopping program", "reconnecting": False})
+        self.assertFalse(sys.modules["ucsb_xrp._run_control"].stop_requested)
+        self.assertEqual(self.service._state, "loading")
+        self.assertEqual(self.reset_calls, [])
+        self.assertEqual(len(self.server.loop.tasks), 1)
+
+        asyncio.run(self.server.loop.tasks.pop())
+        self.assertTrue(sys.modules["ucsb_xrp._run_control"].stop_requested)
+        self.assertEqual(len(self.server.loop.tasks), 1)
+        self.service._thread_active = False
+        asyncio.run(self.server.loop.tasks.pop())
+        self.assertEqual(self.reset_calls, [])
+
+    def test_stop_falls_back_to_reset_for_noncooperative_code(self):
+        self.service._thread_active = True
+        self.service.stop(types.SimpleNamespace(data={"requestId": "stop-fallback"}))
+
+        asyncio.run(self.server.loop.tasks.pop())
+        asyncio.run(self.server.loop.tasks.pop())
+        self.assertEqual(self.service._state, "error")
+        self.assertEqual(len(self.server.loop.tasks), 1)
+        asyncio.run(self.server.loop.tasks.pop())
+        self.assertEqual(self.reset_calls, [True])
+
+    def test_acknowledged_stop_does_not_reset_during_cleanup(self):
+        self.service._run_id = 4
+        self.service._thread_active = True
+        self.service.stop(types.SimpleNamespace(data={"requestId": "stop-ack"}))
+
+        asyncio.run(self.server.loop.tasks.pop())
+        self.service._stop_acknowledged_run_id = 4
+        # Cleanup deliberately remains active past the cooperative grace.
+        asyncio.run(self.server.loop.tasks.pop())
+
+        self.assertTrue(self.service._thread_active)
+        self.assertEqual(self.reset_calls, [])
+        self.assertEqual(self.server.loop.tasks, [])
+
+    def test_cooperative_stop_is_a_normal_program_result(self):
+        run_control = sys.modules["ucsb_xrp._run_control"]
+        self.service._stop_motors = lambda: None
+        with tempfile.TemporaryDirectory() as project_dir:
+            self.service._project_runner(
+                project_dir,
+                "main.py",
+                compile(
+                    "from ucsb_xrp._run_control import ProgramStopped\nraise ProgramStopped()\n",
+                    "main.py",
+                    "exec",
+                ),
+                [],
+                0,
+            )
+
+        self.assertEqual(self.service._state, "ready")
+        self.assertEqual(self.service._detail, "Program stopped")
+        self.assertEqual(self.service._stop_acknowledged_run_id, 0)
+        self.assertFalse(run_control.stop_requested)
+        self.assertFalse(
+            any(entry["stream"] == "stderr" for entry in self.service._logs)
+        )
+
     def test_project_runner_captures_output_from_imported_modules(self):
-        original_stdout = sys.stdout
-        original_stderr = sys.stderr
+        original_print = builtins.print
         with tempfile.TemporaryDirectory() as project_dir:
             Path(project_dir, "helper.py").write_text(
                 "print('output from helper')\n"
@@ -261,8 +361,29 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             if entry["stream"] == "stdout"
         ]
         self.assertEqual(output, ["output from helper", "output from main"])
-        self.assertIs(sys.stdout, original_stdout)
-        self.assertIs(sys.stderr, original_stderr)
+        self.assertIs(builtins.print, original_print)
+
+    def test_project_runner_does_not_require_cpython_stream_attributes(self):
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        self.service._stop_motors = lambda: None
+        try:
+            del sys.stdout
+            del sys.stderr
+            with tempfile.TemporaryDirectory() as project_dir:
+                self.service._project_runner(
+                    project_dir,
+                    "main.py",
+                    compile("pass\n", "main.py", "exec"),
+                    [],
+                    0,
+                )
+        finally:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+
+        self.assertEqual(self.service._state, "ready")
+        self.assertEqual(self.service._detail, "Program completed")
 
     def test_watchdog_interval_fits_the_rp2350_limit(self):
         self.assertGreaterEqual(self.service.SERVICE_WATCHDOG_MS, 5000)
@@ -281,6 +402,64 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "stop test loop"):
             asyncio.run(self.service._feed_service_watchdog(watchdog))
         self.assertEqual(watchdog.feeds, 2)
+
+    def test_http_request_logging_is_disabled(self):
+        self.service._disable_http_flash_logging()
+
+        self.assertEqual(
+            self.disabled_phew_logging,
+            [sys.modules["phew.logging"].LOG_ALL],
+        )
+
+    def test_project_flash_feeds_watchdog_during_compile_and_each_file(self):
+        class Watchdog:
+            def __init__(self):
+                self.feeds = 0
+
+            def feed(self):
+                self.feeds += 1
+
+        watchdog = Watchdog()
+        project = {
+            "name": "Watchdog project",
+            "entrypoint": "main.py",
+            "files": {
+                "main.py": "print('ready')\n",
+                "helper.py": "VALUE = 1\n",
+                "README.md": "Test project.\n",
+            },
+            "bytes": 43,
+        }
+        self.service._service_watchdog = watchdog
+
+        def ilistdir(path):
+            return [
+                (
+                    entry.name,
+                    0x4000 if entry.is_dir() else 0x8000,
+                    0,
+                    entry.stat().st_size,
+                )
+                for entry in self.service.os.scandir(path)
+            ]
+
+        with tempfile.TemporaryDirectory() as project_root:
+            with (
+                patch.object(self.service, "PROJECT_ROOT", project_root),
+                patch.object(
+                    self.service,
+                    "ACTIVE_POINTER",
+                    project_root + "/active.txt",
+                ),
+                patch.object(self.service.os, "ilistdir", ilistdir, create=True),
+            ):
+                self.service._compile_project(project)
+                manifest = self.service._write_project(project)
+
+        self.assertEqual(manifest["name"], "Watchdog project")
+        # Two feeds around each Python compile and at least two around every
+        # filesystem entry, plus manifest and active-pointer activation.
+        self.assertGreaterEqual(watchdog.feeds, 12)
 
     def test_physical_sample_labels_odometry_without_claiming_ground_truth(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]

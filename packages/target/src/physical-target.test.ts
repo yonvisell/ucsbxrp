@@ -1248,6 +1248,220 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("stops a cooperative course program without rebooting the XRP", async () => {
+    let stopPolls = 0;
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.4.1",
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          stopPolls += 1;
+          return response({
+            bootId: "boot-a",
+            state: stopPolls === 1 ? "loading" : "ready",
+            detail: stopPolls === 1 ? "Stopping program" : "Program stopped",
+            runId: 1,
+            logs: [],
+            samples: [],
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Stopping program", reconnecting: false },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.4.1", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await target.stop();
+
+    expect(stopPolls).toBe(2);
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).endsWith("/api/v1/info"),
+      ),
+    ).toHaveLength(1);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "status", state: "ready" }),
+    );
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "status", state: "error" }),
+    );
+    target.disconnect();
+  });
+
+  it("quiesces an in-flight lease before sending Stop", async () => {
+    let telemetryRequests = 0;
+    let leasePending = false;
+    let leaseAborted = false;
+    let stopOverlappedLease = false;
+    const now = vi.spyOn(performance, "now").mockReturnValue(1_000);
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.4.1",
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          telemetryRequests += 1;
+          return response({
+            bootId: "boot-a",
+            state: telemetryRequests === 1 ? "running" : "ready",
+            detail:
+              telemetryRequests === 1 ? "Running main.py" : "Program stopped",
+            runId: 1,
+            logs: [],
+            samples: [],
+          });
+        }
+        if (url.endsWith("/api/v1/lease")) {
+          leasePending = true;
+          return await new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              leasePending = false;
+              leaseAborted = true;
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          });
+        }
+        stopOverlappedLease = leasePending;
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Stopping program", reconnecting: false },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.4.1", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+
+    try {
+      await target.connect();
+      await vi.waitFor(() => expect(leasePending).toBe(true));
+      await target.stop();
+
+      expect(leaseAborted).toBe(true);
+      expect(stopOverlappedLease).toBe(false);
+      expect(telemetryRequests).toBe(2);
+    } finally {
+      target.disconnect();
+      now.mockRestore();
+    }
+  });
+
+  it("verifies stopped state after the Stop reply is interrupted", async () => {
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.4.1",
+            capabilities: [
+              "project.check",
+              "project.sync",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          return response({
+            bootId: "boot-b",
+            state: "ready",
+            detail: "Physical XRP ready",
+            runId: 1,
+            logs: [],
+            samples: [],
+          });
+        }
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.4.1", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+      requestTimeoutMs: 25,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await expect(target.stop()).resolves.toBeUndefined();
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "console",
+        line: "Stop reply was interrupted · checking XRP state",
+      }),
+    );
+    expect(events.at(-1)).toEqual(
+      expect.objectContaining({
+        type: "console",
+        line: "XRP stop state verified",
+      }),
+    );
+    expect(events.at(-2)).toEqual(
+      expect.objectContaining({ type: "status", state: "ready" }),
+    );
+    target.disconnect();
+  });
+
   it("delivers final output before completion and runs the retained project again", async () => {
     vi.useFakeTimers();
     let runId = 0;

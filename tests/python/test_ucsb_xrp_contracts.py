@@ -34,6 +34,11 @@ from ucsb_xrp.student_api import (  # noqa: E402
     SensorModelBase,
     WheelSpeedControllerBase,
 )
+from ucsb_xrp._run_control import (  # noqa: E402
+    ProgramStopped,
+    clear_stop,
+    request_stop,
+)
 
 
 class FakeMotor:
@@ -283,6 +288,12 @@ class StudentInterfaceContractTests(unittest.TestCase):
 
 
 class XRPBotContractTests(unittest.TestCase):
+    def setUp(self):
+        clear_stop()
+
+    def tearDown(self):
+        clear_stop()
+
     def make_bot(self, config=None):
         devices = FakeDevices()
         bot = XRPBot(
@@ -361,6 +372,18 @@ class XRPBotContractTests(unittest.TestCase):
         self.assertEqual(devices.left_motor.reset_count, 1)
         self.assertEqual(devices.right_motor.reset_count, 1)
         self.assertEqual(devices.board.wait_count, 1)
+
+    def test_managed_stop_interrupts_the_next_hardware_operation(self):
+        bot, devices = self.make_bot()
+        request_stop()
+
+        with self.assertRaises(ProgramStopped):
+            bot.read()
+        with self.assertRaises(ProgramStopped):
+            bot.set_drive(DriveCommand(0.2, 0.2))
+        bot.stop()
+        self.assertEqual(devices.left_motor.efforts[-1], 0.0)
+        self.assertEqual(devices.right_motor.efforts[-1], 0.0)
 
     def test_pre_0_3_names_remain_compatible(self):
         config = RobotConfig(

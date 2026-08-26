@@ -7,6 +7,7 @@ dependable on stock MicroPython.
 """
 
 import gc
+import builtins
 import io
 import json
 import math
@@ -17,6 +18,7 @@ import time
 import _thread
 import machine
 import network
+from phew import logging as phew_logging
 from phew import server
 
 from .protocol import LineLogWriter, PROTOCOL_VERSION, SERVICE_VERSION, ProtocolError
@@ -25,7 +27,7 @@ from .protocol import project_revision, validate_project, validate_request_id
 from .networking import activate_network, public_network_state
 
 
-COURSE_RELEASE = "2026.08-dev.17"
+COURSE_RELEASE = "2026.08-dev.20"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -35,6 +37,7 @@ STARTUP_LEASE_MS = 10000
 LAUNCH_AFTER_RESPONSE_MS = 80
 SERVICE_WATCHDOG_MS = 7000
 LOG_LIMIT = 160
+STOP_GRACE_MS = 2500
 
 _boot_ms = time.ticks_ms()
 try:
@@ -47,6 +50,8 @@ _detail = "Physical XRP ready"
 _thread_active = False
 _launch_pending = False
 _lease_deadline = None
+_stop_acknowledged_run_id = None
+_service_watchdog = None
 _logs = []
 _log_seq = 0
 _sample_seq = 0
@@ -123,6 +128,17 @@ def _extend_run_lease(duration_ms):
         _lease_deadline = candidate
 
 
+def _feed_watchdog_now():
+    """Feed the service watchdog during synchronous flash transactions."""
+    if _service_watchdog is not None:
+        _service_watchdog.feed()
+
+
+def _disable_http_flash_logging():
+    """Keep Phew request accounting out of the controller filesystem."""
+    phew_logging.disable_logging_types(phew_logging.LOG_ALL)
+
+
 def _stop_motors():
     first_error = None
     try:
@@ -155,17 +171,21 @@ def _ensure_dir(path):
 
 
 def _remove_tree(path):
+    _feed_watchdog_now()
     try:
         entries = list(os.ilistdir(path))
     except OSError:
         return
     for entry in entries:
+        _feed_watchdog_now()
         child = path + "/" + entry[0]
         if entry[1] == 0x4000:
             _remove_tree(child)
         else:
             os.remove(child)
+        _feed_watchdog_now()
     os.rmdir(path)
+    _feed_watchdog_now()
 
 
 def _make_parent_dirs(root, relative_path):
@@ -226,12 +246,15 @@ def _write_project(project):
     slot_path = PROJECT_ROOT + "/" + inactive
     _remove_tree(slot_path)
     _ensure_dir(slot_path)
+    _feed_watchdog_now()
 
     try:
         for path, content in project["files"].items():
+            _feed_watchdog_now()
             _make_parent_dirs(slot_path, path)
             with open(slot_path + "/" + path, "w") as handle:
                 handle.write(content)
+            _feed_watchdog_now()
         manifest = {
             "name": project["name"],
             "entrypoint": project["entrypoint"],
@@ -243,6 +266,7 @@ def _write_project(project):
             manifest["worldJson"] = project["files"]["world.json"]
         with open(slot_path + "/.project.json", "w") as handle:
             json.dump(manifest, handle)
+        _feed_watchdog_now()
         pointer_tmp = ACTIVE_POINTER + ".tmp"
         with open(pointer_tmp, "w") as handle:
             handle.write(inactive)
@@ -251,6 +275,7 @@ def _write_project(project):
         except OSError:
             pass
         os.rename(pointer_tmp, ACTIVE_POINTER)
+        _feed_watchdog_now()
         _active_manifest = manifest
         return manifest
     except Exception:
@@ -262,8 +287,10 @@ def _compile_project(project):
     checked = 0
     for path, source in project["files"].items():
         if path.endswith(".py"):
+            _feed_watchdog_now()
             compile(source, path, "exec")
             checked += 1
+            _feed_watchdog_now()
     return checked
 
 
@@ -326,12 +353,10 @@ def _clear_project_modules(manifest):
 
 
 def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
-    global _thread_active, _lease_deadline
+    global _thread_active, _lease_deadline, _stop_acknowledged_run_id
     previous_cwd = os.getcwd()
     stdout = LineLogWriter("stdout", _append_log)
-    stderr = LineLogWriter("stderr", _append_log)
-    previous_stdout = sys.stdout
-    previous_stderr = sys.stderr
+    previous_print = builtins.print
     inserted_path = False
     outcome_state = "ready"
     outcome_detail = "Program completed"
@@ -342,14 +367,14 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
             sys.path.insert(0, slot_path)
             inserted_path = True
         from ucsb_xrp.robot import _set_managed_start
+        from ucsb_xrp._run_control import ProgramStopped, clear_stop
 
         managed_start = _set_managed_start
         managed_start(True)
-        # Redirect the Python streams, rather than only replacing ``print`` in
-        # main.py. This captures ordinary print calls and trace output from
-        # every project module in the same terminal shown by the IDE.
-        sys.stdout = stdout
-        sys.stderr = stderr
+        # MicroPython does not expose ``sys.stdout``. Replacing the built-in
+        # print function captures output from imported project modules as well
+        # as main.py, then the finally block restores it for the service.
+        builtins.print = stdout.print
         # Keep the HTTP handler paused while the student core performs its
         # first project imports. RP2350 flash reads are then isolated from
         # response allocation on the service core.
@@ -361,6 +386,13 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
             "print": stdout.print,
         }
         exec(entry_code, globals_value, globals_value)
+    except ProgramStopped:
+        # Acknowledge the cooperative signal before motor and interpreter
+        # cleanup. The service can then distinguish slow cleanup from a
+        # program that never observed the request.
+        _stop_acknowledged_run_id = run_id
+        outcome_state = "ready"
+        outcome_detail = "Program stopped"
     except BaseException as exc:
         buffer = io.StringIO()
         try:
@@ -372,13 +404,15 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
         outcome_state = "error"
         outcome_detail = "Program stopped after an exception"
     finally:
-        sys.stdout = previous_stdout
-        sys.stderr = previous_stderr
+        builtins.print = previous_print
         if managed_start is not None:
             managed_start(False)
+        try:
+            clear_stop()
+        except Exception:
+            pass
         _stop_motors()
         stdout.flush()
-        stderr.flush()
         if inserted_path:
             try:
                 sys.path.remove(slot_path)
@@ -446,6 +480,33 @@ def _schedule_reset(delay_ms=220):
     # reset setup are unreliable. An event-loop task lets the HTTP response
     # leave first, then resets in ordinary MicroPython execution context.
     server.loop.create_task(_reset_after_response(delay_ms))
+
+
+async def _reset_if_program_does_not_stop(run_id):
+    """Keep Wi-Fi active for normal course programs; reset only as fallback."""
+    import uasyncio
+
+    await uasyncio.sleep_ms(STOP_GRACE_MS)
+    if (
+        _thread_active
+        and run_id == _run_id
+        and _stop_acknowledged_run_id != run_id
+    ):
+        _set_state("error", "Program did not stop; restarting target service")
+        _schedule_reset()
+
+
+async def _request_stop_after_response(run_id):
+    """Signal core 1 only after the Stop response has left the service core."""
+    import uasyncio
+
+    await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
+    if not _thread_active or run_id != _run_id:
+        return
+    from ucsb_xrp._run_control import request_stop
+
+    request_stop()
+    server.loop.create_task(_reset_if_program_does_not_stop(run_id))
 
 
 def _read_hardware():
@@ -818,9 +879,12 @@ def sync(request):
     def operation(body):
         if _thread_active or _launch_pending:
             raise ProtocolError("target_busy", "stop the program before flashing")
+        _feed_watchdog_now()
         project = validate_project(body.get("project"))
+        _feed_watchdog_now()
         checked = _compile_project(project)
         manifest = _write_project(project)
+        _feed_watchdog_now()
         _set_state("ready", "Project flashed")
         return {"detail": "Project flashed", "checked": checked, "project": manifest}
 
@@ -831,6 +895,7 @@ def sync(request):
 def run_project(request):
     def operation(body):
         global _run_id, _launch_pending, _lease_deadline
+        global _stop_acknowledged_run_id
         global _sample_seq, _sample_epoch_start_ms, _last_sample
         if _thread_active or _launch_pending:
             raise ProtocolError("target_busy", "a program is already running")
@@ -849,9 +914,11 @@ def run_project(request):
         _clear_project_modules(manifest)
         _stop_motors()
         from ucsb_xrp._telemetry import clear_state
+        from ucsb_xrp._run_control import clear_stop
         from ucsb_xrp.live import clear as clear_runtime
 
         clear_state()
+        clear_stop()
         clear_runtime()
         # The run ID and telemetry sequence together define one sample epoch.
         # The browser resets its cursor when the run changes, so every project
@@ -864,6 +931,7 @@ def run_project(request):
         # request objects can stall RP2350 MicroPython.
         gc.collect()
         _run_id += 1
+        _stop_acknowledged_run_id = None
         _launch_pending = True
         _lease_deadline = None
         _set_state("loading", "Starting " + entrypoint)
@@ -910,11 +978,13 @@ def stop(request):
         global _launch_pending, _lease_deadline
         _launch_pending = False
         _lease_deadline = None
-        if not _thread_active:
-            _stop_motors()
-        _set_state("ready", "Program stopped; restarting target service")
-        _schedule_reset()
-        return {"detail": "Program stopped", "reconnecting": True}
+        if _thread_active:
+            _set_state("loading", "Stopping program")
+            server.loop.create_task(_request_stop_after_response(_run_id))
+            return {"detail": "Stopping program", "reconnecting": False}
+        _stop_motors()
+        _set_state("ready", "Program already stopped")
+        return {"detail": "Program already stopped", "reconnecting": False}
 
     return _command(request, operation)
 
@@ -989,8 +1059,14 @@ def _connect_wifi(timeout_ms=20000, watchdog=None):
 
 
 def run(watchdog=None):
+    global _service_watchdog
     if watchdog is None:
         watchdog = machine.WDT(timeout=SERVICE_WATCHDOG_MS)
+    _service_watchdog = watchdog
+    # Phew otherwise appends one line to flash after every HTTP response and
+    # periodically rewrites that file. Telemetry polling must never create
+    # hidden flash traffic or block the event loop that feeds the watchdog.
+    _disable_http_flash_logging()
     watchdog.feed()
     _stop_motors()
     watchdog.feed()

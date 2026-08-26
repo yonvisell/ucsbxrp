@@ -475,9 +475,34 @@ export class DirectPhysicalTargetClient implements TargetClient {
         detail: string;
         reconnecting: boolean;
       }>("stop", {}, { action: "stop", label: "Stop" });
-      this.emitStatus("connecting", `${result.detail}; reconnecting…`);
-      await this.reconnectAfterReset();
+      if (result.reconnecting) {
+        this.emitStatus("connecting", `${result.detail}; reconnecting…`);
+        await this.reconnectAfterReset();
+      } else {
+        this.emitStatus("loading", result.detail);
+        await this.waitForProgramStop();
+      }
     } catch (error) {
+      if (
+        error instanceof PhysicalTargetError &&
+        (error.code === "network_error" || error.code === "timeout")
+      ) {
+        this.emitConsole(
+          "system",
+          `Stop reply was interrupted · checking XRP state`,
+          { action: "stop", phase: "error" },
+        );
+        this.emitStatus(
+          "connecting",
+          "Stop reply was interrupted; checking the XRP…",
+        );
+        try {
+          await this.recoverAfterInterruptedStop();
+          return;
+        } catch (recoveryError) {
+          error = recoveryError;
+        }
+      }
       this.emitConsole(
         "system",
         `Stop recovery failed · ${errorDetail(error)}`,
@@ -547,6 +572,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     name: string,
     value: Record<string, unknown>,
     activity?: CommandActivity,
+    requestController?: AbortController,
   ): Promise<T> {
     if (!this.connected) {
       throw new PhysicalTargetError(
@@ -567,11 +593,16 @@ export class DirectPhysicalTargetClient implements TargetClient {
       );
     }
     try {
-      const reply = await this.fetchJson<CommandReply<T>>(`/api/v1/${name}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...value, requestId }),
-      });
+      const reply = await this.fetchJson<CommandReply<T>>(
+        `/api/v1/${name}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...value, requestId }),
+        },
+        this.requestTimeoutMs,
+        requestController,
+      );
       if (reply.requestId !== requestId) {
         throw new PhysicalTargetError(
           "uncorrelated_reply",
@@ -756,7 +787,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
         performance.now() - this.lastLeaseAt >= 800
       ) {
         this.lastLeaseAt = performance.now();
-        await this.command("lease", { runId: state.runId });
+        // Use the poll controller for the lease as well as telemetry. Stop,
+        // Flash, and Run can then quiesce the entire poll exchange instead of
+        // overlapping a second POST with an in-flight lease request.
+        await this.command(
+          "lease",
+          { runId: state.runId },
+          undefined,
+          controller,
+        );
       }
       this.schedulePoll(
         state.state === "running"
@@ -918,6 +957,82 @@ export class DirectPhysicalTargetClient implements TargetClient {
     throw new PhysicalTargetError(
       "reconnect_failed",
       `Physical XRP did not return after reset: ${errorDetail(lastError)}`,
+    );
+  }
+
+  private async waitForProgramStop(): Promise<void> {
+    const deadline = performance.now() + 4_000;
+    let lastError: unknown = null;
+    while (performance.now() < deadline && this.connected) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      try {
+        const state = await this.getJson<PhysicalState>(
+          `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}`,
+          1_000,
+        );
+        this.consumeState(state);
+        if (
+          state.state === "ready" ||
+          (state.state === "error" &&
+            state.detail.toLowerCase().includes("stopped after an exception"))
+        ) {
+          return;
+        }
+        if (state.state === "error") {
+          lastError = new PhysicalTargetError("target_error", state.detail);
+          break;
+        }
+      } catch (error) {
+        lastError = error;
+        break;
+      }
+    }
+    // Older services and non-cooperative programs reset the controller. Poll
+    // the actual run state through that transition; /info alone cannot tell
+    // whether the old program is still active on the same boot.
+    this.emitStatus("connecting", "Checking program stop…");
+    try {
+      await this.recoverAfterInterruptedStop();
+    } catch (error) {
+      throw lastError ?? error;
+    }
+  }
+
+  private async recoverAfterInterruptedStop(): Promise<void> {
+    this.stopPolling();
+    const deadline = performance.now() + RESET_RECONNECT_TIMEOUT_MS;
+    let lastError: unknown = null;
+    while (performance.now() < deadline && this.connected) {
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      try {
+        const state = await this.getJson<PhysicalState>(
+          "/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0",
+          1_500,
+        );
+        this.pollConnectionFailed = false;
+        this.consecutivePollFailures = 0;
+        this.consumeState(state);
+        if (
+          state.state === "ready" ||
+          (state.state === "error" &&
+            state.detail.toLowerCase().includes("stopped after an exception"))
+        ) {
+          this.emitConsole("system", "XRP stop state verified", {
+            action: "stop",
+            phase: "result",
+          });
+          return;
+        }
+        if (state.state === "error") {
+          lastError = new PhysicalTargetError("target_error", state.detail);
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw new PhysicalTargetError(
+      "reconnect_failed",
+      `Could not verify that the physical XRP stopped: ${errorDetail(lastError)}`,
     );
   }
 

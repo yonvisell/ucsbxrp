@@ -1,6 +1,7 @@
 """The sole UCSB-XRP boundary to physical or simulated XRPLib devices."""
 
 from ._validation import isfinite
+from ._run_control import check_stop
 from .config import RobotConfig
 from .records import DriveCommand, RawSensors
 from .utils import clamp
@@ -52,6 +53,7 @@ class XRPBot:
         return self._config
 
     def read(self, include_range=False):
+        check_stop()
         if not isinstance(include_range, bool):
             raise TypeError("include_range must be True or False")
 
@@ -80,6 +82,7 @@ class XRPBot:
         )
 
     def reset_encoders(self):
+        check_stop()
         first_error = None
         try:
             self._devices.left_motor.reset_encoder_position()
@@ -94,10 +97,12 @@ class XRPBot:
             raise first_error
 
     def wait_for_button(self):
+        check_stop()
         self._devices.board.wait_for_button()
 
     def set_drive(self, command):
         """Apply one normalized command to the left and right motor channels."""
+        check_stop()
         if not isinstance(command, DriveCommand):
             self._stop_after_invalid_command()
             raise TypeError("command must be a DriveCommand value")

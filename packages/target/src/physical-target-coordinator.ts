@@ -2,6 +2,10 @@ import type {
   PhysicalWorkerCommand,
   PhysicalWorkerMessage,
 } from "./physical-worker-protocol";
+import {
+  TelemetryEventHistory,
+  type TelemetryEvent,
+} from "./telemetry-event-history";
 import type { TargetClient, TargetEvent } from "./types";
 
 export interface PhysicalWorkerPort {
@@ -44,8 +48,13 @@ export class PhysicalTargetCoordinator {
     PhysicalWorkerPort,
     { ids: Set<string>; order: string[] }
   >();
+  private readonly deliveredTelemetry = new Map<
+    PhysicalWorkerPort,
+    WeakSet<TelemetryEvent>
+  >();
   private readonly consoleHistory: ConsoleEvent[] = [];
   private readonly retainedConsoleIds = new Set<string>();
+  private readonly telemetryHistory = new TelemetryEventHistory();
   private target: TargetClient | null = null;
   private targetEndpoint: string | null = null;
   private connection: Promise<void> | null = null;
@@ -56,7 +65,6 @@ export class PhysicalTargetCoordinator {
     state: "disconnected",
     detail: "Physical XRP disconnected",
   };
-  private latestTelemetry: TargetEvent | null = null;
   private latestProject: TargetEvent = { type: "project", project: null };
   private latestRuntime: TargetEvent | null = null;
   private latestWorld: TargetEvent | null = null;
@@ -66,6 +74,10 @@ export class PhysicalTargetCoordinator {
   attach(port: PhysicalWorkerPort): void {
     this.ports.add(port);
     this.deliveredConsoleIds.set(port, { ids: new Set(), order: [] });
+    this.deliveredTelemetry.set(port, new WeakSet());
+    for (const event of this.telemetryHistory.chronological()) {
+      this.send(port, { type: "event", event });
+    }
   }
 
   handle(port: PhysicalWorkerPort, command: PhysicalWorkerCommand): void {
@@ -85,6 +97,7 @@ export class PhysicalTargetCoordinator {
   private detach(port: PhysicalWorkerPort): void {
     this.ports.delete(port);
     this.deliveredConsoleIds.delete(port);
+    this.deliveredTelemetry.delete(port);
     port.close();
     if (this.ports.size !== 0) {
       return;
@@ -212,12 +225,12 @@ export class PhysicalTargetCoordinator {
   private clearRetainedState(): void {
     this.consoleHistory.length = 0;
     this.retainedConsoleIds.clear();
+    this.telemetryHistory.clear();
     this.latestStatus = {
       type: "status",
       state: "disconnected",
       detail: "Physical XRP disconnected",
     };
-    this.latestTelemetry = null;
     this.latestProject = { type: "project", project: null };
     this.latestRuntime = null;
     this.latestWorld = null;
@@ -243,7 +256,7 @@ export class PhysicalTargetCoordinator {
     if (event.type === "status") {
       this.latestStatus = event;
     } else if (event.type === "telemetry") {
-      this.latestTelemetry = event;
+      this.telemetryHistory.retain(event);
     } else if (event.type === "project") {
       this.latestProject = event;
     } else if (event.type === "runtime") {
@@ -272,9 +285,6 @@ export class PhysicalTargetCoordinator {
 
   private sendCurrentState(port: PhysicalWorkerPort): void {
     this.send(port, { type: "event", event: this.latestStatus });
-    if (this.latestTelemetry) {
-      this.send(port, { type: "event", event: this.latestTelemetry });
-    }
     this.send(port, { type: "event", event: this.latestProject });
     if (this.latestRuntime) {
       this.send(port, { type: "event", event: this.latestRuntime });
@@ -282,12 +292,26 @@ export class PhysicalTargetCoordinator {
     if (this.latestWorld) {
       this.send(port, { type: "event", event: this.latestWorld });
     }
+    for (const event of this.telemetryHistory.chronological()) {
+      this.send(port, { type: "event", event });
+    }
     for (const event of this.consoleHistory) {
       this.send(port, { type: "event", event });
     }
   }
 
   private send(port: PhysicalWorkerPort, message: PhysicalWorkerMessage): void {
+    if (message.type === "event" && message.event.type === "telemetry") {
+      const delivered = this.deliveredTelemetry.get(port);
+      if (delivered?.has(message.event)) return;
+      try {
+        port.postMessage(message);
+        delivered?.add(message.event);
+      } catch {
+        // A closing tab must not interrupt the shared physical session.
+      }
+      return;
+    }
     if (
       message.type === "event" &&
       message.event.type === "console" &&
