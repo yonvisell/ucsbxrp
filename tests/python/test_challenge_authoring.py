@@ -144,6 +144,112 @@ class ChallengeAuthoringTests(unittest.TestCase):
         with self.assertRaisesRegex(AUTHORING.AuthoringError, "invalid project"):
             AUTHORING.validate_spec(spec)
 
+    def test_spec_rejects_unsafe_or_invalid_student_component(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        spec["student_implementations"][0]["file"] = "../controller.py"
+        with self.assertRaisesRegex(
+            AUTHORING.AuthoringError, "invalid student component file"
+        ):
+            AUTHORING.validate_spec(spec)
+
+        spec["student_implementations"][0]["file"] = "controller.py"
+        spec["student_implementations"][0]["class_name"] = "not-a-class"
+        with self.assertRaisesRegex(
+            AUTHORING.AuthoringError, "Python identifier"
+        ):
+            AUTHORING.validate_spec(spec)
+
+    def test_generated_project_must_define_each_declared_student_class(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        spec["student_implementations"][0]["class_name"] = "MissingController"
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory)
+            with self.assertRaisesRegex(
+                AUTHORING.AuthoringError,
+                "navigation_controller.py does not define class MissingController",
+            ):
+                AUTHORING.create_draft_from_spec(draft_root, spec)
+
+    def test_world_validation_covers_all_supported_geometry(self):
+        world = {
+            "default_world": "lab",
+            "worlds": [
+                {
+                    "id": "lab",
+                    "label": "Lab",
+                    "bounds": {
+                        "minimum_x_mm": 0,
+                        "minimum_y_mm": 0,
+                        "maximum_x_mm": 1000,
+                        "maximum_y_mm": 800,
+                    },
+                    "initial_pose": {
+                        "x_mm": 100,
+                        "y_mm": 100,
+                        "heading_rad": 0,
+                    },
+                    "obstacles": [
+                        {
+                            "type": "wall",
+                            "minimum_x_mm": 300,
+                            "minimum_y_mm": 0,
+                            "maximum_x_mm": 340,
+                            "maximum_y_mm": 300,
+                            "label": "Arena wall",
+                        },
+                        {
+                            "type": "block",
+                            "feature": "gate",
+                            "minimum_x_mm": 500,
+                            "minimum_y_mm": 300,
+                            "maximum_x_mm": 600,
+                            "maximum_y_mm": 400,
+                        },
+                    ],
+                    "markers": [
+                        {
+                            "type": "start_line",
+                            "x1_mm": 50,
+                            "y1_mm": 50,
+                            "x2_mm": 50,
+                            "y2_mm": 150,
+                        },
+                        {
+                            "type": "start_box",
+                            "minimum_x_mm": 50,
+                            "minimum_y_mm": 50,
+                            "maximum_x_mm": 150,
+                            "maximum_y_mm": 150,
+                        },
+                        {
+                            "type": "waypoint",
+                            "name": "finish",
+                            "x_mm": 900,
+                            "y_mm": 700,
+                            "heading_rad": 1.2,
+                        },
+                    ],
+                }
+            ],
+        }
+        self.assertEqual(AUTHORING._world_errors(world, "example"), [])
+
+        world["worlds"][0]["markers"][0]["x1_mm"] = -1
+        self.assertTrue(
+            any(
+                "inside the arena walls" in error
+                for error in AUTHORING._world_errors(world, "example")
+            )
+        )
+
     def test_spec_requires_world_names_used_by_copied_program(self):
         spec = json.loads(
             (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(

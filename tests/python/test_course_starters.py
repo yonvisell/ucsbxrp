@@ -134,7 +134,7 @@ class CourseStarterTests(unittest.TestCase):
             }
             self.assertEqual(len(switches), expected_count, challenge)
 
-    def test_component_check_files_expose_instructions_not_check_machinery(self):
+    def test_component_check_files_expose_one_clear_call_not_check_machinery(self):
         expected_components = {
             "challenge_1": 2,
             "challenge_2": 4,
@@ -156,11 +156,26 @@ class CourseStarterTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             with self.subTest(challenge=challenge):
                 self.assertLessEqual(len(source.splitlines()), 40)
-                self.assertIn("# Normal use:", source)
-                self.assertIn("# Example:", source)
+                self.assertIn("concrete, hardware-free examples", source)
+                self.assertIn("PASS means", source)
                 self.assertIn("run_component_checks(", source)
                 self.assertNotIn("def check_", source)
                 self.assertNotIn("RawSensors", source)
+
+                calls = [
+                    node
+                    for node in ast.walk(ast.parse(source))
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "run_component_checks"
+                ]
+                self.assertEqual(len(calls), 1)
+                expected_classes = component_count - (1 if challenge == "challenge_5" else 0)
+                self.assertEqual(len(calls[0].args), expected_classes)
+                self.assertEqual(
+                    {item.arg for item in calls[0].keywords},
+                    {"include_range"} if challenge == "challenge_5" else set(),
+                )
 
                 saved_modules = {
                     name: sys.modules.pop(name)
@@ -183,13 +198,50 @@ class CourseStarterTests(unittest.TestCase):
 
                 text = output.getvalue()
                 self.assertIn(
-                    "Component checks use MicroPython without starting either robot.",
+                    "Concrete component examples use MicroPython without starting either robot.",
                     text,
                 )
                 self.assertIn(
                     "0 passed · {} pending · 0 failed".format(component_count),
                     text,
                 )
+
+    def test_supplied_components_pass_every_concrete_component_example(self):
+        course_source = str(ROOT / "vendor" / "current")
+        reference_source = str(ROOT / "vendor" / "current" / "reference_source")
+        sys.path.insert(0, reference_source)
+        sys.path.insert(0, course_source)
+        try:
+            from ucsb_xrp.component_checks import run_component_checks
+            from ucsb_xrp_reference import (
+                DifferentialDrive,
+                GridPlanner,
+                NavigationController,
+                Odometry,
+                SensorModel,
+                WheelSpeedController,
+            )
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                run_component_checks(
+                    SensorModel,
+                    WheelSpeedController,
+                    DifferentialDrive,
+                    Odometry,
+                    NavigationController,
+                    GridPlanner,
+                    include_range=True,
+                )
+            self.assertIn("7 passed · 0 pending · 0 failed", output.getvalue())
+        finally:
+            sys.path.remove(course_source)
+            sys.path.remove(reference_source)
+            for name in tuple(sys.modules):
+                if name == "ucsb_xrp_reference" or name.startswith(
+                    "ucsb_xrp_reference."
+                ):
+                    sys.modules.pop(name, None)
 
     def test_each_challenge_readme_defines_student_and_supplied_responsibilities(self):
         expected_student_files = {
@@ -286,6 +338,30 @@ class CourseStarterTests(unittest.TestCase):
             self.assertEqual(len(calls), 1, path)
             self.assertEqual(calls[0].args, [], path)
             self.assertEqual({item.arg for item in calls[0].keywords}, expected_names)
+
+    def test_turn_task_heading_has_one_project_owned_source(self):
+        directory = STARTERS / "challenge_2"
+        source = (directory / "challenge.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        self.assertNotIn("from math import pi", source)
+        assignments = {
+            node.targets[0].id: node.value
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        }
+        turn_heading = assignments["TURN_HEADING_RAD"]
+        self.assertIsInstance(turn_heading, ast.Attribute)
+        self.assertEqual(turn_heading.attr, "heading_rad")
+
+        world = json.loads((directory / "world.json").read_text(encoding="utf-8"))
+        turn = next(
+            marker
+            for marker in world["worlds"][0]["markers"]
+            if marker.get("name") == "turn"
+        )
+        self.assertAlmostEqual(turn["heading_rad"], 3.141592653589793)
 
 
 if __name__ == "__main__":

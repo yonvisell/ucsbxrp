@@ -2,7 +2,9 @@
 """Create, check, and publish instructor-authored UCSBXRP challenges."""
 
 import argparse
+import ast
 import json
+from math import isfinite
 import os
 from pathlib import Path
 import re
@@ -117,6 +119,28 @@ def _safe_project_path(value):
     return path
 
 
+def _safe_component_path(value):
+    value = _single_line(value, "component file")
+    if "\\" in value or ":" in value:
+        raise AuthoringError("invalid student component file: " + value)
+    path = Path(value)
+    if (
+        path.is_absolute()
+        or "." in path.parts
+        or ".." in path.parts
+        or path.suffix != ".py"
+    ):
+        raise AuthoringError("invalid student component file: " + value)
+    return path.as_posix()
+
+
+def _python_class_name(value):
+    value = _single_line(value, "component class_name")
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value) is None:
+        raise AuthoringError("component class_name must be a Python identifier")
+    return value
+
+
 def read_spec(path):
     try:
         with Path(path).open(encoding="utf-8") as source:
@@ -156,37 +180,46 @@ def validate_spec(spec):
             "student_implementations must contain at least one component"
         )
     normalized_implementations = []
+    implementation_keys = set()
     for index, item in enumerate(implementations):
         if not isinstance(item, dict):
             raise AuthoringError(
                 "student_implementations[{}] must be an object".format(index)
             )
-        normalized_implementations.append(
-            {
-                "file": _single_line(item.get("file"), "component file"),
-                "class_name": _single_line(
-                    item.get("class_name"), "component class_name"
-                ),
-                "responsibility": _single_line(
-                    item.get("responsibility"), "component responsibility"
-                ),
-            }
-        )
+        normalized_item = {
+            "file": _safe_component_path(item.get("file")),
+            "class_name": _python_class_name(item.get("class_name")),
+            "responsibility": _single_line(
+                item.get("responsibility"), "component responsibility"
+            ),
+        }
+        key = (normalized_item["file"], normalized_item["class_name"])
+        if key in implementation_keys:
+            raise AuthoringError(
+                "student_implementations contains a duplicate file and class"
+            )
+        implementation_keys.add(key)
+        normalized_implementations.append(normalized_item)
     normalized["student_implementations"] = normalized_implementations
 
     supplied = spec.get("supplied_files")
     if not isinstance(supplied, list) or not supplied:
         raise AuthoringError("supplied_files must contain at least one item")
     normalized_supplied = []
+    supplied_names = set()
     for index, item in enumerate(supplied):
         if not isinstance(item, dict):
             raise AuthoringError("supplied_files[{}] must be an object".format(index))
-        normalized_supplied.append(
-            {
-                "name": _single_line(item.get("name"), "supplied file name"),
-                "use": _single_line(item.get("use"), "supplied file use"),
-            }
-        )
+        normalized_item = {
+            "name": _single_line(item.get("name"), "supplied file name"),
+            "use": _single_line(item.get("use"), "supplied file use"),
+        }
+        if normalized_item["name"] in supplied_names:
+            raise AuthoringError(
+                "supplied_files contains duplicate item: " + normalized_item["name"]
+            )
+        supplied_names.add(normalized_item["name"])
+        normalized_supplied.append(normalized_item)
     if not any(item["name"] == "world.json" for item in normalized_supplied):
         raise AuthoringError("supplied_files must explain world.json")
     normalized["supplied_files"] = normalized_supplied
@@ -260,6 +293,12 @@ def _source_world_errors(world, source_id):
                 source_id, required_waypoint
             )
         )
+    if source_id == "challenge_2" and "turn" in waypoint_names:
+        turn = next(item for item in waypoints if item.get("name") == "turn")
+        if not _valid_number(turn.get("heading_rad")):
+            errors.append(
+                "specification: challenge_2 source requires the 'turn' waypoint to define heading_rad"
+            )
     if source_id == "challenge_3" and not waypoints:
         errors.append("specification: challenge_3 source requires at least one waypoint")
     if source_id == "challenge_5":
@@ -463,36 +502,284 @@ def create_draft(root, source_id, project_id, title, summary):
     return target_directory
 
 
+_WORLD_IDENTIFIER = re.compile(r"[a-z][a-z0-9_-]*\Z")
+
+
+def _valid_number(value):
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and isfinite(value)
+    )
+
+
+def _rectangle_values(value, name, errors):
+    if not isinstance(value, dict):
+        errors.append(name + " must be an object")
+        return None
+    keys = (
+        "minimum_x_mm",
+        "minimum_y_mm",
+        "maximum_x_mm",
+        "maximum_y_mm",
+    )
+    if any(not _valid_number(value.get(key)) for key in keys):
+        errors.append(name + " must contain four finite millimeter bounds")
+        return None
+    result = tuple(float(value[key]) for key in keys)
+    if result[2] <= result[0] or result[3] <= result[1]:
+        errors.append(name + " must have positive width and height")
+        return None
+    return result
+
+
+def _inside_rectangle(outer, inner):
+    return (
+        inner[0] >= outer[0]
+        and inner[1] >= outer[1]
+        and inner[2] <= outer[2]
+        and inner[3] <= outer[3]
+    )
+
+
+def _inside_point(bounds, x_mm, y_mm):
+    return (
+        x_mm >= bounds[0]
+        and x_mm <= bounds[2]
+        and y_mm >= bounds[1]
+        and y_mm <= bounds[3]
+    )
+
+
+def _identifier_error(value, name, maximum=32):
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > maximum
+        or _WORLD_IDENTIFIER.fullmatch(value) is None
+    ):
+        return (
+            name
+            + " must use 1 to {} lower-case letters, digits, underscores, or hyphens".format(
+                maximum
+            )
+        )
+    return None
+
+
+def _optional_label_error(value, name):
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > 48:
+        return name + " must contain 1 to 48 characters"
+    return None
+
+
 def _world_errors(world, prefix):
+    """Return errors for the exact project world schema used by the browser."""
     errors = []
     if not isinstance(world, dict) or not isinstance(world.get("worlds"), list):
         return [prefix + ": world.json must contain a worlds list"]
+    worlds = world["worlds"]
+    if not worlds:
+        errors.append(prefix + ": world.json needs at least one world")
+    if len(worlds) > 8:
+        errors.append(prefix + ": world.json may contain at most 8 worlds")
+
     ids = []
-    for index, item in enumerate(world["worlds"]):
+    for index, item in enumerate(worlds):
         name = "{}: worlds[{}]".format(prefix, index)
         if not isinstance(item, dict):
             errors.append(name + " must be an object")
             continue
-        ids.append(item.get("id"))
-        bounds = item.get("bounds")
-        if not isinstance(bounds, dict):
-            errors.append(name + " must define bounds")
+
+        world_id = item.get("id")
+        identifier_error = _identifier_error(world_id, name + ".id")
+        if identifier_error:
+            errors.append(identifier_error)
+        else:
+            ids.append(world_id)
+        label = item.get("label")
+        if not isinstance(label, str) or not label.strip() or len(label) > 64:
+            errors.append(name + ".label must contain 1 to 64 characters")
+
+        bounds = _rectangle_values(item.get("bounds"), name + ".bounds", errors)
+        if bounds is None:
+            continue
+
+        pose = item.get(
+            "initial_pose", {"x_mm": 0, "y_mm": 0, "heading_rad": 0}
+        )
+        if not isinstance(pose, dict):
+            errors.append(name + ".initial_pose must be an object")
+        elif any(
+            not _valid_number(pose.get(key))
+            for key in ("x_mm", "y_mm", "heading_rad")
+        ):
+            errors.append(
+                name + ".initial_pose must define finite x_mm, y_mm, and heading_rad"
+            )
+        elif not _inside_point(
+            bounds, float(pose["x_mm"]), float(pose["y_mm"])
+        ):
+            errors.append(name + ".initial_pose must be inside the arena walls")
+
+        obstacles = item.get("obstacles", [])
+        if not isinstance(obstacles, list) or len(obstacles) > 32:
+            errors.append(name + ".obstacles must be a list with at most 32 items")
+            obstacles = []
+        feature_names = []
+        for obstacle_index, obstacle in enumerate(obstacles):
+            obstacle_name = "{}.obstacles[{}]".format(name, obstacle_index)
+            if not isinstance(obstacle, dict):
+                errors.append(obstacle_name + " must be an object")
+                continue
+            if obstacle.get("type") not in ("block", "wall"):
+                errors.append(obstacle_name + ".type must be block or wall")
+            obstacle_bounds = _rectangle_values(obstacle, obstacle_name, errors)
+            if obstacle_bounds is not None and not _inside_rectangle(
+                bounds, obstacle_bounds
+            ):
+                errors.append(obstacle_name + " must be inside the arena walls")
+            label_error = _optional_label_error(
+                obstacle.get("label"), obstacle_name + ".label"
+            )
+            if label_error:
+                errors.append(label_error)
+            feature = obstacle.get("feature")
+            if feature is not None:
+                feature_error = _identifier_error(
+                    feature, obstacle_name + ".feature"
+                )
+                if feature_error:
+                    errors.append(feature_error)
+                else:
+                    feature_names.append(feature)
+        if len(set(feature_names)) != len(feature_names):
+            errors.append(name + " obstacle feature names must be unique")
+
+        markers = item.get("markers", [])
+        if not isinstance(markers, list) or len(markers) > 32:
+            errors.append(name + ".markers must be a list with at most 32 items")
+            markers = []
+        marker_names = []
+        for marker_index, marker in enumerate(markers):
+            marker_name = "{}.markers[{}]".format(name, marker_index)
+            if not isinstance(marker, dict):
+                errors.append(marker_name + " must be an object")
+                continue
+            marker_type = marker.get("type")
+            if marker_type not in ("start_line", "start_box", "waypoint"):
+                errors.append(marker_name + ".type is not a supported marker")
+                continue
+            label_error = _optional_label_error(
+                marker.get("label"), marker_name + ".label"
+            )
+            if label_error:
+                errors.append(label_error)
+            marker_identifier = marker.get("name")
+            if marker_identifier is not None:
+                marker_error = _identifier_error(
+                    marker_identifier, marker_name + ".name"
+                )
+                if marker_error:
+                    errors.append(marker_error)
+                else:
+                    marker_names.append(marker_identifier)
+
+            if marker_type == "start_box":
+                marker_bounds = _rectangle_values(marker, marker_name, errors)
+                if marker_bounds is not None and not _inside_rectangle(
+                    bounds, marker_bounds
+                ):
+                    errors.append(marker_name + " must be inside the arena walls")
+            elif marker_type == "start_line":
+                coordinates = (
+                    marker.get("x1_mm"),
+                    marker.get("y1_mm"),
+                    marker.get("x2_mm"),
+                    marker.get("y2_mm"),
+                )
+                if any(not _valid_number(value) for value in coordinates):
+                    errors.append(marker_name + " must define two finite endpoints")
+                else:
+                    x1_mm, y1_mm, x2_mm, y2_mm = map(float, coordinates)
+                    if x1_mm == x2_mm and y1_mm == y2_mm:
+                        errors.append(marker_name + " must have two different endpoints")
+                    if not _inside_point(
+                        bounds, x1_mm, y1_mm
+                    ) or not _inside_point(bounds, x2_mm, y2_mm):
+                        errors.append(marker_name + " must be inside the arena walls")
+            else:
+                x_mm = marker.get("x_mm")
+                y_mm = marker.get("y_mm")
+                if not _valid_number(x_mm) or not _valid_number(y_mm):
+                    errors.append(marker_name + " must define finite x_mm and y_mm")
+                elif not _inside_point(bounds, float(x_mm), float(y_mm)):
+                    errors.append(marker_name + " must be inside the arena walls")
+                heading = marker.get("heading_rad")
+                if heading is not None and not _valid_number(heading):
+                    errors.append(marker_name + ".heading_rad must be a finite number")
+        if len(set(marker_names)) != len(marker_names):
+            errors.append(name + " marker names must be unique")
+
+    if len(set(ids)) != len(ids):
+        errors.append(prefix + ": world ids must be unique")
+    default_world = world.get("default_world")
+    default_error = _identifier_error(default_world, prefix + ": default_world")
+    if default_error:
+        errors.append(default_error)
+    elif default_world not in ids:
+        errors.append(prefix + ": default_world must name a defined world")
+    return errors
+
+
+_STUDENT_IMPLEMENTATION_ROW = re.compile(
+    r"^\|\s*`([^`]+\.py)`\s*\|\s*`([^`]+)`\s*\|", re.MULTILINE
+)
+
+
+def _student_implementation_errors(directory, readme_text, project_id):
+    """Verify each student file/class named by the README exists in source."""
+    errors = []
+    rows = _STUDENT_IMPLEMENTATION_ROW.findall(readme_text)
+    if not rows:
+        return [project_id + ": README names no student implementation classes"]
+    seen = set()
+    for raw_path, class_name in rows:
+        try:
+            relative_path = _safe_component_path(raw_path)
+            class_name = _python_class_name(class_name)
+        except AuthoringError as error:
+            errors.append(project_id + ": " + str(error))
+            continue
+        key = (relative_path, class_name)
+        if key in seen:
+            errors.append(
+                "{}: README repeats {} in {}".format(
+                    project_id, class_name, relative_path
+                )
+            )
+            continue
+        seen.add(key)
+        path = directory / relative_path
+        if not path.is_file():
+            errors.append(project_id + ": missing student file " + relative_path)
             continue
         try:
-            minimum_x = float(bounds["minimum_x_mm"])
-            minimum_y = float(bounds["minimum_y_mm"])
-            maximum_x = float(bounds["maximum_x_mm"])
-            maximum_y = float(bounds["maximum_y_mm"])
-            if maximum_x <= minimum_x or maximum_y <= minimum_y:
-                errors.append(name + " bounds must have positive width and height")
-        except (KeyError, TypeError, ValueError):
-            errors.append(name + " bounds must contain four numbers")
-    if not ids:
-        errors.append(prefix + ": world.json needs at least one world")
-    elif len(set(ids)) != len(ids):
-        errors.append(prefix + ": world ids must be unique")
-    if world.get("default_world") not in ids:
-        errors.append(prefix + ": default_world must name a defined world")
+            tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
+        except SyntaxError:
+            # The ordinary Python compilation error below is more precise.
+            continue
+        if not any(
+            isinstance(node, ast.ClassDef) and node.name == class_name
+            for node in tree.body
+        ):
+            errors.append(
+                "{}: {} does not define class {}".format(
+                    project_id, relative_path, class_name
+                )
+            )
     return errors
 
 
@@ -534,6 +821,7 @@ def project_errors(root, entry):
                 errors.append(project_id + ": README is missing " + section)
         if "world.json" not in text:
             errors.append(project_id + ": README does not explain world.json")
+        errors.extend(_student_implementation_errors(directory, text, project_id))
 
     world_path = directory / "world.json"
     if world_path.is_file():

@@ -32,6 +32,7 @@ export type WorldMarker =
       label?: string;
       xMm: number;
       yMm: number;
+      headingRad?: number;
     };
 
 export interface WorldDefinition {
@@ -164,6 +165,31 @@ function rectangle(value: unknown, name: string): AxisAlignedRectangle {
   return result;
 }
 
+function pointInside(
+  bounds: AxisAlignedRectangle,
+  xMm: number,
+  yMm: number,
+): boolean {
+  return (
+    xMm >= bounds.minimumXmm &&
+    xMm <= bounds.maximumXmm &&
+    yMm >= bounds.minimumYmm &&
+    yMm <= bounds.maximumYmm
+  );
+}
+
+function rectangleInside(
+  bounds: AxisAlignedRectangle,
+  item: AxisAlignedRectangle,
+): boolean {
+  return (
+    item.minimumXmm >= bounds.minimumXmm &&
+    item.maximumXmm <= bounds.maximumXmm &&
+    item.minimumYmm >= bounds.minimumYmm &&
+    item.maximumYmm <= bounds.maximumYmm
+  );
+}
+
 function parseWorld(value: unknown, index: number): WorldDefinition {
   const item = objectValue(value, `worlds[${index}]`);
   const bounds = rectangle(item.bounds, `worlds[${index}].bounds`);
@@ -201,8 +227,17 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
         `worlds[${index}].obstacles[${obstacleIndex}].type must be block or wall`,
       );
     }
+    const obstacleBounds = rectangle(
+      source,
+      `worlds[${index}].obstacles[${obstacleIndex}]`,
+    );
+    if (!rectangleInside(bounds, obstacleBounds)) {
+      throw new Error(
+        `worlds[${index}].obstacles[${obstacleIndex}] must be inside the world bounds`,
+      );
+    }
     return {
-      ...rectangle(source, `worlds[${index}].obstacles[${obstacleIndex}]`),
+      ...obstacleBounds,
       type: source.type,
       label: optionalLabel(
         source.label,
@@ -217,6 +252,12 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
             ),
     };
   });
+  const featureNames = obstacles.flatMap((obstacle) =>
+    obstacle.feature === undefined ? [] : [obstacle.feature],
+  );
+  if (new Set(featureNames).size !== featureNames.length) {
+    throw new Error(`worlds[${index}] obstacle feature names must be unique`);
+  }
   const markers = arrayValue(
     item.markers ?? [],
     `worlds[${index}].markers`,
@@ -230,35 +271,67 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
         ? undefined
         : identifier(source.name, `${name}.name`);
     if (source.type === "start_line") {
+      const x1Mm = numberValue(source.x1_mm, `${name}.x1_mm`);
+      const y1Mm = numberValue(source.y1_mm, `${name}.y1_mm`);
+      const x2Mm = numberValue(source.x2_mm, `${name}.x2_mm`);
+      const y2Mm = numberValue(source.y2_mm, `${name}.y2_mm`);
+      if (x1Mm === x2Mm && y1Mm === y2Mm) {
+        throw new Error(`${name} must have two different endpoints`);
+      }
+      if (
+        !pointInside(bounds, x1Mm, y1Mm) ||
+        !pointInside(bounds, x2Mm, y2Mm)
+      ) {
+        throw new Error(`${name} must be inside the world bounds`);
+      }
       return {
         type: "start_line",
         name: markerName,
         label,
-        x1Mm: numberValue(source.x1_mm, `${name}.x1_mm`),
-        y1Mm: numberValue(source.y1_mm, `${name}.y1_mm`),
-        x2Mm: numberValue(source.x2_mm, `${name}.x2_mm`),
-        y2Mm: numberValue(source.y2_mm, `${name}.y2_mm`),
+        x1Mm,
+        y1Mm,
+        x2Mm,
+        y2Mm,
       };
     }
     if (source.type === "start_box") {
+      const startBounds = rectangle(source, name);
+      if (!rectangleInside(bounds, startBounds)) {
+        throw new Error(`${name} must be inside the world bounds`);
+      }
       return {
         type: "start_box",
         name: markerName,
         label,
-        ...rectangle(source, name),
+        ...startBounds,
       };
     }
     if (source.type === "waypoint") {
+      const xMm = numberValue(source.x_mm, `${name}.x_mm`);
+      const yMm = numberValue(source.y_mm, `${name}.y_mm`);
+      if (!pointInside(bounds, xMm, yMm)) {
+        throw new Error(`${name} must be inside the world bounds`);
+      }
       return {
         type: "waypoint",
         name: markerName,
         label,
-        xMm: numberValue(source.x_mm, `${name}.x_mm`),
-        yMm: numberValue(source.y_mm, `${name}.y_mm`),
+        xMm,
+        yMm,
+        headingRad:
+          source.heading_rad === undefined
+            ? undefined
+            : numberValue(source.heading_rad, `${name}.heading_rad`),
       };
     }
     throw new Error(`${name}.type is not a supported marker`);
   });
+  const markerNames = markers.flatMap((marker) =>
+    marker.name === undefined ? [] : [marker.name],
+  );
+  if (new Set(markerNames).size !== markerNames.length) {
+    throw new Error(`worlds[${index}] marker names must be unique`);
+  }
   return {
     id: identifier(item.id, `worlds[${index}].id`),
     label: textValue(item.label, `worlds[${index}].label`),

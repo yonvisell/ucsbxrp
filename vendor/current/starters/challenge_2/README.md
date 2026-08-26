@@ -31,7 +31,7 @@ requirements for all four classes.
 | --- | --- |
 | `main.py` | Executes outbound travel, a pose-feedback turn, and return travel; stops in `finally`. |
 | `world.json` | Defines the dimensioned world, initial pose, start box, and turn marker used by the simulator and Monitor. |
-| `challenge.py` | Loads the world, derives the outbound and return distances, and defines the target heading. |
+| `challenge.py` | Loads the world and derives the outbound distance, return distance, and target heading from its named turn waypoint. |
 | `robot_config.py` | Defines robot calibration, navigation speeds, and heading/position tolerances. |
 | `course_setup.py` | Selects each supplied or student class independently and assembles `Robot`. |
 | `component_checks.py` | Tests the four component classes without starting either robot. |

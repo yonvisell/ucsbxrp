@@ -35,7 +35,39 @@ describe("challenge authoring specification", () => {
       "Evidence must contain at least one nonempty item.",
     );
     expect(errors).toContain(
-      "World waypoint-slalom bounds must have positive width and height.",
+      "World JSON: worlds[0].bounds must have positive width and height",
+    );
+  });
+
+  it("rejects unsafe student declarations and malformed world markers", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    spec.student_implementations = [
+      {
+        file: "../controller.py",
+        class_name: "not-a-class",
+        responsibility: "Return a motion command.",
+      },
+    ];
+    const world = (spec.world.worlds as Array<Record<string, unknown>>)[0]!;
+    world.markers = [
+      {
+        type: "start_line",
+        x1_mm: -250,
+        y1_mm: 0,
+        x2_mm: 0,
+        y2_mm: 0,
+      },
+    ];
+
+    const errors = validateChallengeSpec(spec);
+    expect(errors).toContain(
+      "Student implementation 1 needs a safe project-relative Python file.",
+    );
+    expect(errors).toContain(
+      "Student implementation 1 needs a valid Python class name.",
+    );
+    expect(errors).toContain(
+      "World JSON: worlds[0].markers[0] must be inside the world bounds",
     );
   });
 
@@ -49,8 +81,31 @@ describe("challenge authoring specification", () => {
 
   it("allows a complete challenge loader to define different world names", () => {
     const spec = JSON.parse(exampleSource) as ChallengeSpec;
-    spec.source_id = "challenge_2";
+    spec.source_id = "challenge_4";
     spec.files = { ...spec.files, "challenge.py": "ROUTE = ()\n" };
+    expect(validateChallengeSpec(spec)).toEqual([]);
+  });
+
+  it("requires complete source for a newly declared component", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    spec.student_implementations.push({
+      file: "route_analyzer.py",
+      class_name: "RouteAnalyzer",
+      responsibility: "Return a route-error summary from recorded poses.",
+    });
+    expect(validateChallengeSpec(spec)).toContain(
+      "Student implementation 2 needs a complete route_analyzer.py project-file override.",
+    );
+
+    spec.files = {
+      ...spec.files,
+      "route_analyzer.py": "class WrongName:\n    pass\n",
+    };
+    expect(validateChallengeSpec(spec)).toContain(
+      "The route_analyzer.py override must define class RouteAnalyzer.",
+    );
+
+    spec.files["route_analyzer.py"] = "class RouteAnalyzer:\n    pass\n";
     expect(validateChallengeSpec(spec)).toEqual([]);
   });
 

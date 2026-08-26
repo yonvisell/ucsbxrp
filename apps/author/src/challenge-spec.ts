@@ -1,3 +1,5 @@
+import { parseWorldCatalog } from "@ucsb-xrp/simulator";
+
 export interface ChallengeComponentSpec {
   file: string;
   class_name: string;
@@ -25,8 +27,41 @@ export interface ChallengeSpec {
   files?: Record<string, string>;
 }
 
+const sourceComponentFiles: Record<string, ReadonlySet<string>> = {
+  challenge_1: new Set(["sensor_model.py", "wheel_speed_controller.py"]),
+  challenge_2: new Set([
+    "sensor_model.py",
+    "wheel_speed_controller.py",
+    "differential_drive.py",
+    "odometry.py",
+  ]),
+  challenge_3: new Set([
+    "sensor_model.py",
+    "wheel_speed_controller.py",
+    "differential_drive.py",
+    "odometry.py",
+    "navigation_controller.py",
+  ]),
+  challenge_4: new Set([
+    "sensor_model.py",
+    "wheel_speed_controller.py",
+    "differential_drive.py",
+    "odometry.py",
+    "navigation_controller.py",
+    "grid_planner.py",
+  ]),
+  challenge_5: new Set([
+    "sensor_model.py",
+    "wheel_speed_controller.py",
+    "differential_drive.py",
+    "odometry.py",
+    "navigation_controller.py",
+    "grid_planner.py",
+  ]),
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function lineError(value: unknown, label: string): string | null {
@@ -102,6 +137,7 @@ export function validateChallengeSpec(value: unknown): string[] {
   ) {
     errors.push("Select at least one student implementation.");
   } else {
+    const componentKeys = new Set<string>();
     value.student_implementations.forEach((item, index) => {
       if (
         !isRecord(item) ||
@@ -110,7 +146,48 @@ export function validateChallengeSpec(value: unknown): string[] {
         )
       ) {
         errors.push(`Student implementation ${index + 1} is incomplete.`);
+        return;
       }
+      if (
+        !/^(?!\.)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_/-]+\.py$/.test(
+          item.file as string,
+        )
+      ) {
+        errors.push(
+          `Student implementation ${index + 1} needs a safe project-relative Python file.`,
+        );
+      }
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(item.class_name as string)) {
+        errors.push(
+          `Student implementation ${index + 1} needs a valid Python class name.`,
+        );
+      }
+      const file = item.file as string;
+      const className = item.class_name as string;
+      const inheritedFiles =
+        typeof value.source_id === "string"
+          ? sourceComponentFiles[value.source_id]
+          : undefined;
+      const override = isRecord(value.files) ? value.files[file] : undefined;
+      if (!inheritedFiles?.has(file) && typeof override !== "string") {
+        errors.push(
+          `Student implementation ${index + 1} needs a complete ${file} project-file override.`,
+        );
+      }
+      if (
+        typeof override === "string" &&
+        /^[A-Za-z_][A-Za-z0-9_]*$/.test(className) &&
+        !new RegExp(`(^|\\n)\\s*class\\s+${className}\\b`).test(override)
+      ) {
+        errors.push(`The ${file} override must define class ${className}.`);
+      }
+      const key = `${item.file}\0${item.class_name}`;
+      if (componentKeys.has(key)) {
+        errors.push(
+          `Student implementation ${index + 1} duplicates an earlier file and class.`,
+        );
+      }
+      componentKeys.add(key);
     });
   }
   if (
@@ -120,6 +197,7 @@ export function validateChallengeSpec(value: unknown): string[] {
     errors.push("Describe the supplied project files and services.");
   } else {
     const supplied = value.supplied_files;
+    const suppliedNames = new Set<string>();
     supplied.forEach((item, index) => {
       if (
         !isRecord(item) ||
@@ -129,7 +207,13 @@ export function validateChallengeSpec(value: unknown): string[] {
         !item.use.trim()
       ) {
         errors.push(`Supplied item ${index + 1} needs a name and use.`);
+        return;
       }
+      const name = item.name.trim();
+      if (suppliedNames.has(name)) {
+        errors.push(`Supplied item ${index + 1} duplicates ${name}.`);
+      }
+      suppliedNames.add(name);
     });
     if (
       !supplied.some((item) => isRecord(item) && item.name === "world.json")
@@ -138,96 +222,75 @@ export function validateChallengeSpec(value: unknown): string[] {
     }
   }
 
-  if (!isRecord(value.world) || !Array.isArray(value.world.worlds)) {
-    errors.push("World JSON must contain a worlds array.");
+  let parsedWorld: ReturnType<typeof parseWorldCatalog> | null = null;
+  if (!isRecord(value.world)) {
+    errors.push("World JSON must contain one object.");
   } else {
-    const worldValue = value.world;
-    const worlds = worldValue.worlds as unknown[];
-    const ids = new Set<string>();
-    for (const [index, world] of worlds.entries()) {
-      if (!isRecord(world) || typeof world.id !== "string" || !world.id) {
-        errors.push(`World ${index + 1} needs an ID.`);
-        continue;
-      }
-      if (ids.has(world.id)) errors.push(`World ID ${world.id} is duplicated.`);
-      ids.add(world.id);
-      const bounds = world.bounds;
-      if (!isRecord(bounds)) {
-        errors.push(`World ${world.id} needs bounds.`);
-        continue;
-      }
-      const minimumX = Number(bounds.minimum_x_mm);
-      const minimumY = Number(bounds.minimum_y_mm);
-      const maximumX = Number(bounds.maximum_x_mm);
-      const maximumY = Number(bounds.maximum_y_mm);
+    try {
+      parsedWorld = parseWorldCatalog(JSON.stringify(value.world));
+    } catch (error) {
+      errors.push(
+        `World JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  if (parsedWorld !== null) {
+    const selected = parsedWorld.worlds.find(
+      (world) => world.id === parsedWorld?.defaultWorldId,
+    );
+    if (selected) {
+      const waypointNames = new Set(
+        selected.markers.flatMap((marker) =>
+          marker.type === "waypoint" && marker.name ? [marker.name] : [],
+        ),
+      );
+      const replacesChallengeLoader =
+        isRecord(value.files) &&
+        typeof value.files["challenge.py"] === "string";
+      const requiredWaypoint: Record<string, string> = {
+        challenge_1: "finish",
+        challenge_2: "turn",
+        challenge_4: "destination",
+        challenge_5: "destination",
+      };
+      const required =
+        typeof value.source_id === "string"
+          ? requiredWaypoint[value.source_id]
+          : undefined;
       if (
-        ![minimumX, minimumY, maximumX, maximumY].every(Number.isFinite) ||
-        maximumX <= minimumX ||
-        maximumY <= minimumY
+        !replacesChallengeLoader &&
+        required &&
+        !waypointNames.has(required)
       ) {
         errors.push(
-          `World ${world.id} bounds must have positive width and height.`,
+          `${value.source_id} source requires a waypoint named ${required}.`,
         );
       }
-    }
-    if (
-      typeof worldValue.default_world !== "string" ||
-      !ids.has(worldValue.default_world)
-    ) {
-      errors.push("default_world must name one defined world.");
-    } else {
-      const selected = worlds.find(
-        (world) => isRecord(world) && world.id === worldValue.default_world,
-      );
-      if (isRecord(selected)) {
-        const markers = Array.isArray(selected.markers) ? selected.markers : [];
-        const waypointNames = new Set(
-          markers
-            .filter((marker) => isRecord(marker) && marker.type === "waypoint")
-            .map((marker) => (marker as Record<string, unknown>).name),
+      if (!replacesChallengeLoader && value.source_id === "challenge_2") {
+        const turn = selected.markers.find(
+          (marker) => marker.type === "waypoint" && marker.name === "turn",
         );
-        const replacesChallengeLoader =
-          isRecord(value.files) &&
-          typeof value.files["challenge.py"] === "string";
-        const requiredWaypoint: Record<string, string> = {
-          challenge_1: "finish",
-          challenge_2: "turn",
-          challenge_4: "destination",
-          challenge_5: "destination",
-        };
-        const required =
-          typeof value.source_id === "string"
-            ? requiredWaypoint[value.source_id]
-            : undefined;
-        if (
-          !replacesChallengeLoader &&
-          required &&
-          !waypointNames.has(required)
-        ) {
+        if (turn?.type === "waypoint" && turn.headingRad === undefined) {
           errors.push(
-            `${value.source_id} source requires a waypoint named ${required}.`,
+            "challenge_2 source requires the turn waypoint to define heading_rad.",
           );
         }
-        if (
-          !replacesChallengeLoader &&
-          value.source_id === "challenge_3" &&
-          waypointNames.size === 0
-        ) {
-          errors.push("challenge_3 source requires at least one waypoint.");
-        }
-        if (!replacesChallengeLoader && value.source_id === "challenge_5") {
-          const obstacles = Array.isArray(selected.obstacles)
-            ? selected.obstacles
-            : [];
-          const hasGate = obstacles.some(
-            (item) => isRecord(item) && item.feature === "center_gate",
-          );
-          if (!hasGate) {
-            errors.push(
-              "challenge_5 source requires an obstacle feature named center_gate.",
-            );
-          }
-        }
+      }
+      if (
+        !replacesChallengeLoader &&
+        value.source_id === "challenge_3" &&
+        waypointNames.size === 0
+      ) {
+        errors.push("challenge_3 source requires at least one waypoint.");
+      }
+      if (
+        !replacesChallengeLoader &&
+        value.source_id === "challenge_5" &&
+        !selected.obstacles.some((item) => item.feature === "center_gate")
+      ) {
+        errors.push(
+          "challenge_5 source requires an obstacle feature named center_gate.",
+        );
       }
     }
   }
@@ -244,7 +307,7 @@ export function validateChallengeSpec(value: unknown): string[] {
           path.startsWith("/") ||
           path.includes("\\") ||
           path.includes(":") ||
-          path.split("/").includes("..") ||
+          path.split("/").some((part) => part === "." || part === "..") ||
           !/\.(json|md|py|txt)$/.test(path) ||
           typeof contents !== "string"
         ) {

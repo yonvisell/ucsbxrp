@@ -509,6 +509,11 @@ export function AuthorApp() {
               >
                 Add another component
               </button>
+              <FieldHelp>
+                A new component also needs complete file overrides for its
+                module, course_setup.py integration, and hardware-free examples
+                in component_checks.py.
+              </FieldHelp>
             </div>
           </fieldset>
           <div className="field-grid text-grid">
@@ -572,8 +577,9 @@ export function AuthorApp() {
               onChange={(event) => setWorldSource(event.target.value)}
             />
             <FieldHelp>
-              One JSON object defines bounds, initial pose, obstacles, and
-              visual markers. Waypoint marker order defines the route returned
+              Bounds are the arena walls. Obstacles are blocks or walls; markers
+              are start lines, start boxes, or waypoints. Every item must be
+              inside the bounds, and waypoint order defines the route returned
               by world.waypoints().
             </FieldHelp>
           </label>
@@ -586,6 +592,7 @@ export function AuthorApp() {
               draft creation.
             </p>
             <textarea
+              aria-label="Project file overrides as JSON"
               className="code-input large-code-input"
               rows={14}
               spellCheck={false}
@@ -623,7 +630,17 @@ export function AuthorApp() {
             )}
           </div>
           <div className="create-row">
-            <button className="primary-button" type="button" onClick={download}>
+            <button
+              className="primary-button"
+              disabled={currentSpec.errors.length > 0}
+              title={
+                currentSpec.errors.length > 0
+                  ? "Resolve the listed specification errors before downloading"
+                  : "Download this checked authoring specification"
+              }
+              type="button"
+              onClick={download}
+            >
               Download checked specification
             </button>
             <button type="button" onClick={copyCommand}>

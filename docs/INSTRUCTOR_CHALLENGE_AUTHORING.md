@@ -53,7 +53,11 @@ Describe each selected responsibility in terms of inputs, required result, and
 state the implementation must maintain. Do not prescribe one algorithm unless
 the algorithm itself is the learning objective. **Add another component**
 supports a new file and class when a challenge introduces a responsibility not
-covered by the existing six course components.
+covered by the existing six course components. For a genuinely new component,
+the `files` overrides must also supply that Python module and coordinate its
+factory or selection in `course_setup.py` plus its hardware-free examples in
+`component_checks.py`. The repository check rejects a declaration whose file
+or class is absent.
 
 Evidence items should name observable quantities and units. Suitable evidence
 includes a saved path, final pose, wheel-speed plot, range samples, planned grid
@@ -71,6 +75,34 @@ names.
 markers. Distances use millimeters and headings use radians. The simulator and
 Monitor read the same file that Python accesses through `load_world()`.
 
+The world `bounds` are the four arena walls. Every initial pose, obstacle, and
+marker must lie within them. Obstacles are axis-aligned `block` or `wall`
+rectangles. Markers are a `start_line`, `start_box`, or `waypoint`; a waypoint
+may add `heading_rad` when arrival orientation is part of the task. Marker
+names and conditional obstacle `feature` names must be unique within a world.
+The exact supported shapes are ordinary JSON:
+
+```json
+{
+  "bounds": {
+    "minimum_x_mm": 0,
+    "minimum_y_mm": 0,
+    "maximum_x_mm": 1200,
+    "maximum_y_mm": 800
+  },
+  "initial_pose": { "x_mm": 100, "y_mm": 100, "heading_rad": 0 },
+  "obstacles": [
+    { "type": "wall", "minimum_x_mm": 400, "minimum_y_mm": 0, "maximum_x_mm": 450, "maximum_y_mm": 300 },
+    { "type": "block", "feature": "gate", "minimum_x_mm": 600, "minimum_y_mm": 300, "maximum_x_mm": 700, "maximum_y_mm": 400 }
+  ],
+  "markers": [
+    { "type": "start_line", "x1_mm": 50, "y1_mm": 50, "x2_mm": 50, "y2_mm": 150 },
+    { "type": "start_box", "minimum_x_mm": 50, "minimum_y_mm": 50, "maximum_x_mm": 150, "maximum_y_mm": 150 },
+    { "type": "waypoint", "name": "finish", "x_mm": 1100, "y_mm": 700, "heading_rad": 0 }
+  ]
+}
+```
+
 The optional `files` object maps project-relative names to complete replacement
 text. Leave it empty to retain the copied working source. Use it when a new
 mission needs a different `main.py`, task values, or component checks. The tool
@@ -79,11 +111,14 @@ Python syntax errors.
 
 ### Validate and download
 
-The wizard checks required teaching fields, component descriptions, world IDs
-and bounds, the default world, and file-override paths. Download the JSON only
-after the page reports that the specification is complete. Keep it with the
-generated project; it is the concise source for future review or regeneration.
-Use **Open saved specification** to resume editing a downloaded specification.
+The wizard checks required teaching fields, component descriptions, unique
+world and geometry names, arena containment, the default world, and
+file-override paths. The repository command additionally verifies that every
+student file exists and defines the class named in the README. Download the
+JSON only after the page reports that the specification is complete. Keep it
+with the generated project; it is the concise source for future review or
+regeneration. Use **Open saved specification** to resume editing a downloaded
+specification.
 
 ## 2. Create the unpublished project
 

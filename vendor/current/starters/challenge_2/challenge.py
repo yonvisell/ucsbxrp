@@ -1,12 +1,11 @@
-"""Values that define Challenge 2: Turn and Return."""
-
-from math import pi
+"""Values derived from this project's Turn and Return world."""
 
 from ucsb_xrp import distance_to_goal, load_world
 
 
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
-OUTBOUND_DISTANCE_MM = distance_to_goal(INITIAL_POSE, WORLD.waypoint("turn"))
-TURN_HEADING_RAD = pi
+TURN_GOAL = WORLD.waypoint("turn")
+OUTBOUND_DISTANCE_MM = distance_to_goal(INITIAL_POSE, TURN_GOAL)
+TURN_HEADING_RAD = TURN_GOAL.heading_rad
 RETURN_DISTANCE_MM = OUTBOUND_DISTANCE_MM

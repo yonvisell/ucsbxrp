@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { XrpSimulator, simulatorConfigForScenario } from "./index";
+import {
+  XrpSimulator,
+  parseWorldCatalog,
+  simulatorConfigForScenario,
+} from "./index";
 
 describe("deterministic XRP planar simulator", () => {
   it("repeats exactly for the same fixed-step input", () => {
@@ -145,5 +149,101 @@ describe("deterministic XRP planar simulator", () => {
 
     expect(simulator.state.rangeMm).toBeCloseTo(280, 9);
     expect(simulator.config.obstacles).toHaveLength(1);
+  });
+});
+
+describe("project world configuration", () => {
+  const worldSource = (markers: unknown[], obstacles: unknown[] = []): string =>
+    JSON.stringify({
+      default_world: "lab",
+      worlds: [
+        {
+          id: "lab",
+          label: "Lab",
+          bounds: {
+            minimum_x_mm: 0,
+            minimum_y_mm: 0,
+            maximum_x_mm: 800,
+            maximum_y_mm: 600,
+          },
+          initial_pose: { x_mm: 100, y_mm: 100, heading_rad: 0 },
+          obstacles,
+          markers,
+        },
+      ],
+    });
+
+  it("retains an optional final heading on a named waypoint", () => {
+    const catalog = parseWorldCatalog(
+      worldSource([
+        {
+          type: "waypoint",
+          name: "finish",
+          x_mm: 700,
+          y_mm: 500,
+          heading_rad: 1.2,
+        },
+      ]),
+    );
+
+    expect(catalog.worlds[0]?.markers[0]).toEqual({
+      type: "waypoint",
+      name: "finish",
+      label: undefined,
+      xMm: 700,
+      yMm: 500,
+      headingRad: 1.2,
+    });
+  });
+
+  it("rejects ambiguous names and geometry outside the arena walls", () => {
+    expect(() =>
+      parseWorldCatalog(
+        worldSource([
+          { type: "waypoint", name: "goal", x_mm: 100, y_mm: 100 },
+          { type: "waypoint", name: "goal", x_mm: 200, y_mm: 100 },
+        ]),
+      ),
+    ).toThrow("marker names must be unique");
+
+    expect(() =>
+      parseWorldCatalog(
+        worldSource([
+          {
+            type: "start_line",
+            x1_mm: -1,
+            y1_mm: 100,
+            x2_mm: 0,
+            y2_mm: 200,
+          },
+        ]),
+      ),
+    ).toThrow("must be inside the world bounds");
+
+    expect(() =>
+      parseWorldCatalog(
+        worldSource(
+          [],
+          [
+            {
+              type: "wall",
+              feature: "gate",
+              minimum_x_mm: 100,
+              minimum_y_mm: 100,
+              maximum_x_mm: 200,
+              maximum_y_mm: 200,
+            },
+            {
+              type: "block",
+              feature: "gate",
+              minimum_x_mm: 300,
+              minimum_y_mm: 100,
+              maximum_x_mm: 400,
+              maximum_y_mm: 200,
+            },
+          ],
+        ),
+      ),
+    ).toThrow("obstacle feature names must be unique");
   });
 });

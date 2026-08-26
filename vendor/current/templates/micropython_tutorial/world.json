@@ -32,6 +32,7 @@
         },
         {
           "type": "waypoint",
+          "name": "range_checkpoint",
           "x_mm": 300,
           "y_mm": 0,
           "label": "Range checkpoint"

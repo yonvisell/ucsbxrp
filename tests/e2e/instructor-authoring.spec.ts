@@ -98,6 +98,9 @@ test("wizard validates and downloads the complete curriculum example", async ({
   await expect(
     page.getByText("Student implementation 2 is incomplete."),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Download checked specification" }),
+  ).toBeDisabled();
   await page.getByLabel("Additional component 1 file").fill("localizer.py");
   await page.getByLabel("Additional component 1 class").fill("Localizer");
   await page
@@ -105,12 +108,30 @@ test("wizard validates and downloads the complete curriculum example", async ({
     .fill("Estimate the robot pose from the supplied landmark observations.");
   await expect(
     page.getByText(
+      "Student implementation 2 needs a complete localizer.py project-file override.",
+    ),
+  ).toBeVisible();
+  await page.getByText("Optional project-file overrides").click();
+  const overrideEditor = page.getByLabel("Project file overrides as JSON");
+  const originalOverrideSource = await overrideEditor.inputValue();
+  const overrides = JSON.parse(originalOverrideSource) as Record<
+    string,
+    string
+  >;
+  overrides["localizer.py"] = "class Localizer:\n    pass\n";
+  await overrideEditor.fill(JSON.stringify(overrides, null, 2));
+  await expect(
+    page.getByText(
       "Specification complete. The repository performs the final file checks.",
     ),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Download checked specification" }),
+  ).toBeEnabled();
   await page
     .getByRole("button", { name: "Remove additional component 1" })
     .click();
+  await overrideEditor.fill(originalOverrideSource);
 
   const downloadEvent = page.waitForEvent("download");
   await page
@@ -126,6 +147,9 @@ test("wizard validates and downloads the complete curriculum example", async ({
   await expect(
     page.getByText("Title must be one nonempty line."),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Download checked specification" }),
+  ).toBeDisabled();
 
   await page
     .getByRole("button", { name: "Load working slalom example" })
