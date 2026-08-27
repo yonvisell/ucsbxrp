@@ -270,6 +270,22 @@ class UtilityContractTests(unittest.TestCase):
             world.arena_map(blocked_features=("gate",)).is_free(525, 250)
         )
 
+    def test_project_world_keeps_visual_markers_out_of_waypoint_order(self):
+        world = load_world(
+            str(REPOSITORY_ROOT / "tests/fixtures/world/all-geometry.json")
+        )
+
+        self.assertEqual(
+            world.waypoints(),
+            (
+                NavigationGoal(500, 700, math.pi / 2),
+                NavigationGoal(1200, 300),
+            ),
+        )
+        self.assertEqual(
+            world.waypoint("second_goal"), NavigationGoal(1200, 300)
+        )
+
 
 class StudentInterfaceContractTests(unittest.TestCase):
     def test_challenge_one_protocols_are_narrow_and_unimplemented(self):

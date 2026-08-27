@@ -1640,9 +1640,10 @@ export function ReferenceApp() {
             <p>
               Each project includes a <code>world.json</code> file. It defines
               one or more world choices, world bounds, initial pose, rectangular
-              obstacles, named changeable features, and visual markers such as
-              start lines, start boxes, and waypoints. The IDE transfers this
-              file with the project; the Monitor uses the same definition.
+              obstacles, named changeable features, and visual markers: start or
+              finish lines and boxes, general labeled points, and waypoints.
+              Only waypoint entries become navigation goals. The IDE transfers
+              this file with the project; the Monitor uses the same definition.
             </p>
             <FunctionReference
               signature={

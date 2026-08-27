@@ -57,9 +57,13 @@ remains inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
 Each runnable project may contain `world.json`. It is a bounded declarative
 catalog of named worlds: millimeter bounds, initial pose, rectangular blocks or
-walls, start lines or boxes, and waypoints. Validation parses this file before a
-run. The selected definition configures the simulator, Monitor, and replay
-export; `ucsb_xrp.load_world()` exposes the same geometry to project Python.
+walls, start/finish lines or boxes, general visual markers, and waypoints.
+Validation parses this file before a run. Start, finish, and general markers are
+display-only; only `waypoint` entries enter the ordered navigation goals returned
+by `ProjectWorld`. The selected definition configures the simulator, Monitor,
+and replay export; `ucsb_xrp.load_world()` exposes the same geometry to project
+Python. The browser parser retains unrecognized marker properties without
+interpreting them so a later editor can preserve compatible extension data.
 This keeps the simulated environment, visible course figure, and challenge map
 from drifting into separate copies. The prepared-project manifest retains the
 world text for the current controller boot so Monitor can recover it from a

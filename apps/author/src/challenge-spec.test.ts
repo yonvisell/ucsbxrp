@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
+import allGeometryWorldSource from "../../../tests/fixtures/world/all-geometry.json?raw";
 import {
   authoringCommand,
   linesFromText,
@@ -18,6 +19,20 @@ describe("challenge authoring specification", () => {
     expect(authoringCommand(specificationFilename(spec))).toBe(
       "python3 scripts/challenge_authoring.py create --spec challenge_6.challenge.json",
     );
+  });
+
+  it("accepts all display markers without treating them as waypoints", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    spec.world = JSON.parse(allGeometryWorldSource) as ChallengeSpec["world"];
+
+    expect(validateChallengeSpec(spec)).toEqual([]);
+    const markers = (
+      spec.world.worlds as Array<{ markers: Array<Record<string, unknown>> }>
+    )[0]!.markers;
+    expect(markers.filter((marker) => marker.type === "waypoint")).toHaveLength(
+      2,
+    );
+    expect(markers[3]!.instructor_note).toBe("Retained for a later editor");
   });
 
   it("reports missing teaching evidence and malformed world bounds", () => {

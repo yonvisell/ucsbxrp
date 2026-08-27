@@ -1,10 +1,18 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
   XrpSimulator,
   parseWorldCatalog,
   simulatorConfigForScenario,
+  simulatorConfigForWorld,
 } from "./index";
+
+const allGeometryWorldSource = readFileSync(
+  new URL("../../../tests/fixtures/world/all-geometry.json", import.meta.url),
+  "utf8",
+);
 
 describe("deterministic XRP planar simulator", () => {
   it("repeats exactly for the same fixed-step input", () => {
@@ -194,6 +202,37 @@ describe("project world configuration", () => {
       yMm: 500,
       headingRad: 1.2,
     });
+  });
+
+  it("accepts every display marker without changing navigation or physics", () => {
+    const catalog = parseWorldCatalog(allGeometryWorldSource);
+    const world = catalog.worlds[0]!;
+
+    expect(world.markers.map((marker) => marker.type)).toEqual([
+      "start_line",
+      "start_box",
+      "waypoint",
+      "marker",
+      "finish_line",
+      "waypoint",
+      "finish_box",
+    ]);
+    expect(
+      world.markers
+        .filter((marker) => marker.type === "waypoint")
+        .map((marker) => marker.name),
+    ).toEqual(["first_goal", "second_goal"]);
+    expect(world.markers[3]?.additionalProperties).toEqual({
+      instructor_note: "Retained for a later editor",
+    });
+
+    const simulator = new XrpSimulator({
+      ...simulatorConfigForWorld(world),
+      rangeSensorOffsetMm: 0,
+    });
+    simulator.reset(world.initialPose);
+    expect(simulator.config.obstacles).toEqual(world.obstacles);
+    expect(simulator.state.rangeMm).toBeCloseTo(520, 9);
   });
 
   it("rejects ambiguous names and geometry outside the arena walls", () => {

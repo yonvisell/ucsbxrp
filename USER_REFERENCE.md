@@ -43,7 +43,7 @@ period. Always put `robot.stop()` in `finally`.
 | --- | --- |
 | `main.py` | Constructs services, starts the robot, sequences the task, and ensures that the motors stop when the program exits. |
 | `challenge.py` | Task-specific distances, thresholds, routes, and completion conditions. |
-| `world.json` | World choices, bounds, initial pose, rectangular obstacles, start markers, and waypoints. |
+| `world.json` | World choices, bounds, initial pose, rectangular obstacles, task markers, and waypoints. |
 | `robot_config.py` | Measured robot geometry, signs, calibration, controller gains, and reusable navigation settings. |
 | `course_setup.py` | Assemble the robot and select each supplied or student component with a `USE_STUDENT_*` flag. |
 | `sensor_model.py` | Student `SensorModel` implementation. |
@@ -376,8 +376,9 @@ A `ProjectWorld` provides:
 
 The JSON file may define multiple world choices. Each world contains
 millimetre bounds, an initial pose, rectangular obstacles, named changeable
-features, and visual markers such as start lines, start boxes, and waypoints.
-The Monitor selector and project code use the same file.
+features, and visual markers: start or finish lines and boxes, general labeled
+points, and waypoints. Only `waypoint` entries are returned by `.waypoint()` and
+`.waypoints()`. The Monitor selector and project code use the same file.
 
 ### Geometry and occupancy
 

@@ -11,29 +11,43 @@ export interface WorldObstacle extends AxisAlignedRectangle {
   feature?: string;
 }
 
+interface WorldMarkerBase {
+  name?: string;
+  label?: string;
+  /** Unrecognized JSON fields retained for compatible later editing tools. */
+  additionalProperties?: Readonly<Record<string, unknown>>;
+}
+
+type WorldLineMarker<Type extends "start_line" | "finish_line"> =
+  WorldMarkerBase & {
+    type: Type;
+    x1Mm: number;
+    y1Mm: number;
+    x2Mm: number;
+    y2Mm: number;
+  };
+
+type WorldBoxMarker<Type extends "start_box" | "finish_box"> = WorldMarkerBase &
+  AxisAlignedRectangle & {
+    type: Type;
+  };
+
 export type WorldMarker =
-  | {
-      type: "start_line";
-      name?: string;
-      label?: string;
-      x1Mm: number;
-      y1Mm: number;
-      x2Mm: number;
-      y2Mm: number;
-    }
-  | ({
-      type: "start_box";
-      name?: string;
-      label?: string;
-    } & AxisAlignedRectangle)
-  | {
+  | WorldLineMarker<"start_line">
+  | WorldLineMarker<"finish_line">
+  | WorldBoxMarker<"start_box">
+  | WorldBoxMarker<"finish_box">
+  | (WorldMarkerBase & {
       type: "waypoint";
-      name?: string;
-      label?: string;
       xMm: number;
       yMm: number;
       headingRad?: number;
-    };
+    })
+  | (WorldMarkerBase & {
+      type: "marker";
+      xMm: number;
+      yMm: number;
+    });
 
 export interface WorldDefinition {
   id: string;
@@ -146,6 +160,19 @@ function identifier(value: unknown, name: string): string {
     );
   }
   return text;
+}
+
+function additionalProperties(
+  source: Record<string, unknown>,
+  knownNames: readonly string[],
+): Pick<WorldMarkerBase, "additionalProperties"> {
+  const known = new Set(knownNames);
+  const retained = Object.fromEntries(
+    Object.entries(source).filter(([key]) => !known.has(key)),
+  );
+  return Object.keys(retained).length === 0
+    ? {}
+    : { additionalProperties: retained };
 }
 
 function rectangle(value: unknown, name: string): AxisAlignedRectangle {
@@ -270,7 +297,7 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
       source.name === undefined
         ? undefined
         : identifier(source.name, `${name}.name`);
-    if (source.type === "start_line") {
+    if (source.type === "start_line" || source.type === "finish_line") {
       const x1Mm = numberValue(source.x1_mm, `${name}.x1_mm`);
       const y1Mm = numberValue(source.y1_mm, `${name}.y1_mm`);
       const x2Mm = numberValue(source.x2_mm, `${name}.x2_mm`);
@@ -285,25 +312,43 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
         throw new Error(`${name} must be inside the world bounds`);
       }
       return {
-        type: "start_line",
+        type: source.type,
         name: markerName,
         label,
         x1Mm,
         y1Mm,
         x2Mm,
         y2Mm,
+        ...additionalProperties(source, [
+          "type",
+          "name",
+          "label",
+          "x1_mm",
+          "y1_mm",
+          "x2_mm",
+          "y2_mm",
+        ]),
       };
     }
-    if (source.type === "start_box") {
+    if (source.type === "start_box" || source.type === "finish_box") {
       const startBounds = rectangle(source, name);
       if (!rectangleInside(bounds, startBounds)) {
         throw new Error(`${name} must be inside the world bounds`);
       }
       return {
-        type: "start_box",
+        type: source.type,
         name: markerName,
         label,
         ...startBounds,
+        ...additionalProperties(source, [
+          "type",
+          "name",
+          "label",
+          "minimum_x_mm",
+          "minimum_y_mm",
+          "maximum_x_mm",
+          "maximum_y_mm",
+        ]),
       };
     }
     if (source.type === "waypoint") {
@@ -322,6 +367,35 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
           source.heading_rad === undefined
             ? undefined
             : numberValue(source.heading_rad, `${name}.heading_rad`),
+        ...additionalProperties(source, [
+          "type",
+          "name",
+          "label",
+          "x_mm",
+          "y_mm",
+          "heading_rad",
+        ]),
+      };
+    }
+    if (source.type === "marker") {
+      const xMm = numberValue(source.x_mm, `${name}.x_mm`);
+      const yMm = numberValue(source.y_mm, `${name}.y_mm`);
+      if (!pointInside(bounds, xMm, yMm)) {
+        throw new Error(`${name} must be inside the world bounds`);
+      }
+      return {
+        type: "marker",
+        name: markerName,
+        label,
+        xMm,
+        yMm,
+        ...additionalProperties(source, [
+          "type",
+          "name",
+          "label",
+          "x_mm",
+          "y_mm",
+        ]),
       };
     }
     throw new Error(`${name}.type is not a supported marker`);

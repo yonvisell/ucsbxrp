@@ -701,10 +701,11 @@ export function AuthorApp() {
               onChange={(event) => setWorldSource(event.target.value)}
             />
             <FieldHelp>
-              Bounds are the arena walls. Obstacles are blocks or walls; markers
-              are start lines, start boxes, or waypoints. Every item must be
-              inside the bounds, and waypoint order defines the route returned
-              by world.waypoints().
+              Bounds are the arena walls. Obstacles are blocks or walls. Markers
+              may be start or finish lines and boxes, general labeled points, or
+              waypoints. Every item must be inside the bounds. Only waypoints
+              enter the route returned by world.waypoints(), in their file
+              order.
             </FieldHelp>
           </label>
           <details>

@@ -85,9 +85,13 @@ Monitor read the same file that Python accesses through `load_world()`.
 
 The world `bounds` are the four arena walls. Every initial pose, obstacle, and
 marker must lie within them. Obstacles are axis-aligned `block` or `wall`
-rectangles. Markers are a `start_line`, `start_box`, or `waypoint`; a waypoint
-may add `heading_rad` when arrival orientation is part of the task. Marker
-names and conditional obstacle `feature` names must be unique within a world.
+rectangles. `start_line`, `start_box`, `finish_line`, and `finish_box` identify
+visible task regions. `marker` adds a general labeled point. These five marker
+types do not become navigation goals. A `waypoint` is both visible and available
+to project Python through `ProjectWorld.waypoint()` and
+`ProjectWorld.waypoints()`; it may add `heading_rad` when arrival orientation is
+part of the task. Waypoints retain their file order. Marker names and
+conditional obstacle `feature` names must be unique within a world.
 The exact supported shapes are ordinary JSON:
 
 ```json
@@ -106,7 +110,10 @@ The exact supported shapes are ordinary JSON:
   "markers": [
     { "type": "start_line", "x1_mm": 50, "y1_mm": 50, "x2_mm": 50, "y2_mm": 150 },
     { "type": "start_box", "minimum_x_mm": 50, "minimum_y_mm": 50, "maximum_x_mm": 150, "maximum_y_mm": 150 },
-    { "type": "waypoint", "name": "finish", "x_mm": 1100, "y_mm": 700, "heading_rad": 0 }
+    { "type": "waypoint", "name": "turn", "label": "Turn", "x_mm": 700, "y_mm": 500, "heading_rad": 1.57 },
+    { "type": "marker", "name": "inspect", "label": "Inspect", "x_mm": 900, "y_mm": 500 },
+    { "type": "finish_line", "x1_mm": 1100, "y1_mm": 600, "x2_mm": 1100, "y2_mm": 750 },
+    { "type": "finish_box", "label": "Finish", "minimum_x_mm": 1100, "minimum_y_mm": 600, "maximum_x_mm": 1180, "maximum_y_mm": 750 }
   ]
 }
 ```

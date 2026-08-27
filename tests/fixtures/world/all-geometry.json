@@ -1,0 +1,100 @@
+{
+  "default_world": "all-geometry",
+  "worlds": [
+    {
+      "id": "all-geometry",
+      "label": "All world geometry",
+      "bounds": {
+        "minimum_x_mm": 0,
+        "minimum_y_mm": 0,
+        "maximum_x_mm": 1600,
+        "maximum_y_mm": 1000
+      },
+      "initial_pose": {
+        "x_mm": 180,
+        "y_mm": 180,
+        "heading_rad": 0
+      },
+      "obstacles": [
+        {
+          "type": "wall",
+          "label": "Divider",
+          "minimum_x_mm": 700,
+          "minimum_y_mm": 0,
+          "maximum_x_mm": 740,
+          "maximum_y_mm": 440
+        },
+        {
+          "type": "block",
+          "feature": "movable_gate",
+          "label": "Gate",
+          "minimum_x_mm": 980,
+          "minimum_y_mm": 380,
+          "maximum_x_mm": 1080,
+          "maximum_y_mm": 520
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_line",
+          "name": "start_gate",
+          "label": "Start line",
+          "x1_mm": 280,
+          "y1_mm": 80,
+          "x2_mm": 280,
+          "y2_mm": 280
+        },
+        {
+          "type": "start_box",
+          "name": "start_area",
+          "label": "Start box",
+          "minimum_x_mm": 80,
+          "minimum_y_mm": 80,
+          "maximum_x_mm": 280,
+          "maximum_y_mm": 280
+        },
+        {
+          "type": "waypoint",
+          "name": "first_goal",
+          "label": "Goal 1",
+          "x_mm": 500,
+          "y_mm": 700,
+          "heading_rad": 1.5707963267948966
+        },
+        {
+          "type": "marker",
+          "name": "inspection_point",
+          "label": "Inspect",
+          "x_mm": 850,
+          "y_mm": 700,
+          "instructor_note": "Retained for a later editor"
+        },
+        {
+          "type": "finish_line",
+          "name": "finish_gate",
+          "label": "Finish line",
+          "x1_mm": 1320,
+          "y1_mm": 620,
+          "x2_mm": 1320,
+          "y2_mm": 880
+        },
+        {
+          "type": "waypoint",
+          "name": "second_goal",
+          "label": "Goal 2",
+          "x_mm": 1200,
+          "y_mm": 300
+        },
+        {
+          "type": "finish_box",
+          "name": "finish_area",
+          "label": "Finish box",
+          "minimum_x_mm": 1320,
+          "minimum_y_mm": 620,
+          "maximum_x_mm": 1520,
+          "maximum_y_mm": 880
+        }
+      ]
+    }
+  ]
+}

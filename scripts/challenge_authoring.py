@@ -597,6 +597,10 @@ def create_draft(root, source_id, project_id, title, summary):
 
 
 _WORLD_IDENTIFIER = re.compile(r"[a-z][a-z0-9_-]*\Z")
+_WORLD_LINE_MARKERS = ("start_line", "finish_line")
+_WORLD_BOX_MARKERS = ("start_box", "finish_box")
+_WORLD_POINT_MARKERS = ("waypoint", "marker")
+_WORLD_MARKERS = _WORLD_LINE_MARKERS + _WORLD_BOX_MARKERS + _WORLD_POINT_MARKERS
 
 
 def _valid_number(value):
@@ -763,7 +767,7 @@ def _world_errors(world, prefix):
                 errors.append(marker_name + " must be an object")
                 continue
             marker_type = marker.get("type")
-            if marker_type not in ("start_line", "start_box", "waypoint"):
+            if marker_type not in _WORLD_MARKERS:
                 errors.append(marker_name + ".type is not a supported marker")
                 continue
             label_error = _optional_label_error(
@@ -781,13 +785,13 @@ def _world_errors(world, prefix):
                 else:
                     marker_names.append(marker_identifier)
 
-            if marker_type == "start_box":
+            if marker_type in _WORLD_BOX_MARKERS:
                 marker_bounds = _rectangle_values(marker, marker_name, errors)
                 if marker_bounds is not None and not _inside_rectangle(
                     bounds, marker_bounds
                 ):
                     errors.append(marker_name + " must be inside the arena walls")
-            elif marker_type == "start_line":
+            elif marker_type in _WORLD_LINE_MARKERS:
                 coordinates = (
                     marker.get("x1_mm"),
                     marker.get("y1_mm"),
@@ -811,9 +815,12 @@ def _world_errors(world, prefix):
                     errors.append(marker_name + " must define finite x_mm and y_mm")
                 elif not _inside_point(bounds, float(x_mm), float(y_mm)):
                     errors.append(marker_name + " must be inside the arena walls")
-                heading = marker.get("heading_rad")
-                if heading is not None and not _valid_number(heading):
-                    errors.append(marker_name + ".heading_rad must be a finite number")
+                if marker_type == "waypoint":
+                    heading = marker.get("heading_rad")
+                    if heading is not None and not _valid_number(heading):
+                        errors.append(
+                            marker_name + ".heading_rad must be a finite number"
+                        )
         if len(set(marker_names)) != len(marker_names):
             errors.append(name + " marker names must be unique")
 

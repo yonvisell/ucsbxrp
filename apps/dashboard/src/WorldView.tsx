@@ -8,6 +8,10 @@ import {
 } from "@ucsb-xrp/target";
 
 import type { MonitorAnnotation } from "./monitor-export";
+import {
+  worldMarkerLabelPosition,
+  worldMarkerVisualStyle,
+} from "./world-marker-visual";
 
 interface WorldViewProps {
   annotations?: readonly MonitorAnnotation[];
@@ -46,7 +50,11 @@ function addSegments(
   scene.add(line);
 }
 
-function textSprite(text: string, widthMm = 176): THREE.Sprite {
+function textSprite(
+  text: string,
+  widthMm = 176,
+  color = "#34444d",
+): THREE.Sprite {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 64;
@@ -61,7 +69,7 @@ function textSprite(text: string, widthMm = 176): THREE.Sprite {
   context.lineWidth = 7;
   context.strokeStyle = "rgba(255, 255, 255, 0.96)";
   context.strokeText(text, canvas.width / 2, canvas.height / 2);
-  context.fillStyle = "#34444d";
+  context.fillStyle = color;
   context.fillText(text, canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -398,22 +406,34 @@ export function WorldView({
         1,
       );
       scene.add(mesh);
+      if (obstacle.label) {
+        const label = textSprite(
+          obstacle.label,
+          Math.min(360, Math.max(150, obstacle.label.length * 11)),
+        );
+        label.position.set(mesh.position.x, mesh.position.y, 18);
+        scene.add(label);
+      }
     }
 
     for (const marker of world.markers) {
-      if (marker.type === "waypoint") {
+      const style = worldMarkerVisualStyle(marker);
+      if (marker.type === "waypoint" || marker.type === "marker") {
         const ring = new THREE.Mesh(
-          new THREE.RingGeometry(18, 23, 28),
+          marker.type === "waypoint"
+            ? new THREE.RingGeometry(18, 23, 28)
+            : new THREE.RingGeometry(12, 18, 4),
           new THREE.MeshBasicMaterial({
-            color: "#315f85",
+            color: style.color,
             side: THREE.DoubleSide,
           }),
         );
         ring.position.set(marker.xMm, marker.yMm, 2);
+        if (marker.type === "marker") ring.rotation.z = Math.PI / 4;
         scene.add(ring);
       } else {
         const points =
-          marker.type === "start_line"
+          "x1Mm" in marker
             ? [
                 new THREE.Vector3(marker.x1Mm, marker.y1Mm, 2),
                 new THREE.Vector3(marker.x2Mm, marker.y2Mm, 2),
@@ -427,9 +447,26 @@ export function WorldView({
               ];
         const line = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints(points),
-          new THREE.LineBasicMaterial({ color: "#315f85" }),
+          style.dashed
+            ? new THREE.LineDashedMaterial({
+                color: style.color,
+                dashSize: 28,
+                gapSize: 18,
+              })
+            : new THREE.LineBasicMaterial({ color: style.color }),
         );
+        if (style.dashed) line.computeLineDistances();
         scene.add(line);
+      }
+      if (marker.label) {
+        const position = worldMarkerLabelPosition(marker);
+        const label = textSprite(
+          marker.label,
+          Math.min(360, Math.max(150, marker.label.length * 11)),
+          style.color,
+        );
+        label.position.set(position.xMm, position.yMm, 6);
+        scene.add(label);
       }
     }
 

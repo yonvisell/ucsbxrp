@@ -7,6 +7,10 @@ import {
   type SignalPlotId,
 } from "./SignalPlot";
 import type { MonitorAnnotation } from "./monitor-export-core";
+import {
+  worldMarkerLabelPosition,
+  worldMarkerVisualStyle,
+} from "./world-marker-visual";
 
 export {
   createMonitorAnnotation,
@@ -299,6 +303,24 @@ function drawWorldFrame(
   const xScale = width / worldWidth;
   const yScale = height / worldHeight;
   const sample = samples[currentIndex]!;
+  const drawLabel = (
+    label: string,
+    xPx: number,
+    yPx: number,
+    color: string,
+  ) => {
+    context.save();
+    context.setLineDash([]);
+    context.font = "600 16px system-ui, sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.lineWidth = 4;
+    context.strokeStyle = "rgba(255, 255, 255, 0.96)";
+    context.strokeText(label, xPx, yPx);
+    context.fillStyle = color;
+    context.fillText(label, xPx, yPx);
+    context.restore();
+  };
 
   context.fillStyle = "#eef1f2";
   context.fillRect(0, 0, width, height);
@@ -337,30 +359,55 @@ function drawWorldFrame(
       (obstacle.maximumXmm - obstacle.minimumXmm) * xScale,
       (obstacle.maximumYmm - obstacle.minimumYmm) * yScale,
     );
+    if (obstacle.label) {
+      drawLabel(
+        obstacle.label,
+        x((obstacle.minimumXmm + obstacle.maximumXmm) / 2),
+        y((obstacle.minimumYmm + obstacle.maximumYmm) / 2),
+        "#34444d",
+      );
+    }
   }
 
-  context.strokeStyle = "#315f85";
-  context.fillStyle = "#315f85";
   context.lineWidth = 2;
   for (const marker of world.markers) {
-    if (marker.type === "start_line") {
+    const style = worldMarkerVisualStyle(marker);
+    context.strokeStyle = style.color;
+    context.fillStyle = style.color;
+    context.setLineDash(style.dashed ? [10, 7] : []);
+    if ("x1Mm" in marker) {
       context.beginPath();
       context.moveTo(x(marker.x1Mm), y(marker.y1Mm));
       context.lineTo(x(marker.x2Mm), y(marker.y2Mm));
       context.stroke();
-    } else if (marker.type === "start_box") {
+    } else if ("minimumXmm" in marker) {
       context.strokeRect(
         x(marker.minimumXmm),
         y(marker.maximumYmm),
         (marker.maximumXmm - marker.minimumXmm) * xScale,
         (marker.maximumYmm - marker.minimumYmm) * yScale,
       );
-    } else {
+    } else if (marker.type === "waypoint") {
       context.beginPath();
       context.arc(x(marker.xMm), y(marker.yMm), 7, 0, Math.PI * 2);
-      context.fill();
+      context.stroke();
+    } else {
+      const markerX = x(marker.xMm);
+      const markerY = y(marker.yMm);
+      context.beginPath();
+      context.moveTo(markerX, markerY - 8);
+      context.lineTo(markerX + 8, markerY);
+      context.lineTo(markerX, markerY + 8);
+      context.lineTo(markerX - 8, markerY);
+      context.closePath();
+      context.stroke();
+    }
+    if (marker.label) {
+      const position = worldMarkerLabelPosition(marker);
+      drawLabel(marker.label, x(position.xMm), y(position.yMm), style.color);
     }
   }
+  context.setLineDash([]);
 
   context.strokeStyle = "#006c64";
   context.lineWidth = 3;
