@@ -226,9 +226,9 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
           accessPointEndpoint: "http://192.168.4.1",
         }),
       );
-      if (!localStorage.getItem("ucsb-xrp-course-project-v1")) {
+      if (!localStorage.getItem("ucsb-xrp-course-project-v2")) {
         localStorage.setItem(
-          "ucsb-xrp-course-project-v1",
+          "ucsb-xrp-course-project-v2",
           JSON.stringify(project),
         );
       }
@@ -386,7 +386,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     if (motionAllowed) {
       await ide.evaluate((project) => {
         localStorage.setItem(
-          "ucsb-xrp-course-project-v1",
+          "ucsb-xrp-course-project-v2",
           JSON.stringify(project),
         );
       }, boundedMotionProject);

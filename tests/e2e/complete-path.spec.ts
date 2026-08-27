@@ -37,7 +37,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     const savedFiles: Record<string, string> = {};
 
     localStorage.setItem(
-      "ucsb-xrp-course-project-v1",
+      "ucsb-xrp-course-project-v2",
       JSON.stringify({
         name: "virtual-browser-check",
         entrypoint: "main.py",
@@ -529,7 +529,7 @@ test("abandons a virtual run safely when its IDE owner disappears", async ({
   const browserErrors = collectBrowserErrors(ide);
   await ide.addInitScript(() => {
     localStorage.setItem(
-      "ucsb-xrp-course-project-v1",
+      "ucsb-xrp-course-project-v2",
       JSON.stringify({
         name: "owner-lease-proof",
         entrypoint: "main.py",

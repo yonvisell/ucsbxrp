@@ -13,17 +13,13 @@ import { AppNavigation } from "../../shared/AppNavigation";
 import {
   chooseWorkspaceFolder,
   courseFolderPermission,
-  forgetProjectFolder,
-  forgetWorkspaceAndProjectFolders,
+  forgetWorkspaceFolder,
   handCourseFolderToIde,
-  loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
-  projectFolderIsInsideCourseFolder,
   replaceRememberedWorkspaceFolder,
   requestCourseFolderPermission,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
-import { prepareDefaultProjectFolder } from "../../shared/default-project-folder";
 import { waitForOfflineShell } from "../../shared/offline-shell";
 import {
   FirmwareRequiredError,
@@ -212,7 +208,6 @@ export function CommissionApp() {
   const lastInstallProgressPhaseRef = useRef("");
   const watchdogFeedInFlightRef = useRef(false);
   const folderRef = useRef<CourseDirectoryHandle | null>(null);
-  const workspaceChangedRef = useRef(false);
   const manifestReleaseRef = useRef(courseRelease.release_id);
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
   const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
@@ -360,13 +355,12 @@ export function CommissionApp() {
         setupLogEntriesRef.current,
         manifestReleaseRef.current,
       );
-      const selection = await replaceRememberedWorkspaceFolder(selected);
-      if (!selection.remembered) {
+      const remembered = await replaceRememberedWorkspaceFolder(selected);
+      if (!remembered.remembered) {
         throw new Error(
           "Chrome could not remember this folder. Choose it again, or continue without a working folder.",
         );
       }
-      workspaceChangedRef.current = selection.changed;
       folderRef.current = selected;
       setFolder(selected);
       setFolderVerified(true);
@@ -408,41 +402,14 @@ export function CommissionApp() {
           setupLogEntriesRef.current,
           manifestReleaseRef.current,
         );
-        const selection = await replaceRememberedWorkspaceFolder(selected);
-        if (!selection.remembered) {
+        const remembered = await replaceRememberedWorkspaceFolder(selected);
+        if (!remembered.remembered) {
           throw new Error(`Chrome could not remember ${selected.name}.`);
         }
-        workspaceChangedRef.current ||= selection.changed;
         setFolderVerified(true);
         recordSetup(
           "Folder",
           `Write and read verified in ${selected.name}.`,
-          "success",
-        );
-      }
-      let rememberedProject = await loadRememberedProjectFolder();
-      if (rememberedProject && !workspaceChangedRef.current) {
-        const belongsToCourseFolder = await projectFolderIsInsideCourseFolder(
-          selected,
-          rememberedProject,
-        );
-        if (belongsToCourseFolder === false) {
-          const detachedName = rememberedProject.name;
-          await forgetProjectFolder();
-          rememberedProject = null;
-          recordSetup(
-            "Project",
-            `Detached ./${detachedName} because it is not inside ${selected.name}; no project files were changed.`,
-            "warning",
-          );
-        }
-      }
-      if (workspaceChangedRef.current || !rememberedProject) {
-        setDetail("Preparing the default project folder…");
-        const prepared = await prepareDefaultProjectFolder(selected);
-        recordSetup(
-          "Project",
-          `${prepared.created ? "Created" : "Opened"} ./${prepared.folder.name} in ${selected.name}.`,
           "success",
         );
       }
@@ -459,7 +426,7 @@ export function CommissionApp() {
 
   const skipFolder = useCallback(async () => {
     setError("");
-    if (!(await forgetWorkspaceAndProjectFolders())) {
+    if (!(await forgetWorkspaceFolder())) {
       setError(
         "Chrome could not clear the remembered folder. Reload this page, then try again.",
       );
@@ -468,7 +435,6 @@ export function CommissionApp() {
     folderRef.current = null;
     setFolder(null);
     setFolderVerified(false);
-    workspaceChangedRef.current = false;
     setDetail(
       "Connect the XRP by USB-C and keep it connected through setup. You can choose a working folder in the IDE later.",
     );

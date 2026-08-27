@@ -29,7 +29,7 @@ test("a Monitor opened after a virtual run receives its path and strip history",
   collectBrowserErrors(ide, errors);
   await ide.addInitScript((program: string) => {
     localStorage.setItem(
-      "ucsb-xrp-course-project-v1",
+      "ucsb-xrp-course-project-v2",
       JSON.stringify({
         name: "late-monitor-history",
         entrypoint: "main.py",

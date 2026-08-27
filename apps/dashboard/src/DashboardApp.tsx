@@ -40,11 +40,9 @@ import {
 } from "../../shared/offline-shell";
 import { useProjectBootstrapPending } from "../../shared/use-project-bootstrap";
 import {
-  chooseProjectFolder,
   courseFolderChangedKey,
   courseFolderPermission,
   loadRememberedProjectFolder,
-  rememberProjectFolder,
   requestCourseFolderPermission,
   withCourseFolderWriteLock,
   writeCourseFile,
@@ -983,29 +981,6 @@ export function DashboardApp() {
     }
   };
 
-  const chooseRunAutosaveFolder = async () => {
-    try {
-      const folder = await chooseProjectFolder();
-      autosaveFolderEpoch.current += 1;
-      autosaveFolderRef.current = folder;
-      autosaveFolderRemembered.current = false;
-      setRememberedAutosaveFolder(folder);
-      setAutosaveFolder(folder);
-      setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
-      void rememberProjectFolder(folder).then((remembered) => {
-        if (autosaveFolderRef.current === folder) {
-          autosaveFolderRemembered.current = remembered;
-        }
-      });
-    } catch (error: unknown) {
-      if (!wasCancelled(error)) {
-        setRunAutosaveDetail(
-          `Folder selection failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-  };
-
   const reconnectRunAutosaveFolder = async () => {
     if (!rememberedAutosaveFolder) {
       return;
@@ -1692,24 +1667,14 @@ export function DashboardApp() {
                     <span data-testid="run-autosave-status" role="status">
                       {runAutosaveDetail}
                     </span>
-                    <button
-                      onClick={
-                        !autosaveFolder && rememberedAutosaveFolder
-                          ? reconnectRunAutosaveFolder
-                          : chooseRunAutosaveFolder
-                      }
-                      title={
-                        !autosaveFolder && rememberedAutosaveFolder
-                          ? `Restore write access to ${rememberedAutosaveFolder.name}.`
-                          : "Choose where monitored run telemetry and output are saved."
-                      }
-                    >
-                      {!autosaveFolder && rememberedAutosaveFolder
-                        ? "Reconnect project"
-                        : autosaveFolder
-                          ? "Change project"
-                          : "Choose project folder"}
-                    </button>
+                    {!autosaveFolder && rememberedAutosaveFolder ? (
+                      <button
+                        onClick={reconnectRunAutosaveFolder}
+                        title={`Restore write access to ${rememberedAutosaveFolder.name}.`}
+                      >
+                        Reconnect project
+                      </button>
+                    ) : null}
                     <OfflineReadiness appName="Monitor" />
                   </div>
                 </section>

@@ -1,4 +1,32 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+const activeProjectFolderKey = "active-project-folder-v2";
+const projectsLocationKey = "workspace-folder-v1";
+
+async function readRememberedFolderName(page: Page, key: string) {
+  return page.evaluate(async (key) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains("course-folders")) {
+          request.result.createObjectStore("course-folders");
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const folder = await new Promise<FileSystemDirectoryHandle | undefined>(
+      (resolve, reject) => {
+        const transaction = database.transaction("course-folders", "readonly");
+        const request = transaction.objectStore("course-folders").get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      },
+    );
+    database.close();
+    return folder?.name ?? null;
+  }, key);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -75,7 +103,7 @@ test("Open project rejects a working folder without flattening its child project
   await page.getByRole("button", { name: "Open project" }).click();
 
   await expect(page.locator(".project-operation-detail")).toContainText(
-    "Choose the project folder that contains .ucsb-xrp-project.json, not the working folder that contains your projects.",
+    "This folder contains multiple project folders (alpha, beta). Choose one project folder rather than their parent folder.",
   );
   await expect(page.getByTestId("project-folder")).toHaveText(
     originalFolderLabel ?? "",
@@ -98,6 +126,186 @@ test("Open project rejects a working folder without flattening its child project
     return Promise.all([read("alpha"), read("beta")]);
   });
   expect(childSources).toEqual(['print("alpha")\n', 'print("beta")\n']);
+});
+
+test("stale parent metadata cannot flatten legacy child project trees", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.evaluate(async () => {
+    const browserRoot = await navigator.storage.getDirectory();
+    try {
+      await browserRoot.removeEntry("stale-projects-parent", {
+        recursive: true,
+      });
+    } catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotFoundError") {
+        throw error;
+      }
+    }
+    const parent = await browserRoot.getDirectoryHandle(
+      "stale-projects-parent",
+      { create: true },
+    );
+    const write = async (
+      folder: FileSystemDirectoryHandle,
+      path: string,
+      content: string,
+    ) => {
+      const file = await folder.getFileHandle(path, { create: true });
+      const writable = await file.createWritable();
+      await writable.write(content);
+      await writable.close();
+    };
+    await write(
+      parent,
+      ".ucsb-xrp-project.json",
+      `${JSON.stringify({
+        name: "Stale projects parent",
+        entrypoint: "main.py",
+      })}\n`,
+    );
+    await write(parent, "main.py", 'print("stale root")\n');
+    for (const name of ["legacy-alpha", "legacy-beta"]) {
+      const child = await parent.getDirectoryHandle(name, { create: true });
+      await write(child, "main.py", `print("${name}")\n`);
+      await write(child, "notes.md", `${name} notes\n`);
+    }
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => parent,
+    });
+  });
+
+  const originalProjectLabel = await page
+    .getByTestId("project-folder")
+    .textContent();
+  await page.getByRole("button", { name: "Open project" }).click();
+
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    originalProjectLabel ?? "",
+  );
+  await expect(
+    page.getByRole("button", { name: "Open legacy-alpha/main.py" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Open legacy-beta/main.py" }),
+  ).toHaveCount(0);
+  const retainedSources = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const parent = await root.getDirectoryHandle("stale-projects-parent");
+    const read = async (folder: FileSystemDirectoryHandle, name: string) =>
+      (await (await folder.getFileHandle(name)).getFile()).text();
+    const alpha = await parent.getDirectoryHandle("legacy-alpha");
+    const beta = await parent.getDirectoryHandle("legacy-beta");
+    return {
+      parent: await read(parent, "main.py"),
+      alpha: await read(alpha, "main.py"),
+      beta: await read(beta, "main.py"),
+    };
+  });
+  expect(retainedSources).toEqual({
+    parent: 'print("stale root")\n',
+    alpha: 'print("legacy-alpha")\n',
+    beta: 'print("legacy-beta")\n',
+  });
+});
+
+test("changing Projects location keeps the current project attached and saving", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    for (const name of ["location-project-a", "projects-location-b"]) {
+      try {
+        await root.removeEntry(name, { recursive: true });
+      } catch (error) {
+        if (
+          !(error instanceof DOMException) ||
+          error.name !== "NotFoundError"
+        ) {
+          throw error;
+        }
+      }
+    }
+    const project = await root.getDirectoryHandle("location-project-a", {
+      create: true,
+    });
+    await root.getDirectoryHandle("projects-location-b", { create: true });
+    const write = async (name: string, content: string) => {
+      const file = await project.getFileHandle(name, { create: true });
+      const writable = await file.createWritable();
+      await writable.write(content);
+      await writable.close();
+    };
+    await write(
+      ".ucsb-xrp-project.json",
+      `${JSON.stringify({
+        name: "Location project A",
+        entrypoint: "main.py",
+        session: {
+          projectId: "location-project-a-id",
+          revision: 1,
+          savedRevision: 1,
+          updatedAt: 1_788_000_001_000,
+        },
+      })}\n`,
+    );
+    await write("main.py", 'print("LOCATION_A")\n');
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => project,
+    });
+  });
+  await page.getByRole("button", { name: "Open project" }).click();
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "./location-project-a",
+  );
+  await expect
+    .poll(() => readRememberedFolderName(page, activeProjectFolderKey))
+    .toBe("location-project-a");
+
+  await page.evaluate(() => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle(
+          "projects-location-b",
+        ),
+    });
+  });
+  await page
+    .getByRole("button", {
+      name: /Change working folder|Change projects location|Projects location/,
+    })
+    .click();
+
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "./location-project-a",
+  );
+  await expect
+    .poll(() => readRememberedFolderName(page, projectsLocationKey))
+    .toBe("projects-location-b");
+  await expect
+    .poll(() => readRememberedFolderName(page, activeProjectFolderKey))
+    .toBe("location-project-a");
+
+  const updatedSource = 'print("STILL_SAVES_TO_A")\n';
+  const editor = page.getByRole("textbox", { name: "main.py editor" });
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await page.keyboard.insertText(updatedSource);
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const root = await navigator.storage.getDirectory();
+        const project = await root.getDirectoryHandle("location-project-a");
+        const main = await project.getFileHandle("main.py");
+        return (await main.getFile()).text();
+      }),
+    )
+    .toBe(updatedSource);
 });
 
 test("creates the next challenge project and carries forward only earlier student modules", async ({
@@ -137,7 +345,7 @@ test("creates the next challenge project and carries forward only earlier studen
   ).toBeVisible();
   const stored = await page.evaluate(() => {
     const recovered = JSON.parse(
-      localStorage.getItem("ucsb-xrp-course-project-v1") ?? "{}",
+      localStorage.getItem("ucsb-xrp-course-project-v2") ?? "{}",
     );
     return recovered.project ?? recovered;
   });
@@ -185,7 +393,7 @@ test("imports text files without overwriting an existing project file", async ({
     page.getByText(/main\.py is already in this project/),
   ).toBeVisible();
   const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ucsb-xrp-course-project-v1") ?? "{}"),
+    JSON.parse(localStorage.getItem("ucsb-xrp-course-project-v2") ?? "{}"),
   );
   expect(stored.files["observations.txt"]).toBe("wheel test notes\n");
   expect(stored.files["main.py"]).not.toContain("must not replace project");

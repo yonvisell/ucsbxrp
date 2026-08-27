@@ -54,7 +54,8 @@ const databaseName = "ucsb-xrp-course-tools-v1";
 const databaseVersion = 1;
 const handleStoreName = "course-folders";
 const workingFolderKey = "working-folder";
-const projectFolderKey = "project-folder-v1";
+const projectFolderKey = "active-project-folder-v2";
+const previousProjectFolderKey = "project-folder-v1";
 const workspaceFolderKey = "workspace-folder-v1";
 const projectMetadataFile = ".ucsb-xrp-project.json";
 const autosaveReadme = `UCSB XRP automatic copies
@@ -288,11 +289,7 @@ export interface WorkspaceFolderSelection {
   remembered: boolean;
 }
 
-/**
- * Make `handle` the active course folder. When it differs from the retained
- * course folder, the old active-project handle is removed in the same IndexedDB
- * transaction. Project files are never deleted.
- */
+/** Remember the parent folder used when creating or opening projects. */
 export async function replaceRememberedWorkspaceFolder(
   handle: CourseDirectoryHandle,
 ): Promise<WorkspaceFolderSelection> {
@@ -307,13 +304,11 @@ export async function replaceRememberedWorkspaceFolder(
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     store.put(handle, workspaceFolderKey);
-    if (changed) store.delete(projectFolderKey);
     await completed;
     database.close();
     try {
       const changedAt = String(Date.now());
       localStorage.setItem(workspaceFolderChangedKey, changedAt);
-      if (changed) localStorage.setItem(courseFolderChangedKey, changedAt);
     } catch {
       // IndexedDB remains authoritative if localStorage is unavailable.
     }
@@ -333,6 +328,7 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
     const store = transaction.objectStore(handleStoreName);
     store.delete(workspaceFolderKey);
     store.delete(projectFolderKey);
+    store.delete(previousProjectFolderKey);
     await completed;
     database.close();
     try {
@@ -359,7 +355,25 @@ export async function rememberProjectFolder(
 }
 
 export async function forgetProjectFolder(): Promise<boolean> {
-  return forgetFolder(projectFolderKey, courseFolderChangedKey);
+  if (typeof indexedDB === "undefined") return false;
+  try {
+    const database = await openFolderDatabase();
+    const transaction = database.transaction(handleStoreName, "readwrite");
+    const completed = transactionComplete(transaction);
+    const store = transaction.objectStore(handleStoreName);
+    store.delete(projectFolderKey);
+    store.delete(previousProjectFolderKey);
+    await completed;
+    database.close();
+    try {
+      localStorage.setItem(courseFolderChangedKey, String(Date.now()));
+    } catch {
+      // IndexedDB remains authoritative if localStorage is unavailable.
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function readCourseFolderIdeHandoff(
@@ -494,6 +508,10 @@ export async function loadRememberedProjectFolder(): Promise<CourseDirectoryHand
   const remembered = await loadRememberedFolder(projectFolderKey);
   if (remembered) {
     return remembered;
+  }
+  const previous = await loadRememberedFolder(previousProjectFolderKey);
+  if (previous) {
+    return previous;
   }
   const legacy = await loadRememberedFolder(workingFolderKey);
   if (!legacy) {

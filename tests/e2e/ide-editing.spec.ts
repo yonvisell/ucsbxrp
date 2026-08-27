@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const recoveryKey = "ucsb-xrp-course-project-v1";
+const recoveryKey = "ucsb-xrp-course-project-v2";
 
 async function replaceVisibleEditorSource(page: Page, source: string) {
   const editor = page.getByRole("textbox", { name: "main.py editor" });

@@ -57,7 +57,7 @@ async function expectVirtualState(
  */
 async function installDelayedRememberedProject(page: Page) {
   await page.addInitScript(() => {
-    const recoveryKey = "ucsb-xrp-course-project-v1";
+    const recoveryKey = "ucsb-xrp-course-project-v2";
     if (sessionStorage.getItem("ucsb-xrp-stress-folder-seeded") === null) {
       sessionStorage.setItem("ucsb-xrp-stress-folder-seeded", "true");
       localStorage.clear();

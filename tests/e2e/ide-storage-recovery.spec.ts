@@ -139,7 +139,7 @@ async function installRememberedFolders(
     if (configuration.rememberRepositoryAsProject) {
       retainedHandles.set("project-folder-v1", repository);
       localStorage.setItem(
-        "ucsb-xrp-course-project-v1",
+        "ucsb-xrp-course-project-v2",
         JSON.stringify({
           name: "Coursemobilerobotics",
           entrypoint: "device_service.py",
@@ -255,7 +255,7 @@ test("does not restore a remembered repository as a student project", async ({
   ).toHaveCount(0);
   await expect(
     ide.getByText(
-      "The remembered project is outside the selected working folder. It was detached without changing its files.",
+      "The remembered folder is not a UCSBXRP project, so it was not opened or modified.",
     ),
   ).toBeVisible();
   await expect
@@ -275,7 +275,7 @@ test("does not restore a remembered repository as a student project", async ({
     .toMatchObject({ projectHandleRetained: false, writeCount: 0 });
 });
 
-test("detaches a valid project remembered from a different course folder", async ({
+test("migrates a valid v1 project independently of the Projects location", async ({
   page: ide,
 }) => {
   await installRememberedFolders(ide, {
@@ -285,28 +285,61 @@ test("detaches a valid project remembered from a different course folder", async
 
   await ide.goto("/ide/");
 
-  await expect(ide.getByTestId("project-folder")).toContainText(
-    "Expanding spiral",
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "./Previous-Project",
   );
   await expect(ide.getByRole("button", { name: /Open main\.py/ })).toHaveCount(
     1,
   );
-  await expect(ide.getByText("previous course folder")).toHaveCount(0);
   await expect
     .poll(() =>
-      ide.evaluate(
-        () =>
-          (
-            window as unknown as {
-              __folderRecoveryProbe: {
-                projectHandleRetained: boolean;
-                writeCount: number;
-              };
-            }
-          ).__folderRecoveryProbe,
-      ),
+      ide.evaluate(async () => {
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        const read = (key: string) =>
+          new Promise<FileSystemDirectoryHandle | undefined>(
+            (resolve, reject) => {
+              const transaction = database.transaction(
+                "course-folders",
+                "readonly",
+              );
+              const request = transaction
+                .objectStore("course-folders")
+                .get(key);
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            },
+          );
+        const current = await read("active-project-folder-v2");
+        const previous = await read("project-folder-v1");
+        database.close();
+        const recovered = JSON.parse(
+          localStorage.getItem("ucsb-xrp-course-project-v2") ?? "null",
+        ) as {
+          name?: string;
+          files?: Record<string, string>;
+          project?: { name?: string; files?: Record<string, string> };
+        } | null;
+        return {
+          currentFolder: current?.name ?? null,
+          previousFolder: previous?.name ?? null,
+          recoveryName: recovered?.project?.name ?? recovered?.name ?? null,
+          recoverySource:
+            recovered?.project?.files?.["main.py"] ??
+            recovered?.files?.["main.py"] ??
+            null,
+        };
+      }),
     )
-    .toMatchObject({ projectHandleRetained: false, writeCount: 0 });
+    .toEqual({
+      currentFolder: "Previous-Project",
+      previousFolder: "Previous-Project",
+      recoveryName: "Previous project",
+      recoverySource: 'print("previous course folder")\n',
+    });
 });
 
 test("opens a template in browser recovery without requesting an old folder", async ({

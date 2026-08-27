@@ -260,7 +260,7 @@ test("generated Waypoint Slalom runs in the virtual XRP and exports telemetry", 
     await ide.addInitScript((generatedFiles: Record<string, string>) => {
       localStorage.clear();
       localStorage.setItem(
-        "ucsb-xrp-course-project-v1",
+        "ucsb-xrp-course-project-v2",
         JSON.stringify({
           name: "Waypoint Slalom",
           entrypoint: "main.py",

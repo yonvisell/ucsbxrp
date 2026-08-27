@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 import {
   findGrantedXrpPort,
@@ -9,8 +9,27 @@ import {
   type SerialPortLike,
 } from "./web-serial";
 
+const originalNavigator = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "navigator",
+);
+if (typeof globalThis.navigator === "undefined") {
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {},
+  });
+}
+
 const encoder = new TextEncoder();
 const originalSerial = Object.getOwnPropertyDescriptor(navigator, "serial");
+
+afterAll(() => {
+  if (originalNavigator) {
+    Object.defineProperty(globalThis, "navigator", originalNavigator);
+  } else {
+    Reflect.deleteProperty(globalThis, "navigator");
+  }
+});
 
 afterEach(() => {
   if (originalSerial) {

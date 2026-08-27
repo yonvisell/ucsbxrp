@@ -187,7 +187,7 @@ test("Run reports a validation error before starting invalid code", async ({
 }) => {
   await page.addInitScript(() => {
     localStorage.setItem(
-      "ucsb-xrp-course-project-v1",
+      "ucsb-xrp-course-project-v2",
       JSON.stringify({
         name: "invalid-project",
         entrypoint: "main.py",

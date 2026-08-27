@@ -1278,3 +1278,30 @@ stage. A separate project-ownership audit identified the next material design
 task: the Run owner, reload recovery, remembered project handle, and Monitor run
 archive destination must be made one coherent active-project authority before
 another physical stress pass.
+
+That active-project redesign is now complete. The active IDE is the sole writer
+of the global browser recovery copy and remembered Project-folder handle. A
+standby IDE can edit and autosave its own Project folder but cannot replace the
+project used by Run or reopened later without an explicit **Use this project**
+action. Monitor reads the active folder for run archives and may request access
+to it, but can no longer select or remember a different project. The Working
+folder is independently remembered as the parent for new projects; changing it
+does not detach, move, create, or replace the current project, and commissioning
+does not create an `Expanding-Spiral` folder as a side effect.
+
+The previous browser recovery and project-handle keys migrate once to the new
+authoritative keys. Later writes from an older cached tab cannot overwrite the
+new state. **Open project** now rejects a Working folder even when stale root
+metadata is present and its child projects are legacy folders without metadata.
+The browser-filesystem scan first completes parent enumeration before examining
+children, avoiding a Chrome iterator behavior that intermittently skipped a
+sibling during the regression test.
+
+Validation includes a clean production/offline build, all 309 Vitest tests, and
+20 Stable Chrome commissioning, storage-migration, multi-IDE, project-boundary,
+autosave, and Monitor-run workflows. The stale-parent boundary passed four
+consecutive repetitions after the iterator correction. The full unit run also
+removed an accidental Node 22 dependency from the Web Serial test harness, so it
+passes under the installed Node 20 runtime. The next slice is update-safe PWA
+lifecycle behavior, followed by the full virtual and physical stress pass before
+structural refactoring and measured optimization.

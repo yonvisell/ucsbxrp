@@ -12,6 +12,7 @@ import {
   loadRecoveredProject,
   loadRecoveredProjectState,
   normalizedProjectPath,
+  previousProjectRecoveryKey,
   projectContentDigest,
   projectPathError,
   projectFolderNameError,
@@ -25,10 +26,10 @@ import {
   suggestedProjectFolderName,
   writeProjectFolder,
   ProjectFolderConflictError,
+  projectRecoveryKey,
   type CourseDirectoryHandle,
 } from "./project-files";
 
-const projectRecoveryKey = "ucsb-xrp-course-project-v1";
 const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
 const originalStageOneStarterSource = `from time import sleep_ms
 from ucsb_xrp import MotorEfforts, XRPBot
@@ -396,6 +397,32 @@ describe("project recovery", () => {
     expect(loadRecoveredProject()).toEqual(project);
   });
 
+  it("migrates the previous recovery once and ignores later stale writes", () => {
+    const previous = {
+      name: "previous project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('previous')\n" },
+    };
+    const encodedPrevious = JSON.stringify(previous);
+    storage.setItem(previousProjectRecoveryKey, encodedPrevious);
+
+    expect(loadRecoveredProject()).toEqual(previous);
+    expect(storage.getItem(previousProjectRecoveryKey)).toBe(encodedPrevious);
+    expect(JSON.parse(storage.getItem(projectRecoveryKey) ?? "null")).toEqual(
+      previous,
+    );
+
+    storage.setItem(
+      previousProjectRecoveryKey,
+      JSON.stringify({
+        name: "stale tab",
+        entrypoint: "main.py",
+        files: { "main.py": "print('stale')\n" },
+      }),
+    );
+    expect(loadRecoveredProject()).toEqual(previous);
+  });
+
   it("stores and recovers optional project-session metadata", () => {
     const project = {
       name: "week-two",
@@ -750,7 +777,7 @@ describe("project-folder reads", () => {
     ]);
 
     await expect(readProjectFolder(workingFolder)).rejects.toThrow(
-      "Choose the project folder that contains .ucsb-xrp-project.json, not the working folder that contains your projects.",
+      "This folder contains multiple project folders (first-project, second-project). Choose one project folder rather than their parent folder.",
     );
   });
 

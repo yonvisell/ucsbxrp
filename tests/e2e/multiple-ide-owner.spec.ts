@@ -1,6 +1,110 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const recoveryKey = "ucsb-xrp-course-project-v1";
+const recoveryKey = "ucsb-xrp-course-project-v2";
+const activeProjectFolderKey = "active-project-folder-v2";
+
+async function createProjectFolder(
+  page: Page,
+  folderName: string,
+  projectName: string,
+  source: string,
+  projectId: string,
+): Promise<void> {
+  await page.evaluate(
+    async ({ folderName, projectName, source, projectId }) => {
+      const root = await navigator.storage.getDirectory();
+      try {
+        await root.removeEntry(folderName, { recursive: true });
+      } catch (error) {
+        if (
+          !(error instanceof DOMException) ||
+          error.name !== "NotFoundError"
+        ) {
+          throw error;
+        }
+      }
+      const folder = await root.getDirectoryHandle(folderName, {
+        create: true,
+      });
+      const write = async (name: string, content: string) => {
+        const handle = await folder.getFileHandle(name, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+      };
+      await write(
+        ".ucsb-xrp-project.json",
+        `${JSON.stringify({
+          name: projectName,
+          entrypoint: "main.py",
+          session: {
+            projectId,
+            revision: 1,
+            savedRevision: 1,
+            updatedAt: 1_788_000_000_000,
+          },
+        })}\n`,
+      );
+      await write("main.py", source);
+    },
+    { folderName, projectName, source, projectId },
+  );
+}
+
+async function useFolderForNextPicker(
+  page: Page,
+  folderName: string,
+): Promise<void> {
+  await page.evaluate((name) => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle(name),
+    });
+  }, folderName);
+}
+
+async function readActiveProjectAuthority(page: Page): Promise<{
+  recoveryName: string | null;
+  folderName: string | null;
+}> {
+  return page.evaluate(
+    async ({ activeProjectFolderKey, recoveryKey }) => {
+      const recovered = JSON.parse(
+        localStorage.getItem(recoveryKey) ?? "null",
+      ) as { name?: string; project?: { name?: string } } | null;
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains("course-folders")) {
+            request.result.createObjectStore("course-folders");
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const folder = await new Promise<FileSystemDirectoryHandle | undefined>(
+        (resolve, reject) => {
+          const transaction = database.transaction(
+            "course-folders",
+            "readonly",
+          );
+          const request = transaction
+            .objectStore("course-folders")
+            .get(activeProjectFolderKey);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        },
+      );
+      database.close();
+      return {
+        recoveryName: recovered?.project?.name ?? recovered?.name ?? null,
+        folderName: folder?.name ?? null,
+      };
+    },
+    { activeProjectFolderKey, recoveryKey },
+  );
+}
 
 async function replaceMain(page: Page, source: string): Promise<void> {
   const editor = page.getByRole("textbox", { name: "main.py editor" });
@@ -132,4 +236,153 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+});
+
+test("standby project changes preserve reopen authority until explicit takeover", async ({
+  context,
+  page: firstIde,
+}) => {
+  test.setTimeout(30_000);
+  await firstIde.addInitScript(() => localStorage.clear());
+  await firstIde.goto("/ide/");
+  await expect(firstIde.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await createProjectFolder(
+    firstIde,
+    "owner-project-a",
+    "Owner project A",
+    'print("OWNER_A")\n',
+    "owner-project-a-id",
+  );
+  await createProjectFolder(
+    firstIde,
+    "standby-project-b",
+    "Standby project B",
+    'print("STANDBY_B")\n',
+    "standby-project-b-id",
+  );
+  await useFolderForNextPicker(firstIde, "owner-project-a");
+  await firstIde.getByRole("button", { name: "Open project" }).click();
+  await expect(firstIde.getByTestId("project-folder")).toHaveText(
+    "./owner-project-a",
+  );
+  await expect
+    .poll(() => readActiveProjectAuthority(firstIde))
+    .toEqual({
+      recoveryName: "Owner project A",
+      folderName: "owner-project-a",
+    });
+
+  const standbyIde = await context.newPage();
+  await standbyIde.goto("/ide/");
+  await expect(standbyIde.getByTestId("project-owner-state")).toContainText(
+    "Another IDE tab controls Run",
+  );
+  await useFolderForNextPicker(standbyIde, "standby-project-b");
+  await standbyIde.getByRole("button", { name: "Open project" }).click();
+  await expect(standbyIde.getByTestId("project-folder")).toHaveText(
+    "./standby-project-b",
+  );
+
+  await expect
+    .poll(() => readActiveProjectAuthority(firstIde))
+    .toEqual({
+      recoveryName: "Owner project A",
+      folderName: "owner-project-a",
+    });
+
+  await standbyIde.getByRole("button", { name: "Use this project" }).click();
+  await expect(standbyIde.getByTestId("project-owner-state")).toContainText(
+    "Active project",
+  );
+  await expect(firstIde.getByTestId("project-owner-state")).toContainText(
+    "Another IDE tab controls Run",
+  );
+  await expect
+    .poll(() => readActiveProjectAuthority(standbyIde))
+    .toEqual({
+      recoveryName: "Standby project B",
+      folderName: "standby-project-b",
+    });
+});
+
+test("Monitor cannot replace active project authority with stale archive metadata", async ({
+  context,
+  page: ide,
+}) => {
+  test.setTimeout(30_000);
+  await ide.addInitScript(() => localStorage.clear());
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await createProjectFolder(
+    ide,
+    "monitor-owner-project",
+    "Monitor owner project",
+    'print("MONITOR_OWNER")\n',
+    "monitor-owner-project-id",
+  );
+  await createProjectFolder(
+    ide,
+    "monitor-archive-choice",
+    "Monitor archive choice",
+    'print("ARCHIVE_ONLY")\n',
+    "monitor-archive-choice-id",
+  );
+  await useFolderForNextPicker(ide, "monitor-owner-project");
+  await ide.getByRole("button", { name: "Open project" }).click();
+  await expect
+    .poll(() => readActiveProjectAuthority(ide))
+    .toEqual({
+      recoveryName: "Monitor owner project",
+      folderName: "monitor-owner-project",
+    });
+
+  await ide.evaluate(async () => {
+    localStorage.setItem(
+      "ucsb-xrp-course-project-v1",
+      JSON.stringify({
+        name: "Monitor archive choice",
+        entrypoint: "main.py",
+        files: { "main.py": 'print("ARCHIVE_ONLY")\n' },
+      }),
+    );
+    const root = await navigator.storage.getDirectory();
+    const staleFolder = await root.getDirectoryHandle("monitor-archive-choice");
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction("course-folders", "readwrite");
+      transaction
+        .objectStore("course-folders")
+        .put(staleFolder, "project-folder-v1");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+    database.close();
+  });
+
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Runs save to ./monitor-owner-project",
+  );
+  await expect(
+    monitor.getByRole("button", {
+      name: /Change project|Choose project folder/,
+    }),
+  ).toHaveCount(0);
+
+  await expect
+    .poll(() => readActiveProjectAuthority(ide))
+    .toEqual({
+      recoveryName: "Monitor owner project",
+      folderName: "monitor-owner-project",
+    });
 });

@@ -160,7 +160,7 @@ test("reports a busy USB port without misdiagnosing the XRP firmware", async ({
   ).toHaveCount(0);
 });
 
-test("replaces a retained course root without carrying over its active project", async ({
+test("commissioning can change Projects location without replacing the active project", async ({
   page,
 }) => {
   await page.goto("/");
@@ -198,10 +198,33 @@ test("replaces a retained course root without carrying over its active project",
     await write(
       oldProject,
       ".ucsb-xrp-project.json",
-      `${JSON.stringify({ name: "Old project", entrypoint: "main.py" })}\n`,
+      `${JSON.stringify({
+        name: "Old project",
+        entrypoint: "main.py",
+        session: {
+          projectId: "commissioning-active-project-id",
+          revision: 1,
+          savedRevision: 1,
+          updatedAt: 1_788_000_002_000,
+        },
+      })}\n`,
     );
     await write(oldProject, "main.py", 'print("old project")\n');
     await root.getDirectoryHandle("new-course", { create: true });
+    localStorage.setItem(
+      "ucsb-xrp-course-project-v2",
+      JSON.stringify({
+        name: "Old project",
+        entrypoint: "main.py",
+        files: { "main.py": 'print("old project")\n' },
+        session: {
+          projectId: "commissioning-active-project-id",
+          revision: 1,
+          savedRevision: 1,
+          updatedAt: 1_788_000_002_000,
+        },
+      }),
+    );
 
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
@@ -217,7 +240,7 @@ test("replaces a retained course root without carrying over its active project",
       const transaction = database.transaction("course-folders", "readwrite");
       const store = transaction.objectStore("course-folders");
       store.put(oldWorkspace, "workspace-folder-v1");
-      store.put(oldProject, "project-folder-v1");
+      store.put(oldProject, "active-project-folder-v2");
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);
@@ -261,31 +284,42 @@ test("replaces a retained course root without carrying over its active project",
         request.onerror = () => reject(request.error);
       });
     const workspace = await read("workspace-folder-v1");
-    const project = await read("project-folder-v1");
+    const project = await read("active-project-folder-v2");
     database.close();
     const root = await navigator.storage.getDirectory();
     const oldProject = await (
       await root.getDirectoryHandle("old-course")
     ).getDirectoryHandle("Old-Project");
     const oldMain = await (await oldProject.getFileHandle("main.py")).getFile();
-    const newMain = await (
+    let defaultProjectCreated = false;
+    try {
       await (
         await root.getDirectoryHandle("new-course")
-      ).getDirectoryHandle("Expanding-Spiral")
-    ).getFileHandle("main.py");
+      ).getDirectoryHandle("Expanding-Spiral");
+      defaultProjectCreated = true;
+    } catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotFoundError") {
+        throw error;
+      }
+    }
+    const recovered = JSON.parse(
+      localStorage.getItem("ucsb-xrp-course-project-v2") ?? "null",
+    ) as { name?: string; project?: { name?: string } } | null;
     return {
       workspace: workspace?.name,
       project: project?.name,
       oldMain: await oldMain.text(),
-      newMain: await (await newMain.getFile()).text(),
+      recoveryName: recovered?.project?.name ?? recovered?.name,
+      defaultProjectCreated,
     };
   });
-  expect(retained).toMatchObject({
+  expect(retained).toEqual({
     workspace: "new-course",
-    project: "Expanding-Spiral",
+    project: "Old-Project",
     oldMain: 'print("old project")\n',
+    recoveryName: "Old project",
+    defaultProjectCreated: false,
   });
-  expect(retained.newMain).toContain("spiral_winding_turns_per_m");
 });
 
 test("commissions a new XRP from the public wizard and hands it to the IDE", async ({
@@ -804,7 +838,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       },
     });
   await expect(page.getByTestId("project-folder")).toHaveText(
-    "./Expanding-Spiral",
+    "Expanding spiral · temporary browser copy",
   );
   await expect
     .poll(() =>
@@ -816,7 +850,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         ).__readUcsbTestCourseFile("Expanding-Spiral/main.py"),
       ),
     )
-    .toContain("spiral_winding_turns_per_m");
+    .toBe("");
 
   await page.goto("/commission/");
   await page.getByRole("button", { name: "Use My XRP Projects" }).click();

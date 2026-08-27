@@ -60,7 +60,8 @@ export interface ProjectRecoveryState {
   preservedDraft?: ProjectSnapshot;
 }
 
-const projectRecoveryKey = "ucsb-xrp-course-project-v1";
+export const projectRecoveryKey = "ucsb-xrp-course-project-v2";
+export const previousProjectRecoveryKey = "ucsb-xrp-course-project-v1";
 const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
 const projectMetadataFile = ".ucsb-xrp-project.json";
 const sha256Pattern = /^[0-9a-f]{64}$/;
@@ -435,24 +436,35 @@ function migrateRecoveredProject(project: ProjectSnapshot): ProjectSnapshot {
 
 export function loadRecoveredProjectState(): ProjectRecoveryState {
   try {
-    const saved = localStorage.getItem(projectRecoveryKey);
+    const currentSaved = localStorage.getItem(projectRecoveryKey);
+    const saved =
+      currentSaved ?? localStorage.getItem(previousProjectRecoveryKey);
+    const migratingPrevious = currentSaved === null && saved !== null;
     if (saved) {
       const value = JSON.parse(saved) as unknown;
       if (isRecord(value) && "project" in value) {
         const project = recoveredProject(value.project);
         const preservedDraft = recoveredProject(value.preservedDraft);
         if (project) {
-          return {
+          const recovered = {
             project: migrateRecoveredProject(project),
             ...(preservedDraft
               ? { preservedDraft: migrateRecoveredProject(preservedDraft) }
               : {}),
           };
+          if (migratingPrevious) {
+            storeRecoveredProject(recovered.project, recovered.preservedDraft);
+          }
+          return recovered;
         }
       }
       const project = recoveredProject(value);
       if (project) {
-        return { project: migrateRecoveredProject(project) };
+        const recovered = { project: migrateRecoveredProject(project) };
+        if (migratingPrevious) {
+          storeRecoveredProject(recovered.project);
+        }
+        return recovered;
       }
     }
     const legacySource = localStorage.getItem(legacyRecoveryKey);
@@ -669,6 +681,39 @@ export async function chooseWorkingFolder(): Promise<CourseDirectoryHandle> {
   return chooseProjectFolder();
 }
 
+async function likelyDirectProjectChildren(
+  root: CourseDirectoryHandle,
+): Promise<string[]> {
+  const directories: Array<[string, CourseDirectoryHandle]> = [];
+  // Finish enumerating the parent before opening any child. Some browser file
+  // system implementations can skip a sibling when a child is queried while
+  // the parent's asynchronous iterator is still active.
+  for await (const [name, handle] of root.entries()) {
+    if (
+      handle.kind === "directory" &&
+      !name.startsWith(".") &&
+      !ignoredDirectories.has(name)
+    ) {
+      directories.push([name, handle]);
+    }
+  }
+
+  const names: string[] = [];
+  for (const [name, handle] of directories) {
+    try {
+      if (await hasProjectFolderMetadata(handle)) {
+        names.push(name);
+        continue;
+      }
+      await handle.getFileHandle("main.py");
+      names.push(name);
+    } catch (error) {
+      if (!isNotFoundError(error)) throw error;
+    }
+  }
+  return names.sort((left, right) => left.localeCompare(right));
+}
+
 function encodedDigestPart(value: string): Uint8Array {
   const encoder = new TextEncoder();
   const body = encoder.encode(value);
@@ -728,6 +773,12 @@ export async function readProjectFolder(
   if (await isCourseRepositoryFolder(root)) {
     throw new Error(
       "Choose a UCSBXRP project folder, not the UCSBXRP course software repository.",
+    );
+  }
+  const likelyChildren = await likelyDirectProjectChildren(root);
+  if (likelyChildren.length > 1) {
+    throw new Error(
+      `This folder contains multiple project folders (${likelyChildren.join(", ")}). Choose one project folder rather than their parent folder.`,
     );
   }
   const metadata = await readProjectFolderMetadata(root);
