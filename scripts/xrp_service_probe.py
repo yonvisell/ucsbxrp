@@ -83,27 +83,6 @@ def wait_for_service(base_url, timeout_s=8.0):
     raise ProbeError("service did not return: {}".format(last_error))
 
 
-def is_new_boot(previous, current):
-    previous_id = previous.get("bootId")
-    current_id = current.get("bootId")
-    return bool(previous_id and current_id and current_id != previous_id)
-
-
-def wait_for_new_boot(base_url, previous, timeout_s=8.0):
-    deadline = time.monotonic() + timeout_s
-    last_error = None
-    while time.monotonic() < deadline:
-        try:
-            info, _ = request_json(base_url, "/api/v1/info", timeout=0.6)
-            if is_new_boot(previous, info):
-                return info
-            last_error = "service still reports boot {}".format(info.get("bootId"))
-        except ProbeError as exc:
-            last_error = str(exc)
-        time.sleep(0.1)
-    raise ProbeError("service did not complete a new boot: {}".format(last_error))
-
-
 def wait_for_program(base_url, run_id, timeout_s=8.0, until_running=False):
     """Poll until a bounded probe program reaches the requested state.
 
@@ -327,21 +306,33 @@ def run_probe(address, include_reset=False):
     evidence["operations"].append("three immediate Prepare/Run cycles on one boot")
 
     if include_reset:
+        reset_project = zero_output_project(wait_forever=True)
+        reset_prepared = command(base_url, "prepare", 40, project=reset_project)
+        reset_revision = project_revision(reset_project)
+        if reset_prepared.get("project", {}).get("revision") != reset_revision:
+            raise ProbeError("reset-test project revision did not match its source")
+        reset_run = command(base_url, "run", 41)
+        wait_for_program(base_url, reset_run["runId"], until_running=True)
         before_reset, _ = request_json(base_url, "/api/v1/info")
-        command(base_url, "reset", 10)
-        after_reset = wait_for_new_boot(base_url, before_reset)
-        if after_reset.get("project", {}).get("revision") == repeat_info.get(
-            "project", {}
-        ).get("revision"):
-            raise ProbeError("target reset unexpectedly retained the RAM project")
-        restored = zero_output_project()
-        command(base_url, "prepare", 50, project=restored)
-        restored_run = command(base_url, "run", 51)
+        command(base_url, "reset", 42)
+        reset_state = wait_for_program(base_url, reset_run["runId"])
+        if reset_state.get("state") != "ready":
+            raise ProbeError("course-state Reset did not return to ready")
+        after_reset, _ = request_json(base_url, "/api/v1/info")
+        if after_reset.get("bootId") != before_reset.get("bootId"):
+            raise ProbeError("ordinary Reset unexpectedly rebooted the XRP")
+        if after_reset.get("project", {}).get("revision") != reset_revision:
+            raise ProbeError("ordinary Reset did not retain the RAM project")
+        restored_run = command(base_url, "run", 43)
+        wait_for_program(base_url, restored_run["runId"], until_running=True)
+        command(base_url, "stop", 44)
         restored_state = wait_for_program(base_url, restored_run["runId"])
         if restored_state.get("state") != "ready":
-            raise ProbeError("project did not prepare and run after reset")
+            raise ProbeError("retained project did not run after Reset")
         evidence["serviceAfterReset"] = after_reset
-        evidence["operations"].append("reset cleared RAM project; prepare/run recovered")
+        evidence["operations"].append(
+            "course-state Reset retained boot and RAM project; Run recovered"
+        )
     return evidence
 
 
@@ -351,7 +342,7 @@ def make_parser():
     parser.add_argument(
         "--include-reset",
         action="store_true",
-        help="also exercise the exceptional full-controller Reset path",
+        help="also exercise course-state Reset and immediate project reuse",
     )
     return parser
 

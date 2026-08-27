@@ -1,0 +1,55 @@
+{
+  "date": "2026-08-27",
+  "controller": "SparkFun XRP Controller RP2350",
+  "robotId": "4c91fae8f1775aa4",
+  "network": {
+    "mode": "station",
+    "ssid": "Pink",
+    "address": "192.168.7.25"
+  },
+  "runtime": {
+    "release": "2026.08-dev.33",
+    "releaseSequence": 33,
+    "generation": 14,
+    "manifestSha256": "8c3a44685569e16585f3a643bc4575b17e23a1f7ad18c1f7559d323e617f1bc5"
+  },
+  "stableChromePhysicalWorkflow": {
+    "result": "passed",
+    "elapsedSeconds": 24.6,
+    "bootIdBeforeAndAfterReset": "cf27cb53e8d3",
+    "resetBoundSeconds": 3,
+    "verified": [
+      "IDE and Monitor shared one exact edited project",
+      "Run and Stop worked in both cross-window directions",
+      "raised-wheel motor effort changed both encoders",
+      "wheel-distance and motor-effort telemetry were visible",
+      "ordinary Reset did not reboot or reconnect Wi-Fi",
+      "ordinary Reset retained the prepared project revision",
+      "the retained project ran immediately after Reset",
+      "final motor effort was zero"
+    ]
+  },
+  "directServiceProbe": {
+    "result": "passed",
+    "elapsedSeconds": 16.97,
+    "bootId": "cf27cb53e8d3",
+    "batteryV": 6.440948,
+    "verified": [
+      "private-network browser preflight",
+      "exact RAM project revision",
+      "stdout capture",
+      "pose telemetry",
+      "cooperative Stop without reboot",
+      "three immediate Prepare and Run cycles on one boot",
+      "active-program Reset without reboot",
+      "Run after Reset without preparing the project again"
+    ]
+  },
+  "finalState": {
+    "state": "ready",
+    "bootId": "cf27cb53e8d3",
+    "project": "Expanding spiral",
+    "projectRevision": "fe8c09b6bb204e589847d9f8ffa6485ac810c7e5fc5c6a5de4ed8cffad9879d5",
+    "projectLifetime": "boot"
+  }
+}

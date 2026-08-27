@@ -20,7 +20,7 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
         bootstrap_sources = INSTALLER.bootstrap_files()
 
         self.assertEqual(manifest["schemaVersion"], 2)
-        self.assertEqual(manifest["releaseId"], "2026.08-dev.32")
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.33")
         self.assertEqual(manifest["releaseSequence"], 32)
         self.assertEqual(
             manifest["compatibility"],

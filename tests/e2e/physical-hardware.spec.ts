@@ -108,6 +108,7 @@ async function robotInfo(request: APIRequestContext, endpoint: string) {
     bootId: string;
     courseRelease: string;
     robotId: string;
+    project?: { revision?: string; lifetime?: string } | null;
   };
 }
 
@@ -323,6 +324,50 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       .getByRole("button", { name: "Stop", exact: true })
       .click();
     await expect(monitorStatus).toContainText("Physical XRP · ready", {
+      timeout: 5_000,
+    });
+
+    // Reset is a fast course-state operation. It must not reboot Wi-Fi or
+    // discard the project already prepared in RAM; a subsequent Run uses that
+    // exact edited project without a USB or network recovery cycle.
+    const beforeResetInfo = await robotInfo(request, endpoint);
+    const resetStarted = Date.now();
+    await monitor
+      .locator(".app-header")
+      .getByRole("button", { name: "Reset", exact: true })
+      .click();
+    await expect(ideStatus).toContainText("Physical XRP · ready", {
+      timeout: 3_000,
+    });
+    expect(Date.now() - resetStarted).toBeLessThan(3_000);
+    const afterResetInfo = await robotInfo(request, endpoint);
+    expect(afterResetInfo.bootId).toBe(beforeResetInfo.bootId);
+    expect(afterResetInfo.project?.revision).toBe(
+      beforeResetInfo.project?.revision,
+    );
+
+    const outputBeforeResetRun = await ide.getByRole("log").innerText();
+    const sentinelCountBeforeResetRun = occurrenceCount(
+      outputBeforeResetRun,
+      noMotionSentinel,
+    );
+    await monitorRun.click();
+    await expect(ideStatus).toContainText("Physical XRP · running", {
+      timeout: 5_000,
+    });
+    await expect
+      .poll(async () =>
+        occurrenceCount(
+          await ide.getByRole("log").innerText(),
+          noMotionSentinel,
+        ),
+      )
+      .toBeGreaterThan(sentinelCountBeforeResetRun);
+    await monitor
+      .locator(".app-header")
+      .getByRole("button", { name: "Stop", exact: true })
+      .click();
+    await expect(ideStatus).toContainText("Physical XRP · ready", {
       timeout: 5_000,
     });
 

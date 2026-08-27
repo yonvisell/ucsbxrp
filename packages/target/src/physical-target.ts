@@ -178,7 +178,9 @@ function physicalConnectionRecovery(endpoint: string): string {
 }
 
 const RUN_STARTUP_QUIET_MS = 500;
-const RESET_RECONNECT_TIMEOUT_MS = 8_000;
+// Used only after a controller restart: setup/repair and the exceptional case
+// where a student program cannot stop cooperatively. Ordinary Reset is local.
+const RESET_RECONNECT_TIMEOUT_MS = 18_000;
 const POLL_FAILURES_BEFORE_ERROR = 2;
 const POLL_RECOVERY_DELAY_MS = 900;
 
@@ -809,8 +811,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
         detail: string;
         reconnecting: boolean;
       }>("reset", {}, { action: "reset", label: "Reset" });
-      this.emitStatus("connecting", `${result.detail}; reconnecting…`);
-      await this.reconnectAfterReset();
+      if (result.reconnecting) {
+        this.emitStatus("connecting", `${result.detail}; reconnecting…`);
+        await this.reconnectAfterReset();
+      } else if (result.detail === "Program state reset") {
+        this.emitStatus("ready", result.detail);
+      } else {
+        this.emitStatus("loading", result.detail);
+        await this.waitForProgramStop();
+      }
     } catch (error) {
       this.emitConsole(
         "system",

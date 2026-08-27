@@ -37,7 +37,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.32"
+COURSE_RELEASE = "2026.08-dev.33"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -942,6 +942,50 @@ async def _reset_if_program_does_not_stop(run_id):
         _schedule_reset()
 
 
+def _clear_course_run_state(detail="Program state reset"):
+    """Return the course runtime to its idle state without rebooting Wi-Fi."""
+    global _sample_seq, _sample_epoch_start_ms, _last_sample
+    global _stop_acknowledged_run_id
+    _stop_motors()
+    from ucsb_xrp._telemetry import clear_state
+    from ucsb_xrp._run_control import clear_stop
+    from ucsb_xrp.live import clear as clear_runtime
+
+    clear_state()
+    clear_stop()
+    clear_runtime()
+    _sample_seq = 0
+    _sample_epoch_start_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
+    _last_sample = None
+    _stop_acknowledged_run_id = None
+    _set_state("ready", detail)
+
+
+async def _reset_course_run_after_response(run_id):
+    """Stop the current program, then reset only its course-visible state."""
+    import uasyncio
+
+    await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
+    if _thread_active and run_id == _run_id:
+        from ucsb_xrp._run_control import request_stop
+
+        request_stop()
+        deadline = time.ticks_add(time.ticks_ms(), STOP_GRACE_MS)
+        while (
+            _thread_active
+            and run_id == _run_id
+            and time.ticks_diff(deadline, time.ticks_ms()) > 0
+        ):
+            await uasyncio.sleep_ms(PROJECT_WORKER_IDLE_MS)
+    if _thread_active and run_id == _run_id:
+        # Student code that never yields cannot be recovered safely from the
+        # service core. A controller restart remains the exceptional fallback.
+        _set_state("error", "Program did not stop; restarting target service")
+        _schedule_reset()
+        return
+    _clear_course_run_state()
+
+
 async def _request_stop_after_response(run_id):
     """Signal core 1 only after the Stop response has left the service core."""
     import uasyncio
@@ -1527,11 +1571,15 @@ def reset(request):
         global _launch_pending, _lease_deadline
         _launch_pending = False
         _lease_deadline = None
-        if not _thread_active:
-            _stop_motors()
-        _set_state("ready", "Resetting physical XRP")
-        _schedule_reset()
-        return {"detail": "Physical XRP resetting", "reconnecting": True}
+        if _thread_active:
+            _set_state("loading", "Resetting program state")
+            server.loop.create_task(_reset_course_run_after_response(_run_id))
+            return {
+                "detail": "Resetting program state",
+                "reconnecting": False,
+            }
+        _clear_course_run_state()
+        return {"detail": "Program state reset", "reconnecting": False}
 
     return _command(request, operation)
 

@@ -327,8 +327,7 @@ The versioned JSON API provides:
 
 - identity, release, capabilities, and the retained project descriptor;
 - MicroPython compilation;
-- atomic whole-project synchronization using alternating slots and an active
-  pointer;
+- transactional whole-project preparation in alternating RAM volumes;
 - run, stop, lease renewal, and reset;
 - captured stdout/stderr and service events; and
 - polled hardware telemetry and live-program state/parameter updates.
@@ -353,8 +352,10 @@ the browser. A transfer builds an inactive RAM-backed FAT volume and becomes
 active only after validation, compilation, and every file write succeed.
 Discovery and telemetry expose that descriptor for the current boot, allowing
 either application to run the prepared revision and allowing an IDE edit to
-mark it stale until the next Run. Reset clears the RAM project; Run loads the
-current browser project again without a separate student action.
+mark it stale until the next Run. Ordinary Reset stops the student program,
+clears course telemetry and live-control state, and retains that prepared
+revision. The next Run therefore starts immediately unless the browser project
+has changed.
 
 Student code runs on the second RP2350 core. Once started, one project worker
 remains alive for the service lifetime and blocks on a lock between runs. Run
@@ -370,11 +371,12 @@ managed, so `Robot.start()` begins immediately; a directly executed standalone
 program retains the explicit USER button wait. A 7 s hardware watchdog is fed
 by the service event loop, so a future shared-VM deadlock reboots the controller
 instead of requiring a physical reset. A renewable run lease is owned outside
-the student program; expiration also resets the target.
-Normal completion and exceptions stop on the program core, while stop, reset,
-and lease loss use the controller reset path. All converge to zero drive
-command. Program output is line-buffered into the same bounded log stream used
-by the applications.
+the student program; expiration restarts the target if browser ownership is
+lost. Normal completion, exceptions, Stop, and Reset converge on a cooperative
+program-core exit and zero drive command. Only a non-cooperative program,
+watchdog event, lease loss, or setup/repair uses the controller-restart path.
+Program output is line-buffered into the same bounded log stream used by the
+applications.
 
 XRPLib peripheral drivers are not accessed simultaneously from both RP2350
 cores. Before and after a run, the service reads hardware directly. During a

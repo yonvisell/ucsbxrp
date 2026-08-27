@@ -1,5 +1,10 @@
 # Hardware evidence
 
+`2026-08-27-dev33-soft-reset.json` records the dev.33 attached-RP2350 browser
+and direct-service proof: raised-wheel motion and encoder telemetry,
+cooperative course-state Reset without a reboot, exact RAM-project retention,
+and immediate Run after Reset on the same boot.
+
 `2026-08-26-dev28-integrated-repeatability.json` is the current attached-RP2350
 record. It covers the dev.28 USB installation, retained Pink profile, automatic
 Validate/Flash/Run after an IDE edit, immediate Stop and repeated Run, shared

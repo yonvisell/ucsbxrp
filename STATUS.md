@@ -1,8 +1,28 @@
 # Project status
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
 ## Current result
+
+Refinement 51 separates course Reset from controller restart. Release
+`2026.08-dev.33` cooperatively stops an active student program, clears its
+telemetry and live-control state, retains the exact RAM project, and keeps the
+RP2350 service and Wi-Fi association running. A controller restart is now only
+the fallback for code that cannot stop cooperatively, or an explicit part of
+USB setup/repair. The browser accepts both outcomes: the normal path waits for
+the ready state without reconnecting, while the exceptional path has a measured
+18-second identity-checked recovery window rather than an ordinary command
+delay.
+
+The attached XRP runs dev.33 as runtime generation 14 at `192.168.7.25` on
+Pink. Stable Chrome completed the IDE/Monitor physical workflow with raised-
+wheel motion, encoder and telemetry evidence, cross-window Run/Stop, Reset, and
+immediate reuse of the same edited RAM project. Reset finished within the
+three-second test bound, preserved both boot ID and project revision, and the
+next Run started normally. The direct service probe independently passed
+preflight, exact RAM preparation, stdout, pose telemetry, cooperative Stop,
+three immediate Prepare/Run cycles, active-program Reset, and post-Reset Run on
+one unchanged boot. Cleanup restored the Expanding spiral project in RAM.
 
 Refinement 50 removes internal-flash writes from the normal physical edit-run
 loop. Release `2026.08-dev.32` prepares the exact current project in one of two

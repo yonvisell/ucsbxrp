@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.08-dev.32",
-  "release_sequence": 32,
+  "release_id": "2026.08-dev.33",
+  "release_sequence": 33,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.4-draft",
@@ -12,7 +12,7 @@
     "bootstrap_version": 1
   },
   "compatibility": {
-    "minimum_robot_release_sequence": 32
+    "minimum_robot_release_sequence": 33
   },
   "controller": {
     "id": "sparkfun-xrp-controller-rp2350",

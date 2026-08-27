@@ -2032,6 +2032,85 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("resets course state cooperatively without reconnecting the XRP", async () => {
+    let resetPolls = 0;
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            capabilities: [
+              "project.check",
+              "project.prepare",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          resetPolls += 1;
+          return response({
+            bootId: "boot-a",
+            state: resetPolls === 1 ? "loading" : "ready",
+            detail:
+              resetPolls === 1
+                ? "Resetting program state"
+                : "Program state reset",
+            runId: 1,
+            logs: [],
+            samples: [],
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: {
+            detail: "Resetting program state",
+            reconnecting: false,
+          },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    events.length = 0;
+    await target.reset();
+
+    expect(resetPolls).toBe(2);
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).endsWith("/api/v1/info"),
+      ),
+    ).toHaveLength(1);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "status",
+        state: "ready",
+        detail: "Program state reset",
+      }),
+    );
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "status", state: "connecting" }),
+    );
+    target.disconnect();
+  });
+
   it("accepts an already-stopped reply without entering recovery", async () => {
     let telemetryRequests = 0;
     const fetchMock = vi.fn(

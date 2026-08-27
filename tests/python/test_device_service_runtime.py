@@ -800,6 +800,58 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertTrue(self.service._project_worker_shutdown)
         self.assertEqual(self.reset_calls, [True])
 
+    def test_reset_clears_idle_course_state_without_rebooting(self):
+        self.service._sample_seq = 42
+        self.service._last_sample = (100, 2, 3)
+
+        response = self.service.reset(
+            types.SimpleNamespace(data={"requestId": "reset-idle"})
+        )
+        result = json.loads(response.body.decode("utf-8"))["result"]
+
+        self.assertEqual(
+            result,
+            {"detail": "Program state reset", "reconnecting": False},
+        )
+        self.assertEqual(self.service._state, "ready")
+        self.assertEqual(self.service._sample_seq, 0)
+        self.assertIsNone(self.service._last_sample)
+        self.assertEqual(self.reset_calls, [])
+        self.assertEqual(self.server.loop.tasks, [])
+
+    def test_reset_stops_active_program_and_keeps_wifi_running(self):
+        self.service._thread_active = True
+        self.service._run_id = 7
+        run_control = sys.modules["ucsb_xrp._run_control"]
+        original_sleep_ms = sys.modules["uasyncio"].sleep_ms
+
+        async def complete_stop(_delay):
+            if run_control.stop_requested:
+                self.service._thread_active = False
+            await asyncio.sleep(0)
+
+        sys.modules["uasyncio"].sleep_ms = complete_stop
+        try:
+            response = self.service.reset(
+                types.SimpleNamespace(data={"requestId": "reset-active"})
+            )
+            result = json.loads(response.body.decode("utf-8"))["result"]
+
+            self.assertEqual(
+                result,
+                {"detail": "Resetting program state", "reconnecting": False},
+            )
+            self.assertEqual(self.service._state, "loading")
+            self.assertEqual(len(self.server.loop.tasks), 1)
+            asyncio.run(self.server.loop.tasks.pop())
+        finally:
+            sys.modules["uasyncio"].sleep_ms = original_sleep_ms
+
+        self.assertTrue(run_control.stop_requested is False)
+        self.assertEqual(self.service._state, "ready")
+        self.assertEqual(self.service._detail, "Program state reset")
+        self.assertEqual(self.reset_calls, [])
+
     def test_stop_requests_cooperative_exit_without_resetting_wifi(self):
         self.service._thread_active = True
         response = self.service.stop(
