@@ -21,6 +21,7 @@ import {
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
 import {
+  readOfflineShellStatus,
   registerOfflineShellBeforeReload,
   retryPendingOfflineShellReload,
   waitForOfflineShell,
@@ -300,9 +301,16 @@ export function CommissionApp() {
         if (disposed) return;
         manifestReleaseRef.current = loadedManifest.releaseId;
         setManifest(loadedManifest);
+        const offlineStatus = readOfflineShellStatus();
+        const appIdentity =
+          offlineStatus.state === "development"
+            ? "local development"
+            : offlineStatus.version
+              ? `app build ${offlineStatus.version.slice(0, 12)}`
+              : "app build pending";
         recordSetup(
           "Start",
-          `Loaded course release ${loadedManifest.releaseId}.`,
+          `Loaded course release ${loadedManifest.releaseId} from ${appIdentity}.`,
         );
         if (rememberedFolder) {
           const permission = await courseFolderPermission(rememberedFolder);

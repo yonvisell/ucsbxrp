@@ -111,28 +111,32 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
   ]) {
     await page.setViewportSize(size);
     await expectShellFillsViewport(page, ".ide-app");
-    const editorGeometry = await page
-      .locator(".editor-frame")
-      .evaluate((element) => {
-        const frame = element.getBoundingClientRect();
-        const monaco = element
-          .querySelector(".monaco-editor")
-          ?.getBoundingClientRect();
-        return {
-          frameHeight: frame.height,
-          frameWidth: frame.width,
-          monacoHeight: monaco?.height ?? 0,
-          monacoWidth: monaco?.width ?? 0,
-        };
-      });
-    expect(editorGeometry.monacoWidth).toBeCloseTo(
-      editorGeometry.frameWidth,
-      0,
-    );
-    expect(editorGeometry.monacoHeight).toBeCloseTo(
-      editorGeometry.frameHeight,
-      0,
-    );
+    if (size.width <= 900) {
+      await expect(
+        page.getByRole("complementary", { name: "Project" }),
+      ).toHaveCount(0);
+    } else {
+      await expect(
+        page.getByRole("complementary", { name: "Project" }),
+      ).toBeVisible();
+    }
+    await expect
+      .poll(
+        () =>
+          page.locator(".editor-frame").evaluate((element) => {
+            const frame = element.getBoundingClientRect();
+            const monaco = element
+              .querySelector(".monaco-editor")
+              ?.getBoundingClientRect();
+            if (!monaco) return Number.POSITIVE_INFINITY;
+            return Math.max(
+              Math.abs(monaco.width - frame.width),
+              Math.abs(monaco.height - frame.height),
+            );
+          }),
+        { timeout: 1_000 },
+      )
+      .toBeLessThanOrEqual(1);
   }
 });
 

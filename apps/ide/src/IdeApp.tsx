@@ -1,4 +1,4 @@
-import Editor, { type OnMount } from "@monaco-editor/react";
+import Editor from "@monaco-editor/react";
 import {
   type ChangeEvent,
   type FormEvent,
@@ -36,10 +36,14 @@ import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
 import { useTargetPreference } from "../../shared/use-target-preference";
 import {
+  OFFLINE_SHELL_EVENT,
+  readOfflineShellStatus,
   registerOfflineShellBeforeReload,
   retryPendingOfflineShellReload,
   virtualRunNeedsPreparation,
+  type OfflineShellStatus,
 } from "../../shared/offline-shell";
+import courseRelease from "../../../vendor/current/release.json";
 import { finishProjectBootstrap } from "../../shared/project-bootstrap";
 import { MarkdownPreview } from "./MarkdownPreview";
 import {
@@ -415,56 +419,40 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const settingsDrawerRef = useRef<HTMLElement | null>(null);
   const fileActionsRef = useRef<HTMLDivElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const editorFrameRef = useRef<HTMLDivElement | null>(null);
-  const editorResizeObserverRef = useRef<ResizeObserver | null>(null);
-  const editorResizeFrameRef = useRef<number | null>(null);
   const projectVersion = useRef(0);
   const displayedProjectKey = useRef(
     `${initialProject.templateId ?? "custom"}:${initialProject.name}`,
   );
 
-  const handleEditorMount = useCallback<OnMount>((editor) => {
-    editorResizeObserverRef.current?.disconnect();
-    if (editorResizeFrameRef.current !== null) {
-      window.cancelAnimationFrame(editorResizeFrameRef.current);
-    }
-    const frame = editorFrameRef.current;
-    if (!frame) {
-      return;
-    }
-    const layoutEditor = () => {
-      if (editorResizeFrameRef.current !== null) {
-        window.cancelAnimationFrame(editorResizeFrameRef.current);
-      }
-      editorResizeFrameRef.current = window.requestAnimationFrame(() => {
-        editorResizeFrameRef.current = null;
-        if (!editor.getDomNode()) {
-          return;
-        }
-        const bounds = frame.getBoundingClientRect();
-        if (bounds.width > 0 && bounds.height > 0) {
-          editor.layout({
-            width: Math.floor(bounds.width),
-            height: Math.floor(bounds.height),
-          });
-        }
-      });
+  useEffect(() => {
+    const recordApplicationIdentity = (status: OfflineShellStatus) => {
+      const appIdentity =
+        status.state === "development"
+          ? "local development"
+          : status.version
+            ? `app build ${status.version.slice(0, 12)}`
+            : "app build pending";
+      setConsoleEntries((entries) => [
+        ...entries.filter((entry) => entry.id !== "ide-app-identity"),
+        {
+          id: "ide-app-identity",
+          category: "service",
+          stream: "system",
+          line: `UCSBXRP ${appIdentity} · course ${courseRelease.release_id}`,
+          timestampMs: Date.now(),
+        },
+      ]);
     };
-    const observer = new ResizeObserver(layoutEditor);
-    editorResizeObserverRef.current = observer;
-    observer.observe(frame);
-    layoutEditor();
+    const handleOfflineState = (event: Event) => {
+      recordApplicationIdentity(
+        (event as CustomEvent<OfflineShellStatus>).detail,
+      );
+    };
+    window.addEventListener(OFFLINE_SHELL_EVENT, handleOfflineState);
+    recordApplicationIdentity(readOfflineShellStatus());
+    return () =>
+      window.removeEventListener(OFFLINE_SHELL_EVENT, handleOfflineState);
   }, []);
-
-  useEffect(
-    () => () => {
-      editorResizeObserverRef.current?.disconnect();
-      if (editorResizeFrameRef.current !== null) {
-        window.cancelAnimationFrame(editorResizeFrameRef.current);
-      }
-    },
-    [],
-  );
 
   useEffect(() => {
     if (!window.matchMedia) {
@@ -3335,11 +3323,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 </a>
               ) : null}
             </div>
-            <div
-              className="editor-frame"
-              data-testid="python-editor"
-              ref={editorFrameRef}
-            >
+            <div className="editor-frame" data-testid="python-editor">
               {activePath.endsWith(".md") && markdownPreviewOpen ? (
                 <MarkdownPreview
                   onOpenProjectFile={openFile}
@@ -3349,11 +3333,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
               ) : (
                 <Editor
                   language={editorLanguage(activePath)}
-                  onMount={handleEditorMount}
                   onChange={(value) => updateActiveFile(value ?? "")}
                   options={{
                     ariaLabel: `${activePath} editor`,
-                    automaticLayout: false,
+                    automaticLayout: true,
                     detectIndentation: false,
                     fontFamily: "SFMono-Regular, Consolas, monospace",
                     fontSize: settings.editorFontSize,

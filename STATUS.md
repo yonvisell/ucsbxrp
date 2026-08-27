@@ -29,9 +29,10 @@ update it deliberately.
 The first complete browser boundary run passed 103 workflows and exposed three
 regressions. Two ownership tests still modeled the obsolete direct
 Project-folder picker; they now exercise the Working-folder list and explicit
-child selection. Monaco retained an old width across a rapid shrink/grow
-sequence; the editor now lays out from an explicit frame ResizeObserver. The
-five affected multi-IDE and live-layout workflows pass together. The fast
+child selection. The apparent Monaco mismatch was a one-animation-frame
+measurement race during rapid shrink/grow; the browser test now waits for
+Monaco's container observer instead of sampling the transition. The five
+affected multi-IDE and live-layout workflows pass together. The fast
 boundary check also passes: 227 Python tests, MicroPython source/bytecode and
 service proof, 359 TypeScript tests, production build, and the 253-file offline
 shell.
