@@ -254,6 +254,13 @@ Status: complete in software, Chrome, and the attached-RP2350 repetition.
 - Finish with truthful status, a clean commit/archive, and the production
   applications running on port 4174.
 
+The later dev.25 repetition strengthened this boundary: release installation
+now activates a verified runtime slot atomically, and project transfer retires
+the second-core interpreter before internal-flash writes. One physical boot
+passed three immediate flash/run cycles, independent motor/encoder checks, and
+the complete shared IDE/Monitor hardware workflow. Full controller reset
+reassociation on Pink remains a measured approximately-eight-second path.
+
 ### Refinement 8 — Watchdog-safe boot and USB repair
 
 Status: implemented and validated on the attached RP2350.

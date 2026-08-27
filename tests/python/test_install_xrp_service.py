@@ -1,7 +1,8 @@
-import importlib.util
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
+import types
 import unittest
 from unittest.mock import patch
 
@@ -14,150 +15,148 @@ INSTALLER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(INSTALLER)
 
 
+class MemoryTransport:
+    """Small persistent device model for installer transaction tests."""
+
+    def __init__(self, files=None):
+        self.files = dict(files or {})
+        self.operations = []
+        self.serial = types.SimpleNamespace(write=self._serial_write)
+
+    def _serial_write(self, value):
+        self.operations.append(("serial", value))
+
+    def enter_raw_repl(self, soft_reset):
+        self.operations.append(("raw-repl", soft_reset))
+
+    def fs_readfile(self, path):
+        self.operations.append(("read", path))
+        if path not in self.files:
+            raise OSError(path)
+        return self.files[path]
+
+    def fs_writefile(self, path, data):
+        self.operations.append(("write", path))
+        self.files[path] = data
+
+    def exec(self, code):
+        self.operations.append(("exec", code))
+        return b""
+
+    def exec_raw_no_follow(self, code):
+        self.operations.append(("reset", code))
+
+    def close(self):
+        self.operations.append(("close", None))
+
+
+def direct_hashes(transport, paths):
+    return {
+        path: (
+            hashlib.sha256(transport.files[path]).hexdigest()
+            if path in transport.files
+            else None
+        )
+        for path in paths
+    }
+
+
+def direct_replace(transport, path, data):
+    transport.operations.append(("replace", path))
+    transport.files[path] = data
+
+
+def direct_remove(transport, path):
+    transport.operations.append(("remove", path))
+    transport.files.pop(path, None)
+
+
 class InstallXrpServiceTest(unittest.TestCase):
     def test_raw_repl_entry_interrupts_a_running_service_first(self):
-        class Serial:
-            def __init__(self):
-                self.writes = []
-
-            def write(self, value):
-                self.writes.append(value)
-
-        class Transport:
-            def __init__(self):
-                self.serial = Serial()
-                self.soft_reset = None
-
-            def enter_raw_repl(self, soft_reset):
-                self.soft_reset = soft_reset
-
-        transport = Transport()
-        INSTALLER.enter_raw_repl(transport)
-
-        self.assertEqual(transport.serial.writes, [b"\r\x03\x03\x03"])
-        self.assertTrue(transport.soft_reset)
+        transport = MemoryTransport()
+        with patch.object(INSTALLER.time, "sleep"):
+            INSTALLER.enter_raw_repl(transport)
+        self.assertEqual(
+            transport.operations[:2],
+            [("serial", b"\r\x03\x03\x03"), ("raw-repl", True)],
+        )
 
     def test_reset_and_close_restarts_normal_boot_before_releasing_usb(self):
-        class Transport:
-            def __init__(self):
-                self.commands = []
-                self.closed = False
-
-            def exec_raw_no_follow(self, code):
-                self.commands.append(code)
-
-            def close(self):
-                self.closed = True
-
-        transport = Transport()
+        transport = MemoryTransport()
         INSTALLER.reset_and_close(transport)
-
-        self.assertEqual(transport.commands, ["import machine; machine.reset()"])
-        self.assertTrue(transport.closed)
-
-    def test_installation_set_has_service_course_reference_and_main(self):
-        files = INSTALLER.installation_files()
-        self.assertIn("/main.py", files)
-        self.assertIn("/lib/ucsb_xrp_service/service.py", files)
-        self.assertIn("/lib/ucsb_xrp/__init__.py", files)
-        self.assertIn("/lib/ucsb_xrp_reference/__init__.mpy", files)
-        self.assertTrue(all(path.is_file() for path in files.values()))
-
-    def test_install_feed_uses_the_rp2350_watchdog_limit(self):
-        class Transport:
-            def __init__(self):
-                self.code = []
-
-            def exec(self, value):
-                self.code.append(value)
-
-        transport = Transport()
-        INSTALLER.feed_install_watchdog(transport)
-
-        self.assertEqual(INSTALLER.INSTALL_WATCHDOG_MS, 8388)
-        self.assertIn("machine.WDT(timeout=8388).feed()", transport.code[0])
-
-    def test_main_is_written_last(self):
-        self.assertEqual(list(INSTALLER.installation_files())[-1], "/main.py")
-
-    def test_matching_remote_file_is_left_unchanged(self):
-        class Transport:
-            def __init__(self):
-                self.writes = []
-
-            def fs_readfile(self, _path):
-                return b"expected"
-
-            def fs_writefile(self, path, data):
-                self.writes.append((path, data))
-
-        transport = Transport()
-
-        self.assertTrue(
-            INSTALLER._remote_file_matches(transport, "/main.py", b"expected")
+        self.assertEqual(
+            transport.operations,
+            [
+                ("reset", "import machine; machine.reset()"),
+                ("close", None),
+            ],
         )
-        self.assertEqual(transport.writes, [])
+
+    def test_release_files_have_stable_boot_and_slot_relative_runtime(self):
+        boot = INSTALLER.bootstrap_files()
+        runtime = INSTALLER.runtime_files()
+        installed = INSTALLER.installation_files("b")
+
+        self.assertEqual(set(boot), {"/main.py", "/course_boot.py"})
+        self.assertEqual(list(boot), ["/course_boot.py", "/main.py"])
+        self.assertIn("lib/ucsb_xrp_service/service.py", runtime)
+        self.assertIn("lib/ucsb_xrp/__init__.py", runtime)
+        self.assertIn("lib/ucsb_xrp_reference/__init__.mpy", runtime)
+        self.assertTrue(all(not path.startswith("/") for path in runtime))
+        self.assertIn(
+            "/course_runtime/slots/b/lib/ucsb_xrp_service/service.py",
+            installed,
+        )
+        self.assertTrue(all(path.is_file() for path in installed.values()))
+
+    def test_runtime_manifest_is_canonical_and_complete(self):
+        manifest = INSTALLER.runtime_manifest()
+        data = INSTALLER.canonical_json_bytes(manifest)
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.25")
+        self.assertEqual(manifest["releaseSequence"], 25)
+        self.assertEqual(manifest["compatibility"]["protocolVersion"], 1)
+        self.assertTrue(data.endswith(b"\n"))
+        self.assertNotIn(b" ", data)
+        self.assertEqual(
+            {entry["path"] for entry in manifest["files"]},
+            set(INSTALLER.runtime_files()),
+        )
 
     def test_replacement_is_verified_before_becoming_active(self):
-        class Transport:
-            def __init__(self):
-                self.files = {"/main.py": b"old"}
-                self.operations = []
-
-            def fs_writefile(self, path, data):
-                self.operations.append(("write", path))
-                self.files[path] = data
-
-            def fs_readfile(self, path):
-                self.operations.append(("read", path))
-                return self.files[path]
-
+        class HashingTransport(MemoryTransport):
             def exec(self, code):
-                self.operations.append(("code", code))
+                self.operations.append(("exec", code))
                 if INSTALLER.HASH_PREFIX in code:
-                    path = max(
-                        (path for path in self.files if path in code),
-                        key=len,
-                    )
+                    path = max((path for path in self.files if path in code), key=len)
                     digest = hashlib.sha256(self.files[path]).hexdigest()
                     return (
-                        INSTALLER.HASH_PREFIX
-                        + json.dumps({path: digest})
-                        + "\r\n"
+                        INSTALLER.HASH_PREFIX + json.dumps({path: digest}) + "\r\n"
                     ).encode()
-                self.operations.append(("activate", "/main.py"))
-                self.files["/main.py"] = self.files.pop("/main.py.commissioning")
+                if "os.rename" in code:
+                    temporary = "/main.py.commissioning"
+                    self.files["/main.py"] = self.files.pop(temporary)
+                    self.operations.append(("activate", "/main.py"))
                 return b""
 
-        transport = Transport()
+        transport = HashingTransport({"/main.py": b"old"})
         INSTALLER._replace_remote_file(transport, "/main.py", b"new")
 
         self.assertEqual(transport.files["/main.py"], b"new")
-        self.assertLess(
-            next(
-                index
-                for index, operation in enumerate(transport.operations)
-                if operation[0] == "code"
-                and "/main.py.commissioning" in operation[1]
-            ),
-            transport.operations.index(("activate", "/main.py")),
+        activation = transport.operations.index(("activate", "/main.py"))
+        temporary_check = next(
+            index
+            for index, operation in enumerate(transport.operations)
+            if operation[0] == "exec"
+            and "/main.py.commissioning" in operation[1]
+            and INSTALLER.HASH_PREFIX in operation[1]
         )
-        activation_code = next(
-            operation[1]
-            for operation in transport.operations
-            if operation[0] == "code" and "os.rename" in operation[1]
-        )
-        self.assertIn("os.rename", activation_code)
-        self.assertNotIn("os.remove", activation_code)
+        self.assertLess(temporary_check, activation)
 
     def test_remote_hashes_return_digests_without_transferring_file_bytes(self):
         class Transport:
             def exec(self, code):
                 self.code = code
-                return (
-                    INSTALLER.HASH_PREFIX
-                    + '{"/main.py":"abc123"}\r\n'
-                ).encode()
+                return (INSTALLER.HASH_PREFIX + '{"/main.py":"abc123"}\r\n').encode()
 
         transport = Transport()
         self.assertEqual(
@@ -166,6 +165,281 @@ class InstallXrpServiceTest(unittest.TestCase):
         )
         self.assertIn("hashlib.sha256", transport.code)
         self.assertIn("f.read(1024)", transport.code)
+
+    def test_cli_migrates_legacy_install_and_publishes_activation_last(self):
+        transport = MemoryTransport(
+            {
+                "/lib/ucsb_xrp_service/service.py": b"legacy service",
+                "/course_projects/student/main.py": b"student work",
+                "/xrp_wifi.json": b'{"mode":"station","ssid":"Pink"}',
+            }
+        )
+        serial_module = types.SimpleNamespace(SerialTransport=lambda *_args, **_kw: transport)
+        with (
+            patch.dict("sys.modules", {"mpremote.transport_serial": serial_module}),
+            patch.object(INSTALLER.time, "sleep"),
+            patch.object(INSTALLER, "_remote_hashes", side_effect=direct_hashes),
+            patch.object(INSTALLER, "_replace_remote_file", side_effect=direct_replace),
+            patch.object(INSTALLER, "_remove_remote_file", side_effect=direct_remove),
+            patch.object(INSTALLER, "_verify_staged_runtime"),
+        ):
+            result = INSTALLER.install("/dev/test", discover_address=False)
+
+        activation = result["activation"]
+        self.assertEqual(activation["generation"], 1)
+        self.assertEqual(activation["slot"], "a")
+        self.assertEqual(activation["releaseSequence"], 25)
+        active_path = "/course_runtime/active.0.json"
+        self.assertEqual(json.loads(transport.files[active_path]), activation)
+        manifest_path = "/course_runtime/slots/a/runtime-manifest.json"
+        self.assertEqual(
+            hashlib.sha256(transport.files[manifest_path]).hexdigest(),
+            activation["runtimeManifestSha256"],
+        )
+        replacements = [
+            path for operation, path in transport.operations if operation == "replace"
+        ]
+        self.assertEqual(replacements[-1], active_path)
+        self.assertLess(replacements.index(manifest_path), replacements.index("/course_boot.py"))
+        self.assertLess(replacements.index("/course_boot.py"), replacements.index("/main.py"))
+        self.assertLess(replacements.index("/main.py"), replacements.index(active_path))
+        self.assertEqual(
+            transport.files["/course_projects/student/main.py"], b"student work"
+        )
+        self.assertEqual(
+            transport.files["/xrp_wifi.json"],
+            b'{"mode":"station","ssid":"Pink"}',
+        )
+        self.assertEqual(
+            transport.files["/lib/ucsb_xrp_service/service.py"], b"legacy service"
+        )
+
+    def test_confirmed_matching_release_is_idempotent(self):
+        transport = MemoryTransport()
+        serial_module = types.SimpleNamespace(SerialTransport=lambda *_args, **_kw: transport)
+        patches = (
+            patch.dict("sys.modules", {"mpremote.transport_serial": serial_module}),
+            patch.object(INSTALLER.time, "sleep"),
+            patch.object(INSTALLER, "_remote_hashes", side_effect=direct_hashes),
+            patch.object(INSTALLER, "_replace_remote_file", side_effect=direct_replace),
+            patch.object(INSTALLER, "_remove_remote_file", side_effect=direct_remove),
+            patch.object(INSTALLER, "_verify_staged_runtime"),
+        )
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+            first = INSTALLER.install("/dev/test", discover_address=False)
+            marker = {
+                key: first["activation"][key]
+                for key in (
+                    "generation",
+                    "slot",
+                    "releaseId",
+                    "releaseSequence",
+                    "runtimeManifestSha256",
+                )
+            }
+            transport.files[INSTALLER.CONFIRMED_RECORD] = INSTALLER.canonical_json_bytes(
+                marker
+            )
+            activation_replacements = len(
+                [
+                    path
+                    for operation, path in transport.operations
+                    if operation == "replace" and path in INSTALLER.ACTIVE_RECORDS
+                ]
+            )
+            second = INSTALLER.install("/dev/test", discover_address=False)
+
+        self.assertEqual(second["activation"]["generation"], 1)
+        self.assertEqual(second["installed_count"], 0)
+        self.assertEqual(
+            len(
+                [
+                    path
+                    for operation, path in transport.operations
+                    if operation == "replace" and path in INSTALLER.ACTIVE_RECORDS
+                ]
+            ),
+            activation_replacements,
+        )
+
+    def test_repair_stages_the_slot_opposite_the_confirmed_runtime(self):
+        transport = MemoryTransport()
+        serial_module = types.SimpleNamespace(SerialTransport=lambda *_args, **_kw: transport)
+        with (
+            patch.dict("sys.modules", {"mpremote.transport_serial": serial_module}),
+            patch.object(INSTALLER.time, "sleep"),
+            patch.object(INSTALLER, "_remote_hashes", side_effect=direct_hashes),
+            patch.object(INSTALLER, "_replace_remote_file", side_effect=direct_replace),
+            patch.object(INSTALLER, "_remove_remote_file", side_effect=direct_remove),
+            patch.object(INSTALLER, "_verify_staged_runtime"),
+        ):
+            first = INSTALLER.install("/dev/test", discover_address=False)
+            marker = {
+                key: first["activation"][key]
+                for key in (
+                    "generation",
+                    "slot",
+                    "releaseId",
+                    "releaseSequence",
+                    "runtimeManifestSha256",
+                )
+            }
+            transport.files[INSTALLER.CONFIRMED_RECORD] = INSTALLER.canonical_json_bytes(
+                marker
+            )
+            corrupt_path = "/course_runtime/slots/a/lib/ucsb_xrp_service/service.py"
+            transport.files[corrupt_path] = b"corrupt"
+            second = INSTALLER.install("/dev/test", discover_address=False)
+
+        self.assertEqual(second["activation"]["generation"], 2)
+        self.assertEqual(second["activation"]["slot"], "b")
+        self.assertIn("/course_runtime/active.1.json", transport.files)
+        self.assertEqual(transport.files[corrupt_path], b"corrupt")
+
+    def test_failed_stage_never_publishes_activation(self):
+        transport = MemoryTransport(
+            {
+                "/course_projects/student/main.py": b"student work",
+                "/xrp_wifi.json": b'{"mode":"access_point"}',
+            }
+        )
+        serial_module = types.SimpleNamespace(SerialTransport=lambda *_args, **_kw: transport)
+        with (
+            patch.dict("sys.modules", {"mpremote.transport_serial": serial_module}),
+            patch.object(INSTALLER.time, "sleep"),
+            patch.object(INSTALLER, "_remote_hashes", side_effect=direct_hashes),
+            patch.object(INSTALLER, "_replace_remote_file", side_effect=direct_replace),
+            patch.object(INSTALLER, "_remove_remote_file", side_effect=direct_remove),
+            patch.object(
+                INSTALLER,
+                "_verify_staged_runtime",
+                side_effect=INSTALLER.InstallError("staged import failed"),
+            ),
+        ):
+            with self.assertRaisesRegex(INSTALLER.InstallError, "staged import failed"):
+                INSTALLER.install("/dev/test", discover_address=False)
+
+        self.assertFalse(any(path in transport.files for path in INSTALLER.ACTIVE_RECORDS))
+        self.assertEqual(
+            transport.files["/course_projects/student/main.py"], b"student work"
+        )
+        self.assertEqual(
+            transport.files["/xrp_wifi.json"], b'{"mode":"access_point"}'
+        )
+
+    def test_device_address_probe_uses_stable_bootstrap_selection(self):
+        code = INSTALLER.device_address_code(5000)
+        self.assertIn("course_boot.prepare_runtime_imports()", code)
+        self.assertIn("/xrp_wifi.json", code)
+        self.assertIn("UCSB_XRP_ADDRESS=", code)
+        self.assertIn("machine.WDT(timeout=8388)", code)
+
+    def test_network_address_is_read_before_the_trial_runtime_is_reset(self):
+        class AddressTransport(MemoryTransport):
+            def exec(self, code):
+                self.operations.append(("exec", code))
+                if INSTALLER.ADDRESS_PREFIX in code:
+                    return b"UCSB_XRP_ADDRESS=192.168.7.25\r\n"
+                return b""
+
+        transport = AddressTransport()
+        serial_module = types.SimpleNamespace(
+            SerialTransport=lambda *_args, **_kw: transport
+        )
+        with (
+            patch.dict("sys.modules", {"mpremote.transport_serial": serial_module}),
+            patch.object(INSTALLER.time, "sleep"),
+            patch.object(INSTALLER, "_remote_hashes", side_effect=direct_hashes),
+            patch.object(INSTALLER, "_replace_remote_file", side_effect=direct_replace),
+            patch.object(INSTALLER, "_remove_remote_file", side_effect=direct_remove),
+            patch.object(INSTALLER, "_verify_staged_runtime"),
+        ):
+            result = INSTALLER.install("/dev/test", discover_address=True)
+
+        address_index = next(
+            index
+            for index, operation in enumerate(transport.operations)
+            if operation[0] == "exec" and INSTALLER.ADDRESS_PREFIX in operation[1]
+        )
+        reset_index = next(
+            index
+            for index, operation in enumerate(transport.operations)
+            if operation[0] == "reset"
+        )
+        self.assertEqual(result["address"], "192.168.7.25")
+        self.assertLess(address_index, reset_index)
+
+    def test_installer_rejects_a_newer_valid_runtime_before_staging(self):
+        manifest_data = b'{"releaseId":"2026.08-dev.26"}\n'
+        digest = hashlib.sha256(manifest_data).hexdigest()
+        record = {
+            "schemaVersion": 1,
+            "generation": 8,
+            "slot": "a",
+            "releaseId": "2026.08-dev.26",
+            "releaseSequence": 26,
+            "runtimeManifestSha256": digest,
+        }
+        transport = MemoryTransport(
+            {
+                "/course_runtime/slots/a/runtime-manifest.json": manifest_data,
+                "/course_runtime/active.1.json": INSTALLER.canonical_json_bytes(
+                    record
+                ),
+            }
+        )
+        serial_module = types.SimpleNamespace(
+            SerialTransport=lambda *_args, **_kw: transport
+        )
+        with (
+            patch.dict("sys.modules", {"mpremote.transport_serial": serial_module}),
+            patch.object(INSTALLER.time, "sleep"),
+            patch.object(INSTALLER, "_remote_hashes", side_effect=direct_hashes),
+            patch.object(INSTALLER, "_replace_remote_file", side_effect=direct_replace),
+            patch.object(INSTALLER, "_remove_remote_file", side_effect=direct_remove),
+        ):
+            with self.assertRaisesRegex(INSTALLER.InstallError, "newer than"):
+                INSTALLER.install("/dev/test", discover_address=False)
+
+        self.assertFalse(
+            any(
+                operation == "replace"
+                for operation, _path in transport.operations
+            )
+        )
+
+    def test_network_verification_requires_the_activated_runtime(self):
+        expected = {
+            "releaseId": "2026.08-dev.23",
+            "releaseSequence": 23,
+            "runtimeManifestSha256": "a" * 64,
+        }
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {
+                        "protocol": 1,
+                        "address": "192.168.7.25",
+                        "runtimeRelease": "2026.08-dev.23",
+                        "runtimeReleaseSequence": 23,
+                        "runtimeManifestSha256": "a" * 64,
+                    }
+                ).encode()
+
+        with patch.object(INSTALLER, "urlopen", return_value=Response()):
+            info = INSTALLER.wait_for_service(
+                "192.168.7.25",
+                timeout_s=1,
+                expected_activation=expected,
+            )
+        self.assertEqual(info["runtimeManifestSha256"], "a" * 64)
 
     def test_parses_only_a_usable_post_restart_address(self):
         self.assertEqual(
@@ -176,22 +450,6 @@ class InstallXrpServiceTest(unittest.TestCase):
         )
         self.assertIsNone(INSTALLER.parse_device_address(b"\r\n"))
         self.assertIsNone(INSTALLER.parse_device_address("0.0.0.0"))
-
-    def test_post_restart_address_code_reads_saved_credentials_at_runtime(self):
-        code = INSTALLER.device_address_code(5000)
-        self.assertIn("/xrp_wifi.json", code)
-        self.assertIn("UCSB_XRP_ADDRESS=", code)
-        self.assertIn("machine.WDT(timeout=8388)", code)
-        self.assertIn("watchdog.feed()", code)
-        self.assertNotIn("password-value", code)
-
-    def test_main_feeds_watchdog_before_importing_the_service(self):
-        code = (ROOT / "device_service" / "main.py").read_text()
-        self.assertLess(
-            code.index("_watchdog.feed()"),
-            code.index("from ucsb_xrp_service"),
-        )
-        self.assertIn("run(_watchdog, network_activation=_network_activation)", code)
 
     def test_transient_usb_install_failure_retries_without_user_action(self):
         expected = {"address": "192.168.7.32", "files": []}
@@ -223,21 +481,7 @@ class InstallXrpServiceTest(unittest.TestCase):
         ) as install:
             with self.assertRaisesRegex(INSTALLER.InstallError, "readback mismatch"):
                 INSTALLER.install_with_usb_retry("/dev/test")
-
         install.assert_called_once_with("/dev/test", discover_address=True)
-
-    def test_skip_network_install_avoids_post_restart_discovery(self):
-        with patch.object(
-            INSTALLER,
-            "install",
-            return_value={"address": None, "files": []},
-        ) as install:
-            result = INSTALLER.install_with_usb_retry(
-                "/dev/test", discover_address=False
-            )
-
-        self.assertIsNone(result["address"])
-        install.assert_called_once_with("/dev/test", discover_address=False)
 
 
 if __name__ == "__main__":

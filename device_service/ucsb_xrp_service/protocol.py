@@ -1,6 +1,9 @@
 """Small, MicroPython-compatible validation for the target protocol."""
 
 PROTOCOL_VERSION = 1
+# Flat installations commissioned before runtime slots report this legacy
+# value. Managed installations obtain their service version from the verified
+# slot manifest through ``course_boot.runtime_identity()``.
 SERVICE_VERSION = "2026.08-dev.22"
 MAX_PROJECT_FILES = 48
 MAX_PROJECT_BYTES = 256 * 1024

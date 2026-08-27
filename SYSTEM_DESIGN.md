@@ -332,22 +332,24 @@ boot, allowing either application to run the retained revision and allowing an
 IDE edit to mark it stale locally without changing the device until the next
 explicit run or synchronization.
 
-Student code runs on the second RP2350 core. The service resolves course
-packages and XRPLib singletons, compiles the entrypoint, evicts prior project
-modules, and collects garbage on the service core before launch. The run reply
-then reports `loading`; core 1 starts only after that reply has left, while the
-browser finishes any in-flight telemetry request and holds polling for 500 ms.
-This keeps HTTP response allocation out of the project-import boundary without
-constraining ordinary student imports. The active project manifest remains in
-RAM. A browser Run marks the launch as managed, so `Robot.start()` begins
-immediately; a directly executed standalone program retains the explicit USER
-button wait. A 7 s hardware watchdog is fed by the service event loop, so a future
-shared-VM deadlock reboots the controller instead of requiring a physical
-reset. A renewable run lease is owned outside the student program; expiration
-also resets the target. Normal completion and exceptions stop on the program
-core, while stop, reset, and lease loss use the controller reset path. All
-converge to zero drive command. Program output is line-buffered into the same
-bounded log stream used by the applications.
+Student code runs on the second RP2350 core, but that interpreter is not kept
+alive while the service writes internal flash. Project synchronization first
+requests worker retirement and observes its completion, then performs the
+transactional write. Run starts a new worker only after the `loading` reply has
+left the HTTP service. The service resolves course packages and XRPLib
+singletons, compiles the entrypoint, evicts prior project modules, and collects
+garbage before launch. This explicit lifecycle avoids concurrent flash writes
+and a second-core Python interpreter without adding guessed delays to normal
+commands. The active project manifest remains in RAM. A browser Run marks the
+launch as managed, so `Robot.start()` begins immediately; a directly executed
+standalone program retains the explicit USER button wait. A 7 s hardware
+watchdog is fed by the service event loop, so a future shared-VM deadlock
+reboots the controller instead of requiring a physical reset. A renewable run
+lease is owned outside the student program; expiration also resets the target.
+Normal completion and exceptions stop on the program core, while stop, reset,
+and lease loss use the controller reset path. All converge to zero drive
+command. Program output is line-buffered into the same bounded log stream used
+by the applications.
 
 XRPLib peripheral drivers are not accessed simultaneously from both RP2350
 cores. Before and after a run, the service reads hardware directly. During a
@@ -452,10 +454,14 @@ state is reported as successful until a target reply or event establishes it.
 
 Commissioning adds explicit recovery for the wrong controller/runtime, partial
 file installation, an existing service watchdog, unavailable station Wi-Fi,
-and reset/re-enumeration. File replacement is safe to repeat and individually
-atomic: matching files are skipped, while each changed file is verified under
-a temporary name before it replaces the old copy. A reset occurs only after
-complete readback and import verification.
+and reset/re-enumeration. The course runtime is installed into alternating
+release slots. Every staged file and the runtime manifest are read-verified
+before a redundant activation record selects that slot; boot confirms it only
+after successful import and can fall back to the previous confirmed slot.
+Matching files are copied from the inactive release when possible, so a
+same-release repair remains small. The two bootstrap files are separately
+verified and replaced atomically. A reset occurs only after complete readback
+and activation verification.
 The wizard treats an unreachable post-reset Wi-Fi service as incomplete and
 keeps probing without erasing the USB-verified result. A user can reconnect by
 USB and run the same operation again after power loss or browser closure.

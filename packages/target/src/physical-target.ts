@@ -21,6 +21,14 @@ import { parseWorldCatalog } from "@ucsb-xrp/simulator";
 import courseRelease from "../../../vendor/current/release.json";
 
 export const CURRENT_COURSE_RELEASE = courseRelease.release_id;
+export const CURRENT_ROBOT_RELEASE_SEQUENCE = courseRelease.release_sequence;
+export const MINIMUM_ROBOT_RELEASE_SEQUENCE =
+  courseRelease.compatibility.minimum_robot_release_sequence;
+export const CURRENT_PROTOCOL_VERSION = courseRelease.service.protocol_version;
+export const CURRENT_PROTOCOL_REVISION =
+  courseRelease.service.protocol_revision;
+export const CURRENT_COURSE_API_REVISION = courseRelease.course_api_revision;
+export const CURRENT_SERVICE_VERSION = courseRelease.service.version;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -35,6 +43,14 @@ interface PhysicalInfo {
   protocol: number;
   serviceVersion: string;
   courseRelease: string;
+  protocolRevision?: number;
+  runtimeRelease?: string;
+  runtimeReleaseSequence?: number;
+  runtimeManifestSha256?: string;
+  courseApiRevision?: string;
+  courseLibraryVersion?: string;
+  bootstrapVersion?: number;
+  robotId?: string;
   bootId: string;
   robotName: string;
   address: string;
@@ -157,19 +173,57 @@ interface CommandActivity {
 }
 
 function assertCompatiblePhysicalInfo(info: PhysicalInfo): void {
-  if (info.protocol !== 1) {
+  if (info.protocol !== CURRENT_PROTOCOL_VERSION) {
     throw new PhysicalTargetError(
       "protocol_mismatch",
       `XRP protocol ${info.protocol} is not supported by this app`,
     );
   }
-  if (
-    info.courseRelease !== CURRENT_COURSE_RELEASE ||
-    info.serviceVersion !== CURRENT_COURSE_RELEASE
-  ) {
+
+  const hasRuntimeIdentity =
+    typeof info.runtimeReleaseSequence === "number" ||
+    typeof info.courseApiRevision === "string" ||
+    typeof info.protocolRevision === "number";
+
+  // Robots commissioned before the transactional runtime was introduced do
+  // not report compatibility fields. Accept only an exact legacy release;
+  // any older legacy installation must be repaired before it can run code.
+  if (!hasRuntimeIdentity) {
+    if (
+      info.courseRelease === CURRENT_COURSE_RELEASE &&
+      (info.serviceVersion === CURRENT_COURSE_RELEASE ||
+        info.serviceVersion === CURRENT_SERVICE_VERSION)
+    ) {
+      return;
+    }
     throw new PhysicalTargetError(
       "release_mismatch",
       `This XRP has course release ${info.courseRelease} and service ${info.serviceVersion}; this web app requires ${CURRENT_COURSE_RELEASE}. Open Set up or repair XRP, update the robot, then reconnect.`,
+    );
+  }
+
+  if (
+    typeof info.protocolRevision !== "number" ||
+    info.protocolRevision < CURRENT_PROTOCOL_REVISION
+  ) {
+    throw new PhysicalTargetError(
+      "protocol_mismatch",
+      `This XRP reports protocol revision ${String(info.protocolRevision)}; this app requires revision ${CURRENT_PROTOCOL_REVISION} or later. Open Set up or repair XRP, update the robot, then reconnect.`,
+    );
+  }
+  if (info.courseApiRevision !== CURRENT_COURSE_API_REVISION) {
+    throw new PhysicalTargetError(
+      "release_mismatch",
+      `This XRP uses course API ${String(info.courseApiRevision)}; this app uses ${CURRENT_COURSE_API_REVISION}. Open Set up or repair XRP, update the robot, then reconnect.`,
+    );
+  }
+  if (
+    typeof info.runtimeReleaseSequence !== "number" ||
+    info.runtimeReleaseSequence < MINIMUM_ROBOT_RELEASE_SEQUENCE
+  ) {
+    throw new PhysicalTargetError(
+      "release_mismatch",
+      `This XRP has runtime ${info.runtimeRelease ?? info.courseRelease}; this app requires robot update ${MINIMUM_ROBOT_RELEASE_SEQUENCE} or later. Open Set up or repair XRP, update the robot, then reconnect.`,
     );
   }
 }

@@ -2,7 +2,6 @@
 """Build the public, read-verifiable browser commissioning payload."""
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -11,34 +10,11 @@ import install_xrp_service
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE_PATH = ROOT / "vendor/current/release.json"
 FIRMWARE_DIRECTORY = ROOT / "vendor/current/firmware"
 
 
-def sha256_bytes(value):
-    return hashlib.sha256(value).hexdigest()
-
-
-def service_constant(name):
-    candidates = (
-        ROOT / "device_service/ucsb_xrp_service/protocol.py",
-        ROOT / "device_service/ucsb_xrp_service/service.py",
-    )
-    prefix = name + " = "
-    for path in candidates:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if line.startswith(prefix):
-                return json.loads(line.split("=", 1)[1].strip())
-    raise ValueError("{} is missing from the device service".format(name))
-
-
 def commissioning_manifest():
-    release = json.loads(RELEASE_PATH.read_text(encoding="utf-8"))
-    course_release = service_constant("COURSE_RELEASE")
-    service_version = service_constant("SERVICE_VERSION")
-    if course_release != release["release_id"]:
-        raise ValueError("device service and course release identifiers differ")
-
+    release = install_xrp_service.release_metadata()
     firmware = release["micropython"]
     firmware_path = FIRMWARE_DIRECTORY / firmware["asset"]
     if not firmware_path.is_file():
@@ -46,28 +22,43 @@ def commissioning_manifest():
     firmware_data = firmware_path.read_bytes()
     if len(firmware_data) != firmware["byte_size"]:
         raise ValueError("commissioning firmware byte count differs from release.json")
-    if sha256_bytes(firmware_data) != firmware["sha256"]:
+    if install_xrp_service.file_sha256(firmware_data) != firmware["sha256"]:
         raise ValueError("commissioning firmware hash differs from release.json")
 
-    files = []
-    for destination, source in install_xrp_service.installation_files().items():
+    runtime_manifest = install_xrp_service.runtime_manifest(release)
+    runtime_manifest_data = install_xrp_service.canonical_json_bytes(runtime_manifest)
+    runtime_files = []
+    for path, source in install_xrp_service.runtime_files().items():
         data = source.read_bytes()
-        files.append(
+        runtime_files.append(
+            {
+                "path": path,
+                "url": "files/runtime/{}".format(path),
+                "bytes": len(data),
+                "sha256": install_xrp_service.file_sha256(data),
+                "source": str(source.relative_to(ROOT)).replace("\\", "/"),
+            }
+        )
+
+    bootstrap_files = []
+    for destination, source in install_xrp_service.bootstrap_files().items():
+        data = source.read_bytes()
+        bootstrap_files.append(
             {
                 "destination": destination,
-                "url": "files/{}".format(destination.lstrip("/")),
+                "url": "files/bootstrap/{}".format(destination.lstrip("/")),
                 "bytes": len(data),
-                "sha256": sha256_bytes(data),
+                "sha256": install_xrp_service.file_sha256(data),
                 "source": str(source.relative_to(ROOT)).replace("\\", "/"),
             }
         )
 
     controller = release["controller"]
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "releaseId": release["release_id"],
-        "serviceVersion": service_version,
-        "courseLibraryVersion": release["ucsb_xrp"]["version"],
+        "releaseSequence": release["release_sequence"],
+        "compatibility": install_xrp_service.compatibility_identity(release),
         "controller": {
             "id": controller["id"],
             "usbVendorId": int(controller["usb_vid"], 16),
@@ -97,7 +88,15 @@ def commissioning_manifest():
             "password": "ucsb-xrp",
             "address": "192.168.4.1",
         },
-        "files": files,
+        "bootstrapFiles": bootstrap_files,
+        "runtime": {
+            "manifest": {
+                "url": "files/runtime/runtime-manifest.json",
+                "bytes": len(runtime_manifest_data),
+                "sha256": install_xrp_service.file_sha256(runtime_manifest_data),
+            },
+            "files": runtime_files,
+        },
     }
 
 
@@ -107,11 +106,25 @@ def write_bundle(output_directory):
         shutil.rmtree(output)
     output.mkdir(parents=True)
     manifest = commissioning_manifest()
-    sources = install_xrp_service.installation_files()
-    for entry in manifest["files"]:
+
+    bootstrap_sources = install_xrp_service.bootstrap_files()
+    for entry in manifest["bootstrapFiles"]:
         destination = output / entry["url"]
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(sources[entry["destination"]], destination)
+        shutil.copyfile(bootstrap_sources[entry["destination"]], destination)
+
+    runtime_sources = install_xrp_service.runtime_files()
+    for entry in manifest["runtime"]["files"]:
+        destination = output / entry["url"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(runtime_sources[entry["path"]], destination)
+
+    runtime_manifest = install_xrp_service.runtime_manifest()
+    runtime_manifest_path = output / manifest["runtime"]["manifest"]["url"]
+    runtime_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    runtime_manifest_path.write_bytes(
+        install_xrp_service.canonical_json_bytes(runtime_manifest)
+    )
     (output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -130,8 +143,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     manifest = write_bundle(args.output)
     print(
-        "Commissioning bundle {}: {} files".format(
-            manifest["releaseId"], len(manifest["files"])
+        "Commissioning bundle {}: {} runtime and {} bootstrap files".format(
+            manifest["releaseId"],
+            len(manifest["runtime"]["files"]),
+            len(manifest["bootstrapFiles"]),
         )
     )
     return 0

@@ -18,17 +18,52 @@ const manifestUrl = new URL(
   "https://course.test/course/commissioning/manifest.json",
 );
 const courseFile = encoder.encode("course release\n");
+const courseBoot = encoder.encode(
+  "def prepare_runtime_imports():\n return {}\n",
+);
+const mainFile = encoder.encode("import course_boot\ncourse_boot.boot()\n");
 
 function digest(value: Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
 function manifest(): CommissioningManifest {
+  const runtimeManifest = encoder.encode(
+    `${JSON.stringify({
+      schemaVersion: 1,
+      releaseId: "2026.08-dev.25",
+      releaseSequence: 25,
+      compatibility: {
+        serviceVersion: "0.1.0",
+        protocolVersion: 1,
+        protocolRevision: 1,
+        bootstrapVersion: 1,
+        courseApiRevision: "0.4-draft",
+        courseLibraryVersion: "0.4.0-dev",
+        minimumRobotReleaseSequence: 25,
+      },
+      files: [
+        {
+          path: "lib/ucsb_xrp/example.py",
+          bytes: courseFile.length,
+          sha256: digest(courseFile),
+        },
+      ],
+    })}\n`,
+  );
   return {
-    schemaVersion: 1,
-    releaseId: "2026.08-dev.22",
-    serviceVersion: "2026.08-dev.22",
-    courseLibraryVersion: "0.4.0-dev",
+    schemaVersion: 2,
+    releaseId: "2026.08-dev.25",
+    releaseSequence: 25,
+    compatibility: {
+      serviceVersion: "0.1.0",
+      protocolVersion: 1,
+      protocolRevision: 1,
+      bootstrapVersion: 1,
+      courseApiRevision: "0.4-draft",
+      courseLibraryVersion: "0.4.0-dev",
+      minimumRobotReleaseSequence: 25,
+    },
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
       usbVendorId: 0x1b4f,
@@ -53,17 +88,100 @@ function manifest(): CommissioningManifest {
       password: "ucsb-xrp",
       address: "192.168.4.1",
     },
-    files: [
+    bootstrapFiles: [
       {
-        destination: "/lib/ucsb_xrp/example.py",
-        url: "files/lib/ucsb_xrp/example.py",
-        bytes: courseFile.length,
-        sha256: digest(courseFile),
-        source: "vendor/current/ucsb_xrp/example.py",
+        destination: "/course_boot.py",
+        url: "files/bootstrap/course_boot.py",
+        bytes: courseBoot.length,
+        sha256: digest(courseBoot),
+        source: "device_service/course_boot.py",
+      },
+      {
+        destination: "/main.py",
+        url: "files/bootstrap/main.py",
+        bytes: mainFile.length,
+        sha256: digest(mainFile),
+        source: "device_service/main.py",
       },
     ],
+    runtime: {
+      manifest: {
+        url: "files/runtime/runtime-manifest.json",
+        bytes: runtimeManifest.length,
+        sha256: digest(runtimeManifest),
+      },
+      files: [
+        {
+          path: "lib/ucsb_xrp/example.py",
+          url: "files/runtime/lib/ucsb_xrp/example.py",
+          bytes: courseFile.length,
+          sha256: digest(courseFile),
+          source: "vendor/current/ucsb_xrp/example.py",
+        },
+      ],
+    },
   };
 }
+
+function runtimeManifestData(value = manifest()): Uint8Array {
+  return encoder.encode(
+    `${JSON.stringify({
+      schemaVersion: 1,
+      releaseId: value.releaseId,
+      releaseSequence: value.releaseSequence,
+      compatibility: value.compatibility,
+      files: value.runtime.files.map(({ path, bytes, sha256 }) => ({
+        path,
+        bytes,
+        sha256,
+      })),
+    })}\n`,
+  );
+}
+
+function jsonData(value: unknown): Uint8Array {
+  return encoder.encode(`${JSON.stringify(value)}\n`);
+}
+
+function fullyInstalledFiles(): Map<string, Uint8Array> {
+  const value = manifest();
+  const record = {
+    schemaVersion: 1,
+    generation: 1,
+    slot: "a",
+    releaseId: value.releaseId,
+    releaseSequence: value.releaseSequence,
+    runtimeManifestSha256: value.runtime.manifest.sha256,
+  };
+  return new Map<string, Uint8Array>([
+    ["/course_runtime/slots/a/lib/ucsb_xrp/example.py", courseFile],
+    [
+      "/course_runtime/slots/a/runtime-manifest.json",
+      runtimeManifestData(value),
+    ],
+    ["/course_boot.py", courseBoot],
+    ["/main.py", mainFile],
+    ["/course_runtime/active.0.json", jsonData(record)],
+    ["/course_runtime/confirmed.json", jsonData(record)],
+  ]);
+}
+
+const fetchReleaseAsset = (async (input: URL | RequestInfo) => {
+  const url = input instanceof URL ? input.href : String(input);
+  if (url.endsWith("files/runtime/runtime-manifest.json")) {
+    return new Response(runtimeManifestData().slice().buffer as ArrayBuffer);
+  }
+  if (url.endsWith("files/runtime/lib/ucsb_xrp/example.py")) {
+    return new Response(courseFile);
+  }
+  if (url.endsWith("files/bootstrap/course_boot.py")) {
+    return new Response(courseBoot);
+  }
+  if (url.endsWith("files/bootstrap/main.py")) {
+    return new Response(mainFile);
+  }
+  throw new Error(`unexpected test URL ${url}`);
+}) as typeof fetch;
 
 function result(stdout = "", stderr = ""): ReplResult {
   return { stdout, stderr };
@@ -86,6 +204,11 @@ class FakeSession implements MicroPythonSession {
     this.requiredModules = requiredModules;
   }
 
+  private jsonFile(path: string): unknown {
+    const data = this.files.get(path);
+    return data ? JSON.parse(new TextDecoder().decode(data)) : null;
+  }
+
   async execute(code: string): Promise<ReplResult> {
     this.commands.push(code);
     if (code.includes("__UCSB_XRP_INSPECTION__=")) {
@@ -104,6 +227,22 @@ class FakeSession implements MicroPythonSession {
         `__UCSB_XRP_NETWORK_PROFILE__=${JSON.stringify({ present: false })}\r\n`,
       );
     }
+    if (code.includes("__UCSB_XRP_RUNTIME_STATE__=")) {
+      return result(
+        `__UCSB_XRP_RUNTIME_STATE__=${JSON.stringify({
+          records: [
+            this.jsonFile("/course_runtime/active.0.json"),
+            this.jsonFile("/course_runtime/active.1.json"),
+          ],
+          confirmed: this.jsonFile("/course_runtime/confirmed.json"),
+          attempted: this.jsonFile("/course_runtime/attempted.json"),
+          slotManifests: {
+            a: this.jsonFile("/course_runtime/slots/a/runtime-manifest.json"),
+            b: this.jsonFile("/course_runtime/slots/b/runtime-manifest.json"),
+          },
+        })}\r\n`,
+      );
+    }
     if (code.includes("__UCSB_XRP_HASHES__=")) {
       const pathsSource = code.match(/for p in (\[[^\n]+\]):/)?.[1];
       if (!pathsSource) throw new Error("hash paths missing from test command");
@@ -118,7 +257,7 @@ class FakeSession implements MicroPythonSession {
       return result(
         `__UCSB_XRP_VERIFY__=${JSON.stringify({
           library: "0.4.0-dev",
-          service: "2026.08-dev.22",
+          protocol: 1,
           modules: this.requiredModules,
         })}\r\n`,
       );
@@ -147,6 +286,15 @@ class FakeSession implements MicroPythonSession {
     if (open) {
       this.temporaryPath = JSON.parse(open[1]!) as string;
       this.temporaryData = [];
+      return result();
+    }
+    if (code.includes("os.remove(p)")) {
+      const pathsSource = code.match(/for p in (\[[^\n]+\]):/)?.[1];
+      if (pathsSource) {
+        for (const path of JSON.parse(pathsSource) as string[]) {
+          this.files.delete(path);
+        }
+      }
       return result();
     }
     const chunk = code.match(/a2b_base64\(("[A-Za-z0-9+/=]+")\)/);
@@ -185,12 +333,12 @@ class FakeSession implements MicroPythonSession {
 describe("browser XRP commissioning", () => {
   it("rejects mixed page and commissioning releases before USB work", () => {
     expect(() =>
-      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.23"),
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.26"),
     ).toThrow(
-      "Setup loaded robot files for 2026.08-dev.22, but this page is 2026.08-dev.23",
+      "Setup loaded robot files for 2026.08-dev.25, but this page is 2026.08-dev.26",
     );
     expect(() =>
-      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.22"),
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.25"),
     ).not.toThrow();
   });
 
@@ -237,34 +385,41 @@ describe("browser XRP commissioning", () => {
   it("updates only changed files, verifies readback, configures Wi-Fi, and resets", async () => {
     const session = new FakeSession();
     const progress: string[] = [];
-    const fetchImplementation = (async (input: URL | RequestInfo) => {
-      const url = input instanceof URL ? input.href : String(input);
-      if (url.endsWith("files/lib/ucsb_xrp/example.py")) {
-        return new Response(courseFile);
-      }
-      throw new Error(`unexpected test URL ${url}`);
-    }) as typeof fetch;
-
     const completed = await commissionDevice({
       session,
       manifest: manifest(),
       manifestUrl,
       network: { mode: "access_point", ssid: "UCSB-XRP-VISELL" },
-      fetch: fetchImplementation,
+      fetch: fetchReleaseAsset,
       onProgress: (next) => progress.push(next.detail),
     });
 
     expect(completed).toMatchObject({
-      installedFiles: 1,
+      releaseSequence: 25,
+      activationGeneration: 1,
+      installedFiles: 4,
       unchangedFiles: 0,
       network: { ssid: "UCSB-XRP-VISELL", address: "192.168.4.1" },
     });
-    expect(session.files.get("/lib/ucsb_xrp/example.py")).toEqual(courseFile);
+    expect(
+      session.files.get("/course_runtime/slots/a/lib/ucsb_xrp/example.py"),
+    ).toEqual(courseFile);
     const activation = session.commands.find((code) =>
-      code.includes('os.rename("/lib/ucsb_xrp/example.py.commissioning"'),
+      code.includes('os.rename("/course_runtime/active.0.json.commissioning"'),
     );
     expect(activation).toContain("os.rename");
-    expect(activation).not.toContain("os.remove");
+    expect(
+      JSON.parse(
+        new TextDecoder().decode(
+          session.files.get("/course_runtime/active.0.json")!,
+        ),
+      ),
+    ).toMatchObject({
+      generation: 1,
+      slot: "a",
+      releaseSequence: 25,
+      runtimeManifestSha256: manifest().runtime.manifest.sha256,
+    });
     expect(session.files.has("/xrp_wifi.json")).toBe(true);
     expect(
       JSON.parse(new TextDecoder().decode(session.files.get("/xrp_wifi.json")!))
@@ -280,19 +435,14 @@ describe("browser XRP commissioning", () => {
     expect(runtimeVerification!.indexOf("del sys.modules[name]")).toBeLessThan(
       runtimeVerification!.indexOf("import ucsb_xrp, ucsb_xrp_service"),
     );
-    expect(progress).toContain("Loading the installed course software…");
-    expect(progress).toContain(
-      "Installed course release 2026.08-dev.22 verified.",
-    );
+    expect(progress).toContain("Verifying the new runtime…");
+    expect(progress).toContain("Course runtime 2026.08-dev.25 is ready.");
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
   });
 
   it("is idempotent when every installed hash already matches", async () => {
-    const files = new Map<string, Uint8Array>([
-      ["/lib/ucsb_xrp/example.py", courseFile],
-    ]);
-    const session = new FakeSession(files);
+    const session = new FakeSession(fullyInstalledFiles());
     const completed = await commissionDevice({
       session,
       manifest: manifest(),
@@ -303,18 +453,101 @@ describe("browser XRP commissioning", () => {
       }) as typeof fetch,
     });
     expect(completed.installedFiles).toBe(0);
-    expect(completed.unchangedFiles).toBe(1);
+    expect(completed.unchangedFiles).toBe(4);
+    expect(completed.activationGeneration).toBe(1);
+    expect(
+      session.commands.filter((code) =>
+        code.includes("/course_runtime/active.0.json.commissioning"),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("repairs a damaged active runtime in the other slot and retains the confirmed fallback", async () => {
+    const files = fullyInstalledFiles();
+    files.set(
+      "/course_runtime/slots/a/lib/ucsb_xrp/example.py",
+      encoder.encode("damaged\n"),
+    );
+    const confirmedBefore = files.get("/course_runtime/confirmed.json")!;
+    const session = new FakeSession(files);
+
+    const completed = await commissionDevice({
+      session,
+      manifest: manifest(),
+      manifestUrl,
+      network: { mode: "keep" },
+      fetch: fetchReleaseAsset,
+    });
+
+    expect(completed.activationGeneration).toBe(2);
+    expect(
+      session.files.get("/course_runtime/slots/b/lib/ucsb_xrp/example.py"),
+    ).toEqual(courseFile);
+    expect(session.files.get("/course_runtime/confirmed.json")).toEqual(
+      confirmedBefore,
+    );
+    expect(
+      JSON.parse(
+        new TextDecoder().decode(
+          session.files.get("/course_runtime/active.1.json")!,
+        ),
+      ),
+    ).toMatchObject({ generation: 2, slot: "b" });
+  });
+
+  it("refuses an implicit downgrade before fetching or writing files", async () => {
+    const newerManifest = encoder.encode(
+      `${JSON.stringify({ releaseId: "2026.08-dev.26", releaseSequence: 26, files: [] })}\n`,
+    );
+    const newerDigest = digest(newerManifest);
+    const newerRecord = {
+      schemaVersion: 1,
+      generation: 4,
+      slot: "a",
+      releaseId: "2026.08-dev.26",
+      releaseSequence: 26,
+      runtimeManifestSha256: newerDigest,
+    };
+    const session = new FakeSession(
+      new Map([
+        ["/course_runtime/slots/a/runtime-manifest.json", newerManifest],
+        ["/course_runtime/active.1.json", jsonData(newerRecord)],
+        ["/course_runtime/confirmed.json", jsonData(newerRecord)],
+      ]),
+    );
+    let fetched = false;
+
+    await expect(
+      commissionDevice({
+        session,
+        manifest: manifest(),
+        manifestUrl,
+        network: { mode: "keep" },
+        fetch: (async () => {
+          fetched = true;
+          throw new Error("must not fetch");
+        }) as typeof fetch,
+      }),
+    ).rejects.toThrow("newer course runtime 2026.08-dev.26");
+    expect(fetched).toBe(false);
+    expect(
+      session.commands.some((code) => code.includes(".commissioning")),
+    ).toBe(false);
   });
 
   it("resets and closes after a failed installed-file readback", async () => {
     const session = new FakeSession();
     const originalExecute = session.execute.bind(session);
-    let hashCalls = 0;
+    let runtimeHashCalls = 0;
     session.execute = async (code: string) => {
-      if (code.includes("__UCSB_XRP_HASHES__=") && ++hashCalls === 2) {
+      if (
+        code.includes("__UCSB_XRP_HASHES__=") &&
+        code.includes("slots/a/lib/ucsb_xrp/example.py") &&
+        ++runtimeHashCalls === 2
+      ) {
         return result(
           `__UCSB_XRP_HASHES__=${JSON.stringify({
-            "/lib/ucsb_xrp/example.py": "corrupt",
+            "/course_runtime/slots/a/lib/ucsb_xrp/example.py": "corrupt",
           })}\r\n`,
         );
       }
@@ -327,25 +560,33 @@ describe("browser XRP commissioning", () => {
         manifest: manifest(),
         manifestUrl,
         network: { mode: "access_point" },
-        fetch: (async () => new Response(courseFile)) as typeof fetch,
+        fetch: (async (input: URL | RequestInfo) => {
+          const url = input instanceof URL ? input.href : String(input);
+          if (url.endsWith("runtime-manifest.json")) {
+            return new Response(
+              runtimeManifestData().slice().buffer as ArrayBuffer,
+            );
+          }
+          if (url.endsWith("course_boot.py")) return new Response(courseBoot);
+          if (url.endsWith("main.py")) return new Response(mainFile);
+          return new Response(courseFile);
+        }) as typeof fetch,
       }),
     ).rejects.toThrow("Readback verification failed");
+    expect(session.files.has("/course_runtime/active.0.json")).toBe(false);
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
   });
 
   it("reports the installed and expected runtime versions", async () => {
-    const files = new Map<string, Uint8Array>([
-      ["/lib/ucsb_xrp/example.py", courseFile],
-    ]);
-    const session = new FakeSession(files);
+    const session = new FakeSession(fullyInstalledFiles());
     const originalExecute = session.execute.bind(session);
     session.execute = async (code: string) => {
       if (code.includes("__UCSB_XRP_VERIFY__=")) {
         return result(
           `__UCSB_XRP_VERIFY__=${JSON.stringify({
             library: "0.3.0",
-            service: "2026.08-dev.7",
+            protocol: 0,
             modules: manifest().xrplib.requiredModules,
           })}\r\n`,
         );
@@ -364,7 +605,7 @@ describe("browser XRP commissioning", () => {
         }) as typeof fetch,
       }),
     ).rejects.toThrow(
-      "course library 0.3.0 (expected 0.4.0-dev); course service 2026.08-dev.7 (expected 2026.08-dev.22)",
+      "course library 0.3.0 (expected 0.4.0-dev); protocol 0 (expected 1)",
     );
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);

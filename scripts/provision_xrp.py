@@ -10,17 +10,8 @@ import xrp_wifi
 
 
 def local_service_version():
-    """Read the installed service version without importing MicroPython code."""
-    protocol_path = (
-        install_xrp_service.ROOT
-        / "device_service/ucsb_xrp_service/protocol.py"
-    )
-    for line in protocol_path.read_text(encoding="utf-8").splitlines():
-        if line.startswith("SERVICE_VERSION = "):
-            return json.loads(line.split("=", 1)[1].strip())
-    raise install_xrp_service.InstallError(
-        "SERVICE_VERSION is missing from the device protocol"
-    )
+    """Read the service identity from the single release authority."""
+    return install_xrp_service.release_metadata()["service"]["version"]
 
 
 def provision(
@@ -66,7 +57,10 @@ def provision(
     address = installed["address"]
     service = None
     if wifi["mode"] == xrp_wifi.MODE_STATION:
-        service = install_xrp_service.wait_for_service(address)
+        service = install_xrp_service.wait_for_service(
+            address,
+            expected_activation=installed.get("activation"),
+        )
     release = json.loads(
         (install_xrp_service.ROOT / "vendor/current/release.json").read_text(
             encoding="utf-8"

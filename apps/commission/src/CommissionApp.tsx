@@ -77,8 +77,14 @@ type Stage =
 
 interface PhysicalInfo {
   protocol: number;
+  protocolRevision?: number;
   serviceVersion: string;
   courseRelease: string;
+  runtimeRelease?: string;
+  runtimeReleaseSequence?: number;
+  runtimeGeneration?: number;
+  runtimeManifestSha256?: string;
+  courseApiRevision?: string;
   robotName: string;
   address: string;
 }
@@ -853,13 +859,16 @@ export function CommissionApp() {
       }
       const info = (await response.json()) as PhysicalInfo;
       if (
-        info.protocol !== 1 ||
-        info.serviceVersion !== manifest.serviceVersion ||
-        info.courseRelease !== manifest.releaseId
+        info.protocol !== manifest.compatibility.protocolVersion ||
+        info.protocolRevision !== manifest.compatibility.protocolRevision ||
+        info.courseApiRevision !== manifest.compatibility.courseApiRevision ||
+        info.runtimeReleaseSequence !== manifest.releaseSequence ||
+        info.runtimeGeneration !== result.activationGeneration ||
+        info.runtimeManifestSha256 !== result.runtimeManifestSha256
       ) {
         throw new XrpServiceProbeError(
           "version",
-          "The XRP replied, but its course service version does not match this web release.",
+          "The XRP replied, but it did not start the course runtime that was just installed. Reconnect it by USB-C and run repair again.",
         );
       }
       const preference = targetPreferenceForPhysicalNetwork(

@@ -31,7 +31,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.22"
+COURSE_RELEASE = "2026.08-dev.25"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -74,6 +74,70 @@ _last_reply_by_id = {}
 _reply_order = []
 _network_state = None
 _reset_pending = False
+
+
+def _runtime_identity():
+    """Return one release identity for both legacy and slotted installs."""
+    try:
+        import course_boot
+
+        context = course_boot.runtime_identity()
+    except (ImportError, AttributeError):
+        context = None
+    if not isinstance(context, dict):
+        context = {}
+    release_id = context.get("releaseId")
+    if not isinstance(release_id, str) or not release_id:
+        release_id = COURSE_RELEASE
+    service_version = context.get("serviceVersion")
+    if not isinstance(service_version, str) or not service_version:
+        service_version = SERVICE_VERSION
+    course_library_version = context.get("courseLibraryVersion")
+    if not isinstance(course_library_version, str) or not course_library_version:
+        try:
+            import ucsb_xrp
+
+            course_library_version = getattr(ucsb_xrp, "__version__", None)
+        except Exception:
+            course_library_version = None
+    release_sequence = context.get("releaseSequence")
+    if not isinstance(release_sequence, int) or isinstance(release_sequence, bool):
+        release_sequence = None
+    runtime_generation = context.get("generation")
+    if not isinstance(runtime_generation, int) or isinstance(runtime_generation, bool):
+        runtime_generation = None
+    protocol_revision = context.get("protocolRevision", PROTOCOL_VERSION)
+    if not isinstance(protocol_revision, int) or isinstance(protocol_revision, bool):
+        protocol_revision = PROTOCOL_VERSION
+    bootstrap_version = context.get("bootstrapVersion", 1)
+    if not isinstance(bootstrap_version, int) or isinstance(bootstrap_version, bool):
+        bootstrap_version = 1
+    manifest_digest = context.get("runtimeManifestSha256")
+    if not isinstance(manifest_digest, str):
+        manifest_digest = None
+    course_api_revision = context.get("courseApiRevision")
+    if not isinstance(course_api_revision, str):
+        course_api_revision = None
+    return {
+        "runtimeRelease": release_id,
+        "runtimeReleaseSequence": release_sequence,
+        "runtimeGeneration": runtime_generation,
+        "runtimeManifestSha256": manifest_digest,
+        "courseApiRevision": course_api_revision,
+        "courseLibraryVersion": course_library_version,
+        "serviceVersion": service_version,
+        "protocolRevision": protocol_revision,
+        "bootstrapVersion": bootstrap_version,
+    }
+
+
+def _robot_id():
+    """Return the controller's stable hardware identifier as lowercase hex."""
+    try:
+        value = machine.unique_id()
+        return "".join("{:02x}".format(byte) for byte in value)
+    except Exception:
+        return None
 
 
 def _cors_headers():
@@ -458,8 +522,8 @@ def _project_worker():
     completed its cleanup, the worker is immediately idle and flash-safe; no
     guessed settling delay is required.
     """
-    global _project_worker_ready, _thread_active, _lease_deadline
-    global _project_job
+    global _project_worker_ready, _project_worker_started
+    global _thread_active, _lease_deadline, _project_job
     _project_worker_ready = True
     try:
         while not _project_worker_shutdown:
@@ -483,6 +547,31 @@ def _project_worker():
                 time.sleep_ms(PROJECT_WORKER_IDLE_MS)
     finally:
         _project_worker_ready = False
+        _project_worker_started = False
+
+
+def _retire_project_worker(timeout_ms=500):
+    """Stop core 1 and wait for its Python worker to acknowledge exit.
+
+    RP2350 program flash and the MicroPython interpreter share internal flash.
+    Leaving core 1 in its idle Python loop while core 0 writes project files
+    can stall both cores. The ready flag is written by core 1 in its final
+    block; a subsequent start retries only while the native core is still
+    completing that acknowledged exit.
+    """
+    global _project_worker_started
+    if not _project_worker_started:
+        return
+    if _thread_active or _project_job is not None:
+        raise RuntimeError("Project worker is not idle")
+    _begin_project_worker_shutdown()
+    deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
+    while _project_worker_ready:
+        _feed_watchdog_now()
+        if time.ticks_diff(deadline, time.ticks_ms()) <= 0:
+            raise RuntimeError("Project worker did not stop")
+        time.sleep_ms(PROJECT_WORKER_IDLE_MS)
+    _project_worker_started = False
 
 
 def _start_project_worker(watchdog):
@@ -491,12 +580,24 @@ def _start_project_worker(watchdog):
     if _project_worker_started:
         return
     _project_worker_shutdown = False
-    _project_worker_started = True
-    _thread.start_new_thread(_project_worker, ())
     deadline = time.ticks_add(time.ticks_ms(), PROJECT_WORKER_START_TIMEOUT_MS)
+    while True:
+        try:
+            _thread.start_new_thread(_project_worker, ())
+            _project_worker_started = True
+            break
+        except OSError:
+            # Core 1 can remain natively occupied for a few instructions after
+            # its Python worker clears the ready flag. Retry against the actual
+            # core-availability signal instead of imposing a fixed delay.
+            watchdog.feed()
+            if time.ticks_diff(deadline, time.ticks_ms()) <= 0:
+                raise RuntimeError("Project worker core did not become available")
+            time.sleep_ms(1)
     while not _project_worker_ready:
         watchdog.feed()
         if time.ticks_diff(deadline, time.ticks_ms()) <= 0:
+            _project_worker_started = False
             raise RuntimeError("Project worker did not start")
         time.sleep_ms(PROJECT_WORKER_IDLE_MS)
 
@@ -543,8 +644,20 @@ async def _launch_project_after_response(
     import uasyncio
 
     await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
-    if _project_worker_shutdown or not _launch_pending or run_id != _run_id:
+    if _reset_pending or not _launch_pending or run_id != _run_id:
         return
+    if not _project_worker_ready:
+        try:
+            _start_project_worker(_service_watchdog)
+        except Exception as exc:
+            _launch_pending = False
+            _lease_deadline = None
+            detail = "Project worker could not start: {}: {}".format(
+                type(exc).__name__, str(exc)
+            )
+            _append_log("stderr", detail)
+            _set_state("error", detail)
+            return
     _launch_pending = False
     _thread_active = True
     # The first browser lease is sent only after the startup quiet interval and
@@ -553,7 +666,7 @@ async def _launch_project_after_response(
     # lease; the hardware watchdog remains the faster recovery for a VM lock.
     _extend_run_lease(STARTUP_LEASE_MS)
     _set_state("running", "Running " + entrypoint)
-    if not _project_worker_ready or _project_job is not None:
+    if _project_job is not None:
         _thread_active = False
         _lease_deadline = None
         detail = "Project worker is unavailable"
@@ -925,11 +1038,23 @@ def _command(request, operation):
 
 @server.route("/api/v1/info")
 def info(request):
+    identity = _runtime_identity()
     return _json_response(
         {
             "protocol": PROTOCOL_VERSION,
-            "serviceVersion": SERVICE_VERSION,
-            "courseRelease": COURSE_RELEASE,
+            # Keep these two names for older clients while exposing the
+            # independent compatibility fields used by current clients.
+            "serviceVersion": identity["serviceVersion"],
+            "courseRelease": identity["runtimeRelease"],
+            "runtimeRelease": identity["runtimeRelease"],
+            "runtimeReleaseSequence": identity["runtimeReleaseSequence"],
+            "runtimeGeneration": identity["runtimeGeneration"],
+            "runtimeManifestSha256": identity["runtimeManifestSha256"],
+            "courseApiRevision": identity["courseApiRevision"],
+            "courseLibraryVersion": identity["courseLibraryVersion"],
+            "protocolRevision": identity["protocolRevision"],
+            "bootstrapVersion": identity["bootstrapVersion"],
+            "robotId": _robot_id(),
             "recoveryWatchdogMs": SERVICE_WATCHDOG_MS,
             "bootId": _boot_id,
             "robotName": network.hostname(),
@@ -1021,6 +1146,10 @@ def sync(request):
         project = validate_project(body.get("project"))
         _feed_watchdog_now()
         checked = _compile_project(project)
+        # Internal-flash writes require core 1 to be completely outside its
+        # Python worker. Retire it through an acknowledged flag and leave it
+        # stopped; Run starts it only after the HTTP reply has left core 0.
+        _retire_project_worker()
         manifest = _write_project(project)
         _feed_watchdog_now()
         _set_state("ready", "Project flashed")
@@ -1178,6 +1307,33 @@ async def _feed_service_watchdog(watchdog):
         await uasyncio.sleep_ms(500)
 
 
+async def _confirm_runtime_after_server_start():
+    """Confirm a trial runtime on the first service event-loop turn."""
+    import uasyncio
+
+    # The coroutine cannot run until ``server.run`` has started its loop. At
+    # that point all imports, hardware singletons, the program worker, Wi-Fi,
+    # and recurring service tasks have already been prepared successfully.
+    await uasyncio.sleep_ms(0)
+    try:
+        import course_boot
+
+        confirmed = course_boot.confirm_active_runtime()
+        if confirmed:
+            _append_log("system", "Course runtime confirmed")
+    except Exception as exc:
+        _append_log(
+            "stderr",
+            "Could not confirm course runtime: {}: {}".format(
+                type(exc).__name__, str(exc)
+            ),
+        )
+        # An unconfirmed candidate must not appear healthy until a later reset
+        # unexpectedly returns to the prior release. Reset now so the stable
+        # bootstrap performs that fallback immediately.
+        _schedule_reset()
+
+
 def _connect_wifi(timeout_ms=20000, watchdog=None, activation=None):
     global _network_state
     if activation is None:
@@ -1240,10 +1396,9 @@ def run(watchdog=None, network_activation=None):
     _append_log("system", "XRP hardware interfaces ready")
     watchdog.feed()
 
-    # Start one persistent core-1 worker after all shared modules and hardware
-    # singletons are resident. It remains idle until a browser Run command,
-    # avoiding native thread teardown between ordinary course runs.
-    _start_project_worker(watchdog)
+    # Core 1 stays unused until Run. Starting its Python worker only after the
+    # Run reply avoids both HTTP-allocation contention and internal-flash
+    # conflicts during project flashing.
     _append_log("system", "Program runner ready")
     watchdog.feed()
 
@@ -1251,13 +1406,15 @@ def run(watchdog=None, network_activation=None):
         watchdog=watchdog,
         activation=network_activation,
     )
+    identity = _runtime_identity()
     _append_log(
         "system",
         "Course service {} at {} ({})".format(
-            SERVICE_VERSION, address, _network_state["mode"]
+            identity["serviceVersion"], address, _network_state["mode"]
         ),
     )
     print("UCSB XRP course service at http://{}".format(address))
     server.loop.create_task(_feed_service_watchdog(watchdog))
     server.loop.create_task(_watch_run_lease())
+    server.loop.create_task(_confirm_runtime_after_server_start())
     server.run(host="0.0.0.0", port=80)

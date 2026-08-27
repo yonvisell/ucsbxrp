@@ -465,6 +465,27 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             stderr: "",
           };
         }
+        if (code.includes("__UCSB_XRP_RUNTIME_STATE__=")) {
+          const readJson = (path: string) => {
+            const data = files.get(path);
+            return data ? JSON.parse(textDecoder.decode(data)) : null;
+          };
+          return {
+            stdout: `__UCSB_XRP_RUNTIME_STATE__=${JSON.stringify({
+              records: [
+                readJson("/course_runtime/active.0.json"),
+                readJson("/course_runtime/active.1.json"),
+              ],
+              confirmed: readJson("/course_runtime/confirmed.json"),
+              attempted: readJson("/course_runtime/attempted.json"),
+              slotManifests: {
+                a: readJson("/course_runtime/slots/a/runtime-manifest.json"),
+                b: readJson("/course_runtime/slots/b/runtime-manifest.json"),
+              },
+            })}\r\n`,
+            stderr: "",
+          };
+        }
         if (code.includes("__UCSB_XRP_HASHES__=")) {
           const source = code.match(/for p in (\[[^\n]+\]):/)?.[1];
           const hashes: Record<string, string | null> = {};
@@ -481,7 +502,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
               library: "0.4.0-dev",
-              service: "2026.08-dev.22",
+              protocol: 1,
               modules: [
                 "XRPLib.board",
                 "XRPLib.encoded_motor",
@@ -491,6 +512,13 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             })}\r\n`,
             stderr: "",
           };
+        }
+        if (code.includes("os.remove(p)")) {
+          const source = code.match(/for p in (\[[^\n]+\]):/)?.[1];
+          for (const path of JSON.parse(source ?? "[]") as string[]) {
+            files.delete(path);
+          }
+          return { stdout: "", stderr: "" };
         }
         if (code.includes("__UCSB_XRP_NETWORK__=")) {
           return {
@@ -565,11 +593,24 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         if (serviceProbeCount < 3) {
           throw new TypeError("computer has not joined the XRP hotspot yet");
         }
+        const runtimeManifest = files.get(
+          "/course_runtime/slots/a/runtime-manifest.json",
+        );
         return new Response(
           JSON.stringify({
             protocol: 1,
-            serviceVersion: "2026.08-dev.22",
-            courseRelease: "2026.08-dev.22",
+            protocolRevision: 1,
+            serviceVersion: "0.1.0",
+            courseRelease: "2026.08-dev.25",
+            runtimeRelease: "2026.08-dev.25",
+            runtimeReleaseSequence: 25,
+            runtimeGeneration: 1,
+            runtimeManifestSha256: runtimeManifest
+              ? await sha256(runtimeManifest)
+              : null,
+            courseApiRevision: "0.4-draft",
+            courseLibraryVersion: "0.4.0-dev",
+            bootstrapVersion: 1,
             robotName: "UCSB-XRP-4A21",
             address: "192.168.4.1",
             bootId: "test-boot",

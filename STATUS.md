@@ -4,6 +4,34 @@ Last updated: 2026-08-26
 
 ## Current result
 
+Refinement 47 makes installation atomic at the course-release boundary and
+removes the RP2350 flash/run conflict found by repeated physical use. Release
+`2026.08-dev.25` installs the complete course runtime into alternating `a` and
+`b` slots, verifies every staged file and the release manifest, and changes a
+small redundant activation record only after verification. Boot confirms a
+new slot only after successful import and retains the previous confirmed slot
+for automatic rollback. Browser and command-line installers now use the same
+compatibility fields, release sequence, file map, and manifest digest.
+
+Repeated project transfer exposed a separate RP2350 constraint: writing
+internal flash while a second-core MicroPython interpreter remained alive
+could reboot the controller. Flash now requests and observes program-worker
+retirement before writing. The worker is started only after the subsequent Run
+reply has left the HTTP service, and it clears its own lifecycle flag on every
+exit. This replaces guessed pauses with explicit state transitions and keeps
+ordinary Flash, Run, Stop, and telemetry on one boot.
+
+On the attached RP2350 at `192.168.7.25`, one unchanged dev.25 boot passed the
+service probe with three immediate flash/run cycles, stdout, pose telemetry,
+and cooperative Stop; the raised-wheel motor check independently actuated each
+wheel and both together, observed encoder changes, and ended at zero effort;
+and the Stable Chrome physical workflow passed shared IDE/Monitor flash,
+automatic validate/flash/run, cross-window Run/Stop, motion telemetry, and
+ordered logs. A full controller Reset still takes approximately eight seconds
+or slightly longer to reassociate with Pink. That latency remains a measured
+reset-path limitation, not an ordinary project-command delay. Evidence is in
+`docs/hardware/2026-08-26-dev25-transaction-and-runtime.json`.
+
 Refinement 46 restores one coherent release and closes two failures found only
 by repeating the full attached-robot workflow. A production service worker had
 served a dev.16 commissioning manifest to a dev.22 page; the wizard then

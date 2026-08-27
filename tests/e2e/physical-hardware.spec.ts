@@ -235,20 +235,33 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     expect(Date.now() - firstStopStarted).toBeLessThan(3_000);
     await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
-    // A project edit is shared immediately: Monitor cannot run a stale robot
-    // project until IDE flashes the changed revision.
+    // A project edit is shared immediately. Monitor stays usable, but its Run
+    // action now identifies that the edited project must be validated and
+    // flashed before it starts. One click performs that coherent sequence.
     await ide.getByRole("button", { name: "New file", exact: true }).click();
     await ide.getByLabel("Project-relative path").fill("notes.md");
     await ide.getByRole("button", { name: "Create file" }).click();
-    await expect(monitorRun).toBeDisabled();
-    await expect(monitorRun).toHaveAttribute("title", /IDE project changed/);
-    await ide.getByRole("button", { name: "Flash project" }).click();
-    await expect(
-      ide.getByText("The complete project is flashed and ready on the XRP."),
-    ).toBeVisible({ timeout: 5_000 });
     await expect(monitorRun).toBeEnabled();
+    await expect(monitorRun).toHaveAttribute(
+      "title",
+      /Validate and run the current IDE project/,
+    );
+    await monitorRun.click();
+    await expect(ideStatus).toContainText("Physical XRP · running", {
+      timeout: 5_000,
+    });
+    await expect(ide.getByRole("log")).toContainText(noMotionSentinel, {
+      timeout: 5_000,
+    });
+    await monitor
+      .locator(".app-header")
+      .getByRole("button", { name: "Stop", exact: true })
+      .click();
+    await expect(ideStatus).toContainText("Physical XRP · ready", {
+      timeout: 5_000,
+    });
 
-    // Second run: start from IDE and stop from Monitor to exercise the other
+    // Third run: start from IDE and stop from Monitor to exercise the other
     // cross-window command direction.
     await ide.getByRole("button", { name: "Run", exact: true }).click();
     await expect(monitorStatus).toContainText("Physical XRP · running", {

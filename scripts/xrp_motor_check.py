@@ -96,7 +96,13 @@ def run_check(address):
             after_log_seq = max(after_log_seq, entry["seq"])
             if entry.get("line", "").startswith(RESULT_PREFIX):
                 result = json.loads(entry["line"][len(RESULT_PREFIX) :])
-        if state.get("state") != "running":
+        run_state = state.get("state")
+        if run_state == "loading":
+            # The worker accepted Run but has not entered student code yet.
+            # This is a normal transient state, not a completed program.
+            time.sleep(0.05)
+            continue
+        if run_state != "running":
             break
         command(base_url, "lease", counter, runId=run["runId"])
         counter += 1

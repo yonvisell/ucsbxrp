@@ -6,7 +6,7 @@ import {
   type SerialPortLike,
 } from "./web-serial";
 
-export interface CommissioningFile {
+export interface CommissioningBootstrapFile {
   destination: string;
   url: string;
   bytes: number;
@@ -14,11 +14,29 @@ export interface CommissioningFile {
   source: string;
 }
 
-export interface CommissioningManifest {
-  schemaVersion: 1;
-  releaseId: string;
+export interface CommissioningRuntimeFile {
+  path: string;
+  url: string;
+  bytes: number;
+  sha256: string;
+  source: string;
+}
+
+export interface CommissioningCompatibility {
   serviceVersion: string;
+  protocolVersion: number;
+  protocolRevision: number;
+  bootstrapVersion: number;
+  courseApiRevision: string;
   courseLibraryVersion: string;
+  minimumRobotReleaseSequence: number;
+}
+
+export interface CommissioningManifest {
+  schemaVersion: 2;
+  releaseId: string;
+  releaseSequence: number;
+  compatibility: CommissioningCompatibility;
   controller: ExpectedUsbController & { id: string };
   micropython: {
     version: string;
@@ -39,7 +57,15 @@ export interface CommissioningManifest {
     password: string;
     address: string;
   };
-  files: CommissioningFile[];
+  bootstrapFiles: CommissioningBootstrapFile[];
+  runtime: {
+    manifest: {
+      url: string;
+      bytes: number;
+      sha256: string;
+    };
+    files: CommissioningRuntimeFile[];
+  };
 }
 
 export interface DeviceInspection {
@@ -77,7 +103,10 @@ export interface PublicNetworkState {
 
 export interface CommissioningResult {
   releaseId: string;
+  releaseSequence: number;
   serviceVersion: string;
+  runtimeManifestSha256: string;
+  activationGeneration: number;
   installedFiles: number;
   unchangedFiles: number;
   network: PublicNetworkState;
@@ -95,6 +124,7 @@ export type ProgressReporter = (progress: CommissioningProgress) => void;
 const INSPECTION_MARKER = "__UCSB_XRP_INSPECTION__=";
 const NETWORK_PROFILE_MARKER = "__UCSB_XRP_NETWORK_PROFILE__=";
 const HASH_MARKER = "__UCSB_XRP_HASHES__=";
+const RUNTIME_STATE_MARKER = "__UCSB_XRP_RUNTIME_STATE__=";
 const VERIFY_MARKER = "__UCSB_XRP_VERIFY__=";
 const NETWORK_RESULT_MARKER = "__UCSB_XRP_NETWORK__=";
 const INSTALL_WATCHDOG_MS = 8_388;
@@ -128,15 +158,36 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+function isCommissioningAsset(value: unknown): boolean {
+  return (
+    isObject(value) &&
+    typeof value.url === "string" &&
+    typeof value.bytes === "number" &&
+    value.bytes >= 0 &&
+    isSha256(value.sha256)
+  );
+}
+
 function assertManifest(
   value: unknown,
 ): asserts value is CommissioningManifest {
   if (
     !isObject(value) ||
-    value.schemaVersion !== 1 ||
+    value.schemaVersion !== 2 ||
     typeof value.releaseId !== "string" ||
-    typeof value.serviceVersion !== "string" ||
-    typeof value.courseLibraryVersion !== "string" ||
+    typeof value.releaseSequence !== "number" ||
+    !isObject(value.compatibility) ||
+    typeof value.compatibility.serviceVersion !== "string" ||
+    typeof value.compatibility.protocolVersion !== "number" ||
+    typeof value.compatibility.protocolRevision !== "number" ||
+    typeof value.compatibility.bootstrapVersion !== "number" ||
+    typeof value.compatibility.courseApiRevision !== "string" ||
+    typeof value.compatibility.courseLibraryVersion !== "string" ||
+    typeof value.compatibility.minimumRobotReleaseSequence !== "number" ||
     !isObject(value.controller) ||
     typeof value.controller.usbVendorId !== "number" ||
     typeof value.controller.usbProductId !== "number" ||
@@ -145,9 +196,39 @@ function assertManifest(
     !isObject(value.xrplib) ||
     !Array.isArray(value.xrplib.requiredModules) ||
     !isObject(value.networkDefaults) ||
-    !Array.isArray(value.files)
+    !Array.isArray(value.bootstrapFiles) ||
+    value.bootstrapFiles.length !== 2 ||
+    !value.bootstrapFiles.every(
+      (entry) =>
+        isCommissioningAsset(entry) &&
+        isObject(entry) &&
+        (entry.destination === "/course_boot.py" ||
+          entry.destination === "/main.py"),
+    ) ||
+    !isObject(value.runtime) ||
+    !isObject(value.runtime.manifest) ||
+    !isCommissioningAsset(value.runtime.manifest) ||
+    !Array.isArray(value.runtime.files) ||
+    value.runtime.files.length === 0 ||
+    !value.runtime.files.every(
+      (entry) =>
+        isCommissioningAsset(entry) &&
+        isObject(entry) &&
+        typeof entry.path === "string" &&
+        isSafeRuntimePath(entry.path),
+    )
   ) {
     throw new Error("The commissioning release manifest is incomplete.");
+  }
+  const bootstrapDestinations = value.bootstrapFiles.map(
+    (entry) => entry.destination,
+  );
+  const runtimePaths = value.runtime.files.map((entry) => entry.path);
+  if (
+    new Set(bootstrapDestinations).size !== bootstrapDestinations.length ||
+    new Set(runtimePaths).size !== runtimePaths.length
+  ) {
+    throw new Error("The commissioning release contains duplicate file paths.");
   }
 }
 
@@ -372,6 +453,8 @@ async function writeDeviceFile(
   checkedResult(
     await session.execute(
       `f.close()\n` +
+        `try: os.remove(${pythonLiteral(destination)})\n` +
+        `except OSError: pass\n` +
         `os.rename(${pythonLiteral(temporary)},${pythonLiteral(destination)})\n` +
         `wd.feed()`,
     ),
@@ -379,17 +462,195 @@ async function writeDeviceFile(
   );
 }
 
-async function ensureInstallDirectories(session: MicroPythonSession) {
+function parentDirectories(paths: readonly string[]): string[] {
+  const directories = new Set<string>();
+  for (const path of paths) {
+    const parts = path.replace(/^\/+/, "").split("/").slice(0, -1);
+    let directory = "";
+    for (const part of parts) {
+      directory += `/${part}`;
+      directories.add(directory);
+    }
+  }
+  return [...directories].sort(
+    (left, right) =>
+      left.split("/").length - right.split("/").length ||
+      left.localeCompare(right),
+  );
+}
+
+async function ensureInstallDirectories(
+  session: MicroPythonSession,
+  paths: readonly string[],
+) {
+  const directories = parentDirectories(paths);
   checkedResult(
     await session.execute(
       `import machine, os\n` +
         `wd=machine.WDT(timeout=${INSTALL_WATCHDOG_MS})\n` +
-        `for p in ('/lib','/lib/ucsb_xrp','/lib/ucsb_xrp_reference','/lib/ucsb_xrp_service'):\n` +
+        `for p in ${pythonLiteral(directories)}:\n` +
         ` try: os.mkdir(p)\n` +
         ` except OSError: pass\n` +
         `wd.feed()`,
     ),
     "Preparing course folders",
+  );
+}
+
+type RuntimeSlot = "a" | "b";
+
+interface ActivationRecord {
+  generation: number;
+  slot: RuntimeSlot;
+  releaseId: string;
+  releaseSequence: number;
+  runtimeManifestSha256: string;
+}
+
+interface RuntimeMarker {
+  generation: number;
+  slot: RuntimeSlot;
+  runtimeManifestSha256: string;
+}
+
+interface RuntimeState {
+  records: Array<ActivationRecord | null>;
+  confirmed: RuntimeMarker | null;
+  attempted: RuntimeMarker | null;
+  slotManifests: Record<RuntimeSlot, unknown>;
+}
+
+function slotRoot(slot: RuntimeSlot): string {
+  return `/course_runtime/slots/${slot}`;
+}
+
+function slotFilePath(slot: RuntimeSlot, path: string): string {
+  return `${slotRoot(slot)}/${path}`;
+}
+
+function slotManifestPath(slot: RuntimeSlot): string {
+  return slotFilePath(slot, "runtime-manifest.json");
+}
+
+function isActivationRecord(value: unknown): value is ActivationRecord {
+  return (
+    isObject(value) &&
+    typeof value.generation === "number" &&
+    (value.slot === "a" || value.slot === "b") &&
+    typeof value.releaseId === "string" &&
+    typeof value.releaseSequence === "number" &&
+    typeof value.runtimeManifestSha256 === "string"
+  );
+}
+
+function isRuntimeMarker(value: unknown): value is RuntimeMarker {
+  return (
+    isObject(value) &&
+    typeof value.generation === "number" &&
+    (value.slot === "a" || value.slot === "b") &&
+    typeof value.runtimeManifestSha256 === "string"
+  );
+}
+
+function markerMatches(
+  record: ActivationRecord,
+  marker: RuntimeMarker | null,
+): boolean {
+  return (
+    marker !== null &&
+    marker.generation === record.generation &&
+    marker.slot === record.slot &&
+    marker.runtimeManifestSha256 === record.runtimeManifestSha256
+  );
+}
+
+async function readRuntimeState(
+  session: MicroPythonSession,
+): Promise<RuntimeState> {
+  const result = await session.execute(
+    `import json\n` +
+      `def _ucsb_read_json(p):\n` +
+      ` try:\n` +
+      `  f=open(p)\n  v=json.load(f)\n  f.close()\n  return v\n` +
+      ` except Exception:\n  return None\n` +
+      `s={'records':[_ucsb_read_json('/course_runtime/active.0.json'),_ucsb_read_json('/course_runtime/active.1.json')],'confirmed':_ucsb_read_json('/course_runtime/confirmed.json'),'attempted':_ucsb_read_json('/course_runtime/attempted.json'),'slotManifests':{'a':_ucsb_read_json('/course_runtime/slots/a/runtime-manifest.json'),'b':_ucsb_read_json('/course_runtime/slots/b/runtime-manifest.json')}}\n` +
+      `print(${pythonLiteral(RUNTIME_STATE_MARKER)}+json.dumps(s))`,
+  );
+  const raw = markedJson<{
+    records?: unknown[];
+    confirmed?: unknown;
+    attempted?: unknown;
+    slotManifests?: { a?: unknown; b?: unknown };
+  }>(checkedResult(result, "Runtime inspection"), RUNTIME_STATE_MARKER);
+  return {
+    records: Array.isArray(raw.records)
+      ? raw.records.map((record) =>
+          isActivationRecord(record) ? record : null,
+        )
+      : [],
+    confirmed: isRuntimeMarker(raw.confirmed) ? raw.confirmed : null,
+    attempted: isRuntimeMarker(raw.attempted) ? raw.attempted : null,
+    slotManifests: {
+      a: raw.slotManifests?.a ?? null,
+      b: raw.slotManifests?.b ?? null,
+    },
+  };
+}
+
+function orderedRecords(state: RuntimeState): ActivationRecord[] {
+  return state.records
+    .filter((record): record is ActivationRecord => record !== null)
+    .sort((left, right) => right.generation - left.generation);
+}
+
+function effectiveRecord(state: RuntimeState): ActivationRecord | null {
+  const records = orderedRecords(state);
+  return (
+    records.find((record) => markerMatches(record, state.confirmed)) ??
+    records[0] ??
+    null
+  );
+}
+
+function manifestFilePaths(value: unknown): string[] {
+  if (!isObject(value) || !Array.isArray(value.files)) return [];
+  return value.files.flatMap((file) =>
+    isObject(file) &&
+    typeof file.path === "string" &&
+    isSafeRuntimePath(file.path)
+      ? [file.path]
+      : [],
+  );
+}
+
+function isSafeRuntimePath(path: string): boolean {
+  const parts = path.split("/");
+  return (
+    path.length > 0 &&
+    !path.startsWith("/") &&
+    parts.every(
+      (part) =>
+        part.length > 0 &&
+        part !== "." &&
+        part !== ".." &&
+        /^[A-Za-z0-9_.-]+$/.test(part),
+    )
+  );
+}
+
+async function removeDeviceFiles(
+  session: MicroPythonSession,
+  paths: readonly string[],
+): Promise<void> {
+  if (paths.length === 0) return;
+  checkedResult(
+    await session.execute(
+      `import os\n` +
+        `for p in ${pythonLiteral(paths)}:\n` +
+        ` try: os.remove(p)\n` +
+        ` except OSError: pass`,
+    ),
+    "Removing obsolete course files",
   );
 }
 
@@ -432,15 +693,8 @@ async function applyNetworkSelection(
   defaults: CommissioningManifest["networkDefaults"],
 ): Promise<void> {
   if (selection.mode === "keep") {
-    checkedResult(
-      await session.execute(
-        `import json\n` +
-          `from ucsb_xrp_service.networking import normalize_config\n` +
-          `c=normalize_config(json.load(open('/xrp_wifi.json')))\n` +
-          `f=open('/xrp_wifi.json','w')\njson.dump(c,f)\nf.close()`,
-      ),
-      "Updating the saved network profile",
-    );
+    // A repair must not silently rewrite a network profile that the user
+    // explicitly chose to retain.
     return;
   }
   const bytes = textEncoder.encode(
@@ -452,6 +706,7 @@ async function applyNetworkSelection(
 async function verifyInstalledRuntime(
   session: MicroPythonSession,
   manifest: CommissioningManifest,
+  slot: RuntimeSlot,
 ): Promise<void> {
   const result = await session.execute(
     `import gc, json, sys\n` +
@@ -459,28 +714,31 @@ async function verifyInstalledRuntime(
       ` if name=='ucsb_xrp' or name.startswith('ucsb_xrp.') or name=='ucsb_xrp_reference' or name.startswith('ucsb_xrp_reference.') or name=='ucsb_xrp_service' or name.startswith('ucsb_xrp_service.'):\n` +
       `  del sys.modules[name]\n` +
       `gc.collect()\n` +
+      `p=${pythonLiteral(slotFilePath(slot, "lib"))}\n` +
+      `while p in sys.path: sys.path.remove(p)\n` +
+      `sys.path.insert(0,p)\n` +
       `import ucsb_xrp, ucsb_xrp_service\n` +
       `mods=[]\n` +
       `for name in ${pythonLiteral(manifest.xrplib.requiredModules)}:\n` +
       ` __import__(name)\n mods.append(name)\n` +
-      `v={'library':ucsb_xrp.__version__,'service':ucsb_xrp_service.SERVICE_VERSION,'modules':mods}\n` +
+      `v={'library':ucsb_xrp.__version__,'protocol':ucsb_xrp_service.PROTOCOL_VERSION,'modules':mods}\n` +
       `print(${pythonLiteral(VERIFY_MARKER)}+json.dumps(v))`,
     20_000,
   );
   const value = markedJson<{
     library: string;
-    service: string;
+    protocol: number;
     modules: string[];
   }>(checkedResult(result, "Runtime verification"), VERIFY_MARKER);
   const mismatches: string[] = [];
-  if (value.library !== manifest.courseLibraryVersion) {
+  if (value.library !== manifest.compatibility.courseLibraryVersion) {
     mismatches.push(
-      `course library ${value.library} (expected ${manifest.courseLibraryVersion})`,
+      `course library ${value.library} (expected ${manifest.compatibility.courseLibraryVersion})`,
     );
   }
-  if (value.service !== manifest.serviceVersion) {
+  if (value.protocol !== manifest.compatibility.protocolVersion) {
     mismatches.push(
-      `course service ${value.service} (expected ${manifest.serviceVersion})`,
+      `protocol ${value.protocol} (expected ${manifest.compatibility.protocolVersion})`,
     );
   }
   const missingModules = manifest.xrplib.requiredModules.filter(
@@ -499,6 +757,7 @@ async function activateNetwork(
 ): Promise<PublicNetworkState> {
   const result = await session.execute(
     `import json, machine\n` +
+      `import course_boot\ncourse_boot.prepare_runtime_imports()\n` +
       `from ucsb_xrp_service.networking import activate_network, public_network_state\n` +
       `wd=machine.WDT(timeout=${INSTALL_WATCHDOG_MS})\nwd.feed()\n` +
       `c=json.load(open('/xrp_wifi.json'))\n` +
@@ -515,6 +774,41 @@ async function activateNetwork(
     throw new Error("The XRP did not start a usable Wi-Fi network.");
   }
   return network;
+}
+
+async function verifyBootstrapFiles(
+  session: MicroPythonSession,
+  manifest: CommissioningManifest,
+): Promise<void> {
+  const paths = manifest.bootstrapFiles
+    .map((entry) => entry.destination)
+    .filter((path) => path.endsWith(".py"));
+  checkedResult(
+    await session.execute(
+      `for p in ${pythonLiteral(paths)}:\n` +
+        ` f=open(p)\n s=f.read()\n f.close()\n compile(s,p,'exec')`,
+    ),
+    "Bootstrap verification",
+  );
+}
+
+function activationRecordBytes(record: ActivationRecord): Uint8Array {
+  return textEncoder.encode(
+    `${JSON.stringify({ schemaVersion: 1, ...record })}\n`,
+  );
+}
+
+function recordIsSame(
+  left: ActivationRecord | null,
+  right: ActivationRecord | null,
+): boolean {
+  return (
+    left !== null &&
+    right !== null &&
+    left.generation === right.generation &&
+    left.slot === right.slot &&
+    left.runtimeManifestSha256 === right.runtimeManifestSha256
+  );
 }
 
 export async function commissionDevice(options: {
@@ -535,53 +829,246 @@ export async function commissionDevice(options: {
   } = options;
   let resetStarted = false;
   try {
-    onProgress({ phase: "compare", detail: "Comparing course files…" });
-    await ensureInstallDirectories(session);
-    const expected = new Map(
-      manifest.files.map((entry) => [entry.destination, entry.sha256]),
+    onProgress({
+      phase: "compare",
+      detail: "Inspecting the installed release…",
+    });
+    const state = await readRuntimeState(session);
+    const bootstrapPaths = manifest.bootstrapFiles.map(
+      (entry) => entry.destination,
     );
-    let hashes = await remoteHashes(session, [...expected.keys()]);
-    const changed = manifest.files.filter(
-      (entry) => hashes[entry.destination] !== entry.sha256,
-    );
+    const slotManifestPaths = [slotManifestPath("a"), slotManifestPath("b")];
+    const initialHashes = await remoteHashes(session, [
+      ...bootstrapPaths,
+      ...slotManifestPaths,
+    ]);
 
-    // Verify one coherent release in the browser before changing the XRP. If
-    // an old Service Worker supplied any stale file, commissioning stops here
-    // and leaves the installed robot files untouched.
-    const downloaded = await Promise.all(
-      changed.map(async (entry) => ({
-        entry,
-        data: await fetchVerifiedAsset(manifestUrl, entry, fetchImplementation),
-      })),
+    // Ignore activation records whose referenced manifest is absent or has a
+    // different digest. They were never a complete published runtime.
+    const verifiedState: RuntimeState = {
+      ...state,
+      records: state.records.map((record) =>
+        record &&
+        initialHashes[slotManifestPath(record.slot)] ===
+          record.runtimeManifestSha256
+          ? record
+          : null,
+      ),
+    };
+    const records = orderedRecords(verifiedState);
+    const newer = records.find(
+      (record) => record.releaseSequence > manifest.releaseSequence,
     );
+    if (newer) {
+      throw new Error(
+        `This XRP has newer course runtime ${newer.releaseId}. Reload the live course page before changing the robot. No robot files were changed.`,
+      );
+    }
 
+    const effective = effectiveRecord(verifiedState);
+    const newest = records[0] ?? null;
+    const expectedManifestHash = manifest.runtime.manifest.sha256;
+    const effectiveHasExpectedIdentity =
+      effective !== null &&
+      effective.releaseSequence === manifest.releaseSequence &&
+      effective.runtimeManifestSha256 === expectedManifestHash;
+
+    let targetSlot: RuntimeSlot = effective?.slot === "a" ? "b" : "a";
+    let targetHashes: Record<string, string | null> = {};
+    let useExistingEffective = false;
+    if (
+      effectiveHasExpectedIdentity &&
+      initialHashes[slotManifestPath(effective.slot)] === expectedManifestHash
+    ) {
+      const paths = manifest.runtime.files.map((entry) =>
+        slotFilePath(effective.slot, entry.path),
+      );
+      targetHashes = await remoteHashes(session, paths);
+      useExistingEffective = manifest.runtime.files.every(
+        (entry) =>
+          targetHashes[slotFilePath(effective.slot, entry.path)] ===
+          entry.sha256,
+      );
+      if (useExistingEffective) targetSlot = effective.slot;
+    }
+
+    if (!useExistingEffective) {
+      const paths = [
+        ...manifest.runtime.files.map((entry) =>
+          slotFilePath(targetSlot, entry.path),
+        ),
+        slotManifestPath(targetSlot),
+      ];
+      targetHashes = await remoteHashes(session, paths);
+    }
+
+    const runtimeChanged = manifest.runtime.files.filter(
+      (entry) =>
+        targetHashes[slotFilePath(targetSlot, entry.path)] !== entry.sha256,
+    );
+    const bootstrapChanged = manifest.bootstrapFiles.filter(
+      (entry) => initialHashes[entry.destination] !== entry.sha256,
+    );
+    const expectedRelativePaths = new Set(
+      manifest.runtime.files.map((entry) => entry.path),
+    );
+    const obsolete = manifestFilePaths(verifiedState.slotManifests[targetSlot])
+      .filter((path) => !expectedRelativePaths.has(path))
+      .map((path) => slotFilePath(targetSlot, path));
+    const installedManifestDiffers =
+      initialHashes[slotManifestPath(targetSlot)] !== expectedManifestHash;
+    const publishRuntimeManifest =
+      installedManifestDiffers ||
+      runtimeChanged.length > 0 ||
+      obsolete.length > 0;
+
+    // Fetch and hash every required asset before the first device write. A
+    // stale Service Worker therefore cannot construct a mixed robot release.
+    const [runtimeDownloads, bootstrapDownloads, runtimeManifestData] =
+      await Promise.all([
+        Promise.all(
+          runtimeChanged.map(async (entry) => ({
+            entry,
+            data: await fetchVerifiedAsset(
+              manifestUrl,
+              entry,
+              fetchImplementation,
+            ),
+          })),
+        ),
+        Promise.all(
+          bootstrapChanged.map(async (entry) => ({
+            entry,
+            data: await fetchVerifiedAsset(
+              manifestUrl,
+              entry,
+              fetchImplementation,
+            ),
+          })),
+        ),
+        publishRuntimeManifest
+          ? fetchVerifiedAsset(
+              manifestUrl,
+              manifest.runtime.manifest,
+              fetchImplementation,
+            )
+          : Promise.resolve<Uint8Array | null>(null),
+      ]);
+
+    const activationStable =
+      useExistingEffective &&
+      markerMatches(effective!, verifiedState.confirmed) &&
+      recordIsSame(effective, newest);
+    const activationGeneration = activationStable
+      ? effective!.generation
+      : Math.max(0, ...records.map((record) => record.generation)) + 1;
+    const activation: ActivationRecord = {
+      generation: activationGeneration,
+      slot: targetSlot,
+      releaseId: manifest.releaseId,
+      releaseSequence: manifest.releaseSequence,
+      runtimeManifestSha256: expectedManifestHash,
+    };
+    const activationPath = `/course_runtime/active.${(activationGeneration - 1) % 2}.json`;
+    const allInstallPaths = [
+      ...manifest.runtime.files.map((entry) =>
+        slotFilePath(targetSlot, entry.path),
+      ),
+      slotManifestPath(targetSlot),
+      ...bootstrapPaths,
+      activationPath,
+    ];
+    await ensureInstallDirectories(session, allInstallPaths);
+
+    const totalChanged =
+      runtimeDownloads.length +
+      bootstrapDownloads.length +
+      (publishRuntimeManifest ? 1 : 0);
     let installed = 0;
-    for (const { entry, data } of downloaded) {
+    if (runtimeChanged.length > 0 || obsolete.length > 0) {
+      // The inactive slot stops being bootable before its first mutation. Any
+      // older activation record that names it therefore cannot start a
+      // partially replaced runtime after a power interruption.
+      await removeDeviceFiles(session, [slotManifestPath(targetSlot)]);
+    }
+    for (const { entry, data } of runtimeDownloads) {
       onProgress({
         phase: "install",
-        detail: "Updating course software…",
+        detail: "Writing the new course runtime…",
         completed: installed,
-        total: changed.length,
+        total: totalChanged,
       });
-      await writeDeviceFile(session, entry.destination, data);
+      await writeDeviceFile(
+        session,
+        slotFilePath(targetSlot, entry.path),
+        data,
+      );
       installed += 1;
     }
 
-    onProgress({ phase: "verify", detail: "Verifying installed files…" });
-    hashes = await remoteHashes(session, [...expected.keys()]);
-    for (const [path, hash] of expected) {
+    await removeDeviceFiles(session, obsolete);
+
+    onProgress({ phase: "verify", detail: "Verifying the new runtime…" });
+    const expectedRuntime = new Map(
+      manifest.runtime.files.map((entry) => [
+        slotFilePath(targetSlot, entry.path),
+        entry.sha256,
+      ]),
+    );
+    let hashes = await remoteHashes(session, [...expectedRuntime.keys()]);
+    for (const [path, hash] of expectedRuntime) {
       if (hashes[path] !== hash) {
         throw new Error(`Readback verification failed for ${path}.`);
       }
     }
+
+    if (runtimeManifestData) {
+      await writeDeviceFile(
+        session,
+        slotManifestPath(targetSlot),
+        runtimeManifestData,
+      );
+      installed += 1;
+    }
+    hashes = await remoteHashes(session, [slotManifestPath(targetSlot)]);
+    if (hashes[slotManifestPath(targetSlot)] !== expectedManifestHash) {
+      throw new Error("The staged runtime manifest failed verification.");
+    }
+    await verifyInstalledRuntime(session, manifest, targetSlot);
+
+    // The bootstrap changes rarely. Validate their syntax and install
+    // course_boot.py before the tiny main.py entrypoint during first migration.
+    for (const { entry, data } of [...bootstrapDownloads].sort((left, right) =>
+      left.entry.destination === "/main.py"
+        ? 1
+        : right.entry.destination === "/main.py"
+          ? -1
+          : 0,
+    )) {
+      onProgress({
+        phase: "install",
+        detail: "Updating the robot startup files…",
+        completed: installed,
+        total: totalChanged,
+      });
+      await writeDeviceFile(session, entry.destination, data);
+      installed += 1;
+    }
+    await verifyBootstrapFiles(session, manifest);
+
+    if (!activationStable) {
+      // Publishing one small activation record is the only operation that
+      // makes the staged slot bootable. The other activation record remains a
+      // complete fallback if power disappears during this write.
+      await writeDeviceFile(
+        session,
+        activationPath,
+        activationRecordBytes(activation),
+      );
+    }
     onProgress({
       phase: "verify",
-      detail: "Loading the installed course software…",
-    });
-    await verifyInstalledRuntime(session, manifest);
-    onProgress({
-      phase: "verify",
-      detail: `Installed course release ${manifest.releaseId} verified.`,
+      detail: `Course runtime ${manifest.releaseId} is ready.`,
     });
 
     onProgress({ phase: "network", detail: "Preparing XRP Wi-Fi…" });
@@ -593,9 +1080,18 @@ export async function commissionDevice(options: {
     await session.resetAndClose();
     return {
       releaseId: manifest.releaseId,
-      serviceVersion: manifest.serviceVersion,
+      releaseSequence: manifest.releaseSequence,
+      serviceVersion: manifest.compatibility.serviceVersion,
+      runtimeManifestSha256: expectedManifestHash,
+      activationGeneration,
       installedFiles: installed,
-      unchangedFiles: manifest.files.length - installed,
+      unchangedFiles:
+        manifest.runtime.files.length +
+        manifest.bootstrapFiles.length +
+        1 -
+        runtimeDownloads.length -
+        bootstrapDownloads.length -
+        (publishRuntimeManifest ? 1 : 0),
       network: activeNetwork,
     };
   } catch (error) {

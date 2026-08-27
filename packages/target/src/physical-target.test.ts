@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  CURRENT_COURSE_API_REVISION,
   CURRENT_COURSE_RELEASE,
+  CURRENT_PROTOCOL_REVISION,
+  CURRENT_ROBOT_RELEASE_SEQUENCE,
   DirectPhysicalTargetClient,
   localNetworkRequestInit,
   PhysicalTargetClient,
@@ -363,6 +366,96 @@ describe("physical target", () => {
         code: "release_mismatch",
         message: expect.stringContaining("Open Set up or repair XRP"),
       });
+      target.disconnect();
+    },
+  );
+
+  it("accepts a newer compatible runtime without equating service and course versions", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({
+        protocol: 1,
+        protocolRevision: CURRENT_PROTOCOL_REVISION,
+        serviceVersion: "0.2.0",
+        courseRelease: "2026.09",
+        runtimeRelease: "2026.09",
+        runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE + 1,
+        runtimeManifestSha256: "a".repeat(64),
+        courseApiRevision: CURRENT_COURSE_API_REVISION,
+        courseLibraryVersion: "0.4.1",
+        bootstrapVersion: 1,
+        bootId: "boot-newer",
+        robotName: "ucsb-xrp-test",
+        address: "192.168.7.30",
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      }),
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+
+    await expect(target.connect()).resolves.toBeUndefined();
+    target.disconnect();
+  });
+
+  it.each([
+    {
+      label: "runtime generation",
+      runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE - 1,
+      courseApiRevision: CURRENT_COURSE_API_REVISION,
+      protocolRevision: CURRENT_PROTOCOL_REVISION,
+      code: "release_mismatch",
+    },
+    {
+      label: "course API",
+      runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE,
+      courseApiRevision: "older-api",
+      protocolRevision: CURRENT_PROTOCOL_REVISION,
+      code: "release_mismatch",
+    },
+    {
+      label: "protocol revision",
+      runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE,
+      courseApiRevision: CURRENT_COURSE_API_REVISION,
+      protocolRevision: CURRENT_PROTOCOL_REVISION - 1,
+      code: "protocol_mismatch",
+    },
+  ])(
+    "rejects an incompatible transactional runtime by $label",
+    async ({
+      runtimeReleaseSequence,
+      courseApiRevision,
+      protocolRevision,
+      code,
+    }) => {
+      const fetchMock = vi.fn(async () =>
+        response({
+          protocol: 1,
+          protocolRevision,
+          serviceVersion: "0.1.0",
+          courseRelease: "candidate",
+          runtimeRelease: "candidate",
+          runtimeReleaseSequence,
+          courseApiRevision,
+          bootId: "boot-candidate",
+          robotName: "ucsb-xrp-test",
+          address: "192.168.7.30",
+          capabilities: [],
+        }),
+      );
+      const target = new DirectPhysicalTargetClient("192.168.7.30", {
+        fetch: fetchMock as typeof fetch,
+        pollIntervalMs: 60_000,
+      });
+
+      await expect(target.connect()).rejects.toMatchObject({ code });
       target.disconnect();
     },
   );

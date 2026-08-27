@@ -261,6 +261,34 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 5000 + self.service.LEASE_MS,
             )
 
+    def test_run_starts_a_retired_worker_only_after_the_reply(self):
+        self.service._project_worker_started = False
+        self.service._project_worker_ready = False
+        self.service._project_worker_shutdown = True
+        self.service._launch_pending = True
+        self.service._run_id = 3
+        starts = []
+
+        def start_worker(_watchdog):
+            starts.append("start")
+            self.service._project_worker_started = True
+            self.service._project_worker_ready = True
+            self.service._project_worker_shutdown = False
+
+        with patch.object(
+            self.service, "_start_project_worker", side_effect=start_worker
+        ):
+            asyncio.run(
+                self.service._launch_project_after_response(
+                    "/slot", "main.py", compile("pass\n", "main.py", "exec"), [], 3
+                )
+            )
+
+        self.assertEqual(starts, ["start"])
+        self.assertTrue(self.service._thread_active)
+        self.assertEqual(self.service._state, "running")
+        self.assertIsNotNone(self.service._project_job)
+
     def test_project_runner_bypasses_then_restores_user_button_start(self):
         with tempfile.TemporaryDirectory() as project_dir:
             self.service._stop_motors = lambda: None
@@ -318,10 +346,49 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 self.service._project_worker()
 
         self.assertFalse(self.service._project_worker_ready)
+        self.assertFalse(self.service._project_worker_started)
         self.assertIsNone(self.service._project_job)
         self.assertFalse(self.service._thread_active)
         self.assertEqual(self.service._state, "error")
         self.assertIn("cleanup failed", self.service._detail)
+
+    def test_flash_retires_worker_before_file_write(self):
+        events = []
+        manifest = {
+            "name": "Test project",
+            "entrypoint": "main.py",
+            "files": ["main.py"],
+            "revision": "revision",
+        }
+        project = {
+            "name": "Test project",
+            "entrypoint": "main.py",
+            "files": {"main.py": "print('ready')\n"},
+        }
+        with (
+            patch.object(
+                self.service,
+                "_retire_project_worker",
+                side_effect=lambda: events.append("retire"),
+            ),
+            patch.object(
+                self.service,
+                "_write_project",
+                side_effect=lambda _project: (
+                    events.append("write"),
+                    manifest,
+                )[1],
+            ),
+        ):
+            response = self.service.sync(
+                types.SimpleNamespace(
+                    data={"requestId": "flash-boundary", "project": project}
+                )
+            )
+
+        reply = json.loads(response.body.decode("utf-8"))
+        self.assertTrue(reply["ok"])
+        self.assertEqual(events, ["retire", "write"])
 
     def test_prepare_for_repl_requests_worker_shutdown(self):
         self.service._thread_active = True
