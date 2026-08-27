@@ -187,7 +187,10 @@ class CourseStarterTests(unittest.TestCase):
                 sys.path.insert(0, course_source)
                 sys.path.insert(0, str(directory))
                 try:
-                    with contextlib.redirect_stdout(output):
+                    with self.assertRaisesRegex(
+                        AssertionError,
+                        "no component checks passed",
+                    ), contextlib.redirect_stdout(output):
                         runpy.run_path(str(path), run_name="__main__")
                 finally:
                     sys.path.remove(str(directory))
@@ -202,9 +205,12 @@ class CourseStarterTests(unittest.TestCase):
                     text,
                 )
                 self.assertIn(
-                    "0 passed · {} pending · 0 failed".format(component_count),
+                    "0 passed · {} not implemented · 0 failed".format(
+                        component_count
+                    ),
                     text,
                 )
+                self.assertNotIn("PENDING", text)
 
     def test_supplied_components_pass_every_concrete_component_example(self):
         course_source = str(ROOT / "vendor" / "current")
@@ -233,7 +239,49 @@ class CourseStarterTests(unittest.TestCase):
                     GridPlanner,
                     include_range=True,
                 )
-            self.assertIn("7 passed · 0 pending · 0 failed", output.getvalue())
+            self.assertIn(
+                "7 passed · 0 not implemented · 0 failed",
+                output.getvalue(),
+            )
+        finally:
+            sys.path.remove(course_source)
+            sys.path.remove(reference_source)
+            for name in tuple(sys.modules):
+                if name == "ucsb_xrp_reference" or name.startswith(
+                    "ucsb_xrp_reference."
+                ):
+                    sys.modules.pop(name, None)
+
+    def test_partial_component_progress_reports_without_failing(self):
+        course_source = str(ROOT / "vendor" / "current")
+        reference_source = str(ROOT / "vendor" / "current" / "reference_source")
+        sys.path.insert(0, reference_source)
+        sys.path.insert(0, course_source)
+        try:
+            from ucsb_xrp.component_checks import run_component_checks
+            from ucsb_xrp_reference import SensorModel
+
+            class UnfinishedWheelSpeedController:
+                def __init__(self, config):
+                    self.config = config
+
+                def reset(self):
+                    pass
+
+                def update(self, target, measured):
+                    raise NotImplementedError
+
+            UnfinishedWheelSpeedController.__name__ = "WheelSpeedController"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                run_component_checks(
+                    SensorModel,
+                    UnfinishedWheelSpeedController,
+                )
+            self.assertIn(
+                "1 passed · 1 not implemented · 0 failed",
+                output.getvalue(),
+            )
         finally:
             sys.path.remove(course_source)
             sys.path.remove(reference_source)

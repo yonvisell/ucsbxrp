@@ -31,8 +31,8 @@
   display: grid;
   width: min(1180px, calc(100% - 24px));
   margin: 0 auto;
-  grid-template-columns: 184px minmax(0, 1fr);
-  gap: 32px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 36px;
   padding: 22px 0 60px;
 }
 
@@ -49,7 +49,7 @@
 .reference-toc > span {
   margin-bottom: 4px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -63,7 +63,7 @@
   border-left: 2px solid transparent;
   padding: 3px 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.25;
   text-decoration: none;
 }
@@ -77,7 +77,7 @@
 .reference-toc .toc-child {
   padding-left: 16px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .reference-content {
@@ -93,7 +93,7 @@
 .reference-intro .eyebrow {
   margin: 0 0 5px;
   color: var(--cyan-deep);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -102,7 +102,7 @@
 .reference-intro h1 {
   margin: 0;
   color: var(--ink);
-  font-size: clamp(23px, 3vw, 34px);
+  font-size: clamp(28px, 3vw, 38px);
   font-weight: 680;
   letter-spacing: -0.025em;
   line-height: 1.08;
@@ -112,7 +112,7 @@
   max-width: 760px;
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
@@ -126,7 +126,7 @@
 .reference-content h2 {
   margin: 0 0 10px;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 22px;
   font-weight: 680;
   letter-spacing: -0.01em;
 }
@@ -134,7 +134,7 @@
 .reference-content h3 {
   margin: 17px 0 7px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 700;
 }
 
@@ -143,8 +143,8 @@
 .reference-content span,
 .reference-content li {
   color: #39474f;
-  font-size: 12px;
-  line-height: 1.56;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .reference-content p {
@@ -158,7 +158,7 @@
   background: #edf0f1;
   color: #23343e;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.94em;
+  font-size: 0.95em;
 }
 
 .reference-content a {
@@ -170,7 +170,7 @@
 .reference-content h4 {
   margin: 10px 0 4px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.035em;
   text-transform: uppercase;
@@ -211,12 +211,12 @@
 
 .component-summary strong {
   color: #174456;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .component-summary span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .class-meta {
@@ -228,7 +228,7 @@
 
 .class-meta span {
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .class-signature,
@@ -240,7 +240,7 @@
   padding: 3px 5px !important;
   background: #f1f3f4 !important;
   color: #174456 !important;
-  font-size: 11px !important;
+  font-size: 14px !important;
   line-height: 1.48;
 }
 
@@ -267,7 +267,7 @@
 
 .parameter-head span {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.025em;
   text-transform: uppercase;
@@ -278,12 +278,12 @@
   padding: 0;
   background: transparent;
   color: #174456;
-  font-size: 11px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
 .parameter-row span {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.42;
 }
 
@@ -311,7 +311,7 @@
 .method-reference h5 {
   margin: 9px 0 4px;
   color: #253b48;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.015em;
   text-transform: uppercase;
 }
@@ -351,7 +351,7 @@
   padding: 0;
   background: transparent;
   color: #172f3d;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.55;
   white-space: pre;
 }
@@ -440,7 +440,7 @@
       BlinkMacSystemFont,
       "Segoe UI",
       sans-serif;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
   }

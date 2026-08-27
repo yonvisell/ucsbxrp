@@ -26,11 +26,11 @@ export function GuideApp() {
           <a href="#projects">02 Project folders and storage</a>
           <span className="toc-group">Develop</span>
           <a href="#project-structure">03 Project files and data flow</a>
-          <a href="#components">04 Component development and checks</a>
+          <a href="#components">04 Implement and test components</a>
           <span className="toc-group">Run and measure</span>
           <a href="#physical-xrp">05 Physical XRP connection</a>
           <a href="#monitor">06 Telemetry and export</a>
-          <span className="toc-group">Preserve and recover</span>
+          <span className="toc-group">Store and troubleshoot</span>
           <a href="#offline-use">07 Offline application and storage</a>
           <a href="#github">08 Team version control</a>
           <a href="#shortcuts">09 Keyboard commands</a>
@@ -39,7 +39,7 @@ export function GuideApp() {
 
         <main className="guide-content">
           <section className="guide-intro">
-            <p className="eyebrow">Course tools and workflow</p>
+            <p className="eyebrow">Student operating procedure</p>
             <h1>UCSBXRP student guide</h1>
             <p>
               Sections 1–6 form the normal development sequence: run a project
@@ -65,8 +65,10 @@ export function GuideApp() {
                 <span>Physical connection, telemetry, and exports</span>
               </a>
               <a href="#offline-use">
-                <strong>Preserve and recover</strong>
-                <span>Offline storage, Git, and error diagnosis</span>
+                <strong>Store and troubleshoot</strong>
+                <span>
+                  Offline use, Git, keyboard commands, and error diagnosis
+                </span>
               </a>
             </nav>
           </section>
@@ -173,10 +175,10 @@ export function GuideApp() {
               </section>
             </div>
             <div className="callout">
-              Before you choose a course folder, Chrome keeps a recovery copy in
-              this site&apos;s browser data. That copy is not a normal file on
-              your computer and is removed if the site&apos;s browser data is
-              cleared. Choose a course folder before relying on the project.
+              Before you choose a course folder, edits exist only in this
+              site&apos;s browser storage. Browser storage is not a normal file
+              and is erased when the site&apos;s data is cleared. Choose a
+              course folder before relying on the project.
             </div>
           </GuideSection>
 
@@ -293,7 +295,7 @@ export function GuideApp() {
           <GuideSection
             id="components"
             number="04"
-            title="Component development and checks"
+            title="Implement and test components"
           >
             <p>
               Challenge projects provide one focused file for each component you
@@ -310,7 +312,7 @@ export function GuideApp() {
                 <span>The tested behavior matches the stated requirement.</span>
               </div>
               <div>
-                <strong>PENDING</strong>
+                <strong>NOT IMPLEMENTED</strong>
                 <span>
                   The method still raises <code>NotImplementedError</code>.
                 </span>
@@ -332,10 +334,13 @@ export function GuideApp() {
               <li>Run the complete challenge on the virtual XRP.</li>
             </ol>
             <p>
-              A PENDING result identifies a method that remains to be written;
-              it does not prevent tests of other components. Each check examines
-              a stated behavior, but the complete challenge must also be tested.
-              Component responsibilities and method requirements are in the{" "}
+              A NOT IMPLEMENTED result identifies a method that remains to be
+              written; it does not prevent tests of other components. If no
+              check passes, the overall Test components run is unsuccessful, so
+              untouched starter methods cannot appear complete. Each check
+              examines a stated behavior, but the complete challenge must also
+              be tested. Component responsibilities and method requirements are
+              in the{" "}
               <a href={componentReference}>student component reference</a>.
             </p>
           </GuideSection>
@@ -348,10 +353,10 @@ export function GuideApp() {
             <p>
               Open <a href="../commission/">Set up or repair XRP</a> in current
               desktop Chrome or Edge. The same action is available in IDE
-              Settings. The wizard uses USB-C to identify the RP2350 controller,
-              install or repair the required files, verify them, configure
-              Wi-Fi, and reset the XRP. IDE Run and Monitor telemetry then use
-              the selected Wi-Fi connection.
+              Settings. The setup page uses USB-C to identify the RP2350
+              controller, install or repair the required files, verify them,
+              configure Wi-Fi, and reset the XRP. IDE Run and Monitor telemetry
+              then use the selected Wi-Fi connection.
             </p>
             <ol className="procedure">
               <li>
@@ -372,7 +377,7 @@ export function GuideApp() {
               </li>
               <li>
                 Follow the displayed network instruction. After the connection
-                check, the wizard opens the IDE in Physical XRP mode.
+                check, the setup page opens the IDE in Physical XRP mode.
               </li>
             </ol>
             <div className="command-guide" aria-label="IDE target commands">
@@ -391,7 +396,7 @@ export function GuideApp() {
               <Command name="Reset">Restart the selected target.</Command>
             </div>
             <p>
-              In hotspot mode, join the network named by the wizard. In
+              In hotspot mode, join the network named by the setup page. In
               existing-Wi-Fi mode, the computer and XRP must be on the same
               local network. Reopen setup from IDE Settings to change the
               network or repair course software.
@@ -515,7 +520,7 @@ export function GuideApp() {
                   </li>
                   <li>
                     Clearing this site&apos;s browser data removes Chrome&apos;s
-                    saved app and browser recovery copy.
+                    saved app and any unsaved project data stored by the site.
                   </li>
                   <li>
                     Chrome may also remove saved site data when storage is
@@ -661,9 +666,9 @@ export function GuideApp() {
                 estimate.
               </li>
               <li>
-                <strong>A component check says PENDING:</strong> open the named
-                student file and implement that method; other component work can
-                continue.
+                <strong>A component check says NOT IMPLEMENTED:</strong> open
+                the named student file and implement that method; other
+                component work can continue.
               </li>
             </ul>
             <div className="source-links">

@@ -2,7 +2,7 @@ import { AppNavigation } from "../../shared/AppNavigation";
 
 const sections = [
   ["scope", "System scope"],
-  ["course", "Course progression"],
+  ["course", "Challenge sequence"],
   ["architecture", "Runtime architecture"],
   ["components", "Course components"],
   ["project", "Project structure"],
@@ -22,7 +22,7 @@ export function OverviewApp() {
     <div className="overview-layout">
       <aside className="overview-nav">
         <AppNavigation />
-        <p>Instructor technical overview</p>
+        <p>Instructor system reference</p>
         <nav aria-label="Overview contents">
           {sections.map(([id, label]) => (
             <a key={id} href={`#${id}`}>
@@ -31,20 +31,20 @@ export function OverviewApp() {
           ))}
         </nav>
         <a className="overview-author-link" href="../author/">
-          Open challenge creation wizard
+          Create or revise a challenge
         </a>
       </aside>
 
       <main className="overview-content">
         <header>
           <p className="eyebrow">Instructor documentation</p>
-          <h1>UCSBXRP technical overview</h1>
+          <h1>UCSBXRP instructor system reference</h1>
           <p className="overview-lead">
-            UCSBXRP is the coordinated course library, browser IDE, simulator,
-            telemetry Monitor, commissioning service, and project release used
-            for the XRP laboratory sequence. This document defines the major
-            boundaries and extension points for instructors maintaining course
-            material.
+            UCSBXRP comprises the course library, browser IDE, simulator,
+            telemetry Monitor, setup service, and project release used for the
+            XRP laboratory sequence. This reference describes the major
+            components, public interfaces, and maintenance requirements for
+            instructors maintaining course material.
           </p>
         </header>
 
@@ -71,7 +71,7 @@ export function OverviewApp() {
         </section>
 
         <section id="course">
-          <h2>Course progression</h2>
+          <h2>Challenge sequence</h2>
           <table>
             <thead>
               <tr>
@@ -243,8 +243,9 @@ Pose -----------------------------> NavigationController ------+
             <code>StraightLineController</code>, <code>ArenaMap</code>,
             <code>OccupancyGrid</code>, and <code>DeliveryMission</code>. Their
             public behavior is defined by the API reference. Reference
-            implementations are replaceable course source, not an immutable
-            definition of good student algorithms.
+            implementations are replaceable course source. Public interfaces and
+            stated challenge requirements, rather than private implementation
+            choices, define required behavior.
           </p>
         </section>
 
@@ -318,7 +319,9 @@ Pose -----------------------------> NavigationController ------+
                 </td>
                 <td>
                   Software checks that isolate student component behavior
-                  without moving a robot.
+                  without moving a robot. Results are PASS, NOT IMPLEMENTED, or
+                  FAIL. A run is unsuccessful if any check fails or if every
+                  selected check is not implemented.
                 </td>
               </tr>
               <tr>
@@ -363,7 +366,7 @@ Pose -----------------------------> NavigationController ------+
             <dt>Guide and API reference</dt>
             <dd>
               Provide student operating guidance and precise Python interface
-              documentation. The present page and authoring wizard are
+              documentation. The present page and challenge authoring tool are
               instructor-facing.
             </dd>
           </dl>
@@ -449,14 +452,15 @@ Pose -----------------------------> NavigationController ------+
             Virtual telemetry distinguishes commanded values, measured
             encoder-based values, student odometry, and simulator truth.
             Physical telemetry omits simulator truth. Instructors should
-            preserve this provenance when adding signals or evaluation measures.
+            preserve the source of each signal when adding plots or evaluation
+            measures.
           </p>
         </section>
 
         <section id="authoring">
           <h2>Challenge authoring</h2>
           <p>
-            The <a href="../author/">challenge creation wizard</a> captures a
+            The <a href="../author/">challenge authoring tool</a> captures a
             machine-readable specification: the closest existing program
             structure, catalog identity, objective, assessed components,
             supplied files, evidence, work sequence, world, and optional
@@ -464,7 +468,7 @@ Pose -----------------------------> NavigationController ------+
             repository so an assignment can be reviewed independently of
             generated files.
           </p>
-          <CodeFlow>{`wizard specification
+          <CodeFlow>{`authoring specification
         |
         v
 challenge_authoring.py create --spec ...
@@ -506,8 +510,8 @@ challenge_authoring.py publish challenge_N`}</CodeFlow>
             applications, simulator, documentation, and course release without
             internet. Project files remain ordinary files in the selected course
             folder; they are not embedded in the cached application. Clearing
-            site data removes the cached application and browser recovery state,
-            not files in that folder.
+            site data removes the cached application and any unsaved project
+            data held by the site, not files in that folder.
           </p>
           <h3>Required validation levels</h3>
           <ol>

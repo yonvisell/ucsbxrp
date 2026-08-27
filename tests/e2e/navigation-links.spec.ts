@@ -144,7 +144,7 @@ test("Guide presents the student workflow in explicit objective sections", async
     "Start",
     "Develop",
     "Run and measure",
-    "Preserve and recover",
+    "Store and troubleshoot",
   ]) {
     await expect(
       workflow.getByRole("link", { name: new RegExp(label) }),
@@ -156,7 +156,7 @@ test("Guide presents the student workflow in explicit objective sections", async
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Component development and checks" }),
+    page.getByRole("heading", { name: "Implement and test components" }),
   ).toBeVisible();
 });
 
@@ -265,7 +265,14 @@ test("API sections remain readable without page clipping at phone width", async 
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(signatureFontSize).toBeGreaterThanOrEqual(11);
+  expect(signatureFontSize).toBeGreaterThanOrEqual(14);
+  const exampleFontSize = await page
+    .locator("#sensor-model .code-example pre code")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(exampleFontSize).toBeGreaterThanOrEqual(14);
 });
 
 test("Guide remains usable without horizontal page scrolling at phone width", async ({
@@ -281,4 +288,42 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  const bodyFontSize = await page
+    .locator(".guide-content > section:not(.guide-intro) p")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(bodyFontSize).toBeGreaterThanOrEqual(15);
+  const inlineCodeFontSize = await page
+    .locator(".guide-content code")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(14);
+});
+
+test("Instructor reference remains readable at phone width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 760 });
+  await page.goto("/overview/");
+  await expect(
+    page.getByRole("heading", {
+      name: "UCSBXRP instructor system reference",
+    }),
+  ).toBeVisible();
+  const geometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  const codeFontSize = await page
+    .locator(".overview-flow")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(codeFontSize).toBeGreaterThanOrEqual(14);
 });

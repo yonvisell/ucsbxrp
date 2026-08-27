@@ -173,11 +173,16 @@ test("runs hardware-free student component checks without changing the target", 
     page.getByRole("button", { name: "Open README.md" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Test components" }).click();
-  await expect(page.getByRole("log")).toContainText("PENDING · SensorModel");
   await expect(page.getByRole("log")).toContainText(
-    "PENDING · WheelSpeedController",
+    "NOT IMPLEMENTED · SensorModel",
   );
   await expect(page.getByRole("log")).toContainText(
+    "NOT IMPLEMENTED · WheelSpeedController",
+  );
+  await expect(page.getByRole("log")).toContainText(
+    "0 passed · 2 not implemented · 0 failed",
+  );
+  await expect(page.getByRole("log")).not.toContainText(
     "Component checks completed with MicroPython",
   );
   await expect(page.getByTestId("target-status")).toContainText(

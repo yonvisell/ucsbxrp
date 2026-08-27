@@ -1,8 +1,8 @@
 """Run concrete, hardware-free examples of Challenge 2 student classes.
 
 Select Test components in the IDE. PASS means an example produced its expected
-result. An unfinished method is identified separately. FAIL names the behavior
-and received result to inspect.
+result. NOT IMPLEMENTED means a method still raises NotImplementedError. FAIL
+names the behavior and received result to inspect.
 These checks do not start the virtual or physical robot.
 """
 

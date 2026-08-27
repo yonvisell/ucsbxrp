@@ -230,7 +230,7 @@ export function ReferenceApp() {
         <main className="reference-content">
           <section className="reference-intro">
             <p className="eyebrow">Python interface · ucsb_xrp 0.4.0-dev</p>
-            <h1>UCSB XRP API</h1>
+            <h1>UCSB XRP Python API reference</h1>
             <p>
               This page defines the public Python interface used by course
               projects. Student classes inherit base classes from{" "}
@@ -303,6 +303,26 @@ export function ReferenceApp() {
               project&apos;s component checks, and is selected in{" "}
               <code>course_setup.py</code>. The base classes define the public
               interface; they do not prescribe an internal algorithm.
+            </p>
+            <h3>Component check results</h3>
+            <ul>
+              <li>
+                <strong>PASS</strong> means the example produced the required
+                result.
+              </li>
+              <li>
+                <strong>NOT IMPLEMENTED</strong> means the selected method still
+                raises <code>NotImplementedError</code>.
+              </li>
+              <li>
+                <strong>FAIL</strong> means the returned value or retained state
+                differs from the requirement.
+              </li>
+            </ul>
+            <p>
+              A run with failures is unsuccessful. A run in which every selected
+              example is NOT IMPLEMENTED is also unsuccessful; partial progress
+              may contain both PASS and NOT IMPLEMENTED results.
             </p>
             <div className="component-summary">
               {components.map(([id, name]) => (

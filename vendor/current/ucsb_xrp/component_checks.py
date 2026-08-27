@@ -280,6 +280,10 @@ def run_component_checks(*component_classes, **components):
     Classes may be passed directly in course order. The earlier named-keyword
     form remains accepted. Set ``include_range=True`` in Challenge 5 to check
     the range-estimation portion of ``SensorModel`` as well.
+
+    Each example reports PASS, NOT IMPLEMENTED, or FAIL. A run with failures,
+    or one in which every selected example is not implemented, raises
+    AssertionError after printing the summary.
     """
     include_range = components.pop("include_range", False)
     if not isinstance(include_range, bool):
@@ -307,7 +311,7 @@ def run_component_checks(*component_classes, **components):
         raise ValueError("at least one component class is required")
 
     passed = 0
-    pending = 0
+    not_implemented = 0
     failed = 0
     print("Concrete component examples use MicroPython without starting either robot.")
     for label, key, check_function in _CHECKS:
@@ -317,8 +321,8 @@ def run_component_checks(*component_classes, **components):
         try:
             check_function(component_class)
         except NotImplementedError:
-            pending += 1
-            print("PENDING · " + label)
+            not_implemented += 1
+            print("NOT IMPLEMENTED · " + label)
         except Exception as error:
             failed += 1
             print("FAIL · {} · {}".format(label, error))
@@ -326,9 +330,17 @@ def run_component_checks(*component_classes, **components):
             passed += 1
             print("PASS · " + label)
 
-    print("{} passed · {} pending · {} failed".format(passed, pending, failed))
+    print(
+        "{} passed · {} not implemented · {} failed".format(
+            passed,
+            not_implemented,
+            failed,
+        )
+    )
     if failed:
         raise AssertionError("{} component check(s) failed".format(failed))
+    if passed == 0 and not_implemented:
+        raise AssertionError("no component checks passed")
 
 
 __all__ = ("run_component_checks",)

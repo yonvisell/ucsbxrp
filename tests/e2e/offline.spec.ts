@@ -170,7 +170,10 @@ test("reloads the complete production course shell without a network", async ({
     waitUntil: "domcontentloaded",
   });
   await expect(
-    reference.getByRole("heading", { name: "UCSB XRP API", exact: true }),
+    reference.getByRole("heading", {
+      name: "UCSB XRP Python API reference",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(reference.locator("#sensor-model")).toContainText(
     "State between calls",
@@ -197,7 +200,9 @@ test("reloads the complete production course shell without a network", async ({
     waitUntil: "domcontentloaded",
   });
   await expect(
-    overview.getByRole("heading", { name: "UCSBXRP technical overview" }),
+    overview.getByRole("heading", {
+      name: "UCSBXRP instructor system reference",
+    }),
   ).toBeVisible();
   await expect(
     overview.getByRole("heading", { name: "Runtime architecture" }),
