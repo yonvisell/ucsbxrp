@@ -28,8 +28,9 @@ async function announceCourseUpdate(page: Page, version: string) {
     channel.postMessage({ type: "release-ready", version: nextVersion });
     channel.close();
   }, version);
-  await expect(page.getByTestId("offline-readiness")).toContainText(
-    "Course update ready",
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-offline-shell-update-version",
+    version,
   );
 }
 

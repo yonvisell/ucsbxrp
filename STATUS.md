@@ -4,6 +4,32 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 58 closes the fixed-origin production and attached-hardware
+regression. The complete Stable Chrome suite passes 92 workflows on
+`127.0.0.1:4174`; only the deliberately opt-in motor-hardware case is skipped
+in that general run. It covers commissioning branches, project creation and
+recovery, autosave and rotating copies, safe course updates, every challenge,
+every tutorial lesson, both demos, instructor challenge generation, IDE and
+Monitor ownership, recording and all export formats, offline reload, network
+recovery, documentation links, and wide, narrow, and phone layouts.
+
+The same physical case passes separately in 30.1 seconds against the attached
+dev.36 XRP on Pink. It requires both encoder counts and both derived wheel
+distances to change from within-run baselines, populated ultrasound,
+motor-supply, and IMU-temperature telemetry, a published world pose and path,
+more than five retained plot samples, cross-window Run and Stop, course Reset
+without a controller reboot, post-Reset execution, final zero drive, ordered
+exception-free logs, and asserted restoration of the Expanding spiral project.
+Retained active-burst telemetry has a 20 ms median interval and a 40 ms maximum
+interval, with encoder deltas `3168 / 2854` and wheel-distance deltas
+`200.740 / 185.596 mm`. The structured record is
+`docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
+
+The production preview remains the only UCSBXRP server and is available at
+`http://127.0.0.1:4174/`. Hotspot repetition and floor-motion calibration remain
+separate empirical tasks; neither limits station-mode development on Pink or
+the validated raised-wheel course workflow.
+
 Refinement 57 makes the IDE's project model explicit without adding another
 persistence layer. The Project panel now presents one current-project block:
 project name, `./folder` or `Browser draft`, and its automatic-save state. The

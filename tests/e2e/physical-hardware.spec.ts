@@ -111,7 +111,11 @@ async function robotInfo(request: APIRequestContext, endpoint: string) {
         bootId: string;
         courseRelease: string;
         robotId: string;
-        project?: { revision?: string; lifetime?: string } | null;
+        project?: {
+          name?: string;
+          revision?: string;
+          lifetime?: string;
+        } | null;
       };
     } catch (error) {
       lastError = error;
@@ -395,6 +399,10 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       await expect(ideStatus).toContainText("Physical XRP · ready", {
         timeout: 5_000,
       });
+      const encoderCountsBeforeMotion = numericPair(
+        await monitor.getByTestId("encoder-counts").textContent(),
+      );
+      expect(encoderCountsBeforeMotion).toHaveLength(2);
       await ide.getByRole("button", { name: "Run", exact: true }).click();
       await expect(monitorStatus).toContainText("Physical XRP · running", {
         timeout: 5_000,
@@ -412,13 +420,78 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
         })
         .toBeGreaterThan(0.05);
       await expect
+        .poll(
+          async () =>
+            numericPair(
+              await monitor.getByTestId("wheel-distance").textContent(),
+            ).length,
+        )
+        .toBe(2);
+      const wheelDistancesAtMotionStart = numericPair(
+        await monitor.getByTestId("wheel-distance").textContent(),
+      );
+      await expect
         .poll(async () => {
           const values = numericPair(
             await monitor.getByTestId("wheel-distance").textContent(),
           );
-          return Math.max(0, ...values.map(Math.abs));
+          if (values.length !== 2) return 0;
+          return Math.min(
+            ...values.map((value, index) =>
+              Math.abs(value - wheelDistancesAtMotionStart[index]!),
+            ),
+          );
         })
         .toBeGreaterThan(3);
+      await expect
+        .poll(async () => {
+          const values = numericPair(
+            await monitor.getByTestId("encoder-counts").textContent(),
+          );
+          if (values.length !== 2) return 0;
+          return Math.min(
+            ...values.map((value, index) =>
+              Math.abs(value - encoderCountsBeforeMotion[index]!),
+            ),
+          );
+        })
+        .toBeGreaterThan(5);
+      await expect(monitor.getByTestId("range-mm")).not.toContainText("—");
+      await expect(
+        monitor
+          .getByText("motor supply", { exact: true })
+          .locator("xpath=following-sibling::dd[1]"),
+      ).toHaveText(/\d+(?:\.\d+)? V/);
+      await expect(
+        monitor
+          .getByText("IMU temperature", { exact: true })
+          .locator("xpath=following-sibling::dd[1]"),
+      ).toHaveText(/\d+(?:\.\d+)? °C/);
+      await expect(monitor.getByTestId("world-view")).toHaveAttribute(
+        "data-pose-state",
+        "published",
+      );
+      await expect
+        .poll(async () =>
+          Number.parseInt(
+            (await monitor
+              .getByTestId("world-view")
+              .getAttribute("data-path-point-count")) ?? "0",
+            10,
+          ),
+        )
+        .toBeGreaterThan(5);
+      await expect
+        .poll(async () =>
+          Number.parseInt(
+            (await monitor
+              .locator(".signal-plot-shell")
+              .first()
+              .getAttribute("data-sample-count")) ?? "0",
+            10,
+          ),
+        )
+        .toBeGreaterThan(5);
 
       const motionStopStarted = Date.now();
       await monitor
@@ -485,4 +558,6 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       project: defaultSpiralProject,
     }).catch(() => undefined);
   }
+  const restoredInfo = await robotInfo(request, endpoint);
+  expect(restoredInfo.project?.name).toBe("Expanding spiral");
 });

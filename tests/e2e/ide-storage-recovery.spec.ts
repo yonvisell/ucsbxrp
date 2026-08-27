@@ -247,9 +247,8 @@ test("does not restore a remembered repository as a student project", async ({
 
   await ide.goto("/ide/");
 
-  await expect(ide.getByTestId("project-folder")).toContainText(
-    "Expanding spiral",
-  );
+  await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
   await expect(
     ide.getByRole("button", { name: /Open AGENTS\.md/ }),
   ).toHaveCount(0);

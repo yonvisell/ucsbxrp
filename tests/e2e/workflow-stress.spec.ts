@@ -473,9 +473,10 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await monitor.reload();
   await ide.reload();
   await expectVirtualState(ide, monitor, "ready");
-  await expect(ide.getByTestId("project-folder")).toContainText(
+  await expect(ide.getByTestId("project-name")).toHaveText(
     "Obstacle, left, obstacle",
   );
+  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,

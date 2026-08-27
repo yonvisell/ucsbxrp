@@ -315,9 +315,11 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
     await updater.goto(`${harness.origin}${harness.basePath}`);
     await expectShellVersion(updater, harness.releaseB.version);
     await cancelledDialog;
+    await ide.getByRole("button", { name: "Settings" }).click();
     await expect(ide.getByTestId("offline-readiness")).toContainText(
       "Course update ready",
     );
+    await ide.getByRole("button", { name: "Close settings" }).click();
 
     // A cancelled reload must not be recorded as having navigated. Otherwise
     // the still-running A page would suppress the next B reload request.

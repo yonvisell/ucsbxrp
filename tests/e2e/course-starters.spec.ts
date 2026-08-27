@@ -22,11 +22,7 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
   await expect(page.getByLabel("Project template")).toHaveValue("");
-  await expect(
-    page
-      .getByRole("complementary", { name: "Project" })
-      .getByText("Expanding spiral", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
