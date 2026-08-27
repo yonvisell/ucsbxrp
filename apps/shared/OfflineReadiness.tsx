@@ -35,13 +35,13 @@ export function OfflineReadiness({
 
   const stateLabel =
     status.state === "ready"
-      ? `${appName} saved in Chrome`
+      ? "Course apps saved in Chrome"
       : stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `Chrome has saved ${appName} and the other course apps for this site. The same Chrome profile can reopen them without internet. Project files remain in their project folders; a project without a selected folder has only a recovery copy in Chrome. Clearing this site's data removes the saved apps and recovery copies, but not project folders. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
+      ? `Chrome has saved ${appName} and the other UCSBXRP course apps for this site in this Chrome profile. They can reopen without internet. This browser copy is not stored in a project folder. A project without a selected folder has only a temporary recovery copy in Chrome, and unsaved recordings and program output last only for the current session. Clearing this site's data removes the saved course apps, settings, recovery copies, and remembered folder access, but it does not remove external project files. Course release ${courseRelease.release_id}; build ${status.version ?? "current"}.`
       : status.state === "development"
-        ? `Course release ${courseRelease.release_id}; this local preview does not install the offline copy.`
+        ? `Course release ${courseRelease.release_id}; this local development page does not save the course apps in Chrome.`
         : (status.message ??
           `Course release ${courseRelease.release_id}: ${stateLabel}.`);
 

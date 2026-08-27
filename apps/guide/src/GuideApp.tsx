@@ -479,10 +479,11 @@ export function GuideApp() {
           >
             <p>
               First open the course site while the computer has internet access.
-              Wait until the IDE or Monitor reports{" "}
-              <strong>saved in Chrome</strong>. Chrome has then stored the
-              application files, virtual XRP, Guide, API reference, and XRP
-              setup files for this site.
+              Wait until it reports <strong>Course apps saved in Chrome</strong>
+              . Saving starts automatically; no installation action is required.
+              Chrome has then stored the application files, virtual XRP, Guide,
+              API reference, and XRP setup files for this site in the current
+              Chrome profile.
             </p>
             <p>
               On the first load or after an update, Chrome may refresh the page
@@ -500,11 +501,12 @@ export function GuideApp() {
                   <li>Validate and run projects on the virtual XRP.</li>
                   <li>
                     Read and write project files after granting access to their
-                    course folder.
+                    course folder. Chrome may ask for access again after all
+                    course tabs have been closed.
                   </li>
                   <li>
-                    Connect to a physical XRP while the computer is joined to
-                    its hotspot or local network.
+                    Connect to a physical XRP over local Wi-Fi while the
+                    computer is joined to its hotspot or the same local network.
                   </li>
                 </ul>
               </section>
@@ -519,25 +521,34 @@ export function GuideApp() {
                     GitHub pull, push, and web pages require internet access.
                   </li>
                   <li>
-                    Clearing this site&apos;s browser data removes Chrome&apos;s
-                    saved app and any unsaved project data stored by the site.
+                    A project without a selected folder has only a temporary
+                    recovery copy in Chrome. Recordings and program output that
+                    are not saved or exported last only for the current session.
+                  </li>
+                  <li>
+                    Clearing this site&apos;s browser data removes the saved
+                    course apps, settings, recovery copies, and remembered
+                    folder access. It does not remove external project files;
+                    select the folder again to restore access.
                   </li>
                   <li>
                     Chrome may also remove saved site data when storage is
-                    scarce. Reload the site once while online to restore it.
+                    scarce. Reload the site once while online to restore the
+                    course apps.
                   </li>
                   <li>
-                    The saved app is not copied into the course folder; native
+                    The saved course apps are not copied into the course folder;
                     project files remain separate.
                   </li>
                 </ul>
               </section>
             </div>
             <p>
-              <strong>Install app for offline use</strong> on the landing page
-              is optional. It adds a launcher and a separate app window, but
-              uses the same Chrome storage and has the same offline limits. When
-              the site is opened with internet access, Chrome checks for a newer
+              <strong>Install UCSBXRP app</strong> on the landing page is
+              optional. It adds a launcher and a separate app window; it does
+              not create the saved course copy. The installed window uses the
+              same Chrome profile, site storage, and offline limits. When the
+              site is opened with internet access, Chrome checks for a newer
               course-app version and reloads once if the application changed. No
               Node server or other local server is required. This is a saved web
               application, not a native executable or a copy that can be opened

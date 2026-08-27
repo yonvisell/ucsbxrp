@@ -155,7 +155,7 @@ defaults to a distinct hotspot such as `UCSB-XRP-9EDE`, with
 password `ucsb-xrp` and service address `http://192.168.4.1`. Join the named
 network when the wizard asks. An optional last-name field can replace the
 device suffix with a recognizable team name such as `UCSB-XRP-VISELL`. The web
-tools continue from Chrome's verified offline copy. A repaired robot keeps its
+tools continue from Chrome's complete saved copy. A repaired robot keeps its
 existing network unless another mode is selected. **Existing Wi-Fi** is also
 available in the wizard and later from IDE Settings; credentials pass directly
 to the XRP over USB and are not stored by the web application.
@@ -258,22 +258,26 @@ npm run build
 npm run preview
 ```
 
-Open the public HTTPS course site once while online and wait for a status such
-as **IDE saved in Chrome** or **Monitor saved in Chrome**. Chrome has then saved
-the complete course apps and course release. They can reopen after Chrome is
-closed and without an internet connection; no Node.js server or separate
-installation is required. Robot commands and telemetry still use the selected
-local robot connection.
+Open the public HTTPS course site once while online and wait for **Course apps
+saved in Chrome**. Caching starts automatically; no installation action is
+required. Chrome has then saved the complete course apps and course release for
+that site in the current Chrome profile. They can reopen after Chrome is closed
+and without an internet connection; no Node.js server or separate installation
+is required. Physical robot commands and telemetry still require the computer
+to use local Wi-Fi that can reach the XRP.
 
-The saved app is separate from student project files. A selected course folder
-remains an ordinary folder on the computer; without one, project recovery data
-belongs to Chrome. The course app is not copied into the course folder. Clearing
-the site's Chrome data removes the saved app and browser recovery data, but does
-not remove files in a selected course folder. The optional **Install
-course tools** button on the landing page adds a launcher and standalone app
-window when Chrome offers it; the installed app uses the same browser storage
-and update process. Browser storage is not a permanent project backup and can
-also be removed under storage pressure; course-folder files are unaffected.
+The saved course apps are separate from student project files. A selected course
+folder remains an ordinary folder on the computer; without one, project recovery
+data belongs to Chrome, and recordings and program output that are not saved or
+exported last only for the current browser session. The course apps are not
+copied into the course folder. Clearing the site's Chrome data removes the saved
+course apps, settings, browser recovery data, and remembered folder handles, but
+does not remove files in a selected course folder. Select the folder again to
+restore access. The optional **Install UCSBXRP app** button on the landing page
+adds a launcher and standalone app window when Chrome offers it; the installed
+app uses the same browser storage and update process. Browser storage is not a
+permanent project backup and can also be removed under storage pressure;
+course-folder files are unaffected.
 
 The saved release includes the applications, workers, MicroPython WebAssembly,
 course package, challenge projects, demos, tutorial, and reference bytecode;

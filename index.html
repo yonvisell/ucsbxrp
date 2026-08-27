@@ -43,12 +43,13 @@
           id="install-course-tools"
           type="button"
         >
-          Install app for offline use (optional)
+          Install UCSBXRP app (optional)
         </button>
       </nav>
       <p class="landing-install-help" hidden id="install-course-tools-help">
-        This site works in Chrome without installation. Installing only adds a
-        launcher and standalone window; it uses the same saved copy in Chrome.
+        Chrome saves the course apps automatically after the site loads
+        completely. Installation only adds a launcher and standalone window; it
+        uses the same saved copy in Chrome.
       </p>
       <nav class="landing-setup-action" aria-label="XRP setup and repair">
         <a class="secondary-link" href="./commission/">
@@ -115,7 +116,7 @@
 
       if (window.matchMedia("(display-mode: standalone)").matches) {
         installStatus.textContent =
-          "Installed app · course pages are available after the offline copy finishes loading.";
+          "Installed app · course apps are available without internet after Chrome finishes saving them.";
       }
     </script>
   </body>

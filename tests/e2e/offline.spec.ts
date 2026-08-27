@@ -59,11 +59,11 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "IDE saved in Chrome",
+    "Course apps saved in Chrome",
   );
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /same Chrome profile can reopen them without internet.*Project files remain in their project folders/s,
+    /this site in this Chrome profile.*not stored in a project folder.*unsaved recordings and program output last only for the current session.*does not remove external project files/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -115,7 +115,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "IDE saved in Chrome",
+    "Course apps saved in Chrome",
   );
 
   await ide.getByRole("button", { name: "Validate" }).click();
@@ -133,7 +133,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Monitor saved in Chrome",
+    "Course apps saved in Chrome",
   );
   await expect(monitor.locator(".monitor-controls-footer")).toHaveCount(0);
 
@@ -253,6 +253,7 @@ test("reloads the complete production course shell without a network", async ({
     window.dispatchEvent(promptEvent);
   });
   await expect(installButton).toBeVisible();
+  await expect(installButton).toHaveText("Install UCSBXRP app (optional)");
   await installButton.click();
   await expect(installButton).toBeHidden();
   expect(

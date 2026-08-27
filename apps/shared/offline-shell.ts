@@ -111,7 +111,7 @@ export function waitForOfflineShell(
     return Promise.reject(
       new Error(
         current.message ??
-          "Save the web tools for offline use before changing Wi-Fi.",
+          "Wait for Course apps saved in Chrome before changing Wi-Fi.",
       ),
     );
   }
@@ -130,14 +130,14 @@ export function waitForOfflineShell(
         reject(
           new Error(
             status.message ??
-              "Save the web tools for offline use before changing Wi-Fi.",
+              "Wait for Course apps saved in Chrome before changing Wi-Fi.",
           ),
         );
       }
     };
     const timeout = window.setTimeout(() => {
       finish();
-      reject(new Error("The offline course copy did not finish saving."));
+      reject(new Error("The course apps did not finish saving in Chrome."));
     }, timeoutMs);
     window.addEventListener(OFFLINE_SHELL_EVENT, onState);
   });
