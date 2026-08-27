@@ -11,6 +11,7 @@ import {
 
 import {
   COURSE_PROJECT_TEMPLATES,
+  DEFAULT_COURSE_PROJECT,
   PhysicalTargetClient,
   VirtualTargetClient,
   createNextChallengeProject,
@@ -113,7 +114,7 @@ interface IdeSettings {
 
 type PathOperation = "rename" | "duplicate";
 
-type ProjectCreationPurpose = "new-project" | "save-current";
+type ProjectCreationPurpose = "new-project" | "next-challenge" | "save-current";
 
 interface ProjectFolderConflictState {
   folderSession: ProjectSession;
@@ -241,6 +242,15 @@ const templateGroups: readonly {
   { kind: "demo", label: "Robot demos" },
   { kind: "tutorial", label: "Tutorials" },
 ];
+
+function openingPathForNewProject(project: ProjectSnapshot): string {
+  const template = COURSE_PROJECT_TEMPLATES.find(
+    (candidate) => candidate.id === project.templateId,
+  );
+  return template?.kind === "challenge" && "README.md" in project.files
+    ? "README.md"
+    : project.entrypoint;
+}
 
 function initiallyShowProjectPanel(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) {
@@ -1279,6 +1289,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const cancelProjectCreation = useCallback(() => {
     setNewProjectOpen(false);
     setPendingProject(null);
+    setSelectedTemplateId("");
     setProjectCreationPurpose("new-project");
     setContinueToNextChallengeAfterSave(false);
     setNewProjectDraft("");
@@ -1910,11 +1921,23 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     workingFolder,
   ]);
 
-  const loadProjectTemplate = useCallback(async () => {
+  const openProjectTemplateDialog = useCallback(() => {
+    setSelectedTemplateId("");
+    setPendingProject(null);
+    setProjectCreationPurpose("new-project");
+    setNewProjectDraft("");
+    setNewProjectError("");
+    setNewProjectOpen(true);
+  }, []);
+
+  const selectProjectTemplate = useCallback((templateId: string) => {
+    setSelectedTemplateId(templateId);
     const template = COURSE_PROJECT_TEMPLATES.find(
-      (candidate) => candidate.id === selectedTemplateId,
+      (candidate) => candidate.id === templateId,
     );
     if (!template) {
+      setPendingProject(null);
+      setNewProjectDraft("");
       return;
     }
     const snapshot: ProjectSnapshot = {
@@ -1923,9 +1946,11 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       files: { ...template.project.files },
       templateId: template.id,
     };
-    await prepareProjectCreation(snapshot);
-    setSelectedTemplateId("");
-  }, [prepareProjectCreation, selectedTemplateId]);
+    setPendingProject(snapshot);
+    setProjectCreationPurpose("new-project");
+    setNewProjectDraft(suggestedProjectFolderName(snapshot.name));
+    setNewProjectError("");
+  }, []);
 
   const prepareNextChallengeCreation = useCallback(
     async (sourceProject: ProjectSnapshot) => {
@@ -1940,11 +1965,14 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         sourceProject.templateId,
         sourceProject,
       );
-      await prepareProjectCreation({
-        ...next,
-        name: next.name ?? nextTemplate.shortLabel,
-        templateId: nextTemplate.id,
-      });
+      await prepareProjectCreation(
+        {
+          ...next,
+          name: next.name ?? nextTemplate.shortLabel,
+          templateId: nextTemplate.id,
+        },
+        "next-challenge",
+      );
       return nextTemplate;
     },
     [prepareProjectCreation],
@@ -1985,7 +2013,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   ]);
 
   const activateBrowserOnlyProject = useCallback(
-    async (snapshot: ProjectSnapshot) => {
+    async (snapshot: ProjectSnapshot, showChallengeBrief: boolean) => {
       stopFolderWrites();
       const currentSession = projectSessionRef.current;
       if (projectSessionHasUnsavedChanges(currentSession)) {
@@ -1996,8 +2024,11 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       });
       await stageOpenedProject(nextSession.project);
       publishProjectSession(nextSession);
-      setActivePath(nextSession.project.entrypoint);
-      setOpenPaths([nextSession.project.entrypoint]);
+      const openingPath = showChallengeBrief
+        ? openingPathForNewProject(snapshot)
+        : nextSession.project.entrypoint;
+      setActivePath(openingPath);
+      setOpenPaths([openingPath]);
       setWorkingFolder(null);
       setRememberedFolder(null);
       setRememberedFolderCanAttach(false);
@@ -2039,7 +2070,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       }
       return;
     }
-    await activateBrowserOnlyProject(pendingProject);
+    await activateBrowserOnlyProject(
+      pendingProject,
+      projectCreationPurpose !== "save-current",
+    );
     cancelProjectCreation();
   }, [
     activateBrowserOnlyProject,
@@ -2100,8 +2134,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         stopFolderWrites();
         await stageOpenedProject(nextSession.project);
         publishProjectSession(nextSession);
-        setActivePath(nextSession.project.entrypoint);
-        setOpenPaths([nextSession.project.entrypoint]);
+        const openingPath =
+          projectCreationPurpose !== "save-current"
+            ? openingPathForNewProject(pendingProject)
+            : nextSession.project.entrypoint;
+        setActivePath(openingPath);
+        setOpenPaths([openingPath]);
         setWorkingFolder(folder);
         setRememberedFolder(folder);
         setRememberedFolderCanAttach(true);
@@ -2553,15 +2591,28 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     target.kind === "physical"
       ? `${targetDetail}${targetDetail.endsWith(".") ? "" : "."} Project ${physicalStatus}.`
       : targetDetail;
+  const nextRunProjectName = projectProviderActive
+    ? project.name
+    : projectProviderAvailable && currentProject
+      ? currentProject.name
+      : target.kind === "virtual"
+        ? DEFAULT_COURSE_PROJECT.name
+        : "No project selected";
+  const nextRunSource = projectProviderActive
+    ? `${workingFolder ? `./${workingFolder.name}` : "Browser draft"} · rev ${projectSession.revision} · this IDE`
+    : projectProviderAvailable && currentProject
+      ? `${currentProject.entrypoint} · rev ${currentProject.revision.slice(0, 8)} · another IDE`
+      : target.kind === "virtual"
+        ? `${DEFAULT_COURSE_PROJECT.entrypoint} · built-in default · no IDE owns Run`
+        : "Choose Use for Run + Monitor in an IDE";
   const activeReference = apiReferenceForPath(activePath);
   const pendingTemplate = pendingProject?.templateId
     ? COURSE_PROJECT_TEMPLATES.find(
         (template) => template.id === pendingProject.templateId,
       )
     : null;
-  const progressingToNextChallenge = Boolean(
-    project.templateId && pendingTemplate?.predecessorId === project.templateId,
-  );
+  const progressingToNextChallenge =
+    projectCreationPurpose === "next-challenge";
   const carriedFiles =
     progressingToNextChallenge && pendingTemplate
       ? pendingTemplate.components
@@ -2637,7 +2688,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 : virtualRuntimePreparing
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
                   : !projectProviderActive
-                    ? "Another IDE tab controls Run. Choose Use this project in the Project panel to switch."
+                    ? "Another IDE tab controls Run. Choose Use for Run + Monitor in the Project panel to switch."
                     : target.kind === "physical" && targetState === "error"
                       ? targetDetail
                       : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
@@ -2653,7 +2704,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             className="header-icon-button"
             disabled={!isConnected}
             onClick={resetTarget}
-            title="Reset the selected XRP and clear its current motion state."
+            title="Stop the program and restore the selected XRP to its initial course state."
           >
             <ResetIcon />
             <span className="visually-hidden">Reset</span>
@@ -2676,12 +2727,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           </div>
           {target.kind === "physical" && targetState === "error" ? (
             <button
-              aria-label="Retry XRP connection"
+              aria-label="Reconnect XRP"
               className="quiet-button target-retry-button"
               onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
               title="Try the configured XRP Wi-Fi connection again."
             >
-              Retry
+              Reconnect
             </button>
           ) : null}
           <button
@@ -2728,46 +2779,45 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 </small>
                 {!workingFolder ? (
                   <div className="project-root-actions">
-                    <button
-                      disabled={!supportsWorkingFolders()}
-                      onClick={() => void saveProjectFiles()}
-                      title={`Create a named project folder for ${project.name}.`}
-                    >
-                      Save as project…
-                    </button>
                     {rememberedFolder && rememberedFolderCanAttach ? (
                       <button
                         onClick={reconnectWorkingFolder}
-                        title={`Restore write access to ${rememberedFolder.name}.`}
+                        title={`Restore automatic saving to ${rememberedFolder.name}.`}
                       >
-                        Reconnect…
+                        Reconnect project folder…
                       </button>
-                    ) : null}
+                    ) : (
+                      <button
+                        disabled={!supportsWorkingFolders()}
+                        onClick={() => void saveProjectFiles()}
+                        title={`Create a named project folder for ${project.name}.`}
+                      >
+                        Save as project…
+                      </button>
+                    )}
                   </div>
                 ) : null}
               </div>
-              <div
-                className={`project-owner-state ${projectProviderActive ? "active" : "standby"}`}
-                data-testid="project-owner-state"
-                role="status"
-              >
-                <span>
-                  {projectProviderActive
-                    ? "Active project for Run and Monitor"
-                    : projectProviderAvailable
-                      ? "Another IDE tab controls Run and Monitor"
-                      : "No active IDE project"}
-                </span>
-                {!projectProviderActive ? (
+              {!projectProviderActive ? (
+                <div
+                  className="project-owner-state standby"
+                  data-testid="project-owner-state"
+                  role="status"
+                >
+                  <span>
+                    {projectProviderAvailable
+                      ? "Run uses another IDE tab"
+                      : "Run has no IDE project"}
+                  </span>
                   <button
                     disabled={!isConnected}
                     onClick={useThisProjectForRun}
                     title="Use this tab's current project for the next IDE or Monitor Run."
                   >
-                    Use this project
+                    Use for Run + Monitor
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
               <div className="file-list">
                 {projectFiles.map((path) => (
                   <button
@@ -2789,49 +2839,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 ))}
               </div>
               <div className="project-controls">
-                <div className="project-actions">
-                  <button
-                    aria-label="Open project…"
-                    className="open-folder-button"
-                    disabled={!supportsWorkingFolders()}
-                    onClick={openWorkingFolder}
-                    title="Open an existing UCSBXRP project folder. If the current browser project has unsaved work, it can be reopened below."
-                  >
-                    Open…
-                  </button>
-                  <button
-                    aria-label="New file…"
-                    onClick={() => {
-                      setNewFileOpen(true);
-                      setNewFileError("");
-                    }}
-                    title="Create a new text file inside this project."
-                  >
-                    New file…
-                  </button>
-                  <button
-                    aria-label="Add files…"
-                    onClick={() => {
-                      beginFolderInteraction();
-                      importInputRef.current?.click();
-                    }}
-                    title="Add copies of one or more text files to this project. Existing files are not overwritten."
-                  >
-                    Add files…
-                  </button>
-                  <input
-                    accept=".csv,.ini,.json,.md,.py,.toml,.txt,.yaml,.yml,text/*"
-                    hidden
-                    multiple
-                    onChange={(event) => {
-                      void importProjectFiles(event).finally(
-                        finishFolderInteraction,
-                      );
-                    }}
-                    ref={importInputRef}
-                    type="file"
-                  />
-                </div>
                 <div className="file-menu" ref={fileActionsRef}>
                   <button
                     aria-expanded={fileActionsOpen}
@@ -2839,7 +2846,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                     onClick={() => setFileActionsOpen((open) => !open)}
                     title={`Rename, duplicate, make main, or delete ${activePath}.`}
                   >
-                    <span>File</span>
+                    <span>Actions for</span>
                     <strong>{activePath.split("/").at(-1)}</strong>
                     <span aria-hidden="true">
                       {fileActionsOpen ? "▴" : "▾"}
@@ -2907,81 +2914,81 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                     </div>
                   ) : null}
                 </div>
-                {"component_checks.py" in project.files ? (
+                <div className="project-actions">
                   <button
-                    className="component-check-button"
-                    disabled={componentCheckRunning}
-                    onClick={() => void testComponents()}
-                    title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
+                    aria-label="Open project…"
+                    className="open-folder-button"
+                    disabled={!supportsWorkingFolders()}
+                    onClick={openWorkingFolder}
+                    title="Open an existing UCSBXRP project folder. If the current browser project has unsaved work, it can be reopened below."
                   >
-                    {componentCheckRunning
-                      ? "Testing components…"
-                      : "Test components"}
+                    Open project…
                   </button>
-                ) : null}
-                {followingChallenge ? (
                   <button
-                    className="next-challenge-button"
-                    onClick={() => void startNextChallenge()}
-                    title={`Continue in a separate ${followingChallenge.label} project. Copies ${followingChallengeCarriedFiles.join(", ")} from this project; this project remains unchanged.`}
+                    aria-label="New project…"
+                    onClick={openProjectTemplateDialog}
+                    title="Create a new project from a course challenge, demo, or tutorial."
                   >
-                    Continue to {followingChallenge.label}…
+                    New project…
                   </button>
-                ) : null}
-                <div className="template-control">
-                  <span>New project from template</span>
-                  <div className="template-actions">
-                    <select
-                      aria-label="Project template"
-                      onChange={(event) =>
-                        setSelectedTemplateId(event.target.value)
-                      }
-                      title="Choose a complete challenge, demo, or tutorial project."
-                      value={selectedTemplateId}
-                    >
-                      <option disabled value="">
-                        Choose template…
-                      </option>
-                      {templateGroups.map((group) => (
-                        <optgroup key={group.kind} label={group.label}>
-                          {COURSE_PROJECT_TEMPLATES.filter(
-                            (template) => template.kind === group.kind,
-                          ).map((template) => (
-                            <option key={template.id} value={template.id}>
-                              {template.shortLabel}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                    <button
-                      aria-label="Create new project…"
-                      disabled={!selectedTemplateId}
-                      onClick={loadProjectTemplate}
-                      title="Create a new editable project from this template."
-                    >
-                      Create…
-                    </button>
-                  </div>
+                  <button
+                    aria-label="New file…"
+                    onClick={() => {
+                      setNewFileOpen(true);
+                      setNewFileError("");
+                    }}
+                    title="Create a new text file inside this project."
+                  >
+                    New file…
+                  </button>
+                  <button
+                    aria-label="Add files…"
+                    onClick={() => {
+                      beginFolderInteraction();
+                      importInputRef.current?.click();
+                    }}
+                    title="Add copies of one or more text files to this project. Existing files are not overwritten."
+                  >
+                    Add files…
+                  </button>
+                  <input
+                    accept=".csv,.ini,.json,.md,.py,.toml,.txt,.yaml,.yml,text/*"
+                    hidden
+                    multiple
+                    onChange={(event) => {
+                      void importProjectFiles(event).finally(
+                        finishFolderInteraction,
+                      );
+                    }}
+                    ref={importInputRef}
+                    type="file"
+                  />
                 </div>
-                {preservedBrowserDraft ||
-                projectFolderConflict ||
-                operationDetail ? (
+                <div className="course-project-actions">
+                  {"component_checks.py" in project.files ? (
+                    <button
+                      className="component-check-button"
+                      disabled={componentCheckRunning}
+                      onClick={() => void testComponents()}
+                      title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
+                    >
+                      {componentCheckRunning
+                        ? "Testing components…"
+                        : "Test components"}
+                    </button>
+                  ) : null}
+                  {followingChallenge ? (
+                    <button
+                      className="next-challenge-button"
+                      onClick={() => void startNextChallenge()}
+                      title={`Continue in a separate ${followingChallenge.label} project. Copies ${followingChallengeCarriedFiles.join(", ")} from this project; this project remains unchanged.`}
+                    >
+                      Continue to {followingChallenge.label}…
+                    </button>
+                  ) : null}
+                </div>
+                {projectFolderConflict || operationDetail ? (
                   <div className="project-feedback">
-                    {preservedBrowserDraft ? (
-                      <button
-                        className="folder-reconnect"
-                        disabled={
-                          folderDirty ||
-                          folderSaveState === "saving" ||
-                          projectFolderConflict !== null
-                        }
-                        onClick={() => void reopenPreviousBrowserDraft()}
-                        title={`Open the previous browser draft ${preservedBrowserDraft.name}. The current folder-backed project remains on disk.`}
-                      >
-                        Open previous draft · {preservedBrowserDraft.name}
-                      </button>
-                    ) : null}
                     {projectFolderConflict ? (
                       <div
                         aria-live="polite"
@@ -3018,23 +3025,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                     )}
                   </div>
                 ) : null}
-                <div className="project-storage">
-                  <span>Projects folder</span>
-                  <strong>{projectsFolderName ?? "Not selected"}</strong>
-                  <small className="project-storage-status">
-                    Default location for new projects
-                  </small>
-                  <button
-                    className="folder-reconnect"
-                    disabled={!supportsWorkingFolders()}
-                    onClick={selectWorkspaceFolder}
-                    title="Choose the default Projects folder for new projects. The current project stays in its present folder."
-                  >
-                    {projectsFolderName
-                      ? "Change Projects folder…"
-                      : "Choose Projects folder…"}
-                  </button>
-                </div>
               </div>
             </div>
           </aside>
@@ -3248,20 +3238,17 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             {outputPanelOpen && consoleTab === "status" ? (
               <div className="status-grid" role="tabpanel">
                 <div>
-                  <span>Project</span>
-                  <strong>{project.name}</strong>
-                  <small aria-live="polite">
-                    {projectFiles.length} file
-                    {projectFiles.length === 1 ? "" : "s"}
-                  </small>
+                  <span>Next run</span>
+                  <strong>
+                    {nextRunProjectName} ·{" "}
+                    {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"}
+                  </strong>
+                  <small aria-live="polite">{nextRunSource}</small>
                 </div>
                 <div>
-                  <span>Target</span>
-                  <strong>{targetState}</strong>
-                  <small>{targetDetail}</small>
-                </div>
-                <div>
-                  <span>Validation</span>
+                  <span>
+                    {projectProviderActive ? "Validation" : "This IDE project"}
+                  </span>
                   <strong
                     className={
                       checkOk === true
@@ -3271,6 +3258,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                           : ""
                     }
                   >
+                    {!projectProviderActive ? `${project.name} · ` : ""}
                     {checkOk === true
                       ? "Passed"
                       : checkOk === false
@@ -3365,21 +3353,46 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
               ×
             </button>
           </div>
-          <label className="setting-row">
-            <span>Run on</span>
-            <select
-              onChange={(event) =>
-                updateTargetPreference((current) => ({
-                  ...current,
-                  kind: event.target.value as TargetKind,
-                }))
-              }
-              value={targetPreference.kind}
-            >
-              <option value="virtual">Virtual XRP</option>
-              <option value="physical">Physical XRP</option>
-            </select>
-          </label>
+          <section className="settings-note project-settings">
+            <h3>Project storage</h3>
+            <div className="project-setting-state">
+              <span>Current project</span>
+              <strong>{project.name}</strong>
+              <small>
+                {workingFolder ? `./${workingFolder.name}` : "Browser draft"} ·{" "}
+                {projectStorageSummary}
+              </small>
+            </div>
+            <div className="project-setting-state">
+              <span>Projects folder</span>
+              <strong>{projectsFolderName ?? "Not selected"}</strong>
+              <small>Parent folder used when creating a project</small>
+            </div>
+            <div className="project-setting-actions">
+              <button
+                disabled={!supportsWorkingFolders()}
+                onClick={selectWorkspaceFolder}
+                title="Choose the parent folder used when new projects are created. The current project remains open."
+              >
+                {projectsFolderName
+                  ? "Change Projects folder…"
+                  : "Choose Projects folder…"}
+              </button>
+              {preservedBrowserDraft ? (
+                <button
+                  disabled={
+                    folderDirty ||
+                    folderSaveState === "saving" ||
+                    projectFolderConflict !== null
+                  }
+                  onClick={() => void reopenPreviousBrowserDraft()}
+                  title={`Open the previous browser draft ${preservedBrowserDraft.name}. The current folder-backed project remains on disk.`}
+                >
+                  Open previous draft · {preservedBrowserDraft.name}
+                </button>
+              ) : null}
+            </div>
+          </section>
           {targetPreference.kind === "physical" ? (
             <fieldset className="xrp-wifi-settings">
               <legend>XRP Wi-Fi</legend>
@@ -3570,7 +3583,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         </aside>
       ) : null}
 
-      {newProjectOpen && pendingProject ? (
+      {newProjectOpen ? (
         <div
           aria-labelledby="new-project-title"
           aria-modal="true"
@@ -3581,25 +3594,59 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             <span className="dialog-kicker">
               {projectCreationPurpose === "save-current"
                 ? "SAVE PROJECT"
-                : "NEW PROJECT"}
+                : progressingToNextChallenge
+                  ? "NEXT CHALLENGE"
+                  : "NEW PROJECT"}
             </span>
             <h2 id="new-project-title">
               {projectCreationPurpose === "save-current"
                 ? "Save as a project"
                 : "Create a project"}
             </h2>
+            {projectCreationPurpose === "new-project" ? (
+              <label className="dialog-field" htmlFor="new-project-template">
+                <span>Start from</span>
+                <select
+                  autoFocus
+                  id="new-project-template"
+                  aria-label="Project template"
+                  onChange={(event) =>
+                    selectProjectTemplate(event.target.value)
+                  }
+                  value={selectedTemplateId}
+                >
+                  <option value="">
+                    Choose a challenge, demo, or tutorial…
+                  </option>
+                  {templateGroups.map((group) => (
+                    <optgroup key={group.kind} label={group.label}>
+                      {COURSE_PROJECT_TEMPLATES.filter(
+                        (template) => template.kind === group.kind,
+                      ).map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.shortLabel}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <p className="dialog-context">
               {projectCreationPurpose === "save-current"
-                ? `Create a named folder for ${pendingProject.name}. Source files, automatic copies, program output, and telemetry will stay with this project.`
+                ? `Create a named folder for ${pendingProject?.name ?? project.name}. Source files, automatic copies, program output, and telemetry will stay with this project.`
                 : progressingToNextChallenge
                   ? `This creates a separate project in ${workspaceFolder ? `the Projects folder ${workspaceFolder.name}` : "a Projects folder you choose"}. It carries ${carriedFiles.join(", ")} from ${project.name}; the current project remains unchanged. The new challenge supplies its own task, world, and newly introduced modules.`
-                  : `The project folder will be created in ${workspaceFolder ? `the Projects folder ${workspaceFolder.name}` : "a Projects folder you choose"}. Source files, automatic copies, program output, and telemetry will stay with this project.`}
+                  : pendingProject
+                    ? `The project folder will be created in ${workspaceFolder ? `the Projects folder ${workspaceFolder.name}` : "a Projects folder you choose"}. Source files, automatic copies, program output, and telemetry will stay with this project.`
+                    : "Choose the course project you want to create."}
             </p>
             <label htmlFor="new-project-folder">Folder name</label>
             <input
               aria-describedby="new-project-help"
               aria-invalid={newProjectError ? "true" : undefined}
-              autoFocus
+              autoFocus={projectCreationPurpose !== "new-project"}
+              disabled={!pendingProject}
               id="new-project-folder"
               onChange={(event) => {
                 setNewProjectDraft(event.target.value);
@@ -3613,13 +3660,16 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
               id="new-project-help"
             >
               {newProjectError ||
-                `Project folder: ${workspaceFolder ? `${workspaceFolder.name}/` : ""}${newProjectDraft || "project"}`}
+                (pendingProject
+                  ? `Project folder: ${workspaceFolder ? `${workspaceFolder.name}/` : ""}${newProjectDraft || "project"}`
+                  : "Select a project above.")}
             </small>
             <div className="dialog-actions">
               <button onClick={cancelProjectCreation} type="button">
                 Cancel
               </button>
               {projectCreationPurpose === "new-project" &&
+              pendingProject &&
               !workspaceFolder &&
               supportsWorkingFolders() ? (
                 <button
@@ -3630,7 +3680,11 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   Continue without a folder
                 </button>
               ) : null}
-              <button className="primary-button" type="submit">
+              <button
+                className="primary-button"
+                disabled={!pendingProject}
+                type="submit"
+              >
                 {workspaceFolder
                   ? projectCreationPurpose === "save-current"
                     ? "Save project"

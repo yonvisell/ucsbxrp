@@ -4,6 +4,24 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 60 simplifies the student project workflow without changing the
+runtime or the physical XRP. The Project rail now separates project actions,
+file actions, component checks, and challenge progression; reconnecting a
+remembered Project folder is distinct from saving a browser draft. New projects
+use one explicit template-and-folder dialog, and challenge progression carries
+forward only the student modules declared by the course catalog. Status now
+identifies the exact project that the next Run will use, including whether this
+IDE or another IDE owns Run. Challenge projects open their rendered README
+first, and all five challenge READMEs state the task, student work, supplied
+files, program sequence, component checks, and available evidence directly.
+
+The complete fast gate passes 224 Python tests, the MicroPython source, service,
+and MPY proofs, 345 TypeScript tests, formatting, type checking, the production
+build, and the 231-file offline-shell verification. The complete production
+Stable Chrome suite passes 95 workflows on `127.0.0.1:4174`; the deliberately
+opt-in physical case is the only skipped case. This stage therefore closes on a
+known-good browser baseline before the next adaptive-layout change.
+
 Refinement 59 makes both application shells follow the browser viewport rather
 than their content. The IDE Project rail now scrolls as one body, the editor and
 output tracks can shrink without clipping, and the compact two-row header starts

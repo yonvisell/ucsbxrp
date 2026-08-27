@@ -297,11 +297,9 @@ function RuntimeControls({
         title="Adjust parameters declared by the running program."
       >
         <h2 id="live-controls-title">Live controls</h2>
-        <small>
-          {runtime.parameters.length > 0
-            ? `${runtime.parameters.length} controls`
-            : "none"}
-        </small>
+        {runtime.parameters.length > 0 ? (
+          <small>{runtime.parameters.length} controls</small>
+        ) : null}
       </div>
       <div className="live-program-content">
         {runtime.parameters.length === 0 ? (
@@ -1499,7 +1497,7 @@ export function DashboardApp() {
               (target.kind === "physical" && targetState === "error")
             }
             onClick={reset}
-            title="Restart the target and restore its initial state."
+            title="Stop the program and restore the selected XRP to its initial course state."
           >
             <ResetIcon />
             <span className="visually-hidden">Reset</span>
@@ -1521,12 +1519,12 @@ export function DashboardApp() {
           </div>
           {target.kind === "physical" && targetState === "error" ? (
             <button
-              aria-label="Retry XRP connection"
+              aria-label="Reconnect XRP"
               className="quiet-button target-retry-button"
               onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
               title="Try the configured XRP Wi-Fi connection again."
             >
-              Retry
+              Reconnect
             </button>
           ) : null}
         </div>

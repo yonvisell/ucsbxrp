@@ -68,7 +68,7 @@
 
 .project-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
   padding: 3px;
 }
@@ -81,56 +81,28 @@
 }
 
 .component-check-button {
-  width: calc(100% - 6px);
+  width: 100%;
   min-height: 20px;
-  margin: 0 3px 3px;
+  margin: 0;
   padding: 1px 4px;
   font-size: var(--font-sm);
 }
 
 .next-challenge-button {
-  width: calc(100% - 6px);
+  width: 100%;
   min-height: 20px;
-  margin: 0 3px 3px;
+  margin: 0;
   padding: 2px 4px;
   font-size: var(--font-sm);
   font-weight: 650;
   text-align: left;
 }
 
-.template-actions {
+.course-project-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   gap: 3px;
-}
-
-.template-control {
   border-top: 1px solid var(--line);
   padding: 3px;
-}
-
-.template-control > span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--quiet);
-  font-size: var(--font-xs);
-  font-weight: 650;
-}
-
-.template-actions select {
-  min-width: 0;
-  border: 1px solid var(--line-bright);
-  height: 22px;
-  border-radius: 3px;
-  padding: 0 0.28rem;
-  background: var(--panel);
-  color: var(--ink);
-  font-size: var(--font-sm);
-}
-
-.template-actions button {
-  font-size: var(--font-sm);
-  white-space: nowrap;
 }
 
 .file-menu {
@@ -160,19 +132,16 @@
 }
 
 .file-actions {
-  position: absolute;
-  z-index: 10;
-  right: 3px;
-  bottom: calc(100% + 1px);
-  left: 3px;
+  position: static;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3px;
   border: 1px solid var(--line-bright);
+  border-top: 0;
   border-radius: 3px;
   padding: 3px;
   background: var(--panel);
-  box-shadow: 0 8px 20px rgb(24 33 40 / 14%);
+  box-shadow: none;
 }
 
 .file-actions button {
@@ -291,42 +260,6 @@
   color: var(--muted);
   font-size: 8px;
   font-weight: 600;
-}
-
-.project-storage {
-  display: grid;
-  gap: 2px;
-  border-top: 1px solid var(--line);
-  padding: 4px 6px;
-}
-
-.project-storage span {
-  color: var(--quiet);
-  font-size: var(--font-xs);
-  font-weight: 650;
-}
-
-.project-storage > span:not(:first-child) {
-  margin-top: 3px;
-  border-top: 1px solid var(--line);
-  padding-top: 4px;
-}
-
-.project-storage strong {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: var(--font-xs);
-  font-weight: 500;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-}
-
-.project-storage-status {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: var(--font-xs);
-  line-height: 1.35;
-  text-overflow: ellipsis;
 }
 
 .project-feedback {
@@ -865,13 +798,58 @@
 
 .setting-row select,
 .setting-row input[type="url"],
-.new-file-dialog input {
+.new-file-dialog input,
+.new-file-dialog select {
   border: 1px solid var(--line-bright);
   border-radius: 3px;
   padding: 0.28rem 0.42rem;
   background: var(--panel);
   color: var(--ink);
   font-size: var(--font-sm);
+}
+
+.project-settings {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0;
+}
+
+.project-setting-state {
+  display: grid;
+  gap: 1px;
+}
+
+.project-setting-state span,
+.dialog-field > span {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.project-setting-state strong {
+  overflow-wrap: anywhere;
+  font-size: var(--font-sm);
+}
+
+.project-setting-state small {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
+.project-setting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.project-setting-actions button {
+  font-size: var(--font-xs);
+}
+
+.dialog-field {
+  display: grid;
+  gap: 0.25rem;
 }
 
 .setting-row small {

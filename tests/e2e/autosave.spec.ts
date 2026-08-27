@@ -175,10 +175,8 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await ide.getByLabel("Project template").selectOption("challenge_1");
-  await ide
-    .getByRole("button", { name: "Create new project…", exact: true })
-    .click();
   await completeProjectFolderCreation(ide, "./1-Straight-Run");
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "Runs save to ./1-Straight-Run",
@@ -227,10 +225,8 @@ test("detaches Monitor autosaves when the IDE opens a browser-only template", as
   await expect(ide.getByTestId("project-folder")).toHaveText(
     "./monitor-detach-project",
   );
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
-  await ide
-    .getByRole("button", { name: "Create new project…", exact: true })
-    .click();
   await ide.getByRole("button", { name: "Continue without a folder" }).click();
 
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(

@@ -1,80 +1,108 @@
 # Challenge 4: Mapped Route
 
-## Objective
+## The challenge
 
-Use the known arena in `world.json` to produce a connected route through free
-grid cells from the initial pose to the destination, then follow it. Planning finishes before
-either robot starts. If the endpoints cannot be connected, the correct result
-is `None` and no motor command is applied.
+Use the known arena in `world.json` to plan a connected route from the initial
+pose to the destination through free grid cells, then follow that route. Route
+planning finishes before robot motion begins. If no valid route connects the
+endpoints, the program reports that result and does not construct or move a
+robot.
 
 `challenge.py` loads `ARENA_MAP`, `INITIAL_POSE`, and `DESTINATION` from the
-world and names `GRID_RESOLUTION_MM` and `CLEARANCE_MM`. Do not duplicate the
-arena bounds, obstacle rectangles, start, or destination in the planner.
+project world and defines `GRID_RESOLUTION_MM` and `CLEARANCE_MM`. Use these
+named task values. Do not copy the current arena bounds, obstacle geometry,
+grid settings, start, or destination into the planner.
 
-## Continue from the previous challenge
+## Continue from Challenge 3
 
-Open Challenge 3 and select **Create Challenge 4 · Mapped Route project**. The
-IDE creates a separate project and carries forward `sensor_model.py`,
-`wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`, and
-`navigation_controller.py`, and keeps whether each student version is selected.
-The new
-`grid_planner.py` begins with the supplied version selected. The Challenge 3
-folder remains unchanged.
+Open the completed Challenge 3 project and select **Continue to Challenge 4 ·
+Mapped Route…**. The new project carries forward the five earlier component
+files and their selections. `grid_planner.py` begins with the supplied planner
+selected. The Challenge 3 project remains unchanged.
+
+Project storage for new projects is configured in IDE **Settings**. Use **Open
+project…** to reopen an existing project folder or **New project…** to create an
+unrelated project from a template.
 
 ## What you implement
 
-Your new work is `GridPlanner`; sensing, wheel control, drive, odometry, and
-navigation are carried forward.
+Implement `GridPlanner` in `grid_planner.py`.
+`plan(grid, start, goal)` returns either:
 
-| Class | Responsibility, state, and use |
-| --- | --- |
-| `GridPlanner` in `grid_planner.py` | `plan(grid, start, goal)` returns a `GridPath` joining the endpoints through free cells, or `None`. Planning data belongs to one call; the class need not retain route state between calls. `main.py` converts a returned path into navigation goals. |
-| `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, `Odometry`, and `NavigationController` | Carried forward in their literal component files and used only after a path is available. |
+- a `GridPath` that begins at `start`, ends at `goal`, contains only free
+  cells, and moves horizontally or vertically between cells sharing an edge;
+  or
+- `None` when either endpoint is missing, outside the grid, blocked, or
+  disconnected.
 
-`OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)` samples
-the known world. `world_to_cell()` locates the endpoints, `is_blocked()`
-reports unavailable cells, and `neighbors()` returns free cells sharing a
-horizontal or vertical side. A valid `GridPath` begins at `start`, ends at
-`goal`, contains only free cells, and moves between cells sharing a horizontal
-or vertical side. A
-missing, blocked, outside-grid, or disconnected endpoint produces `None`.
-When start and goal are the same free cell, the path contains that one cell.
-Any route satisfying these public results is accepted.
+When `start` and `goal` are the same free cell, return a one-cell path. The
+course accepts any valid route; it does not require a particular search method
+or a minimum-length route. Planning data belongs to one `plan()` call, so the
+class does not need to retain it between calls.
+
+The student-owned component files in this project are `sensor_model.py`,
+`wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
+`navigation_controller.py`, and `grid_planner.py`. Continue to correct the
+carried-forward files if a full route exposes a problem. Your pair also
+maintains the measured and tuned values in `robot_config.py`.
 
 ## Provided files and tools
 
-| File or service | Role |
-| --- | --- |
-| `world.json` | Arena boundary, obstacle, initial pose, and destination. |
-| `challenge.py` | Loads the world values and names grid resolution and clearance. |
-| `main.py` | Builds the grid, requests a path, converts it to goals, and starts the robot only when a path exists. |
-| `robot_config.py` | Robot calibration and navigation settings. |
-| `course_setup.py` | Selects all six components independently. |
-| `component_checks.py` | Reports expected and observed path properties for direct, detour, invalid, and disconnected cases. |
-| `GridPath.to_goals(...)` | Converts the path's turns and destination into world-coordinate goals. |
-| `Robot` and `XRPBot` | Execute the route after planning succeeds. |
+- `world.json` defines the arena boundary, obstacles, initial pose, and
+  destination.
+- `challenge.py` loads that world and defines the grid resolution and
+  clearance for the current task.
+- `main.py` builds the occupancy grid, requests a path, converts a successful
+  path to goals, and only then constructs the robot.
+- `course_setup.py` selects all six supplied or student components. Change
+  only the named `USE_STUDENT_*` flags after the matching checks pass.
+- `component_checks.py` runs labeled direct, detour, one-cell, invalid, and
+  disconnected planning examples without moving either robot.
+- `OccupancyGrid` supplies `world_to_cell()`, `is_blocked()`, and
+  `neighbors()`; `GridPath.to_goals()` converts a valid cell path to the
+  world-coordinate goals used by navigation.
 
 ## How the program runs
 
-The project loads one world, samples it into an occupancy grid, and asks
-`GridPlanner` for a path. `None` ends the program without constructing a
-robot. A returned path becomes navigation goals; the carried-forward navigator
-and robot loop then execute those goals.
+1. `main.py` samples `ARENA_MAP` into an `OccupancyGrid` using the task's grid
+   resolution and clearance.
+2. It converts the initial pose and destination to grid cells.
+3. `GridPlanner.plan()` searches the free cells.
+4. A `None` result ends the program without robot motion.
+5. A `GridPath` is converted to navigation goals at path turns and the final
+   destination.
+6. The carried-forward navigator and robot loop execute those goals, with
+   `robot.stop()` in a `finally` block.
+
+## Check the component
+
+Select **Test components**. The checks call your planner with small software
+grids; they do not start the virtual or physical robot. Each example identifies
+the grid and endpoints, the required path property, and the observed result.
+
+- `PASS` means the returned path satisfied the stated requirements.
+- `NOT IMPLEMENTED` identifies an unfinished method.
+- `FAIL` identifies an invalid path or incorrect `None` result.
+
+Inspect direct, detour, one-cell, invalid-endpoint, and no-route cases. Fix
+every unfinished or failing example, repeat **Test components**, and then set
+`USE_STUDENT_GRID_PLANNER` to `True` in `course_setup.py`.
 
 ## Complete the challenge
 
 1. Run the supplied planner on the virtual XRP. Inspect the world obstacle,
-   `path_cells`, driven route, and final pose.
-2. Implement `GridPlanner.plan` to satisfy the path results above. **Test
-   components** checks direct, detour, one-cell, invalid-endpoint, and no-route
-   cases without requiring a particular search method.
-3. Select the student planner and verify that every returned cell is free and
-   every successive pair shares a side.
-4. Repeat with carried-forward student components. Treat path validity and
-   physical route following as separate results.
-5. Before the physical route, verify wheel direction with the wheels clear and
-   use Stop. Then arrange the arena to match `world.json` and run from the
-   marked initial pose.
+   reported path length, driven route, and final pose.
+2. Select your planner. Verify that each path cell is free, each successive
+   pair shares an edge, and the endpoints match the requested cells. **Test
+   components** performs these path checks on small known grids.
+3. Test a valid route, an unavailable endpoint, and a world with no connecting
+   route as separate results.
+4. Repeat a valid route with the carried-forward student components. Separate
+   path validity from navigation and pose-estimation performance.
+5. For the physical run, arrange the arena to match `world.json`, begin at the
+   marked initial pose, and compare the planned route, estimated trajectory,
+   and observed robot path.
 
-`main.py` constructs `Robot` only after a path is found and stops it in
-`finally` after every attempted route.
+After completing this challenge, select **Continue to Challenge 5 · Delivery
+Mission…**. The new project carries forward all six component files and their
+selections; the Challenge 4 project remains unchanged.

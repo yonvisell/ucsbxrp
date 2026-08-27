@@ -8,10 +8,8 @@ const starters = [
 ];
 
 async function openTemplateInBrowser(page: Page, templateId: string) {
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption(templateId);
-  await page
-    .getByRole("button", { name: "Create new project…", exact: true })
-    .click();
   await expect(
     page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
@@ -21,7 +19,9 @@ async function openTemplateInBrowser(page: Page, templateId: string) {
 test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
-  await expect(page.getByLabel("Project template")).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "New project…", exact: true }),
+  ).toBeVisible();
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
   await expect(
@@ -34,7 +34,6 @@ test("renders project README files and keeps their Markdown editable", async ({
 }) => {
   await page.goto("/ide/");
   await openTemplateInBrowser(page, "challenge_4");
-  await page.getByRole("button", { name: "Open README.md" }).click();
 
   const preview = page.getByLabel("Rendered Markdown preview");
   await expect(preview).toBeVisible();
@@ -45,10 +44,10 @@ test("renders project README files and keeps their Markdown editable", async ({
     preview.getByRole("heading", { name: "How the program runs" }),
   ).toBeVisible();
   await expect(
-    preview.getByRole("heading", { name: "Objective" }),
+    preview.getByRole("heading", { name: "The challenge", exact: true }),
   ).toBeVisible();
   await expect(preview.locator("pre")).toHaveCount(0);
-  await expect(preview.getByText(/Your new work is GridPlanner/)).toBeVisible();
+  await expect(preview.getByText(/Implement GridPlanner/)).toBeVisible();
   const typography = await preview.evaluate((element) => {
     const inlineCode = element.querySelector("code");
     return {
@@ -409,7 +408,7 @@ test("validates and runs every staged tutorial lesson on the virtual XRP", async
       .getByRole("button", { name: new RegExp(`Open ${lesson.file}`) })
       .click();
     const fileMenu = ide.getByRole("button", {
-      name: new RegExp(`File ${lesson.file}`),
+      name: new RegExp(`Actions for ${lesson.file}`),
     });
     await fileMenu.click();
     const makeMain = ide.getByRole("button", { name: "Make main" });

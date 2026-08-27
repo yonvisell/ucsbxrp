@@ -277,10 +277,8 @@ test("an IDE update waits for Create Project and reopens the created folder", as
     "./prior-create-project",
   );
 
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption("challenge_1");
-  await page
-    .getByRole("button", { name: "Create new project…", exact: true })
-    .click();
   await expect(
     page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();

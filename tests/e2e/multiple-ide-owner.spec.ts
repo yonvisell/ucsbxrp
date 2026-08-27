@@ -140,9 +140,7 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
   await expect(firstIde.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await expect(firstIde.getByTestId("project-owner-state")).toContainText(
-    "Active project",
-  );
+  await expect(firstIde.getByTestId("project-owner-state")).toHaveCount(0);
 
   const secondIde = await context.newPage();
   await secondIde.goto("/ide/");
@@ -150,7 +148,7 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
     "Virtual XRP · ready",
   );
   await expect(secondIde.getByTestId("project-owner-state")).toContainText(
-    "Another IDE tab controls Run",
+    "Run uses another IDE tab",
   );
   await expect(
     secondIde.getByRole("button", { name: "Run", exact: true }),
@@ -185,12 +183,12 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
     "Virtual XRP · ready",
   );
 
-  await secondIde.getByRole("button", { name: "Use this project" }).click();
-  await expect(secondIde.getByTestId("project-owner-state")).toContainText(
-    "Active project",
-  );
+  await secondIde
+    .getByRole("button", { name: "Use for Run + Monitor" })
+    .click();
+  await expect(secondIde.getByTestId("project-owner-state")).toHaveCount(0);
   await expect(firstIde.getByTestId("project-owner-state")).toContainText(
-    "Another IDE tab controls Run",
+    "Run uses another IDE tab",
   );
   await replaceMain(secondIde, 'print("OWNER_B_AFTER_TAKEOVER")\n');
   await monitorRun.click();
@@ -206,13 +204,19 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
   // lifecycle by default, so request the real browser behavior explicitly.
   await secondIde.close({ runBeforeUnload: true });
   await expect(firstIde.getByTestId("project-owner-state")).toContainText(
-    "No active IDE project",
+    "Run has no IDE project",
   );
   await expect(monitorRun).toBeEnabled();
   await expect(monitorRun).toHaveAttribute(
     "title",
     /Validate and run Expanding spiral/,
   );
+  await firstIde.getByRole("tab", { name: "Status", exact: true }).click();
+  const status = firstIde.locator(".status-grid");
+  await expect(status).toContainText("Expanding spiral · Virtual XRP");
+  await expect(status).toContainText("main.py · built-in default");
+  await expect(status).toContainText("Project ownership test · Not checked");
+  await expect(status).not.toContainText("another IDE");
   await monitorRun.click();
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
@@ -225,13 +229,12 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
     "Virtual XRP · ready",
   );
 
-  await firstIde.getByRole("button", { name: "Use this project" }).click();
-  await expect(firstIde.getByTestId("project-owner-state")).toContainText(
-    "Active project",
-  );
+  await firstIde.getByRole("button", { name: "Use for Run + Monitor" }).click();
+  await expect(firstIde.getByTestId("project-owner-state")).toHaveCount(0);
   await replaceMain(firstIde, 'print("OWNER_A_RECLAIMED")\n');
   await expect(monitorRun).toBeEnabled();
   await monitorRun.click();
+  await openProgramOutput(firstIde);
   await expect(firstIde.getByRole("log")).toContainText("OWNER_A_RECLAIMED");
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -277,7 +280,7 @@ test("standby project changes preserve reopen authority until explicit takeover"
   const standbyIde = await context.newPage();
   await standbyIde.goto("/ide/");
   await expect(standbyIde.getByTestId("project-owner-state")).toContainText(
-    "Another IDE tab controls Run",
+    "Run uses another IDE tab",
   );
   await useFolderForNextPicker(standbyIde, "standby-project-b");
   await standbyIde.getByRole("button", { name: "Open project…" }).click();
@@ -292,12 +295,12 @@ test("standby project changes preserve reopen authority until explicit takeover"
       folderName: "owner-project-a",
     });
 
-  await standbyIde.getByRole("button", { name: "Use this project" }).click();
-  await expect(standbyIde.getByTestId("project-owner-state")).toContainText(
-    "Active project",
-  );
+  await standbyIde
+    .getByRole("button", { name: "Use for Run + Monitor" })
+    .click();
+  await expect(standbyIde.getByTestId("project-owner-state")).toHaveCount(0);
   await expect(firstIde.getByTestId("project-owner-state")).toContainText(
-    "Another IDE tab controls Run",
+    "Run uses another IDE tab",
   );
   await expect
     .poll(() => readActiveProjectAuthority(standbyIde))

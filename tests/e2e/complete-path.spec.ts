@@ -208,7 +208,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     conciseStatus.getByText("Not checked", { exact: true }),
   ).toBeVisible();
   await expect(
-    conciseStatus.getByText("Project", { exact: true }),
+    conciseStatus.getByText("Next run", { exact: true }),
   ).toBeVisible();
   await expect(conciseStatus.getByText("virtual-browser-check")).toBeVisible();
   await expect(
@@ -412,7 +412,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     })
     .click();
   await ide
-    .getByRole("button", { name: /File straight_line_controller\.py/ })
+    .getByRole("button", { name: /Actions for straight_line_controller\.py/ })
     .click();
   await ide
     .getByRole("button", { name: "Duplicate file…", exact: true })
@@ -425,7 +425,9 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     .getByRole("button", { name: "Duplicate file" })
     .click();
   await ide
-    .getByRole("button", { name: /File straight_line_controller_copy\.py/ })
+    .getByRole("button", {
+      name: /Actions for straight_line_controller_copy\.py/,
+    })
     .click();
   await ide.getByRole("button", { name: "Rename file…", exact: true }).click();
   await ide
@@ -436,7 +438,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     .getByRole("button", { name: "Rename file" })
     .click();
   await ide
-    .getByRole("button", { name: /File controller_experiment\.py/ })
+    .getByRole("button", { name: /Actions for controller_experiment\.py/ })
     .click();
   await ide.getByRole("button", { name: "Make main" }).click();
   await expect(
@@ -445,14 +447,14 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
     }),
   ).toBeVisible();
   await ide.getByRole("button", { name: "Open main.py" }).click();
-  await ide.getByRole("button", { name: /File main\.py/ }).click();
+  await ide.getByRole("button", { name: /Actions for main\.py/ }).click();
   await ide.getByRole("button", { name: "Make main" }).click();
   await ide.keyboard.press("Meta+s");
   await ide
     .getByRole("button", { name: "Open student/controller_experiment.py" })
     .click();
   await ide
-    .getByRole("button", { name: /File controller_experiment\.py/ })
+    .getByRole("button", { name: /Actions for controller_experiment\.py/ })
     .click();
   await ide.getByRole("button", { name: "Delete file…", exact: true }).click();
   await expect(
@@ -715,7 +717,7 @@ test("keeps the IDE reachable while a short window is resized", async ({
     element.scrollTo(0, element.scrollHeight),
   );
   await expect(
-    ide.getByRole("button", { name: /Projects folder/ }),
+    ide.getByRole("button", { name: "Add files…", exact: true }),
   ).toBeInViewport();
 
   await ide.getByRole("button", { name: "Expand output" }).click();

@@ -2,6 +2,14 @@
 
 Date: 2026-08-26
 
+> **Historical adversarial snapshot (2026-08-26, dev.22).** This document
+> preserves failure hypotheses and classroom-risk reasoning from that release.
+> Its implementation descriptions and priorities are not current. Use
+> `STATUS.md` for retained evidence, `IMPLEMENTATION_PLAN.md` for the live work
+> sequence, and `docs/VALIDATION_PLAN.md` for current validation boundaries.
+> Reassess a hypothesis below against the current architecture before acting on
+> it.
+
 ## Purpose
 
 This document asks what can interrupt a laboratory when a full undergraduate

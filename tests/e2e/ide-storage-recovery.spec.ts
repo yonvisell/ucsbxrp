@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 interface RememberedFolderOptions {
+  projectPermission?: PermissionState;
   workspacePermission?: PermissionState;
   rememberRepositoryAsProject?: boolean;
   rememberExternalProject?: boolean;
@@ -131,7 +132,7 @@ async function installRememberedFolders(
         ".ucsb-xrp-project.json": `${JSON.stringify({ name: "Previous project", entrypoint: "main.py" })}\n`,
         "main.py": 'print("previous course folder")\n',
       },
-      "granted",
+      configuration.projectPermission ?? "granted",
       "previous-workspace",
     );
     const retainedHandles = new Map<string, unknown>();
@@ -341,16 +342,38 @@ test("migrates a valid v1 project independently of the Projects location", async
     });
 });
 
+test("offers to reconnect a remembered project instead of creating a duplicate folder", async ({
+  page: ide,
+}) => {
+  await installRememberedFolders(ide, {
+    rememberExternalProject: true,
+    projectPermission: "prompt",
+  });
+
+  await ide.goto("/ide/");
+
+  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(
+    ide.getByRole("button", { name: "Reconnect project folder…" }),
+  ).toBeVisible();
+  await expect(
+    ide.getByRole("button", { name: "Save as project…" }),
+  ).toHaveCount(0);
+
+  await ide.getByRole("button", { name: "Reconnect project folder…" }).click();
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "./Previous-Project",
+  );
+});
+
 test("asks before opening a template as a browser-only project", async ({
   page: ide,
 }) => {
   await installRememberedFolders(ide, { workspacePermission: "prompt" });
   await ide.goto("/ide/");
 
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
-  await ide
-    .getByRole("button", { name: "Create new project…", exact: true })
-    .click();
 
   await expect(
     ide.getByRole("heading", { name: "Create a project" }),

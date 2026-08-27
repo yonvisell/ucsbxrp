@@ -202,35 +202,39 @@ device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
 student project changes with the network choice.
 
 The public commissioning wizard is the normal physical-robot entry point.
-Students may choose a working folder immediately or later, connect an RP2350 XRP
-by USB-C, and use one repeatable setup/repair action. The browser checks firmware
-and required runtime versions, installs and read-verifies only changed course
-files, prepares the selected Wi-Fi profile, verifies the local robot service,
-then opens the IDE on the verified physical target. USB handles installation
-and repair of the persistent course runtime. Physical Run validates the current
-project, prepares it in temporary controller RAM over the selected local Wi-Fi
-network, and starts its main Python file. Reset cooperatively stops the program
-and clears course telemetry and live state while retaining the prepared RAM
-project, boot state, and Wi-Fi connection. Run can therefore start the same
-revision again immediately. Monitor and telemetry use the same local Wi-Fi
-network. A full controller reboot is reserved for setup or exceptional
-recovery.
+Students may choose a **Projects folder** immediately or later, connect an
+RP2350 XRP by USB-C, and use one repeatable setup/repair action. Each named
+project is stored in its own child folder inside the Projects folder; choosing a
+different parent folder does not move the project that is already open. The
+browser checks firmware and required runtime versions, installs and read-verifies
+only changed course files, prepares the selected Wi-Fi profile, verifies the
+local robot service, then opens the IDE on the verified physical target. USB
+handles installation and repair of the persistent course runtime. Physical Run
+validates the current project, prepares it in temporary controller RAM over the
+selected local Wi-Fi network, and starts its main Python file. Reset
+cooperatively stops the program and clears course telemetry and live state while
+retaining the prepared RAM project, boot state, and Wi-Fi connection. Run can
+therefore start the same revision again immediately. Monitor and telemetry use
+the same local Wi-Fi network. A full controller reboot is reserved for setup or
+exceptional recovery.
 New robots default to their unique hotspot; an existing robot keeps its working
 network unless the student changes it. Instructor command-line provisioning is
 an optional fleet interface to the same exact release file set.
 
 ## Current implementation note
 
-No contradiction was found among the three active `v2_` documents. The RP2350,
-firmware, portable reference bytecode, virtual-target path, and browser-to-robot
-LAN transport have been exercised in earlier releases. The attached robot
-passed changed-file comparison, controlled one-file repair, full readback,
-runtime import, and reset on dev.7. The current browser/device bundle is
-dev.12; it must be installed through the wizard before that exact release can
-be claimed as physically verified. Reference algorithms remain revisable;
-course outcomes, units, component responsibilities, and the concise
-student workflow are the compatibility target. Physical floor calibration is
-kept in per-robot configuration rather than promoted into the public API.
+No contradiction was found among the three active `v2_` documents. The current
+browser/device bundle is `2026.08-dev.36`. That release is installed on the
+attached RP2350 and has passed exact RAM-project preparation, repeated Run,
+cooperative Stop and Reset, program-output capture, 50 Hz telemetry, and
+raised-wheel motor and encoder tests over a local Wi-Fi network. These results
+do not constitute physical floor calibration, hotspot repetition, or an
+end-to-end qualification of the browser's Web Serial commissioning path.
+
+Reference algorithms remain revisable; course outcomes, units, component
+responsibilities, and the concise student workflow are the compatibility
+target. Physical floor calibration is kept in per-robot configuration rather
+than promoted into the public API.
 `MotorEfforts`, `XRPBot.set_efforts()`, and the earlier RobotConfig effort
 field names remain compatibility aliases for saved pre-0.3 projects; current
 course material uses the drive-command vocabulary.

@@ -8,7 +8,7 @@ test("changes the explicit XRP Wi-Fi mode without cross-network fallback", async
   await page.getByRole("button", { name: "Settings", exact: true }).click();
 
   const settings = page.getByTestId("settings-panel");
-  await settings.getByLabel("Run on").selectOption("physical");
+  await page.getByLabel("Run on").selectOption("physical");
 
   const wifi = settings.getByRole("group", { name: "XRP Wi-Fi" });
   await expect(wifi).toContainText(

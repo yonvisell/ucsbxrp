@@ -121,20 +121,20 @@ export function GuideApp() {
               <span>└─ TeamDelivery/</span>
             </div>
             <p>
-              Select <strong>New project</strong>, choose a template, and enter
+              Select <strong>New project…</strong>, choose a template, and enter
               a project name. The IDE creates a named project folder inside the
               Projects folder and opens it. If folder access is unavailable, you
               can continue without a folder and save the project later. Select{" "}
-              <strong>Open project</strong> to open an existing project folder.
+              <strong>Open project…</strong> to open an existing project folder.
               Edits to an open project save automatically. The selected-file
               menu can rename, duplicate, or delete that file, or set a Python
               file as the program entry point.
             </p>
             <p>
-              When you are ready to continue,{" "}
-              <strong>Create next challenge project</strong> makes a separate
-              project from the next challenge template. It copies the student
-              component files used in the current project and preserves which
+              When you are ready to continue, select the visible{" "}
+              <strong>Continue to Challenge…</strong> action. The IDE creates a
+              separate project for the next challenge, copies the student
+              component files used in the current project, and preserves which
               student implementations are selected. New component files begin
               with the supplied implementation selected. The current project is
               not changed.
@@ -559,10 +559,11 @@ export function GuideApp() {
                 folder is included in version control.
               </li>
               <li>
-                In the IDE, choose or change the Projects folder and select the
-                cloned repository. Create a project from a template, or select
-                <strong>Open project</strong> and choose an existing project
-                subfolder inside it.
+                In IDE <strong>Settings</strong>, choose or change the Projects
+                folder and select the cloned repository. Select{" "}
+                <strong>New project…</strong> to create a project from a
+                template, or <strong>Open project…</strong> to choose an
+                existing project subfolder.
               </li>
               <li>Pull before beginning a work session.</li>
               <li>

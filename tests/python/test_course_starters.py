@@ -561,55 +561,8 @@ class CourseStarterTests(unittest.TestCase):
             ),
             "challenge_5": ("DELIVERY_TASK",),
         }
-        expected_configuration_names = {
-            "challenge_1": (
-                "wheel_diameter_mm",
-                "encoder_counts_per_revolution",
-                "left_encoder_sign",
-                "right_encoder_sign",
-                "left_start_command",
-                "right_start_command",
-                "left_speed_command_gain",
-                "right_speed_command_gain",
-                "sample_period_ms",
-                "wheel_speed_filter_time_constant_ms",
-                "wheel_speed_kp",
-                "max_drive_command",
-            ),
-            "challenge_2": (
-                "track_width_mm",
-                "cruise_speed_mm_s",
-                "approach_speed_mm_s",
-                "slowdown_distance_mm",
-                "position_tolerance_mm",
-                "turn_rate_rad_s",
-                "heading_tolerance_rad",
-            ),
-            "challenge_3": (
-                "cruise_speed_mm_s",
-                "approach_speed_mm_s",
-                "slowdown_distance_mm",
-                "turn_rate_rad_s",
-                "position_tolerance_mm",
-                "heading_tolerance_rad",
-                "realign_heading_rad",
-            ),
-            "challenge_4": (
-                "GRID_RESOLUTION_MM",
-                "CLEARANCE_MM",
-            ),
-            "challenge_5": (
-                "grid_resolution_mm",
-                "clearance_mm",
-                "observed_feature_name",
-                "range_sample_count",
-                "minimum_usable_range_count",
-                "blocked_range_threshold_mm",
-                "assume_blocked_without_range",
-            ),
-        }
         required_sections = (
-            "## Objective",
+            "## The challenge",
             "## What you implement",
             "## Provided files and tools",
             "## How the program runs",
@@ -622,18 +575,18 @@ class CourseStarterTests(unittest.TestCase):
                 for section in required_sections:
                     self.assertIn(section, text)
                 self.assertNotIn("## Program flow", text)
-                self.assertTrue(
-                    "Your work" in text or "Your new work" in text,
-                    "README must distinguish current student work from supplied or carried-forward code",
+                self.assertRegex(
+                    " ".join(text.split()),
+                    r"student-owned (?:component|implementation) files",
+                    "README must identify the files maintained by students",
                 )
                 self.assertIn("component_checks.py", text)
                 self.assertIn("course_setup.py", text)
+                self.assertIn("`robot_config.py`", text)
                 for filename in student_files:
                     self.assertIn("`%s`" % filename, text)
                 for parameter in expected_task_parameters[challenge]:
                     self.assertIn("`%s`" % parameter, text)
-                for name in expected_configuration_names[challenge]:
-                    self.assertIn(name, text)
 
     def test_student_facing_challenge_text_uses_direct_task_language(self):
         unclear_terms = (
@@ -697,15 +650,19 @@ class CourseStarterTests(unittest.TestCase):
             readme = (STARTERS / challenge_id / "README.md").read_text(
                 encoding="utf-8"
             )
-            heading = "## Continue from the previous challenge"
+            previous_number = challenge_number - 1
+            heading = "## Continue from Challenge %d" % previous_number
             self.assertIn(heading, readme)
             start_section = readme.split(heading, 1)[1].split("\n## ", 1)[0]
             normalized = " ".join(start_section.split())
             with self.subTest(challenge=challenge_id):
-                self.assertIn("Create " + entry["label"] + " project", normalized)
-                self.assertIn("separate project", normalized)
-                self.assertIn("folder remains unchanged", normalized)
-                self.assertIn("keeps whether", normalized)
+                self.assertIn("Continue to " + entry["label"], normalized)
+                self.assertIn("new project", normalized)
+                self.assertIn(
+                    "Challenge %d project remains unchanged" % previous_number,
+                    normalized,
+                )
+                self.assertIn("selections", normalized)
                 for component in entry["components"]:
                     self.assertIn("`%s`" % component["file"], readme)
                     if not component["carry_forward"]:

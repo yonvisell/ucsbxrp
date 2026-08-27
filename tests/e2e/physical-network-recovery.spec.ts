@@ -169,12 +169,17 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
 
   await ide.setViewportSize({ width: 850, height: 752 });
   await ide.goto("/ide/");
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await expect(
     ide.getByRole("combobox", { name: "Project template" }),
   ).toHaveValue("");
   await expect(
-    ide.getByRole("button", { name: "Create new project…" }),
+    ide.getByRole("button", {
+      name: "Choose Projects folder and create…",
+      exact: true,
+    }),
   ).toBeDisabled();
+  await ide.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · error · connection required",
   );
@@ -219,7 +224,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(monitor.getByRole("button", { name: "Reset" })).toBeDisabled();
 
   reachable = true;
-  await monitor.getByRole("button", { name: "Retry XRP connection" }).click();
+  await monitor.getByRole("button", { name: "Reconnect XRP" }).click();
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );

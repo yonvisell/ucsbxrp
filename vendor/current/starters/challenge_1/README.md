@@ -1,85 +1,118 @@
 # Challenge 1: Straight Run
 
-## Objective
+## The challenge
 
-Drive from the start line to the finish marker and stop from measured wheel
-travel. A valid run must not finish before `TARGET_TIME_S`; after the distance
-result is repeatable, reduce the remaining positive time difference.
+Drive from the start line to the finish marker and stop using measured wheel
+travel. First make the stopping distance repeatable. Then adjust the run so the
+robot finishes as close as possible to the assigned target time without
+finishing early.
 
-The start pose and finish marker live in `world.json`. `challenge.py` loads
-them as `INITIAL_POSE` and `TRAVEL_DISTANCE_MM`, so the program, virtual field,
-and Monitor use one geometry. Do not copy marker coordinates or the travel
-distance into another file.
+The current task is defined by `challenge.py` and `world.json`:
+
+- `world.json` defines the initial pose and finish marker used by the program,
+  virtual XRP, and Monitor.
+- `challenge.py` loads those positions, calculates `TRAVEL_DISTANCE_MM`, and
+  defines `TARGET_TIME_S`.
+
+Use these named values in the program. Do not copy their current numerical
+values into another file.
 
 ## What you implement
 
-Your work is `SensorModel` in `sensor_model.py` and `WheelSpeedController` in
-`wheel_speed_controller.py`. `course_setup.py` selects each student class
-independently after it passes **Test components**.
+Implement these two classes:
 
-| Class | Responsibility, state, and use |
-| --- | --- |
-| `SensorModel` | Converts `RawSensors` encoder counts and device time into `Measurements`. It retains the count/time origin, the preceding sample, and only the history needed for a stable wheel-speed estimate. Wheel control uses its speeds; later challenges use its wheel increments for odometry. |
-| `WheelSpeedController` | Converts target and measured `WheelSpeeds` into a bounded `DriveCommand`. It treats the wheels independently and returns exact zero for a zero target. `Robot` sends its result to `XRPBot`. |
+- `SensorModel` in `sensor_model.py` converts encoder counts and device time
+  into wheel positions, wheel travel during the latest sample, and regularized
+  wheel-speed estimates. It retains the count and time origin, the preceding
+  sample, and the limited history needed by the speed estimate.
+- `WheelSpeedController` in `wheel_speed_controller.py` compares requested and
+  measured wheel speeds and returns a bounded `DriveCommand` for each motor. A
+  zero wheel-speed request must produce an exact zero command for that wheel.
 
-`SensorModel.reset(raw)` establishes one run's origin and returns zero position,
-increment, and speed while preserving range and USER-button values.
-`update(raw)` returns cumulative position, travel since the preceding sample,
-elapsed seconds, and regularized speed. Encoder direction and distance per count
-come from `left_encoder_sign`, `right_encoder_sign`, `wheel_diameter_mm`, and
-`encoder_counts_per_revolution`. Calculate each elapsed interval from successive
-`RawSensors.time_ms` values, not from the nominal sample period.
-`sample_period_ms` defines the intended robot-loop schedule, while
-`wheel_speed_filter_time_constant_ms` sets how strongly the speed estimate is
-regularized.
+For this challenge, implement `SensorModel.reset()` and `SensorModel.update()`.
+Leave `estimate_range()` unchanged; Challenge 5 introduces that method.
 
-`WheelSpeedController.update(target, measured)` must preserve requested wheel
-direction, respond to measured speed error, and keep each command within
-`max_drive_command`. Use `left_start_command`, `right_start_command`,
-`left_speed_command_gain`, `right_speed_command_gain`, and `wheel_speed_kp`
-from `self.config`. The current values in `robot_config.py` describe this robot;
-they are not constants of the class. `estimate_range()` is completed in
-Challenge 5.
+These two component files are the student-owned implementation files for
+Challenge 1.
+
+`SensorModel.reset(raw)` establishes the origin for one run. Its result has
+zero wheel position, increment, speed, and elapsed time while retaining the
+sample's range and USER-button values. `SensorModel.update(raw)` calculates
+position and timing from successive samples. Use the encoder signs, wheel
+diameter, counts per revolution, and speed-filter response time in
+`self.config`; do not substitute the nominal sample period for measured elapsed
+time.
+
+`WheelSpeedController.update(target, measured)` uses the starting commands,
+speed-to-command gains, feedback gain, and command limit in `self.config`.
+These values describe the current robot and may change after measurement; they
+are not constants of the controller class.
+
+Your pair also maintains the measured and tuned values in `robot_config.py`.
 
 ## Provided files and tools
 
-| File or service | Role |
-| --- | --- |
-| `world.json` | Start, finish, and arena shown by the virtual XRP and Monitor. |
-| `challenge.py` | Loads `INITIAL_POSE` and `TRAVEL_DISTANCE_MM`; defines `TARGET_TIME_S`. |
-| `robot_config.py` | Robot dimensions, signs, calibration, sample settings, speed settings, and stopping tolerance. |
-| `main.py` | Runs the measured straight-line task and stops the motors in `finally`. |
-| `course_setup.py` | Selects the supplied or student version of each component. |
-| `component_checks.py` | Names each input, expected observation, and observed result without starting either robot. |
-| `StraightLineController` | Requests cruise, approach, or zero speed from measured mean wheel travel. |
-| Supplied `DifferentialDrive` and `Odometry` | Complete the robot loop until Challenge 2. |
+- `main.py` runs the measured straight-line task and stops the motors in a
+  `finally` block.
+- `StraightLineController` reduces the requested speed near the finish and
+  stops at the assigned travel distance.
+- `challenge.py` and `world.json` define the task.
+- `course_setup.py` selects the supplied or student version of each component.
+  Change only the named `USE_STUDENT_*` flags as components pass their checks.
+- `component_checks.py` runs labeled software examples without starting the
+  virtual or physical robot.
+- Supplied `DifferentialDrive` and `Odometry` complete the robot loop until
+  Challenge 2.
 
 ## How the program runs
 
-`StraightLineController` requests forward motion from measured travel.
-`DifferentialDrive` turns that request into wheel targets. Your
-`WheelSpeedController` produces motor commands; `XRPBot` applies them and reads
-the encoders. Your `SensorModel` turns those readings into the measurements used
-by the next update. The feedback loop ends when measured travel reaches the
-distance loaded from `world.json`.
+Each control sample follows this sequence:
+
+1. `StraightLineController` uses measured travel to request straight motion.
+2. `DifferentialDrive` converts that request to left and right wheel-speed
+   targets.
+3. `WheelSpeedController` converts the targets and measured speeds to motor
+   commands.
+4. `XRPBot` applies the commands and reads the encoders.
+5. `SensorModel` converts the readings to the next `Measurements` value.
+6. The loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`.
+
+## Check each component
+
+Select **Test components** in the IDE. The checks use the classes in your
+component files; they do not move either robot.
+
+- `PASS` means the result matched the stated example.
+- `NOT IMPLEMENTED` identifies a method that still raises
+  `NotImplementedError`.
+- `FAIL` shows the expected and observed results that differ.
+
+Read the labeled input and expected result above every outcome. Fix every
+`NOT IMPLEMENTED` and `FAIL`, run **Test components** again, and only then set
+the matching `USE_STUDENT_*` flag in `course_setup.py` to `True`.
 
 ## Complete the challenge
 
-1. Run the supplied components on the virtual XRP. Identify target speed,
-   measured speed, drive command, and wheel position in Monitor.
-2. Implement and check `SensorModel`; then select it in `course_setup.py` and
-   repeat the virtual run.
-3. Implement and check `WheelSpeedController`; then run both student classes.
-4. Confirm that wheel position increases forward, increments describe only the
-   newest sample, drive commands stay bounded, and the robot slows and stops at
-   `TRAVEL_DISTANCE_MM`.
-5. Record repeated virtual runs. Retain the distance result while reducing the
-   amount by which elapsed time exceeds `TARGET_TIME_S`.
-6. For the physical XRP, first run with its wheels clear and verify forward
-   direction and Stop. Then use the marked clear lane and record final wheel
-   travel, elapsed time, target and measured speed, and drive command.
+1. With the supplied components, run the virtual XRP and locate requested wheel
+   speed, measured wheel speed, drive command, and wheel distance in Monitor.
+2. Select your `SensorModel`. Confirm that forward wheel position increases,
+   each increment describes only the newest sample, and the speed estimate is
+   stable without hiding changes in motion.
+3. Select your `WheelSpeedController`. Confirm that commands remain within the
+   configured limit and return to zero at the finish.
+4. Record repeated virtual runs. Compare final wheel travel and elapsed time
+   with `TRAVEL_DISTANCE_MM` and `TARGET_TIME_S`.
+5. On the physical XRP, first verify wheel direction and Stop with the wheels
+   clear. On the marked lane, record final wheel travel, elapsed time, requested
+   and measured speed, and drive command.
 
-After both components work, select **Create Challenge 2 · Turn and Return
-project**. The separate project carries forward `sensor_model.py`,
-`wheel_speed_controller.py`, and their selections. The Challenge 1 folder
-remains unchanged.
+## IDE project actions
+
+Use **Open project…** to reopen an existing project folder. Use **New project…**
+to create a separate project from a course template. The default parent folder
+for new projects is configured under project storage in IDE **Settings**.
+
+After completing this challenge, select **Continue to Challenge 2 · Turn and
+Return…**. The IDE creates a separate project and carries forward
+`sensor_model.py`, `wheel_speed_controller.py`, and their component selections.
+The Challenge 1 project remains unchanged.

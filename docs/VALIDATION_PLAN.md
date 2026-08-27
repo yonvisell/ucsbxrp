@@ -1,138 +1,212 @@
 # Validation strategy
 
-Validation is organized around student-visible behavior, required interfaces,
-and realistic failure modes. The harness is intentionally small: each behavior
-is proved at the lowest useful layer, then a few complete workflows confirm
-that the layers work together.
+Validation establishes student-visible behavior at the smallest useful layer,
+then repeats the affected workflow in production Chrome and, when relevant, on
+the RP2350 XRP. Simulator, mocked browser, native browser, deployed-origin, and
+physical-robot results are distinct evidence.
 
-## Checks
+## Current evidence baseline
 
-| Check | What it establishes |
+The physical baseline is robot runtime release `2026.08-dev.36`, generation 17,
+whose retained record names source commit `5d217ed`. The complete production
+Chrome baseline was committed as `82e4266`; responsive geometry was committed as
+`5e80f3f`. The identities are kept separate because application, course-content,
+and robot-runtime changes have different validation boundaries.
+
+Together, those retained baselines provide the following evidence:
+
+| Boundary | Current evidence |
 | --- | --- |
-| Python API behavior | records, units, numerical components, maps, planners, missions, starters, examples, and release contents |
-| MicroPython parity | the canonical package and exact supplied `.mpy` files import and produce the same public results in browser and RP2350 MicroPython |
-| TypeScript/unit | target protocol, OSC, project storage, recording, simulator physics/sensors, bounded buffers, and recovery transitions |
-| Browser workflows | commissioning wizard, IDE, Monitor, shared target, project operations, diagnostics, offline loading, accessibility, and responsive behavior in stable Chrome |
-| Physical integration | Web Serial/REPL commissioning, firmware recovery, LAN discovery, versions, synchronization, execution, logs, telemetry, reconnect, reset, and stationary sensors |
-| Raised-wheel motion | short motor pulses, encoder sign/response, zero cleanup, and stopping behavior |
-| Floor trials | calibrated trajectories and motion-induced sensor behavior on the final course surface |
+| Python and MicroPython | 224 Python tests plus source, service, and exact `.mpy` import/behavior proofs |
+| Browser packages | 345 TypeScript tests, formatting, type checking, production build, and verification of the 231-file offline shell |
+| Production Chrome | 92 Stable Chrome workflows on `http://127.0.0.1:4174`; the opt-in physical-motion case was run separately |
+| Responsive applications | 26 focused production workflows covering short, wide, narrow, tall, phone-width, physical-error, navigation, recording, export, reconnect, Stop, and Reset states |
+| Physical station workflow | Two raised-wheel runs on the attached RP2350; the strengthened run passed in 30.1 seconds with Run/Stop from both apps, course Reset and rerun, motor effort, both encoders, both wheel distances, sensors, path, plots, logs, and final zero drive |
+| USB installation and service | Dev.36 installed as runtime generation 17; exact RAM-project preparation, stdout, telemetry, cooperative Stop, repeated immediate Run, course Reset, and post-Reset Run passed on `Pink` |
 
-The ordinary repository check is:
+The physical record is
+`docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
+It does not prove the dev.36 native Web Serial wizard, hotspot handoff, deployed
+Pages origin, floor motion, every physical challenge, multiple nearby robots,
+or Windows/Edge and Chromebook behavior.
+
+Any change after this baseline receives focused checks immediately. The full
+gate is rerun at the next committed stage boundary; an uncommitted focused pass
+does not replace the retained baseline above.
+
+## Repository commands
+
+The complete non-hardware gate is:
 
 ```sh
 npm run check
 ```
 
-Hardware commands are separate because CI has no robot attached, not because
-students need a formal acceptance process.
+`npm run check:fast` runs formatting, Python, MicroPython, TypeScript, type,
+production-build, and offline-package checks. `npm run test:browser` runs the
+Stable Chrome workflows. During development, focused test files or test names
+should run against the fixed local production origin before the complete gate.
 
-## Numerical and course behavior
+Physical tests remain explicit because CI has no robot. Their command, release,
+network route, robot identity, runtime generation, firmware, duration, and
+observations are retained in one JSON record under `docs/hardware/`.
 
-- Reuse immutable input/output vectors across supplied source, student
-  exemplars, WebAssembly MicroPython, and physical MicroPython.
-- Inject clocks. Cover timestamp wrap, nonpositive elapsed time, and loop
-  overruns explicitly.
-- Derive tolerances from encoder quantization, fixed-step integration, and
-  sensor resolution; do not use an unexplained global epsilon.
-- Cover straight, in-place, and curved differential-drive trajectories,
-  including sign inversions.
-- For navigation, test state transitions, limits, termination, and accepted
-  tolerances through the public interface.
-- For planning, verify free adjacent cells, endpoints, validity, and minimum
-  path length without requiring one arbitrary tie break.
-- Treat captured physical telemetry as a replay fixture, not universal ground
+## Course and numerical behavior
+
+- Test the public interface and physical meaning: units, signs, bounds,
+  geometry, state progression, termination, and errors.
+- Reuse input/output examples across supplied Python, reference bytecode,
+  browser MicroPython, and RP2350 MicroPython.
+- Inject clocks and cover timestamp wrap, nonpositive elapsed time, and sample
+  overruns. Student challenge loops use the supplied scheduler rather than
+  adding an independent sleep.
+- Derive tolerances from encoder quantization, simulation integration, and
+  sensor resolution instead of one unexplained global epsilon.
+- Cover straight, curved, and in-place motion; wheel and encoder sign
+  conventions; regularized wheel-speed estimation; odometry; navigation state
+  changes; valid connected routes; blocked routes; and mission outcomes.
+- Test challenge requirements without prescribing the retained reference
+  implementation, a particular route-search data structure, or one tie break.
+- Treat captured physical data as one robot observation, not universal ground
   truth.
 
-## Target protocol behavior
+## Target and runtime behavior
 
-Both targets run the same conformance cases:
+Virtual and physical targets share behavioral cases for:
 
-- discover identity, versions, capabilities, and current state;
-- correlate every request and reply, including timeouts and structured errors;
-- synchronize a whole project transactionally so an interrupted upload keeps
-  the preceding runnable project;
-- validate, run, stop, and reset as separate operations;
-- reconnect without inventing a successful state, retain reconnecting through
-  intentional reboots, and restart log cursors when the boot identifier changes;
-- reject malformed, duplicate, incompatible, and oversized input cleanly;
-- preserve typed channel names, units, timestamps, sequence numbers, logs, and
-  events; and
-- end a run after exception, reset, connection loss, or lease expiry.
+- identity, version, capabilities, endpoint, project, and current state;
+- exact project validation and revision preparation before Run;
+- correlated commands, bounded timeouts, idempotent retries, and structured
+  errors;
+- Run, cooperative Stop, course Reset, exceptional controller restart, and
+  owner loss;
+- ordered logs and telemetry with explicit gaps, boot changes, cursor paging,
+  and bounded retention;
+- malformed, duplicate, incompatible, and oversized requests; and
+- recovery from connection loss without presenting an unverified endpoint or
+  project as ready.
 
-Protocol tests fault-inject at transport, storage, and runtime boundaries. They
-avoid mocking private implementation details.
+The physical service additionally proves that project preparation is complete
+or leaves the preceding RAM project intact, commands are serialized, and normal
+project work does not write the controller's internal flash. The USB setup and
+runtime installer separately prove that activation uses only a fully verified
+runtime slot.
+
+Fault injection should target the transport, project transaction, runtime
+activation, and browser ownership boundaries. Tests should not depend on
+private function shape.
 
 ## Browser workflows
 
-Keep browser tests independent so one failed dialog does not hide unrelated
-target or Monitor defects. Cover:
+Browser cases remain independent enough that one modal failure does not hide a
+different project, target, or Monitor failure. The production suite covers:
 
-- folder open/save, file create/rename/duplicate/delete, startup selection,
-  browser recovery, tabs, and keyboard commands;
-- MicroPython syntax results and visible runtime output;
-- virtual discovery, synchronize, run, stop, reset, owner loss, and all five
-  cumulative course starters;
-- physical request correlation, timeouts, unavailable-device messages, and the
-  same browser fetch receiver used by stable Chrome;
-- commissioning controller/version rejection, raw-paste flow control and raw
-  fallback, watchdog feeding, changed-only transfer, complete remote hashing,
-  import verification, repeated repair, firmware integrity, network profile,
-  reset, service proof, project-folder write/read verification, visible and
-  saved handoff failures, and project-folder/physical-target handoff;
-- cancellation of unfinished physical discovery and ordered shared-worker
-  disconnect, so rapid React remounts cannot leave a hidden poller;
-- dimensioned world/XRP views, ruler scaling, SI sensor labels, blocked-gate
-  replanning, selectable scrolling signal plots, and the collapsible Monitor
-  controls;
-- bounded recordings and deterministic export;
-- root and deployment-subpath offline reloads, complete third-party notices,
-  and the HTTPS document-to-local-device permission handoff; and
-- desktop and narrow layouts, semantic control names, keyboard-contained
-  dialogs, reduced-motion/forced-color fallbacks, and measured contrast.
+- first load, offline reload, update adoption at a safe boundary, root and
+  repository-subpath deployment, and browser capability messages;
+- default project, Open project, Save as project, template creation, file
+  operations, main-file selection, automatic save, rotating copies, conflict
+  recovery, and external folder changes;
+- multiple IDE tabs, explicit project ownership, Monitor-only virtual Run,
+  edited-project Run, completion, exception, Stop, Reset, and owner loss;
+- all challenges, tutorials, and demos in browser MicroPython;
+- world configuration, pose and path, dimensions, range, collisions, live
+  telemetry, watches, live controls, published plot variables, fixed-height
+  plots, annotations, recording, CSV/SVG/PNG/WebM export, and late Monitor
+  history;
+- native setup states through mocked Web Serial and HTTP boundaries, including
+  cancellation, denied permissions, incompatible controller, changed-only and
+  no-change repair, interrupted installation, network selection, handoff, and
+  stale endpoint; and
+- wide, short, narrow, and tall layouts; dialogs; keyboard operation; visible
+  focus; semantic names; reduced motion; forced colors; and measured contrast.
 
-Tests assert roles, labels, state, and behavior. Screenshot comparisons are
-reserved for stable layout structure; dynamic editor canvases and plots are
-inspected interactively rather than frozen pixel-for-pixel.
+Mocked setup cases establish browser state and protocol behavior. They do not
+substitute for the native device chooser, Web Serial stream, macOS/Windows
+permissions, computer Wi-Fi handoff, or physical service.
 
-## Physical XRP checks when hardware is attached
+## Visual and usability validation
 
-An attached robot is exercised through USB and whichever local robot network is
-selected. The useful evidence is concise:
+Use a production build in Chrome, not only component snapshots. Inspect each
+principal page at representative wide, laptop, short-height, and narrow sizes.
+Resize an already-open application across breakpoints so persistent drawers,
+splitters, and editor dimensions are exercised rather than recreated from a
+fresh mount.
 
-- detected board and runtime versions;
-- installed course/service release hashes;
-- assigned LAN address and service discovery reply;
-- project synchronization and file inventory;
-- check, start, stop, reset, reconnect, logs, and telemetry;
-- USER button, IMU, range, encoder, and power readings;
-- short, bounded, raised-wheel motor pulses with encoder count deltas and zero
-  cleanup, without reinitializing RP2350 PIO encoders from the program core;
-  and
-- the exact behaviors that remain untested because they require floor motion.
+Visual review asks whether a first-time student can identify:
 
-Credentials, device serial numbers, and unique identifiers are not committed.
-Historical detailed captures remain under `docs/hardware/`; ordinary users do
-not reproduce them.
+- the current project and its native folder state;
+- the selected target and whether that robot was verified;
+- the next available Run, Stop, Reset, connection, project, or file action;
+- the distinction between program output, system diagnostics, telemetry,
+  recording, and exports; and
+- the location of challenge instructions and exact API documentation.
 
-The dev.7 file-repair path has now passed on the attached XRP: first comparison,
-no-change repetition, deliberate changed-file repair, verified temporary-file
-activation by direct rename, complete destination readback, runtime imports,
-and reset. The remaining browser-specific pass starts from the public Pages
-origin and crosses the native project-folder chooser into Web Serial, hotspot
-Local Network Access, automatic IDE selection, and one ordinary Wi-Fi project
-flash. UF2 volume recovery should be exercised only on a controller whose
-runtime is actually incompatible, rather than rewriting a correct robot for a
-formal check.
+Assertions should prefer roles, labels, bounds, and behavior. Screenshots are
+useful for stable layout relationships, but dynamic editor canvases and plots
+should not be accepted solely through pixel snapshots. A short observed
+first-time-student trial is more informative than additional prose-presence
+tests once the functional workflow passes.
 
-## Harness discipline
+## Current-release physical sequence
 
-- Test public behavior and genuine boundaries, not implementation shape.
-- Keep dependencies few and pinned; add a tool only when it catches a concrete
-  class of defects.
-- Do not impose a global coverage percentage.
-- Keep timeouts short enough to expose hangs and long enough for the measured
-  RP2350 path.
-- Record skipped physical behavior plainly; never translate “not exercised”
-  into pass or failure.
-- A stage finishes only after the focused checks and one representative
-  end-to-end workflow pass.
+The next hardware pass records the exact application commit or build digest and
+robot-runtime identity, then performs these complete sequences:
+
+1. Native Chrome setup/repair over USB: device selection, identity, file
+   comparison, changed-only or no-change install, read verification, activation,
+   restart, service proof, and IDE handoff.
+2. Station mode: default Run, Stop, Reset, rerun, a second project, shared
+   IDE/Monitor output and telemetry, and recovery after an unavailable retained
+   address.
+3. Hotspot mode: robot profile change, visible SSID, explicit computer Wi-Fi
+   handoff, identity-checked connection, the same two-project lifecycle, and
+   return to the internet network.
+4. Repetition: repair the already-correct robot, cancel and retry selection,
+   preserve student files, reopen the applications, and repeat Run without
+   clearing browser storage.
+
+Raised-wheel motion uses a short bounded program, begins and ends at zero drive,
+and checks both encoders from within-run baselines. Floor trajectory claims wait
+for the final course surface.
+
+## Updates and compatibility
+
+Each retained release record should distinguish:
+
+- web application build;
+- course content and template revision;
+- public API revision;
+- robot runtime release and active generation;
+- project revision and template lineage; and
+- supported compatibility between them.
+
+An update test uses two actual production builds. It keeps a native student
+project and active recording intact, retains the previous complete application
+cache until the new one is ready, adopts the new build only at a reproducible
+boundary, and verifies rollback/offline loading. A robot-runtime update is
+required only when its compatibility identity changes.
+
+## Evidence at a stage boundary
+
+A stage closes when its focused checks and representative complete workflow
+pass. Record:
+
+- the exact source/release identity;
+- which software, production-browser, deployed-origin, and physical workflows
+  actually ran;
+- the observed result or retained artifact; and
+- remaining empirical work stated as untested, not translated into a pass.
+
+Do not add a global coverage target or broad timeout to make the result look
+complete. A repeated failure becomes a design or implementation problem to
+remove, not another recovery layer to document.
+
+## Deferred empirical work
+
+- UF2 recovery on a genuinely incompatible controller.
+- Wheel, track, stopping, range, and IMU calibration on the course surface.
+- Complete physical execution of all five challenges after calibration.
+- Current Windows/Edge, Chromebook, enterprise-policy, multi-XRP, and two-laptop
+  classroom trials.
+- Mobile hardware control and mobile WebM export, which are not release
+  requirements.

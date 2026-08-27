@@ -206,7 +206,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
     "Use the cloned repository as the UCSBXRP Projects folder",
   );
   await expect(page.locator("#projects")).toContainText(
-    "Create next challenge project",
+    "Continue to Challenge",
   );
   await expect(page.locator("#monitor")).toContainText(
     "Runs started in either app write program output and target events to the IDE terminal",

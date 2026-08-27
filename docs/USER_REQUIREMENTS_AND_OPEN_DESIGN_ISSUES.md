@@ -1,4 +1,12 @@
-# User requirements and open design issues
+# User requirements and open design issues — historical snapshot
+
+> **Historical design snapshot (2026-08-26, dev.28).** This document retains
+> the user's governing intent, representative failures, and design questions,
+> but its status labels and implementation sequence are not current. Use the top
+> of `STATUS.md` for completed evidence, `IMPLEMENTATION_PLAN.md` for the live
+> work sequence, and `docs/VALIDATION_PLAN.md` for current validation. A
+> requirement or failure class below remains relevant only where later evidence
+> has not superseded it.
 
 ## Purpose and interpretation
 
