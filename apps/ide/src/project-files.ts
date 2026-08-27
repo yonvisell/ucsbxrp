@@ -65,6 +65,7 @@ export const previousProjectRecoveryKey = "ucsb-xrp-course-project-v1";
 const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
 const projectMetadataFile = ".ucsb-xrp-project.json";
 const sha256Pattern = /^[0-9a-f]{64}$/;
+const windowsReservedName = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 const originalStageOneStarterSource = `from time import sleep_ms
 from ucsb_xrp import MotorEfforts, XRPBot
 
@@ -222,7 +223,7 @@ async function readProjectFolderMetadata(
   } catch (error) {
     if (isNotFoundError(error)) {
       throw new ProjectFolderMetadataError(
-        `This is not a UCSBXRP project folder. Choose the project folder that contains ${projectMetadataFile}, not the working folder that contains your projects.`,
+        `This is not a UCSBXRP project folder. Choose the project folder that contains ${projectMetadataFile}, not the Projects folder that contains several projects.`,
       );
     }
     throw error;
@@ -511,14 +512,28 @@ export function projectPathError(path: string): string | null {
   if (normalized.startsWith("/") || normalized.endsWith("/")) {
     return "Use a project-relative file path.";
   }
-  if (normalized.split("/").some((part) => part === "" || part === "..")) {
-    return "The path cannot contain empty folders or '..'.";
+  const parts = normalized.split("/");
+  if (parts.some((part) => part === "" || part === "." || part === "..")) {
+    return "The path cannot contain empty folders, '.', or '..'.";
   }
-  if (/[\0:*?"<>|]/.test(normalized)) {
+  if (/[\u0000-\u001f:*?"<>|]/.test(normalized)) {
     return "The file name contains a character that cannot be saved.";
   }
-  if (normalized === projectMetadataFile) {
-    return "That name is reserved for the project's main-file setting.";
+  if (parts.some((part) => part.endsWith(".") || part.endsWith(" "))) {
+    return "File and folder names cannot end with a period or space.";
+  }
+  if (parts.some((part) => windowsReservedName.test(part))) {
+    return "That file or folder name is reserved by Windows.";
+  }
+  if (parts.some((part) => part.length > 255)) {
+    return "Each file or folder name must be 255 characters or fewer.";
+  }
+  if (
+    parts.some(
+      (part) => part.toLowerCase() === projectMetadataFile.toLowerCase(),
+    )
+  ) {
+    return "That name is reserved for UCSBXRP project settings.";
   }
   return null;
 }
@@ -538,10 +553,28 @@ export function projectFolderNameError(name: string): string | null {
   if (normalized.includes("/") || normalized.includes("\\")) {
     return "Enter one folder name, without a path.";
   }
-  if (/[:*?"<>|\0]/.test(normalized)) {
+  if (/[\u0000-\u001f:*?"<>|]/.test(normalized)) {
     return "The folder name contains a character that cannot be used.";
   }
+  if (normalized.endsWith(".") || normalized.endsWith(" ")) {
+    return "The folder name cannot end with a period or space.";
+  }
+  if (windowsReservedName.test(normalized)) {
+    return "That folder name is reserved by Windows.";
+  }
+  if (normalized.length > 255) {
+    return "The folder name must be 255 characters or fewer.";
+  }
   return null;
+}
+
+/** Returns true when a path would collide on a case-insensitive file system. */
+export function projectFilePathExists(
+  files: Record<string, string>,
+  requestedPath: string,
+): boolean {
+  const foldedPath = normalizedProjectPath(requestedPath).toLowerCase();
+  return Object.keys(files).some((path) => path.toLowerCase() === foldedPath);
 }
 
 export function suggestedProjectFolderName(name: string): string {
@@ -572,7 +605,7 @@ function checkedDestinationPath(
   if (path === originalPath) {
     throw new Error("Enter a different file path.");
   }
-  if (path in project.files) {
+  if (projectFilePathExists(project.files, path)) {
     throw new Error("A file already uses that path.");
   }
   return path;
@@ -627,21 +660,14 @@ export function deleteProjectFile(
   if (Object.keys(project.files).length === 1) {
     throw new Error("A project must contain at least one file.");
   }
+  if (path === project.entrypoint) {
+    throw new Error(
+      "Choose another Python file as main before deleting the current main file.",
+    );
+  }
   const files = { ...project.files };
   delete files[path];
-  let entrypoint = project.entrypoint;
-  if (path === project.entrypoint) {
-    const replacement = Object.keys(files)
-      .sort()
-      .find((candidate) => candidate.endsWith(".py"));
-    if (!replacement) {
-      throw new Error(
-        "Create another Python file before deleting the only main file.",
-      );
-    }
-    entrypoint = replacement;
-  }
-  return { ...project, entrypoint, files };
+  return { ...project, files };
 }
 
 export function setProjectEntrypoint(
@@ -823,7 +849,19 @@ export async function readProjectFolder(
         skipped += 1;
         continue;
       }
-      files[`${prefix}${name}`] = await file.text();
+      const path = `${prefix}${name}`;
+      const pathError = projectPathError(path);
+      if (pathError) {
+        throw new Error(
+          `The project contains a file path that cannot be used on both macOS and Windows: ${path}. ${pathError}`,
+        );
+      }
+      if (projectFilePathExists(files, path)) {
+        throw new Error(
+          `The project contains file names that differ only by capitalization: ${path}. Rename one file before opening the project.`,
+        );
+      }
+      files[path] = await file.text();
     }
   };
 

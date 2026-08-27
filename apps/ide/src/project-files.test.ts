@@ -553,7 +553,11 @@ describe("project paths", () => {
     "student//model.py",
     "../main.py",
     "student/../main.py",
+    "student/./main.py",
     "bad:name.py",
+    "student/CON.py",
+    "notes./main.py",
+    "student/.UCSB-XRP-PROJECT.JSON",
     ".ucsb-xrp-project.json",
   ])("rejects an unsafe project path: %s", (path) => {
     expect(projectPathError(path)).not.toBeNull();
@@ -599,6 +603,9 @@ describe("project file operations", () => {
     expect(duplicated.files["student/controller_experiment.py"]).toBe(
       project.files["student/controller.py"],
     );
+    expect(() => duplicateProjectFile(project, "main.py", "MAIN.py")).toThrow(
+      "already uses that path",
+    );
   });
 
   it("selects a Python main file and rejects non-Python files", () => {
@@ -610,22 +617,22 @@ describe("project file operations", () => {
     );
   });
 
-  it("deletes a file and chooses another Python main file", () => {
-    const deleted = deleteProjectFile(project, "main.py");
+  it("deletes a non-main file without changing the main file", () => {
+    const deleted = deleteProjectFile(project, "notes.md");
 
-    expect(deleted.entrypoint).toBe("student/controller.py");
-    expect(deleted.files).not.toHaveProperty("main.py");
+    expect(deleted.entrypoint).toBe("main.py");
+    expect(deleted.files).not.toHaveProperty("notes.md");
   });
 
-  it("protects the only usable main file", () => {
-    const onePythonFile = {
-      ...project,
-      files: { "main.py": "pass\n", "notes.md": "notes\n" },
-    };
-
-    expect(() => deleteProjectFile(onePythonFile, "main.py")).toThrow(
-      "Create another Python file",
+  it("requires the student to choose a replacement before deleting main", () => {
+    expect(() => deleteProjectFile(project, "main.py")).toThrow(
+      "Choose another Python file as main",
     );
+
+    const reassigned = setProjectEntrypoint(project, "student/controller.py");
+    const deleted = deleteProjectFile(reassigned, "main.py");
+    expect(deleted.entrypoint).toBe("student/controller.py");
+    expect(deleted.files).not.toHaveProperty("main.py");
   });
 
   it("suggests a unique, legible duplicate path", () => {
@@ -773,7 +780,25 @@ describe("project-folder reads", () => {
     });
   });
 
-  it("rejects a working folder before reading files from its child projects", async () => {
+  it("rejects project file names that would collide on Windows", async () => {
+    const root = new ReadonlyDirectoryHandle("case-collision", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"entrypoint":"main.py"}\n',
+        ),
+      ],
+      ["main.py", new ReadonlyFileHandle("main.py", "print('first')\n")],
+      ["MAIN.py", new ReadonlyFileHandle("MAIN.py", "print('second')\n")],
+    ]);
+
+    await expect(readProjectFolder(root)).rejects.toThrow(
+      "differ only by capitalization",
+    );
+  });
+
+  it("rejects a Projects folder before reading files from its child projects", async () => {
     const project = (name: string, marker: string) =>
       new ReadonlyDirectoryHandle(name, [
         [
@@ -1027,6 +1052,8 @@ describe("project-folder reads", () => {
     expect(projectFolderNameError("spiral-lab")).toBeNull();
     expect(projectFolderNameError("../spiral")).toContain("one folder name");
     expect(projectFolderNameError("  ")).toContain("Enter");
+    expect(projectFolderNameError("CON")).toContain("reserved by Windows");
+    expect(projectFolderNameError("spiral.")).toContain("period or space");
     expect(suggestedProjectFolderName("Expanding spiral! ")).toBe(
       "Expanding-spiral",
     );

@@ -274,6 +274,14 @@
   text-overflow: ellipsis;
 }
 
+.project-storage-status {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
 .folder-reconnect {
   justify-self: start;
   padding: 1px 5px;
@@ -986,6 +994,7 @@
 
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.4rem;
   margin-top: 0.45rem;

@@ -342,7 +342,7 @@ test("migrates a valid v1 project independently of the Projects location", async
     });
 });
 
-test("opens a template in browser recovery without requesting an old folder", async ({
+test("asks before opening a template as a browser-only project", async ({
   page: ide,
 }) => {
   await installRememberedFolders(ide, { workspacePermission: "prompt" });
@@ -352,11 +352,35 @@ test("opens a template in browser recovery without requesting an old folder", as
   await ide.getByRole("button", { name: "Create", exact: true }).click();
 
   await expect(
+    ide.getByRole("heading", { name: "Create a project" }),
+  ).toBeVisible();
+  await expect(
+    ide.getByRole("button", {
+      name: "Open 1_values_and_functions.py (main file)",
+    }),
+  ).toHaveCount(0);
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                permissionRequestCount: number;
+                pickerCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
+    .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
+
+  await ide.getByRole("button", { name: "Use browser only" }).click();
+  await expect(
     ide.getByRole("button", {
       name: "Open 1_values_and_functions.py (main file)",
     }),
   ).toBeVisible();
-  await expect(ide.getByRole("dialog")).toHaveCount(0);
   await expect
     .poll(() =>
       ide.evaluate(

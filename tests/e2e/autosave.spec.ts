@@ -39,7 +39,9 @@ async function completeProjectFolderCreation(
 ) {
   await expect(page.getByRole("dialog")).toBeVisible();
   await page
-    .getByRole("button", { name: "Create project", exact: true })
+    .getByRole("button", {
+      name: /Create project|Choose Projects folder and create/,
+    })
     .click();
   await expect(page.getByTestId("project-folder")).toHaveText(expectedFolder);
 }
@@ -99,9 +101,9 @@ test("creates the untouched default only after naming its project folder", async
   await installMemoryFolderPicker(ide);
   await ide.goto("/ide/");
 
-  await ide.getByRole("button", { name: "Choose working folder" }).click();
+  await ide.getByRole("button", { name: "Choose Projects folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Expanding spiral · temporary browser copy",
+    "Expanding spiral · browser only",
   );
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
   const files = await readFolderFiles(ide, "student-course-project");
@@ -129,7 +131,7 @@ test("automatically saves project edits and retains four prior states", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Choose working folder" }).click();
+  await ide.getByRole("button", { name: "Choose Projects folder" }).click();
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
 
   for (let revision = 1; revision <= 5; revision += 1) {
@@ -176,12 +178,6 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
-  await expect(
-    ide.getByText(
-      "1 · Straight Run is stored temporarily in Chrome. Choose a working folder to create its project folder.",
-    ),
-  ).toBeVisible();
-  await ide.getByRole("button", { name: "Choose working folder" }).click();
   await completeProjectFolderCreation(ide, "./1-Straight-Run");
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "Runs save to ./1-Straight-Run",
@@ -232,6 +228,7 @@ test("detaches Monitor autosaves when the IDE opens a browser-only template", as
   );
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide.getByRole("button", { name: "Use browser only" }).click();
 
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "No project folder is connected",

@@ -51,7 +51,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("Open project rejects a working folder without flattening its child projects", async ({
+test("Open project rejects a Projects folder without flattening its child projects", async ({
   page,
 }) => {
   await page.goto("/ide/");
@@ -126,6 +126,150 @@ test("Open project rejects a working folder without flattening its child project
     return Promise.all([read("alpha"), read("beta")]);
   });
   expect(childSources).toEqual(['print("alpha")\n', 'print("beta")\n']);
+});
+
+test("opens a valid project even when another Projects folder is remembered", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.evaluate(
+    async ({ projectsLocationKey }) => {
+      const root = await navigator.storage.getDirectory();
+      for (const name of ["remembered-projects", "external-project"]) {
+        try {
+          await root.removeEntry(name, { recursive: true });
+        } catch (error) {
+          if (
+            !(error instanceof DOMException) ||
+            error.name !== "NotFoundError"
+          ) {
+            throw error;
+          }
+        }
+      }
+      const projects = await root.getDirectoryHandle("remembered-projects", {
+        create: true,
+      });
+      const external = await root.getDirectoryHandle("external-project", {
+        create: true,
+      });
+      const write = async (name: string, content: string) => {
+        const file = await external.getFileHandle(name, { create: true });
+        const writable = await file.createWritable();
+        await writable.write(content);
+        await writable.close();
+      };
+      await write(
+        ".ucsb-xrp-project.json",
+        `${JSON.stringify({ name: "External project", entrypoint: "main.py" })}\n`,
+      );
+      await write("main.py", 'print("outside remembered parent")\n');
+
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains("course-folders")) {
+            request.result.createObjectStore("course-folders");
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction("course-folders", "readwrite");
+        transaction
+          .objectStore("course-folders")
+          .put(projects, projectsLocationKey);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+      database.close();
+    },
+    { projectsLocationKey },
+  );
+  await page.reload();
+  await expect(page.locator(".project-storage strong")).toHaveText(
+    "remembered-projects",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle(
+          "external-project",
+        ),
+    });
+  });
+
+  await page.getByRole("button", { name: "Open project" }).click();
+
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "./external-project",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const recovered = JSON.parse(
+          localStorage.getItem("ucsb-xrp-course-project-v2") ?? "{}",
+        );
+        return (recovered.project ?? recovered).files?.["main.py"] ?? null;
+      }),
+    )
+    .toBe('print("outside remembered parent")\n');
+});
+
+test("requires an explicit storage choice for a new project", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  const originalProject = await page
+    .getByTestId("project-folder")
+    .textContent();
+
+  await page
+    .getByLabel("Project template")
+    .selectOption("micropython_tutorial");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Create a project" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    originalProject ?? "",
+  );
+  await page.getByRole("button", { name: "Use browser only" }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Open 1_values_and_functions.py (main file)",
+    }),
+  ).toBeVisible();
+  await expect(page.getByTestId("project-folder")).toContainText(
+    "browser only",
+  );
+});
+
+test("exposes the previous unsaved browser draft after creating a folder-backed project", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page
+    .getByLabel("Project template")
+    .selectOption("micropython_tutorial");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Choose Projects folder and create" })
+    .click();
+
+  const previous = page.getByRole("button", {
+    name: "Open previous draft · Expanding spiral",
+  });
+  await expect(previous).toBeVisible();
+  await previous.click();
+
+  await expect(page.getByTestId("project-folder")).toContainText(
+    "Expanding spiral · browser only",
+  );
+  await expect(previous).toHaveCount(0);
 });
 
 test("stale parent metadata cannot flatten legacy child project trees", async ({
@@ -277,7 +421,7 @@ test("changing Projects location keeps the current project attached and saving",
   });
   await page
     .getByRole("button", {
-      name: /Change working folder|Change projects location|Projects location/,
+      name: "Change Projects folder",
     })
     .click();
 
@@ -314,6 +458,12 @@ test("creates the next challenge project and carries forward only earlier studen
   await page.goto("/ide/");
   await page.getByLabel("Project template").selectOption("challenge_1");
   await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a project" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Choose Projects folder and create" })
+    .click();
 
   const next = page.getByRole("button", {
     name: "Create Challenge 2 · Turn and Return project",
@@ -326,15 +476,8 @@ test("creates the next challenge project and carries forward only earlier studen
   await next.click();
 
   await expect(
-    page.getByRole("heading", { name: "Name the project folder" }),
+    page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Create project", exact: true })
-    .click();
-  await expect(page.getByTestId("project-folder")).toContainText(
-    "./1-Straight-Run",
-  );
-  await next.click();
   await expect(
     page.getByText(/carries sensor_model\.py, wheel_speed_controller\.py/),
   ).toBeVisible();
@@ -431,6 +574,7 @@ test("Monitor validates and runs the project currently open in the IDE", async (
 
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide.getByRole("button", { name: "Use browser only" }).click();
   await expect(
     ide.getByRole("button", {
       name: "Open 1_values_and_functions.py (main file)",
