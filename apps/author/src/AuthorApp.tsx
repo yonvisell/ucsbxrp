@@ -10,6 +10,7 @@ import {
 } from "../../shared/offline-shell";
 import {
   authoringCommand,
+  challengeDraftProject,
   linesFromText,
   specificationFilename,
   suppliedFilesFromText,
@@ -18,6 +19,10 @@ import {
   type ChallengeComponentSpec,
   type ChallengeSpec,
 } from "./challenge-spec";
+import {
+  authorDraftQueryParameter,
+  createAuthorDraftHandoff,
+} from "../../shared/author-draft-handoff";
 import {
   challengeAuthorDraftFingerprint,
   challengeAuthorReloadIsSafe,
@@ -368,6 +373,37 @@ export function AuthorApp() {
     }
   }
 
+  function openDraftInIde() {
+    if (currentSpec.errors.length > 0) {
+      setMessage("Correct the listed items before opening the project draft.");
+      return;
+    }
+    try {
+      const project = challengeDraftProject(currentSpec.spec);
+      const token = createAuthorDraftHandoff({
+        ...project,
+        name: project.name ?? currentSpec.spec.title,
+      });
+      const ideUrl = new URL("../ide/", window.location.href);
+      ideUrl.searchParams.set(authorDraftQueryParameter, token);
+      const opened = window.open(ideUrl, "_blank");
+      if (!opened) {
+        setMessage(
+          "The browser blocked the IDE tab. Allow this site to open a tab, then select Open draft in IDE again.",
+        );
+        return;
+      }
+      opened.opener = null;
+      setMessage(
+        "The unpublished project opened in the IDE. Save it to a Project folder before retaining or revising it.",
+      );
+    } catch (error) {
+      setMessage(
+        `The project draft could not be opened: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   const selectedClasses = new Set(
     spec.student_implementations.map((item) => item.class_name),
   );
@@ -386,10 +422,10 @@ export function AuthorApp() {
           <div>
             <h1>Challenge creation</h1>
             <p>
-              Create and check a challenge specification, then download it as
-              JSON. This page does not modify the repository or student catalog.
-              Repository integration, project testing, review, and publication
-              are separate instructor steps.
+              Define a challenge and its world, then open the complete
+              unpublished project in the IDE for testing. Download the checked
+              specification when you are ready to retain or publish it. This
+              page does not modify the repository or student catalog.
             </p>
           </div>
           <div className="author-intro-status">
@@ -726,7 +762,7 @@ export function AuthorApp() {
         <section className="author-section" aria-labelledby="review-heading">
           <div className="section-number">4</div>
           <div>
-            <h2 id="review-heading">Check and download the specification</h2>
+            <h2 id="review-heading">Review and open the project</h2>
             <div
               className={
                 currentSpec.errors.length === 0 ? "review-ok" : "review-errors"
@@ -735,8 +771,8 @@ export function AuthorApp() {
             >
               {currentSpec.errors.length === 0 ? (
                 <p>
-                  Specification checks pass. No repository files have been
-                  created or checked.
+                  Specification checks pass. Open the unpublished project in the
+                  IDE to validate and run the actual files.
                 </p>
               ) : (
                 <>
@@ -749,9 +785,27 @@ export function AuthorApp() {
                 </>
               )}
             </div>
-            <div className="create-row">
+            <div className="draft-row">
               <button
                 className="primary-button"
+                disabled={currentSpec.errors.length > 0}
+                title={
+                  currentSpec.errors.length > 0
+                    ? "Resolve the listed specification errors before opening the project"
+                    : "Build this unpublished project and open it in a new IDE tab"
+                }
+                type="button"
+                onClick={openDraftInIde}
+              >
+                Open draft in IDE
+              </button>
+              <span className="field-help">
+                The IDE receives the copied starting project, generated README,
+                edited world, and any complete file overrides shown above.
+              </span>
+            </div>
+            <div className="create-row">
+              <button
                 disabled={currentSpec.errors.length > 0}
                 title={
                   currentSpec.errors.length > 0

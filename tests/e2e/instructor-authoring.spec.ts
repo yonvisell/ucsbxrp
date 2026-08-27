@@ -1,34 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
-import {
-  cpSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
-
-function projectFiles(directory: string): Record<string, string> {
-  const files: Record<string, string> = {};
-  const visit = (current: string) => {
-    for (const name of readdirSync(current)) {
-      const path = join(current, name);
-      if (statSync(path).isDirectory()) {
-        visit(path);
-      } else {
-        files[relative(directory, path).replaceAll("\\", "/")] = readFileSync(
-          path,
-          "utf8",
-        );
-      }
-    }
-  };
-  visit(directory);
-  return files;
-}
+import { readFileSync } from "node:fs";
 
 test("landing page exposes the instructor tools as compact text links", async ({
   page,
@@ -65,7 +36,7 @@ test("specification editor validates and downloads the complete curriculum examp
   await expect(page.getByText("Program flow", { exact: true })).toHaveCount(0);
   await expect(
     page.getByText(
-      "Specification checks pass. No repository files have been created or checked.",
+      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
     ),
   ).toBeVisible();
   await expect(
@@ -92,7 +63,7 @@ test("specification editor validates and downloads the complete curriculum examp
   ).toBeVisible();
   await expect(
     page.getByText(
-      "Specification checks pass. No repository files have been created or checked.",
+      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
     ),
   ).toBeVisible();
 
@@ -127,7 +98,7 @@ test("specification editor validates and downloads the complete curriculum examp
   await overrideEditor.fill(JSON.stringify(overrides, null, 2));
   await expect(
     page.getByText(
-      "Specification checks pass. No repository files have been created or checked.",
+      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
     ),
   ).toBeVisible();
   await expect(
@@ -161,7 +132,7 @@ test("specification editor validates and downloads the complete curriculum examp
     .click();
   await expect(
     page.getByText(
-      "Specification checks pass. No repository files have been created or checked.",
+      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
     ),
   ).toBeVisible();
   await expect(
@@ -431,95 +402,127 @@ test("instructor overview states the system boundaries and release workflow", as
     "XRPBot, Robot, StraightLineController, ArenaMap, OccupancyGrid, and DeliveryMission",
   );
   await expect(page.locator("#authoring")).toContainText(
-    "The browser does not create repository files or publish a challenge.",
+    "The browser does not change the repository or publish a challenge.",
   );
 });
 
-test("generated Waypoint Slalom runs in the virtual XRP and exports telemetry", async ({
+test("the authoring UI creates a new stopping-response challenge, runs it, and exports telemetry", async ({
   context,
-  page: ide,
+  page: author,
 }) => {
   test.setTimeout(150_000);
-  const draftRoot = mkdtempSync(join(tmpdir(), "ucsbxrp-author-e2e-"));
-  try {
-    cpSync("vendor/current", join(draftRoot, "vendor/current"), {
-      recursive: true,
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "showSaveFilePicker", {
+      configurable: true,
+      value: undefined,
     });
-    execFileSync(
-      "python3",
-      [
-        "scripts/challenge_authoring.py",
-        "--root",
-        draftRoot,
-        "create",
-        "--spec",
-        "docs/examples/waypoint_slalom.challenge.json",
-      ],
-      { stdio: "pipe" },
+  });
+  await author.goto("/author/");
+  await author.getByLabel("Starting challenge").selectOption("challenge_1");
+  await author
+    .getByRole("button", { name: "Load this challenge's example world" })
+    .click();
+  await author.getByLabel("Student-facing title").fill("Stopping Response");
+  await author
+    .getByLabel("Catalog summary")
+    .fill("Compare wheel-speed response and stopping accuracy at two speeds.");
+  await author
+    .getByRole("textbox", {
+      name: /^Objective State what the robot does/,
+    })
+    .fill(
+      "Program the XRP to travel from the start line to the finish marker at two assigned cruise speeds. Implement SensorModel and WheelSpeedController, then use measured wheel speed, wheel travel, and elapsed time to compare stopping response between the two runs.",
     );
-    const files = projectFiles(
-      join(draftRoot, "vendor/current/starters/challenge_6"),
+  await author
+    .getByRole("checkbox", { name: "NavigationController" })
+    .uncheck();
+  await author.getByRole("checkbox", { name: "SensorModel" }).check();
+  await author.getByRole("checkbox", { name: "WheelSpeedController" }).check();
+  await author
+    .getByLabel("Required evidence — one item per line")
+    .fill(
+      "A wheel-speed plot for each assigned cruise speed.\nThe final mean wheel travel and elapsed time for each run.\nA short comparison of speed response and stopping accuracy using the recorded values.",
     );
-    await context.addInitScript(() => {
-      Object.defineProperty(window, "showSaveFilePicker", {
-        configurable: true,
-        value: undefined,
-      });
-    });
-    await ide.addInitScript((generatedFiles: Record<string, string>) => {
-      localStorage.clear();
-      localStorage.setItem(
-        "ucsb-xrp-course-project-v2",
-        JSON.stringify({
-          name: "Waypoint Slalom",
-          entrypoint: "main.py",
-          files: generatedFiles,
-        }),
-      );
-    }, files);
+  await author
+    .getByLabel("Student work sequence — one step per line")
+    .fill(
+      "Run the supplied project on the virtual XRP and identify the requested and measured wheel speeds.\nImplement SensorModel and WheelSpeedController, then run Test components.\nRun the course once at the first assigned cruise speed and export the telemetry.\nChange only the assigned cruise speed, repeat the run, and export the same evidence.\nCompare the two runs using wheel speed, final wheel travel, and elapsed time.",
+    );
+  await author
+    .getByLabel("Supplied files and services — name | use")
+    .fill(
+      "main.py | Runs the measured straight-line task and reports final wheel travel and elapsed time.\nworld.json | Defines the start line, finish marker, and visible straight course.\nchallenge.py | Loads the course geometry and defines the target time.\nrobot_config.py | Defines the robot measurements and controller settings used in both runs.\nStraightLineController | Reduces speed near the finish and stops at the requested travel distance.",
+    );
+  await author
+    .getByLabel("Program sequence — one step per line")
+    .fill(
+      "challenge.py loads the initial pose and travel distance from world.json.\nStraightLineController requests forward motion from the measured wheel travel.\nRobot uses the selected SensorModel and WheelSpeedController in each measured sample.\nThe loop stops at the finish distance and main.py reports wheel travel and elapsed time.",
+    );
+  await author.getByText("Optional project-file overrides").click();
+  await author.getByLabel("Project file overrides as JSON").fill("{}");
+  await expect(
+    author.getByText(
+      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
+    ),
+  ).toBeVisible();
 
-    await ide.goto("/ide/");
-    const monitor = await context.newPage();
-    await monitor.goto("/monitor/");
-    await monitor
-      .getByRole("button", { name: "Start recording", exact: true })
-      .click();
+  const ideOpened = context.waitForEvent("page");
+  await author.getByRole("button", { name: "Open draft in IDE" }).click();
+  const ide = await ideOpened;
+  await ide.waitForLoadState("domcontentloaded");
+  await expect(
+    ide.getByText("6 · Stopping Response", { exact: true }),
+  ).toBeVisible();
+  await expect(ide.getByText("README.md", { exact: true })).toBeVisible();
+  await ide.getByText("README.md", { exact: true }).click();
+  await expect(
+    ide.getByRole("heading", { name: "Challenge 6: Stopping Response" }),
+  ).toBeVisible();
+  await expect(
+    ide.getByText("## Evidence to collect", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    ide.getByText("A wheel-speed plot for each assigned cruise speed.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await monitor
+    .getByRole("button", { name: "Start recording", exact: true })
+    .click();
 
-    await ide.getByRole("button", { name: "Validate" }).click();
-    await expect(ide.getByTestId("check-result")).toContainText(
-      "compiled with MicroPython",
-    );
-    await ide.getByRole("button", { name: "Run", exact: true }).click();
-    await expect(ide.getByRole("log")).toContainText(
-      "Waypoint Slalom complete",
-      { timeout: 80_000 },
-    );
-    await expect(ide.getByTestId("target-status")).toContainText(
-      "Virtual XRP · ready",
-    );
-    await expect
-      .poll(
-        async () =>
-          Number.parseFloat(
-            (await monitor.getByTestId("x-mm").textContent()) ?? "NaN",
-          ),
-        { message: "the generated route should advance through the world" },
-      )
-      .toBeGreaterThan(900);
+  await ide.getByRole("button", { name: "Validate" }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
+    "compiled with MicroPython",
+  );
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
+    timeout: 80_000,
+  });
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect
+    .poll(
+      async () =>
+        Number.parseFloat(
+          (await monitor.getByTestId("x-mm").textContent()) ?? "NaN",
+        ),
+      { message: "the generated straight run should reach the finish" },
+    )
+    .toBeGreaterThan(900);
 
-    await monitor
-      .getByRole("button", { name: "Stop recording", exact: true })
-      .click();
-    const downloadEvent = monitor.waitForEvent("download");
-    await monitor.getByRole("button", { name: "Export telemetry CSV" }).click();
-    const download = await downloadEvent;
-    expect(download.suggestedFilename()).toMatch(/^xrp-telemetry-.*\.csv$/);
-    const downloadPath = await download.path();
-    expect(downloadPath).not.toBeNull();
-    const csv = readFileSync(downloadPath!, "utf8");
-    expect(csv.split("\n").length).toBeGreaterThan(10);
-    expect(csv).toContain("target_left_wheel_speed_mm_s");
-  } finally {
-    rmSync(draftRoot, { recursive: true, force: true });
-  }
+  await monitor
+    .getByRole("button", { name: "Stop recording", exact: true })
+    .click();
+  const downloadEvent = monitor.waitForEvent("download");
+  await monitor.getByRole("button", { name: "Export telemetry CSV" }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/^xrp-telemetry-.*\.csv$/);
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  const csv = readFileSync(downloadPath!, "utf8");
+  expect(csv.split("\n").length).toBeGreaterThan(10);
+  expect(csv).toContain("target_left_wheel_speed_mm_s");
 });

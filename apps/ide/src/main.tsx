@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { registerOfflineShell } from "../../shared/offline-shell";
+import { consumeAuthorDraftHandoff } from "../../shared/author-draft-handoff";
 import {
   beginProjectBootstrap,
   finishProjectBootstrap,
@@ -20,9 +21,13 @@ window.addEventListener(
 
 registerOfflineShell();
 configureLocalMonaco();
+const authorDraftProject = consumeAuthorDraftHandoff(window.location.search);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <IdeApp projectBootstrapOwner={projectBootstrapOwner} />
+    <IdeApp
+      authorDraftProject={authorDraftProject}
+      projectBootstrapOwner={projectBootstrapOwner}
+    />
   </StrictMode>,
 );

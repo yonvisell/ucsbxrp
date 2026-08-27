@@ -1687,3 +1687,17 @@ proof; its one obsolete **Clear recording** label expectation was updated to the
 intentional **Clear recording and notes** wording and passed on its focused rerun.
 The next slice is reset/repair commissioning followed by repeated virtual and
 physical project execution and IDE/Monitor synchronization on the attached XRP.
+
+The instructor authoring page now builds a complete unpublished project in the
+browser and opens it directly in the IDE. The one-time handoff includes the
+copied starting project, generated student README, edited world, and complete
+file overrides without changing the catalog or replacing an existing
+folder-backed project. The instructor can validate and run the draft before
+saving it to a new Project folder or using the repository publication script.
+
+Focused validation created a new **Stopping Response** challenge through the
+form, opened its generated README as rendered Markdown, compiled and ran the
+project on the virtual XRP to the finish marker, and exported its recorded
+telemetry as CSV. The authoring model and handoff tests pass (20 Vitest tests),
+the repository generator tests pass (15 Python tests), and the production build
+passes. This slice does not publish the draft or change the physical XRP.

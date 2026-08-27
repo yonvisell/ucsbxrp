@@ -4,7 +4,9 @@ import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json
 import allGeometryWorldSource from "../../../tests/fixtures/world/all-geometry.json?raw";
 import {
   authoringCommand,
+  challengeDraftProject,
   linesFromText,
+  renderChallengeReadme,
   specificationFilename,
   suppliedFilesFromText,
   validateChallengeSpec,
@@ -18,6 +20,23 @@ describe("challenge authoring specification", () => {
     expect(specificationFilename(spec)).toBe("challenge_6.challenge.json");
     expect(authoringCommand(specificationFilename(spec))).toBe(
       "python3 scripts/challenge_authoring.py create --spec challenge_6.challenge.json",
+    );
+  });
+
+  it("builds a complete unpublished project from the checked specification", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    const project = challengeDraftProject(spec);
+
+    expect(project.name).toBe("6 · Waypoint Slalom");
+    expect(project.entrypoint).toBe("main.py");
+    expect(project.files["main.py"]).toBe(spec.files?.["main.py"]);
+    expect(project.files["README.md"]).toBe(renderChallengeReadme(spec));
+    expect(project.files["README.md"]).toContain(
+      "## Evidence to collect\n\n- A Monitor path export",
+    );
+    expect(JSON.parse(project.files["world.json"]!)).toEqual(spec.world);
+    expect(project.files["navigation_controller.py"]).toContain(
+      "class NavigationController",
     );
   });
 

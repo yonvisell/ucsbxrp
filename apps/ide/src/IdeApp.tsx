@@ -45,6 +45,7 @@ import {
 } from "../../shared/offline-shell";
 import courseRelease from "../../../vendor/current/release.json";
 import { finishProjectBootstrap } from "../../shared/project-bootstrap";
+import type { AuthorDraftProject } from "../../shared/author-draft-handoff";
 import { MarkdownPreview } from "./MarkdownPreview";
 import {
   chooseWorkspaceFolder,
@@ -274,12 +275,26 @@ function initiallyShowProjectPanel(): boolean {
 }
 
 interface IdeAppProps {
+  authorDraftProject?: AuthorDraftProject | null;
   projectBootstrapOwner: string;
 }
 
-export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
+export function IdeApp({
+  authorDraftProject,
+  projectBootstrapOwner,
+}: IdeAppProps) {
   const embeddedApplication = isEmbeddedApplication();
-  const initialRecovery = useMemo(() => loadRecoveredProjectState(), []);
+  const storedRecovery = useMemo(() => loadRecoveredProjectState(), []);
+  const initialRecovery = useMemo(
+    () =>
+      authorDraftProject
+        ? {
+            project: authorDraftProject,
+            preservedDraft: storedRecovery.project,
+          }
+        : storedRecovery,
+    [authorDraftProject, storedRecovery],
+  );
   const initialProjectSession = useMemo(
     () =>
       createProjectSession(initialRecovery.project, {
@@ -812,7 +827,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       let resolvedSession = browserSession;
       const [loadedWorkspace, rememberedProject] = await Promise.all([
         loadRememberedWorkspaceFolder(),
-        loadRememberedProjectFolder(),
+        authorDraftProject
+          ? Promise.resolve(null)
+          : loadRememberedProjectFolder(),
       ]);
       if (disposed) return;
       const commissioningHandoff = courseFolderIsWaitingForIde();
@@ -906,6 +923,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         }
       }
       if (disposed) return;
+      if (authorDraftProject) {
+        setFolderSaveState("browser");
+        setOperationDetail(
+          "Opened an unpublished challenge draft. Validate and run it, then save it to a new Project folder if you want to retain it.",
+        );
+      }
       publishProjectSession(resolvedSession);
       setProjectSessionReady(true);
       if (commissioningHandoff) finishCourseFolderIdeHandoff();
@@ -924,6 +947,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       disposed = true;
     };
   }, [
+    authorDraftProject,
     initialProjectSession,
     publishProjectSession,
     reconcileFolderSnapshot,

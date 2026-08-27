@@ -1,4 +1,5 @@
 import { parseWorldCatalog } from "@ucsb-xrp/simulator";
+import { courseProjectTemplate, type CourseProject } from "@ucsb-xrp/target";
 import catalogSource from "../../../vendor/current/project_catalog.json?raw";
 
 export interface ChallengeComponentSpec {
@@ -340,4 +341,82 @@ export function specificationFilename(spec: ChallengeSpec): string {
 
 export function authoringCommand(filename: string): string {
   return `python3 scripts/challenge_authoring.py create --spec ${filename}`;
+}
+
+function markdownTableCell(value: string): string {
+  return value.replaceAll("|", "\\|").replaceAll("\n", " ");
+}
+
+/**
+ * Generates the student-facing README used by both the immediate browser draft
+ * and the repository authoring workflow. The fields describe the assignment;
+ * numerical task values remain in challenge.py, robot_config.py, and
+ * world.json so the instructions cannot drift when an instructor tunes a run.
+ */
+export function renderChallengeReadme(spec: ChallengeSpec): string {
+  const challengeNumber = spec.id.split("_").at(-1) ?? spec.id;
+  const lines = [
+    `# Challenge ${challengeNumber}: ${spec.title}`,
+    "",
+    spec.objective.trim(),
+    "",
+    "## What you implement",
+    "",
+    "| File | Class | What it does |",
+    "| --- | --- | --- |",
+    ...spec.student_implementations.map(
+      (item) =>
+        `| \`${markdownTableCell(item.file)}\` | \`${markdownTableCell(item.class_name)}\` | ${markdownTableCell(item.responsibility)} |`,
+    ),
+    "",
+    "## Provided files and tools",
+    "",
+    "| File or tool | What it provides |",
+    "| --- | --- |",
+    ...spec.supplied_files.map(
+      (item) =>
+        `| \`${markdownTableCell(item.name)}\` | ${markdownTableCell(item.use)} |`,
+    ),
+    "",
+    "## How the program runs",
+    "",
+    ...linesFromText(spec.program_flow).map(
+      (item, index) => `${index + 1}. ${item}`,
+    ),
+    "",
+    "## Evidence to collect",
+    "",
+    ...spec.evidence.map((item) => `- ${item}`),
+    "",
+    "## Complete the challenge",
+    "",
+    ...spec.work_sequence.map((item, index) => `${index + 1}. ${item}`),
+    "",
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * Builds a complete unpublished project without modifying the student catalog.
+ * The current published challenge supplies a known-working program structure;
+ * specification fields replace its instructions and world, and explicit file
+ * overrides replace only the files named by the instructor.
+ */
+export function challengeDraftProject(spec: ChallengeSpec): CourseProject {
+  const errors = validateChallengeSpec(spec);
+  if (errors.length > 0) {
+    throw new Error(errors[0]);
+  }
+  const source = courseProjectTemplate(spec.source_id).project;
+  const challengeNumber = spec.id.split("_").at(-1) ?? spec.id;
+  return {
+    name: `${challengeNumber} · ${spec.title}`,
+    entrypoint: source.entrypoint,
+    files: {
+      ...source.files,
+      "README.md": renderChallengeReadme(spec),
+      "world.json": `${JSON.stringify(spec.world, null, 2)}\n`,
+      ...(spec.files ?? {}),
+    },
+  };
 }

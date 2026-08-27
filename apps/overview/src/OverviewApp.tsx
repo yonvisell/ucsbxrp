@@ -463,11 +463,12 @@ Pose -----------------------------> NavigationController ------+
             <h2>Challenge authoring</h2>
             <p>
               The <a href="../author/">challenge specification editor</a> checks
-              and downloads a machine-readable JSON specification: the closest
-              existing program structure, catalog identity, objective, assessed
-              component files, classes and selection flags, supplied files,
-              evidence, work sequence, world, and optional complete file
-              overrides. The browser does not create repository files or publish
+              a machine-readable JSON specification: the closest existing
+              program structure, catalog identity, objective, assessed component
+              files, classes and selection flags, supplied files, evidence, work
+              sequence, world, and optional complete file overrides. It can open
+              the resulting unpublished project directly in the IDE for a
+              virtual run. The browser does not change the repository or publish
               a challenge.
             </p>
             <p>
@@ -479,7 +480,14 @@ Pose -----------------------------> NavigationController ------+
               graphic edits retain fields they do not interpret.
             </p>
             <ol>
-              <li>Check and download the specification JSON in the browser.</li>
+              <li>
+                Check the specification, open its complete project draft in the
+                IDE, and run the virtual task with the Monitor.
+              </li>
+              <li>
+                Save the project to a Project folder if it should be retained,
+                then download the checked specification JSON.
+              </li>
               <li>
                 Run <code>challenge_authoring.py create --spec ...</code>. The
                 command copies a published challenge, generates the README and

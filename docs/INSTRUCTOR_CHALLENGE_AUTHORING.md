@@ -1,10 +1,15 @@
 # Creating and publishing a UCSBXRP challenge
 
-The [challenge creation wizard](../author/) produces a version-controlled JSON
-specification. The repository tool reads that specification, copies the
-closest working challenge, generates an unpublished draft, and checks its
-structure. Drafts do not appear in the student IDE until an instructor runs the
-separate publish command.
+The [challenge creation wizard](../author/) produces a complete unpublished
+project from a checked JSON specification. Select **Open draft in IDE** to
+inspect, validate, run, and revise that project immediately. The project is a
+browser draft until you save it to a Project folder in the IDE.
+
+The same downloaded specification is the source for repository integration.
+The repository tool copies the closest working challenge, generates the same
+README and world, checks the project structure, and registers an unpublished
+catalog entry. A draft does not appear in the student project list until an
+instructor runs the separate publish command.
 
 This workflow separates three decisions:
 
@@ -142,11 +147,16 @@ mission needs a different `main.py`, task values, or component checks. The tool
 rejects absolute paths, parent-directory paths, unsupported file types, and
 Python syntax errors.
 
-### Validate and download
+### Check the specification
 
 The wizard checks required teaching fields, component descriptions, unique
 world and geometry names, arena containment, the default world, and
-file-override paths. The repository command additionally verifies that every
+file-override paths. Select **Open draft in IDE** after these checks pass. The
+IDE receives the complete copied project, generated README, edited world, and
+file overrides; it can therefore perform the ordinary Python validation and
+virtual run before any repository files are changed.
+
+The repository command additionally verifies that every
 declared student file exists, defines the class named in the catalog metadata,
 and has the corresponding selector in `course_setup.py`. README layout and
 wording do not define project behavior. Download the JSON only after the page
@@ -154,7 +164,24 @@ reports that the specification is complete. Keep it with the generated project;
 it is the concise source for future review or regeneration. Use **Open saved
 specification** to resume editing a downloaded specification.
 
-## 2. Create the unpublished project
+## 2. Open and test the unpublished project
+
+Select **Open draft in IDE**. A new IDE tab opens the generated project without
+replacing a remembered project folder. The draft contains:
+
+- all files from the selected starting challenge;
+- the README generated from the assignment fields;
+- the exact `world.json` shown in the visual editor; and
+- every complete file override in the specification.
+
+Select **Validate**, then **Run** with the Virtual XRP. Use the Monitor to check
+the world, robot behavior, telemetry, program output, and requested evidence.
+If you want to retain the project outside the browser, select **Save to
+folder…** in the IDE and give the project a new folder name inside the Working
+folder. Editing the IDE draft does not modify the authoring specification; make
+the same deliberate change in the wizard before downloading the final JSON.
+
+## 3. Create the repository draft for publication
 
 Move the downloaded specification into the repository, then run the command
 shown by the wizard. For the included example:
@@ -171,7 +198,7 @@ unpublished catalog entry with the component and selection metadata used by the
 student template system. If any operation fails, the incomplete target folder
 is removed and the catalog remains unchanged.
 
-## 3. Validate the task and component boundary
+## 4. Validate the task and component boundary
 
 Run:
 
@@ -200,7 +227,7 @@ The structural tool cannot establish reachable geometry, adequate controller
 tolerances, meaningful evidence, physical repeatability, or the fairness of an
 assessment boundary. Those require functional instructor review.
 
-## 4. Publish
+## 5. Publish
 
 ```sh
 python3 scripts/challenge_authoring.py publish challenge_6
