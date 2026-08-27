@@ -96,6 +96,12 @@ def run_check(address):
             after_log_seq = max(after_log_seq, entry["seq"])
             if entry.get("line", "").startswith(RESULT_PREFIX):
                 result = json.loads(entry["line"][len(RESULT_PREFIX) :])
+        # The service deliberately pages retained logs in small batches so
+        # telemetry stays responsive. Drain those pages before interpreting a
+        # ready state; otherwise an older boot history can hide this run's
+        # result even though the motor program completed correctly.
+        if state.get("moreLogs") is True:
+            continue
         run_state = state.get("state")
         if run_state == "loading":
             # The worker accepted Run but has not entered student code yet.

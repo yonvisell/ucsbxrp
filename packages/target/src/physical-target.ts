@@ -382,9 +382,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.connected = true;
     this.pollConnectionFailed = false;
     this.consecutivePollFailures = 0;
+    this.consumeProjectManifest(info.project);
+    this.consumeRuntimeState(info.runtimeJson);
+    const initialState = await this.readInitialState(info);
     this.emitStatus(
-      "ready",
-      `${info.robotName} · ${this.connectionDescription(info)} · course ${info.courseRelease}`,
+      initialState?.state ?? "ready",
+      initialState?.detail ??
+        `${info.robotName} · ${this.connectionDescription(info)} · course ${info.courseRelease}`,
     );
     this.emitConsole(
       "system",
@@ -420,9 +424,50 @@ export class DirectPhysicalTargetClient implements TargetClient {
         ...(info.robotId ? { robotId: info.robotId } : {}),
       });
     }
-    this.consumeProjectManifest(info.project);
-    this.consumeRuntimeState(info.runtimeJson);
     this.schedulePoll(0);
+  }
+
+  /**
+   * Begin a new browser session at the device log tail.
+   *
+   * Transactional course services retain a bounded log across the entire
+   * controller boot. Replaying that boot history through many small telemetry
+   * pages made a newly opened IDE spend several seconds rendering unrelated
+   * earlier runs before it could process Stop. The full history remains on the
+   * XRP for diagnostics; the IDE starts with work performed in this browser
+   * session and subsequently retains every line it receives.
+   */
+  private async readInitialState(
+    info: PhysicalInfo,
+  ): Promise<PhysicalState | null> {
+    if (!info.capabilities.includes("logs.poll")) return null;
+    try {
+      const state = await this.getJson<PhysicalState>(
+        "/api/v1/state?afterLogSeq=0",
+        Math.min(this.connectTimeoutMs, 1_500),
+      );
+      if (state.bootId !== info.bootId) return null;
+      this.lastLogSeq = state.logs.reduce(
+        (maximum, entry) =>
+          Number.isSafeInteger(entry.seq)
+            ? Math.max(maximum, entry.seq)
+            : maximum,
+        0,
+      );
+      this.lastRunId = state.runId;
+      const latestSample = state.sample ?? state.samples?.at(-1);
+      if (latestSample && Number.isSafeInteger(latestSample.seq)) {
+        this.lastSampleSeq = latestSample.seq;
+        this.emitTelemetry(latestSample);
+      }
+      this.consumeProjectManifest(state.project);
+      this.consumeRuntimeState(state.runtimeJson);
+      return state;
+    } catch {
+      // Older compatible services can advertise logs.poll without the compact
+      // state snapshot. Normal polling from sequence zero remains the fallback.
+      return null;
+    }
   }
 
   disconnect(): void {

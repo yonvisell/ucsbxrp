@@ -516,6 +516,71 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("starts a new browser session at the retained device-log tail", async () => {
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+            "logs.poll",
+          ],
+        });
+      }
+      if (url.includes("/api/v1/state")) {
+        return response({
+          bootId: "boot-a",
+          state: "ready",
+          detail: "Physical XRP ready",
+          runId: 4,
+          logs: [{ seq: 41, stream: "stdout", line: "earlier browser output" }],
+        });
+      }
+      return response({
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 4,
+        logs: [{ seq: 42, stream: "stdout", line: "new browser output" }],
+        samples: [],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await vi.waitFor(() =>
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=41&afterSampleSeq=0&runId=4",
+      ),
+    );
+
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ line: "earlier browser output" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ line: "new browser output" }),
+    );
+    target.disconnect();
+  });
+
   it("requires boot-lifetime project preparation capability", async () => {
     const fetchMock = vi.fn(async () =>
       response({
