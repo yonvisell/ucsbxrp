@@ -717,6 +717,7 @@ test("keeps the IDE reachable while a short window is resized", async ({
   };
 
   await verifyShell();
+  await ide.getByRole("button", { name: "Project ›" }).click();
   const railBody = ide.locator(".project-rail-body");
   await expect(railBody).toBeVisible();
   await railBody.evaluate((element) =>

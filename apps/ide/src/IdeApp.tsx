@@ -196,42 +196,44 @@ function editorLanguage(path: string): string {
   return "plaintext";
 }
 
-const apiReferenceByFilename: Record<string, { href: string; label: string }> =
-  {
-    "sensor_model.py": {
-      href: "../reference/#sensor-model",
-      label: "SensorModel",
-    },
-    "wheel_speed_controller.py": {
-      href: "../reference/#wheel-speed-controller",
-      label: "Wheel controller",
-    },
-    "differential_drive.py": {
-      href: "../reference/#differential-drive",
-      label: "DifferentialDrive",
-    },
-    "odometry.py": { href: "../reference/#odometry", label: "Odometry" },
-    "navigation_controller.py": {
-      href: "../reference/#navigation-controller",
-      label: "Navigation",
-    },
-    "grid_planner.py": {
-      href: "../reference/#grid-planner",
-      label: "GridPlanner",
-    },
-    "robot_config.py": {
-      href: "../reference/#configuration",
-      label: "Configuration",
-    },
-    "challenge.py": {
-      href: "../reference/#missions",
-      label: "Mission services",
-    },
-    "world.json": { href: "../reference/#worlds", label: "Project world" },
-  };
+const contextHelpByFilename: Record<string, { href: string; label: string }> = {
+  "sensor_model.py": {
+    href: "../reference/#sensor-model",
+    label: "SensorModel API",
+  },
+  "wheel_speed_controller.py": {
+    href: "../reference/#wheel-speed-controller",
+    label: "Wheel controller API",
+  },
+  "differential_drive.py": {
+    href: "../reference/#differential-drive",
+    label: "DifferentialDrive API",
+  },
+  "odometry.py": { href: "../reference/#odometry", label: "Odometry API" },
+  "navigation_controller.py": {
+    href: "../reference/#navigation-controller",
+    label: "Navigation API",
+  },
+  "grid_planner.py": {
+    href: "../reference/#grid-planner",
+    label: "GridPlanner API",
+  },
+  "robot_config.py": {
+    href: "../reference/#configuration",
+    label: "Configuration API",
+  },
+  "challenge.py": {
+    href: "../guide/#project-structure",
+    label: "Project structure",
+  },
+  "world.json": {
+    href: "../reference/#worlds",
+    label: "Project world reference",
+  },
+};
 
-function apiReferenceForPath(path: string) {
-  return apiReferenceByFilename[path.split("/").at(-1) ?? ""] ?? null;
+function contextHelpForPath(path: string) {
+  return contextHelpByFilename[path.split("/").at(-1) ?? ""] ?? null;
 }
 
 const templateGroups: readonly {
@@ -2709,14 +2711,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       : target.kind === "virtual"
         ? DEFAULT_COURSE_PROJECT.name
         : "No project selected";
-  const nextRunSource = projectProviderActive
-    ? `${workingFolder ? `./${workingFolder.name}` : "Browser draft"} · rev ${projectSession.revision} · this IDE`
-    : projectProviderAvailable && currentProject
-      ? `${currentProject.entrypoint} · rev ${currentProject.revision.slice(0, 8)} · another IDE`
-      : target.kind === "virtual"
-        ? `${DEFAULT_COURSE_PROJECT.entrypoint} · built-in default · no IDE owns Run`
-        : "Choose Use for Run + Monitor in an IDE";
-  const activeReference = apiReferenceForPath(activePath);
+  const activeHelp = contextHelpForPath(activePath);
   const pendingTemplate = pendingProject?.templateId
     ? COURSE_PROJECT_TEMPLATES.find(
         (template) => template.id === pendingProject.templateId,
@@ -3237,15 +3232,15 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   </button>
                 </div>
               ) : null}
-              {activeReference ? (
+              {activeHelp ? (
                 <a
                   className="editor-api-link"
-                  href={activeReference.href}
+                  href={activeHelp.href}
                   rel="noopener noreferrer"
                   target="_blank"
-                  title={`Open the ${activeReference.label} API entry for ${activePath}.`}
+                  title={`Open ${activeHelp.label} for ${activePath}.`}
                 >
-                  {activeReference.label} API ↗
+                  {activeHelp.label} ↗
                 </a>
               ) : null}
             </div>
@@ -3377,12 +3372,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                     {nextRunProjectName} ·{" "}
                     {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"}
                   </strong>
-                  <small aria-live="polite">{nextRunSource}</small>
                 </div>
                 <div>
-                  <span>
-                    {projectProviderActive ? "Validation" : "This IDE project"}
-                  </span>
+                  <span>Validation</span>
                   <strong
                     className={
                       checkOk === true
@@ -3392,7 +3384,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                           : ""
                     }
                   >
-                    {!projectProviderActive ? `${project.name} · ` : ""}
                     {checkOk === true
                       ? "Passed"
                       : checkOk === false
@@ -3690,7 +3681,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             </p>
           </section>
           <section className="settings-note offline-settings-note">
-            <h3>Course app</h3>
+            <h3>Offline access</h3>
             <OfflineReadiness appName="IDE" />
           </section>
           <section className="settings-note shortcuts-note">

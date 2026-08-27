@@ -22,7 +22,8 @@ class SensorModel(SensorModelBase):
         Positions and increments are in mm, speed is in mm/s, and dt_s is in s.
         """
         # Compare raw with reset and the preceding sample. Return positions,
-        # latest increments, regularized speeds, elapsed time, range, and button.
+        # latest increments, wheel-speed estimates based on recent samples,
+        # elapsed time, range, and button.
         raise NotImplementedError("Complete SensorModel.update")
 
     def estimate_range(self, samples, minimum_usable):

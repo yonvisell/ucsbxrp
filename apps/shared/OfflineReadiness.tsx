@@ -12,7 +12,7 @@ const stateText: Record<Exclude<OfflineShellState, "ready">, string> = {
   development: "Local development",
   installing: "Preparing course apps for offline use",
   unsupported: "Offline course apps unavailable",
-  error: "Offline course-app copy incomplete",
+  error: "Course apps are not available offline",
 };
 
 interface OfflineReadinessProps {
@@ -60,7 +60,9 @@ export function OfflineReadiness({
       title={detail}
     >
       <span aria-hidden="true" className="offline-readiness-dot" />
-      <span>{stateLabel}</span>
+      <a className="offline-readiness-label" href="../guide/#offline-use">
+        {stateLabel}
+      </a>
     </div>
   );
 }

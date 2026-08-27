@@ -64,6 +64,11 @@ test("reloads the complete production course shell without a network", async ({
   await expect(ide.getByTestId("offline-readiness")).toContainText(
     "Course apps available offline",
   );
+  await expect(
+    ide
+      .getByTestId("offline-readiness")
+      .getByRole("link", { name: "Course apps available offline" }),
+  ).toHaveAttribute("href", "../guide/#offline-use");
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
     /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Projects folder.*project changes remain in this browser only/s,
@@ -197,7 +202,7 @@ test("reloads the complete production course shell without a network", async ({
     }),
   ).toBeVisible();
   await expect(reference.locator("#sensor-model")).toContainText(
-    "State between calls",
+    "Information retained between calls",
   );
   await expect(reference.locator("#sensor-model")).toContainText("Behavior");
   await expectOfflineShellReady(reference);

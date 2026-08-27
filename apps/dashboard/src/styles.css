@@ -497,7 +497,7 @@
   flex: 0 0 auto;
 }
 
-.run-autosave-summary .offline-readiness > span:last-child {
+.run-autosave-summary .offline-readiness-label {
   overflow: hidden;
   text-overflow: ellipsis;
 }

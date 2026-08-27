@@ -3082,6 +3082,7 @@ function ComponentSection({
 }) {
   return (
     <ReferenceSection id={id} title={name}>
+      <p>{description}</p>
       <div className="class-meta">
         <span>
           Student file <code>{file}</code>
@@ -3094,9 +3095,8 @@ function ComponentSection({
       <code className="class-signature">
         class {name}({base}):
       </code>
-      <p>{description}</p>
       <p>
-        <strong>State between calls:</strong> {state}
+        <strong>Information retained between calls:</strong> {state}
       </p>
       <h3>Constructor</h3>
       <code className="class-signature">{constructor}</code>
@@ -3141,7 +3141,7 @@ function ClassReference({
       <p>{description}</p>
       {state && (
         <p>
-          <strong>State between calls:</strong> {state}
+          <strong>Information retained between calls:</strong> {state}
         </p>
       )}
       <h4>Constructor</h4>

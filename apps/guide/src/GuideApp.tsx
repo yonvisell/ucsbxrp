@@ -181,14 +181,26 @@ export function GuideApp() {
                     90°, and approach again.
                   </li>
                 </ul>
-                <h3>Tutorial</h3>
+                <h3>Tutorials</h3>
                 <ul>
                   <li>
-                    <strong>MicroPython foundations</strong> — seven short files
-                    covering values, functions, collections, classes,
-                    exceptions, modules, robot motion, and a state-machine
-                    program that changes behavior according to its current
-                    operating state.
+                    <strong>1. Python essentials</strong> — practice values,
+                    functions, conditions, collections, loops, and errors
+                    without moving either robot.
+                  </li>
+                  <li>
+                    <strong>2. Draw with Virtual XRP</strong> — use a class,
+                    lists, and loops to draw a route in the World view.
+                  </li>
+                  <li>
+                    <strong>3. UCSBXRP robot programs</strong> — use the sampled{" "}
+                    <code>Robot.start()</code>, <code>step()</code>, and
+                    <code>stop()</code> sequence and inspect robot state.
+                  </li>
+                  <li>
+                    <strong>4. Behavior and telemetry</strong> — implement a
+                    state-based behavior and expose live controls, watched
+                    values, and plot signals.
                   </li>
                 </ul>
               </section>
@@ -247,6 +259,28 @@ export function GuideApp() {
                 <span>
                   Runs the task and always stops the motors when the program
                   exits.
+                </span>
+              </div>
+              <div>
+                <code>README.md</code>
+                <span>
+                  Describes the project, the work to complete, and how to check
+                  the result.
+                </span>
+              </div>
+              <div>
+                <code>student component files</code>
+                <span>
+                  Contain the course components you implement, such as
+                  <code> sensor_model.py</code> or <code>odometry.py</code>.
+                </span>
+              </div>
+              <div>
+                <code>component_checks.py</code> or{" "}
+                <code>exercise_checks.py</code>
+                <span>
+                  Runs supplied examples that report which required behaviors
+                  are complete and which still need work.
                 </span>
               </div>
             </div>

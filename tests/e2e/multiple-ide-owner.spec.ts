@@ -214,9 +214,11 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
   await firstIde.getByRole("tab", { name: "Status", exact: true }).click();
   const status = firstIde.locator(".status-grid");
   await expect(status).toContainText("Expanding spiral · Virtual XRP");
-  await expect(status).toContainText("main.py · built-in default");
-  await expect(status).toContainText("Project ownership test · Not checked");
-  await expect(status).not.toContainText("another IDE");
+  await expect(status).toContainText("Validation");
+  await expect(status).toContainText("Not checked");
+  await expect(status).not.toContainText(
+    /revision|another IDE|built-in default/,
+  );
   await monitorRun.click();
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",

@@ -272,7 +272,7 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
 
   await page.goto("/reference/#robot");
   const robot = page.locator("#robot");
-  await expect(robot).toContainText("State between calls:");
+  await expect(robot).toContainText("Information retained between calls:");
   await expect(robot).toContainText("the next absolute sample deadline");
 
   await page.goto("/reference/#missions");

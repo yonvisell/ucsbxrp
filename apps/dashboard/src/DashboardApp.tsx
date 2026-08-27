@@ -1562,7 +1562,7 @@ export function DashboardApp() {
                     <strong>XRP not reachable</strong>
                     <p>
                       {targetPreference.physicalConnection === "access_point"
-                        ? "Run and telemetry use Wi-Fi, not USB. Join the UCSB-XRP hotspot; this cached app does not need internet."
+                        ? "Run and telemetry use Wi-Fi, not USB. Join the UCSB-XRP hotspot. The Monitor remains available while this computer is connected to the robot hotspot."
                         : "Run and telemetry use Wi-Fi, not USB. Connect this computer to the same local Wi-Fi as the XRP."}
                     </p>
                     <a href="../ide/" target="_blank" rel="noopener noreferrer">

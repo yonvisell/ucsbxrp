@@ -4,6 +4,30 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 65 removes remaining implementation-facing language from common
+student surfaces. IDE Status now shows the next project and target, validation
+result, and physical-project readiness without tab ownership, revision, or
+built-in-provider diagnostics. Those details remain available where they are
+actionable: the Project panel, tooltips, and System log. Context help for
+`challenge.py` now opens the project-structure Guide section; component and
+configuration files retain direct API links.
+
+The Guide now lists the four active tutorial projects and explains every
+standard project-file role, including README, student modules, and supplied
+exercise or component checks. API component sections state purpose before
+class metadata and use the literal heading **Information retained between
+calls**. Offline status links to the relevant Guide section, and landing,
+Monitor, and IDE settings text distinguishes browser capability, offline app
+availability, and the robot hotspot without using the ambiguous phrase
+“cached app.” A few duplicated comments in starter files were removed while
+the wheel-speed guidance was made explicit.
+
+The integrated production/offline build and formatting pass. Thirty-one
+focused Stable Chrome workflows cover the world editor, complete virtual path,
+project ownership, navigation and API content, offline reload, narrow and live
+resize layouts, and physical-network recovery. All pass after updating three
+obsolete test expectations or narrow-drawer steps to match the intentional UI.
+
 Refinement 64 adds a direct-manipulation world editor to the instructor
 challenge-creation page. Instructors can add, select, move, and resize arena
 walls, blocks, start and finish lines or areas, waypoints, and visual markers;
