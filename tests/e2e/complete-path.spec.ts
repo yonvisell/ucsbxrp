@@ -375,11 +375,9 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(dashboard.getByTestId("x-mm")).toHaveText("0.0 mm");
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
-  await ide
-    .getByRole("button", { name: "Save to folder…", exact: true })
-    .click();
+  await ide.getByRole("button", { name: "Save project…", exact: true }).click();
   await expect(ide.getByRole("dialog")).toContainText("Create a named folder");
-  await ide.getByLabel("Folder name").fill("virtual-browser-check");
+  await ide.getByLabel("Project folder name").fill("virtual-browser-check");
   await ide
     .getByRole("button", {
       name: "Choose Working folder and save…",

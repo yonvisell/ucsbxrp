@@ -1701,3 +1701,20 @@ project on the virtual XRP to the finish marker, and exported its recorded
 telemetry as CSV. The authoring model and handoff tests pass (20 Vitest tests),
 the repository generator tests pass (15 Python tests), and the production build
 passes. This slice does not publish the draft or change the physical XRP.
+
+The IDE project/files novice-flow pass now explains the folder model before
+Chrome opens a directory picker. **Open project** first states that the Working
+folder is the parent of the named Project folders and that the current project
+will remain open; remembered access is reconnected only after the student asks,
+and cancellation or denial remains in the dialog with an actionable message.
+The project rail no longer repeats the same unsaved status, and **Save project**
+now sits with **Open project** and **New project** while file creation/import and
+automatic folder saving retain their existing behavior. Direct-child project
+listing, repository/parent rejection, multi-IDE authority, and project autosaves
+are unchanged.
+
+Validation includes a clean TypeScript/production build and 39 Stable Chrome
+project, storage-recovery, autosave, multi-IDE, deferred-update, complete virtual
+workflow, and responsive-rail tests. A background browser visual pass confirmed
+the explanatory Open dialog, the nonduplicated storage state, and accessible
+project controls in both wide and narrow layouts.

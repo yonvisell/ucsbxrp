@@ -364,9 +364,9 @@ test("offers to reconnect a remembered project instead of creating a duplicate f
   await expect(
     ide.getByRole("button", { name: "Reconnect project folder…" }),
   ).toBeVisible();
-  await expect(
-    ide.getByRole("button", { name: "Save to folder…" }),
-  ).toHaveCount(0);
+  await expect(ide.getByRole("button", { name: "Save project…" })).toHaveCount(
+    0,
+  );
 
   await ide.getByRole("button", { name: "Reconnect project folder…" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
@@ -455,6 +455,22 @@ test("Open reconnects a remembered Working folder without opening a picker", asy
           ).__folderRecoveryProbe,
       ),
     )
+    .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
+  await ide.getByRole("button", { name: "Reconnect Working folder…" }).click();
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                permissionRequestCount: number;
+                pickerCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
     .toMatchObject({ permissionRequestCount: 1, pickerCount: 0 });
 });
 
@@ -475,9 +491,27 @@ test("denied Working-folder access does not fall through to a picker", async ({
   );
   await expect(
     ide.getByRole("heading", { name: "Open a project" }),
-  ).toHaveCount(0);
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                permissionRequestCount: number;
+                pickerCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
+    .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
+  await ide.getByRole("button", { name: "Reconnect Working folder…" }).click();
   await expect(
-    ide.getByText(/Access to the Working folder xrp_test_2 was not granted/),
+    ide.getByText(
+      "Access to xrp_test_2 was not granted. The current project is unchanged.",
+    ),
   ).toBeVisible();
   await expect
     .poll(() =>

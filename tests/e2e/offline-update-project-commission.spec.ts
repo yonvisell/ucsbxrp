@@ -212,6 +212,10 @@ test("an IDE update waits for Open Project and reopens the newly remembered proj
     });
   });
   await page.getByRole("button", { name: "Open project…" }).click();
+  await page
+    .getByRole("dialog", { name: "Open a project" })
+    .getByRole("button", { name: "Choose Working folder…" })
+    .click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -296,7 +300,7 @@ test("an IDE update waits for Create Project and reopens the created folder", as
   await expect(
     page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
-  await page.getByLabel("Folder name").fill("Created-During-Update");
+  await page.getByLabel("Project folder name").fill("Created-During-Update");
 
   await announceCourseUpdate(page, "test-release-create-project");
   await expect(

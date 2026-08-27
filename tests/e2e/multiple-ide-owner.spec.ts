@@ -63,8 +63,17 @@ async function openProject(
     });
   });
   await page.getByRole("button", { name: "Open project…" }).click();
-  await page
-    .getByRole("dialog", { name: "Open a project" })
+  const dialog = page.getByRole("dialog", { name: "Open a project" });
+  if (
+    await dialog
+      .getByRole("button", { name: "Choose Working folder…" })
+      .isVisible()
+  ) {
+    await dialog
+      .getByRole("button", { name: "Choose Working folder…" })
+      .click();
+  }
+  await dialog
     .getByRole("button", {
       name: `Open ${projectName} from ${folderName}`,
     })

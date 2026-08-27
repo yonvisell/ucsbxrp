@@ -209,7 +209,7 @@ const contextHelpByFilename: Record<string, { href: string; label: string }> = {
   },
   "wheel_speed_controller.py": {
     href: "../reference/#wheel-speed-controller",
-    label: "Wheel controller API",
+    label: "WheelSpeedController API",
   },
   "differential_drive.py": {
     href: "../reference/#differential-drive",
@@ -218,7 +218,7 @@ const contextHelpByFilename: Record<string, { href: string; label: string }> = {
   "odometry.py": { href: "../reference/#odometry", label: "Odometry API" },
   "navigation_controller.py": {
     href: "../reference/#navigation-controller",
-    label: "Navigation API",
+    label: "NavigationController API",
   },
   "grid_planner.py": {
     href: "../reference/#grid-planner",
@@ -235,6 +235,22 @@ const contextHelpByFilename: Record<string, { href: string; label: string }> = {
   "world.json": {
     href: "../reference/#worlds",
     label: "Project world reference",
+  },
+  "main.py": {
+    href: "../reference/#project-loop",
+    label: "Measured program loop",
+  },
+  "course_setup.py": {
+    href: "../reference/#student-components",
+    label: "Component selection reference",
+  },
+  "component_checks.py": {
+    href: "../guide/#components",
+    label: "Component check guide",
+  },
+  "student_work.py": {
+    href: "../guide/#virtual-run",
+    label: "Tutorial sequence",
   },
 };
 
@@ -1424,10 +1440,14 @@ export function IdeApp({
   );
 
   const openProject = useCallback(async () => {
-    const folder = await ensureWorkingFolderAccess();
-    if (!folder) return;
-    await showProjectsInWorkingFolder(folder);
-  }, [ensureWorkingFolderAccess, showProjectsInWorkingFolder]);
+    setProjectChooserOpen(true);
+    setProjectChooserLoading(false);
+    setProjectChooserError("");
+    setProjectChoices([]);
+    if (workspaceFolder) {
+      await showProjectsInWorkingFolder(workspaceFolder);
+    }
+  }, [showProjectsInWorkingFolder, workspaceFolder]);
 
   const openListedProject = useCallback(
     async (choice: ProjectFolderCandidate) => {
@@ -1455,9 +1475,26 @@ export function IdeApp({
   }, [openingProjectFolder, projectChooserLoading]);
 
   const changeWorkingFolderFromChooser = useCallback(async () => {
-    const folder = await selectWorkspaceFolder();
-    if (folder) await showProjectsInWorkingFolder(folder);
-  }, [selectWorkspaceFolder, showProjectsInWorkingFolder]);
+    setProjectChooserError("");
+    const folder = workspaceFolder
+      ? await selectWorkspaceFolder()
+      : await ensureWorkingFolderAccess();
+    if (folder) {
+      await showProjectsInWorkingFolder(folder);
+      return;
+    }
+    setProjectChooserError(
+      rememberedWorkspaceFolder
+        ? `Access to ${rememberedWorkspaceFolder.name} was not granted. The current project is unchanged.`
+        : "No Working folder was selected. The current project is unchanged.",
+    );
+  }, [
+    ensureWorkingFolderAccess,
+    rememberedWorkspaceFolder,
+    selectWorkspaceFolder,
+    showProjectsInWorkingFolder,
+    workspaceFolder,
+  ]);
 
   const prepareProjectCreation = useCallback(
     async (
@@ -2762,7 +2799,7 @@ export function IdeApp({
           : "Changes save automatically"
       : rememberedFolder && rememberedFolderCanAttach
         ? `Reconnect ./${rememberedFolder.name} to resume automatic saving`
-        : "Not saved to a folder";
+        : "Changes stay in this browser until saved";
   const workingFolderName =
     workspaceFolder?.name ?? rememberedWorkspaceFolder?.name ?? null;
   const workingFolderAccessSummary =
@@ -3145,7 +3182,7 @@ export function IdeApp({
                         onClick={() => void saveProjectFiles()}
                         title={`Create a named project folder for ${project.name}. Changes will save there automatically.`}
                       >
-                        Save to folder…
+                        Save project…
                       </button>
                     )
                   ) : null}
@@ -3823,48 +3860,68 @@ export function IdeApp({
             <span className="dialog-kicker">PROJECTS</span>
             <h2 id="open-project-title">Open a project</h2>
             <p className="dialog-context">
-              Choose a UCSBXRP project directly inside{" "}
-              <strong>{workspaceFolder?.name ?? "the Working folder"}</strong>.
-              The IDE opens it with read-write access and saves changes to its
-              folder automatically.
+              {workspaceFolder ? (
+                <>
+                  Choose a UCSBXRP project directly inside{" "}
+                  <strong>{workspaceFolder.name}</strong>. The IDE opens it with
+                  read-write access and saves changes to its folder
+                  automatically.
+                </>
+              ) : rememberedWorkspaceFolder ? (
+                <>
+                  Reconnect the Working folder{" "}
+                  <strong>{rememberedWorkspaceFolder.name}</strong> to list its
+                  Project folders. The current project remains open until you
+                  choose another.
+                </>
+              ) : (
+                <>
+                  First choose the parent <strong>Working folder</strong> that
+                  contains your Project folders. Only UCSBXRP projects directly
+                  inside it appear in this list. The current project remains
+                  open until you choose another.
+                </>
+              )}
             </p>
-            {projectChooserLoading ? (
-              <p aria-live="polite" className="project-chooser-status">
-                Reading projects…
-              </p>
-            ) : projectChoices.length > 0 ? (
-              <div className="project-choice-list">
-                {projectChoices.map((choice, index) => (
-                  <button
-                    aria-label={
-                      "Open " +
-                      choice.projectName +
-                      " from " +
-                      choice.folderName
-                    }
-                    autoFocus={index === 0}
-                    disabled={openingProjectFolder !== null}
-                    key={choice.folderName}
-                    onClick={() => void openListedProject(choice)}
-                    type="button"
-                  >
-                    <strong>{choice.projectName}</strong>
-                    <small>
-                      ./{choice.folderName} · {choice.fileCount} file
-                      {choice.fileCount === 1 ? "" : "s"}
-                    </small>
-                    {openingProjectFolder === choice.folderName ? (
-                      <span>Opening…</span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="project-chooser-status">
-                No valid UCSBXRP project folders were found directly inside this
-                Working folder.
-              </p>
-            )}
+            {workspaceFolder ? (
+              projectChooserLoading ? (
+                <p aria-live="polite" className="project-chooser-status">
+                  Reading projects…
+                </p>
+              ) : projectChoices.length > 0 ? (
+                <div className="project-choice-list">
+                  {projectChoices.map((choice, index) => (
+                    <button
+                      aria-label={
+                        "Open " +
+                        choice.projectName +
+                        " from " +
+                        choice.folderName
+                      }
+                      autoFocus={index === 0}
+                      disabled={openingProjectFolder !== null}
+                      key={choice.folderName}
+                      onClick={() => void openListedProject(choice)}
+                      type="button"
+                    >
+                      <strong>{choice.projectName}</strong>
+                      <small>
+                        ./{choice.folderName} · {choice.fileCount} file
+                        {choice.fileCount === 1 ? "" : "s"}
+                      </small>
+                      {openingProjectFolder === choice.folderName ? (
+                        <span>Opening…</span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="project-chooser-status">
+                  No valid UCSBXRP project folders were found directly inside
+                  this Working folder.
+                </p>
+              )
+            ) : null}
             {projectChooserError ? (
               <small
                 aria-live="polite"
@@ -3890,10 +3947,20 @@ export function IdeApp({
                   openingProjectFolder !== null || projectChooserLoading
                 }
                 onClick={() => void changeWorkingFolderFromChooser()}
-                title="Choose a different parent folder, then list its UCSBXRP projects."
+                title={
+                  workspaceFolder
+                    ? "Choose a different parent folder, then list its UCSBXRP projects."
+                    : rememberedWorkspaceFolder
+                      ? `Restore read-write access to ${rememberedWorkspaceFolder.name}, then list its UCSBXRP projects.`
+                      : "Choose the parent folder that contains your UCSBXRP projects."
+                }
                 type="button"
               >
-                Change Working folder…
+                {workspaceFolder
+                  ? "Change Working folder…"
+                  : rememberedWorkspaceFolder
+                    ? "Reconnect Working folder…"
+                    : "Choose Working folder…"}
               </button>
             </div>
           </section>
@@ -3917,7 +3984,7 @@ export function IdeApp({
             </span>
             <h2 id="new-project-title">
               {projectCreationPurpose === "save-current"
-                ? "Save to a folder"
+                ? "Save project"
                 : "Create a project"}
             </h2>
             {projectCreationPurpose === "new-project" ? (
@@ -3958,7 +4025,7 @@ export function IdeApp({
                     ? `The project folder will be created in ${workspaceFolder ? `the Working folder ${workspaceFolder.name}` : "a Working folder you choose"}. Source files, automatic copies, program output, and telemetry will stay with this project.`
                     : "Choose the course project you want to create."}
             </p>
-            <label htmlFor="new-project-folder">Folder name</label>
+            <label htmlFor="new-project-folder">Project folder name</label>
             <input
               aria-describedby="new-project-help"
               aria-invalid={newProjectError ? "true" : undefined}

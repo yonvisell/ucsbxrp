@@ -64,7 +64,7 @@ test("groups folder actions separately from file creation and import", async ({
     projectActions.getByRole("button", { name: "New project…" }),
   ).toBeVisible();
   await expect(
-    projectActions.getByRole("button", { name: "Save to folder…" }),
+    projectActions.getByRole("button", { name: "Save project…" }),
   ).toBeVisible();
 
   const fileActions = page.getByRole("group", {
@@ -121,9 +121,14 @@ test("Open project lists project folders inside the selected Working folder", as
       );
       await write(project, "main.py", `print("${name}")\n`);
     }
+    (window as Window & { pickerCalls?: number }).pickerCalls = 0;
     Object.defineProperty(window, "showDirectoryPicker", {
       configurable: true,
-      value: async () => workingFolder,
+      value: async () => {
+        (window as Window & { pickerCalls?: number }).pickerCalls =
+          ((window as Window & { pickerCalls?: number }).pickerCalls ?? 0) + 1;
+        return workingFolder;
+      },
     });
   });
 
@@ -133,6 +138,20 @@ test("Open project lists project folders inside the selected Working folder", as
   await page.getByRole("button", { name: "Open project…" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Open a project" });
+  await expect(dialog).toContainText(
+    "First choose the parent Working folder that contains your Project folders.",
+  );
+  expect(
+    await page.evaluate(
+      () => (window as Window & { pickerCalls?: number }).pickerCalls ?? 0,
+    ),
+  ).toBe(0);
+  await dialog.getByRole("button", { name: "Choose Working folder…" }).click();
+  expect(
+    await page.evaluate(
+      () => (window as Window & { pickerCalls?: number }).pickerCalls ?? 0,
+    ),
+  ).toBe(1);
   await expect(
     dialog.getByRole("button", { name: "Open alpha from alpha" }),
   ).toBeVisible();
@@ -437,13 +456,21 @@ test("cancelling Working folder selection leaves the current project unchanged",
   });
 
   await page.getByRole("button", { name: "Open project…" }).click();
+  const openDialog = page.getByRole("dialog", { name: "Open a project" });
+  await expect(openDialog).toContainText("The current project remains open");
+  await openDialog
+    .getByRole("button", { name: "Choose Working folder…" })
+    .click();
   await expect(page.getByTestId("project-name")).toHaveText(originalName ?? "");
   await expect(page.getByTestId("project-folder")).toHaveText(
     originalFolder ?? "",
   );
   await expect(
-    page.getByRole("heading", { name: "Open a project" }),
-  ).toHaveCount(0);
+    openDialog.getByText(
+      "No Working folder was selected. The current project is unchanged.",
+    ),
+  ).toBeVisible();
+  await openDialog.getByRole("button", { name: "Cancel" }).click();
 
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page
@@ -493,7 +520,7 @@ test("does not retain an identical draft when saving the current project", async
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByRole("button", { name: "Save to folder…" }).click();
+  await page.getByRole("button", { name: "Save project…" }).click();
   await page
     .getByRole("button", { name: "Choose Working folder and save…" })
     .click();
@@ -646,7 +673,11 @@ test("choosing a Working folder keeps the current project attached and saving", 
     });
   });
   await page.getByRole("button", { name: "Open project…" }).click();
-  await page
+  const openDialog = page.getByRole("dialog", { name: "Open a project" });
+  await openDialog
+    .getByRole("button", { name: "Choose Working folder…" })
+    .click();
+  await openDialog
     .getByRole("button", {
       name: "Open Location project A from location-project-a",
     })
@@ -791,7 +822,7 @@ test("continues to the next challenge after saving a browser draft once", async 
     })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Save to a folder" }),
+    page.getByRole("heading", { name: "Save project" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Choose Working folder and save…" })
