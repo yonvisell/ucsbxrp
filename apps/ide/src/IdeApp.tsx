@@ -247,9 +247,16 @@ function openingPathForNewProject(project: ProjectSnapshot): string {
   const template = COURSE_PROJECT_TEMPLATES.find(
     (candidate) => candidate.id === project.templateId,
   );
-  return template?.kind === "challenge" && "README.md" in project.files
+  return (template?.kind === "challenge" || template?.kind === "tutorial") &&
+    "README.md" in project.files
     ? "README.md"
     : project.entrypoint;
+}
+
+function checkFileForProject(project: ProjectSnapshot): string | null {
+  if ("exercise_checks.py" in project.files) return "exercise_checks.py";
+  if ("component_checks.py" in project.files) return "component_checks.py";
+  return null;
 }
 
 function initiallyShowProjectPanel(): boolean {
@@ -894,6 +901,8 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     targetState === "ready" ||
     (target.kind === "virtual" && targetState === "error");
   const canRunProject = canCommand && projectProviderActive;
+  const projectCheckFile = checkFileForProject(project);
+  const checkingExercises = projectCheckFile === "exercise_checks.py";
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -1023,19 +1032,26 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   ]);
 
   const testComponents = useCallback(async () => {
-    if (componentCheckRunning || !("component_checks.py" in project.files)) {
+    if (componentCheckRunning || projectCheckFile === null) {
       return;
     }
     componentCheckRunningRef.current = true;
     setComponentCheckRunning(true);
     setOutputPanelOpen(true);
     setConsoleTab("output");
-    setOperationDetail("Running hardware-free component checks…");
+    setOperationDetail(
+      checkingExercises
+        ? "Checking tutorial exercises without starting a robot…"
+        : "Running hardware-free component checks…",
+    );
     try {
       const result = await testCourseProjectComponents({
         ...project,
-        entrypoint: "component_checks.py",
+        entrypoint: projectCheckFile,
       });
+      const completionDetail = checkingExercises
+        ? result.detail.replace(/^Component checks/, "Exercise checks")
+        : result.detail;
       const lines = [
         ...(result.output ?? []).map((line) => ({
           id: `ide-local-${nextConsoleId.current++}`,
@@ -1050,8 +1066,8 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           category: "program" as const,
           stream: result.ok ? ("system" as const) : ("stderr" as const),
           line: result.ok
-            ? result.detail
-            : `Component checks stopped: ${result.detail}`,
+            ? completionDetail
+            : `${checkingExercises ? "Exercise" : "Component"} checks stopped: ${completionDetail}`,
         },
       ];
       setConsoleEntries((entries) => [
@@ -1060,8 +1076,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       ]);
       setOperationDetail(
         result.ok
-          ? "Component checks finished; review PASS and NOT IMPLEMENTED results below."
-          : "One or more component checks failed; review Program output.",
+          ? checkingExercises
+            ? "Exercise checks finished; review the results below."
+            : "Component checks finished; review PASS and NOT IMPLEMENTED results below."
+          : checkingExercises
+            ? "One or more exercises are incomplete or incorrect; review Program output."
+            : "One or more component checks failed; review Program output.",
       );
     } catch (error) {
       const detail = errorDetail(error);
@@ -1071,17 +1091,19 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           id: `ide-local-${nextConsoleId.current++}`,
           category: "program",
           stream: "stderr",
-          line: `Component checks could not run: ${detail}`,
+          line: `${checkingExercises ? "Exercise" : "Component"} checks could not run: ${detail}`,
           timestampMs: Date.now(),
         },
       ]);
-      setOperationDetail("Component checks could not run.");
+      setOperationDetail(
+        `${checkingExercises ? "Exercise" : "Component"} checks could not run.`,
+      );
     } finally {
       componentCheckRunningRef.current = false;
       setComponentCheckRunning(false);
       retryPendingOfflineShellReload();
     }
-  }, [componentCheckRunning, project]);
+  }, [checkingExercises, componentCheckRunning, project, projectCheckFile]);
 
   const runTarget = useCallback(async () => {
     if (!canRunProject || isRunning || virtualRuntimePreparing) {
@@ -3069,16 +3091,24 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   />
                 </div>
                 <div className="course-project-actions">
-                  {"component_checks.py" in project.files ? (
+                  {projectCheckFile ? (
                     <button
                       className="component-check-button"
                       disabled={componentCheckRunning}
                       onClick={() => void testComponents()}
-                      title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
+                      title={
+                        checkingExercises
+                          ? "Check the tutorial exercises without starting either robot. PASS, NOT COMPLETED, and INCORRECT results appear in Program output."
+                          : "Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
+                      }
                     >
                       {componentCheckRunning
-                        ? "Testing components…"
-                        : "Test components"}
+                        ? checkingExercises
+                          ? "Checking exercises…"
+                          : "Testing components…"
+                        : checkingExercises
+                          ? "Check exercises"
+                          : "Test components"}
                     </button>
                   ) : null}
                   {followingChallenge ? (

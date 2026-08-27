@@ -85,3 +85,7 @@ def run_exercise_checks():
     print("PASS · sampled robot program")
     print("Tutorial 3: 1 passed · 0 not completed · 0 incorrect")
     return True
+
+
+if __name__ == "__main__":
+    run_exercise_checks()

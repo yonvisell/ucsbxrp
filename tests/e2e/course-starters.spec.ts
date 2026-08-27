@@ -382,8 +382,8 @@ test("validates all four active tutorials and reports unfinished exercises witho
 
   for (const tutorial of tutorials) {
     await openTemplateInBrowser(ide, tutorial.id);
-    await ide.getByRole("button", { name: "Open README.md" }).click();
     const preview = ide.getByLabel("Rendered Markdown preview");
+    await expect(preview).toBeVisible();
     await expect(
       preview.getByRole("heading", { name: tutorial.title }),
     ).toBeVisible();

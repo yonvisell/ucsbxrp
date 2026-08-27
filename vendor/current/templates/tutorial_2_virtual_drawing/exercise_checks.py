@@ -81,3 +81,7 @@ def run_exercise_checks():
         )
     )
     return incorrect == 0 and incomplete == 0
+
+
+if __name__ == "__main__":
+    run_exercise_checks()

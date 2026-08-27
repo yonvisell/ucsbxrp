@@ -4,6 +4,42 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 63 replaces the passive seven-file Python example set with four
+ordered, active tutorial projects: Python essentials, drawing with the Virtual
+XRP, sampled UCSBXRP robot programs, and behavior with telemetry. Each project
+has one stable `main.py`, a rendered README, a short `student_work.py`, and one
+`exercise_checks.py`. Unfinished functions remain valid Python through explicit
+`NotImplementedError` placeholders; no completed student solution is shipped.
+The checks report **PASS**, **NOT COMPLETED**, or **INCORRECT** without starting
+either robot. Tutorial projects open their README first while Run continues to
+use `main.py`, and the Project panel exposes the literal **Check exercises**
+action rather than a duplicate component-check proxy.
+
+The motion tutorials use the normal `Robot.start()`, `Robot.step()`, and
+`Robot.stop()` structure and do not add another delay to the sampled loop. They
+connect Python classes, modules, exceptions, bounded loops, finite-state
+behavior, live numbers/choice/toggle, watch values, and student plot signals to
+visible Virtual-XRP behavior. The drawing path remains the measured robot path;
+it is not replaced by a separate decorative pen state.
+
+The tutorial slice passes 19 focused Python tests, eight target/catalog tests,
+the MicroPython proof, the production/offline build, and representative
+completed implementations for every checker. Its full pre-integration
+course-starter suite passed 17 browser workflows. The final IDE integration
+passes a Stable Chrome workflow against the current source that opens,
+validates, and checks all four tutorials in sequence, verifies their rendered
+instructions and unfinished outcomes, and confirms no virtual motor effort or
+pose change.
+
+The project-world schema also now accepts display-only finish lines, finish
+areas, and general markers while preserving legacy files, unknown extension
+fields, obstacle physics, and ordered Python waypoints. Monitor and WebM export
+share the same marker and label semantics. A shared all-geometry fixture is
+validated in TypeScript and Python; the focused stage passed 46 Python tests,
+26 TypeScript tests, MicroPython parity, type checking, the production build,
+and the offline shell. The interactive SVG authoring surface is the next world
+stage.
+
 Refinement 62 closes two first-use workspace defects. When a Projects folder is
 remembered, **Open project** now presents its valid direct-child UCSBXRP
 projects inside the IDE instead of immediately reopening a system folder
