@@ -1,10 +1,16 @@
 # Hardware evidence
 
-`2026-08-25-dev15-comprehensive-validation.json` is the current attached-RP2350
-record. It covers USB installation readback, a reset in both network modes, an
-actual Mac join to the XRP hotspot, Pink station operation, an elevated-wheel
-spiral run, telemetry batching, the IDE/Monitor shared lifecycle, and the final
-zero-output state.
+`2026-08-26-dev22-release-and-repeatability.json` is the current attached-RP2350
+record. It covers coherent page/manifest/device release identity, repeated USB
+repair, subsecond USB entry from a running course service, Pink handoff,
+cross-runtime project identity, two physical projects, encoder and motor
+telemetry, and the final zero-output state. Hotspot coverage remains in the
+earlier dev.15 record and must be repeated for the current release.
+
+`2026-08-25-dev15-comprehensive-validation.json` covers USB installation
+readback, a reset in both network modes, an actual Mac join to the XRP hotspot,
+Pink station operation, an elevated-wheel spiral run, telemetry batching, the
+IDE/Monitor shared lifecycle, and the final zero-output state.
 
 This directory retains machine-readable observations from the attached
 SparkFun XRP Controller with RP2350. Records are evidence of what one device did

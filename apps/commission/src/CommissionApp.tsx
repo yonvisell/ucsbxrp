@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import courseRelease from "../../../vendor/current/release.json";
 
 import {
   loadTargetPreference,
@@ -32,6 +33,7 @@ import {
   inspectDevice,
   installFirmware,
   loadCommissioningManifest,
+  requireMatchingCommissioningRelease,
   hotspotSsidForLastName,
   HOTSPOT_SSID_PREFIX,
   readExistingNetworkProfile,
@@ -175,6 +177,7 @@ export function CommissionApp() {
   );
   const [checkingAuthorizedPort, setCheckingAuthorizedPort] = useState(false);
   const [selectingRobot, setSelectingRobot] = useState(false);
+  const [replUnavailable, setReplUnavailable] = useState(false);
   const [checkingWifi, setCheckingWifi] = useState(false);
   const [wifiProbeEnabled, setWifiProbeEnabled] = useState(false);
   const [wifiAttempts, setWifiAttempts] = useState(0);
@@ -194,7 +197,7 @@ export function CommissionApp() {
   const watchdogFeedInFlightRef = useRef(false);
   const folderRef = useRef<CourseDirectoryHandle | null>(null);
   const workspaceChangedRef = useRef(false);
-  const manifestReleaseRef = useRef("");
+  const manifestReleaseRef = useRef(courseRelease.release_id);
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
   const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
 
@@ -239,10 +242,15 @@ export function CommissionApp() {
     let disposed = false;
     const initialize = async () => {
       try {
+        await waitForOfflineShell();
         const [loadedManifest, rememberedFolder] = await Promise.all([
           loadCommissioningManifest(manifestUrl),
           loadRememberedWorkspaceFolder(),
         ]);
+        requireMatchingCommissioningRelease(
+          loadedManifest,
+          courseRelease.release_id,
+        );
         if (disposed) return;
         manifestReleaseRef.current = loadedManifest.releaseId;
         setManifest(loadedManifest);
@@ -306,7 +314,8 @@ export function CommissionApp() {
         }
       } catch (initializationError) {
         if (!disposed) {
-          setStage("folder");
+          setStage("loading");
+          setDetail("Setup did not load one complete course release.");
           setError(errorDetail(initializationError));
           recordSetup(
             "Start",
@@ -511,13 +520,14 @@ export function CommissionApp() {
           setStage("usb");
           return;
         }
+        setReplUnavailable(true);
         setStage("firmware");
         setDetail(
-          "The XRP needs the course MicroPython firmware before its files can be installed.",
+          "The XRP did not enter USB setup mode. Try the USB check again; install the course firmware only if the retry also fails.",
         );
         recordSetup(
-          "Firmware",
-          `The expected MicroPython REPL was not available: ${errorDetail(replError)}`,
+          "USB",
+          `USB setup mode was not available: ${errorDetail(replError)}`,
           "warning",
         );
         return;
@@ -525,6 +535,7 @@ export function CommissionApp() {
       sessionRef.current = session;
       try {
         await inspectDevice(session, manifest);
+        setReplUnavailable(false);
         const profile = await readExistingNetworkProfile(session);
         await feedCommissioningWatchdog(session);
         setExistingNetwork(profile);
@@ -553,6 +564,7 @@ export function CommissionApp() {
         setStage("network");
       } catch (inspectionError) {
         if (inspectionError instanceof FirmwareRequiredError) {
+          setReplUnavailable(false);
           setStage("firmware");
           setDetail(inspectionError.message);
           recordSetup("Firmware", inspectionError.message, "warning");
@@ -760,14 +772,6 @@ export function CommissionApp() {
       setStationPassword("");
       if (folderRef.current) handCourseFolderToIde();
       setResult(completed);
-      const preference = targetPreferenceForPhysicalNetwork(
-        { ...loadTargetPreference(), kind: "physical" },
-        {
-          mode: completed.network.mode,
-          address: `http://${completed.network.address}`,
-        },
-      );
-      storeTargetPreference(preference);
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";
       setWifiAttempts(0);
@@ -858,6 +862,14 @@ export function CommissionApp() {
           "The XRP replied, but its course service version does not match this web release.",
         );
       }
+      const preference = targetPreferenceForPhysicalNetwork(
+        { ...loadTargetPreference(), kind: "physical" },
+        {
+          mode: result.network.mode,
+          address: `http://${result.network.address}`,
+        },
+      );
+      storeTargetPreference(preference);
       navigatingRef.current = true;
       setWifiIssue("");
       setWifiNeedsRepair(false);
@@ -1099,7 +1111,14 @@ export function CommissionApp() {
           {stage === "usb" ? <h1>Connect the XRP by USB-C</h1> : null}
           {stage === "network" ? <h1>Choose the robot network</h1> : null}
           {stage === "installing" ? <h1>Updating the XRP</h1> : null}
-          {stage === "firmware" || stage === "firmware-volume" ? (
+          {stage === "firmware" ? (
+            <h1>
+              {replUnavailable
+                ? "USB setup mode did not start"
+                : "Install course firmware"}
+            </h1>
+          ) : null}
+          {stage === "firmware-volume" ? (
             <h1>Install course firmware</h1>
           ) : null}
           {stage === "wifi" ? <h1>Verify the robot connection</h1> : null}
@@ -1119,6 +1138,15 @@ export function CommissionApp() {
             <p className="commission-error" role="alert">
               {error}
             </p>
+          ) : null}
+
+          {stage === "loading" && error ? (
+            <button
+              className="primary-button"
+              onClick={() => window.location.reload()}
+            >
+              Reload setup
+            </button>
           ) : null}
 
           {stage === "folder" ? (
@@ -1216,13 +1244,13 @@ export function CommissionApp() {
                   <span>
                     <strong>
                       {existingNetwork?.mode === "access_point"
-                        ? "Keep current robot hotspot"
-                        : "Keep current Wi-Fi"}
+                        ? `Keep ${existingNetwork.accessPointSsid ?? "the current robot hotspot"}`
+                        : `Keep ${existingNetwork?.stationSsid ?? "the current Wi-Fi network"}`}
                     </strong>
                     <small>
                       {existingNetwork?.mode === "station"
-                        ? (existingNetwork?.stationSsid ?? "Existing Wi-Fi")
-                        : (existingNetwork?.accessPointSsid ?? "Robot hotspot")}
+                        ? "Current robot Wi-Fi"
+                        : "Current robot hotspot"}
                     </small>
                   </span>
                 </label>
@@ -1255,8 +1283,8 @@ export function CommissionApp() {
                 <span>
                   <strong>
                     {existingNetwork?.mode === "station"
-                      ? "Use different Wi-Fi"
-                      : "Use existing Wi-Fi"}
+                      ? "Connect to another Wi-Fi network"
+                      : "Connect to a Wi-Fi network"}
                   </strong>
                   <small>Use the same local network as this computer.</small>
                 </span>
@@ -1377,7 +1405,19 @@ export function CommissionApp() {
 
           {stage === "firmware" ? (
             <div className="commission-actions">
-              <button className="primary-button" onClick={enterFirmwareMode}>
+              {replUnavailable && authorizedPort ? (
+                <button
+                  className="primary-button"
+                  disabled={selectingRobot}
+                  onClick={confirmAuthorizedRobot}
+                >
+                  {selectingRobot ? "Checking…" : "Try USB check again"}
+                </button>
+              ) : null}
+              <button
+                className={replUnavailable ? undefined : "primary-button"}
+                onClick={enterFirmwareMode}
+              >
                 Prepare firmware update
               </button>
               <p>

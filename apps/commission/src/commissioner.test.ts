@@ -8,6 +8,7 @@ import {
   hotspotSsidForLastName,
   inspectDevice,
   installFirmware,
+  requireMatchingCommissioningRelease,
   type CommissioningManifest,
 } from "./commissioner";
 import type { MicroPythonSession, ReplResult } from "./web-serial";
@@ -182,6 +183,17 @@ class FakeSession implements MicroPythonSession {
 }
 
 describe("browser XRP commissioning", () => {
+  it("rejects mixed page and commissioning releases before USB work", () => {
+    expect(() =>
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.23"),
+    ).toThrow(
+      "Setup loaded robot files for 2026.08-dev.22, but this page is 2026.08-dev.23",
+    );
+    expect(() =>
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.22"),
+    ).not.toThrow();
+  });
+
   it("builds a portable optional hotspot name from a team member's last name", () => {
     expect(hotspotSsidForLastName(" Visell ")).toBe("UCSB-XRP-VISELL");
     expect(hotspotSsidForLastName(" ")).toBeUndefined();

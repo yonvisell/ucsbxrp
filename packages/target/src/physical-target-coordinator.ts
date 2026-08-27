@@ -197,7 +197,7 @@ export class PhysicalTargetCoordinator {
     if (
       this.target &&
       this.targetEndpoint &&
-      endpoints.includes(this.targetEndpoint)
+      endpoints[0] === this.targetEndpoint
     ) {
       if (this.connection) {
         await this.connection;

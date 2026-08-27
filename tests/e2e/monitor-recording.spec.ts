@@ -362,7 +362,7 @@ test("selects plotted signals from the Monitor controls", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Open monitor controls" }).click();
   await expect(
-    page.getByRole("heading", { name: "Signals", exact: true }),
+    page.getByRole("heading", { name: "Plot signals", exact: true }),
   ).toBeVisible();
 });
 
@@ -391,7 +391,7 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   expect(panelBox?.y).toBeGreaterThanOrEqual((headerBox?.height ?? 34) - 1);
   expect(panelBox?.width).toBeLessThanOrEqual(691);
   await expect(
-    page.getByRole("heading", { name: "Signals", exact: true }),
+    page.getByRole("heading", { name: "Plot signals", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Recording", exact: true }),

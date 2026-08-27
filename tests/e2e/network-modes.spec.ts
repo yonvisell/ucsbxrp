@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("selects robot hotspot or existing Wi-Fi without losing either endpoint", async ({
+test("changes the explicit XRP Wi-Fi mode without cross-network fallback", async ({
   page,
 }) => {
   await page.addInitScript(() => localStorage.clear());
@@ -15,11 +15,7 @@ test("selects robot hotspot or existing Wi-Fi without losing either endpoint", a
     "Project flashing, controls, and telemetry use Wi-Fi",
   );
   const connection = wifi.getByLabel("Network", { exact: true });
-  await expect(connection).toHaveValue("access_point");
-  await expect(wifi.getByText(/192\.168\.4\.1/)).toBeVisible();
-  await expect(wifi.getByLabel("XRP address")).toHaveCount(0);
-
-  await connection.selectOption("station");
+  await expect(connection).toHaveValue("station");
   const address = wifi.getByLabel("XRP address");
   await expect(address).toBeVisible();
   await address.fill("http://192.168.7.44");
@@ -33,11 +29,11 @@ test("selects robot hotspot or existing Wi-Fi without losing either endpoint", a
   expect(stored).toMatchObject({
     kind: "physical",
     physicalConnection: "access_point",
-    physicalEndpoint: "http://192.168.7.44",
+    physicalEndpoint: "http://192.168.4.1",
   });
 
   await connection.selectOption("station");
   await expect(wifi.getByLabel("XRP address")).toHaveValue(
-    "http://192.168.7.44",
+    "http://ucsb-xrp.local",
   );
 });

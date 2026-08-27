@@ -14,7 +14,10 @@ function encodedPart(value: string): Uint8Array {
 function projectIdentityBytes(project: CourseProject): Uint8Array {
   const parts = [encodedPart(project.entrypoint)];
   for (const [path, contents] of Object.entries(project.files).sort(
-    ([left], [right]) => left.localeCompare(right),
+    // MicroPython sorts strings by Unicode code point. localeCompare() is
+    // locale-dependent and can order README.md after lower-case filenames,
+    // causing the browser and XRP to calculate different project revisions.
+    ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
   )) {
     parts.push(encodedPart(path), encodedPart(contents));
   }

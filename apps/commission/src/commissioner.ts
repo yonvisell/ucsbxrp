@@ -168,6 +168,17 @@ export async function loadCommissioningManifest(
   return value;
 }
 
+export function requireMatchingCommissioningRelease(
+  manifest: CommissioningManifest,
+  applicationRelease: string,
+): void {
+  if (manifest.releaseId !== applicationRelease) {
+    throw new Error(
+      `Setup loaded robot files for ${manifest.releaseId}, but this page is ${applicationRelease}. Reload Setup to finish the course update. No robot files were changed.`,
+    );
+  }
+}
+
 function checkedResult(result: ReplResult, operation: string): string {
   if (result.stderr.trim()) {
     throw new Error(`${operation} failed: ${result.stderr.trim()}`);
@@ -534,19 +545,24 @@ export async function commissionDevice(options: {
       (entry) => hashes[entry.destination] !== entry.sha256,
     );
 
+    // Verify one coherent release in the browser before changing the XRP. If
+    // an old Service Worker supplied any stale file, commissioning stops here
+    // and leaves the installed robot files untouched.
+    const downloaded = await Promise.all(
+      changed.map(async (entry) => ({
+        entry,
+        data: await fetchVerifiedAsset(manifestUrl, entry, fetchImplementation),
+      })),
+    );
+
     let installed = 0;
-    for (const entry of changed) {
+    for (const { entry, data } of downloaded) {
       onProgress({
         phase: "install",
         detail: "Updating course software…",
         completed: installed,
         total: changed.length,
       });
-      const data = await fetchVerifiedAsset(
-        manifestUrl,
-        entry,
-        fetchImplementation,
-      );
       await writeDeviceFile(session, entry.destination, data);
       installed += 1;
     }

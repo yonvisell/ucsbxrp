@@ -383,6 +383,10 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       }
 
       private async receive(chunk: Uint8Array) {
+        if (chunk.length === 1 && chunk[0] === 3) {
+          this.send("\r\n>>> ");
+          return;
+        }
         if (chunk.length === 2 && chunk[0] === 13 && chunk[1] === 1) {
           this.send("raw REPL; CTRL-B to exit\r\n>");
           return;
@@ -610,7 +614,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(
     page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Keep current robot hotspot")).toBeChecked();
+  await expect(page.getByLabel("Keep UCSB-XRP-4A21")).toBeChecked();
   await expect(page.getByLabel("Robot hotspot", { exact: true })).toHaveCount(
     0,
   );
@@ -684,7 +688,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     .toMatchObject({
       kind: "physical",
       physicalConnection: "access_point",
-      physicalEndpoint: "http://ucsb-xrp.local",
+      physicalEndpoint: "http://192.168.4.1",
     });
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
   await expect(page.getByTestId("project-folder")).toHaveText(

@@ -243,6 +243,11 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(
+    ide.getByText(
+      "1 · Straight Run is stored temporarily in Chrome. Choose a course folder to create its project folder.",
+    ),
+  ).toBeVisible();
   await monitor.getByRole("button", { name: "Choose project folder" }).click();
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "Runs save to ./student-course-project",

@@ -428,6 +428,44 @@ describe("physical target coordinator", () => {
     });
   });
 
+  it("replaces a stale endpoint even when it remains a lower-priority candidate", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      targets.push(target);
+      return target;
+    });
+    const app = new FakePort();
+    coordinator.attach(app);
+
+    coordinator.handle(
+      app,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.4.1"],
+        requestId: "hotspot",
+      }),
+    );
+    await vi.waitFor(() => expect(responses(app, "hotspot")).toHaveLength(1));
+
+    coordinator.handle(
+      app,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        requestId: "station",
+      }),
+    );
+    await vi.waitFor(() => expect(responses(app, "station")).toHaveLength(1));
+
+    expect(targets).toHaveLength(2);
+    expect(targets[0]?.disconnectCalls).toBe(1);
+    expect(events(app, "status").at(-1)).toMatchObject({
+      state: "ready",
+      detail: "http://192.168.7.25",
+    });
+  });
+
   it("restores the shared state after one tab receives a command error", async () => {
     let target!: FakePhysicalTarget;
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {

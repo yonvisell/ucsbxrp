@@ -374,9 +374,15 @@ test("validates and runs every staged tutorial lesson on the virtual XRP", async
     await ide
       .getByRole("button", { name: new RegExp(`Open ${lesson.file}`) })
       .click();
+    const fileMenu = ide.getByRole("button", {
+      name: new RegExp(`File ${lesson.file}`),
+    });
+    await fileMenu.click();
     const makeMain = ide.getByRole("button", { name: "Make main" });
     if (await makeMain.isEnabled()) {
       await makeMain.click();
+    } else {
+      await fileMenu.click();
     }
     await ide.getByRole("button", { name: "Reset", exact: true }).click();
     await expect(ide.getByTestId("target-status")).toContainText(

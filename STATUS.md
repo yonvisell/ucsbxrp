@@ -4,6 +4,39 @@ Last updated: 2026-08-26
 
 ## Current result
 
+Refinement 46 restores one coherent release and closes two failures found only
+by repeating the full attached-robot workflow. A production service worker had
+served a dev.16 commissioning manifest to a dev.22 page; the wizard then
+correctly installed the internally consistent but obsolete dev.16 bundle. The
+development server now generates and serves the current commissioning bundle,
+development startup removes old course workers and caches, release metadata is
+network-first, the page and manifest must match before USB writes, and every
+changed asset is fetched and hash-verified before mutation. The page, manifest,
+and XRP now all report `2026.08-dev.22`.
+
+Repeated USB setup exposed a second non-timing abstraction error. A burst of
+interrupts could land in an XRPLib IMU callback instead of stopping `main.py`;
+the wizard then waited through two ten-second command deadlines and incorrectly
+claimed that firmware was missing. USB entry now sends one interrupt at a time
+and waits for MicroPython's friendly prompt before entering raw REPL. From a
+fully running course service, controller, firmware, and network verification
+completed in 713 ms. A failed entry closes immediately and offers a retry
+without diagnosing firmware that was never inspected.
+
+The browser and XRP also used different filename ordering for project hashes:
+`localeCompare` could order `README.md` differently from MicroPython. The
+shared revision now uses explicit code-point ordering. After the correction,
+the IDE retained **flashed** state across reload and repeated commissioning.
+The attached XRP ran the Spiral project, changed to the Obstacle-turn demo,
+automatically validated/flashed/ran it, and ran the retained demo again after
+same-release repair. The final run changed encoder counts on both wheels,
+reached heading `1.798 rad`, and ended with zero effort and zero wheel speed.
+The complete 214 TypeScript and 181 Python tests, MicroPython proof,
+production/offline build, TypeScript typecheck, and all 66 non-hardware Stable
+Chrome workflows pass.
+Structured evidence is in
+`docs/hardware/2026-08-26-dev22-release-and-repeatability.json`.
+
 Refinement 45 makes the visible IDE project the project that Monitor actually
 runs. Opening, creating, or editing a project now stages its complete snapshot
 in the shared target without treating it as validated or flashed. Monitor Run

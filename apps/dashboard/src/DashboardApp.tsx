@@ -13,11 +13,9 @@ import {
   PhysicalTargetClient,
   TelemetryRecorder,
   VirtualTargetClient,
-  loadTargetPreference,
   physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
-  storeTargetPreference,
   targetPreferenceForPhysicalNetwork,
   telemetryRecordingToCsv,
   type TargetClient,
@@ -34,6 +32,7 @@ import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
+import { useTargetPreference } from "../../shared/use-target-preference";
 import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
 import {
   chooseProjectFolder,
@@ -453,8 +452,7 @@ function centeredWorldPreview(
 }
 
 export function DashboardApp() {
-  const [targetPreference, setTargetPreference] =
-    useState(loadTargetPreference);
+  const [targetPreference, updateTargetPreference] = useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [worldCatalog, setWorldCatalog] = useState<WorldCatalog>(
     DEFAULT_WORLD_CATALOG,
@@ -559,10 +557,6 @@ export function DashboardApp() {
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
   const recordingStartedAt = useRef<number | null>(null);
-
-  useEffect(() => {
-    storeTargetPreference(targetPreference);
-  }, [targetPreference]);
 
   useEffect(() => {
     if (targetState === "running") {
@@ -766,16 +760,6 @@ export function DashboardApp() {
   );
 
   useEffect(() => {
-    const updateFromOtherApp = (event: StorageEvent) => {
-      if (event.key === "ucsb-xrp-target-v1") {
-        setTargetPreference(loadTargetPreference());
-      }
-    };
-    window.addEventListener("storage", updateFromOtherApp);
-    return () => window.removeEventListener("storage", updateFromOtherApp);
-  }, []);
-
-  useEffect(() => {
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
     setAvailableProgramPlots([]);
@@ -834,7 +818,7 @@ export function DashboardApp() {
         setTargetState(event.state);
         setTargetDetail(event.detail);
       } else if (event.type === "physical-network") {
-        setTargetPreference((current) =>
+        updateTargetPreference((current) =>
           targetPreferenceForPhysicalNetwork(current, event),
         );
       } else if (event.type === "project") {

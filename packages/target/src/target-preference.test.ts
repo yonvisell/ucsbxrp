@@ -42,7 +42,7 @@ describe("shared target preference", () => {
     });
   });
 
-  it("uses the fixed XRP hotspot endpoint without discarding the station address", () => {
+  it("uses only the explicitly selected XRP hotspot endpoint", () => {
     const preference = {
       kind: "physical" as const,
       physicalConnection: "access_point" as const,
@@ -52,26 +52,19 @@ describe("shared target preference", () => {
     expect(physicalEndpointForPreference(preference)).toBe(
       XRP_ACCESS_POINT_ENDPOINT,
     );
-    expect(preference.physicalEndpoint).toBe("http://192.168.7.34");
     expect(physicalEndpointCandidates(preference)).toEqual([
       XRP_ACCESS_POINT_ENDPOINT,
-      XRP_LOCAL_ENDPOINT,
-      "http://192.168.7.34",
     ]);
   });
 
-  it("tries the last station address before the hotspot when station is selected", () => {
+  it("tries the verified station address before the local hostname", () => {
     expect(
       physicalEndpointCandidates({
         kind: "physical",
         physicalConnection: "station",
         physicalEndpoint: "http://192.168.7.34",
       }),
-    ).toEqual([
-      "http://192.168.7.34",
-      XRP_LOCAL_ENDPOINT,
-      XRP_ACCESS_POINT_ENDPOINT,
-    ]);
+    ).toEqual(["http://192.168.7.34", XRP_LOCAL_ENDPOINT]);
   });
 
   it("uses the XRP hostname when a router changed its DHCP address", () => {
@@ -84,7 +77,7 @@ describe("shared target preference", () => {
     ).toContain(XRP_LOCAL_ENDPOINT);
   });
 
-  it("adopts reported station details and retains them during hotspot fallback", () => {
+  it("adopts the network and address that the XRP actually reports", () => {
     const station = targetPreferenceForPhysicalNetwork(
       {
         kind: "physical",
@@ -106,7 +99,7 @@ describe("shared target preference", () => {
     ).toEqual({
       kind: "physical",
       physicalConnection: "access_point",
-      physicalEndpoint: "http://192.168.7.25",
+      physicalEndpoint: XRP_ACCESS_POINT_ENDPOINT,
     });
   });
 
@@ -123,7 +116,11 @@ describe("shared target preference", () => {
       }),
     ).toBe(station);
 
-    const hotspot = { ...station, physicalConnection: "access_point" as const };
+    const hotspot = {
+      ...station,
+      physicalConnection: "access_point" as const,
+      physicalEndpoint: XRP_ACCESS_POINT_ENDPOINT,
+    };
     expect(
       targetPreferenceForPhysicalNetwork(hotspot, {
         mode: "access_point",

@@ -14,10 +14,8 @@ import {
   PhysicalTargetClient,
   VirtualTargetClient,
   createNextChallengeProject,
-  loadTargetPreference,
   nextChallengeTemplate,
   physicalEndpointCandidates,
-  storeTargetPreference,
   targetPreferenceForPhysicalNetwork,
   testCourseProjectComponents,
   type TargetClient,
@@ -32,6 +30,7 @@ import {
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
+import { useTargetPreference } from "../../shared/use-target-preference";
 import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
 import { MarkdownPreview } from "./MarkdownPreview";
 import {
@@ -224,8 +223,7 @@ function initiallyShowProjectPanel(): boolean {
 export function IdeApp() {
   const initialProject = useMemo(() => loadRecoveredProject(), []);
   const [settings, setSettings] = useState<IdeSettings>(loadSettings);
-  const [targetPreference, setTargetPreference] =
-    useState(loadTargetPreference);
+  const [targetPreference, updateTargetPreference] = useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const target = useMemo<TargetClient>(() => {
     if (targetPreference.kind !== "physical") return new VirtualTargetClient();
@@ -355,7 +353,7 @@ export function IdeApp() {
         setTargetState(event.state);
         setTargetDetail(event.detail);
       } else if (event.type === "physical-network") {
-        setTargetPreference((current) =>
+        updateTargetPreference((current) =>
           targetPreferenceForPhysicalNetwork(current, event),
         );
       } else if (event.type === "console") {
@@ -597,20 +595,6 @@ export function IdeApp() {
   useEffect(() => {
     localStorage.setItem(settingsKey, JSON.stringify(settings));
   }, [settings]);
-
-  useEffect(() => {
-    storeTargetPreference(targetPreference);
-  }, [targetPreference]);
-
-  useEffect(() => {
-    const updateFromOtherApp = (event: StorageEvent) => {
-      if (event.key === "ucsb-xrp-target-v1") {
-        setTargetPreference(loadTargetPreference());
-      }
-    };
-    window.addEventListener("storage", updateFromOtherApp);
-    return () => window.removeEventListener("storage", updateFromOtherApp);
-  }, []);
 
   const isConnected =
     targetState === "ready" ||
@@ -920,6 +904,10 @@ export function IdeApp() {
       }
       setOperationDetail(`Reading ${folder.name}…`);
       const result = await readProjectFolder(folder);
+      // Publish the complete project to the shared target before exposing it as
+      // the active project. Monitor Run can otherwise observe the new IDE files
+      // while the shared worker still owns the preceding project.
+      await stageOpenedProject(result.project);
       setWorkingFolder(folder);
       setRememberedFolder(folder);
       setRememberedFolderCanAttach(true);
@@ -933,7 +921,6 @@ export function IdeApp() {
       replacePendingFolderDeletions(() => new Set());
       setCheckOk(null);
       setCheckDetail("Current files have not been checked.");
-      await stageOpenedProject(result.project);
       setOperationDetail(
         `Opened project folder ${folder.name}: ${Object.keys(result.project.files).length} supported file${
           Object.keys(result.project.files).length === 1 ? "" : "s"
@@ -1034,6 +1021,7 @@ export function IdeApp() {
         if (selection?.projectAttached) return;
       }
       if (!workspace) {
+        await stageOpenedProject(snapshot);
         projectRef.current = snapshot;
         setProject(snapshot);
         setActivePath(snapshot.entrypoint);
@@ -1049,7 +1037,6 @@ export function IdeApp() {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
-        await stageOpenedProject(snapshot);
         setOperationDetail(
           `${snapshot.name} is stored temporarily in Chrome. Choose a course folder to create its project folder.`,
         );
@@ -1321,6 +1308,7 @@ export function IdeApp() {
           newProjectDraft,
           pendingProject,
         );
+        await stageOpenedProject(pendingProject);
         projectRef.current = pendingProject;
         setProject(pendingProject);
         setActivePath(pendingProject.entrypoint);
@@ -1336,7 +1324,6 @@ export function IdeApp() {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
-        await stageOpenedProject(pendingProject);
         setNewProjectOpen(false);
         setPendingProject(null);
         setNewProjectDraft("");
@@ -1749,7 +1736,7 @@ export function IdeApp() {
             aria-label="Run on"
             className="target-select"
             onChange={(event) =>
-              setTargetPreference((current) => ({
+              updateTargetPreference((current) => ({
                 ...current,
                 kind: event.target.value as TargetKind,
               }))
@@ -2059,12 +2046,22 @@ export function IdeApp() {
                 <button
                   className="folder-reconnect"
                   disabled={!supportsWorkingFolders()}
-                  onClick={selectWorkspaceFolder}
-                  title="Choose the parent folder that contains your UCSBXRP project folders."
+                  onClick={
+                    workingFolder ? selectWorkspaceFolder : saveProjectFiles
+                  }
+                  title={
+                    workingFolder
+                      ? "Choose a different parent folder for UCSBXRP projects."
+                      : workspaceFolder
+                        ? `Create a project folder for ${project.name}.`
+                        : "Choose the parent folder, then create a folder for this project."
+                  }
                 >
-                  {workspaceFolder
+                  {workingFolder
                     ? "Change course folder"
-                    : "Choose course folder"}
+                    : workspaceFolder
+                      ? "Create project folder"
+                      : "Choose course folder"}
                 </button>
                 {!workingFolder &&
                 rememberedFolder &&
@@ -2420,7 +2417,7 @@ export function IdeApp() {
             <span>Run on</span>
             <select
               onChange={(event) =>
-                setTargetPreference((current) => ({
+                updateTargetPreference((current) => ({
                   ...current,
                   kind: event.target.value as TargetKind,
                 }))
@@ -2445,11 +2442,18 @@ export function IdeApp() {
                   aria-label="Network"
                   aria-describedby="physical-connection-help"
                   onChange={(event) =>
-                    setTargetPreference((current) => ({
-                      ...current,
-                      physicalConnection: event.target
-                        .value as PhysicalConnectionMode,
-                    }))
+                    updateTargetPreference((current) => {
+                      const physicalConnection = event.target
+                        .value as PhysicalConnectionMode;
+                      return {
+                        ...current,
+                        physicalConnection,
+                        physicalEndpoint:
+                          physicalConnection === "access_point"
+                            ? "http://192.168.4.1"
+                            : "http://ucsb-xrp.local",
+                      };
+                    })
                   }
                   value={targetPreference.physicalConnection}
                 >
@@ -2470,7 +2474,7 @@ export function IdeApp() {
                     aria-describedby="physical-address-help"
                     defaultValue={targetPreference.physicalEndpoint}
                     onBlur={(event) =>
-                      setTargetPreference((current) => ({
+                      updateTargetPreference((current) => ({
                         ...current,
                         physicalEndpoint: event.target.value,
                       }))

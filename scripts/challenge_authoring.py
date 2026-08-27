@@ -16,11 +16,10 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_RELATIVE_PATH = Path("vendor/current/project_catalog.json")
 TODO_MARKER = "AUTHOR_TODO"
 README_SECTIONS = (
-    "## Objective",
-    "## Student implementations",
-    "## Supplied project files and services",
+    "## What you implement",
+    "## Provided files and tools",
     "## Program flow",
-    "## Work sequence",
+    "## Complete the challenge",
 )
 SPEC_SCHEMA_VERSION = 1
 ALLOWED_OVERRIDE_SUFFIXES = (".json", ".md", ".py", ".txt")
@@ -324,13 +323,11 @@ def render_spec_readme(spec):
     lines = [
         "# Challenge {}: {}".format(number, spec["title"]),
         "",
-        "## Objective",
-        "",
         spec["objective"],
         "",
-        "## Student implementations",
+        "## What you implement",
         "",
-        "| File | Class | Responsibility |",
+        "| File | Class | What it does |",
         "| --- | --- | --- |",
     ]
     for item in spec["student_implementations"]:
@@ -344,9 +341,9 @@ def render_spec_readme(spec):
     lines.extend(
         [
             "",
-            "## Supplied project files and services",
+            "## Provided files and tools",
             "",
-            "| File or service | Use in this challenge |",
+            "| File or tool | What it provides |",
             "| --- | --- |",
         ]
     )
@@ -370,7 +367,7 @@ def render_spec_readme(spec):
         ]
     )
     lines.extend("- " + item for item in spec["evidence"])
-    lines.extend(["", "## Work sequence", ""])
+    lines.extend(["", "## Complete the challenge", ""])
     lines.extend(
         "{}. {}".format(index, item)
         for index, item in enumerate(spec["work_sequence"], start=1)

@@ -145,7 +145,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
       "ucsb-xrp-target-v1",
       JSON.stringify({
         kind: "physical",
-        physicalConnection: "access_point",
+        physicalConnection: "station",
         physicalEndpoint: endpoint,
       }),
     );
@@ -159,9 +159,10 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · error · connection required",
   );
-  await expect(
-    ide.getByText(/Run and telemetry use Wi-Fi, not USB/),
-  ).toBeVisible();
+  await expect(ide.getByTestId("target-status")).toHaveAttribute(
+    "title",
+    /Run and telemetry use Wi-Fi, not USB/,
+  );
   await expect(ide.getByRole("button", { name: "Validate" })).toBeDisabled();
   await expect(
     ide.getByRole("button", { name: "Flash project" }),

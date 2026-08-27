@@ -30,7 +30,7 @@
     "version": "0.4.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
     "source_file_count": 16,
-    "source_sha256": "28cf2469d7b07f4ddac16575b97d1f82afafcff753ab7c668a47c7e30ad153b5",
+    "source_sha256": "776593b6702f1d0ff6a2934fc682ad64abcc9a954efc95ec01912c370fa5d982",
     "reference_compiler": {
       "repository": "micropython/micropython",
       "tag": "v1.28.0",

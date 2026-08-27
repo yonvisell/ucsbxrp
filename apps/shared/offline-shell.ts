@@ -17,6 +17,8 @@ export const OFFLINE_SHELL_EVENT = "ucsb-xrp:offline-shell-state";
 const offlineShellVersionKey = "ucsb-xrp-offline-shell-version-v1";
 const offlineShellReloadKey = "ucsb-xrp-offline-shell-reload-v1";
 const isolationReloadKey = "ucsb-xrp-isolation-reload-v1";
+const courseShellCachePrefix = "ucsb-xrp-course-shell-";
+let offlinePreparation: Promise<void> = Promise.resolve();
 
 export function initialOfflineShellState(
   production: boolean,
@@ -104,7 +106,10 @@ export function waitForOfflineShell(
   timeoutMs = 60_000,
 ): Promise<OfflineShellStatus> {
   const current = readOfflineShellStatus();
-  if (current.state === "ready" || current.state === "development") {
+  if (current.state === "development") {
+    return offlinePreparation.then(readOfflineShellStatus);
+  }
+  if (current.state === "ready") {
     return Promise.resolve(current);
   }
   if (current.state === "error" || current.state === "unsupported") {
@@ -141,6 +146,33 @@ export function waitForOfflineShell(
     }, timeoutMs);
     window.addEventListener(OFFLINE_SHELL_EVENT, onState);
   });
+}
+
+async function removeProductionShellFromDevelopment(basePath: string) {
+  if (!("serviceWorker" in navigator) || !("caches" in window)) return;
+
+  const scope = new URL(basePath, window.location.origin).toString();
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  const matching = registrations.filter(
+    (registration) => registration.scope === scope,
+  );
+  const controlledByOldShell =
+    matching.length > 0 && Boolean(navigator.serviceWorker.controller);
+  await Promise.all(matching.map((registration) => registration.unregister()));
+  const cacheNames = await caches.keys();
+  await Promise.all(
+    cacheNames
+      .filter((name) => name.startsWith(courseShellCachePrefix))
+      .map((name) => caches.delete(name)),
+  );
+
+  // Unregistering does not detach a worker from a document it already
+  // controls. Reload once so development cannot read a stale production
+  // commissioning bundle from that worker.
+  if (controlledByOldShell) {
+    window.location.reload();
+    await new Promise<void>(() => undefined);
+  }
 }
 
 async function waitForWorker(worker: ServiceWorker) {
@@ -276,6 +308,16 @@ export function registerOfflineShell() {
     supported,
   );
   publishState(initialState);
+
+  if (initialState === "development") {
+    offlinePreparation = removeProductionShellFromDevelopment(
+      import.meta.env.BASE_URL,
+    ).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Old course app storage could not be removed: ${message}`);
+    });
+    return;
+  }
 
   if (initialState !== "installing") {
     return;

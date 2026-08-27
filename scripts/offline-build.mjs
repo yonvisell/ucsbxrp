@@ -102,6 +102,11 @@ const CACHE_PREFIX = ${JSON.stringify(cachePrefix)};
 const SCOPE_PATH = ${JSON.stringify(manifest.base_path)};
 const PRECACHE_URLS = ${JSON.stringify(precacheUrls, null, 2)};
 const PRECACHE_PATHS = new Set(PRECACHE_URLS);
+const NETWORK_FIRST_PATHS = new Set([
+  ${JSON.stringify(manifestUrl)},
+  SCOPE_PATH + "course/commissioning/manifest.json",
+  SCOPE_PATH + "course/current/release.json",
+]);
 
 function withIsolationHeaders(response) {
   const headers = new Headers(response.headers);
@@ -210,6 +215,26 @@ self.addEventListener("fetch", (event) => {
   }
 
   const canonicalUrl = url.pathname;
+  if (NETWORK_FIRST_PATHS.has(canonicalUrl)) {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(
+          new Request(request, { cache: "no-store" }),
+        );
+        return withIsolationHeaders(response);
+      } catch {
+        const cache = await caches.open(CACHE_NAME);
+        const response = await cache.match(url.toString(), {
+          ignoreSearch: true,
+        });
+        if (response === undefined) {
+          throw new Error("Offline release information is unavailable");
+        }
+        return withIsolationHeaders(response);
+      }
+    })());
+    return;
+  }
   if (PRECACHE_PATHS.has(canonicalUrl)) {
     event.respondWith(
       caches

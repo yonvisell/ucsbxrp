@@ -295,18 +295,37 @@ export class RawReplSession implements MicroPythonSession {
   constructor(private readonly connection: SerialByteConnection) {}
 
   async enter(): Promise<void> {
-    await this.connection.write(Uint8Array.of(13, 3, 3, 3));
-    await sleep(150);
-    this.connection.clearInput();
+    // An interrupt can land inside an XRPLib timer callback instead of the
+    // course service. Send one interrupt at a time and wait for MicroPython's
+    // friendly prompt; this confirms that main.py and its worker have actually
+    // stopped before raw REPL begins.
+    await this.connection.write(Uint8Array.of(13));
+    let promptReached = false;
+    let promptError: unknown;
+    for (let attempt = 0; attempt < 4 && !promptReached; attempt += 1) {
+      await this.connection.write(Uint8Array.of(3));
+      try {
+        await this.connection.readUntil(">>> ", 500);
+        promptReached = true;
+      } catch (error) {
+        promptError = error;
+      }
+    }
+    if (!promptReached) {
+      throw new Error(
+        "The XRP did not stop its current program for USB setup.",
+        { cause: promptError },
+      );
+    }
     await this.connection.write(Uint8Array.of(13, 1));
-    await this.connection.readUntil("raw REPL; CTRL-B to exit\r\n", 10_000);
-    await this.connection.readUntil(Uint8Array.of(62), 2_000);
+    await this.connection.readUntil("raw REPL; CTRL-B to exit\r\n", 2_000);
+    await this.connection.readUntil(Uint8Array.of(62), 1_000);
     // A soft reset in raw REPL retires MicroPython state on both RP2350 cores
     // without running main.py again. Installation then owns one quiet
     // interpreter and cannot race the course service's project worker.
     await this.connection.write(Uint8Array.of(4));
-    await this.connection.readUntil("soft reboot\r\n", 10_000);
-    await this.connection.readUntil("raw REPL; CTRL-B to exit\r\n", 10_000);
+    await this.connection.readUntil("soft reboot\r\n", 2_000);
+    await this.connection.readUntil("raw REPL; CTRL-B to exit\r\n", 2_000);
   }
 
   async execute(code: string, timeoutMs = 10_000): Promise<ReplResult> {
@@ -463,9 +482,11 @@ export async function openRawRepl(
     return session;
   } catch (error) {
     try {
-      await session.resetAndClose();
+      // Entry did not establish a trustworthy command boundary. Close the
+      // transport immediately instead of waiting for another REPL command.
+      await session.close();
     } catch {
-      // A failed REPL entry may not accept a reset command.
+      // The useful entry error is reported below.
     }
     throw error;
   }

@@ -39,6 +39,23 @@ describe("course project identity", () => {
     );
   });
 
+  it("uses the same case-sensitive path order as MicroPython", async () => {
+    const revision = await projectRevision({
+      name: "Case-sensitive paths",
+      entrypoint: "main.py",
+      files: {
+        "main.py": "print('ready')\n",
+        "README.md": "# Project\n",
+        "robot_config.py": "WHEEL_DIAMETER_MM = 60.0\n",
+      },
+    });
+
+    // Calculated by device_service.ucsb_xrp_service.protocol.project_revision.
+    expect(revision).toBe(
+      "97643f377c0b19ce5365e0e8ce41597ad0ffe3862cd04432110e8e0262e2dca5",
+    );
+  });
+
   it("describes the runnable project without exposing its source", async () => {
     const descriptor = await describeProject({
       name: "  Straight run  ",

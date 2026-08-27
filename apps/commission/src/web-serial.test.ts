@@ -96,6 +96,7 @@ describe("Web Serial raw REPL", () => {
   it("enters raw REPL and uses raw-paste flow control", async () => {
     const writes: Uint8Array[] = [];
     const until = [
+      encoder.encode(">>> "),
       encoder.encode("raw REPL; CTRL-B to exit\r\n"),
       encoder.encode(">"),
       encoder.encode("soft reboot\r\n"),
@@ -133,6 +134,41 @@ describe("Web Serial raw REPL", () => {
       ),
     ).toBe(true);
     expect(closed).toBe(true);
+  });
+
+  it("retries an interrupt when a hardware callback receives the first one", async () => {
+    const writes: Uint8Array[] = [];
+    let promptAttempts = 0;
+    const afterPrompt = [
+      encoder.encode("raw REPL; CTRL-B to exit\r\n"),
+      encoder.encode(">"),
+      encoder.encode("soft reboot\r\n"),
+      encoder.encode("raw REPL; CTRL-B to exit\r\n"),
+    ];
+    const connection = {
+      write: async (value: Uint8Array | string) => {
+        writes.push(typeof value === "string" ? encoder.encode(value) : value);
+      },
+      readUntil: async (ending: Uint8Array | string) => {
+        if (ending === ">>> ") {
+          promptAttempts += 1;
+          if (promptAttempts === 1) {
+            throw new Error("Timed out waiting for the XRP over USB.");
+          }
+          return encoder.encode(">>> ");
+        }
+        return afterPrompt.shift()!;
+      },
+      close: async () => undefined,
+    };
+    const session = new RawReplSession(connection as never);
+
+    await session.enter();
+
+    expect(promptAttempts).toBe(2);
+    expect(
+      writes.filter((value) => value.length === 1 && value[0] === 3),
+    ).toHaveLength(2);
   });
 
   it("falls back to standard raw REPL when raw paste is unavailable", async () => {

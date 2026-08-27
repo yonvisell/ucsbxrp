@@ -39,7 +39,9 @@ test("starts the next challenge and carries forward only earlier student modules
   await expect(
     page.getByRole("heading", { name: "Name the project folder" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Create project" }).click();
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
   await expect(page.getByTestId("project-folder")).toContainText(
     "./1-Straight-Run",
   );
