@@ -36,6 +36,15 @@ export {
 } from "./virtual-target";
 export { describeProject, projectRevision } from "./project-identity";
 export {
+  MAX_PORTABLE_FILE_BYTES,
+  MAX_PORTABLE_PROJECT_BYTES,
+  MAX_PORTABLE_PROJECT_FILES,
+  MAX_PORTABLE_PROJECT_PATH_CHARACTERS,
+  PortableProjectError,
+  portableProjectError,
+  validatePortableProject,
+} from "./project-validation";
+export {
   COURSE_PROJECT_TEMPLATES,
   COURSE_STARTERS,
   DEFAULT_COURSE_PROJECT,

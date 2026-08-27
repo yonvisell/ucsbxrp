@@ -457,6 +457,42 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(self.reset_calls, [])
         self.assertEqual(self.server.loop.tasks, [])
 
+    def test_delayed_stop_signal_is_ignored_after_acknowledgment(self):
+        run_control = sys.modules["ucsb_xrp._run_control"]
+        self.service._run_id = 4
+        self.service._thread_active = True
+        self.service._stop_acknowledged_run_id = 4
+
+        asyncio.run(self.service._request_stop_after_response(4))
+
+        self.assertFalse(run_control.stop_requested)
+        self.assertEqual(self.server.loop.tasks, [])
+
+    def test_project_runner_preserves_stop_requested_after_run_dispatch(self):
+        run_control = sys.modules["ucsb_xrp._run_control"]
+        self.service._run_id = 5
+        run_control.stop_requested = True
+        self.service._stop_motors = lambda: None
+        with tempfile.TemporaryDirectory() as project_dir:
+            self.service._project_runner(
+                project_dir,
+                "main.py",
+                compile(
+                    "import ucsb_xrp._run_control as control\n"
+                    "assert control.stop_requested\n"
+                    "raise control.ProgramStopped()\n",
+                    "main.py",
+                    "exec",
+                ),
+                [],
+                5,
+            )
+
+        self.assertEqual(self.service._state, "ready")
+        self.assertEqual(self.service._detail, "Program stopped")
+        self.assertEqual(self.service._stop_acknowledged_run_id, 5)
+        self.assertFalse(run_control.stop_requested)
+
     def test_cooperative_stop_is_a_normal_program_result(self):
         run_control = sys.modules["ucsb_xrp._run_control"]
         self.service._stop_motors = lambda: None
@@ -761,7 +797,11 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         ):
             response = self.service.telemetry(
                 types.SimpleNamespace(
-                    query={"afterLogSeq": "0", "afterSampleSeq": "2"}
+                    query={
+                        "afterLogSeq": "0",
+                        "afterSampleSeq": "2",
+                        "runId": "0",
+                    }
                 )
             )
 
@@ -771,6 +811,48 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["sample"], result["samples"][-1])
         self.assertEqual(result["samples"][-1]["xMm"], 8.0)
         read_hardware.assert_not_called()
+
+    def test_active_telemetry_poll_renews_only_its_matching_run(self):
+        self.service._thread_active = True
+        self.service._run_id = 7
+        self.service._lease_deadline = 150
+        self.service._last_hardware = {
+            "leftEncoderCount": 0,
+            "rightEncoderCount": 0,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": None,
+            "batteryV": None,
+            "sensorError": None,
+        }
+
+        with patch.object(self.service.time, "ticks_ms", return_value=500):
+            self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "afterLogSeq": "0",
+                        "afterSampleSeq": "0",
+                        "runId": "6",
+                    }
+                )
+            )
+            self.assertEqual(self.service._lease_deadline, 150)
+            self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "afterLogSeq": "0",
+                        "afterSampleSeq": "0",
+                        "runId": "7",
+                    }
+                )
+            )
+
+        self.assertEqual(
+            self.service._lease_deadline,
+            500 + self.service.LEASE_MS,
+        )
 
     def test_idle_telemetry_adds_one_fresh_sample_to_the_batch(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]

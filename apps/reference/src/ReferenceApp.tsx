@@ -1078,6 +1078,7 @@ export function ReferenceApp() {
               name="Robot"
               signature="Robot(config: RobotConfig, bot, sensor_model, wheel_controller, differential_drive, odometry)"
               description="Assemble the hardware boundary and four selected components into one timed measurement and control service."
+              state="After start(), Robot keeps the latest RobotState, the next absolute sample deadline, and the most recent timing overrun. stop() changes the commanded motion to zero but leaves the latest measurements and pose available through state."
               constructorParameters={[
                 {
                   name: "config",
@@ -2189,6 +2190,7 @@ export function ReferenceApp() {
               name="StraightLineController"
               signature="StraightLineController(config: NavigationConfig)"
               description="Challenge 1 service that advances through one nonnegative straight-line distance using measured mean wheel position."
+              state="After start(), the controller keeps the starting mean wheel position, requested distance, and completion state for the current move. Calling start() begins a new move."
               constructorParameters={[
                 {
                   name: "config",
@@ -2390,6 +2392,7 @@ export function ReferenceApp() {
               name="DeliveryMission"
               signature="DeliveryMission(task: DeliveryTask, navigation: NavigationControllerBase, planner: GridPlannerBase)"
               description="Supplied Challenge 5 sequence: sample the observed feature, update the map, plan a route, and follow its navigation goals."
+              state="The mission keeps its task, navigation controller, and planner. result is None before and during run(), then becomes delivered or no_path when run() finishes normally."
               constructorParameters={[
                 {
                   name: "task",
@@ -2487,7 +2490,8 @@ export function ReferenceApp() {
             <ClassReference
               name="XRPBot"
               signature="XRPBot(config: RobotConfig)"
-              description="Physical or simulated XRPLib boundary used by Robot and bounded hardware diagnostics."
+              description="Provides the sensor reads and motor commands used by Robot. A project may also use XRPBot directly when it intentionally needs low-level device access."
+              state="The object keeps its RobotConfig and references to the XRP motors, encoders, USER button, and ultrasonic sensor. Encoder positions and motor output belong to those devices rather than to a separate software estimate."
               constructorParameters={[
                 {
                   name: "config",
@@ -2836,6 +2840,7 @@ function ClassReference({
   name,
   properties = [],
   signature,
+  state,
 }: {
   children?: ReactNode;
   constructorErrors: string[];
@@ -2844,11 +2849,17 @@ function ClassReference({
   name: string;
   properties?: Parameter[];
   signature: string;
+  state?: string;
 }) {
   return (
     <article className="class-reference">
       <h3>{name}</h3>
       <p>{description}</p>
+      {state && (
+        <p>
+          <strong>State between calls:</strong> {state}
+        </p>
+      )}
       <h4>Constructor</h4>
       <code className="class-signature">{signature}</code>
       {constructorParameters.length > 0 && (

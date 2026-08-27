@@ -150,13 +150,13 @@ async function seedRememberedProjectFolder(page: Page) {
   });
 }
 
-test("creates the untouched default inside the selected course folder", async ({
+test("creates the untouched default inside the selected working folder", async ({
   page: ide,
 }) => {
   await installMemoryFolderPicker(ide);
   await ide.goto("/ide/");
 
-  await ide.getByRole("button", { name: "Choose course folder" }).click();
+  await ide.getByRole("button", { name: "Choose working folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
     "./Expanding-Spiral",
   );
@@ -192,7 +192,7 @@ test("automatically saves project edits and retains four prior states", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Choose course folder" }).click();
+  await ide.getByRole("button", { name: "Choose working folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
     "./Expanding-Spiral",
   );
@@ -249,7 +249,7 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   await ide.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
     ide.getByText(
-      "1 · Straight Run is stored temporarily in Chrome. Choose a course folder to create its project folder.",
+      "1 · Straight Run is stored temporarily in Chrome. Choose a working folder to create its project folder.",
     ),
   ).toBeVisible();
   await monitor.getByRole("button", { name: "Choose project folder" }).click();

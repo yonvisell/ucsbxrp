@@ -94,25 +94,22 @@ exceptions for both classes.
 
 `world.json` also defines the arena shown by the virtual XRP and Monitor.
 
-## Program flow
+## How the program runs
 
-```text
-finish distance
-      |
-      v
-StraightLineController ---- requested forward speed
-                                      |
-                                      v
-supplied DifferentialDrive ---- requested wheel speeds
-                                      |
-                                      v
-WheelSpeedController* --------- left/right motor commands
-       ^                              |
-       | measured wheel speeds        v
-       +---------------- SensorModel* <- encoder counts and time
+1. `StraightLineController` compares measured wheel travel with the finish
+   distance and requests a forward speed.
+2. The supplied `DifferentialDrive` converts that request into target left and
+   right wheel speeds.
+3. Your `WheelSpeedController` compares the target speeds with the measured
+   speeds and returns left and right motor commands.
+4. The target applies those commands and reads the encoder counts and device
+   time.
+5. Your `SensorModel` converts those readings into wheel travel, increments,
+   and speed estimates. The next controller update uses those speed estimates,
+   closing the feedback loop.
 
-* student implementation
-```
+Your work in this challenge is `SensorModel` and `WheelSpeedController`. The
+other classes in the sequence are supplied.
 
 ## Complete the challenge
 
@@ -135,8 +132,8 @@ WheelSpeedController* --------- left/right motor commands
 8. Place the XRP at the marked start of a clear lane. Run the same project and
    record distance, time, requested speed, measured speed, and motor command.
 
-After both student components work in Challenge 1, select **Start Challenge 2 ·
-Turn and Return** in the IDE. The IDE creates a separate Challenge 2 project,
+After both student components work in Challenge 1, select **Create Challenge 2 ·
+Turn and Return project** in the IDE. The IDE creates a separate Challenge 2 project,
 copies `sensor_model.py` and `wheel_speed_controller.py`, and keeps whether each
 student component is selected. The Challenge 1 project remains unchanged.
 

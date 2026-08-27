@@ -116,18 +116,18 @@ export function GuideApp() {
               <strong> Create</strong>. The IDE asks for a project name, creates
               that folder, and opens it. <strong>Open project</strong> opens an
               existing project folder. After you grant the IDE access to that
-              folder, edits save automatically. Open the <strong>File</strong>{" "}
-              menu to rename, duplicate, delete, or make the active Python file
-              the main file.
+              folder, edits save automatically. The file menu below the file
+              list applies to the selected file: rename or duplicate it, delete
+              it, or choose which Python file Run executes first.
             </p>
             <p>
-              At the end of a challenge, <strong>Start next challenge</strong>{" "}
-              creates a separate project folder. The IDE lists the student
-              component files that will be copied. If the completed project uses
-              your version of a component, the new project copies that file and
-              continues to use it. A newly introduced component begins with the
-              provided version selected until yours is ready. The completed
-              project is not changed.
+              When you are ready to continue,{" "}
+              <strong>Create next challenge project</strong> makes a separate
+              project from the next challenge template. It copies the student
+              component files used in the current project and preserves which
+              student implementations are selected. New component files begin
+              with the supplied implementation selected. The current project is
+              not changed.
             </p>
             <div
               className="project-catalog"
@@ -141,8 +141,9 @@ export function GuideApp() {
                     and wheel-speed control.
                   </li>
                   <li>
-                    <strong>Turn and Return</strong> — add differential-drive
-                    kinematics and odometry.
+                    <strong>Turn and Return</strong> — calculate individual
+                    wheel speeds and estimate position and heading from wheel
+                    travel.
                   </li>
                   <li>
                     <strong>Waypoint Courier</strong> — add ordered-goal
@@ -175,16 +176,17 @@ export function GuideApp() {
                   <li>
                     <strong>MicroPython foundations</strong> — seven short files
                     covering values, functions, collections, classes,
-                    exceptions, modules, robot motion, and a program organized
-                    into explicit operating states.
+                    exceptions, modules, robot motion, and a state-machine
+                    program that changes behavior according to its current
+                    operating state.
                   </li>
                 </ul>
               </section>
             </div>
             <div className="callout">
-              Before you choose a course folder, edits exist only as a temporary
-              browser copy. Choose a course folder before relying on the
-              project.
+              Without a course folder, the project is stored only in this
+              site&apos;s browser data. Choose a course folder so the project is
+              also saved as ordinary files on the computer.
             </div>
           </GuideSection>
 
@@ -246,17 +248,13 @@ export function GuideApp() {
                 Do not add sleep_ms() to a loop that calls Robot.step().
               </strong>
               <p>
-                <code>Robot.step()</code> schedules samples from an absolute
-                deadline set by <code>RobotConfig.sample_period_ms</code>. It
-                applies the requested motion, waits only for the remaining time
-                before that deadline, reads the sensors once, updates the
-                selected components, and publishes telemetry. An additional{" "}
-                <code>sleep_ms()</code> postpones the next command and sensor
-                sample. The resulting sample interval no longer matches the
-                configured period, which directly changes encoder-based speed
-                estimates and feedback-controller behavior. A deliberate delay
-                is appropriate only outside the measured control loop, when the
-                program is intentionally not commanding and sampling the robot.
+                <code>Robot.step()</code> already waits as needed to maintain{" "}
+                <code>RobotConfig.sample_period_ms</code>. Adding{" "}
+                <code>sleep_ms()</code> in the same loop inserts a second delay,
+                so sensor samples arrive later than the configured interval.
+                That changes encoder-based wheel-speed estimates and
+                wheel-control behavior. Use <code>sleep_ms()</code> only outside
+                a loop that calls <code>Robot.step()</code>.
               </p>
             </div>
             <p>
@@ -275,13 +273,11 @@ export function GuideApp() {
               Challenge projects provide one focused file for each component you
               implement. <strong>Validate</strong> checks Python syntax.{" "}
               <strong>Test components</strong> runs{" "}
-              <code>component_checks.py</code> in MicroPython without starting
-              either robot. Each example supplies known inputs to one student
-              method and compares its returned value or retained state with the
-              stated result. The checks continue after an unimplemented
-              component so completed components can still be evaluated. Students
-              use the supplied <code>component_checks.py</code> without editing
-              it.
+              <code>component_checks.py</code> in MicroPython without running
+              the virtual or physical XRP. Each check gives one method known
+              inputs, then compares its returned value or stored class state
+              with the stated result. Do not edit the supplied{" "}
+              <code>component_checks.py</code>.
             </p>
             <div className="result-key" aria-label="Component check results">
               <div>
@@ -329,15 +325,13 @@ export function GuideApp() {
             title="Physical XRP connection"
           >
             <p>
-              Initial USB setup requires the desktop version of Google Chrome or
-              Microsoft Edge on Windows or macOS. These browsers can open a
-              serial connection to the XRP directly from the setup page. Safari
-              and browsers on phones or tablets do not provide that USB
-              connection. Open <a href="../commission/">Set up or repair XRP</a>
-              . The same action is available in IDE Settings. USB installs or
-              repairs the course software and configures the XRP. After setup,
-              the IDE transfers projects and the Monitor receives telemetry over
-              the Wi-Fi connection selected in the setup page.
+              Use <a href="../commission/">Set up or repair XRP</a> in desktop
+              Chrome or Edge on Windows or macOS. Connect the XRP by USB-C; the
+              setup page uses the browser&apos;s USB serial connection to
+              install or repair course software and configure Wi-Fi. Safari and
+              mobile browsers cannot perform USB setup. After setup, project
+              transfer and telemetry use the selected Wi-Fi connection. The same
+              setup action is available in IDE Settings.
             </p>
             <ol className="procedure">
               <li>
@@ -376,12 +370,11 @@ export function GuideApp() {
             title="Telemetry, recording, and export"
           >
             <p>
-              The Monitor shows the simulated or measured world, live telemetry,
-              controls and watch values created by the running program, signal
-              histories, and recording and export controls. The target selected
-              in the IDE is also selected in the Monitor. Program output and the
-              complete target event log remain in the IDE terminal, including
-              when Run is selected in the Monitor.
+              The Monitor shows the world view, live telemetry, program-defined
+              controls and values, signal plots, and recording and export tools.
+              IDE and Monitor use the same selected target and Run/Stop state.
+              Runs started in either app write program output and target events
+              to the IDE terminal.
             </p>
             <dl className="term-list">
               <div>
@@ -415,26 +408,23 @@ export function GuideApp() {
               telemetry, or plots.
             </p>
             <p>
-              A program can create sliders, toggles, and choices with{" "}
-              <code>ucsb_xrp.live</code>. It may publish current intermediate
-              values with <code>live.watch()</code>, or a numerical value that
-              can be plotted with <code>live.plot()</code>. Each named plot
-              value appears as a selectable signal in Monitor Controls. Use
-              these functions for current state; use a recording when the full
-              time history is required.
+              A program can add controls with <code>ucsb_xrp.live</code>.{" "}
+              <code>live.watch()</code> shows the latest named value;{" "}
+              <code>live.plot()</code> adds a named numerical signal to the Plot
+              signals list. These displays show the current run. Record
+              telemetry when you need a saved time history.
             </p>
             <ol className="procedure">
               <li>
-                Select <strong>Start recording</strong>, then run or observe the
-                robot.
+                Select <strong>Start recording</strong> before the interval you
+                want to save.
               </li>
               <li>
-                Select <strong>Stop recording</strong> when the evidence is
-                complete.
+                Select <strong>Stop recording</strong> when that interval ends.
               </li>
               <li>
-                Export telemetry as CSV, selected plots as SVG or PNG, or a
-                recorded world replay as WebM.
+                Then export telemetry as CSV, selected plots as SVG or PNG, or
+                the recorded world replay as WebM.
               </li>
             </ol>
           </GuideSection>
@@ -445,20 +435,16 @@ export function GuideApp() {
             title="Using UCSBXRP without internet"
           >
             <p>
-              Open the course site once while the computer has internet access
-              and wait for the green status{" "}
-              <strong>Course apps saved in Chrome</strong>. Chrome then has a
-              browser-owned copy of the IDE, Monitor, virtual XRP, Guide, API
-              reference, and setup page. This copy belongs to the Chrome profile
-              that loaded it. Another browser or Chrome profile must complete
-              its own first online load.
+              Open UCSBXRP once while the computer has internet access and wait
+              for <strong>Course apps saved in Chrome</strong>. Chrome saves the
+              IDE, Monitor, virtual XRP, Guide, API reference, and setup page in
+              the current Chrome profile. Another browser or Chrome profile must
+              complete its own first online load.
             </p>
             <p>
               The course application copy and your project files are separate.
               Project files are ordinary files in the course folder you choose;
-              the browser-owned application is not copied into that folder. On
-              the first load or after a course update, Chrome may refresh the
-              page once before Virtual Run becomes available.
+              the saved application is not copied into that folder.
             </p>
             <div className="offline-capabilities">
               <section>
@@ -503,10 +489,6 @@ export function GuideApp() {
                     in the course folder; select that folder again to restore
                     access.
                   </li>
-                  <li>
-                    The saved course apps are not copied into the course folder;
-                    project files remain separate.
-                  </li>
                 </ul>
               </section>
             </div>
@@ -516,9 +498,8 @@ export function GuideApp() {
               an application launcher and a separate UCSBXRP window; it is not
               required for offline use and does not copy the application into
               the course folder. Whenever UCSBXRP opens with internet access,
-              Chrome checks for a newer course release. An available update is
-              saved first and applied only after the application can reload
-              without interrupting an active run or an unfinished project save.
+              Chrome checks for a newer course release. If an update reloads the
+              page, wait until the target returns to ready before running.
             </p>
           </GuideSection>
 
@@ -554,11 +535,13 @@ export function GuideApp() {
               </li>
               <li>Pull before beginning a work session.</li>
               <li>
-                After a working checkpoint, review the changed files, write a
-                short message describing the result, commit, and push.
+                After the code runs correctly or a meaningful change is
+                complete, review the changed files, commit with a message
+                describing the result, and push.
               </li>
               <li>
-                Before another teammate continues, they pull the latest commit.
+                Before another teammate edits the project, they pull the latest
+                commit.
               </li>
             </ol>
             <div className="callout">
@@ -643,10 +626,11 @@ export function GuideApp() {
                 <strong>Reconnect</strong> and choose the same folder again.
               </li>
               <li>
-                <strong>No physical pose appears:</strong> stationary sensors
-                can still be valid. Pose appears when the project uses the
-                course <code>Robot</code> loop and publishes its odometry
-                estimate.
+                <strong>No physical pose appears:</strong> confirm that the
+                project uses the course <code>Robot</code> loop and that its
+                odometry component returns a <code>Pose</code>. A physical XRP
+                has no independent ground-truth position; the Monitor can show
+                only the pose published by the running project.
               </li>
               <li>
                 <strong>A component check says NOT IMPLEMENTED:</strong> open
@@ -678,12 +662,11 @@ export function GuideApp() {
             title="System structure"
           >
             <p>
-              A course project uses one Python interface on both targets. The
-              target-specific <code>XRPBot</code> implementation is the boundary
-              between course code and either simulated or physical hardware.
-              Navigation, odometry, mapping, planning, and mission logic remain
-              in the Python project; the browser does not perform them for the
-              student program.
+              The same project imports the same UCSB XRP API on both targets.
+              <code>XRPBot</code> connects that API either to simulated XRPLib
+              devices or to the RP2350 hardware. Sensing, odometry, navigation,
+              mapping, planning, and mission decisions remain in the Python
+              project.
             </p>
             <SystemBoundaryFlow />
             <h3>Student components</h3>
@@ -705,11 +688,10 @@ export function GuideApp() {
                   </a>
                 </dt>
                 <dd>
-                  Receives requested wheel speeds from DifferentialDrive and
-                  measured wheel-speed estimates from SensorModel. It returns
-                  normalized left and right motor commands that act to reduce
-                  the difference. The supplied controller uses the current
-                  values only; another valid implementation may retain state.
+                  Compares requested wheel speeds with SensorModel&apos;s
+                  measured wheel-speed estimates and returns limited left and
+                  right motor commands. An implementation may retain controller
+                  state between samples.
                 </dd>
               </div>
               <div>
@@ -751,8 +733,9 @@ export function GuideApp() {
                   <a href="../reference/#grid-planner">GridPlanner</a>
                 </dt>
                 <dd>
-                  Builds a route through adjacent free cells in a project map.
-                  The search data can remain local to one planning call.
+                  Builds a route through free cells in a project map. Each{" "}
+                  <code>plan()</code> call solves the supplied start-to-goal
+                  request independently.
                 </dd>
               </div>
             </dl>
@@ -778,8 +761,8 @@ export function GuideApp() {
                 </tr>
                 <tr>
                   <td>Project transfer</td>
-                  <td>Browser worker file system</td>
-                  <td>Local Wi-Fi service on the XRP</td>
+                  <td>Temporary browser storage</td>
+                  <td>Project storage on the XRP</td>
                 </tr>
                 <tr>
                   <td>Telemetry</td>
@@ -794,11 +777,8 @@ export function GuideApp() {
               </tbody>
             </table>
             <p>
-              The <a href="../reference/">UCSB XRP API reference</a> gives
-              method-level details. Instructors can use the{" "}
-              <a href="../author/">challenge creation wizard</a> to prepare and
-              check a new challenge specification before adding it to the course
-              repository.
+              The <a href="../reference/">UCSB XRP API reference</a> gives the
+              complete method definitions and examples.
             </p>
           </GuideSection>
         </main>

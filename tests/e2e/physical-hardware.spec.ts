@@ -158,6 +158,10 @@ function expectOrdered(text: string, stages: readonly string[]): void {
   }
 }
 
+function occurrenceCount(text: string, value: string): number {
+  return text.split(value).length - 1;
+}
+
 test("IDE and Monitor complete the bounded physical XRP workflow", async ({
   context,
 }) => {
@@ -248,7 +252,8 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
 
     // A project edit is shared immediately. Monitor stays usable, but its Run
     // action now identifies that the edited project must be validated and
-    // flashed before it starts. One click performs that coherent sequence.
+    // flashed before it starts. Stop immediately after the running state to
+    // exercise the real Run/Stop ordering before main.py reaches its loop.
     await ide.getByRole("button", { name: "New file", exact: true }).click();
     await ide.getByLabel("Project-relative path").fill("notes.md");
     await ide.getByRole("button", { name: "Create file" }).click();
@@ -261,9 +266,6 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     await expect(ideStatus).toContainText("Physical XRP · running", {
       timeout: 5_000,
     });
-    await expect(ide.getByRole("log")).toContainText(noMotionSentinel, {
-      timeout: 5_000,
-    });
     await monitor
       .locator(".app-header")
       .getByRole("button", { name: "Stop", exact: true })
@@ -273,14 +275,26 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     });
 
     // Third run: start from IDE and stop from Monitor to exercise the other
-    // cross-window command direction.
+    // cross-window command direction. A fresh sentinel proves that the
+    // immediate Stop did not leak into this later run and that output history
+    // was retained rather than replaced.
+    const outputBeforeThirdRun = await ide.getByRole("log").innerText();
+    const sentinelCountBeforeThirdRun = occurrenceCount(
+      outputBeforeThirdRun,
+      noMotionSentinel,
+    );
     await ide.getByRole("button", { name: "Run", exact: true }).click();
     await expect(monitorStatus).toContainText("Physical XRP · running", {
       timeout: 5_000,
     });
-    await expect(ide.getByRole("log")).toContainText(noMotionSentinel, {
-      timeout: 5_000,
-    });
+    await expect
+      .poll(async () =>
+        occurrenceCount(
+          await ide.getByRole("log").innerText(),
+          noMotionSentinel,
+        ),
+      )
+      .toBeGreaterThan(sentinelCountBeforeThirdRun);
     await monitor
       .locator(".app-header")
       .getByRole("button", { name: "Stop", exact: true })
@@ -336,10 +350,25 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
         .locator(".app-header")
         .getByRole("button", { name: "Stop", exact: true })
         .click();
-      await expect(ideStatus).toContainText("Physical XRP · ready", {
-        timeout: 5_000,
-      });
-      expect(Date.now() - motionStopStarted).toBeLessThan(3_000);
+      try {
+        await expect(ideStatus).toContainText("Physical XRP · ready", {
+          timeout: 5_000,
+        });
+      } catch (error) {
+        await ide.getByRole("tab", { name: /System log/ }).click();
+        const systemLog = await ide.getByRole("log").innerText();
+        throw new Error(
+          `${error instanceof Error ? error.message : String(error)}\n\nSystem log at failed motion Stop:\n${systemLog}`,
+        );
+      }
+      const motionStopElapsedMs = Date.now() - motionStopStarted;
+      if (motionStopElapsedMs >= 3_000) {
+        await ide.getByRole("tab", { name: /System log/ }).click();
+        const systemLog = await ide.getByRole("log").innerText();
+        throw new Error(
+          `Motion Stop took ${motionStopElapsedMs} ms.\n\nSystem log at slow motion Stop:\n${systemLog}`,
+        );
+      }
       await expect(monitor.getByTestId("motor-effort")).toHaveText(
         "0.00 / 0.00",
       );

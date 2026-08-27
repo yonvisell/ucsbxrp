@@ -376,7 +376,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
   await ide
-    .getByRole("button", { name: "Choose course folder", exact: true })
+    .getByRole("button", { name: "Choose working folder", exact: true })
     .click();
   await ide.getByLabel("Folder name").fill("virtual-browser-check");
   await ide

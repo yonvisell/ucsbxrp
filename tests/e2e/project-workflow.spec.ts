@@ -23,7 +23,84 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("starts the next challenge and carries forward only earlier student modules", async ({
+test("Open project rejects a working folder without flattening its child projects", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.evaluate(async () => {
+    const browserRoot = await navigator.storage.getDirectory();
+    try {
+      await browserRoot.removeEntry("strict-project-boundary", {
+        recursive: true,
+      });
+    } catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotFoundError") {
+        throw error;
+      }
+    }
+    const workingFolder = await browserRoot.getDirectoryHandle(
+      "strict-project-boundary",
+      { create: true },
+    );
+    const write = async (
+      folder: FileSystemDirectoryHandle,
+      path: string,
+      content: string,
+    ) => {
+      const file = await folder.getFileHandle(path, { create: true });
+      const writable = await file.createWritable();
+      await writable.write(content);
+      await writable.close();
+    };
+    for (const name of ["alpha", "beta"]) {
+      const project = await workingFolder.getDirectoryHandle(name, {
+        create: true,
+      });
+      await write(
+        project,
+        ".ucsb-xrp-project.json",
+        `${JSON.stringify({ name, entrypoint: "main.py" })}\n`,
+      );
+      await write(project, "main.py", `print("${name}")\n`);
+    }
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => workingFolder,
+    });
+  });
+
+  const originalFolderLabel = await page
+    .getByTestId("project-folder")
+    .textContent();
+  await page.getByRole("button", { name: "Open project" }).click();
+
+  await expect(page.locator(".project-operation-detail")).toContainText(
+    "Choose the project folder that contains .ucsb-xrp-project.json, not the working folder that contains your projects.",
+  );
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    originalFolderLabel ?? "",
+  );
+  await expect(
+    page.getByRole("button", { name: /Open alpha\/main\.py/ }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Open beta\/main\.py/ }),
+  ).toHaveCount(0);
+  const childSources = await page.evaluate(async () => {
+    const browserRoot = await navigator.storage.getDirectory();
+    const workingFolder = await browserRoot.getDirectoryHandle(
+      "strict-project-boundary",
+    );
+    const read = async (name: string) => {
+      const project = await workingFolder.getDirectoryHandle(name);
+      return (await (await project.getFileHandle("main.py")).getFile()).text();
+    };
+    return Promise.all([read("alpha"), read("beta")]);
+  });
+  expect(childSources).toEqual(['print("alpha")\n', 'print("beta")\n']);
+});
+
+test("creates the next challenge project and carries forward only earlier student modules", async ({
   page,
 }) => {
   await page.goto("/ide/");
@@ -31,9 +108,13 @@ test("starts the next challenge and carries forward only earlier student modules
   await page.getByRole("button", { name: "Create", exact: true }).click();
 
   const next = page.getByRole("button", {
-    name: "Start Challenge 2 · Turn and Return",
+    name: "Create Challenge 2 · Turn and Return project",
   });
   await expect(next).toBeVisible();
+  await expect(next).toHaveAttribute(
+    "title",
+    "Create a separate Challenge 2 · Turn and Return project and copy your completed component files from this project.",
+  );
   await next.click();
 
   await expect(

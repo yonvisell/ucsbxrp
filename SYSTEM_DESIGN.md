@@ -68,13 +68,18 @@ replacing that file selects its declared default world.
 Catalog entries are complete `CourseProject` values, not a persistent special
 mode. A course folder is a parent directory; each project is one named child
 directory containing source, metadata, rotated copies, run output, and
-telemetry. When a course folder is active, loading a template first asks for the
-child-directory name and writes the complete project immediately. Without a
-course folder, it remains in the independent browser backup until Save selects a
-course folder and names the project folder. Any Python file can be selected as its
-entrypoint. Course-folder and active-project handles are retained separately in
-IndexedDB when structured handle storage is available. If project read/write
-permission does not survive, one explicit Reconnect gesture restores it.
+telemetry. **Open project** accepts only a directory with a valid root
+`.ucsb-xrp-project.json` and the declared main file. It rejects a course-folder
+parent, nested project metadata, and malformed metadata before reading child
+trees or changing the active autosave connection. Legacy root metadata without
+session or digest fields remains importable. When a course folder is active,
+loading a template first asks for the child-directory name and writes the
+complete project immediately. Without a course folder, it remains in the
+independent browser backup until Save selects a course folder and names the
+project folder. Any Python file can be selected as its entrypoint. Course-folder
+and active-project handles are retained separately in IndexedDB when structured
+handle storage is available. If project read/write permission does not survive,
+one explicit Reconnect gesture restores it.
 Folder writes are debounced, serialized, and revision/epoch checked so an older
 queued snapshot cannot overwrite a newer edit or explicit save. Before
 overwriting source, the previous complete project is rotated through four JSON
@@ -328,13 +333,15 @@ The versioned JSON API provides:
 - polled hardware telemetry and live-program state/parameter updates.
 
 Commands carry bounded request IDs and return correlated, cached replies so a
-retry does not repeat a state-changing operation. Inputs have explicit file,
-path, and byte limits. Browser CORS and Private Network Access preflights are
-answered by the device. Each boot has an identifier, so clients reset log
-cursors when sequence numbers restart. The client uses request deadlines,
-bounded polling, one shared connection, and short repeated discovery probes
-after an intentional reboot; an in-flight telemetry timeout cannot replace the
-reconnecting status.
+retry does not repeat a state-changing operation. Flash, Run, and Stop repeat an
+interrupted request once with that same ID. If both Flash replies are lost, the
+browser treats the operation as complete only when the XRP's retained project
+manifest reports the exact requested revision. Inputs have explicit file, path,
+and byte limits. Browser CORS and Private Network Access preflights are answered
+by the device. Each boot has an identifier, so clients reset log cursors when
+sequence numbers restart. The client uses request deadlines, bounded polling,
+one shared connection, and short repeated discovery probes after an intentional
+reboot; an in-flight telemetry timeout cannot replace the reconnecting status.
 The shared client polls active-run telemetry every 60 ms and returns to 250 ms
 when idle. This improves live plots without multiplying idle sensor-bus reads.
 

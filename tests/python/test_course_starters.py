@@ -458,7 +458,7 @@ class CourseStarterTests(unittest.TestCase):
         required_sections = (
             "## What you implement",
             "## Provided files and tools",
-            "## Program flow",
+            "## How the program runs",
             "## Complete the challenge",
         )
 
@@ -468,8 +468,11 @@ class CourseStarterTests(unittest.TestCase):
                 for section in required_sections:
                     self.assertIn(section, text)
                 self.assertNotIn("## Objective", text)
-                self.assertIn("```text", text)
-                self.assertIn("* student implementation", text)
+                self.assertNotIn("## Program flow", text)
+                self.assertTrue(
+                    "Your work" in text or "Your new work" in text,
+                    "README must distinguish current student work from supplied or carried-forward code",
+                )
                 self.assertIn("component_checks.py", text)
                 self.assertIn("course_setup.py", text)
                 for filename in student_files:
@@ -520,13 +523,12 @@ class CourseStarterTests(unittest.TestCase):
             readme = (STARTERS / challenge_id / "README.md").read_text(
                 encoding="utf-8"
             )
-            self.assertIn("## Start this challenge", readme)
-            start_section = readme.split("## Start this challenge", 1)[1].split(
-                "\n## ", 1
-            )[0]
+            heading = "## Continue from the previous challenge"
+            self.assertIn(heading, readme)
+            start_section = readme.split(heading, 1)[1].split("\n## ", 1)[0]
             normalized = " ".join(start_section.split())
             with self.subTest(challenge=challenge_id):
-                self.assertIn("Start " + entry["label"], normalized)
+                self.assertIn("Create " + entry["label"] + " project", normalized)
                 self.assertIn("separate project", normalized)
                 self.assertIn("folder remains unchanged", normalized)
                 self.assertIn("keeps whether", normalized)

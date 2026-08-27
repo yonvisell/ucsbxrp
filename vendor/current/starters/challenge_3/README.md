@@ -21,10 +21,10 @@ radians or `None`.
 Read these fields from `self.config`. Do not copy their current numerical values
 into `navigation_controller.py`.
 
-## Start this challenge
+## Continue from the previous challenge
 
-Open your Challenge 2 project and select **Start Challenge 3 · Waypoint
-Courier**. The IDE creates a separate project. Your new work is
+Open your Challenge 2 project and select **Create Challenge 3 · Waypoint
+Courier project**. The IDE creates a separate project. Your new work is
 `navigation_controller.py`; the new project begins with the supplied
 NavigationController selected. The IDE carries forward your SensorModel,
 WheelSpeedController, DifferentialDrive, and Odometry files and keeps whether
@@ -86,27 +86,24 @@ types.
 `world.json` is the single source for waypoint order, coordinates, and optional
 headings. Edit the world rather than copying waypoint coordinates into code.
 
-## Program flow
+## How the program runs
 
-```text
-ordered ROUTE
-     |
-     v
-NavigationController* <---------------- current Pose
-     |                                      ^
-     | requested forward speed + turn rate  |
-     v                                      |
-   Robot -> wheel control -> motors -> encoders -> Odometry*
+1. `main.py` gives the ordered `ROUTE` to your `NavigationController`.
+2. For each sample, the controller compares the current odometry `Pose` with
+   the active goal and requests forward speed and turn rate.
+3. `Robot` passes that request through the selected drive and wheel-control
+   components, applies the motor commands, and reads the encoders.
+4. The selected `SensorModel` and `Odometry` update the pose. The next call to
+   the navigation controller uses that pose, closing the navigation loop.
+5. The controller advances to the next goal when the active goal is reached and
+   reports completion after the final position and heading are reached.
 
-NavigationController retains:
-current destination + turn/drive/final-heading state + completion
-
-* student implementation
-```
+Your new work is `NavigationController`. The sensing, wheel-control, drive, and
+odometry classes are carried forward from Challenges 1 and 2.
 
 ## Complete the challenge
 
-1. Start Challenge 3 from the completed Challenge 2 project as described above.
+1. Create Challenge 3 from the completed Challenge 2 project as described above.
    Use the supplied NavigationController for the first run. Your
    carried-forward components keep their prior selections.
 2. Run the supplied route on the virtual XRP. Identify each waypoint in the

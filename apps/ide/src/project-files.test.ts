@@ -12,6 +12,7 @@ import {
   loadRecoveredProject,
   loadRecoveredProjectState,
   normalizedProjectPath,
+  projectContentDigest,
   projectPathError,
   projectFolderNameError,
   readProjectFolder,
@@ -23,6 +24,7 @@ import {
   suggestedDuplicatePath,
   suggestedProjectFolderName,
   writeProjectFolder,
+  ProjectFolderConflictError,
   type CourseDirectoryHandle,
 } from "./project-files";
 
@@ -128,12 +130,25 @@ class ReadonlyDirectoryHandle implements CourseDirectoryHandle {
     yield* this.children;
   }
 
-  async getDirectoryHandle(): Promise<CourseDirectoryHandle> {
-    throw new Error("read-only test handle");
+  async getDirectoryHandle(name: string): Promise<CourseDirectoryHandle> {
+    const child = this.children.find(
+      ([childName, handle]) =>
+        childName === name && handle.kind === "directory",
+    )?.[1];
+    if (!child || child.kind !== "directory") {
+      throw new DOMException("Directory not found", "NotFoundError");
+    }
+    return child;
   }
 
-  async getFileHandle(): Promise<ReadonlyFileHandle> {
-    throw new Error("read-only test handle");
+  async getFileHandle(name: string): Promise<ReadonlyFileHandle> {
+    const child = this.children.find(
+      ([childName, handle]) => childName === name && handle.kind === "file",
+    )?.[1];
+    if (!child || child.kind !== "file") {
+      throw new DOMException("File not found", "NotFoundError");
+    }
+    return child;
   }
 
   async removeEntry(): Promise<void> {
@@ -586,7 +601,7 @@ describe("project file operations", () => {
   });
 });
 
-describe("working-folder reads", () => {
+describe("project-folder reads", () => {
   it("recognizes only folders with UCSBXRP project metadata", async () => {
     const ordinaryFolder = new WritableDirectoryHandle(
       "repository-root",
@@ -602,10 +617,25 @@ describe("working-folder reads", () => {
 
     await expect(hasProjectFolderMetadata(ordinaryFolder)).resolves.toBe(false);
     await expect(hasProjectFolderMetadata(ucsbProject)).resolves.toBe(true);
+
+    const malformedProject = new WritableDirectoryHandle(
+      "malformed-project",
+      new Map([[".ucsb-xrp-project.json", "not json"]]),
+    );
+    await expect(hasProjectFolderMetadata(malformedProject)).resolves.toBe(
+      false,
+    );
   });
 
-  it("loads supported nested files, prefers main.py, and counts skipped items", async () => {
+  it("loads supported files within one identified project and counts skipped items", async () => {
     const root = new ReadonlyDirectoryHandle("course-project", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"name":"course-project","entrypoint":"main.py"}\n',
+        ),
+      ],
       ["main.py", new ReadonlyFileHandle("main.py", "print('main')\n")],
       [
         "student",
@@ -643,6 +673,13 @@ describe("working-folder reads", () => {
 
   it("rejects a folder with no supported project files", async () => {
     const root = new ReadonlyDirectoryHandle("images-only", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"entrypoint":"main.py"}\n',
+        ),
+      ],
       ["robot.png", new ReadonlyFileHandle("robot.png", "binary")],
     ]);
 
@@ -675,6 +712,13 @@ describe("working-folder reads", () => {
 
   it("does not reject a student project for one documentation file name", async () => {
     const root = new ReadonlyDirectoryHandle("student-project", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"entrypoint":"main.py"}\n',
+        ),
+      ],
       ["AGENTS.md", new ReadonlyFileHandle("AGENTS.md", "group notes")],
       ["main.py", new ReadonlyFileHandle("main.py", "print('ready')")],
     ]);
@@ -686,6 +730,83 @@ describe("working-folder reads", () => {
         files: { "main.py": "print('ready')" },
       },
     });
+  });
+
+  it("rejects a working folder before reading files from its child projects", async () => {
+    const project = (name: string, marker: string) =>
+      new ReadonlyDirectoryHandle(name, [
+        [
+          ".ucsb-xrp-project.json",
+          new ReadonlyFileHandle(
+            ".ucsb-xrp-project.json",
+            `{"name":"${name}","entrypoint":"main.py"}\n`,
+          ),
+        ],
+        ["main.py", new ReadonlyFileHandle("main.py", `print('${marker}')\n`)],
+      ]);
+    const workingFolder = new ReadonlyDirectoryHandle("xrp-course-work", [
+      ["first-project", project("first-project", "first")],
+      ["second-project", project("second-project", "second")],
+    ]);
+
+    await expect(readProjectFolder(workingFolder)).rejects.toThrow(
+      "Choose the project folder that contains .ucsb-xrp-project.json, not the working folder that contains your projects.",
+    );
+  });
+
+  it("rejects a project folder that contains a second project folder", async () => {
+    const nestedProject = new ReadonlyDirectoryHandle("second-project", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"entrypoint":"main.py"}\n',
+        ),
+      ],
+      ["main.py", new ReadonlyFileHandle("main.py", "print('nested')\n")],
+    ]);
+    const root = new ReadonlyDirectoryHandle("first-project", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"entrypoint":"main.py"}\n',
+        ),
+      ],
+      ["main.py", new ReadonlyFileHandle("main.py", "print('root')\n")],
+      ["second-project", nestedProject],
+    ]);
+
+    await expect(readProjectFolder(root)).rejects.toThrow(
+      "contains another UCSBXRP project folder (second-project)",
+    );
+  });
+
+  it("rejects malformed project information and a missing main file", async () => {
+    const malformed = new ReadonlyDirectoryHandle("malformed", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(".ucsb-xrp-project.json", "not json"),
+      ],
+      ["main.py", new ReadonlyFileHandle("main.py", "print('ready')\n")],
+    ]);
+    await expect(readProjectFolder(malformed)).rejects.toThrow(
+      "invalid UCSBXRP project information",
+    );
+
+    const missingMain = new ReadonlyDirectoryHandle("missing-main", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(
+          ".ucsb-xrp-project.json",
+          '{"entrypoint":"main.py"}\n',
+        ),
+      ],
+      ["notes.md", new ReadonlyFileHandle("notes.md", "notes\n")],
+    ]);
+    await expect(readProjectFolder(missingMain)).rejects.toThrow(
+      "names main.py as its main file, but that file is missing",
+    );
   });
 
   it("persists the main file and removes only explicitly deleted files", async () => {
@@ -710,7 +831,9 @@ describe("working-folder reads", () => {
 
     expect(files.get("main.py")).toBe("print('new')\n");
     expect(files.has("obsolete.py")).toBe(false);
-    expect(JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}")).toEqual({
+    expect(
+      JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}"),
+    ).toMatchObject({
       name: "course-project",
       entrypoint: "student/controller.py",
       templateId: "challenge_2",
@@ -781,7 +904,7 @@ describe("working-folder reads", () => {
       },
     });
 
-    expect(result).toEqual({ changed: true, removedFiles: 0 });
+    expect(result).toMatchObject({ changed: true, removedFiles: 0 });
     expect(
       JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}"),
     ).toMatchObject({
@@ -806,7 +929,7 @@ describe("working-folder reads", () => {
           updatedAt: 1_786_000_001_000,
         },
       }),
-    ).resolves.toEqual({ changed: false, removedFiles: 0 });
+    ).resolves.toMatchObject({ changed: false, removedFiles: 0 });
   });
 
   it("creates a named project folder inside a workspace without overwriting", async () => {
@@ -824,7 +947,7 @@ describe("working-folder reads", () => {
     expect(files.get("spiral-lab/main.py")).toBe("print('spiral')\n");
     expect(
       JSON.parse(files.get("spiral-lab/.ucsb-xrp-project.json") ?? "{}"),
-    ).toEqual({ name: "Expanding spiral", entrypoint: "main.py" });
+    ).toMatchObject({ name: "Expanding spiral", entrypoint: "main.py" });
     await expect(
       createProjectFolder(workspace, "spiral-lab", project),
     ).rejects.toThrow("already exists");
@@ -868,9 +991,159 @@ describe("working-folder reads", () => {
     );
   });
 
+  it("calculates one canonical digest independent of file insertion order and session counters", async () => {
+    const first = {
+      name: "student-project",
+      entrypoint: "main.py",
+      files: {
+        "notes.md": "observations\n",
+        "main.py": "print('ready')\n",
+      },
+      session: {
+        projectId: "project-a",
+        revision: 2,
+        savedRevision: 1,
+        updatedAt: 100,
+      },
+    };
+    const second = {
+      ...first,
+      files: {
+        "main.py": "print('ready')\n",
+        "notes.md": "observations\n",
+      },
+      session: {
+        ...first.session,
+        revision: 9,
+        updatedAt: 900,
+      },
+    };
+
+    await expect(projectContentDigest(first)).resolves.toBe(
+      await projectContentDigest(second),
+    );
+  });
+
+  it("detects a mixed or externally edited folder from its commit digest", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("student-project", files);
+    await writeProjectFolder(root, {
+      name: "student-project",
+      entrypoint: "main.py",
+      files: {
+        "main.py": "print('saved')\n",
+        "student/controller.py": "gain = 0.4\n",
+      },
+    });
+
+    await expect(readProjectFolder(root)).resolves.toMatchObject({
+      integrity: "verified",
+    });
+    files.set("student/controller.py", "gain = 0.7\n");
+
+    const changed = await readProjectFolder(root);
+    expect(changed.integrity).toBe("changed-after-save");
+    expect(changed.contentDigest).not.toBe(
+      JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}").contentDigest,
+    );
+  });
+
+  it("pauses autosave when folder files changed outside the IDE", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("student-project", files);
+    const saved = {
+      name: "student-project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('saved')\n" },
+      session: {
+        projectId: "project-a",
+        revision: 3,
+        savedRevision: 3,
+        updatedAt: 300,
+      },
+    };
+    await writeProjectFolder(root, saved);
+    const opened = await readProjectFolder(root);
+    const browserDraft = {
+      ...opened.project,
+      files: { "main.py": "print('IDE draft')\n" },
+      session: {
+        ...opened.project.session!,
+        revision: 4,
+        savedRevision: 3,
+        updatedAt: 400,
+      },
+    };
+    files.set("main.py", "print('Git edit')\n");
+
+    const attempt = saveProjectFolderWithAutosave(root, browserDraft);
+    await expect(attempt).rejects.toBeInstanceOf(ProjectFolderConflictError);
+    expect(files.get("main.py")).toBe("print('Git edit')\n");
+    expect(browserDraft.files["main.py"]).toBe("print('IDE draft')\n");
+  });
+
+  it("requires the current folder digest when explicitly keeping the IDE files", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("student-project", files);
+    const saved = {
+      name: "student-project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('saved')\n" },
+      session: {
+        projectId: "project-a",
+        revision: 3,
+        savedRevision: 3,
+        updatedAt: 300,
+      },
+    };
+    await writeProjectFolder(root, saved);
+    const opened = await readProjectFolder(root);
+    const browserDraft = {
+      ...opened.project,
+      files: { "main.py": "print('IDE draft')\n" },
+      session: {
+        ...opened.project.session!,
+        revision: 4,
+        savedRevision: 3,
+        updatedAt: 400,
+      },
+    };
+    files.set("main.py", "print('Git edit')\n");
+    let conflict: ProjectFolderConflictError | undefined;
+    try {
+      await saveProjectFolderWithAutosave(root, browserDraft);
+    } catch (error) {
+      if (error instanceof ProjectFolderConflictError) conflict = error;
+    }
+    expect(conflict).toBeDefined();
+
+    const resolved = await saveProjectFolderWithAutosave(
+      root,
+      browserDraft,
+      [],
+      { expectedBaseDigest: conflict!.folderDigest },
+    );
+
+    expect(files.get("main.py")).toBe("print('IDE draft')\n");
+    expect((await readProjectFolder(root)).integrity).toBe("verified");
+    expect(resolved.contentDigest).toBe(
+      await projectContentDigest(browserDraft),
+    );
+    const backups = [...files.entries()].filter(([path]) =>
+      path.startsWith("UCSB_XRP_Autosaves/project-"),
+    );
+    expect(backups).toHaveLength(1);
+    expect(backups[0]![1]).toContain("print('Git edit')");
+  });
+
   it("retains the four prior complete project states before automatic overwrite", async () => {
-    const files = new Map<string, string>([["main.py", "print('original')\n"]]);
+    const files = new Map<string, string>();
     const root = new WritableDirectoryHandle("course-project", files);
+    await writeProjectFolder(root, {
+      name: "course-project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('original')\n" },
+    });
 
     for (let revision = 1; revision <= 5; revision += 1) {
       await saveProjectFolderWithAutosave(root, {

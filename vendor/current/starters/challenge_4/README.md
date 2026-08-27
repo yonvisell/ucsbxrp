@@ -17,9 +17,9 @@ Use these names directly. Do not repeat their current numerical values in the
 planner. Changing the resolution changes the number of planning cells, while
 changing the clearance changes which cells are safe.
 
-## Start this challenge
+## Continue from the previous challenge
 
-Open your Challenge 3 project and select **Start Challenge 4 · Mapped Route**.
+Open your Challenge 3 project and select **Create Challenge 4 · Mapped Route project**.
 The IDE creates a separate project. Your new work is `grid_planner.py`; the new
 project begins with the supplied GridPlanner selected. The IDE carries forward
 your five earlier component files and keeps whether each student version is
@@ -83,32 +83,26 @@ route exists. They accept any route that satisfies the six requirements above.
 | `GridPath.to_goals(...)` | Keeps cells where the path turns and at the destination, then converts their centers to waypoint goals. |
 | `Robot` and `XRPBot` | Execute the selected route on the virtual or physical XRP. |
 
-## Program flow
+## How the program runs
 
-```text
-world.json
-    │
-    ▼
-ARENA_MAP ── GRID_RESOLUTION_MM + CLEARANCE_MM
-    │
-    ▼
-OccupancyGrid ── start cell + goal cell
-    │
-    ▼
-GridPlanner*
-    ├── no route ──► print result; do not start robot
-    │
-    └── GridPath ──► waypoint goals ──► NavigationController*
-                                             │
-                                             ▼
-                                      Robot ──► XRP
+1. `world.json` supplies the arena boundary, obstacles, start, and destination.
+   `challenge.py` supplies the grid resolution and clearance.
+2. `main.py` builds an `OccupancyGrid` and converts the start and destination
+   positions into cells.
+3. Your `GridPlanner` searches the free cells and returns either a connected
+   `GridPath` or `None`.
+4. If no path exists, `main.py` reports that result without constructing or
+   starting the robot.
+5. If a path exists, `GridPath.to_goals(...)` converts it to waypoint goals.
+   The selected `NavigationController` and `Robot` then follow those goals on
+   the selected XRP.
 
-* student implementation
-```
+Your new work is `GridPlanner`. The sensing, wheel-control, drive, odometry,
+and navigation classes are carried forward from the earlier challenges.
 
 ## Complete the challenge
 
-1. Start Challenge 4 from the completed Challenge 3 project as described above.
+1. Create Challenge 4 from the completed Challenge 3 project as described above.
    Use the supplied GridPlanner for the first virtual run. Your carried-forward
    components keep their prior selections. Inspect the obstacle, destination,
    and driven trajectory in the Monitor; inspect `path_cells` and `final_pose`

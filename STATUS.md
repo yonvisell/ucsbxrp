@@ -4,6 +4,45 @@ Last updated: 2026-08-26
 
 ## Current result
 
+Refinement 49 closes the physical Flash-to-Run and project-folder failures
+found by repeated use, and qualifies release `2026.08-dev.28` on the attached
+RP2350. Flash, Run, and Stop now retry an interrupted HTTP reply with the same
+request ID, which the XRP resolves from its retained reply cache without
+repeating the operation. If both Flash replies are lost, the browser reads the
+retained project manifest and continues only when its revision exactly matches
+the requested project. Automatic Flash-and-Run holds telemetry polling across
+both requests, and a matching manifest clears a stale browser state after an
+interrupted reply. Active telemetry now renews the run lease in the same
+request rather than opening a second HTTP exchange.
+
+Opening a project now requires one valid root `.ucsb-xrp-project.json` and its
+declared main file. Selecting the Working folder, a repository root, a malformed
+project, or a directory containing nested project metadata is rejected before
+traversal or autosave state changes, so sibling projects cannot be flattened
+into one file list. Portable project limits are shared by Validate, Virtual
+Run, and Physical Flash. External folder edits pause autosave and require an
+explicit choice between the folder and the open IDE draft. The Guide and all
+five challenge READMEs now describe challenge progression as creating a
+separate next project rather than "starting" a challenge. This strict folder
+boundary prevents data mixing; the broader human project/workspace model and
+its controls remain scheduled for a design-and-usability audit rather than
+being treated as settled by validation.
+
+Release dev.28 is installed as runtime generation 9 on the XRP at
+`192.168.7.25` on Pink. The attached-hardware Stable Chrome workflow passed
+edit, Validate, Flash, automatic Flash-and-Run, immediate Stop, repeated Run,
+shared IDE/Monitor state, motor actuation, encoder change, telemetry, and
+restoration of the default Spiral project. The complete local gate passes 203
+Python tests, MicroPython 1.28 source/service and MPY proofs, 290 TypeScript
+tests, the production and 223-file offline builds, and 72 non-hardware Stable
+Chrome workflows in 4.8 minutes. Those browser workflows include the five
+challenges, all tutorial lessons, an instructor-generated Waypoint Slalom,
+offline reload, recording/export, project-folder rejection, recovery, narrow
+layouts, and network-mode cycles. `/monitor/` is the canonical Monitor route;
+the former `/dashboard/` remains only as a compatibility redirect. The
+physical SharedWorker name advanced with the release so a fresh app cannot
+reuse the prior worker implementation.
+
 Refinement 48 resolves the browser state-authority failures found by repeated
 first-use, cross-tab, and update testing. A versioned RobotProfile now retains
 one commissioned robot identity, separate station and hotspot routes, and the

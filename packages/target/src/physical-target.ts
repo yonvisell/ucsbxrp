@@ -16,6 +16,10 @@ import type {
 } from "./physical-worker-protocol";
 import { describeProject } from "./project-identity";
 import { worldCatalogForProject } from "./project-world";
+import {
+  portableProjectError,
+  validatePortableProject,
+} from "./project-validation";
 import { EMPTY_RUNTIME_STATE, parseRuntimeState } from "./runtime-controls";
 import { parseWorldCatalog } from "@ucsb-xrp/simulator";
 import courseRelease from "../../../vendor/current/release.json";
@@ -161,8 +165,6 @@ function physicalConnectionRecovery(endpoint: string): string {
 
 const RUN_STARTUP_QUIET_MS = 500;
 const RESET_RECONNECT_TIMEOUT_MS = 8_000;
-const POLL_QUIESCE_WAIT_MS = 750;
-const POLL_ABORT_SETTLE_MS = 100;
 const POLL_FAILURES_BEFORE_ERROR = 2;
 const POLL_RECOVERY_DELAY_MS = 900;
 
@@ -281,7 +283,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private lastSampleSeq = 0;
   private bootId: string | null = null;
   private lastRunId = 0;
-  private lastLeaseAt = 0;
   private currentProject: SynchronizedProject | null = null;
   private stagedProject: CourseProject | null = null;
   private projectStateKnown = false;
@@ -424,6 +425,25 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async check(project: CourseProject): Promise<CheckResult> {
     const projectName = project.name?.trim() || project.entrypoint;
+    const portabilityError = portableProjectError(project);
+    if (portabilityError) {
+      const requestId = `web-${Date.now()}-${this.nextRequest++}`;
+      this.emitConsole("system", `Validate requested · ${projectName}`, {
+        action: "validate",
+        phase: "request",
+        requestId,
+      });
+      this.emitConsole(
+        "system",
+        `Validate failed · ${portabilityError.message}`,
+        {
+          action: "validate",
+          phase: "error",
+          requestId,
+        },
+      );
+      return { ok: false, detail: portabilityError.message };
+    }
     await this.pausePollingForCommand();
     try {
       const result = await this.command<{ detail: string }>(
@@ -450,54 +470,40 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async synchronize(project: CourseProject): Promise<void> {
-    const catalog = worldCatalogForProject(project);
-    const descriptor = await describeProject(project);
+    const portabilityError = portableProjectError(project);
+    if (portabilityError) {
+      this.emitConsole("system", `Flash failed · ${portabilityError.message}`, {
+        action: "flash",
+        phase: "error",
+      });
+      throw portabilityError;
+    }
     await this.pausePollingForCommand();
-    let result: {
-      detail: string;
-      project?: PhysicalProjectManifest;
-    };
     try {
-      result = await this.command<{
-        detail: string;
-        project?: PhysicalProjectManifest;
-      }>(
-        "sync",
-        { project },
-        { action: "flash", label: "Flash", detail: descriptor.name },
-      );
+      await this.synchronizeWhilePollingPaused(project);
     } finally {
       this.resumePollingAfterCommand();
     }
-    this.setCurrentProject({
-      ...descriptor,
-      revision: result.project?.revision ?? descriptor.revision,
-      name: result.project?.name ?? descriptor.name,
-      entrypoint: result.project?.entrypoint ?? descriptor.entrypoint,
-      stale: false,
-    });
-    this.stagedProject = project;
-    this.emit({
-      type: "world",
-      catalog,
-      selectedWorldId: catalog.defaultWorldId,
-    });
-    // The service also retains its own state transition. Its log event has a
-    // device sequence ID, while the request/result events above have browser
-    // IDs, so both remain traceable across the IDE and Monitor.
   }
 
   async run(project: CourseProject): Promise<void> {
+    validatePortableProject(project);
     this.stagedProject = project;
     const descriptor = await describeProject(project);
-    if (
-      !this.currentProject ||
-      this.currentProject.stale ||
-      descriptor.revision !== this.currentProject.revision
-    ) {
-      await this.synchronize(project);
+    let started = false;
+    await this.pausePollingForCommand();
+    try {
+      if (
+        !this.currentProject ||
+        this.currentProject.stale ||
+        descriptor.revision !== this.currentProject.revision
+      ) {
+        await this.synchronizeWhilePollingPaused(project, descriptor);
+      }
+      started = await this.startCurrentProjectWhilePollingPaused();
+    } finally {
+      this.resumePollingAfterCommand(started ? RUN_STARTUP_QUIET_MS : 0);
     }
-    await this.runCurrent();
   }
 
   async runCurrent(): Promise<void> {
@@ -541,12 +547,110 @@ export class DirectPhysicalTargetClient implements TargetClient {
       );
       return;
     }
-    // Let any current telemetry request finish, then leave the RP2350 service
-    // core quiet while its second core loads the project. This avoids racing
-    // Wi-Fi response allocation with MicroPython project startup.
+    let started = false;
+    await this.pausePollingForCommand();
+    try {
+      started = await this.startCurrentProjectWhilePollingPaused();
+    } finally {
+      this.resumePollingAfterCommand(started ? RUN_STARTUP_QUIET_MS : 0);
+    }
+  }
+
+  private async synchronizeWhilePollingPaused(
+    project: CourseProject,
+    knownDescriptor?: Awaited<ReturnType<typeof describeProject>>,
+  ): Promise<void> {
+    const descriptor = knownDescriptor ?? (await describeProject(project));
+    const catalog = worldCatalogForProject(project);
+    let result: {
+      detail: string;
+      project?: PhysicalProjectManifest;
+    };
+    try {
+      result = await this.command<{
+        detail: string;
+        project?: PhysicalProjectManifest;
+      }>(
+        "sync",
+        { project },
+        { action: "flash", label: "Flash", detail: descriptor.name },
+        undefined,
+        true,
+      );
+    } catch (error) {
+      const interrupted =
+        error instanceof PhysicalTargetError &&
+        (error.code === "network_error" || error.code === "timeout");
+      if (!interrupted) {
+        throw error;
+      }
+      // Flash is transactional on the XRP: the files may be committed even
+      // when Chrome misses both correlated replies. Read the device's retained
+      // manifest before reporting failure or sending the project again.
+      const info = await this.getJson<PhysicalInfo>("/api/v1/info", 1_500);
+      assertCompatiblePhysicalInfo(info);
+      assertExpectedRobotIdentity(info, this.expectedRobotId);
+      if (info.project?.revision !== descriptor.revision) {
+        throw error;
+      }
+      result = {
+        detail: "Matching project verified on the XRP",
+        project: info.project,
+      };
+      this.emitConsole(
+        "system",
+        `Flash verified · ${descriptor.name} is installed on the XRP`,
+        {
+          action: "flash",
+          phase: "result",
+        },
+      );
+    }
+    this.setCurrentProject({
+      ...descriptor,
+      revision: result.project?.revision ?? descriptor.revision,
+      name: result.project?.name ?? descriptor.name,
+      entrypoint: result.project?.entrypoint ?? descriptor.entrypoint,
+      stale: false,
+    });
+    this.stagedProject = project;
+    this.emit({
+      type: "world",
+      catalog,
+      selectedWorldId: catalog.defaultWorldId,
+    });
+    // The service also retains its own state transition. Its log event has a
+    // device sequence ID, while the request/result events above have browser
+    // IDs, so both remain traceable across the IDE and Monitor.
+  }
+
+  private async startCurrentProjectWhilePollingPaused(): Promise<boolean> {
+    if (!this.currentProject) {
+      throw new PhysicalTargetError(
+        "no_project",
+        "No project is ready. Run or flash a project in the IDE first.",
+      );
+    }
+    if (this.currentProject.stale) {
+      throw new PhysicalTargetError(
+        "stale_project",
+        "The IDE project has changed. Run or flash it in the IDE first.",
+      );
+    }
+    if (this.currentState === "loading" || this.currentState === "running") {
+      this.emitConsole(
+        "system",
+        "Run request ignored · program already active",
+        { action: "run", phase: "result" },
+      );
+      return false;
+    }
+
+    // Leave the RP2350 service core quiet while its second core loads the
+    // project. A composite Flash-and-Run operation keeps polling paused across
+    // both requests so telemetry cannot occupy the connection between them.
     const previousState = this.currentState;
     this.emitStatus("loading", `Starting ${this.currentProject.entrypoint}…`);
-    await this.pausePollingForCommand();
     try {
       const result = await this.command<{ detail: string; runId: number }>(
         "run",
@@ -556,15 +660,17 @@ export class DirectPhysicalTargetClient implements TargetClient {
           label: "Run",
           detail: this.currentProject.name,
         },
+        undefined,
+        true,
       );
       if (result.runId !== this.lastRunId) {
         this.lastSampleSeq = 0;
       }
       this.lastRunId = result.runId;
-      this.lastLeaseAt = 0;
       // The service records the start event. Use that retained entry as the
       // console source; the status below still updates the controls immediately.
       this.emitStatus("loading", result.detail);
+      return true;
     } catch (error) {
       if (
         error instanceof PhysicalTargetError &&
@@ -575,8 +681,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.emitStatus(previousState, `Run failed · ${errorDetail(error)}`);
       }
       throw error;
-    } finally {
-      this.resumePollingAfterCommand(RUN_STARTUP_QUIET_MS);
     }
   }
 
@@ -607,7 +711,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       const result = await this.command<{
         detail: string;
         reconnecting: boolean;
-      }>("stop", {}, { action: "stop", label: "Stop" });
+      }>("stop", {}, { action: "stop", label: "Stop" }, undefined, true);
       if (result.reconnecting) {
         this.emitStatus("connecting", `${result.detail}; reconnecting…`);
         await this.reconnectAfterReset();
@@ -706,6 +810,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     value: Record<string, unknown>,
     activity?: CommandActivity,
     requestController?: AbortController,
+    retryInterrupted = false,
   ): Promise<T> {
     if (!this.connected) {
       throw new PhysicalTargetError(
@@ -726,16 +831,51 @@ export class DirectPhysicalTargetClient implements TargetClient {
       );
     }
     try {
-      const reply = await this.fetchJson<CommandReply<T>>(
-        `/api/v1/${name}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...value, requestId }),
-        },
-        this.requestTimeoutMs,
-        requestController,
-      );
+      const body = JSON.stringify({ ...value, requestId });
+      let reply: CommandReply<T> | null = null;
+      for (
+        let attempt = 0;
+        attempt < (retryInterrupted ? 2 : 1);
+        attempt += 1
+      ) {
+        try {
+          reply = await this.fetchJson<CommandReply<T>>(
+            `/api/v1/${name}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+            },
+            this.requestTimeoutMs,
+            requestController,
+          );
+          break;
+        } catch (error) {
+          const interrupted =
+            error instanceof PhysicalTargetError &&
+            (error.code === "network_error" || error.code === "timeout");
+          if (!interrupted || !retryInterrupted || attempt > 0) {
+            throw error;
+          }
+          if (activity) {
+            this.emitConsole(
+              "system",
+              `${activity.label} reply interrupted · retrying the same request`,
+              {
+                action: activity.action,
+                phase: "request",
+                requestId,
+              },
+            );
+          }
+        }
+      }
+      if (!reply) {
+        throw new PhysicalTargetError(
+          "network_error",
+          `The XRP did not return a ${name} reply`,
+        );
+      }
       if (reply.requestId !== requestId) {
         throw new PhysicalTargetError(
           "uncorrelated_reply",
@@ -870,27 +1010,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.stopPolling();
     const activePoll = this.pollInFlight;
     if (activePoll) {
-      // Let the XRP finish the current HTTP response before issuing a command.
-      // Aborting immediately leaves the single-connection MicroPython server
-      // writing to a closed socket while Stop or Flash opens another one.
-      const settled = await Promise.race([
-        activePoll.then(
-          () => true,
-          () => true,
-        ),
-        new Promise<false>((resolve) =>
-          setTimeout(() => resolve(false), POLL_QUIESCE_WAIT_MS),
-        ),
-      ]);
-      if (!settled) {
-        this.abortActivePoll();
-        await Promise.race([
-          activePoll.catch(() => undefined),
-          new Promise<void>((resolve) =>
-            setTimeout(resolve, POLL_ABORT_SETTLE_MS),
-          ),
-        ]);
-      }
+      // The XRP serves one HTTP response at a time. Let that bounded poll
+      // finish before issuing a command; aborting its socket can make Chrome
+      // reject the immediately following Stop even though the robot is still
+      // reachable. The poll already owns the ordinary request timeout.
+      await activePoll.catch(() => undefined);
     }
   }
 
@@ -907,8 +1031,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
     const controller = new AbortController();
     this.pollAbortController = controller;
     try {
+      const runQuery = this.lastRunId > 0 ? `&runId=${this.lastRunId}` : "";
       const state = await this.getJson<PhysicalState>(
-        `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}`,
+        `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}${runQuery}`,
         this.requestTimeoutMs,
         controller,
       );
@@ -929,21 +1054,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
       }
       this.consecutivePollFailures = 0;
       this.consumeState(state);
-      if (
-        state.state === "running" &&
-        performance.now() - this.lastLeaseAt >= 800
-      ) {
-        this.lastLeaseAt = performance.now();
-        // Use the poll controller for the lease as well as telemetry. Stop,
-        // Flash, and Run can then quiesce the entire poll exchange instead of
-        // overlapping a second POST with an in-flight lease request.
-        await this.command(
-          "lease",
-          { runId: state.runId },
-          undefined,
-          controller,
-        );
-      }
       this.schedulePoll(
         state.state === "running"
           ? this.activePollIntervalMs
@@ -1278,15 +1388,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     ) {
       return;
     }
-    const stale =
-      this.currentProject?.revision === manifest.revision
-        ? this.currentProject.stale
-        : false;
     this.setCurrentProject({
       name: manifest.name || manifest.entrypoint,
       entrypoint: manifest.entrypoint,
       revision: manifest.revision,
-      stale,
+      // A matching device manifest is authoritative evidence that an
+      // interrupted Flash reply still completed on the XRP.
+      stale: false,
     });
     if (
       typeof manifest.worldJson === "string" &&
@@ -1404,7 +1512,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v5" },
+          { type: "module", name: "ucsb-xrp-physical-target-v6" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,

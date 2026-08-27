@@ -174,15 +174,14 @@
 }
 
 .project-root {
-  overflow: hidden;
   border-bottom: 1px solid var(--line);
   padding: 3px 6px;
   color: var(--muted);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: var(--font-xs);
   font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .file-row {
@@ -265,6 +264,30 @@
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.project-folder-conflict {
+  display: grid;
+  gap: 4px;
+  border-left: 2px solid var(--warning, #9a5c00);
+  padding-left: 5px;
+}
+
+.project-folder-conflict small {
+  color: var(--text);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
+.project-folder-conflict > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.project-folder-conflict button {
+  padding: 1px 5px;
+  font-size: var(--font-xs);
 }
 
 .project-reopen {
@@ -450,7 +473,7 @@
   padding: 16px 20px 32px;
   background: #fff;
   color: #26363e;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -471,19 +494,19 @@
 .markdown-preview h1 {
   border-bottom: 1px solid var(--line);
   padding-bottom: 0.35rem;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .markdown-preview h2 {
-  font-size: 17px;
-}
-
-.markdown-preview h3 {
   font-size: 15px;
 }
 
-.markdown-preview h4 {
+.markdown-preview h3 {
   font-size: 13px;
+}
+
+.markdown-preview h4 {
+  font-size: 12px;
 }
 
 .markdown-preview p,
@@ -512,7 +535,7 @@
 .markdown-preview code,
 .markdown-preview pre {
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .markdown-preview code {

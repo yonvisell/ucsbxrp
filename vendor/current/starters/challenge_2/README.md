@@ -27,10 +27,10 @@ in radians.
 Use these named fields rather than repeating their current numerical values in
 your classes.
 
-## Start this challenge
+## Continue from the previous challenge
 
-Open your Challenge 1 project and select **Start Challenge 2 · Turn and
-Return**. The IDE creates a separate project. Your new work is
+Open your Challenge 1 project and select **Create Challenge 2 · Turn and
+Return project**. The IDE creates a separate project. Your new work is
 `differential_drive.py` and `odometry.py`; the new project begins with the
 supplied versions selected. The IDE carries forward your Challenge 1
 `sensor_model.py` and `wheel_speed_controller.py` files and keeps whether each
@@ -97,29 +97,25 @@ arguments.
 `world.json` defines the start/finish area and the turn waypoint displayed by
 the virtual XRP and Monitor.
 
-## Program flow
+## How the program runs
 
-```text
-main.py: travel out -> turn to heading -> travel back
-                         |
-                         v
-MotionCommand -> DifferentialDrive* -> requested wheel speeds
-                                           |
-                                           v
-                                  WheelSpeedController*
-                                           |
-                                           v
-                                         motors
-                                           |
-                                           v
-encoder counts -> SensorModel* -> wheel increments -> Odometry* -> Pose
+1. `main.py` advances through three phases: travel outward, turn to the return
+   heading, and travel back.
+2. In each sample, it sends the current `MotionCommand` to your
+   `DifferentialDrive`, which returns target wheel speeds.
+3. The selected `WheelSpeedController` uses the target and measured wheel
+   speeds to command the motors.
+4. The target reads the resulting encoder counts. The selected `SensorModel`
+   converts them into exact wheel-travel increments.
+5. Your `Odometry` applies those increments to its retained `Pose`.
+   `main.py` uses the updated pose to decide when to change phase or finish.
 
-* student implementation
-```
+Your new work is `DifferentialDrive` and `Odometry`. `SensorModel` and
+`WheelSpeedController` are carried forward from Challenge 1.
 
 ## Complete the challenge
 
-1. Start Challenge 2 from the completed Challenge 1 project as described above.
+1. Create Challenge 2 from the completed Challenge 1 project as described above.
    For the first run, use the supplied DifferentialDrive and Odometry. Your
    carried-forward components keep their Challenge 1 selections.
 2. Run the supplied virtual project. Observe the outbound segment, turn, return

@@ -37,7 +37,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.26"
+COURSE_RELEASE = "2026.08-dev.28"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -669,10 +669,10 @@ async def _launch_project_after_response(
             return
     _launch_pending = False
     _thread_active = True
-    # The first browser lease is sent only after the startup quiet interval and
-    # a telemetry reply. Give that complete exchange time to finish even when
-    # core 1 is importing project code. Later renewals use the shorter normal
-    # lease; the hardware watchdog remains the faster recovery for a VM lock.
+    # The first telemetry poll is sent only after the browser's startup quiet
+    # interval. Give that exchange time to arrive even when core 1 is importing
+    # project code. Later telemetry polls renew the shorter normal lease; the
+    # hardware watchdog remains the faster recovery for an interpreter lock.
     _extend_run_lease(STARTUP_LEASE_MS)
     _set_state("running", "Running " + entrypoint)
     if _project_job is not None:
@@ -733,7 +733,11 @@ async def _request_stop_after_response(run_id):
     import uasyncio
 
     await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
-    if not _thread_active or run_id != _run_id:
+    if (
+        not _thread_active
+        or run_id != _run_id
+        or _stop_acknowledged_run_id == run_id
+    ):
         return
     from ucsb_xrp._run_control import request_stop
 
@@ -1107,6 +1111,15 @@ def telemetry(request):
         after_sample = 0
     if after_sample < 0:
         after_sample = 0
+    try:
+        requested_run = int(request.query.get("runId", "0"))
+    except ValueError:
+        requested_run = 0
+    if _thread_active and requested_run == _run_id:
+        # A successful telemetry request is already proof that the controlling
+        # browser is present. Renew the run here instead of requiring a second
+        # serialized HTTP request before the next poll or a Stop command.
+        _extend_run_lease(LEASE_MS)
     value = _state_result(after)
     samples = _buffered_course_samples(after_sample)
     if _thread_active and samples:

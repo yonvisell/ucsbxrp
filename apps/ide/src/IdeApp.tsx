@@ -65,8 +65,10 @@ import {
   isDefaultProject,
   loadRecoveredProjectState,
   normalizedProjectPath,
+  projectContentDigest,
   projectPathError,
   projectFolderNameError,
+  ProjectFolderConflictError,
   readProjectFolder,
   renameProjectFile,
   saveProjectFolderWithAutosave,
@@ -77,9 +79,11 @@ import {
   suggestedProjectFolderName,
   supportsWorkingFolders,
   type CourseDirectoryHandle,
+  type FolderReadResult,
   type ProjectSnapshot,
 } from "./project-files";
 import {
+  acknowledgeProjectSessionSave,
   createProjectSession,
   markProjectSessionSaved,
   projectSessionHasUnsavedChanges,
@@ -111,6 +115,11 @@ interface IdeSettings {
 }
 
 type PathOperation = "rename" | "duplicate";
+
+interface ProjectFolderConflictState {
+  folderSession: ProjectSession;
+  folderDigest: string;
+}
 
 const settingsKey = "ucsb-xrp-ide-settings-v2";
 const maximumSessionLogEntries = 5_000;
@@ -303,8 +312,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     "browser" | "pending" | "saving" | "current" | "permission" | "error"
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
+  const [projectFolderConflict, setProjectFolderConflict] =
+    useState<ProjectFolderConflictState | null>(null);
   const [operationDetail, setOperationDetail] = useState(
-    "This project is stored temporarily in Chrome. Choose a course folder to keep it as ordinary files, or open an existing project.",
+    "This project is stored temporarily in Chrome. Choose a working folder to create its project folder, or open an existing project folder.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -393,6 +404,16 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   folderDirtyRef.current = folderDirty;
   targetStateRef.current = targetState;
 
+  useEffect(() => {
+    if (!projectFolderConflict) return;
+    folderDirtyRef.current = true;
+    setFolderDirty(true);
+    setFolderSaveState("error");
+    setOperationDetail(
+      "The project folder changed outside UCSBXRP. Choose which version to keep; neither version has been overwritten.",
+    );
+  }, [projectFolderConflict]);
+
   const beginTargetCommand = useCallback(() => {
     targetCommandCountRef.current += 1;
   }, []);
@@ -429,7 +450,8 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   }, []);
 
   const reconcileFolderSnapshot = useCallback(
-    (folderSnapshot: ProjectSnapshot, browser = projectSessionRef.current) => {
+    (opened: FolderReadResult, browser = projectSessionRef.current) => {
+      const folderSnapshot = opened.project;
       const adoptedProjectId =
         !folderSnapshot.session &&
         sameProjectContents(browser.project, folderSnapshot)
@@ -437,15 +459,49 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           : undefined;
       const folder = createProjectSession(folderSnapshot, {
         source: "folder",
+        baseDigest: opened.contentDigest,
         ...(adoptedProjectId ? { projectId: adoptedProjectId } : {}),
       });
       const result = reconcileProjectSessions(browser, folder);
+      if (result.reason === "folder-conflict") {
+        preservedBrowserDraftRef.current = snapshotForProjectSession(browser);
+        setProjectPanelOpen(true);
+        setProjectFolderConflict({
+          folderSession: folder,
+          folderDigest: opened.contentDigest,
+        });
+      } else {
+        setProjectFolderConflict(null);
+      }
       if (result.preserveBrowserDraft) {
         preservedBrowserDraftRef.current = snapshotForProjectSession(browser);
       }
       return { folder, result };
     },
     [],
+  );
+
+  const recordProjectFolderConflict = useCallback(
+    (conflict: ProjectFolderConflictError) => {
+      stopFolderWrites();
+      const browser = projectSessionRef.current;
+      preservedBrowserDraftRef.current = snapshotForProjectSession(browser);
+      setProjectPanelOpen(true);
+      setProjectFolderConflict({
+        folderSession: createProjectSession(conflict.folderProject, {
+          source: "folder",
+          baseDigest: conflict.folderDigest,
+        }),
+        folderDigest: conflict.folderDigest,
+      });
+      folderDirtyRef.current = true;
+      setFolderDirty(true);
+      setFolderSaveState("error");
+      setOperationDetail(
+        "The project folder changed outside UCSBXRP. Choose which version to keep; neither version has been overwritten.",
+      );
+    },
+    [stopFolderWrites],
   );
 
   const replacePendingFolderDeletions = useCallback(
@@ -605,7 +661,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         opened: Awaited<ReturnType<typeof readProjectFolder>>,
       ) => {
         const { folder: folderSession, result } = reconcileFolderSnapshot(
-          opened.project,
+          opened,
           browserSession,
         );
         resolvedSession = result.session;
@@ -635,7 +691,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             workspace = null;
             setRememberedWorkspaceFolder(null);
             setOperationDetail(
-              "The UCSBXRP course software repository cannot be used as a course folder. Choose a folder for student projects.",
+              "The UCSBXRP course software repository cannot be used as a working folder. Choose a separate folder for your projects.",
             );
           } else {
             setWorkspaceFolder(workspace);
@@ -660,7 +716,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           setRememberedFolderCanAttach(false);
           setFolderSaveState("browser");
           setOperationDetail(
-            "The remembered project belongs to a different course folder. It was detached without changing its files.",
+            "The remembered project is outside the selected working folder. It was detached without changing its files.",
           );
         }
       }
@@ -1093,7 +1149,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const openWorkingFolder = useCallback(async () => {
     try {
       const folder = await chooseWorkingFolder();
-      stopFolderWrites();
       const courseFolder = workspaceFolder ?? rememberedWorkspaceFolder;
       if (
         courseFolder &&
@@ -1101,17 +1156,18 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           false
       ) {
         throw new Error(
-          `Choose a project folder inside the course folder ${courseFolder.name}.`,
+          `Choose a project folder inside the working folder ${courseFolder.name}.`,
         );
       }
       setOperationDetail(`Reading ${folder.name}…`);
       const result = await readProjectFolder(folder);
       const { folder: folderSession, result: reconciliation } =
-        reconcileFolderSnapshot(result.project);
+        reconcileFolderSnapshot(result);
       // Publish the complete project to the shared target before exposing it as
       // the active project. Monitor Run can otherwise observe the new IDE files
       // while the shared worker still owns the preceding project.
       await stageOpenedProject(reconciliation.session.project);
+      stopFolderWrites();
       setWorkingFolder(folder);
       setRememberedFolder(folder);
       setRememberedFolderCanAttach(true);
@@ -1157,7 +1213,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       const folder = await chooseWorkspaceFolder();
       if (await isCourseRepositoryFolder(folder)) {
         throw new Error(
-          "Choose a course folder for student projects, not the UCSBXRP course software repository.",
+          "Choose a working folder for student projects, not the UCSBXRP course software repository.",
         );
       }
       const selection = await replaceRememberedWorkspaceFolder(folder);
@@ -1196,7 +1252,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         );
         const opened = await readProjectFolder(ensured.folder);
         const { folder: folderSession, result: reconciliation } =
-          reconcileFolderSnapshot(opened.project);
+          reconcileFolderSnapshot(opened);
         publishProjectSession(reconciliation.session);
         setActivePath(reconciliation.session.project.entrypoint);
         setOpenPaths([reconciliation.session.project.entrypoint]);
@@ -1218,7 +1274,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         projectAttached = true;
       } else {
         setOperationDetail(
-          `${folder.name} is the course folder for new project folders.`,
+          `${folder.name} is the working folder for new project folders.`,
         );
       }
       return { folder, projectAttached };
@@ -1279,7 +1335,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
         setOperationDetail(
-          `${snapshot.name} is stored temporarily in Chrome. Choose a course folder to create its project folder.`,
+          `${snapshot.name} is stored temporarily in Chrome. Choose a working folder to create its project folder.`,
         );
         return;
       }
@@ -1325,7 +1381,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setRememberedFolderCanAttach(false);
         setFolderSaveState("browser");
         setOperationDetail(
-          `That project is outside ${courseFolder.name}. Choose a project folder inside the course folder.`,
+          `That project is outside ${courseFolder.name}. Choose a project folder inside the working folder.`,
         );
         return;
       }
@@ -1344,7 +1400,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       }
       const opened = await readProjectFolder(rememberedFolder);
       const { folder: folderSession, result: reconciliation } =
-        reconcileFolderSnapshot(opened.project);
+        reconcileFolderSnapshot(opened);
       await stageOpenedProject(reconciliation.session.project);
       publishProjectSession(reconciliation.session);
       setActivePath(reconciliation.session.project.entrypoint);
@@ -1418,13 +1474,28 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       if (
         result === null ||
         folderWriteEpoch.current !== writeEpoch ||
-        projectSessionRef.current.projectId !== sessionToSave.projectId ||
-        projectSessionRef.current.revision !== sessionToSave.revision
+        projectSessionRef.current.projectId !== sessionToSave.projectId
       ) {
         return;
       }
+      if (projectSessionRef.current.revision !== sessionToSave.revision) {
+        publishProjectSession(
+          acknowledgeProjectSessionSave(
+            projectSessionRef.current,
+            sessionToSave.revision,
+            result.contentDigest,
+          ),
+        );
+        setFolderSaveState("pending");
+        return;
+      }
       const { removedFiles } = result;
-      publishProjectSession(markProjectSessionSaved(projectSessionRef.current));
+      publishProjectSession(
+        markProjectSessionSaved(
+          projectSessionRef.current,
+          result.contentDigest,
+        ),
+      );
       folderDirtyRef.current = false;
       setFolderDirty(false);
       setFolderSaveState("current");
@@ -1441,19 +1512,24 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       retryPendingOfflineShellReload();
     } catch (error) {
       if (!wasCancelled(error)) {
-        setFolderSaveState("error");
-        setOperationDetail(errorDetail(error));
+        if (error instanceof ProjectFolderConflictError) {
+          recordProjectFolderConflict(error);
+        } else {
+          setFolderSaveState("error");
+          setOperationDetail(errorDetail(error));
+        }
       }
     }
   }, [
     prepareProjectCreation,
     publishProjectSession,
+    recordProjectFolderConflict,
     replacePendingFolderDeletions,
     workingFolder,
   ]);
 
   useEffect(() => {
-    if (!workingFolder || !folderDirty) {
+    if (!workingFolder || !folderDirty || projectFolderConflict) {
       return;
     }
     const folder = workingFolder;
@@ -1488,17 +1564,33 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         () => undefined,
       );
       void queued
-        .then(() => {
+        .then((result) => {
+          if (result === null) return;
           if (
-            projectVersion.current !== version ||
             folderWriteEpoch.current !== writeEpoch ||
-            projectSessionRef.current.projectId !== sessionToSave.projectId ||
-            projectSessionRef.current.revision !== sessionToSave.revision
+            projectSessionRef.current.projectId !== sessionToSave.projectId
           ) {
             return;
           }
+          if (
+            projectVersion.current !== version ||
+            projectSessionRef.current.revision !== sessionToSave.revision
+          ) {
+            publishProjectSession(
+              acknowledgeProjectSessionSave(
+                projectSessionRef.current,
+                sessionToSave.revision,
+                result.contentDigest,
+              ),
+            );
+            setFolderSaveState("pending");
+            return;
+          }
           publishProjectSession(
-            markProjectSessionSaved(projectSessionRef.current),
+            markProjectSessionSaved(
+              projectSessionRef.current,
+              result.contentDigest,
+            ),
           );
           folderDirtyRef.current = false;
           setFolderDirty(false);
@@ -1514,7 +1606,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           retryPendingOfflineShellReload();
         })
         .catch((error: unknown) => {
-          if (
+          if (error instanceof ProjectFolderConflictError) {
+            recordProjectFolderConflict(error);
+          } else if (
             error instanceof DOMException &&
             error.name === "NotAllowedError"
           ) {
@@ -1524,7 +1618,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           } else {
             setFolderSaveState("error");
           }
-          setOperationDetail(errorDetail(error));
+          if (!(error instanceof ProjectFolderConflictError)) {
+            setOperationDetail(errorDetail(error));
+          }
         });
     }, 900);
     return () => window.clearTimeout(timer);
@@ -1532,7 +1628,103 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     folderDirty,
     pendingFolderDeletions,
     projectSession,
+    projectFolderConflict,
     publishProjectSession,
+    recordProjectFolderConflict,
+    replacePendingFolderDeletions,
+    workingFolder,
+  ]);
+
+  const useFolderConflictFiles = useCallback(async () => {
+    if (!projectFolderConflict || !workingFolder) return;
+    stopFolderWrites();
+    const browserDraft = projectSessionRef.current;
+    preservedBrowserDraftRef.current = snapshotForProjectSession(browserDraft);
+    try {
+      await stageOpenedProject(projectFolderConflict.folderSession.project);
+      publishProjectSession(projectFolderConflict.folderSession);
+      setActivePath(projectFolderConflict.folderSession.project.entrypoint);
+      setOpenPaths([projectFolderConflict.folderSession.project.entrypoint]);
+      replacePendingFolderDeletions(() => new Set());
+      folderDirtyRef.current = false;
+      setFolderDirty(false);
+      setProjectFolderConflict(null);
+      setFolderSaveState("current");
+      setOperationDetail(
+        `Opened the files currently in ./${workingFolder.name}. The earlier IDE draft remains available in browser recovery.`,
+      );
+    } catch (error) {
+      setFolderSaveState("error");
+      setOperationDetail(errorDetail(error));
+    }
+  }, [
+    projectFolderConflict,
+    publishProjectSession,
+    replacePendingFolderDeletions,
+    stageOpenedProject,
+    stopFolderWrites,
+    workingFolder,
+  ]);
+
+  const keepIdeConflictFiles = useCallback(async () => {
+    if (!projectFolderConflict || !workingFolder) return;
+    const conflict = projectFolderConflict;
+    const folder = workingFolder;
+    const sessionToSave = projectSessionRef.current;
+    const snapshot = snapshotForProjectSession(sessionToSave);
+    const deletedPaths = new Set(pendingFolderDeletionsRef.current);
+    const writeEpoch = folderWriteEpoch.current + 1;
+    folderWriteEpoch.current = writeEpoch;
+    setFolderSaveState("saving");
+    setOperationDetail(`Saving the IDE files to ./${folder.name}…`);
+    const queued = folderWriteQueue.current.then(() =>
+      saveProjectFolderWithAutosave(folder, snapshot, deletedPaths, {
+        expectedBaseDigest: conflict.folderDigest,
+      }),
+    );
+    folderWriteQueue.current = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      const result = await queued;
+      if (
+        folderWriteEpoch.current !== writeEpoch ||
+        projectSessionRef.current.projectId !== sessionToSave.projectId
+      ) {
+        return;
+      }
+      const current = acknowledgeProjectSessionSave(
+        projectSessionRef.current,
+        sessionToSave.revision,
+        result.contentDigest,
+      );
+      publishProjectSession(current);
+      setProjectFolderConflict(null);
+      replacePendingFolderDeletions((pending) => {
+        const remaining = new Set(pending);
+        for (const path of deletedPaths) remaining.delete(path);
+        return remaining;
+      });
+      const stillDirty = projectSessionHasUnsavedChanges(current);
+      folderDirtyRef.current = stillDirty;
+      setFolderDirty(stillDirty);
+      setFolderSaveState(stillDirty ? "pending" : "current");
+      setOperationDetail(
+        `Kept the IDE files in ./${folder.name}. The previous folder files were retained in project autosaves.`,
+      );
+    } catch (error) {
+      if (error instanceof ProjectFolderConflictError) {
+        recordProjectFolderConflict(error);
+      } else {
+        setFolderSaveState("error");
+        setOperationDetail(errorDetail(error));
+      }
+    }
+  }, [
+    projectFolderConflict,
+    publishProjectSession,
+    recordProjectFolderConflict,
     replacePendingFolderDeletions,
     workingFolder,
   ]);
@@ -1548,7 +1740,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             componentCheckActive: componentCheckRunningRef.current,
           });
 
-        if (!projectSessionReadyRef.current) return false;
+        if (!projectSessionReadyRef.current || projectFolderConflict) {
+          return false;
+        }
         const sessionToSave = projectSessionRef.current;
         const expected = projectRevisionIdentity(sessionToSave);
         storeRecoveredProject(
@@ -1625,6 +1819,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             }
             const savedSession = markProjectSessionSaved(
               projectSessionRef.current,
+              result.contentDigest,
             );
             publishProjectSession(savedSession);
             storeRecoveredProject(
@@ -1636,7 +1831,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             setFolderSaveState("current");
             replacePendingFolderDeletions(() => new Set());
           } catch (error) {
-            if (
+            if (error instanceof ProjectFolderConflictError) {
+              recordProjectFolderConflict(error);
+            } else if (
               error instanceof DOMException &&
               error.name === "NotAllowedError"
             ) {
@@ -1647,7 +1844,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             } else {
               setFolderSaveState("error");
             }
-            setOperationDetail(errorDetail(error));
+            if (!(error instanceof ProjectFolderConflictError)) {
+              setOperationDetail(errorDetail(error));
+            }
             return false;
           }
         } else {
@@ -1660,7 +1859,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           projectRevisionIsReloadable(projectSessionRef.current, expected, true)
         );
       }),
-    [publishProjectSession, replacePendingFolderDeletions],
+    [
+      projectFolderConflict,
+      publishProjectSession,
+      recordProjectFolderConflict,
+      replacePendingFolderDeletions,
+    ],
   );
 
   useEffect(() => {
@@ -1716,7 +1920,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     }
     if (!workspaceFolder) {
       setOperationDetail(
-        "Choose the course folder that contains this project before starting the next challenge.",
+        "Choose the working folder that contains this project before starting the next challenge.",
       );
       await selectWorkspaceFolder();
       return;
@@ -1760,8 +1964,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           preservedBrowserDraftRef.current =
             snapshotForProjectSession(previousSession);
         }
+        const draftSession = createProjectSession(pendingProject, {
+          source: "browser-draft",
+        });
         const nextSession = markProjectSessionSaved(
-          createProjectSession(pendingProject, { source: "browser-draft" }),
+          draftSession,
+          await projectContentDigest(draftSession.project),
         );
         const folder = await createProjectFolder(
           workspaceFolder,
@@ -1893,7 +2101,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           skipped.length
             ? `; skipped ${skipped.length} duplicate or unsupported file${skipped.length === 1 ? "" : "s"}`
             : ""
-        }.${workingFolder ? " Saving automatically." : " Choose a course folder to keep this project as ordinary files."}`,
+        }.${workingFolder ? " Saving automatically." : " Choose a working folder to create this project's folder."}`,
       );
     },
     [
@@ -2125,22 +2333,26 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [fileActionsOpen]);
 
-  const storageDetail = workingFolder
-    ? folderSaveState === "error"
-      ? "Automatic save failed"
-      : folderSaveState === "saving" || folderDirty
-        ? "Saving changes…"
-        : "Connected · changes save automatically"
-    : rememberedFolder && rememberedFolderCanAttach
-      ? `${rememberedFolder.name} · reconnect to resume saving`
-      : "Temporary browser copy; no project folder selected";
-  const storageSummary = workingFolder
-    ? `Saved automatically in ./${workingFolder.name}`
-    : rememberedFolder && rememberedFolderCanAttach
-      ? `${rememberedFolder.name} · reconnect to resume automatic saving`
-      : workspaceFolder
-        ? `Temporary browser copy · course folder ${workspaceFolder.name} selected`
-        : "Temporary browser copy · choose a course folder";
+  const storageDetail = projectFolderConflict
+    ? "Folder and IDE files differ; choose which version to keep"
+    : workingFolder
+      ? folderSaveState === "error"
+        ? "Automatic save failed"
+        : folderSaveState === "saving" || folderDirty
+          ? "Saving changes…"
+          : "Connected · changes save automatically"
+      : rememberedFolder && rememberedFolderCanAttach
+        ? `${rememberedFolder.name} · reconnect to resume saving`
+        : "Temporary browser copy; no project folder selected";
+  const storageSummary = projectFolderConflict
+    ? "Folder changes need review"
+    : workingFolder
+      ? `Saved automatically in ./${workingFolder.name}`
+      : rememberedFolder && rememberedFolderCanAttach
+        ? `${rememberedFolder.name} · reconnect to resume automatic saving`
+        : workspaceFolder
+          ? `Temporary browser copy · working folder ${workspaceFolder.name} selected`
+          : "Temporary browser copy · choose a working folder";
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
@@ -2336,7 +2548,15 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 ‹
               </button>
             </div>
-            <div className="project-root" data-testid="project-folder">
+            <div
+              className="project-root"
+              data-testid="project-folder"
+              title={
+                workingFolder
+                  ? `Project folder: ./${workingFolder.name}`
+                  : `${project.name} is a temporary browser copy`
+              }
+            >
               {workingFolder
                 ? `./${workingFolder.name}`
                 : `${project.name} · temporary browser copy`}
@@ -2482,9 +2702,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 <button
                   className="next-challenge-button"
                   onClick={() => void startNextChallenge()}
-                  title={`Create ${followingChallenge.label} and carry forward the student components used in this project.`}
+                  title={`Create a separate ${followingChallenge.label} project and copy your completed component files from this project.`}
                 >
-                  Start {followingChallenge.label}
+                  Create {followingChallenge.label} project
                 </button>
               ) : null}
               <div className="template-control">
@@ -2523,7 +2743,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 </div>
               </div>
               <div className="project-storage">
-                <span>Project storage</span>
+                <span>Folders and automatic saving</span>
                 <strong title={storageDetail}>{storageSummary}</strong>
                 <button
                   className="folder-reconnect"
@@ -2540,10 +2760,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   }
                 >
                   {workingFolder
-                    ? "Change course folder"
+                    ? "Change working folder"
                     : workspaceFolder
                       ? "Create project folder"
-                      : "Choose course folder"}
+                      : "Choose working folder"}
                 </button>
                 {!workingFolder &&
                 rememberedFolder &&
@@ -2556,13 +2776,40 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                     Reconnect
                   </button>
                 ) : null}
-                <small
-                  aria-live="polite"
-                  className="project-operation-detail"
-                  title={operationDetail}
-                >
-                  {operationDetail}
-                </small>
+                {projectFolderConflict ? (
+                  <div
+                    aria-live="polite"
+                    className="project-folder-conflict"
+                    role="alert"
+                  >
+                    <small>
+                      The folder changed outside UCSBXRP. Choose which files to
+                      keep. Neither version has been overwritten.
+                    </small>
+                    <div>
+                      <button
+                        onClick={useFolderConflictFiles}
+                        title="Open the files currently in the project folder and retain the IDE draft for recovery."
+                      >
+                        Use folder files
+                      </button>
+                      <button
+                        onClick={keepIdeConflictFiles}
+                        title="Write the IDE files to the project folder and retain the previous folder files in autosaves."
+                      >
+                        Keep IDE files
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <small
+                    aria-live="polite"
+                    className="project-operation-detail"
+                    title={operationDetail}
+                  >
+                    {operationDetail}
+                  </small>
+                )}
                 <OfflineReadiness appName="IDE" />
               </div>
             </div>

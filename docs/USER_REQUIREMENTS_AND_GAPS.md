@@ -1,616 +1,573 @@
-# UCSBXRP user requirements and gaps
+# UCSBXRP requirements and usability audit
 
-## Scope and interpretation
+## Purpose and evidence boundary
 
-This report compares the current repository with
-`docs/USER_REQUIREMENTS_AND_INTENT.md` and the active course authorities named
-by `PROJECT_CONTEXT.md`. It is an engineering audit, not a transcription of the
-request history. User-reported symptoms are treated as observations; proposed
-causes and mechanisms are accepted only where the current implementation or
-retained evidence supports them.
+This audit compares the integrated repository with
+`docs/USER_REQUIREMENTS_AND_INTENT.md` and the course authorities named in
+`PROJECT_CONTEXT.md`. It emphasizes the workflows a student or instructor must
+actually complete. It is not an acceptance checklist and does not assume that a
+user-suggested mechanism is correct merely because it was proposed.
 
-The audit snapshot is commit `8d760ca` plus the current coherent browser,
-documentation, course-source, and state-model work for release
-`2026.08-dev.26`. The attached XRP still runs the separately qualified dev.25
-runtime until the next physical stage.
+The audit cut is the current `ab01636` working tree, whose source release is
+`2026.08-dev.28`. That tree contains integrated but uncommitted project-folder,
+portable-project, documentation, commissioning, target-client, and service
+changes. The last recorded complete non-hardware gate in `STATUS.md` is the
+dev.26 source. The newest immutable physical evidence is the nominal dev.25
+station-mode run in
+`docs/hardware/2026-08-26-dev25-transaction-and-runtime.json`. Dev.27 physical
+qualification was still in progress when this audit was written. A test that
+passed on dev.25, or a focused test for an uncommitted dev.27 change, is not
+reported here as full dev.27 qualification.
 
-Status terms are used literally:
+Evidence terms are literal:
 
-- **Verified current behavior**: present in the current source and exercised by
-  an identified automated or physical test. The evidence tier is stated.
-- **Likely gap**: the requested outcome is absent, contradictory, or not robust
-  in the current implementation. This is a finding, not merely an untested idea.
-- **Deferred idea**: intentionally outside the immediate baseline and not a
-  current release defect.
-- **Obsolete or superseded request**: an earlier formulation or mechanism that
-  has been replaced by a later, more coherent direction.
+- **Physical evidence** means a retained observation from the attached RP2350
+  XRP.
+- **Browser evidence** means a complete workflow exercised in Chrome. Most
+  commissioning browser tests mock Web Serial and the XRP HTTP service; they do
+  not replace a native-device run.
+- **Unit or source evidence** establishes a local rule or state transition, not
+  the usability of the complete workflow.
+- **Unresolved** means either a demonstrated defect or an important required
+  branch without adequate evidence. It does not imply that every untested branch
+  is broken.
 
-Priorities describe product consequence:
+## Overall assessment
 
-- **P0**: can select the wrong robot or project, break a required physical
-  workflow, or prevents honest release qualification.
-- **P1**: important course, instructor, interoperability, or recovery gap.
-- **P2**: quality, accessibility, performance, or maintainability debt that does
-  not presently block the core workflow.
+The product now has substantive end-to-end behavior: the virtual XRP executes
+the project MicroPython, IDE and Monitor share target and project state, the
+physical service supports project transfer and telemetry, setup installs a
+verified slotted runtime, project files can autosave to ordinary folders, and
+the course includes runnable demos, challenges, tutorials, documentation, and
+an instructor authoring path. These are no longer placeholder implementations.
 
-## Audit baseline
+The most important newly confirmed defect is the project-directory boundary.
+**Open project can accept a parent course folder and recursively combine files
+from several child projects into one apparent project.** This can expose the
+wrong files and can cause later metadata or autosave writes at the wrong folder
+level. It is a root model error, not a label problem. It should be corrected
+before further project-panel polishing or broad refactoring.
 
-Under the repository's required Node 24 runtime, the current snapshot produces:
+The other central uncertainty is release qualification. The physical dev.25
+station workflow is strong evidence for Flash, Run, Stop, motor, encoder,
+telemetry, and IDE/Monitor coordination. It does not establish that the current
+dev.27 setup bundle, first-use Web Serial path, repair path, reset recovery,
+hotspot handoff, installed PWA, and deployed GitHub Pages build all work together
+repeatedly.
 
-- `npm test`: 33 files, 272 tests passed.
-- `npm run test:python`: 200 tests passed, including release integrity, API
-  parity, course starters, and authoring.
-- `npm run test:micropython`: MicroPython 1.28 public-interface,
-  canonical-source, service-syntax, hardware-boundary, and portable-MPY checks
-  passed.
-- `npm run build` and offline verification: TypeScript, Vite production build,
-  commissioning bundle, and 223-file offline shell passed. Vite still reports
-  large IDE, Monitor, and editor chunks.
-- Stable Chrome: all 70 non-hardware workflows passed; the physical workflow is
-  intentionally opt-in and belongs to the next stage.
+## Behavior presently supported
 
-The current dev.25 working release has now been exercised on the attached XRP
-in station mode on `Pink` at `192.168.7.25`. The robot reported managed runtime
-generation 4 and manifest digest
-`0de338a671d267814a9da95ced73249ffba16be63d27b689fb70cac03de3b997`.
-Repeated service probe, Flash, Run, and Stop passed; a bounded motor/encoder run
-passed and ended at zero motor effort; and the physical IDE/Monitor Playwright
-workflow passed. This establishes a nominal physical dev.25 installation and
-student run path. It does not yet establish interrupted-install rollback,
-failed-candidate fallback, reliable reset-only reconnect, hotspot operation,
-installed-PWA behavior, or deployed-site behavior. The earlier structured
-dev.22 record remains at
-`docs/hardware/2026-08-26-dev22-release-and-repeatability.json`; the dev.25
-observations should be retained in a corresponding immutable evidence record.
+### Setup and repair
 
-## Verified current behavior
+The setup application now has a coherent student-facing sequence: select or
+confirm a course folder, select or confirm an XRP over USB, inspect the
+controller and runtime, install or repair the course runtime, choose the robot
+network, follow an explicit computer-Wi-Fi handoff, verify the Wi-Fi service,
+and open the IDE with the physical target selected. A previously authorized XRP
+can be shown as **Use this XRP**; the browser's mandatory chooser remains for a
+first-use device. Existing hotspot configuration is not repeated as a second
+equivalent hotspot choice. Progress, setup log, Back, exit, permission help,
+and identity matching are present.
 
-### V1. Commissioning is a substantive repair workflow
+Evidence:
 
-**Status: Verified current behavior — source, automated tests, and nominal
-dev.25 station-mode physical workflow. Rollback and hotspot branches remain
-unverified.**
-
-The commissioning application identifies the RP2350 controller, installs the
-course firmware and runtime through Web Serial, verifies byte counts and
-SHA-256 digests, invalidates only the managed MicroPython module namespaces,
-checks required imports, preserves an explicitly retained network profile, and
-records progress in a setup log. It fetches and verifies all changed assets
-before the first device mutation. Evidence:
-
-- `apps/commission/src/commissioner.ts`
 - `apps/commission/src/CommissionApp.tsx`
+- `apps/commission/src/commissioner.ts`
+- `apps/commission/src/web-serial.ts`
 - `apps/commission/src/commissioner.test.ts`
 - `tests/e2e/commissioning.spec.ts`
 
-The current work replaces live, file-by-file course activation with a small
-stable bootstrap and A/B runtime slots. An activation record is published only
-after the inactive slot and its manifest have been verified. Boot attempts a
-new candidate once, confirms it after service startup, and otherwise returns to
-the last confirmed runtime. Release identity now separates build sequence,
-service version, protocol version/revision, course API revision, library
-version, bootstrap version, and runtime-manifest digest. Evidence:
+The installer downloads and hashes all required assets before device mutation,
+installs the managed course runtime into an inactive A/B slot, verifies the slot
+and release manifest, and publishes activation state only after verification.
+The bootstrap can retain the last confirmed slot. This is the appropriate
+boundary for repair and course updates; it should not be replaced by live
+file-by-file module replacement or cache-clearing workarounds.
+
+Evidence:
 
 - `device_service/course_boot.py`
 - `device_service/main.py`
-- `apps/commission/src/commissioner.ts`
 - `vendor/current/release.json`
 - `tests/python/test_course_boot.py`
 - `tests/python/test_build_commissioning_bundle.py`
+- `tests/python/test_install_xrp_service.py`
 
-This is the correct architectural response to mixed-release risk. It should not
-be replaced by more cache clearing, retries, or exact version-string bandages.
+### Project identity, autosave, and recovery
 
-### V2. Robot identity and configured versus observed network state are explicit
+`ProjectSession` gives a project a stable identity, monotonic content revision,
+saved revision, and base digest. IDE startup restores an authorized project
+folder before it displays or stages a project, while a short cross-tab bootstrap
+record prevents Monitor from running an older project during that restoration.
+Changing a project marks the shared target stale; Monitor Run then validates and
+stages the current IDE project rather than silently running the preceding one.
 
-**Status: Verified current behavior — source and automated tests; multi-robot
-physical exercise remains outstanding.**
+The current dev.27 folder work calculates a canonical SHA-256 digest over the
+project name, main file, template, paths, and contents. The root metadata is
+written after file writes and deletions as a commit marker. If a Git operation
+or external editor changes the folder after the IDE's saved base, autosave
+pauses and offers one explicit choice: use the folder files or keep the IDE
+files. Both versions are retained. A digest mismatch also detects a visibly
+mixed or interrupted multi-file write on the next read.
 
-`/api/v1/info` reports `robotId` from `machine.unique_id()`, runtime release and
-sequence, generation, manifest digest, API/library revisions, protocol revision,
-and bootstrap version. Commissioning verifies that the Wi-Fi service has the
-same identity as the USB-selected controller. The browser stores a versioned
-`RobotProfile`, preserves configured station/hotspot intent separately from the
-last effective network observation, and supplies the expected identity through
-candidate discovery and the shared coordinator. Direct connection, permission
-probing, and reset reconnection reject a different or identity-less robot.
-The browser also evaluates independent compatibility fields rather than
-requiring service version to equal course release. Evidence:
-
-- `device_service/ucsb_xrp_service/service.py`
-- `apps/commission/src/CommissionApp.tsx`
-- `packages/target/src/target-preference.ts`
-- `packages/target/src/target-preference.test.ts`
-- `packages/target/src/physical-target.ts`
-- `packages/target/src/physical-target-coordinator.ts`
-- `packages/target/src/physical-target.test.ts`
-- `packages/target/src/physical-target-coordinator.test.ts`
-
-### V3. Shared target state and ordinary project execution are real
-
-**Status: Verified current behavior — automated tests and dev.25 physical
-station-mode evidence.**
-
-IDE and Monitor use shared physical and virtual target workers. Project state is
-revisioned, a flashed project can be reused without a second transfer, stale
-state is surfaced, run/stop/reset are explicit operations, and output and
-telemetry carry event identities. The physical service uses two project slots
-and an atomic active pointer. It now retires core 1 before internal-flash writes
-and starts the worker after the Run reply, addressing the measured RP2350 flash
-and threading conflict. Evidence:
-
-- `packages/target/src/physical-target-coordinator.ts`
-- `packages/target/src/physical-target.ts`
-- `device_service/ucsb_xrp_service/service.py`
-- current dev.25 attached-XRP observation: generation 4, runtime-manifest digest
-  `0de338a671d267814a9da95ced73249ffba16be63d27b689fb70cac03de3b997`,
-  repeated Flash/Run/Stop passed
-- `docs/hardware/2026-08-26-dev22-release-and-repeatability.json`
-
-### V4. The IDE has a usable project and folder model
-
-**Status: Verified current behavior — source, automated browser tests, and
-dev.25 physical IDE use.**
-
-The IDE distinguishes templates from editable projects, rejects the course
-source repository as a student project folder, restores remembered folders
-when permission exists, maintains a browser recovery copy, rotates autosaves,
-supports multiple files and Markdown preview, and updates the physical-project
-revision consistently across JavaScript and MicroPython. Evidence:
-
-- `apps/ide/src/project-files.ts`
-- `apps/ide/src/IdeApp.tsx`
-- `tests/e2e/project-workflow.spec.ts`
-- `tests/e2e/ide-storage-recovery.spec.ts`
-- `tests/e2e/physical-hardware.spec.ts`
-
-### V5. Monitor is functional, not a placeholder dashboard
-
-**Status: Verified current behavior — automated browser tests and dev.25
-physical IDE/Monitor, motor, encoder, and telemetry evidence.**
-
-Monitor shares target/project state with the IDE and provides run controls,
-telemetry values, strip plots, world view, live runtime parameters, console
-events, recording, annotations, and CSV/SVG/PNG/WebM export. The standalone
-Dashboard route is only a compatibility redirect. Evidence:
-
-- `apps/dashboard/src/DashboardApp.tsx`
-- `packages/target/src/telemetry-recording.ts`
-- `tests/e2e/monitor-recording.spec.ts`
-- `tests/e2e/complete-path.spec.ts`
-- `tests/e2e/physical-hardware.spec.ts`
-- `docs/hardware/2026-08-26-dev22-release-and-repeatability.json`
-
-### V6. The simulator and course package exercise the intended conceptual boundary
-
-**Status: Verified current behavior — source and automated MicroPython tests.**
-
-The simulator supplies deterministic planar hardware/world state; `ucsb_xrp`
-owns sensing, odometry, navigation, mapping, planning, mission helpers, live
-publishing, and project-world access. Student components are explicit and the
-same project package is used on virtual and physical targets. Evidence:
-
-- `packages/simulator/src/index.ts`
-- `vendor/current/ucsb_xrp/`
-- `vendor/current/reference_source/ucsb_xrp_reference/`
-- `scripts/prove-micropython.mjs`
-
-### V7. Challenge authoring has a usable repository-side path
-
-**Status: Verified current behavior — automated tests.**
-
-The repository CLI can create, validate, and publish a challenge specification,
-including starter files, student implementation declarations, world data, and
-catalog integration. The README validator now follows the current
-student-centered headings rather than the obsolete administrative headings.
 Evidence:
 
-- `scripts/challenge_authoring.py`
-- `docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`
-- `tests/python/test_challenge_authoring.py`
+- `apps/ide/src/project-session.ts`
+- `apps/ide/src/project-session.test.ts`
+- `apps/ide/src/project-files.ts`
+- `apps/ide/src/project-files.test.ts`
+- `apps/ide/src/IdeApp.tsx`
+- `tests/e2e/workflow-stress.spec.ts`
+- `tests/e2e/project-workflow.spec.ts`
 
-### V8. Offline packaging and release-coherence guards exist
+The conflict algorithm has focused unit coverage. Its two-choice interaction
+has not yet been exercised against native Chrome File System Access handles
+while a real external editor modifies the same folder. That browser workflow
+remains required after the project-directory boundary is corrected.
 
-**Status: Verified current behavior — local production build and automated
-browser checks.**
+The browser and RP2350 now share one portable-project boundary: at most 48
+files, 256 KiB total, 96 KiB per file, and 160 ASCII-safe path characters.
+Incompatible projects can still be opened and repaired in the IDE, but virtual
+and physical validation/run reject them before compilation or an XRP request.
 
-The PWA vendors the MicroPython runtime and course assets, precaches an offline
-shell, applies cross-origin-isolation headers to cached responses, and refuses
-commissioning when the loaded page and commissioning manifest name different
-releases. Local development removes conflicting production workers/caches.
+Evidence:
+
+- `packages/target/src/project-validation.ts`
+- `packages/target/src/project-validation.test.ts`
+- `packages/target/src/portable-project-targets.test.ts`
+- `tests/e2e/ide-editing.spec.ts`
+- `device_service/ucsb_xrp_service/protocol.py`
+
+### IDE, Monitor, output, and telemetry
+
+IDE and Monitor use shared virtual and physical workers. A fresh Monitor can run
+the default virtual project without an earlier IDE Run. An IDE edit propagates
+the exact project revision, and one Monitor Run performs required validation and
+physical transfer. Run and Stop state is shared in both directions. A Monitor
+opened after a virtual run receives retained path and strip-plot history.
+
+Program output and the diagnostic event log have one visible home in the IDE.
+The Monitor retains output internally only to save the run archive with
+telemetry; it does not display a contradictory second terminal. Physical
+console events have request, result, error, boot, run, and sequence identities;
+missing device log or telemetry sequences produce an explicit gap event. The
+device splits or bounds long output records, the shared workers retain 2,000
+console events, and the IDE retains 5,000 entries. This is bounded full session
+output, not an unlimited terminal history.
+
+Evidence:
+
+- `packages/target/src/physical-target-coordinator.ts`
+- `packages/target/src/virtual-target-event-hub.ts`
+- `packages/target/src/physical-target.ts`
+- `device_service/ucsb_xrp_service/protocol.py`
+- `device_service/ucsb_xrp_service/service.py`
+- `apps/ide/src/IdeApp.tsx`
+- `tests/e2e/project-workflow.spec.ts`
+- `tests/e2e/late-monitor-history.spec.ts`
+- `tests/e2e/physical-hardware.spec.ts`
+
+Monitor implements the requested world view, dimensioned XRP, project-owned
+world selection, live telemetry, live controls, watches, student-published plot
+variables, equal-height strip plots, labeled axes and minor grid lines, clear
+plots, recording, annotations, CSV export, plot SVG/PNG export, and WebM world
+replay. The 30,000-sample recorder reports the observed rate, capacity, and
+dropped older samples. A completed monitored run writes rotated output,
+telemetry, and metadata to the remembered active project folder when permission
+is available.
+
+Evidence:
+
+- `apps/dashboard/src/DashboardApp.tsx`
+- `apps/dashboard/src/SignalPlot.tsx`
+- `apps/dashboard/src/WorldView.tsx`
+- `apps/dashboard/src/monitor-export.ts`
+- `packages/target/src/telemetry-recording.ts`
+- `tests/e2e/monitor-recording.spec.ts`
+- `tests/e2e/autosave.spec.ts`
+
+The latest immutable physical record confirms one dev.25 station-mode service
+probe, repeated Flash/Run/Stop, a raised-wheel motor and encoder probe ending at
+zero motor effort, and an IDE/Monitor physical browser workflow. See
+`docs/hardware/2026-08-26-dev25-transaction-and-runtime.json`. This evidence
+does not transfer automatically to the dev.27 changes.
+
+### Demos, tutorials, and challenges
+
+The expanding spiral is the default project. The obstacle-turn demo, all five
+challenges, and all seven MicroPython tutorial lessons have virtual execution
+coverage. The tutorial progresses from values and functions through modules,
+virtual sensing, and a finite-state program. Its README distinguishes the timed
+introductory examples from the regular `Robot.step()` schedule used in challenge
+control loops.
+
+Challenge projects identify new student work, work carried from the previous
+challenge, supplied files and services, program flow, component-check results,
+and a concrete sequence of virtual and physical work. **Start next challenge**
+creates a separate project and copies only declared reusable student modules.
+`component_checks.py` is a short selector; the supplied library prints each
+example and reports PASS, NOT IMPLEMENTED, or FAIL without starting a robot.
+Challenge 4 accepts a valid connected free-cell route and no longer mandates a
+shortest route or a particular frontier data structure.
+
+Evidence:
+
+- `vendor/current/templates/micropython_tutorial/`
+- `vendor/current/starters/challenge_1/` through `challenge_5/`
+- `vendor/current/ucsb_xrp/component_checks.py`
+- `tests/e2e/course-starters.spec.ts`
+- `tests/e2e/project-workflow.spec.ts`
+- `tests/python/test_course_starters.py`
+
+These tests establish that the projects execute and that the expected text and
+structure exist. They do not establish that first-time mechanical-engineering
+students can understand every README or component check without instructor
+interpretation. A short observed student trial remains more informative than
+adding further prose assertions or selector-based text tests.
+
+### Local-first application, navigation, Guide, and API
+
+The production worker precaches the application shells, simulator, vendored
+MicroPython, course package, templates, Guide, API reference, setup application,
+and instructor pages. The offline browser workflow reloads the production shell
+with network access blocked and runs the virtual path. The course folder is
+ordinary user storage and is independent of the browser-managed PWA cache. The
+site cannot silently install a PWA or place its executable shell in the selected
+folder; the current conditional browser install prompt is the correct platform
+boundary.
+
+All principal pages use the shared Home, IDE, Monitor, Guide, Set up or Repair,
+and API navigation. The student route is `/monitor/`; `/dashboard/` is retained
+only as a compatibility redirect. Responsive navigation and direct Guide/API
+fragments have browser coverage.
+
+The Guide now explains first virtual use, course and project folders, project
+structure, component checks, physical setup, telemetry/export, offline behavior,
+GitHub Desktop, troubleshooting, and system structure. The API reference gives
+public purposes, signatures, arguments, units, defaults, return values,
+exceptions, retained state, and examples. The Guide diagrams are semantic React
+and CSS structures rather than hand-positioned SVG. Both documents use compact
+body and code typography.
+
 Evidence:
 
 - `scripts/offline-build.mjs`
 - `scripts/verify-offline-build.mjs`
-- `apps/shared/offline-release-coordinator.ts`
-- `apps/shared/offline-release-coordinator.test.ts`
 - `apps/shared/offline-shell.ts`
-- `apps/commission/src/CommissionApp.tsx`
-
-### V9. Visual and documentation work has moved toward the requested style
-
-**Status: Verified current behavior — source and automated layout/contrast
-tests; current visual inspection still required.**
-
-The shared theme provides high-contrast light/dark palettes, focus visibility,
-reduced-motion and forced-colors behavior. Guide and API styles have been
-simplified and their prose is substantially more student-facing. Wide/narrow
-navigation and critical layout paths have browser coverage. Evidence:
-
-- `apps/shared/theme.css`
-- `apps/shared/theme.test.ts`
-- `apps/guide/src/styles.css`
-- `apps/reference/src/styles.css`
+- `apps/shared/AppNavigation.tsx`
+- `apps/guide/src/GuideApp.tsx`
+- `apps/guide/src/CourseFlows.tsx`
+- `apps/reference/src/ReferenceApp.tsx`
+- `tests/e2e/offline.spec.ts`
 - `tests/e2e/navigation-links.spec.ts`
 
-## Likely gaps
-
-## P0
-
-### G0.1. Reset recovery does not rediscover a changed station address
-
-**Status: Partly resolved; endpoint rediscovery remains a gap.**
-
-The redundant SharedWorker recovery deadline has been removed, so it can no
-longer reject just before the direct client's reply. However,
-`reconnectAfterReset` still polls only the bound endpoint. Older physical runs
-measured longer reassociation times; the current dev.25 pass found reset-only
-reconnect at approximately eight seconds or slightly longer, while ordinary
-Flash/Run/Stop remained immediate and reliable.
-
-Candidate discovery is used at initial connection, not during reset, so a
-changed DHCP address cannot be recovered even though identity verification is
-now available.
-
-**Required correction:** make reset a coordinator-owned transition. Return an
-acknowledgement, show recovery progress, search known addresses for the same
-`robotId`, verify compatibility and boot identity, then update the endpoint
-atomically. Use a recovery ceiling justified by repeated hardware measurements
-without adding latency to ordinary operations. This is rediscovery, not a blind
-delay.
-
-### G0.2. IDE target startup races restoration of the authoritative folder project
-
-**Status: Resolved in dev.26 source and verified in Stable Chrome.**
-
-ProjectSession is now integrated across IDE startup, editing, file operations,
-folder attachment, save, autosave, and update-safe reload. The IDE does not
-display or stage a project until folder/browser reconciliation finishes. An
-explicit cross-tab bootstrap record keeps Monitor Run disabled until that exact
-revision reaches the shared target. A held IndexedDB restoration test proves
-that the wrong browser draft is neither exposed nor run.
-
-### G0.3. Dev.25 nominal physical operation is qualified; dev.26 physical and rollback branches are not
-
-**Status: Likely gap — remaining release qualification, not evidence of a
-nominal physical source defect.**
-
-The release boundary changes boot, import paths, installation layout,
-rollback, confirmation, service identity, provisioning, and physical target
-compatibility. Automated coverage is strong, and the attached dev.25 XRP has
-now established the nominal station-mode path: service probe, repeated Flash,
-Run, Stop, bounded motor/encoder motion with final zero effort, and physical
-IDE/Monitor Playwright all passed on `Pink` at `192.168.7.25`. The installed
-runtime reported generation 4 and digest
-`0de338a671d267814a9da95ced73249ffba16be63d27b689fb70cac03de3b997`.
-
-The remaining unqualified branches are:
-
-- interrupted inactive-slot write preserving the confirmed runtime;
-- invalid candidate or pre-confirmation reset falling back correctly;
-- station and hotspot handoff with the slotted runtime;
-- reset-only reconnect against dev.25, which remains around or beyond the
-  current eight-second client ceiling;
-- exact deployed-site and installed-PWA behavior.
-
-Dev.25 is physically qualified for the nominal station-mode run path; dev.26
-has complete software qualification but is not yet installed. Neither release
-is yet qualified for rollback, identity-aware reset rediscovery, hotspot, or
-deployment operation. Bootstrap upgrade behavior also needs a deliberate test
-because `main.py` and `course_boot.py` remain two separately replaced bootstrap
-files even though runtime activation is transactional.
-
-### G0.4. The current edited course source is not represented by the release manifest
-
-**Status: Resolved for dev.26 source.**
-
-The canonical source hash, release metadata, commissioning bundle, and offline
-shell are coherent. The release-integrity test passes. Dev.25 physical evidence
-remains attributed only to the installed dev.25 runtime.
-
-## P1
-
-### G1.1. Device operations have request timeouts, not durable operation state
-
-**Status: Partly resolved; lost-reply retry remains a gap.**
-
-The redundant SharedWorker deadline is gone. The direct HTTP request still has
-a three-second transport deadline for check, sync, Run, and live-parameter
-commands. The service permits up to 48 files and 256 KiB, as defined by
-`device_service/ucsb_xrp_service/protocol.py`. A device can finish an operation
-after the caller has rejected it, leaving the browser uncertain whether retry
-is safe.
-
-**Required correction:** retry a lost transport reply with the same request ID,
-using the service's existing cached correlated reply. Keep short deadlines for
-reachability probes and measure the few operation-specific ceilings. Do not add
-a second operation-state subsystem unless hardware evidence requires it.
-
-### G1.2. Identity checks fail safely, but classroom discovery and command ownership remain incomplete
-
-**Status: Likely gap; wrong-robot acceptance is resolved in the current working
-tree.**
-
-The `RobotProfile` and expected-identity checks now prevent a browser configured
-for one XRP from accepting another. However, station hostname remains the
-shared `ucsb-xrp.local` (`device_service/ucsb_xrp_service/networking.py` and
-`packages/target/src/target-preference.ts`). If DHCP changes an intended
-robot's saved address in a room containing several XRPs, the generic hostname
-can resolve a different unit; the identity check rejects it safely but cannot
-locate the intended unit. Service routes also remain accessible to other peers
-on the LAN, so identity verification is not command authorization.
-
-**Required correction:** derive a unique station hostname from the stable robot
-ID and test discovery with multiple robots. Consider a commissioning-generated
-capability token if shared-LAN command interference is observed or considered a
-credible classroom risk.
-
-### G1.3. Challenge 4 has a contradictory path-planning contract
-
-**Status: Resolved.**
-
-The student base class, component checks, starters, catalog, browser API,
-course documents, and summary now require a valid route through horizontally or
-vertically adjacent free cells, or `None` when no route exists. A regression
-test deliberately accepts a valid non-shortest route. The reference
-implementation may remain breadth-first without making optimality a student
-requirement.
-
-### G1.4. Active v2 Guide/API authorities lag the public package
-
-**Status: Resolved for the current public API.**
-
-The active Guide/API, browser reference, USER_REFERENCE, course summary, and
-parity tests now cover the actual student-component import boundary,
-`Rectangle`, `ProjectWorld`, `load_world`, `live.plot`, and wheel-speed filter
-configuration. They no longer state the obsolete exact-whole-step slider rule.
-
-### G1.5. Instructor browser authoring stops before preview and execution
-
-**Status: Likely gap; repository CLI path is verified.**
-
-The browser explicitly downloads JSON and leaves integration, project testing,
-review, and publication separate (`apps/author/src/AuthorApp.tsx`). World and
-file overrides remain raw JSON/source, and the success state explicitly says
-that no project files were created or checked.
-
-**Required correction:** retain versioned repository publication in the CLI,
-but make the browser generate a complete project preview/archive and run the
-same virtual and component checks. The canonical challenge specification
-should express semantic roles, not prose heading strings.
-
-### G1.6. The world contract is incomplete and differs between TypeScript and Python
-
-**Status: Likely gap.**
-
-TypeScript accepts only `start_line`, `start_box`, and `waypoint`
-(`packages/simulator/src/world.ts`). `stop_line`, `timing_gate`, `stop_box`, and
-generic non-obstacle markers requested by the course direction are absent.
-Python stores marker dictionaries with much weaker validation and validates
-waypoints only when accessed (`vendor/current/ucsb_xrp/world.py`).
-
-**Required correction:** define one versioned world schema with shared
-conformance fixtures and equivalent TypeScript/MicroPython validators. Add the
-missing semantic marker types before developing a visual editor.
-
-### G1.7. Folder persistence is recoverable but not cross-file transactional
-
-**Status: Likely gap.**
-
-`writeProjectFolder` in `apps/ide/src/project-files.ts` writes project files
-sequentially and metadata last. Session metadata now supplies stable identity
-and revisions, and the prior complete project is autosaved before overwrite,
-but the metadata does not contain a committed file-hash set. Interruption can
-therefore still leave a mixed folder generation that appears to have one saved
-revision.
-
-**Required correction:** write a revisioned metadata commit manifest containing
-schema/API revision and file hashes. Detect incomplete generations on reopen and
-offer restoration of the prior autosave. This should strengthen the folder as
-the authority, not add another persistence tier.
-
-### G1.8. Active PWA builds still consume mutable `current` metadata
-
-**Status: Likely gap; mismatch guard is verified.**
-
-The commissioning page loads the stable
-`course/commissioning/manifest.json`, while the worker still treats that file
-and `course/current/release.json` as network-first mutable resources
-(`scripts/offline-build.mjs`). The page/manifest identity guard prevents
-wrong-release USB mutation. Current uncommitted work also coordinates a safe
-reload across open apps and lets IDE/Monitor defer it while work is unsaved or a
-run is active (`apps/shared/offline-release-coordinator.ts` and
-`apps/shared/offline-shell.ts`). That resolves unsafe reload timing, but it does
-not make the active build's release metadata immutable.
-
-**Required correction:** an app build should embed immutable,
-content-addressed release URLs such as `course/releases/<build-id>/...`.
-`latest` may announce an update, but the active shell must consume only its own
-release. Activate a complete new worker/cache as one unit.
-
-### G1.9. Current validation coverage does not yet match the required stress sequence
-
-**Status: Substantially improved; physical branches remain.**
-
-Stable Chrome now covers repeated Run/Stop across IDE and Monitor, stale-edit
-auto-validation, reload/rerun, delayed folder restoration, repeated station/AP
-profile cycles, wrong-robot rejection, mocked Web Serial cancel/retry/repair,
-verified handoff, complete offline reopen, and course-release navigation. Still
-unverified on dev.26 hardware are real hotspot/station transitions, native
-serial re-enumeration, identity rejection with two physical XRPs, reset with a
-changed DHCP address, deployed-site local-network permission, and representative
-Windows behavior. Physical floor travel, motion-induced IMU response, and
-changing ultrasonic scenes correctly remain dependent on an arena setup.
-
-**Required correction:** record one immutable structured evidence file per
-release and generate the current coverage summary from those files. Do not let
-`STATUS.md`, `docs/REMAINING_HARDWARE_AND_NETWORK_SETUP.md`, and
-`docs/hardware/README.md` independently claim different current states.
-
-## P2
-
-### G2.1. Capability detection does not cover the actual browser prerequisites
-
-**Status: Likely gap.**
-
-The landing page checks secure context, Web Serial, and directory picker, but
-not SharedWorker, cross-origin isolation/SharedArrayBuffer, service worker and
-cache availability, local-network access, or WebM recording
-(`index.html:75-85`). Unsupported flows can therefore fail only after entry.
-
-**Correction:** expose a centralized capability matrix and useful fallback
-before enabling each workflow.
-
-### G2.2. Accessibility verification is narrower than functionality
-
-**Status: Likely gap.**
-
-Theme contrast, focus styles, reduced motion, forced colors, and narrow layout
-have tests. The repository lacks a comprehensive semantic accessibility scan,
-keyboard-only focus-order/modal regression, 200% zoom check, and retained
-screen-reader review. Canvas plots and worlds cannot expose the full numerical
-history through labels alone.
-
-**Correction:** add automated WCAG checks and a short manual keyboard,
-screen-reader, and zoom release pass. Provide a current-values/data-table route
-for telemetry represented essentially by canvas.
-
-### G2.3. Monitor retains overlapping histories and archives only after a run ends
-
-**Status: Likely gap; current behavior is bounded.**
-
-The plot path clones up to 1,200 samples per update, two recorders may retain
-30,000 samples each, and the worker retains a separate 10,000-event history:
-
-- `apps/dashboard/src/DashboardApp.tsx`
-- `packages/target/src/telemetry-recording.ts`
-- `packages/target/src/telemetry-event-history.ts`
-
-The recorder satisfies the current three-minute minimum, but a tab failure
-during a long run loses the archive because persistence occurs after stop.
-
-**Correction:** use one shared ring with decimated render views and journal
-full telemetry in chunks when a project folder is available. Measure before
-changing visible behavior.
-
-### G2.4. Virtual execution is not fully independent of host scheduling
-
-**Status: Likely gap, low current consequence.**
-
-The physics core uses a fixed 20 ms step, but before the first explicit sleep
-the MicroPython worker advances from `performance.now()`
-(`packages/target/src/micropython.worker.ts`). CPU scheduling can affect
-pre-sleep hardware interactions and overrun behavior.
-
-**Correction:** provide an explicit virtual event clock for deterministic mode
-and report controller overrun separately from simulated time.
-
-### G2.5. Worker invalidation and build payload remain manual maintenance risks
-
-**Status: Likely gap.**
-
-Physical and virtual SharedWorker names are manually versioned
-(`packages/target/src/physical-target.ts` and
-`packages/target/src/virtual-target.ts`). The production build reports
-large Monitor, IDE, and editor chunks.
-
-**Correction:** derive worker name/handshake identity from generated build and
-protocol metadata. Profile load and memory before code splitting; split only
-along product boundaries that preserve offline reliability.
-
-### G2.6. Small documentation and route inconsistencies remain
-
-**Status: Likely gap, visual/content polish.**
-
-The Guide brand says “Guide” but its page heading remains “UCSBXRP guide”
-(`apps/guide/src/GuideApp.tsx`). The API heading remains “UCSB XRP Python API
-reference” (`apps/reference/src/ReferenceApp.tsx`). These may be
-reasonable product titles, but they do not exactly match the requested simple
-“Guide” and “API Reference” hierarchy. The legacy `/dashboard/` route is still
-built and included in navigation fallback even though it is only a redirect
-(`vite.config.ts`, `scripts/offline-build.mjs`).
-
-**Correction:** settle one shared documentation title hierarchy after visual
-inspection. Retain a minimal dashboard compatibility redirect if needed, but
-remove it from the application precache after a stated deprecation period.
-
-## Deferred ideas
-
-The following are not current release defects unless they become necessary to
-solve a validated core problem:
-
-- **Deferred idea:** full mobile-browser support. Unsupported mobile hardware
-  and export flows should still fail clearly.
-- **Deferred idea:** a visual world editor and simulator-generated challenge
-  thumbnails. Complete the world schema and physical workflow first.
-- **Deferred idea:** browser-integrated GitHub repository creation and
-  authentication. The current GitHub Desktop workflow is the lower-risk
-  student path; ordinary robot work must remain independent of Git setup.
-- **Deferred idea:** continuous video capture and a richer annotation editor.
-  Current snapshots, plots, notes, and bounded recording are functional.
-- **Deferred idea:** higher physical telemetry rate. Increase it only after
-  measuring effects on controller timing and service reliability.
-- **Deferred idea:** physical floor-travel and motion-induced sensor validation
-  until an arena permits it. Elevated-wheel encoder/motor evidence remains
-  valid for the narrower claim.
-- **Deferred idea:** explicit Save, Rename, Details, and additional folder
-  controls. Their necessity should follow observation of the student workflow.
-
-## Obsolete or superseded requests and mechanisms
-
-- **Obsolete or superseded:** treating `serviceVersion == courseRelease` as the
-  compatibility rule. Dev.25 correctly separates service, protocol, API,
-  bootstrap, and runtime-release identity.
-- **Obsolete or superseded:** accepting live file-by-file replacement of
-  `/lib/ucsb_xrp*` as the course release model. The A/B slotted runtime is the
-  current design; future fixes should preserve that boundary.
-- **Obsolete or superseded:** repeated repair as the response to every network
-  timeout. Installation state and computer/robot network reachability are
-  independent; diagnose profile, SSID, route, endpoint, identity, and freshness
-  before writing the robot again.
-- **Obsolete or superseded:** a separate full Dashboard product. Monitor is the
-  current student-facing surface; `/dashboard/` is compatibility only.
-- **Obsolete or superseded:** a local Node server or Node installation as a
-  student prerequisite. Node 24 is a repository-development constraint, not a
-  published-app requirement.
-- **Obsolete or superseded:** generic student-facing motor locks, safety tiers,
-  handovers, and repeated confirmations. The intended supervised XRP workflow
-  uses ordinary bounded engineering care. Development hardware actions still
-  follow repository motion-test policy and must end at zero effort.
-- **Obsolete or superseded:** assuming MicroPython itself is the cause of a long
-  operation. Current evidence points first to service protocol, flash/thread,
-  network, or state-transition behavior; a runtime change would require its own
-  evidence.
-
-## Recommended dependency order
-
-1. Preserve the coherent dev.26 software result in Git, install it on the
-   attached XRP, and repeat station-mode service, motor/encoder, IDE/Monitor,
-   default-project, and second-project workflows.
-2. Validate rollback, identity-aware reset rediscovery, hotspot, and
-   deployed-PWA branches without weakening the slot/rollback boundary.
-3. Add portable-project limits and digest-based detection of external/Git edits
-   before consolidating the IDE persistence controller.
-4. Consolidate endpoint rediscovery and same-request-ID transport retry.
-5. Separate website/catalog release identity from robot-runtime compatibility,
-   then add unique station hostnames for classroom discovery.
-6. Reconcile and extend the shared world schema before building its visual
-   editor.
-7. Bound per-tab telemetry delivery and address residual accessibility,
-   performance, worker invalidation, and visual cleanup after the physical
-   baseline is stable.
-
-This ordering closes wrong-target and wrong-project risks before expanding
-authoring or presentation scope, and treats the current course-service release
-problem as a release/state design issue rather than a sequence of local
-patches.
+### Instructor challenge creation
+
+The browser authoring page edits and validates a versioned challenge
+specification. The repository CLI creates an unpublished project, checks it, and
+publishes it only after an explicit command. The included Waypoint Slalom
+example is generated, run on the virtual XRP, and exported in browser testing.
+Instructor documentation describes the boundary between teaching design,
+executable project, and publication and includes the complete specification and
+source example.
+
+Evidence:
+
+- `apps/author/src/AuthorApp.tsx`
+- `apps/author/src/challenge-spec.ts`
+- `scripts/challenge_authoring.py`
+- `docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`
+- `docs/examples/waypoint_slalom.challenge.json`
+- `tests/e2e/instructor-authoring.spec.ts`
+- `tests/python/test_challenge_authoring.py`
+
+This is a usable repository-side workflow for an instructor comfortable with a
+local checkout and Python command. It is not yet the low-friction browser-only
+challenge creation experience originally requested.
+
+## Highest-priority unresolved work
+
+### 1. Enforce one conventional project-directory boundary
+
+**Observed and source-confirmed defect.** `openWorkingFolder()` in
+`apps/ide/src/IdeApp.tsx` passes the selected directory directly to
+`readProjectFolder()`. That reader recursively visits every non-hidden,
+nonignored child directory and does not require
+`.ucsb-xrp-project.json` at the selected root. The course-repository heuristic
+rejects one known repository file pattern, but an ordinary parent folder that
+contains several student projects is accepted. When no remembered course folder
+is available to constrain the picker, selecting that parent yields paths such
+as `ProjectA/main.py` and `ProjectB/main.py` in one IDE project. Later saves can
+write `.ucsb-xrp-project.json` and `UCSB_XRP_Autosaves` at the parent level.
+
+This contradicts the Guide's model and the claim in `docs/RED_TEAM_REVIEW.md`
+that a project directory is loaded only with UCSBXRP metadata. The existing
+nested-file test in `apps/ide/src/project-files.test.ts` proves legitimate
+subdirectories *inside one project* but does not distinguish them from sibling
+projects under a course folder. The new portable-project limit may prevent a
+large combined folder from running, but it does not prevent wrong files from
+being displayed or edited.
+
+**Required design correction:**
+
+1. Use `courseFolder` only for the parent directory and `projectFolder` only for
+   the active project root. Remove the internal and visible “working folder”
+   synonym.
+2. Make **Open project** accept a directory only when its root has a valid
+   `.ucsb-xrp-project.json`. Continue to allow nested source paths below that
+   root.
+3. Provide a separate, explicit **Import existing folder** migration for a
+   legacy project without metadata. It should inspect one selected root, show
+   the files to be adopted, create metadata only after confirmation, and reject
+   a folder that contains child project manifests.
+4. Make **New project** one conventional operation: choose a template, request
+   the project name, create `courseFolder/projectName`, populate it, attach it,
+   and autosave. If no course folder is available, choose the course folder as
+   part of that operation on supported desktop browsers. A temporary browser
+   project remains a deliberate fallback, not an intermediate state students
+   must understand to save ordinary work.
+5. Make Monitor archives follow the shared active `projectFolder`; do not let a
+   second unconstrained folder picker create a divergent run-output location.
+6. Display the full relative project path. `.project-root` currently truncates
+   with CSS ellipsis and has no `title`, so the user cannot inspect a long path.
+   Use a compact path with an accessible full value and a clear overflow
+   affordance.
+
+Regression evidence should include: rejecting the course parent; leaving two
+sibling projects byte-for-byte unchanged; opening a valid root with nested
+files; explicit legacy import; selecting a new course folder; creating a new
+project; external/Git edit conflict; interrupted write; Monitor archive to the
+same active project; reload; and a second project switch.
+
+### 2. Qualify the exact dev.27 release as one product
+
+The current source changes commissioning, release metadata, service lifecycle,
+portable project validation, project persistence, and physical-target Stop
+behavior. Dev.25 physical evidence is not enough to publish dev.27 as physically
+qualified.
+
+The next physical sequence should be scenario-driven rather than a collection
+of isolated probes:
+
+1. From a normal supported Chrome profile, reset or recommission the attached
+   XRP over native Web Serial and install dev.27.
+2. Verify the selected station profile and exact USB/Wi-Fi robot identity, then
+   open the IDE through the wizard handoff.
+3. Create or open one valid local project directory, Flash, Run, observe output,
+   motor command, encoder change, telemetry, and Stop, then rerun it.
+4. Change to a second nontrivial project and repeat from Monitor as well as IDE.
+5. Reopen both apps, run the retained project, repair the same release, and
+   repeat without stale endpoint, wrong folder, duplicate log, or disabled Run.
+6. Exercise one interrupted inactive-slot installation and one invalid candidate
+   so the confirmed runtime rollback is observed, not only unit-tested.
+
+Hotspot and deployed-PWA repetitions remain required before classroom release,
+but the station path should be made repeatable first. Evidence should record the
+exact release, robot ID, runtime generation/digest, network, project revision,
+commands, final motor command, and any user-visible recovery.
+
+### 3. Reset still knows addresses, not how to rediscover the selected robot
+
+Initial connection tries the configured station address and
+`ucsb-xrp.local`, and every accepted response is checked against `robotId`.
+However, `DirectPhysicalTargetClient.reconnectAfterReset()` polls only its
+currently bound endpoint. If DHCP changes the address during reset, the selected
+robot cannot be found even though wrong-robot rejection is implemented. The
+shared station hostname is also `ucsb-xrp.local` for every robot, so it is not a
+complete multi-robot discovery method.
+
+**Correction:** make reset recovery coordinator-owned and identity-based. Probe
+known addresses and a robot-unique station name, accept only the commissioned
+`robotId`, atomically update the verified station endpoint, and show one
+recovery state. Derive the hostname from the stable robot identity or another
+commissioned unique value. Test two physical robots or an equivalent network
+fixture. This is not solved by a longer fixed delay.
+
+Evidence:
+
+- `packages/target/src/physical-target.ts`
+- `packages/target/src/target-preference.ts`
+- `device_service/ucsb_xrp_service/networking.py`
+- `tests/e2e/workflow-stress.spec.ts`
+
+### 4. Lost replies are still ambiguous for most physical commands
+
+The service caches the last 20 correlated replies by request ID. Dev.27 uses the
+same request ID for one retry of Stop and has explicit interrupted-Stop recovery.
+Validate, Flash, Run, reset, live-parameter updates, and leases still normally
+send once. A transport timeout can therefore report failure after the XRP has
+already completed the operation. This matches the class of user reports in
+which a button appeared inert or a retry later found changed robot state.
+
+**Correction:** use the existing request/reply cache rather than adding a new
+operation subsystem. Retry safe interrupted commands once with the identical
+request ID, then reconcile actual project/run state. Reset requires identity-
+aware rediscovery rather than a blind POST retry. Retain short reachability
+timeouts and measure operation-specific ceilings; do not add routine multi-
+second sleeps.
+
+Evidence:
+
+- `packages/target/src/physical-target.ts`
+- `device_service/ucsb_xrp_service/service.py`
+- `packages/target/src/physical-target.test.ts`
+
+### 5. The PWA protects active work but still references mutable release paths
+
+The offline shell is content-hashed and retains the preceding cache while an
+update activates. IDE/Monitor can defer reload while a project is unsaved or a
+run is active, and setup refuses a page/commissioning-manifest release mismatch.
+However, an active shell still treats
+`course/commissioning/manifest.json` and `course/current/release.json` as
+network-first mutable URLs. A deployment can therefore present an old page and
+new `current` resource during update or rollback; the mismatch guard prevents an
+incorrect USB write but does not make the active application internally
+immutable.
+
+**Correction:** build each app shell against immutable release URLs. A small
+`latest` record may announce an update, but the active shell and commissioning
+page should consume only the release ID embedded at build time. Activate the new
+shell, course assets, and worker together. Then test the deployed Pages URL, an
+installed app window, offline reopen, update while an edited project is open,
+site-data clearing, and hotspot operation without internet.
+
+Evidence:
+
+- `scripts/offline-build.mjs`
+- `apps/shared/offline-shell.ts`
+- `apps/shared/offline-release-coordinator.ts`
+- `tests/e2e/offline.spec.ts`
+
+### 6. Browser challenge authoring remains split and exposes raw internals
+
+The current browser wizard downloads a JSON specification and explicitly makes
+no project files. The instructor must move the file into a repository, run the
+Python CLI, inspect the generated project, run checks, and publish. World and
+file overrides are raw JSON/source text. This is a sound version-controlled
+publication boundary but not yet a self-contained, low-friction creation tool.
+
+The world contract is also narrower and less consistent than the requested
+course authoring model. TypeScript validates `start_line`, `start_box`, and
+`waypoint`; Python retains marker dictionaries and validates waypoints only when
+accessed. Stop lines, timing gates, stop boxes, and general visual markers are
+absent. The instructor example still stores `program_flow` as hand-spaced ASCII
+text, although the student Guide uses responsive semantic diagrams.
+
+**Correction order:**
+
+1. Define one versioned world schema with shared fixtures and equivalent
+   TypeScript/MicroPython validation.
+2. Add the semantic markers the course actually needs.
+3. Let the browser produce and preview a complete project archive, run virtual
+   and component checks, and display the resulting world and program flow.
+4. Add a compact world editor using the same schema and Monitor geometry.
+5. Keep catalog publication as an explicit repository operation.
+
+Evidence:
+
+- `apps/author/src/AuthorApp.tsx`
+- `apps/author/src/challenge-spec.ts`
+- `packages/simulator/src/world.ts`
+- `vendor/current/ucsb_xrp/world.py`
+- `docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`
+- `docs/examples/waypoint_slalom.challenge.json`
+
+### 7. Platform, accessibility, and long-run evidence remain incomplete
+
+The landing page checks secure context, service worker/cache, SharedWorker,
+WebAssembly, folder picker, and Web Serial. Runtime code separately checks
+cross-origin isolation and WebM support. The landing status can nevertheless
+say physical XRP is ready before local-network permission and the deployed
+HTTPS-to-HTTP path have been exercised on that platform. Current browser tests
+are primarily Chromium on macOS with mocked device interfaces. Representative
+Windows Chrome/Edge, installed-PWA permissions, a Chromebook if the course uses
+one, and native File System Access conflict behavior remain unqualified.
+
+Theme contrast, focus styles, reduced motion, forced colors, responsive layout,
+and keyboard-capable separators have coverage. A complete keyboard focus-order
+pass, modal escape/focus return, 200% zoom, screen-reader inspection, and a
+numerical alternative to canvas history have not been established.
+
+Monitor retains bounded overlapping histories: 1,200 render samples, a
+30,000-sample recorder, and shared telemetry/event history. Completed runs are
+archived after they end, so a tab or browser failure during a long run can lose
+the current archive. Profile memory and delivery cost before changing this
+behavior. If long experiments require it, journal telemetry in chunks to the
+active project folder and render a decimated view from one shared history.
+
+## Focused usability recommendations
+
+### Keep Monaco and add course-aware help there
+
+Replacing Monaco would add download size and another editor integration without
+addressing the current problem. The bundle already includes Python syntax,
+suggest, and hover contributions in
+`apps/ide/src/monaco-editor-features.ts`. Current contextual help is only a
+filename-based API link in `IdeApp.tsx`.
+
+A small UCSBXRP symbol index should drive both completion and hover help for the
+course API: imports, class and function names, signatures, units, a one-sentence
+purpose, and the matching API anchor. Register it with Monaco's existing
+completion and hover providers. Keep it deliberately narrower than a desktop
+Python language server, and add parity tests so the symbol index and API
+reference cannot drift. Compile and runtime errors remain authoritative.
+
+### Keep required browser boundaries explicit
+
+Several earlier requested mechanisms are not implementable or not desirable as
+silent automation:
+
+- A website cannot silently select a first-use serial device; the system picker
+  is a browser security boundary.
+- A website cannot silently install itself as a PWA. It can cache its release
+  automatically and expose the install prompt when the browser provides one.
+- The PWA cache is browser-managed and cannot be copied into the selected course
+  folder as a self-running application without introducing a separate installed
+  runtime or server.
+- Folder handles must remain browser-managed because the site needs permission
+  before it can write an ordinary disk file. A single universal configuration
+  file cannot replace all browser state before a folder exists.
+
+The correct simplification is domain-specific authority: one `RobotProfile` for
+the commissioned target, one project metadata file inside one project root, one
+browser handle to the course root and active project, and bounded browser state
+only for temporary recovery and cross-tab coordination. The implementation
+should delete legacy aliases and migration paths after their supported lifetime
+rather than add new recovery tiers.
+
+### Validate comprehension with people, not more text assertions
+
+The Guide, API, challenge READMEs, and tutorial are now substantially expanded
+and their structures are test-covered. Remaining prose quality should be
+assessed with a short first-use observation: ask a student to create a project,
+identify what to implement, run component checks, locate API help, run virtually,
+and explain the resulting plots without coaching. Ask another instructor to
+create the Waypoint Slalom draft and state what still requires repository work.
+Record the points where they hesitate. This will expose terminology and
+information-order failures more reliably than tests that assert a heading or
+sentence is present.
+
+## Recommended implementation order
+
+1. Commit the current coherent baseline after the root physical run reports its
+   exact result; do not merge an unqualified dev.27 claim into the dev.25
+   evidence.
+2. Correct the course-folder/project-folder boundary and add native Chrome
+   conflict/import/sibling-project regression coverage.
+3. Repeat the dev.27 station-mode setup, two-project physical lifecycle, repair,
+   reload, and IDE/Monitor workflow against that corrected project model.
+4. Add identity-based reset rediscovery and general same-request-ID reply
+   recovery, then repeat the physical sequence.
+5. Make app release references immutable and validate the deployed and installed
+   local-first application, including hotspot mode.
+6. Reconcile the world schema, then improve browser challenge/world authoring.
+7. Run representative Windows and accessibility checks and measure long-run
+   telemetry/memory behavior.
+8. Only after this baseline is stable, perform the planned conservative
+   refactor: remove obsolete migrations and duplicated state, keep student code
+   literal, rerun the complete browser/physical workflows, and profile before
+   optimizing.
+
+This order addresses wrong-project and wrong-robot behavior before presentation
+or performance work, while preserving the working simulator, course API, and
+physical service boundaries.

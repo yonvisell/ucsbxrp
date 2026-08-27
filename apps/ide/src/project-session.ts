@@ -19,6 +19,8 @@ export interface CreateProjectSessionOptions {
   createProjectId?: () => string;
   /** Unix time in milliseconds. Defaults to Date.now(). */
   now?: number;
+  /** Actual digest read from an attached project folder. */
+  baseDigest?: string;
 }
 
 export type ProjectReconciliationReason =
@@ -26,6 +28,7 @@ export type ProjectReconciliationReason =
   | "newer-browser-draft"
   | "newer-browser-copy"
   | "newer-folder"
+  | "folder-conflict"
   | "different-project";
 
 export interface ProjectReconciliation {
@@ -110,6 +113,11 @@ export function createProjectSession(
     revision,
     savedRevision: options.source === "folder" ? revision : storedSavedRevision,
     updatedAt,
+    ...(options.source === "folder" && options.baseDigest
+      ? { baseDigest: options.baseDigest }
+      : stored?.baseDigest
+        ? { baseDigest: stored.baseDigest }
+        : {}),
     source: options.source,
     project: projectWithoutSessionMetadata(snapshot),
   };
@@ -126,6 +134,7 @@ export function snapshotForProjectSession(
       revision: session.revision,
       savedRevision: session.savedRevision,
       updatedAt: session.updatedAt,
+      ...(session.baseDigest ? { baseDigest: session.baseDigest } : {}),
     },
   };
 }
@@ -162,20 +171,41 @@ export function updateProjectSession(
 }
 
 /** Marks the current revision as present in its attached project folder. */
-export function markProjectSessionSaved(
+export function acknowledgeProjectSessionSave(
   session: ProjectSession,
+  savedRevision: number,
+  baseDigest?: string,
 ): ProjectSession {
+  const checkedSavedRevision = checkedNonnegativeInteger(
+    savedRevision,
+    "savedRevision",
+  );
+  if (checkedSavedRevision > session.revision) {
+    throw new Error("savedRevision cannot exceed revision.");
+  }
+  if (checkedSavedRevision < session.savedRevision) {
+    return session;
+  }
   if (
-    session.source === "folder" &&
-    session.savedRevision === session.revision
+    session.savedRevision === checkedSavedRevision &&
+    (baseDigest === undefined || session.baseDigest === baseDigest)
   ) {
     return session;
   }
   return {
     ...session,
-    savedRevision: session.revision,
-    source: "folder",
+    savedRevision: checkedSavedRevision,
+    ...(baseDigest ? { baseDigest } : {}),
+    source:
+      checkedSavedRevision === session.revision ? "folder" : "browser-draft",
   };
+}
+
+export function markProjectSessionSaved(
+  session: ProjectSession,
+  baseDigest?: string,
+): ProjectSession {
+  return acknowledgeProjectSessionSave(session, session.revision, baseDigest);
 }
 
 function sameProjectWithSavedFolder(
@@ -213,6 +243,27 @@ export function reconcileProjectSessions(
     return {
       session: sameProjectWithSavedFolder(browser, folder),
       reason: "same-content",
+      preserveBrowserDraft: false,
+    };
+  }
+
+  // A dirty browser draft is safe to save only while the attached folder is
+  // still the exact base from which that draft was made. A changed base is a
+  // branch, regardless of revision counters stored in either copy.
+  if (
+    folder.baseDigest !== undefined &&
+    browser.baseDigest !== folder.baseDigest
+  ) {
+    if (browserDirty) {
+      return {
+        session: browser,
+        reason: "folder-conflict",
+        preserveBrowserDraft: false,
+      };
+    }
+    return {
+      session: folder,
+      reason: "newer-folder",
       preserveBrowserDraft: false,
     };
   }

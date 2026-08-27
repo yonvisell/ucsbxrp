@@ -18,7 +18,7 @@ TODO_MARKER = "AUTHOR_TODO"
 README_SECTIONS = (
     "## What you implement",
     "## Provided files and tools",
-    "## Program flow",
+    "## How the program runs",
     "## Complete the challenge",
 )
 SPEC_SCHEMA_VERSION = 1
@@ -356,7 +356,7 @@ def render_spec_readme(spec):
     lines.extend(
         [
             "",
-            "## Program flow",
+            "## How the program runs",
             "",
             "```text",
             spec["program_flow"],

@@ -31,8 +31,8 @@ function manifest(): CommissioningManifest {
   const runtimeManifest = encoder.encode(
     `${JSON.stringify({
       schemaVersion: 1,
-      releaseId: "2026.08-dev.26",
-      releaseSequence: 26,
+      releaseId: "2026.08-dev.28",
+      releaseSequence: 28,
       compatibility: {
         serviceVersion: "0.1.0",
         protocolVersion: 1,
@@ -40,7 +40,7 @@ function manifest(): CommissioningManifest {
         bootstrapVersion: 1,
         courseApiRevision: "0.4-draft",
         courseLibraryVersion: "0.4.0-dev",
-        minimumRobotReleaseSequence: 26,
+        minimumRobotReleaseSequence: 28,
       },
       files: [
         {
@@ -53,8 +53,8 @@ function manifest(): CommissioningManifest {
   );
   return {
     schemaVersion: 2,
-    releaseId: "2026.08-dev.26",
-    releaseSequence: 26,
+    releaseId: "2026.08-dev.28",
+    releaseSequence: 28,
     compatibility: {
       serviceVersion: "0.1.0",
       protocolVersion: 1,
@@ -62,7 +62,7 @@ function manifest(): CommissioningManifest {
       bootstrapVersion: 1,
       courseApiRevision: "0.4-draft",
       courseLibraryVersion: "0.4.0-dev",
-      minimumRobotReleaseSequence: 26,
+      minimumRobotReleaseSequence: 28,
     },
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
@@ -340,12 +340,12 @@ class FakeSession implements MicroPythonSession {
 describe("browser XRP commissioning", () => {
   it("rejects mixed page and commissioning releases before USB work", () => {
     expect(() =>
-      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.27"),
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.29"),
     ).toThrow(
-      "Setup loaded robot files for 2026.08-dev.26, but this page is 2026.08-dev.27",
+      "Setup loaded robot files for 2026.08-dev.28, but this page is 2026.08-dev.29",
     );
     expect(() =>
-      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.26"),
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.28"),
     ).not.toThrow();
   });
 
@@ -404,7 +404,7 @@ describe("browser XRP commissioning", () => {
     });
 
     expect(completed).toMatchObject({
-      releaseSequence: 26,
+      releaseSequence: 28,
       activationGeneration: 1,
       installedFiles: 4,
       unchangedFiles: 0,
@@ -426,7 +426,7 @@ describe("browser XRP commissioning", () => {
     ).toMatchObject({
       generation: 1,
       slot: "a",
-      releaseSequence: 26,
+      releaseSequence: 28,
       runtimeManifestSha256: manifest().runtime.manifest.sha256,
     });
     expect(session.files.has("/xrp_wifi.json")).toBe(true);
@@ -445,7 +445,7 @@ describe("browser XRP commissioning", () => {
       runtimeVerification!.indexOf("import ucsb_xrp, ucsb_xrp_service"),
     );
     expect(progress).toContain("Verifying the new runtime…");
-    expect(progress).toContain("Course runtime 2026.08-dev.26 is ready.");
+    expect(progress).toContain("Course runtime 2026.08-dev.28 is ready.");
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
   });
@@ -542,15 +542,15 @@ describe("browser XRP commissioning", () => {
 
   it("refuses an implicit downgrade before fetching or writing files", async () => {
     const newerManifest = encoder.encode(
-      `${JSON.stringify({ releaseId: "2026.08-dev.27", releaseSequence: 27, files: [] })}\n`,
+      `${JSON.stringify({ releaseId: "2026.08-dev.29", releaseSequence: 29, files: [] })}\n`,
     );
     const newerDigest = digest(newerManifest);
     const newerRecord = {
       schemaVersion: 1,
       generation: 4,
       slot: "a",
-      releaseId: "2026.08-dev.27",
-      releaseSequence: 27,
+      releaseId: "2026.08-dev.29",
+      releaseSequence: 29,
       runtimeManifestSha256: newerDigest,
     };
     const session = new FakeSession(
@@ -573,7 +573,7 @@ describe("browser XRP commissioning", () => {
           throw new Error("must not fetch");
         }) as typeof fetch,
       }),
-    ).rejects.toThrow("newer course runtime 2026.08-dev.27");
+    ).rejects.toThrow("newer course runtime 2026.08-dev.29");
     expect(fetched).toBe(false);
     expect(
       session.commands.some((code) => code.includes(".commissioning")),

@@ -14,6 +14,10 @@ import type {
 } from "./types";
 import { describeProject } from "./project-identity";
 import { projectWithSelectedWorld } from "./project-world";
+import {
+  portableProjectError,
+  validatePortableProject,
+} from "./project-validation";
 import { MAX_RUNTIME_PARAMETERS } from "./runtime-controls";
 import type { RuntimeParameterValue } from "./types";
 
@@ -38,6 +42,10 @@ function errorDetail(error: unknown): string {
 export async function testCourseProjectComponents(
   project: CourseProject,
 ): Promise<CheckResult> {
+  const portabilityError = portableProjectError(project);
+  if (portabilityError) {
+    return { ok: false, detail: portabilityError.message, output: [] };
+  }
   return new Promise((resolve, reject) => {
     const worker = new Worker(
       new URL("./micropython.worker.ts", import.meta.url),
@@ -144,6 +152,19 @@ export class VirtualTargetClient implements TargetClient {
       phase: "request",
       requestId,
     });
+    const portabilityError = portableProjectError(project);
+    if (portabilityError) {
+      const result = { ok: false, detail: portabilityError.message };
+      this.publishConsole({
+        type: "console",
+        stream: "system",
+        line: `Validation failed · ${result.detail}`,
+        action: "validate",
+        phase: "error",
+        requestId,
+      });
+      return result;
+    }
     try {
       const result = await new Promise<CheckResult>((resolve, reject) => {
         let checker: Worker;
@@ -204,6 +225,7 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   async run(project: CourseProject): Promise<void> {
+    validatePortableProject(project);
     const descriptor = await describeProject(project);
     await this.startRun({ type: "prepare-run", project, descriptor });
   }
@@ -216,6 +238,7 @@ export class VirtualTargetClient implements TargetClient {
     if (!staged.project || !staged.descriptor) {
       throw new Error("No project is ready. Open a project in the IDE first.");
     }
+    validatePortableProject(staged.project);
     if (staged.descriptor.stale) {
       const result = await this.check(staged.project);
       if (!result.ok) {

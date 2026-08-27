@@ -182,13 +182,19 @@ test("Guide presents the course workflow in explicit objective sections", async 
   );
   await expect(page.locator("#project-structure svg")).toHaveCount(0);
   await expect(page.locator("#offline-use")).toContainText(
-    "This copy belongs to the Chrome profile that loaded it",
+    "Chrome saves the IDE, Monitor, virtual XRP, Guide, API reference, and setup page in the current Chrome profile",
   );
   await expect(page.locator("#offline-use")).toContainText(
     "The course application copy and your project files are separate",
   );
   await expect(page.locator("#github")).toContainText(
     "Use the cloned repository as the UCSBXRP course folder",
+  );
+  await expect(page.locator("#projects")).toContainText(
+    "Create next challenge project",
+  );
+  await expect(page.locator("#monitor")).toContainText(
+    "Runs started in either app write program output and target events to the IDE terminal",
   );
 });
 
@@ -246,6 +252,29 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
     "wheel_speed_filter_time_constant_ms",
   );
   await expect(configuration).toContainText("80.0");
+
+  await page.goto("/reference/#robot");
+  const robot = page.locator("#robot");
+  await expect(robot).toContainText("State between calls:");
+  await expect(robot).toContainText("the next absolute sample deadline");
+
+  await page.goto("/reference/#missions");
+  const missions = page.locator("#missions");
+  await expect(missions).toContainText(
+    "the starting mean wheel position, requested distance, and completion state",
+  );
+  await expect(missions).toContainText(
+    "result is None before and during run()",
+  );
+
+  await page.goto("/reference/#xrpbot");
+  const xrpbot = page.locator("#xrpbot");
+  await expect(xrpbot).toContainText(
+    "sensor reads and motor commands used by Robot",
+  );
+  await expect(xrpbot).toContainText(
+    "Encoder positions and motor output belong to those devices",
+  );
 
   await page.goto("/reference/#maps");
   const occupancyGrid = page

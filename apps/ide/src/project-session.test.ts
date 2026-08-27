@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ProjectSnapshot } from "./project-files";
 import {
+  acknowledgeProjectSessionSave,
   createProjectSession,
   markProjectSessionSaved,
   projectSessionHasUnsavedChanges,
@@ -128,6 +129,30 @@ describe("project session lifecycle", () => {
     expect(projectSessionHasUnsavedChanges(saved)).toBe(false);
   });
 
+  it("tracks the verified folder base while later edits remain unsaved", () => {
+    const draft = session({
+      revision: 7,
+      savedRevision: 4,
+      source: "browser-draft",
+      baseDigest: "a".repeat(64),
+    });
+
+    const partlySaved = acknowledgeProjectSessionSave(draft, 6, "b".repeat(64));
+    const fullySaved = markProjectSessionSaved(partlySaved, "c".repeat(64));
+
+    expect(partlySaved).toMatchObject({
+      revision: 7,
+      savedRevision: 6,
+      baseDigest: "b".repeat(64),
+      source: "browser-draft",
+    });
+    expect(fullySaved).toMatchObject({
+      savedRevision: 7,
+      baseDigest: "c".repeat(64),
+      source: "folder",
+    });
+  });
+
   it("serializes through the existing ProjectSnapshot persistence shape", () => {
     const current = session({
       revision: 6,
@@ -167,6 +192,50 @@ describe("project session lifecycle", () => {
 });
 
 describe("project session reconciliation", () => {
+  it("requires explicit resolution when a dirty draft and folder have different bases", () => {
+    const browser = session({
+      revision: 6,
+      savedRevision: 5,
+      source: "browser-draft",
+      baseDigest: "a".repeat(64),
+      project: {
+        ...baseProject,
+        files: { "main.py": "print('IDE draft')\n" },
+      },
+    });
+    const folder = session({
+      revision: 5,
+      baseDigest: "b".repeat(64),
+      project: {
+        ...baseProject,
+        files: { "main.py": "print('Git edit')\n" },
+      },
+    });
+
+    expect(reconcileProjectSessions(browser, folder)).toMatchObject({
+      session: browser,
+      reason: "folder-conflict",
+      preserveBrowserDraft: false,
+    });
+  });
+
+  it("opens a changed folder directly when the browser copy is clean", () => {
+    const browser = session({ baseDigest: "a".repeat(64) });
+    const folder = session({
+      baseDigest: "b".repeat(64),
+      project: {
+        ...baseProject,
+        files: { "main.py": "print('Git edit')\n" },
+      },
+    });
+
+    expect(reconcileProjectSessions(browser, folder)).toMatchObject({
+      session: folder,
+      reason: "newer-folder",
+      preserveBrowserDraft: false,
+    });
+  });
+
   it("keeps a newer unsaved browser draft instead of an older folder copy", () => {
     const browser = session({
       revision: 8,

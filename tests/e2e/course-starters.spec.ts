@@ -34,6 +34,23 @@ test("renders project README files and keeps their Markdown editable", async ({
   await expect(
     preview.getByRole("heading", { name: "Challenge 4: Mapped Route" }),
   ).toBeVisible();
+  await expect(
+    preview.getByRole("heading", { name: "How the program runs" }),
+  ).toBeVisible();
+  await expect(preview.locator("pre")).toHaveCount(0);
+  await expect(
+    preview.getByText(
+      "Your new work is GridPlanner. The sensing, wheel-control, drive, odometry, and navigation classes are carried forward from the earlier challenges.",
+    ),
+  ).toBeVisible();
+  const typography = await preview.evaluate((element) => {
+    const inlineCode = element.querySelector("code");
+    return {
+      body: getComputedStyle(element).fontSize,
+      code: inlineCode ? getComputedStyle(inlineCode).fontSize : null,
+    };
+  });
+  expect(typography).toEqual({ body: "12px", code: "11px" });
   await expect(preview.getByText("## Objective", { exact: true })).toHaveCount(
     0,
   );

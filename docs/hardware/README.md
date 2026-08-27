@@ -1,11 +1,21 @@
 # Hardware evidence
 
-`2026-08-26-dev22-release-and-repeatability.json` is the current attached-RP2350
-record. It covers coherent page/manifest/device release identity, repeated USB
-repair, subsecond USB entry from a running course service, Pink handoff,
-cross-runtime project identity, two physical projects, encoder and motor
-telemetry, and the final zero-output state. Hotspot coverage remains in the
-earlier dev.15 record and must be repeated for the current release.
+`2026-08-26-dev28-integrated-repeatability.json` is the current attached-RP2350
+record. It covers the dev.28 USB installation, retained Pink profile, automatic
+Validate/Flash/Run after an IDE edit, immediate Stop and repeated Run, shared
+IDE/Monitor output, motor and encoder telemetry, restoration of the default
+project, and the complete 72-workflow browser gate. Hotspot coverage remains in
+the earlier dev.15 record and must be repeated for the current release.
+
+`2026-08-26-dev25-transaction-and-runtime.json` records the alternating runtime
+activation transaction, explicit program-worker retirement before flash writes,
+three immediate project cycles, and the independent raised-wheel motor probe.
+
+`2026-08-26-dev22-release-and-repeatability.json` records coherent
+page/manifest/device release identity, repeated USB repair, subsecond USB entry
+from a running course service, Pink handoff, cross-runtime project identity,
+two physical projects, encoder and motor telemetry, and the final zero-output
+state.
 
 `2026-08-25-dev15-comprehensive-validation.json` covers USB installation
 readback, a reset in both network modes, an actual Mac join to the XRP hotspot,

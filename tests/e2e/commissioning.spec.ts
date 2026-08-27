@@ -609,9 +609,9 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             protocol: 1,
             protocolRevision: 1,
             serviceVersion: "0.1.0",
-            courseRelease: "2026.08-dev.26",
-            runtimeRelease: "2026.08-dev.26",
-            runtimeReleaseSequence: 26,
+            courseRelease: "2026.08-dev.28",
+            runtimeRelease: "2026.08-dev.28",
+            runtimeReleaseSequence: 28,
             runtimeGeneration: 1,
             runtimeManifestSha256: runtimeManifest
               ? await sha256(runtimeManifest)

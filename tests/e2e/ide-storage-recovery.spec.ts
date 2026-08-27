@@ -255,7 +255,7 @@ test("does not restore a remembered repository as a student project", async ({
   ).toHaveCount(0);
   await expect(
     ide.getByText(
-      "The remembered project belongs to a different course folder. It was detached without changing its files.",
+      "The remembered project is outside the selected working folder. It was detached without changing its files.",
     ),
   ).toBeVisible();
   await expect

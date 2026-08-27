@@ -33,10 +33,10 @@ location. `DeliveryMission` decides whether that feature is open or blocked
 from the range estimate. Selecting a virtual case therefore changes the
 measurement, not the decision inside the student program.
 
-## Start this challenge
+## Continue from the previous challenge
 
-Open your Challenge 4 project and select **Start Challenge 5 · Delivery
-Mission**. Your new work is to complete `SensorModel.estimate_range(...)` in
+Open your Challenge 4 project and select **Create Challenge 5 · Delivery
+Mission project**. Your new work is to complete `SensorModel.estimate_range(...)` in
 the carried-forward `sensor_model.py`. The IDE creates a separate project,
 carries forward all six component files from Challenge 4, and keeps whether
 each supplied or student version is selected. Challenge 5 provides its own
@@ -91,37 +91,26 @@ range estimate was available; it does not mean zero distance.
 `DeliveryMission.result` is `"delivered"` after successful navigation and
 `"no_path"` when the planner cannot connect the start and destination.
 
-## Program flow
+## How the program runs
 
-```text
-stationary range samples
-          │
-          ▼
-SensorModel*.estimate_range()
-    ├── estimate ──► compare with blocked_range_threshold_mm
-    └── None ──────► use assume_blocked_without_range
-                          │
-                          ▼
-             update observed feature in ArenaMap
-                          │
-                          ▼
-                 OccupancyGrid ──► GridPlanner*
-                                      ├── no path ──► stop; report "no_path"
-                                      │
-                                      └── path ──► waypoint goals
-                                                       │
-                                                       ▼
-                                                NavigationController*
-                                                       │
-                                                       ▼
-                                                Robot ──► XRP
+1. The robot remains stopped while it collects repeated ultrasonic readings.
+2. Your `SensorModel.estimate_range(...)` returns the median usable range, or
+   `None` if too few usable readings were received.
+3. The supplied `DeliveryMission` compares a valid estimate with
+   `blocked_range_threshold_mm`. If the estimate is `None`, it uses
+   `assume_blocked_without_range` to choose the stated fallback.
+4. The mission records the observation in `ArenaMap`, builds a new
+   `OccupancyGrid`, and asks the selected `GridPlanner` for a route.
+5. If no route exists, the mission leaves the robot stopped and reports
+   `no_path`. Otherwise it converts the path to waypoint goals and the selected
+   `NavigationController` and `Robot` follow them.
 
-* student implementation
-```
+Your new work is the range-estimation method in `SensorModel`. The other
+student components are carried forward from the earlier challenges.
 
 ## Complete the challenge
 
-1. Start Challenge 5 from the completed Challenge 4 project as described above.
+1. Create Challenge 5 from the completed Challenge 4 project as described above.
    Your carried-forward components keep their Challenge 4 selections.
    Run both virtual worlds and observe the stationary measurements in the
    Monitor's Range plot and the route actually driven in the world view. Program

@@ -26,6 +26,12 @@ export interface ProjectSessionMetadata {
   savedRevision: number;
   /** Unix time in milliseconds of the latest project-content change. */
   updatedAt: number;
+  /**
+   * Digest of the project folder on which this revision is based. It remains
+   * unchanged while the browser draft is edited and advances only after a
+   * verified folder write.
+   */
+  baseDigest?: string;
 }
 
 export interface ProjectSnapshot extends CourseProject {
@@ -36,9 +42,16 @@ export interface ProjectSnapshot extends CourseProject {
   session?: ProjectSessionMetadata;
 }
 
-interface FolderReadResult {
+export type ProjectFolderIntegrity =
+  "verified" | "legacy" | "changed-after-save";
+
+export interface FolderReadResult {
   project: ProjectSnapshot;
   skipped: number;
+  /** Canonical SHA-256 digest of the files and project-level settings read. */
+  contentDigest: string;
+  /** Whether the stored commit marker describes the files that were read. */
+  integrity: ProjectFolderIntegrity;
 }
 
 export interface ProjectRecoveryState {
@@ -50,6 +63,7 @@ export interface ProjectRecoveryState {
 const projectRecoveryKey = "ucsb-xrp-course-project-v1";
 const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
 const projectMetadataFile = ".ucsb-xrp-project.json";
+const sha256Pattern = /^[0-9a-f]{64}$/;
 const originalStageOneStarterSource = `from time import sleep_ms
 from ucsb_xrp import MotorEfforts, XRPBot
 
@@ -139,27 +153,12 @@ export function isDefaultProject(project: ProjectSnapshot): boolean {
   );
 }
 
-export async function hasProjectFolderMetadata(
-  root: CourseDirectoryHandle,
-): Promise<boolean> {
-  try {
-    await root.getFileHandle(projectMetadataFile);
-    return true;
-  } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "name" in error &&
-      error.name === "NotFoundError"
-    ) {
-      return false;
-    }
-    throw error;
-  }
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function validContentDigest(value: unknown): value is string {
+  return typeof value === "string" && sha256Pattern.test(value);
 }
 
 function recoveredSessionMetadata(
@@ -186,7 +185,128 @@ function recoveredSessionMetadata(
     revision: value.revision as number,
     savedRevision: value.savedRevision as number,
     updatedAt: value.updatedAt as number,
+    ...(validContentDigest(value.baseDigest)
+      ? { baseDigest: value.baseDigest }
+      : {}),
   };
+}
+
+interface ProjectFolderMetadata {
+  entrypoint: string;
+  name?: string;
+  templateId?: string;
+  session?: ProjectSessionMetadata;
+  contentDigest?: string;
+}
+
+class ProjectFolderMetadataError extends Error {
+  readonly name = "ProjectFolderMetadataError";
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "NotFoundError"
+  );
+}
+
+async function readProjectFolderMetadata(
+  root: CourseDirectoryHandle,
+): Promise<ProjectFolderMetadata> {
+  let handle;
+  try {
+    handle = await root.getFileHandle(projectMetadataFile);
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      throw new ProjectFolderMetadataError(
+        `This is not a UCSBXRP project folder. Choose the project folder that contains ${projectMetadataFile}, not the working folder that contains your projects.`,
+      );
+    }
+    throw error;
+  }
+
+  let value: unknown;
+  try {
+    value = JSON.parse(await (await handle.getFile()).text()) as unknown;
+  } catch {
+    throw new ProjectFolderMetadataError(
+      `This folder has invalid UCSBXRP project information in ${projectMetadataFile}. Choose another project folder, or create a new project and import its files.`,
+    );
+  }
+
+  const invalidMetadata = () =>
+    new ProjectFolderMetadataError(
+      `This folder has invalid UCSBXRP project information in ${projectMetadataFile}. Choose another project folder, or create a new project and import its files.`,
+    );
+  if (!isRecord(value) || typeof value.entrypoint !== "string") {
+    throw invalidMetadata();
+  }
+  const entrypoint = normalizedProjectPath(value.entrypoint);
+  if (
+    entrypoint !== value.entrypoint ||
+    !entrypoint.endsWith(".py") ||
+    projectPathError(entrypoint)
+  ) {
+    throw invalidMetadata();
+  }
+  if (
+    value.name !== undefined &&
+    (typeof value.name !== "string" ||
+      value.name.trim().length === 0 ||
+      value.name.trim() !== value.name)
+  ) {
+    throw invalidMetadata();
+  }
+  if (
+    value.templateId !== undefined &&
+    (typeof value.templateId !== "string" || value.templateId.length === 0)
+  ) {
+    throw invalidMetadata();
+  }
+  if (
+    value.contentDigest !== undefined &&
+    !validContentDigest(value.contentDigest)
+  ) {
+    throw invalidMetadata();
+  }
+  const session = recoveredSessionMetadata(value.session);
+  if (
+    value.session !== undefined &&
+    (!session ||
+      (isRecord(value.session) &&
+        value.session.baseDigest !== undefined &&
+        !validContentDigest(value.session.baseDigest)))
+  ) {
+    throw invalidMetadata();
+  }
+
+  return {
+    entrypoint,
+    ...(typeof value.name === "string" ? { name: value.name } : {}),
+    ...(typeof value.templateId === "string"
+      ? { templateId: value.templateId }
+      : {}),
+    ...(session ? { session } : {}),
+    ...(validContentDigest(value.contentDigest)
+      ? { contentDigest: value.contentDigest }
+      : {}),
+  };
+}
+
+export async function hasProjectFolderMetadata(
+  root: CourseDirectoryHandle,
+): Promise<boolean> {
+  try {
+    await readProjectFolderMetadata(root);
+    return true;
+  } catch (error) {
+    if (error instanceof ProjectFolderMetadataError) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 function recoveredProject(value: unknown): ProjectSnapshot | null {
@@ -425,27 +545,6 @@ function fileExtension(name: string): string {
   return dot < 0 ? "" : name.slice(dot).toLowerCase();
 }
 
-function selectEntrypoint(
-  files: Record<string, string>,
-  preferredEntrypoint?: string,
-): string {
-  if (
-    preferredEntrypoint &&
-    preferredEntrypoint.endsWith(".py") &&
-    preferredEntrypoint in files
-  ) {
-    return preferredEntrypoint;
-  }
-  if ("main.py" in files) {
-    return "main.py";
-  }
-  return (
-    Object.keys(files)
-      .sort()
-      .find((path) => path.endsWith(".py")) ?? Object.keys(files).sort()[0]!
-  );
-}
-
 function checkedDestinationPath(
   project: ProjectSnapshot,
   requestedPath: string,
@@ -570,15 +669,70 @@ export async function chooseWorkingFolder(): Promise<CourseDirectoryHandle> {
   return chooseProjectFolder();
 }
 
+function encodedDigestPart(value: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const body = encoder.encode(value);
+  const prefix = encoder.encode(`${body.byteLength}:`);
+  const result = new Uint8Array(prefix.byteLength + body.byteLength + 1);
+  result.set(prefix, 0);
+  result.set(body, prefix.byteLength);
+  result[result.byteLength - 1] = ";".charCodeAt(0);
+  return result;
+}
+
+function digestHex(value: ArrayBuffer): string {
+  return Array.from(new Uint8Array(value), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+/**
+ * Calculates one deterministic identity for project files and the settings
+ * that affect how they run. Session counters are deliberately excluded.
+ */
+export async function projectContentDigest(
+  project: ProjectSnapshot,
+): Promise<string> {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("This browser cannot verify project folder changes.");
+  }
+  const parts = [
+    encodedDigestPart("ucsb-xrp-project-v1"),
+    encodedDigestPart(project.name),
+    encodedDigestPart(project.entrypoint),
+    encodedDigestPart(project.templateId ?? ""),
+  ];
+  for (const [path, content] of Object.entries(project.files).sort(
+    ([left], [right]) => (left < right ? -1 : left > right ? 1 : 0),
+  )) {
+    parts.push(encodedDigestPart(path), encodedDigestPart(content));
+  }
+  const length = parts.reduce((total, part) => total + part.byteLength, 0);
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.byteLength;
+  }
+  return digestHex(
+    await globalThis.crypto.subtle.digest(
+      "SHA-256",
+      bytes.buffer as ArrayBuffer,
+    ),
+  );
+}
+
 export async function readProjectFolder(
   root: CourseDirectoryHandle,
 ): Promise<FolderReadResult> {
+  if (await isCourseRepositoryFolder(root)) {
+    throw new Error(
+      "Choose a UCSBXRP project folder, not the UCSBXRP course software repository.",
+    );
+  }
+  const metadata = await readProjectFolderMetadata(root);
   const files: Record<string, string> = {};
   let skipped = 0;
-  let preferredEntrypoint: string | undefined;
-  let preferredName: string | undefined;
-  let preferredTemplateId: string | undefined;
-  let session: ProjectSessionMetadata | undefined;
 
   const visit = async (
     directory: CourseDirectoryHandle,
@@ -596,29 +750,11 @@ export async function readProjectFolder(
         await visit(handle, `${prefix}${name}/`);
         continue;
       }
-      if (prefix === "" && name === projectMetadataFile) {
-        try {
-          const file = await handle.getFile();
-          const metadata = JSON.parse(await file.text()) as unknown;
-          if (isRecord(metadata) && typeof metadata.entrypoint === "string") {
-            preferredEntrypoint = metadata.entrypoint;
-            if (typeof metadata.name === "string" && metadata.name.trim()) {
-              preferredName = metadata.name.trim();
-            }
-            if (
-              typeof metadata.templateId === "string" &&
-              COURSE_PROJECT_TEMPLATES.some(
-                (template) => template.id === metadata.templateId,
-              )
-            ) {
-              preferredTemplateId = metadata.templateId;
-            }
-            session = recoveredSessionMetadata(metadata.session);
-          } else {
-            skipped += 1;
-          }
-        } catch {
-          skipped += 1;
+      if (name === projectMetadataFile) {
+        if (prefix !== "") {
+          throw new Error(
+            `This project folder contains another UCSBXRP project folder (${prefix.slice(0, -1)}). Choose one project folder at a time.`,
+          );
         }
         continue;
       }
@@ -649,23 +785,48 @@ export async function readProjectFolder(
       "Choose a UCSBXRP project folder, not the UCSBXRP course software repository.",
     );
   }
-  const projectName = preferredName ?? root.name;
+  if (!(metadata.entrypoint in files)) {
+    throw new Error(
+      `This project names ${metadata.entrypoint} as its main file, but that file is missing. Restore the file or choose another project folder.`,
+    );
+  }
+  const projectName = metadata.name ?? root.name;
   const inferredTemplateId = COURSE_PROJECT_TEMPLATES.find(
     (template) => template.project.name === projectName,
   )?.id;
+  const preferredTemplateId = COURSE_PROJECT_TEMPLATES.some(
+    (template) => template.id === metadata.templateId,
+  )
+    ? metadata.templateId
+    : undefined;
+  const project: ProjectSnapshot = {
+    name: projectName,
+    entrypoint: metadata.entrypoint,
+    files,
+    ...(preferredTemplateId || inferredTemplateId
+      ? { templateId: preferredTemplateId ?? inferredTemplateId }
+      : {}),
+  };
+  const contentDigest = await projectContentDigest(project);
   return {
-    project: {
-      name: projectName,
-      entrypoint: selectEntrypoint(files, preferredEntrypoint),
-      files,
-      ...(preferredTemplateId || inferredTemplateId
-        ? { templateId: preferredTemplateId ?? inferredTemplateId }
-        : {}),
-      ...(session
-        ? { session: { ...session, savedRevision: session.revision } }
-        : {}),
-    },
+    project: metadata.session
+      ? {
+          ...project,
+          session: {
+            ...metadata.session,
+            savedRevision: metadata.session.revision,
+            baseDigest: contentDigest,
+          },
+        }
+      : project,
     skipped,
+    contentDigest,
+    integrity:
+      metadata.contentDigest === undefined
+        ? "legacy"
+        : metadata.contentDigest === contentDigest
+          ? "verified"
+          : "changed-after-save",
   };
 }
 
@@ -682,7 +843,7 @@ async function directoryForPath(
   return { directory, name };
 }
 
-export async function writeProjectFolder(
+async function writeProjectFiles(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
 ): Promise<void> {
@@ -697,6 +858,13 @@ export async function writeProjectFolder(
     await writable.write(content);
     await writable.close();
   }
+}
+
+async function writeProjectMetadata(
+  root: CourseDirectoryHandle,
+  project: ProjectSnapshot,
+  contentDigest: string,
+): Promise<void> {
   const metadata = await root.getFileHandle(projectMetadataFile, {
     create: true,
   });
@@ -707,11 +875,13 @@ export async function writeProjectFolder(
         name: project.name,
         entrypoint: project.entrypoint,
         ...(project.templateId ? { templateId: project.templateId } : {}),
+        contentDigest,
         ...(project.session
           ? {
               session: {
                 ...project.session,
                 savedRevision: project.session.revision,
+                baseDigest: contentDigest,
               },
             }
           : {}),
@@ -721,6 +891,17 @@ export async function writeProjectFolder(
     )}\n`,
   );
   await writable.close();
+}
+
+export async function writeProjectFolder(
+  root: CourseDirectoryHandle,
+  project: ProjectSnapshot,
+): Promise<void> {
+  const contentDigest = await projectContentDigest(project);
+  await writeProjectFiles(root, project);
+  // Metadata is the commit marker. Writing it last makes a partial multi-file
+  // update detectable the next time the folder is read.
+  await writeProjectMetadata(root, project, contentDigest);
 }
 
 export async function createProjectFolder(
@@ -848,6 +1029,28 @@ export function sameProjectContents(
 export interface ProjectFolderSaveResult {
   changed: boolean;
   removedFiles: number;
+  contentDigest: string;
+}
+
+export interface ProjectFolderSaveOptions {
+  /**
+   * Overrides the draft's base only for an explicit conflict resolution. A
+   * second external edit still causes another conflict instead of being lost.
+   */
+  expectedBaseDigest?: string;
+}
+
+export class ProjectFolderConflictError extends Error {
+  readonly name = "ProjectFolderConflictError";
+
+  constructor(
+    readonly folderProject: ProjectSnapshot,
+    readonly folderDigest: string,
+  ) {
+    super(
+      "Files in this project folder changed outside UCSBXRP. Automatic saving paused so neither version is overwritten.",
+    );
+  }
 }
 
 function sameSavedSessionMetadata(
@@ -868,10 +1071,11 @@ async function saveProjectFolderWithAutosaveUnlocked(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
   deletedPaths: Iterable<string> = [],
+  options: ProjectFolderSaveOptions = {},
 ): Promise<ProjectFolderSaveResult> {
-  let previous: ProjectSnapshot | null = null;
+  let previous: FolderReadResult | null = null;
   try {
-    previous = (await readProjectFolder(root)).project;
+    previous = await readProjectFolder(root);
   } catch (error) {
     if (
       !(error instanceof Error) ||
@@ -882,12 +1086,32 @@ async function saveProjectFolderWithAutosaveUnlocked(
   }
 
   const contentsChanged =
-    previous === null || !sameProjectContents(previous, project);
+    previous === null || !sameProjectContents(previous.project, project);
   const metadataChanged =
     previous !== null &&
-    !sameSavedSessionMetadata(previous.session, project.session);
+    !sameSavedSessionMetadata(previous.project.session, project.session);
+  const expectedBaseDigest =
+    options.expectedBaseDigest ?? project.session?.baseDigest;
+  if (
+    previous !== null &&
+    contentsChanged &&
+    ((expectedBaseDigest !== undefined &&
+      expectedBaseDigest !== previous.contentDigest) ||
+      (expectedBaseDigest === undefined &&
+        previous.integrity === "changed-after-save"))
+  ) {
+    throw new ProjectFolderConflictError(
+      previous.project,
+      previous.contentDigest,
+    );
+  }
   if (!contentsChanged && !metadataChanged) {
-    return { changed: false, removedFiles: 0 };
+    return {
+      changed: false,
+      removedFiles: 0,
+      contentDigest:
+        previous?.contentDigest ?? (await projectContentDigest(project)),
+    };
   }
   if (previous && contentsChanged) {
     await writeRotatingTextBundle(root, [
@@ -897,7 +1121,7 @@ async function saveProjectFolderWithAutosaveUnlocked(
         content: `${JSON.stringify(
           {
             savedAt: new Date().toISOString(),
-            project: previous,
+            project: previous.project,
           },
           null,
           2,
@@ -905,19 +1129,31 @@ async function saveProjectFolderWithAutosaveUnlocked(
       },
     ]);
   }
-  await writeProjectFolder(root, project);
+  const contentDigest = await projectContentDigest(project);
+  await writeProjectFiles(root, project);
   const removedFiles = contentsChanged
     ? await removeProjectFolderFiles(root, deletedPaths)
     : 0;
-  return { changed: true, removedFiles };
+  // Deletions are part of the same logical update, so the commit marker must
+  // be written after them rather than describing a mixed folder state.
+  await writeProjectMetadata(root, project, contentDigest);
+  const verified = await readProjectFolder(root);
+  if (verified.contentDigest !== contentDigest) {
+    throw new ProjectFolderConflictError(
+      verified.project,
+      verified.contentDigest,
+    );
+  }
+  return { changed: true, removedFiles, contentDigest };
 }
 
 export async function saveProjectFolderWithAutosave(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
   deletedPaths: Iterable<string> = [],
+  options: ProjectFolderSaveOptions = {},
 ): Promise<ProjectFolderSaveResult> {
   return withCourseFolderWriteLock("project", () =>
-    saveProjectFolderWithAutosaveUnlocked(root, project, deletedPaths),
+    saveProjectFolderWithAutosaveUnlocked(root, project, deletedPaths, options),
   );
 }

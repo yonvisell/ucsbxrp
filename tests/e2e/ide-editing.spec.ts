@@ -86,3 +86,40 @@ test("edits, validates, runs, and recovers main.py through Monaco", async ({
     page.getByTestId("python-editor").locator(".view-lines"),
   ).toContainText("Edited source ran");
 });
+
+test("opens an oversized folder but prevents validation and virtual execution", async ({
+  page,
+}) => {
+  await page.addInitScript((key) => {
+    const files: Record<string, string> = { "main.py": "print('not run')\n" };
+    for (let index = 0; index < 48; index += 1) {
+      files[`notes_${index}.txt`] = "";
+    }
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        name: "Oversized folder",
+        entrypoint: "main.py",
+        files,
+      }),
+    );
+  }, recoveryKey);
+
+  await page.goto("/ide/");
+  await expect(
+    page.getByRole("button", { name: "Open notes_47.txt" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Validate" }).click();
+  await expect(page.getByTestId("check-result")).toContainText(
+    "This project has 49 files",
+  );
+  await expect(page.getByTestId("check-result")).toContainText("at most 48");
+
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Validation failed");
+  await expect(page.getByRole("log")).not.toContainText("not run");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+});
