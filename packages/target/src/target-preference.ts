@@ -21,6 +21,8 @@ export interface RobotProfile {
   schemaVersion: 2;
   kind: TargetKind;
   robotId?: string;
+  /** Hostname verified from this robot after commissioning, without `.local`. */
+  hostname?: string;
   physicalConnection: PhysicalConnectionMode;
   stationEndpoint: string;
   accessPointEndpoint: string;
@@ -52,6 +54,20 @@ function physicalMode(value: unknown): PhysicalConnectionMode | undefined {
 
 function normalizedRobotId(value: unknown): string | undefined {
   return nonemptyString(value)?.toLocaleLowerCase();
+}
+
+function normalizedHostname(value: unknown): string | undefined {
+  const hostname = nonemptyString(value)
+    ?.toLocaleLowerCase()
+    .replace(/\.local\.?$/, "");
+  if (
+    !hostname ||
+    hostname.length > 63 ||
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(hostname)
+  ) {
+    return undefined;
+  }
+  return hostname;
 }
 
 function normalizeObservation(
@@ -92,6 +108,7 @@ function normalizeProfile(value: unknown): RobotProfile | null {
   if (!stationEndpoint) return null;
   const observation = normalizeObservation(candidate.lastObservedNetwork);
   const robotId = normalizedRobotId(candidate.robotId);
+  const hostname = normalizedHostname(candidate.hostname);
   return {
     schemaVersion: 2,
     kind: candidate.kind === "physical" ? "physical" : "virtual",
@@ -102,6 +119,7 @@ function normalizeProfile(value: unknown): RobotProfile | null {
     // The course hotspot has one fixed route. Ignore drift in stored data.
     accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
     ...(robotId ? { robotId } : {}),
+    ...(hostname ? { hostname } : {}),
     ...(observation ? { lastObservedNetwork: observation } : {}),
   };
 }
@@ -144,7 +162,10 @@ export function physicalEndpointCandidates(
   // local hostname is a second address on the same selected Wi-Fi network.
   // Do not silently try the robot hotspot: the computer cannot use that
   // network until the student explicitly joins it.
-  return [...new Set([value.stationEndpoint, XRP_LOCAL_ENDPOINT])];
+  const hostnameEndpoint = value.hostname
+    ? `http://${value.hostname}.local`
+    : XRP_LOCAL_ENDPOINT;
+  return [...new Set([value.stationEndpoint, hostnameEndpoint])];
 }
 
 /** Apply an explicit IDE or commissioning network choice. */
@@ -186,10 +207,12 @@ export function targetPreferenceForPhysicalNetwork(
     requestedMode?: PhysicalConnectionMode;
     fallback?: boolean;
     robotId?: string;
+    hostname?: string;
     observedAtMs?: number;
   },
 ): RobotProfile {
   const observedRobotId = normalizedRobotId(network.robotId);
+  const observedHostname = normalizedHostname(network.hostname);
   if (
     current.robotId &&
     observedRobotId &&
@@ -213,6 +236,7 @@ export function targetPreferenceForPhysicalNetwork(
     ...(current.robotId || !observedRobotId
       ? {}
       : { robotId: observedRobotId }),
+    ...(observedHostname ? { hostname: observedHostname } : {}),
     lastObservedNetwork: {
       mode: network.mode,
       address,
@@ -231,6 +255,7 @@ export function targetPreferenceForCommissionedRobot(
   current: RobotProfile,
   result: {
     robotId: string;
+    hostname: string;
     requestedMode: PhysicalConnectionMode;
     mode: PhysicalConnectionMode;
     address: string;
@@ -243,6 +268,10 @@ export function targetPreferenceForCommissionedRobot(
   if (!robotId) {
     throw new Error("The commissioned XRP did not report a stable identity");
   }
+  const hostname = normalizedHostname(result.hostname);
+  if (!hostname) {
+    throw new Error("The commissioned XRP did not report a valid network name");
+  }
   const replacingRobot = Boolean(
     current.robotId && current.robotId !== robotId,
   );
@@ -250,6 +279,7 @@ export function targetPreferenceForCommissionedRobot(
     ...current,
     kind: "physical",
     robotId,
+    hostname,
     stationEndpoint: replacingRobot
       ? XRP_LOCAL_ENDPOINT
       : current.stationEndpoint,
@@ -272,6 +302,7 @@ export function targetPreferenceForCommissionedRobot(
     requestedMode: result.requestedMode,
     fallback: result.fallback,
     robotId,
+    hostname,
     observedAtMs: result.observedAtMs,
   });
   // Commissioning records the network that was actually verified. If a

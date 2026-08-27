@@ -128,9 +128,21 @@ const HASH_MARKER = "__UCSB_XRP_HASHES__=";
 const RUNTIME_STATE_MARKER = "__UCSB_XRP_RUNTIME_STATE__=";
 const VERIFY_MARKER = "__UCSB_XRP_VERIFY__=";
 const NETWORK_RESULT_MARKER = "__UCSB_XRP_NETWORK__=";
+const NETWORK_HOSTNAME_MARKER = "__UCSB_XRP_NETWORK_HOSTNAME__=";
 const INSTALL_WATCHDOG_MS = 8_388;
 const textEncoder = new TextEncoder();
 export const HOTSPOT_SSID_PREFIX = "UCSB-XRP-";
+
+/** Build the stable local-network name assigned to one verified controller. */
+export function robotHostnameForId(robotId: string): string {
+  const normalized = robotId.trim().toLocaleLowerCase();
+  if (!/^[0-9a-f]+$/.test(normalized)) {
+    throw new Error("The XRP controller did not report a stable identity.");
+  }
+  // The RP2350 identity is currently 64 bits. Keeping the final 64 bits also
+  // bounds the DNS label if a future MicroPython build reports a longer ID.
+  return `ucsb-xrp-${normalized.slice(-16)}`;
+}
 
 /** Convert the optional team name field into a portable Wi-Fi SSID. */
 export function hotspotSsidForLastName(value: string): string | undefined {
@@ -663,6 +675,7 @@ async function removeDeviceFiles(
 function networkConfig(
   selection: Exclude<NetworkSelection, { mode: "keep" }>,
   defaults: CommissioningManifest["networkDefaults"],
+  hostname: string,
 ) {
   const accessPoint = {
     password: defaults.password,
@@ -679,7 +692,7 @@ function networkConfig(
   const value: Record<string, unknown> = {
     version: 2,
     mode: selection.mode,
-    hostname: "ucsb-xrp",
+    hostname,
     access_point: accessPoint,
     fallback_to_access_point: true,
   };
@@ -697,14 +710,32 @@ async function applyNetworkSelection(
   session: MicroPythonSession,
   selection: NetworkSelection,
   defaults: CommissioningManifest["networkDefaults"],
+  hostname: string,
 ): Promise<void> {
   if (selection.mode === "keep") {
-    // A repair must not silently rewrite a network profile that the user
-    // explicitly chose to retain.
+    // Retain the selected network and its credentials, but replace the old
+    // classroom-wide hostname with this controller's stable local name.
+    const result = await session.execute(
+      `import json, os\n` +
+        `p='/xrp_wifi.json'\nt=p+'.commissioning'\n` +
+        `c=json.load(open(p))\n` +
+        `if c.get('hostname')!=${pythonLiteral(hostname)}:\n` +
+        ` c['hostname']=${pythonLiteral(hostname)}\n` +
+        ` f=open(t,'w')\n json.dump(c,f)\n f.close()\n` +
+        ` try: os.remove(p)\n except OSError: pass\n` +
+        ` os.rename(t,p)\n` +
+        `print(${pythonLiteral(NETWORK_HOSTNAME_MARKER)}+c['hostname'])`,
+    );
+    const output = checkedResult(result, "Updating the XRP network name");
+    if (
+      !output.split(/\r?\n/).includes(`${NETWORK_HOSTNAME_MARKER}${hostname}`)
+    ) {
+      throw new Error("The XRP network name could not be verified.");
+    }
     return;
   }
   const bytes = textEncoder.encode(
-    JSON.stringify(networkConfig(selection, defaults)),
+    JSON.stringify(networkConfig(selection, defaults, hostname)),
   );
   await writeDeviceFile(session, "/xrp_wifi.json", bytes);
 }
@@ -821,6 +852,7 @@ export async function commissionDevice(options: {
   session: MicroPythonSession;
   manifest: CommissioningManifest;
   manifestUrl: URL;
+  robotId: string;
   network: NetworkSelection;
   onProgress?: ProgressReporter;
   fetch?: typeof fetch;
@@ -829,10 +861,12 @@ export async function commissionDevice(options: {
     session,
     manifest,
     manifestUrl,
+    robotId,
     network,
     onProgress = () => undefined,
     fetch: fetchImplementation = globalThis.fetch,
   } = options;
+  const hostname = robotHostnameForId(robotId);
   let resetStarted = false;
   try {
     onProgress({
@@ -1078,7 +1112,12 @@ export async function commissionDevice(options: {
     });
 
     onProgress({ phase: "network", detail: "Preparing XRP Wi-Fi…" });
-    await applyNetworkSelection(session, network, manifest.networkDefaults);
+    await applyNetworkSelection(
+      session,
+      network,
+      manifest.networkDefaults,
+      hostname,
+    );
     const activeNetwork = await activateNetwork(session);
 
     onProgress({ phase: "reset", detail: "Restarting the XRP…" });

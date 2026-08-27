@@ -422,6 +422,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           ? { fallback: info.network.fallback }
           : {}),
         ...(info.robotId ? { robotId: info.robotId } : {}),
+        ...(info.robotName ? { hostname: info.robotName } : {}),
       });
     }
     this.schedulePoll(0);
@@ -1364,6 +1365,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
               ? { fallback: info.network.fallback }
               : {}),
             ...(info.robotId ? { robotId: info.robotId } : {}),
+            ...(info.robotName ? { hostname: info.robotName } : {}),
           });
         }
         this.consumeProjectManifest(info.project);

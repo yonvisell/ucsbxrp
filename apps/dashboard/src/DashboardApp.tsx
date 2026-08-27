@@ -508,6 +508,7 @@ export function DashboardApp() {
     targetPreference.kind,
     targetPreference.physicalConnection,
     targetPreference.stationEndpoint,
+    targetPreference.hostname,
     targetPreference.accessPointEndpoint,
     targetPreference.robotId,
     connectionAttempt,

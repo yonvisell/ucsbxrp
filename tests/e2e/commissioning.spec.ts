@@ -567,6 +567,29 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             stderr: "",
           };
         }
+        if (code.includes("__UCSB_XRP_NETWORK_HOSTNAME__=")) {
+          const hostname = code.match(/c\['hostname'\]=("[^"]+")/)?.[1];
+          if (!hostname) throw new Error("network hostname missing");
+          const value = JSON.parse(hostname) as string;
+          files.set(
+            "/xrp_wifi.json",
+            textEncoder.encode(
+              JSON.stringify({
+                version: 2,
+                mode: "access_point",
+                hostname: value,
+                access_point: {
+                  ssid: "UCSB-XRP-4A21",
+                  password: "ucsb-xrp",
+                },
+              }),
+            ),
+          );
+          return {
+            stdout: `__UCSB_XRP_NETWORK_HOSTNAME__=${value}\r\n`,
+            stderr: "",
+          };
+        }
         if (code.includes("os.remove(p)")) {
           const source = code.match(/for p in (\[[^\n]+\]):/)?.[1];
           for (const path of JSON.parse(source ?? "[]") as string[]) {
@@ -673,7 +696,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             courseLibraryVersion: currentRelease.ucsb_xrp.version,
             bootstrapVersion: currentRelease.service.bootstrap_version,
             robotId: serviceRobotId,
-            robotName: "UCSB-XRP-4A21",
+            robotName: "ucsb-xrp-4c91fae8f1775aa4",
             address: "192.168.4.1",
             bootId: "test-boot",
             capabilities: [
@@ -829,6 +852,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       schemaVersion: 2,
       kind: "physical",
       robotId: "4c91fae8f1775aa4",
+      hostname: "ucsb-xrp-4c91fae8f1775aa4",
       physicalConnection: "access_point",
       stationEndpoint: "http://ucsb-xrp.local",
       accessPointEndpoint: "http://192.168.4.1",

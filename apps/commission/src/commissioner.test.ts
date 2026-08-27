@@ -8,6 +8,7 @@ import {
   hotspotSsidForLastName,
   inspectDevice,
   installFirmware,
+  robotHostnameForId,
   requireMatchingCommissioningRelease,
   type CommissioningManifest,
 } from "./commissioner";
@@ -289,6 +290,20 @@ class FakeSession implements MicroPythonSession {
         })}\r\n`,
       );
     }
+    if (code.includes("__UCSB_XRP_NETWORK_HOSTNAME__=")) {
+      const hostname = code.match(/c\['hostname'\]=("[^"]+")/)?.[1];
+      if (!hostname) throw new Error("hostname missing from test command");
+      const profile = (this.jsonFile("/xrp_wifi.json") ?? {
+        version: 2,
+        mode: "access_point",
+        access_point: { password: "ucsb-xrp" },
+      }) as Record<string, unknown>;
+      profile.hostname = JSON.parse(hostname) as string;
+      this.files.set("/xrp_wifi.json", jsonData(profile));
+      return result(
+        `__UCSB_XRP_NETWORK_HOSTNAME__=${String(profile.hostname)}\r\n`,
+      );
+    }
     const open = code.match(/f=open\(("[^"]+"),'wb'\)/);
     if (open) {
       this.temporaryPath = JSON.parse(open[1]!) as string;
@@ -360,6 +375,18 @@ describe("browser XRP commissioning", () => {
     );
   });
 
+  it("builds one stable local-network name from the verified controller", () => {
+    expect(robotHostnameForId(" 4C91FAE8F1775AA4 ")).toBe(
+      "ucsb-xrp-4c91fae8f1775aa4",
+    );
+    expect(robotHostnameForId(`abc${"1".repeat(24)}`)).toBe(
+      `ucsb-xrp-${"1".repeat(16)}`,
+    );
+    expect(() => robotHostnameForId("not-a-controller-id")).toThrow(
+      "stable identity",
+    );
+  });
+
   it("accepts only the pinned MicroPython controller runtime", async () => {
     const session = new FakeSession();
     await expect(inspectDevice(session, manifest())).resolves.toMatchObject({
@@ -398,6 +425,7 @@ describe("browser XRP commissioning", () => {
       session,
       manifest: manifest(),
       manifestUrl,
+      robotId: "4c91fae8f1775aa4",
       network: { mode: "access_point", ssid: "UCSB-XRP-VISELL" },
       fetch: fetchReleaseAsset,
       onProgress: (next) => progress.push(next.detail),
@@ -434,6 +462,10 @@ describe("browser XRP commissioning", () => {
       JSON.parse(new TextDecoder().decode(session.files.get("/xrp_wifi.json")!))
         .access_point.ssid,
     ).toBe("UCSB-XRP-VISELL");
+    expect(
+      JSON.parse(new TextDecoder().decode(session.files.get("/xrp_wifi.json")!))
+        .hostname,
+    ).toBe("ucsb-xrp-4c91fae8f1775aa4");
     const runtimeVerification = session.commands.find((code) =>
       code.includes("__UCSB_XRP_VERIFY__="),
     );
@@ -456,6 +488,7 @@ describe("browser XRP commissioning", () => {
       session,
       manifest: manifest(),
       manifestUrl,
+      robotId: "4c91fae8f1775aa4",
       network: { mode: "keep" },
       fetch: (async () => {
         throw new Error("matching files must not be fetched");
@@ -471,12 +504,50 @@ describe("browser XRP commissioning", () => {
     ).toHaveLength(0);
   });
 
+  it("updates only the local hostname when retaining a network profile", async () => {
+    const files = fullyInstalledFiles();
+    files.set(
+      "/xrp_wifi.json",
+      jsonData({
+        version: 2,
+        mode: "station",
+        hostname: "ucsb-xrp",
+        station: { ssid: "Pink", password: "course-passphrase" },
+        access_point: { password: "ucsb-xrp" },
+      }),
+    );
+    const session = new FakeSession(files);
+    await commissionDevice({
+      session,
+      manifest: manifest(),
+      manifestUrl,
+      robotId: "4c91fae8f1775aa4",
+      network: { mode: "keep" },
+      fetch: (async () => {
+        throw new Error("matching files must not be fetched");
+      }) as typeof fetch,
+    });
+
+    expect(
+      JSON.parse(
+        new TextDecoder().decode(session.files.get("/xrp_wifi.json")!),
+      ),
+    ).toEqual({
+      version: 2,
+      mode: "station",
+      hostname: "ucsb-xrp-4c91fae8f1775aa4",
+      station: { ssid: "Pink", password: "course-passphrase" },
+      access_point: { password: "ucsb-xrp" },
+    });
+  });
+
   it("configures an existing Wi-Fi network without returning its password", async () => {
     const session = new FakeSession();
     const completed = await commissionDevice({
       session,
       manifest: manifest(),
       manifestUrl,
+      robotId: "4c91fae8f1775aa4",
       network: {
         mode: "station",
         ssid: "Course network",
@@ -520,6 +591,7 @@ describe("browser XRP commissioning", () => {
       session,
       manifest: manifest(),
       manifestUrl,
+      robotId: "4c91fae8f1775aa4",
       network: { mode: "keep" },
       fetch: fetchReleaseAsset,
     });
@@ -567,6 +639,7 @@ describe("browser XRP commissioning", () => {
         session,
         manifest: manifest(),
         manifestUrl,
+        robotId: "4c91fae8f1775aa4",
         network: { mode: "keep" },
         fetch: (async () => {
           fetched = true;
@@ -604,6 +677,7 @@ describe("browser XRP commissioning", () => {
         session,
         manifest: manifest(),
         manifestUrl,
+        robotId: "4c91fae8f1775aa4",
         network: { mode: "access_point" },
         fetch: (async (input: URL | RequestInfo) => {
           const url = input instanceof URL ? input.href : String(input);
@@ -644,6 +718,7 @@ describe("browser XRP commissioning", () => {
         session,
         manifest: manifest(),
         manifestUrl,
+        robotId: "4c91fae8f1775aa4",
         network: { mode: "keep" },
         fetch: (async () => {
           throw new Error("matching files must not be fetched");

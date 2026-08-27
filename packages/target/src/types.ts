@@ -175,6 +175,7 @@ export type TargetEvent =
       requestedMode?: "access_point" | "station";
       fallback?: boolean;
       robotId?: string;
+      hostname?: string;
     }
   | ({
       type: "console";

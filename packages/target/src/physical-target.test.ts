@@ -275,6 +275,7 @@ describe("physical target", () => {
       requestedMode: "station",
       fallback: true,
       robotId: "4c91fae8f1775aa4",
+      hostname: "ucsb-xrp",
     });
     target.disconnect();
   });
@@ -374,6 +375,7 @@ describe("physical target", () => {
       mode: "access_point",
       address: "http://192.168.4.1",
       ssid: "UCSB-XRP-TEST",
+      hostname: "ucsb-xrp",
     });
     target.disconnect();
   });

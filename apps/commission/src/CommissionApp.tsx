@@ -35,6 +35,7 @@ import {
   installFirmware,
   loadCommissioningManifest,
   requireMatchingCommissioningRelease,
+  robotHostnameForId,
   hotspotSsidForLastName,
   HOTSPOT_SSID_PREFIX,
   readExistingNetworkProfile,
@@ -824,6 +825,7 @@ export function CommissionApp() {
         session: sessionRef.current,
         manifest,
         manifestUrl,
+        robotId: inspectedRobotId,
         network,
         onProgress: (next) => {
           setProgress(next);
@@ -887,6 +889,7 @@ export function CommissionApp() {
     manifestUrl,
     existingNetwork?.accessPointSsid,
     hotspotName.ssid,
+    inspectedRobotId,
     networkMode,
     recordSetup,
     stationPassword,
@@ -952,10 +955,18 @@ export function CommissionApp() {
           "The XRP reached over Wi-Fi is not the controller selected over USB-C. Check the robot and network, then try again.",
         );
       }
+      const expectedHostname = robotHostnameForId(verifiedRobotId);
+      if (info.robotName.toLocaleLowerCase() !== expectedHostname) {
+        throw new XrpServiceProbeError(
+          "identity",
+          "The XRP started with an outdated network name. Reconnect it by USB-C and run repair again.",
+        );
+      }
       const preference = targetPreferenceForCommissionedRobot(
         loadTargetPreference(),
         {
           robotId: verifiedRobotId,
+          hostname: info.robotName,
           requestedMode: result.network.requested_mode,
           mode: result.network.mode,
           address: `http://${result.network.address}`,

@@ -51,11 +51,13 @@ describe("shared robot profile", () => {
       requestedMode: "station",
       fallback: false,
       robotId: "ROBOT-A",
+      hostname: "UCSB-XRP-ROBOT-A",
       observedAtMs: 42,
     });
     storeTargetPreference(profile);
     expect(loadTargetPreference()).toEqual(profile);
     expect(profile.stationEndpoint).toBe("http://192.168.7.31");
+    expect(profile.hostname).toBe("ucsb-xrp-robot-a");
   });
 
   it("refreshes a stale station route only after the selected robot proves it", () => {
@@ -162,6 +164,7 @@ describe("shared robot profile", () => {
       DEFAULT_TARGET_PREFERENCE,
       {
         robotId: "4C91FAE8F1775AA4",
+        hostname: "UCSB-XRP-4C91FAE8F1775AA4",
         requestedMode: "station",
         mode: "station",
         address: "http://192.168.7.25",
@@ -173,10 +176,15 @@ describe("shared robot profile", () => {
     expect(commissioned).toMatchObject({
       kind: "physical",
       robotId: "4c91fae8f1775aa4",
+      hostname: "ucsb-xrp-4c91fae8f1775aa4",
       physicalConnection: "station",
       stationEndpoint: "http://192.168.7.25",
       accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
     });
+    expect(physicalEndpointCandidates(commissioned)).toEqual([
+      "http://192.168.7.25",
+      "http://ucsb-xrp-4c91fae8f1775aa4.local",
+    ]);
   });
 
   it("uses the verified hotspot after a commissioned station fallback", () => {
@@ -184,6 +192,7 @@ describe("shared robot profile", () => {
       stationProfile(),
       {
         robotId: "robot-a",
+        hostname: "ucsb-xrp-robot-a",
         requestedMode: "station",
         mode: "access_point",
         address: XRP_ACCESS_POINT_ENDPOINT,
