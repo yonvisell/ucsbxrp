@@ -99,7 +99,7 @@ export class VirtualTargetClient implements TargetClient {
     }
     this.worker = new SharedWorker(
       new URL("./virtual-target.shared-worker.ts", import.meta.url),
-      { type: "module", name: "ucsb-xrp-virtual-target-v3" },
+      { type: "module", name: "ucsb-xrp-virtual-target-v4" },
     );
     this.worker.port.onmessage = (event: MessageEvent<TargetWorkerMessage>) =>
       this.handleMessage(event.data);
@@ -209,6 +209,26 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   async runCurrent(): Promise<void> {
+    const staged = (await this.request({ type: "get-project" })) as {
+      project?: CourseProject;
+      descriptor?: SynchronizedProject;
+    };
+    if (!staged.project || !staged.descriptor) {
+      throw new Error("No project is ready. Open a project in the IDE first.");
+    }
+    if (staged.descriptor.stale) {
+      const result = await this.check(staged.project);
+      if (!result.ok) {
+        throw new Error(result.detail);
+      }
+      const descriptor = await describeProject(staged.project);
+      await this.startRun({
+        type: "prepare-run",
+        project: staged.project,
+        descriptor,
+      });
+      return;
+    }
     await this.startRun({ type: "prepare-run" });
   }
 
@@ -301,7 +321,8 @@ export class VirtualTargetClient implements TargetClient {
     const descriptor = await describeProject(project);
     await this.request({
       type: "mark-project-stale",
-      revision: descriptor.revision,
+      project,
+      descriptor,
     });
   }
 
@@ -344,7 +365,12 @@ export class VirtualTargetClient implements TargetClient {
           project: CourseProject;
           descriptor: SynchronizedProject;
         }
-      | { type: "mark-project-stale"; revision: string }
+      | {
+          type: "mark-project-stale";
+          project: CourseProject;
+          descriptor: SynchronizedProject;
+        }
+      | { type: "get-project" }
       | { type: "set-scenario"; scenario: SimulationScenario }
       | {
           type: "set-runtime-parameter";

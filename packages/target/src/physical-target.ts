@@ -202,6 +202,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private lastRunId = 0;
   private lastLeaseAt = 0;
   private currentProject: SynchronizedProject | null = null;
+  private stagedProject: CourseProject | null = null;
   private projectStateKnown = false;
   private info: PhysicalInfo | null = null;
   private lastRuntimeJson = "";
@@ -218,8 +219,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.activePollIntervalMs =
       options.activePollIntervalMs ?? options.pollIntervalMs ?? 60;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
-    this.connectTimeoutMs =
-      options.discoveryTimeoutMs ?? this.requestTimeoutMs;
+    this.connectTimeoutMs = options.discoveryTimeoutMs ?? this.requestTimeoutMs;
   }
 
   async connect(): Promise<void> {
@@ -386,6 +386,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       entrypoint: result.project?.entrypoint ?? descriptor.entrypoint,
       stale: false,
     });
+    this.stagedProject = project;
     this.emit({
       type: "world",
       catalog,
@@ -397,6 +398,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async run(project: CourseProject): Promise<void> {
+    this.stagedProject = project;
     const descriptor = await describeProject(project);
     if (
       !this.currentProject ||
@@ -409,6 +411,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async runCurrent(): Promise<void> {
+    if (
+      this.stagedProject &&
+      (!this.currentProject || this.currentProject.stale)
+    ) {
+      await this.run(this.stagedProject);
+      return;
+    }
     if (!this.currentProject) {
       const error = new PhysicalTargetError(
         "no_project",
@@ -483,12 +492,21 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async markProjectStale(project: CourseProject): Promise<void> {
     const descriptor = await describeProject(project);
-    if (
-      this.currentProject &&
-      descriptor.revision !== this.currentProject.revision &&
-      !this.currentProject.stale
-    ) {
-      this.setCurrentProject({ ...this.currentProject, stale: true });
+    const worldChanged =
+      this.stagedProject === null ||
+      this.stagedProject.files["world.json"] !== project.files["world.json"];
+    this.stagedProject = project;
+    this.setCurrentProject({
+      ...descriptor,
+      stale: this.currentProject?.revision !== descriptor.revision,
+    });
+    if (worldChanged) {
+      const catalog = worldCatalogForProject(project);
+      this.emit({
+        type: "world",
+        catalog,
+        selectedWorldId: catalog.defaultWorldId,
+      });
     }
   }
 
@@ -1135,6 +1153,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
       }
       return;
     }
+    if (
+      this.stagedProject &&
+      this.currentProject?.stale &&
+      this.currentProject.revision !== manifest.revision
+    ) {
+      return;
+    }
     const stale =
       this.currentProject?.revision === manifest.revision
         ? this.currentProject.stale
@@ -1262,7 +1287,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v3" },
+          { type: "module", name: "ucsb-xrp-physical-target-v4" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,

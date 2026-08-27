@@ -156,6 +156,32 @@ function storeProject(
   broadcast(telemetryEvent());
 }
 
+function stageProject(
+  project: CourseProject,
+  descriptor: SynchronizedProject,
+): void {
+  const worldFileChanged =
+    currentProject?.files["world.json"] !== project.files["world.json"];
+  currentProject = project;
+  currentProjectDescriptor = { ...descriptor, stale: true };
+  broadcast({ type: "project", project: currentProjectDescriptor });
+  if (!worldFileChanged) return;
+
+  currentCatalog = worldCatalogForProject(project);
+  if (!currentCatalog.worlds.some((world) => world.id === currentScenario)) {
+    currentScenario = currentCatalog.defaultWorldId;
+  }
+  currentWorld = worldById(currentCatalog, currentScenario);
+  simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
+  simulatorState = simulator.reset(currentWorld.initialPose);
+  broadcast({
+    type: "world",
+    catalog: currentCatalog,
+    selectedWorldId: currentScenario,
+  });
+  broadcast(telemetryEvent());
+}
+
 function prepareRuntime(
   port: MessagePort,
   command: Extract<TargetWorkerCommand, { type: "prepare-run" }>,
@@ -345,15 +371,18 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     storeProject(command.project, command.descriptor);
     send(port, { type: "response", requestId: command.requestId, ok: true });
   } else if (command.type === "mark-project-stale") {
-    if (
-      currentProjectDescriptor &&
-      currentProjectDescriptor.revision !== command.revision &&
-      !currentProjectDescriptor.stale
-    ) {
-      currentProjectDescriptor = { ...currentProjectDescriptor, stale: true };
-      broadcast({ type: "project", project: currentProjectDescriptor });
-    }
+    stageProject(command.project, command.descriptor);
     send(port, { type: "response", requestId: command.requestId, ok: true });
+  } else if (command.type === "get-project") {
+    send(port, {
+      type: "response",
+      requestId: command.requestId,
+      ok: true,
+      result: {
+        project: currentProject ?? undefined,
+        descriptor: currentProjectDescriptor ?? undefined,
+      },
+    });
   } else if (command.type === "set-scenario") {
     if (command.scenario === currentScenario) {
       send(port, {

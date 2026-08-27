@@ -4,6 +4,27 @@ Last updated: 2026-08-26
 
 ## Current result
 
+Refinement 45 makes the visible IDE project the project that Monitor actually
+runs. Opening, creating, or editing a project now stages its complete snapshot
+in the shared target without treating it as validated or flashed. Monitor Run
+validates that staged snapshot and, for a physical XRP, flashes it if required.
+A reproduced Spiral-to-tutorial race now starts **MicroPython foundations** and
+never the earlier Spiral. Project changes also add named separators to retained
+Program output and the System log so earlier messages remain useful without
+appearing to belong to the newly opened project.
+
+Challenge progression is now explicit and lossless. Each challenge records its
+predecessor and reusable student modules. **Start next challenge** first
+requires the current challenge to have its own project folder, shows the new
+folder and carried files, creates a separate self-contained project, preserves
+the earlier folder, and copies only the declared reusable modules. A component
+is selected in the next challenge only when it was already selected in the
+preceding project; unfinished work remains present but continues to use the
+supplied implementation. The project rail adds non-overwriting text-file
+import, a compact active-file menu, clearer temporary-copy/storage language,
+and visible operation feedback. Eighty-nine focused target/IDE tests, the
+production/offline build, and four Stable Chrome project-workflow tests pass.
+
 Refinement 44 closes the physical command-path regression with observable
 hardware evidence. Release `2026.08-dev.22` keeps project execution on the
 RP2350's second core, mirrors encoder and motor state into the service

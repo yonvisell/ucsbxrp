@@ -1,5 +1,6 @@
 import Editor from "@monaco-editor/react";
 import {
+  type ChangeEvent,
   type FormEvent,
   useCallback,
   useEffect,
@@ -12,7 +13,9 @@ import {
   COURSE_PROJECT_TEMPLATES,
   PhysicalTargetClient,
   VirtualTargetClient,
+  createNextChallengeProject,
   loadTargetPreference,
+  nextChallengeTemplate,
   physicalEndpointCandidates,
   storeTargetPreference,
   targetPreferenceForPhysicalNetwork,
@@ -259,7 +262,7 @@ export function IdeApp() {
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
   const [operationDetail, setOperationDetail] = useState(
-    "This project has a recovery copy in Chrome. Choose a course folder to create its project folder, or open an existing project.",
+    "This project is stored temporarily in Chrome. Choose a course folder to keep it as ordinary files, or open an existing project.",
   );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
@@ -276,9 +279,9 @@ export function IdeApp() {
   const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [consoleTab, setConsoleTab] = useState<"status" | "output" | "details">(
-    "status",
+    "output",
   );
-  const [outputPanelOpen, setOutputPanelOpen] = useState(true);
+  const [outputPanelOpen, setOutputPanelOpen] = useState(false);
   const [projectPanelOpen, setProjectPanelOpen] = useState(
     initiallyShowProjectPanel,
   );
@@ -299,6 +302,7 @@ export function IdeApp() {
   );
   const [pathDraft, setPathDraft] = useState("");
   const [pathOperationError, setPathOperationError] = useState("");
+  const [fileActionsOpen, setFileActionsOpen] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [pendingFolderDeletions, setPendingFolderDeletions] = useState(
     () => new Set<string>(),
@@ -307,7 +311,12 @@ export function IdeApp() {
   const initializedProjectEffect = useRef(false);
   const projectRef = useRef(project);
   const settingsDrawerRef = useRef<HTMLElement | null>(null);
+  const fileActionsRef = useRef<HTMLDivElement | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const projectVersion = useRef(0);
+  const displayedProjectKey = useRef(
+    `${initialProject.templateId ?? "custom"}:${initialProject.name}`,
+  );
 
   useEffect(() => {
     if (!window.matchMedia) {
@@ -391,20 +400,51 @@ export function IdeApp() {
       setCheckDetail("Files changed since the last code check.");
       setSyncOk(null);
       setSyncDetail("Files changed since the last flash.");
-      if (
-        currentProject &&
-        !currentProject.stale &&
-        targetState !== "disconnected" &&
-        targetState !== "connecting"
-      ) {
-        void target.markProjectStale(project).catch(() => {
-          // Editing remains local if the target connection changes mid-update.
-        });
-      }
     } else {
       initializedProjectEffect.current = true;
     }
   }, [project]);
+
+  useEffect(() => {
+    if (
+      targetState === "disconnected" ||
+      targetState === "connecting" ||
+      (target.kind === "physical" && targetState === "error")
+    ) {
+      return;
+    }
+    const snapshot = project;
+    const timer = window.setTimeout(() => {
+      void target.markProjectStale(snapshot).catch(() => {
+        // The editor remains usable if the target connection changes mid-edit.
+      });
+    }, 160);
+    return () => window.clearTimeout(timer);
+  }, [project, target, targetState]);
+
+  useEffect(() => {
+    const key = `${project.templateId ?? "custom"}:${project.name}`;
+    if (key === displayedProjectKey.current) return;
+    displayedProjectKey.current = key;
+    const line = `Project opened · ${project.name}. Earlier messages belong to previous projects or runs.`;
+    setConsoleEntries((entries) => [
+      ...entries.slice(-(maximumSessionLogEntries - 2)),
+      {
+        id: `ide-project-output-${nextConsoleId.current++}`,
+        category: "program",
+        stream: "system",
+        line,
+        timestampMs: Date.now(),
+      },
+      {
+        id: `ide-project-system-${nextConsoleId.current++}`,
+        category: "service",
+        stream: "system",
+        line,
+        timestampMs: Date.now(),
+      },
+    ]);
+  }, [project.name, project.templateId]);
 
   useEffect(() => {
     let disposed = false;
@@ -541,7 +581,7 @@ export function IdeApp() {
       if (disposed) return;
       setFolderSaveState("error");
       setOperationDetail(
-        `The remembered project folder could not be reopened: ${errorDetail(error)} The recovery copy in Chrome remains available.`,
+        `The remembered project folder could not be reopened: ${errorDetail(error)} The temporary browser copy remains available.`,
       );
       if (courseFolderIsWaitingForIde()) finishCourseFolderIdeHandoff();
     });
@@ -581,6 +621,11 @@ export function IdeApp() {
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
   );
+  const followingChallenge = useMemo(
+    () =>
+      project.templateId ? nextChallengeTemplate(project.templateId) : null,
+    [project.templateId],
+  );
   const programOutput = useMemo(
     () => consoleEntries.filter((entry) => entry.category === "program"),
     [consoleEntries],
@@ -600,6 +645,17 @@ export function IdeApp() {
     setOpenPaths((paths) => (paths.includes(path) ? paths : [...paths, path]));
     setActivePath(path);
   }, []);
+
+  const stageOpenedProject = useCallback(
+    async (snapshot: ProjectSnapshot) => {
+      try {
+        await target.markProjectStale(snapshot);
+      } catch {
+        // Opening and editing remain available while a physical XRP is offline.
+      }
+    },
+    [target],
+  );
 
   const closeFile = useCallback(
     (path: string) => {
@@ -868,6 +924,7 @@ export function IdeApp() {
       replacePendingFolderDeletions(() => new Set());
       setCheckOk(null);
       setCheckDetail("Current files have not been checked.");
+      await stageOpenedProject(result.project);
       setOperationDetail(
         `Opened project folder ${folder.name}: ${Object.keys(result.project.files).length} supported file${
           Object.keys(result.project.files).length === 1 ? "" : "s"
@@ -881,6 +938,7 @@ export function IdeApp() {
   }, [
     rememberedWorkspaceFolder,
     replacePendingFolderDeletions,
+    stageOpenedProject,
     workspaceFolder,
   ]);
 
@@ -982,8 +1040,9 @@ export function IdeApp() {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
+        await stageOpenedProject(snapshot);
         setOperationDetail(
-          `${snapshot.name} has a recovery copy in Chrome. Choose a course folder to create its project folder.`,
+          `${snapshot.name} is stored temporarily in Chrome. Choose a course folder to create its project folder.`,
         );
         return;
       }
@@ -996,6 +1055,7 @@ export function IdeApp() {
       rememberedWorkspaceFolder,
       replacePendingFolderDeletions,
       selectWorkspaceFolder,
+      stageOpenedProject,
       workspaceFolder,
     ],
   );
@@ -1009,7 +1069,7 @@ export function IdeApp() {
       if (permission !== "granted") {
         setFolderSaveState("permission");
         setOperationDetail(
-          `Folder access was not granted. The recovery copy in Chrome remains current.`,
+          `Folder access was not granted. The temporary browser copy remains current.`,
         );
         return;
       }
@@ -1191,10 +1251,49 @@ export function IdeApp() {
       name: template.project.name ?? template.id.replaceAll("_", "-"),
       entrypoint: template.project.entrypoint,
       files: { ...template.project.files },
+      templateId: template.id,
     };
     await prepareProjectCreation(snapshot);
     setSelectedTemplateId("");
   }, [prepareProjectCreation, selectedTemplateId]);
+
+  const startNextChallenge = useCallback(async () => {
+    if (!project.templateId || !followingChallenge) return;
+    if (!workingFolder) {
+      setOperationDetail(
+        "Create a project folder for this challenge before starting the next one. The current challenge will remain unchanged.",
+      );
+      await saveProjectFiles();
+      return;
+    }
+    if (!workspaceFolder) {
+      setOperationDetail(
+        "Choose the course folder that contains this project before starting the next challenge.",
+      );
+      await selectWorkspaceFolder();
+      return;
+    }
+    try {
+      const next = createNextChallengeProject(project.templateId, project);
+      await prepareProjectCreation({
+        ...next,
+        name: next.name ?? followingChallenge.shortLabel,
+        templateId: followingChallenge.id,
+      });
+    } catch (error) {
+      setOperationDetail(
+        `The next challenge could not be created: ${errorDetail(error)}`,
+      );
+    }
+  }, [
+    followingChallenge,
+    prepareProjectCreation,
+    project,
+    saveProjectFiles,
+    selectWorkspaceFolder,
+    workingFolder,
+    workspaceFolder,
+  ]);
 
   const createNamedProject = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -1228,6 +1327,7 @@ export function IdeApp() {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Current files have not been sent to the XRP.");
+        await stageOpenedProject(pendingProject);
         setNewProjectOpen(false);
         setPendingProject(null);
         setNewProjectDraft("");
@@ -1242,6 +1342,7 @@ export function IdeApp() {
       newProjectDraft,
       pendingProject,
       replacePendingFolderDeletions,
+      stageOpenedProject,
       workspaceFolder,
     ],
   );
@@ -1278,7 +1379,7 @@ export function IdeApp() {
       setOperationDetail(
         workingFolder
           ? `${path} created. Automatic folder save pending.`
-          : `${path} created in browser recovery.`,
+          : `${path} created in the temporary browser copy.`,
       );
       openFile(path);
     },
@@ -1289,6 +1390,56 @@ export function IdeApp() {
       replacePendingFolderDeletions,
       workingFolder,
     ],
+  );
+
+  const importProjectFiles = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const selected = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      if (selected.length === 0) return;
+
+      const current = projectRef.current;
+      const files = { ...current.files };
+      const imported: string[] = [];
+      const skipped: string[] = [];
+      for (const file of selected) {
+        const path = normalizedProjectPath(file.name);
+        const pathError = projectPathError(path);
+        if (pathError || path in files || file.size > 1024 * 1024) {
+          skipped.push(file.name);
+          continue;
+        }
+        files[path] = await file.text();
+        imported.push(path);
+      }
+      if (imported.length === 0) {
+        const onlySkipped = skipped.length === 1 ? skipped[0] : undefined;
+        setOperationDetail(
+          onlySkipped !== undefined && onlySkipped in current.files
+            ? `${onlySkipped} is already in this project. Rename it before importing.`
+            : "No files were imported. Choose text files smaller than 1 MB with names not already used in the project.",
+        );
+        return;
+      }
+      const nextProject = { ...current, files };
+      projectRef.current = nextProject;
+      setProject(nextProject);
+      setFolderDirty(true);
+      replacePendingFolderDeletions((pending) => {
+        const next = new Set(pending);
+        imported.forEach((path) => next.delete(path));
+        return next;
+      });
+      openFile(imported[0]!);
+      setOperationDetail(
+        `Imported ${imported.length} file${imported.length === 1 ? "" : "s"}${
+          skipped.length
+            ? `; skipped ${skipped.length} duplicate or unsupported file${skipped.length === 1 ? "" : "s"}`
+            : ""
+        }.${workingFolder ? " Saving automatically." : " Choose a course folder to keep this project as ordinary files."}`,
+      );
+    },
+    [openFile, replacePendingFolderDeletions, workingFolder],
   );
 
   const beginPathOperation = useCallback(
@@ -1501,6 +1652,18 @@ export function IdeApp() {
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [settingsOpen]);
 
+  useEffect(() => {
+    if (!fileActionsOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      const targetNode = event.target as Node | null;
+      if (targetNode && !fileActionsRef.current?.contains(targetNode)) {
+        setFileActionsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [fileActionsOpen]);
+
   const storageDetail = workingFolder
     ? folderSaveState === "error"
       ? "Automatic save failed"
@@ -1509,14 +1672,14 @@ export function IdeApp() {
         : "Connected · changes save automatically"
     : rememberedFolder && rememberedFolderCanAttach
       ? `${rememberedFolder.name} · reconnect to resume saving`
-      : "Recovery copy in Chrome; no project folder selected";
+      : "Temporary browser copy; no project folder selected";
   const storageSummary = workingFolder
     ? `Saved automatically in ./${workingFolder.name}`
     : rememberedFolder && rememberedFolderCanAttach
       ? `${rememberedFolder.name} · reconnect to resume automatic saving`
       : workspaceFolder
-        ? `Recovery copy in Chrome · course folder ${workspaceFolder.name} selected`
-        : "Recovery copy in Chrome · choose a course folder";
+        ? `Temporary browser copy · course folder ${workspaceFolder.name} selected`
+        : "Temporary browser copy · choose a course folder";
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
@@ -1550,6 +1713,19 @@ export function IdeApp() {
       ? `${targetDetail}${targetDetail.endsWith(".") ? "" : "."} Project ${physicalStatus}.`
       : targetDetail;
   const activeReference = apiReferenceForPath(activePath);
+  const pendingTemplate = pendingProject?.templateId
+    ? COURSE_PROJECT_TEMPLATES.find(
+        (template) => template.id === pendingProject.templateId,
+      )
+    : null;
+  const progressingToNextChallenge =
+    pendingTemplate?.predecessorId === project.templateId;
+  const carriedFiles =
+    progressingToNextChallenge && pendingTemplate
+      ? pendingTemplate.components
+          .filter((component) => component.carryForward)
+          .map((component) => component.file)
+      : [];
 
   return (
     <div className="app-shell ide-app">
@@ -1685,7 +1861,7 @@ export function IdeApp() {
             <div className="project-root" data-testid="project-folder">
               {workingFolder
                 ? `./${workingFolder.name}`
-                : `${project.name} · recovery copy in Chrome`}
+                : `${project.name} · temporary browser copy`}
             </div>
             <div className="file-list">
               {projectFiles.map((path) => (
@@ -1708,57 +1884,12 @@ export function IdeApp() {
               ))}
             </div>
             <div className="project-controls">
-              <div
-                className="file-actions"
-                aria-label={`Actions for ${activePath}`}
-              >
-                <button
-                  onClick={() => beginPathOperation("rename")}
-                  title={`Rename ${activePath}.`}
-                >
-                  Rename file
-                </button>
-                <button
-                  onClick={() => beginPathOperation("duplicate")}
-                  title={`Create a second editable copy of ${activePath}.`}
-                >
-                  Duplicate file
-                </button>
-                <button
-                  disabled={
-                    activePath === project.entrypoint ||
-                    !activePath.endsWith(".py")
-                  }
-                  onClick={useActiveFileAsEntrypoint}
-                  title={
-                    !activePath.endsWith(".py")
-                      ? "Only a Python file can be the main file"
-                      : activePath === project.entrypoint
-                        ? "Run already executes this file first"
-                        : `Make ${activePath} the file Run executes first`
-                  }
-                >
-                  Make main
-                </button>
-                <button
-                  className="danger-button"
-                  disabled={!canDeleteActiveFile}
-                  onClick={() => setDeletePath(activePath)}
-                  title={
-                    canDeleteActiveFile
-                      ? `Delete ${activePath} from the project`
-                      : "A project must retain a Python main file"
-                  }
-                >
-                  Delete file
-                </button>
-              </div>
               <div className="project-actions">
                 <button
                   className="open-folder-button"
                   disabled={!supportsWorkingFolders()}
                   onClick={openWorkingFolder}
-                  title="Open an existing local UCSBXRP project folder. The current project remains in browser recovery."
+                  title="Open an existing local UCSBXRP project folder. The current project remains available as a temporary browser copy."
                 >
                   Open project
                 </button>
@@ -1772,11 +1903,90 @@ export function IdeApp() {
                   New file
                 </button>
                 <button
-                  onClick={saveProjectFiles}
-                  title="Save immediately. Connected folders also save automatically after edits (⌘/Ctrl+S)."
+                  onClick={() => importInputRef.current?.click()}
+                  title="Import one or more text files into this project. Existing files are not overwritten."
                 >
-                  Save
+                  Import files
                 </button>
+                <input
+                  accept=".csv,.ini,.json,.md,.py,.toml,.txt,.yaml,.yml,text/*"
+                  hidden
+                  multiple
+                  onChange={importProjectFiles}
+                  ref={importInputRef}
+                  type="file"
+                />
+              </div>
+              <div className="file-menu" ref={fileActionsRef}>
+                <button
+                  aria-expanded={fileActionsOpen}
+                  className="file-menu-trigger"
+                  onClick={() => setFileActionsOpen((open) => !open)}
+                  title={`Rename, duplicate, make main, or delete ${activePath}.`}
+                >
+                  <span>File</span>
+                  <strong>{activePath.split("/").at(-1)}</strong>
+                  <span aria-hidden="true">{fileActionsOpen ? "▴" : "▾"}</span>
+                </button>
+                {fileActionsOpen ? (
+                  <div
+                    className="file-actions"
+                    aria-label={`Actions for ${activePath}`}
+                  >
+                    <button
+                      onClick={() => {
+                        setFileActionsOpen(false);
+                        beginPathOperation("rename");
+                      }}
+                      title={`Rename ${activePath}.`}
+                    >
+                      Rename file
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFileActionsOpen(false);
+                        beginPathOperation("duplicate");
+                      }}
+                      title={`Create a second editable copy of ${activePath}.`}
+                    >
+                      Duplicate file
+                    </button>
+                    <button
+                      disabled={
+                        activePath === project.entrypoint ||
+                        !activePath.endsWith(".py")
+                      }
+                      onClick={() => {
+                        setFileActionsOpen(false);
+                        useActiveFileAsEntrypoint();
+                      }}
+                      title={
+                        !activePath.endsWith(".py")
+                          ? "Only a Python file can be the main file"
+                          : activePath === project.entrypoint
+                            ? "Run already executes this file first"
+                            : `Make ${activePath} the file Run executes first`
+                      }
+                    >
+                      Make main
+                    </button>
+                    <button
+                      className="danger-button"
+                      disabled={!canDeleteActiveFile}
+                      onClick={() => {
+                        setFileActionsOpen(false);
+                        setDeletePath(activePath);
+                      }}
+                      title={
+                        canDeleteActiveFile
+                          ? `Delete ${activePath} from the project`
+                          : "A project must retain a Python main file"
+                      }
+                    >
+                      Delete file
+                    </button>
+                  </div>
+                ) : null}
               </div>
               {"component_checks.py" in project.files ? (
                 <button
@@ -1790,8 +2000,17 @@ export function IdeApp() {
                     : "Test components"}
                 </button>
               ) : null}
+              {followingChallenge ? (
+                <button
+                  className="next-challenge-button"
+                  onClick={() => void startNextChallenge()}
+                  title={`Create ${followingChallenge.label} and carry forward the student components used in this project.`}
+                >
+                  Start {followingChallenge.label}
+                </button>
+              ) : null}
               <div className="template-control">
-                <span>New project from template</span>
+                <span>New project</span>
                 <div className="template-actions">
                   <select
                     aria-label="Project template"
@@ -1826,7 +2045,7 @@ export function IdeApp() {
                 </div>
               </div>
               <div className="project-storage">
-                <span>STORAGE</span>
+                <span>Project storage</span>
                 <strong title={storageDetail}>{storageSummary}</strong>
                 <button
                   className="folder-reconnect"
@@ -1849,6 +2068,13 @@ export function IdeApp() {
                     Reconnect
                   </button>
                 ) : null}
+                <small
+                  aria-live="polite"
+                  className="project-operation-detail"
+                  title={operationDetail}
+                >
+                  {operationDetail}
+                </small>
                 <OfflineReadiness appName="IDE" />
               </div>
             </div>
@@ -2357,9 +2583,9 @@ export function IdeApp() {
             <span className="dialog-kicker">NEW PROJECT</span>
             <h2 id="new-project-title">Name the project folder</h2>
             <p className="dialog-context">
-              The folder will be created inside {workspaceFolder?.name}. Source,
-              automatic copies, program output, and telemetry will stay with
-              this project.
+              {progressingToNextChallenge
+                ? `This creates a separate project inside ${workspaceFolder?.name}. It carries ${carriedFiles.join(", ")} from ${project.name}; the current project remains unchanged. The new challenge supplies its own task, world, and newly introduced modules.`
+                : `The folder will be created inside ${workspaceFolder?.name}. Source, automatic copies, program output, and telemetry will stay with this project.`}
             </p>
             <label htmlFor="new-project-folder">Folder name</label>
             <input
@@ -2517,8 +2743,8 @@ export function IdeApp() {
             <span className="dialog-kicker">CONFIRM DELETION</span>
             <h2 id="delete-file-title">Delete {deletePath}?</h2>
             <p className="dialog-context">
-              This removes the file from browser recovery now. A connected
-              project folder updates automatically.
+              This removes the file from the temporary browser copy now. A
+              connected project folder updates automatically.
               {deletePath === project.entrypoint && replacementEntrypoint
                 ? ` ${replacementEntrypoint} will become the main file.`
                 : ""}

@@ -1,4 +1,5 @@
 import {
+  COURSE_PROJECT_TEMPLATES,
   DEFAULT_COURSE_PROJECT,
   DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
   STAGE_ONE_PROJECT,
@@ -18,6 +19,8 @@ export type { CourseDirectoryHandle } from "../../shared/course-folder";
 
 export interface ProjectSnapshot extends CourseProject {
   name: string;
+  /** Catalog identity used only for an explicit challenge progression. */
+  templateId?: string;
 }
 
 interface FolderReadResult {
@@ -97,6 +100,7 @@ function defaultProject(): ProjectSnapshot {
     name: project.name ?? "Expanding spiral",
     entrypoint: project.entrypoint,
     files: { ...project.files },
+    templateId: DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
   };
 }
 
@@ -165,6 +169,9 @@ function recoveredProject(value: unknown): ProjectSnapshot | null {
     name: value.name,
     entrypoint: value.entrypoint,
     files,
+    ...(typeof value.templateId === "string"
+      ? { templateId: value.templateId }
+      : {}),
   };
 }
 
@@ -495,6 +502,7 @@ export async function readProjectFolder(
   let skipped = 0;
   let preferredEntrypoint: string | undefined;
   let preferredName: string | undefined;
+  let preferredTemplateId: string | undefined;
 
   const visit = async (
     directory: CourseDirectoryHandle,
@@ -520,6 +528,14 @@ export async function readProjectFolder(
             preferredEntrypoint = metadata.entrypoint;
             if (typeof metadata.name === "string" && metadata.name.trim()) {
               preferredName = metadata.name.trim();
+            }
+            if (
+              typeof metadata.templateId === "string" &&
+              COURSE_PROJECT_TEMPLATES.some(
+                (template) => template.id === metadata.templateId,
+              )
+            ) {
+              preferredTemplateId = metadata.templateId;
             }
           } else {
             skipped += 1;
@@ -556,11 +572,18 @@ export async function readProjectFolder(
       "Choose a UCSBXRP project folder, not the UCSBXRP course software repository.",
     );
   }
+  const projectName = preferredName ?? root.name;
+  const inferredTemplateId = COURSE_PROJECT_TEMPLATES.find(
+    (template) => template.project.name === projectName,
+  )?.id;
   return {
     project: {
-      name: preferredName ?? root.name,
+      name: projectName,
       entrypoint: selectEntrypoint(files, preferredEntrypoint),
       files,
+      ...(preferredTemplateId || inferredTemplateId
+        ? { templateId: preferredTemplateId ?? inferredTemplateId }
+        : {}),
     },
     skipped,
   };
@@ -600,7 +623,11 @@ export async function writeProjectFolder(
   const writable = await metadata.createWritable();
   await writable.write(
     `${JSON.stringify(
-      { name: project.name, entrypoint: project.entrypoint },
+      {
+        name: project.name,
+        entrypoint: project.entrypoint,
+        ...(project.templateId ? { templateId: project.templateId } : {}),
+      },
       null,
       2,
     )}\n`,
@@ -712,7 +739,11 @@ function sameProjectContents(
   first: ProjectSnapshot,
   second: ProjectSnapshot,
 ): boolean {
-  if (first.entrypoint !== second.entrypoint) {
+  if (
+    first.name !== second.name ||
+    first.entrypoint !== second.entrypoint ||
+    first.templateId !== second.templateId
+  ) {
     return false;
   }
   const firstPaths = Object.keys(first.files).sort();

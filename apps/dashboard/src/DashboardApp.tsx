@@ -933,13 +933,22 @@ export function DashboardApp() {
         await target.stop();
       } else {
         setRunStarting(true);
-        if (target.kind === "virtual" && currentProject === null) {
+        try {
+          await target.runCurrent();
+        } catch (error) {
+          if (
+            target.kind !== "virtual" ||
+            !(error instanceof Error) ||
+            !error.message.includes("No project is ready")
+          ) {
+            throw error;
+          }
           setTargetDetail(
             `Validating ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}…`,
           );
           await target.synchronize(DEFAULT_COURSE_PROJECT);
+          await target.runCurrent();
         }
-        await target.runCurrent();
       }
     } catch (error: unknown) {
       setTargetState("error");
@@ -1239,7 +1248,7 @@ export function DashboardApp() {
     !virtualRuntimePreparing &&
     (targetState === "ready" ||
       (target.kind === "virtual" && targetState === "error")) &&
-    ((currentProject !== null && !currentProject.stale) ||
+    (currentProject !== null ||
       (target.kind === "virtual" && currentProject === null));
   const worldPreviewSample = useMemo(
     () => centeredWorldPreview(target.kind),
@@ -1307,7 +1316,7 @@ export function DashboardApp() {
                   : runStarting
                     ? "Validating the default project before Run."
                     : currentProject?.stale
-                      ? "The IDE project changed. Run or flash it in the IDE first."
+                      ? `Validate and run the current IDE project: ${currentProject.name}.`
                       : currentProject
                         ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
                         : target.kind === "virtual"

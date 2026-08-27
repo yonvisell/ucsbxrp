@@ -638,6 +638,7 @@ describe("working-folder reads", () => {
     const project = {
       name: "course-project",
       entrypoint: "student/controller.py",
+      templateId: "challenge_2",
       files: {
         "main.py": "print('new')\n",
         "student/controller.py": "class Controller:\n    pass\n",
@@ -652,6 +653,7 @@ describe("working-folder reads", () => {
     expect(JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}")).toEqual({
       name: "course-project",
       entrypoint: "student/controller.py",
+      templateId: "challenge_2",
     });
     const reopened = await readProjectFolder(root);
     expect(reopened.project).toEqual(project);

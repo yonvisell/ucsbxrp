@@ -427,7 +427,7 @@ describe("physical target", () => {
     target.disconnect();
   });
 
-  it("blocks a retained revision after an IDE edit until synchronization", async () => {
+  it("flashes the staged IDE revision before Monitor runs it", async () => {
     const retained = {
       ...project,
       name: "Retained project",
@@ -486,10 +486,6 @@ describe("physical target", () => {
 
     await target.connect();
     await target.markProjectStale(changed);
-    await expect(target.runCurrent()).rejects.toThrow(/changed/i);
-    expect(postCount).toBe(0);
-
-    await target.synchronize(changed);
     await target.runCurrent();
     expect(postCount).toBe(2);
     expect(events).toContainEqual(

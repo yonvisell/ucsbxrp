@@ -173,7 +173,11 @@ test("creates the untouched default inside the selected course folder", async ({
   );
   expect(
     JSON.parse(files["Expanding-Spiral/.ucsb-xrp-project.json"] ?? "{}"),
-  ).toEqual({ name: "Expanding spiral", entrypoint: "main.py" });
+  ).toEqual({
+    name: "Expanding spiral",
+    entrypoint: "main.py",
+    templateId: "demo_spiral",
+  });
 });
 
 test("automatically saves project edits and retains four prior states", async ({

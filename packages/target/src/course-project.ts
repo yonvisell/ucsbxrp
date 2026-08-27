@@ -191,6 +191,24 @@ function selectStudentComponent(source: string, selectionFlag: string): string {
   return source.replace(assignment, "$1True$2");
 }
 
+function studentComponentIsSelected(
+  source: string,
+  selectionFlag: string,
+): boolean {
+  if (!/^[A-Z][A-Z0-9_]*$/.test(selectionFlag)) {
+    throw new Error(`Invalid component selection flag '${selectionFlag}'`);
+  }
+  const assignment = new RegExp(
+    `^${selectionFlag}\\s*=\\s*(True|False)\\s*$`,
+    "m",
+  );
+  const match = source.match(assignment);
+  if (!match) {
+    throw new Error(`The current challenge does not declare ${selectionFlag}`);
+  }
+  return match[1] === "True";
+}
+
 /** Create the next self-contained challenge while preserving declared student work. */
 export function createNextChallengeProject(
   currentTemplateId: string,
@@ -202,8 +220,12 @@ export function createNextChallengeProject(
   }
   const files = { ...next.project.files };
   let courseSetup = files["course_setup.py"];
+  const currentCourseSetup = currentProject.files["course_setup.py"];
   if (courseSetup === undefined) {
     throw new Error(`${next.label} does not contain course_setup.py`);
+  }
+  if (currentCourseSetup === undefined) {
+    throw new Error("The current challenge does not contain course_setup.py");
   }
   for (const component of next.components.filter(
     (candidate) => candidate.carryForward,
@@ -215,7 +237,14 @@ export function createNextChallengeProject(
       );
     }
     files[component.file] = studentSource;
-    courseSetup = selectStudentComponent(courseSetup, component.selectionFlag);
+    if (
+      studentComponentIsSelected(currentCourseSetup, component.selectionFlag)
+    ) {
+      courseSetup = selectStudentComponent(
+        courseSetup,
+        component.selectionFlag,
+      );
+    }
   }
   files["course_setup.py"] = courseSetup;
   return {

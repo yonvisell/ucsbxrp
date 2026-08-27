@@ -48,8 +48,10 @@ export type TargetWorkerCommand =
   | {
       type: "mark-project-stale";
       requestId: string;
-      revision: string;
+      project: CourseProject;
+      descriptor: SynchronizedProject;
     }
+  | { type: "get-project"; requestId: string }
   | {
       type: "set-scenario";
       requestId: string;

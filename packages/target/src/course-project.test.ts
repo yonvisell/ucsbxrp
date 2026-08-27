@@ -107,6 +107,13 @@ describe("course starter catalog", () => {
         ...first.files,
         "sensor_model.py": "# completed sensor model\n",
         "wheel_speed_controller.py": "# completed wheel controller\n",
+        "course_setup.py": first.files["course_setup.py"]!.replace(
+          "USE_STUDENT_SENSOR_MODEL = False",
+          "USE_STUDENT_SENSOR_MODEL = True",
+        ).replace(
+          "USE_STUDENT_WHEEL_SPEED_CONTROLLER = False",
+          "USE_STUDENT_WHEEL_SPEED_CONTROLLER = True",
+        ),
         "main.py": "# a changed Challenge 1 task\n",
         "notes.txt": "not part of the next challenge\n",
       },
@@ -155,7 +162,20 @@ describe("course starter catalog", () => {
       );
       const next = createNextChallengeProject(currentId, {
         ...current,
-        files: { ...current.files, ...markedFiles },
+        files: {
+          ...current.files,
+          ...markedFiles,
+          "course_setup.py": nextTemplate.components
+            .filter((component) => component.carryForward)
+            .reduce(
+              (source, component) =>
+                source.replace(
+                  `${component.selectionFlag} = False`,
+                  `${component.selectionFlag} = True`,
+                ),
+              current.files["course_setup.py"]!,
+            ),
+        },
       });
 
       for (const component of nextTemplate.components) {
@@ -174,6 +194,35 @@ describe("course starter catalog", () => {
         }
       }
     }
+  });
+
+  it("preserves incomplete and partially selected component states", () => {
+    const first = courseProjectTemplate("challenge_1").project;
+    const partial = {
+      ...first,
+      files: {
+        ...first.files,
+        "sensor_model.py": "# sensor work in progress\n",
+        "wheel_speed_controller.py": "# checked wheel controller\n",
+        "course_setup.py": first.files["course_setup.py"]!.replace(
+          "USE_STUDENT_WHEEL_SPEED_CONTROLLER = False",
+          "USE_STUDENT_WHEEL_SPEED_CONTROLLER = True",
+        ),
+      },
+    };
+
+    const next = createNextChallengeProject("challenge_1", partial);
+
+    expect(next.files["sensor_model.py"]).toBe("# sensor work in progress\n");
+    expect(next.files["wheel_speed_controller.py"]).toBe(
+      "# checked wheel controller\n",
+    );
+    expect(next.files["course_setup.py"]).toContain(
+      "USE_STUDENT_SENSOR_MODEL = False",
+    );
+    expect(next.files["course_setup.py"]).toContain(
+      "USE_STUDENT_WHEEL_SPEED_CONTROLLER = True",
+    );
   });
 
   it("rejects incomplete or terminal challenge progression", () => {
