@@ -76,7 +76,6 @@ import {
   ProjectFolderConflictError,
   readProjectFolder,
   renameProjectFile,
-  saveProjectFolderWithAutosave,
   sameProjectContents,
   setProjectEntrypoint,
   storeRecoveredProject,
@@ -89,7 +88,6 @@ import {
   type ProjectSnapshot,
 } from "./project-files";
 import {
-  acknowledgeProjectSessionSave,
   createProjectSession,
   markProjectSessionSaved,
   projectSessionHasUnsavedChanges,
@@ -98,6 +96,7 @@ import {
   updateProjectSession,
   type ProjectSession,
 } from "./project-session";
+import { ProjectFolderPersistenceController } from "./project-folder-persistence";
 import {
   ideReloadIsIdle,
   projectRevisionIdentity,
@@ -331,6 +330,7 @@ export function IdeApp({
     targetPreference.stationEndpoint,
     targetPreference.accessPointEndpoint,
     targetPreference.robotId,
+    targetPreference.hostname,
     connectionAttempt,
   ]);
   const virtualRuntimePreparing =
@@ -431,9 +431,6 @@ export function IdeApp({
     targetPreference.stationEndpoint,
   );
   const [deletePath, setDeletePath] = useState<string | null>(null);
-  const [pendingFolderDeletions, setPendingFolderDeletions] = useState(
-    () => new Set<string>(),
-  );
   const nextConsoleId = useRef(1);
   const initializedProjectEffect = useRef(false);
   const projectRef = useRef(project);
@@ -492,12 +489,9 @@ export function IdeApp({
     narrowLayout.addEventListener("change", adaptProjectPanel);
     return () => narrowLayout.removeEventListener("change", adaptProjectPanel);
   }, []);
-  const folderWriteQueue = useRef<Promise<void>>(Promise.resolve());
   const projectFolderHandleWriteRef = useRef<Promise<boolean>>(
     Promise.resolve(true),
   );
-  const folderWriteEpoch = useRef(0);
-  const pendingFolderDeletionsRef = useRef(new Set<string>());
   const projectSessionReadyRef = useRef(false);
   const workingFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const folderDirtyRef = useRef(false);
@@ -507,6 +501,17 @@ export function IdeApp({
   const componentCheckRunningRef = useRef(false);
   const folderInteractionCountRef = useRef(0);
   const folderSaveStateRef = useRef(folderSaveState);
+  const projectFolderPersistenceRef =
+    useRef<ProjectFolderPersistenceController | null>(null);
+  if (projectFolderPersistenceRef.current === null) {
+    projectFolderPersistenceRef.current =
+      new ProjectFolderPersistenceController({
+        getCurrentSession: () => projectSessionRef.current,
+        getProjectVersion: () => projectVersion.current,
+        getWorkingFolder: () => workingFolderRef.current,
+      });
+  }
+  const projectFolderPersistence = projectFolderPersistenceRef.current;
 
   projectSessionReadyRef.current = projectSessionReady;
   workingFolderRef.current = workingFolder;
@@ -609,8 +614,8 @@ export function IdeApp({
   );
 
   const stopFolderWrites = useCallback(() => {
-    folderWriteEpoch.current += 1;
-  }, []);
+    projectFolderPersistence.cancelPendingWrites();
+  }, [projectFolderPersistence]);
 
   const preserveBrowserDraft = useCallback((draft?: ProjectSnapshot) => {
     preservedBrowserDraftRef.current = draft;
@@ -651,7 +656,6 @@ export function IdeApp({
 
   const recordProjectFolderConflict = useCallback(
     (conflict: ProjectFolderConflictError) => {
-      stopFolderWrites();
       const browser = projectSessionRef.current;
       preserveBrowserDraft(snapshotForProjectSession(browser));
       setProjectPanelOpen(true);
@@ -669,16 +673,16 @@ export function IdeApp({
         "The project folder changed outside UCSBXRP. Choose which version to keep; neither version has been overwritten.",
       );
     },
-    [preserveBrowserDraft, stopFolderWrites],
+    [preserveBrowserDraft],
   );
+
+  projectFolderPersistence.setConflictHandler(recordProjectFolderConflict);
 
   const replacePendingFolderDeletions = useCallback(
     (update: (current: Set<string>) => Set<string>) => {
-      const next = update(pendingFolderDeletionsRef.current);
-      pendingFolderDeletionsRef.current = next;
-      setPendingFolderDeletions(next);
+      projectFolderPersistence.replacePendingDeletions(update);
     },
-    [],
+    [projectFolderPersistence],
   );
 
   useEffect(() => {
@@ -1590,89 +1594,46 @@ export function IdeApp({
         );
         return;
       }
-      const writeEpoch = folderWriteEpoch.current + 1;
-      folderWriteEpoch.current = writeEpoch;
       const folder = workingFolder;
       const sessionToSave = projectSessionRef.current;
       const savedProject = snapshotForProjectSession(sessionToSave);
-      const deletedPaths = new Set(pendingFolderDeletionsRef.current);
       setOperationDetail(
         `Saving ${Object.keys(savedProject.files).length} files…`,
       );
       setFolderSaveState("saving");
-      const queued = folderWriteQueue.current.then(async () => {
-        if (
-          folderWriteEpoch.current !== writeEpoch ||
-          projectSessionRef.current.projectId !== sessionToSave.projectId ||
-          projectSessionRef.current.revision !== sessionToSave.revision
-        ) {
-          return null;
-        }
-        return saveProjectFolderWithAutosave(
-          folder,
-          savedProject,
-          deletedPaths,
-        );
-      });
-      folderWriteQueue.current = queued.then(
-        () => undefined,
-        () => undefined,
+      const outcome = await projectFolderPersistence.saveManually(
+        folder,
+        sessionToSave,
       );
-      const result = await queued;
-      if (
-        result === null ||
-        folderWriteEpoch.current !== writeEpoch ||
-        projectSessionRef.current.projectId !== sessionToSave.projectId
-      ) {
-        return;
-      }
-      if (projectSessionRef.current.revision !== sessionToSave.revision) {
-        publishProjectSession(
-          acknowledgeProjectSessionSave(
-            projectSessionRef.current,
-            sessionToSave.revision,
-            result.contentDigest,
-          ),
-        );
+      if (outcome.status !== "saved") return;
+      publishProjectSession(outcome.session);
+      if (!outcome.exactRevision) {
         setFolderSaveState("pending");
         return;
       }
-      const { removedFiles } = result;
-      publishProjectSession(
-        markProjectSessionSaved(
-          projectSessionRef.current,
-          result.contentDigest,
-        ),
-      );
       folderDirtyRef.current = false;
       setFolderDirty(false);
       setFolderSaveState("current");
-      replacePendingFolderDeletions(() => new Set());
       setOperationDetail(
         `Saved ${Object.keys(savedProject.files).length} project file${
           Object.keys(savedProject.files).length === 1 ? "" : "s"
         } to ${folder.name}${
-          removedFiles > 0
-            ? `; removed ${removedFiles} deleted file${removedFiles === 1 ? "" : "s"}`
+          outcome.removedFiles > 0
+            ? `; removed ${outcome.removedFiles} deleted file${outcome.removedFiles === 1 ? "" : "s"}`
             : ""
         }.`,
       );
       retryPendingOfflineShellReload();
     } catch (error) {
       if (!wasCancelled(error)) {
-        if (error instanceof ProjectFolderConflictError) {
-          recordProjectFolderConflict(error);
-        } else {
-          setFolderSaveState("error");
-          setOperationDetail(errorDetail(error));
-        }
+        setFolderSaveState("error");
+        setOperationDetail(errorDetail(error));
       }
     }
   }, [
     prepareProjectCreation,
+    projectFolderPersistence,
     publishProjectSession,
-    recordProjectFolderConflict,
-    replacePendingFolderDeletions,
     workingFolder,
   ]);
 
@@ -1682,81 +1643,27 @@ export function IdeApp({
     }
     const folder = workingFolder;
     const sessionToSave = projectSession;
-    const snapshot = snapshotForProjectSession(sessionToSave);
-    const deletedPaths = new Set(pendingFolderDeletionsRef.current);
     const version = projectVersion.current;
-    const writeEpoch = folderWriteEpoch.current;
     setFolderSaveState("pending");
     const timer = window.setTimeout(() => {
       setFolderSaveState("saving");
-      const queued = folderWriteQueue.current.then(async () => {
-        if (
-          projectVersion.current !== version ||
-          folderWriteEpoch.current !== writeEpoch ||
-          projectSessionRef.current.projectId !== sessionToSave.projectId ||
-          projectSessionRef.current.revision !== sessionToSave.revision
-        ) {
-          return null;
-        }
-        const permission = await courseFolderPermission(folder);
-        if (permission !== "granted") {
-          throw new DOMException(
-            "Reconnect the project folder to resume automatic saves.",
-            "NotAllowedError",
-          );
-        }
-        return saveProjectFolderWithAutosave(folder, snapshot, deletedPaths);
-      });
-      folderWriteQueue.current = queued.then(
-        () => undefined,
-        () => undefined,
-      );
-      void queued
-        .then((result) => {
-          if (result === null) return;
-          if (
-            folderWriteEpoch.current !== writeEpoch ||
-            projectSessionRef.current.projectId !== sessionToSave.projectId
-          ) {
-            return;
-          }
-          if (
-            projectVersion.current !== version ||
-            projectSessionRef.current.revision !== sessionToSave.revision
-          ) {
-            publishProjectSession(
-              acknowledgeProjectSessionSave(
-                projectSessionRef.current,
-                sessionToSave.revision,
-                result.contentDigest,
-              ),
-            );
+      void projectFolderPersistence
+        .saveAutomatically(folder, sessionToSave, version)
+        .then((outcome) => {
+          if (outcome.status !== "saved") return;
+          publishProjectSession(outcome.session);
+          if (!outcome.exactRevision) {
             setFolderSaveState("pending");
             return;
           }
-          publishProjectSession(
-            markProjectSessionSaved(
-              projectSessionRef.current,
-              result.contentDigest,
-            ),
-          );
           folderDirtyRef.current = false;
           setFolderDirty(false);
           setFolderSaveState("current");
-          replacePendingFolderDeletions((current) => {
-            const remaining = new Set(current);
-            for (const path of deletedPaths) {
-              remaining.delete(path);
-            }
-            return remaining;
-          });
           setOperationDetail(`Saved changes to ./${folder.name}.`);
           retryPendingOfflineShellReload();
         })
         .catch((error: unknown) => {
-          if (error instanceof ProjectFolderConflictError) {
-            recordProjectFolderConflict(error);
-          } else if (
+          if (
             error instanceof DOMException &&
             error.name === "NotAllowedError"
           ) {
@@ -1766,20 +1673,16 @@ export function IdeApp({
           } else {
             setFolderSaveState("error");
           }
-          if (!(error instanceof ProjectFolderConflictError)) {
-            setOperationDetail(errorDetail(error));
-          }
+          setOperationDetail(errorDetail(error));
         });
     }, 900);
     return () => window.clearTimeout(timer);
   }, [
     folderDirty,
-    pendingFolderDeletions,
     projectSession,
     projectFolderConflict,
+    projectFolderPersistence,
     publishProjectSession,
-    recordProjectFolderConflict,
-    replacePendingFolderDeletions,
     workingFolder,
   ]);
 
@@ -1820,43 +1723,19 @@ export function IdeApp({
     const conflict = projectFolderConflict;
     const folder = workingFolder;
     const sessionToSave = projectSessionRef.current;
-    const snapshot = snapshotForProjectSession(sessionToSave);
-    const deletedPaths = new Set(pendingFolderDeletionsRef.current);
-    const writeEpoch = folderWriteEpoch.current + 1;
-    folderWriteEpoch.current = writeEpoch;
     setFolderSaveState("saving");
     setOperationDetail(`Saving the IDE files to ./${folder.name}…`);
-    const queued = folderWriteQueue.current.then(() =>
-      saveProjectFolderWithAutosave(folder, snapshot, deletedPaths, {
-        expectedBaseDigest: conflict.folderDigest,
-      }),
-    );
-    folderWriteQueue.current = queued.then(
-      () => undefined,
-      () => undefined,
-    );
     try {
-      const result = await queued;
-      if (
-        folderWriteEpoch.current !== writeEpoch ||
-        projectSessionRef.current.projectId !== sessionToSave.projectId
-      ) {
-        return;
-      }
-      const current = acknowledgeProjectSessionSave(
-        projectSessionRef.current,
-        sessionToSave.revision,
-        result.contentDigest,
+      const outcome = await projectFolderPersistence.keepIdeFiles(
+        folder,
+        sessionToSave,
+        conflict.folderDigest,
       );
-      publishProjectSession(current);
+      if (outcome.status !== "saved") return;
+      publishProjectSession(outcome.session);
       setProjectFolderConflict(null);
       preserveBrowserDraft();
-      replacePendingFolderDeletions((pending) => {
-        const remaining = new Set(pending);
-        for (const path of deletedPaths) remaining.delete(path);
-        return remaining;
-      });
-      const stillDirty = projectSessionHasUnsavedChanges(current);
+      const stillDirty = projectSessionHasUnsavedChanges(outcome.session);
       folderDirtyRef.current = stillDirty;
       setFolderDirty(stillDirty);
       setFolderSaveState(stillDirty ? "pending" : "current");
@@ -1864,19 +1743,14 @@ export function IdeApp({
         `Kept the IDE files in ./${folder.name}. The previous folder files were retained in project autosaves.`,
       );
     } catch (error) {
-      if (error instanceof ProjectFolderConflictError) {
-        recordProjectFolderConflict(error);
-      } else {
-        setFolderSaveState("error");
-        setOperationDetail(errorDetail(error));
-      }
+      setFolderSaveState("error");
+      setOperationDetail(errorDetail(error));
     }
   }, [
     projectFolderConflict,
     preserveBrowserDraft,
+    projectFolderPersistence,
     publishProjectSession,
-    recordProjectFolderConflict,
-    replacePendingFolderDeletions,
     workingFolder,
   ]);
 
@@ -2000,48 +1874,14 @@ export function IdeApp({
           folderDirtyRef.current ||
           projectSessionHasUnsavedChanges(sessionToSave);
         if (needsWrite) {
-          // Invalidate the delayed autosave before queuing this exact revision.
-          const writeEpoch = folderWriteEpoch.current + 1;
-          folderWriteEpoch.current = writeEpoch;
-          const savedProject = snapshotForProjectSession(sessionToSave);
-          const deletedPaths = new Set(pendingFolderDeletionsRef.current);
           setFolderSaveState("saving");
-          const queued = folderWriteQueue.current.then(async () => {
-            if (
-              !activity() ||
-              folderWriteEpoch.current !== writeEpoch ||
-              workingFolderRef.current !== folder ||
-              projectSessionRef.current.projectId !== expected.projectId ||
-              projectSessionRef.current.revision !== expected.revision
-            ) {
-              return null;
-            }
-            if ((await courseFolderPermission(folder)) !== "granted") {
-              throw new DOMException(
-                "Reconnect the project folder before applying the course update.",
-                "NotAllowedError",
-              );
-            }
-            return saveProjectFolderWithAutosave(
-              folder,
-              savedProject,
-              deletedPaths,
-            );
-          });
-          folderWriteQueue.current = queued.then(
-            () => undefined,
-            () => undefined,
-          );
-
           try {
-            const result = await queued;
-            if (
-              result === null ||
-              folderWriteEpoch.current !== writeEpoch ||
-              workingFolderRef.current !== folder ||
-              projectSessionRef.current.projectId !== expected.projectId ||
-              projectSessionRef.current.revision !== expected.revision
-            ) {
+            const outcome = await projectFolderPersistence.saveBeforeReload(
+              folder,
+              sessionToSave,
+              activity,
+            );
+            if (outcome.status !== "saved") {
               if (
                 workingFolderRef.current === folder &&
                 folderDirtyRef.current
@@ -2050,25 +1890,18 @@ export function IdeApp({
               }
               return false;
             }
-            const savedSession = markProjectSessionSaved(
-              projectSessionRef.current,
-              result.contentDigest,
-            );
-            publishProjectSession(savedSession);
+            publishProjectSession(outcome.session);
             if (projectProviderActiveRef.current) {
               storeRecoveredProject(
-                snapshotForProjectSession(savedSession),
+                snapshotForProjectSession(outcome.session),
                 preservedBrowserDraftRef.current,
               );
             }
             folderDirtyRef.current = false;
             setFolderDirty(false);
             setFolderSaveState("current");
-            replacePendingFolderDeletions(() => new Set());
           } catch (error) {
-            if (error instanceof ProjectFolderConflictError) {
-              recordProjectFolderConflict(error);
-            } else if (
+            if (
               error instanceof DOMException &&
               error.name === "NotAllowedError"
             ) {
@@ -2079,13 +1912,11 @@ export function IdeApp({
             } else {
               setFolderSaveState("error");
             }
-            if (!(error instanceof ProjectFolderConflictError)) {
-              setOperationDetail(errorDetail(error));
-            }
+            setOperationDetail(errorDetail(error));
             return false;
           }
         } else {
-          await folderWriteQueue.current;
+          await projectFolderPersistence.waitForWrites();
         }
 
         return (
@@ -2101,9 +1932,8 @@ export function IdeApp({
       pathOperation,
       projectChooserOpen,
       projectFolderConflict,
+      projectFolderPersistence,
       publishProjectSession,
-      recordProjectFolderConflict,
-      replacePendingFolderDeletions,
     ],
   );
 
