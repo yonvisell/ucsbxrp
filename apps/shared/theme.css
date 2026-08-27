@@ -528,7 +528,8 @@ input[type="radio"] {
   flex: 1;
   flex-direction: column;
   justify-content: flex-start;
-  padding: clamp(3rem, 10vh, 5.5rem) 0 2rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vh, 3.5rem) 0 2rem;
 }
 
 .landing-shell h1 {
@@ -557,7 +558,8 @@ input[type="radio"] {
 }
 
 .landing-install-help,
-.landing-install-status {
+.landing-browser-support,
+.landing-offline-summary {
   max-width: 520px;
   margin: 0.45rem 0 0;
   color: var(--muted);
@@ -565,8 +567,9 @@ input[type="radio"] {
   line-height: 1.4;
 }
 
-.landing-install-status:empty {
-  display: none;
+.landing-offline-summary {
+  margin-top: 0.15rem;
+  color: var(--quiet);
 }
 
 .primary-link,
@@ -591,19 +594,6 @@ input[type="radio"] {
   border-color: var(--cyan);
 }
 
-.release-note {
-  margin-top: 0.85rem;
-  color: var(--quiet);
-  font-size: var(--font-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.release-note a {
-  color: var(--muted);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-}
-
 .landing-instructor-links {
   display: flex;
   flex-wrap: wrap;
@@ -617,6 +607,10 @@ input[type="radio"] {
   color: var(--muted);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+}
+
+.landing-instructor-links > span {
+  color: var(--quiet);
 }
 
 .visually-hidden {

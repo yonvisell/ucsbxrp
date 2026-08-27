@@ -23,7 +23,7 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
   for (const name of [
     "Open IDE",
     "Open Monitor",
-    "Getting started",
+    "Guide and overview",
     "UCSB XRP API",
     "Open wizard for XRP initial set up or repair",
   ]) {

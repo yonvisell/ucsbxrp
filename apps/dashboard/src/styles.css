@@ -298,7 +298,7 @@
   padding: 1px 2px;
   color: var(--ink);
   cursor: pointer;
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
 }
 
 .check-row:hover {
@@ -332,7 +332,7 @@
   min-width: 0;
   gap: 3px;
   color: var(--muted);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
 }
 
 .time-window-field {
@@ -350,7 +350,7 @@
 
 .time-window-value {
   color: var(--ink);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
 

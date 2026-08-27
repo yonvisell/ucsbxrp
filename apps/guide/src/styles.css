@@ -82,65 +82,22 @@
   padding: 4px 0 22px;
 }
 
-.guide-intro .eyebrow {
-  margin: 0 0 5px;
-  color: var(--cyan-deep);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
-}
-
 .guide-intro h1 {
   max-width: 720px;
   margin: 0;
   color: var(--ink);
-  font-size: clamp(26px, 3vw, 38px);
+  font-size: clamp(24px, 2.6vw, 31px);
   font-weight: 680;
   letter-spacing: -0.025em;
   line-height: 1.08;
 }
 
-.guide-intro > p:not(.eyebrow) {
+.guide-intro > p {
   max-width: 700px;
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 16px;
-  line-height: 1.55;
-}
-
-.guide-sequence {
-  display: grid;
-  max-width: 800px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  margin-top: 16px;
-  background: var(--line);
-}
-
-.guide-sequence a {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 9px 10px;
-  background: #fff;
-  text-decoration: none;
-}
-
-.guide-sequence a:hover,
-.guide-sequence a:focus-visible {
-  background: #f3f6f7;
-}
-
-.guide-sequence strong {
-  color: var(--ucsb-blue);
   font-size: 14px;
-}
-
-.guide-sequence span {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .guide-content > section:not(.guide-intro) {
@@ -164,16 +121,23 @@
 .guide-content h2 {
   margin: 0 0 9px;
   color: var(--ink);
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 680;
   letter-spacing: -0.01em;
+}
+
+.guide-content h3 {
+  margin: 1.1rem 0 0.4rem;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 680;
 }
 
 .guide-content p,
 .guide-content li {
   color: #39474f;
-  font-size: 15px;
-  line-height: 1.62;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .guide-content p {
@@ -193,7 +157,7 @@
   background: #edf0f1;
   color: #23343e;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.95em;
+  font-size: 0.88em;
 }
 
 .procedure {
@@ -205,6 +169,16 @@
 .procedure li {
   margin: 0.3rem 0;
   padding-left: 0.18rem;
+}
+
+.action-list {
+  max-width: 760px;
+  margin: 0.55rem 0;
+  padding-left: 1.1rem;
+}
+
+.action-list li {
+  margin: 0.35rem 0;
 }
 
 .folder-example {
@@ -234,7 +208,7 @@
   padding: 7px 9px;
   background: #f8f5ed;
   color: #3e484e;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -258,7 +232,7 @@
 .result-key strong,
 .term-list dt {
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 680;
 }
 
@@ -266,35 +240,8 @@
 .term-list dd {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
-}
-
-.command-guide {
-  display: grid;
-  max-width: 760px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  margin: 10px 0;
-  background: var(--line);
-}
-
-.command-guide > div {
-  display: grid;
-  gap: 2px;
-  padding: 7px;
-  background: #ffffff;
-}
-
-.command-guide strong {
-  color: var(--ink);
-  font-size: 14px;
-}
-
-.command-guide span {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.4;
 }
 
 .project-catalog,
@@ -305,6 +252,26 @@
   gap: 1px;
   margin: 11px 0;
   background: var(--line);
+}
+
+.timing-guidance {
+  max-width: 760px;
+  border-left: 3px solid var(--ucsb-blue);
+  margin: 12px 0;
+  padding: 9px 11px;
+  background: #eef4f7;
+}
+
+.timing-guidance > strong {
+  color: #123d51;
+  font-size: 14px;
+}
+
+.timing-guidance p {
+  margin: 4px 0 0;
+  color: #354a54;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .project-catalog > section,
@@ -331,128 +298,106 @@
 .offline-capabilities li {
   margin: 3px 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.42;
 }
 
-.feedback-figure {
-  display: grid;
+.flow-diagram {
   max-width: 800px;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
   margin: 12px 0;
   border-left: 2px solid var(--ucsb-blue);
   padding: 8px 10px;
   background: #fbfcfc;
 }
 
-.mission-node {
-  display: grid;
-  width: fit-content;
-  grid-template-columns: auto auto;
-  gap: 2px 7px;
-  padding: 5px 7px;
-  background: #eef3f6;
+.flow-diagram-canvas {
+  width: 100%;
 }
 
-.mission-node strong {
-  grid-row: 1 / 3;
-  align-self: center;
-  color: var(--ucsb-blue);
-  font-size: 12px;
-  text-transform: uppercase;
+.flow-diagram-svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.mission-node span,
-.actuation-path span,
-.measurement-path span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.3;
+.diagram-edges polyline {
+  fill: none;
+  stroke: #51636d;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
 }
 
-.flow-arrow {
-  color: var(--quiet);
-  font-size: 12px;
+.diagram-edges marker path {
+  fill: #51636d;
 }
 
-.mission-command {
-  padding-left: 36px;
+.diagram-edges text {
+  paint-order: stroke;
+  fill: #3b4b54;
+  stroke: #fbfcfc;
+  stroke-linejoin: round;
+  stroke-width: 5px;
+  font-size: 10px;
+  text-anchor: middle;
 }
 
-.actuation-path,
-.measurement-path {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
+.diagram-node {
+  fill: #fff;
+  stroke: #82929a;
+  stroke-width: 1.2;
 }
 
-.actuation-path > a,
-.actuation-path > div,
-.measurement-path > a {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-  gap: 2px;
-  border: 1px solid var(--line);
-  padding: 5px 6px;
-  background: #fff;
-  color: inherit;
-  text-decoration: none;
+.diagram-node.student {
+  fill: #f3f8f7;
+  stroke: #39736f;
 }
 
-.actuation-path > a strong,
-.actuation-path > div strong,
-.measurement-path > a strong {
-  color: #174456;
+.diagram-node.program {
+  fill: #eef3f6;
+  stroke: var(--ucsb-blue);
+}
+
+.diagram-node.target {
+  fill: #f7f4ec;
+  stroke: #8d7440;
+}
+
+.diagram-node-label {
+  fill: #17343f;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 12px;
+  font-weight: 700;
 }
 
-.actuation-path > a,
-.measurement-path > a {
-  border-color: #8eaaa7;
+.diagram-node-detail {
+  fill: #55646c;
+  font-size: 10px;
 }
 
-.actuation-path > b {
-  color: var(--quiet);
-  font-size: 14px;
-  font-weight: 500;
+.diagram-nodes a:hover .diagram-node,
+.diagram-nodes a:focus-visible .diagram-node {
+  fill: #e7f1f0;
+  stroke: #005f58;
+  stroke-width: 2;
 }
 
-.sensor-sample {
-  justify-self: end;
-  padding-right: 38px;
+.diagram-nodes a .diagram-node-label {
+  text-decoration: underline;
+  text-decoration-thickness: 0.7px;
+  text-underline-offset: 2px;
 }
 
-.measurement-path {
-  display: grid;
-  grid-template-columns: minmax(150px, 0.75fr) minmax(180px, 1fr) minmax(
-      130px,
-      0.75fr
-    );
-  align-items: stretch;
+.flow-diagram-fallback {
+  display: none;
 }
 
-.measurement-branches {
-  display: grid;
-  align-content: center;
-  gap: 4px;
-  border-top: 1px solid var(--line-bright);
-  border-bottom: 1px solid var(--line-bright);
-  padding: 4px 7px;
-}
-
-.pose-return {
-  padding-left: 8px;
-}
-
-.feedback-figure figcaption {
+.flow-diagram figcaption {
   border-top: 1px solid var(--line);
+  margin-top: 4px;
   padding-top: 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -478,7 +423,41 @@
 
 .project-files-summary span {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.project-files-summary code {
+  font-size: 13px;
+}
+
+.component-overview-list {
+  max-width: 760px;
+  margin: 8px 0 12px;
+  border-top: 1px solid var(--line);
+}
+
+.component-overview-list > div {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.7fr) minmax(0, 2fr);
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 4px;
+}
+
+.component-overview-list dt,
+.component-overview-list dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.component-overview-list dt {
+  overflow-wrap: anywhere;
+}
+
+.component-overview-list dd {
+  color: var(--muted);
 }
 
 table {
@@ -491,7 +470,7 @@ td {
   border-bottom: 1px solid var(--line);
   padding: 6px 7px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   text-align: left;
 }
 
@@ -548,10 +527,6 @@ kbd {
     display: none;
   }
 
-  .guide-sequence {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .guide-content > section:not(.guide-intro) {
     grid-template-columns: 25px minmax(0, 1fr);
     gap: 7px;
@@ -559,31 +534,48 @@ kbd {
 }
 
 @media (max-width: 500px) {
-  .command-guide,
   .project-files-summary,
   .project-catalog,
-  .offline-capabilities,
-  .guide-sequence {
+  .offline-capabilities {
     grid-template-columns: 1fr;
   }
 
   .result-key > div,
-  .term-list > div {
+  .term-list > div,
+  .component-overview-list > div {
     grid-template-columns: 1fr;
     gap: 2px;
   }
 
-  .actuation-path {
-    align-items: stretch;
-    flex-direction: column;
+  .flow-diagram-canvas {
+    display: none;
   }
 
-  .actuation-path > b {
-    align-self: center;
-    transform: rotate(90deg);
+  .flow-diagram-fallback {
+    display: grid;
+    margin: 0;
   }
 
-  .measurement-path {
-    grid-template-columns: 1fr;
+  .flow-diagram-fallback > div {
+    display: grid;
+    grid-template-columns: minmax(130px, 0.8fr) minmax(0, 1fr);
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+    padding: 6px 2px;
+  }
+
+  .flow-diagram-fallback dt,
+  .flow-diagram-fallback dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .flow-diagram-fallback dt {
+    color: var(--ink);
+    font-weight: 680;
   }
 }

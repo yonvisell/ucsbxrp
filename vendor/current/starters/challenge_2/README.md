@@ -1,7 +1,5 @@
 # Challenge 2: Turn and Return
 
-## Objective
-
 Make the XRP travel to the turn point, rotate to the requested heading, and
 travel the same distance again. The new engineering work is to convert the
 robot's requested forward speed and turn rate into separate wheel speeds, then
@@ -32,23 +30,21 @@ your classes.
 ## Start this challenge
 
 Open your Challenge 1 project and select **Start Challenge 2 · Turn and
-Return**. The IDE creates a separate project and copies `sensor_model.py` and
-`wheel_speed_controller.py` from Challenge 1. It also retains the current
-values of `USE_STUDENT_SENSOR_MODEL` and
-`USE_STUDENT_WHEEL_SPEED_CONTROLLER`. Challenge 2 supplies new
-`differential_drive.py` and `odometry.py` files; their
-`USE_STUDENT_DIFFERENTIAL_DRIVE` and `USE_STUDENT_ODOMETRY` flags begin as
-`False`. The task, world, main program, checks, and configuration come from the
-Challenge 2 project, and the Challenge 1 folder remains unchanged.
+Return**. The IDE creates a separate project. Your new work is
+`differential_drive.py` and `odometry.py`; the new project begins with the
+supplied versions selected. The IDE carries forward your Challenge 1
+`sensor_model.py` and `wheel_speed_controller.py` files and keeps whether each
+student version is selected. Challenge 2 provides its own task, world, main
+program, checks, and configuration. Your Challenge 1 folder remains unchanged.
 
-## Student implementations
+## What you implement
 
-| File | Class | Responsibility |
+| File | Class | What it does |
 | --- | --- | --- |
 | `differential_drive.py` | `DifferentialDrive` | Convert requested forward speed and counterclockwise turn rate into requested left and right wheel speeds. |
 | `odometry.py` | `Odometry` | Update the estimated world position and heading from each measured pair of wheel increments. |
-| `sensor_model.py` | `SensorModel` | Use the wheel-measurement work completed in Challenge 1. |
-| `wheel_speed_controller.py` | `WheelSpeedController` | Use the wheel-speed control work completed in Challenge 1. |
+| `sensor_model.py` | `SensorModel` | Carried forward from Challenge 1; converts raw encoder data into wheel measurements. |
+| `wheel_speed_controller.py` | `WheelSpeedController` | Carried forward from Challenge 1; converts requested and measured wheel speeds into motor commands. |
 
 ### Implement `DifferentialDrive`
 
@@ -61,41 +57,40 @@ left wheel speed  = v - omega * b / 2
 right wheel speed = v + omega * b / 2
 ```
 
-The returned values are in mm/s. With zero turn rate the wheel speeds are equal.
-With zero forward speed and positive turn rate, the left wheel moves backward
-and the right wheel moves forward, producing a counterclockwise in-place turn.
+With zero turn rate the wheel speeds are equal. With zero forward speed and
+positive turn rate, the left wheel moves backward and the right wheel moves
+forward, producing a counterclockwise in-place turn.
 
 ### Implement `Odometry`
 
 `reset(initial_pose)` stores and returns the supplied `Pose`. The read-only
 `pose` property returns the most recent estimate.
 
-`update(left_increment_mm, right_increment_mm)` performs one planar
-differential-drive update:
+`update(left_increment_mm, right_increment_mm)` performs one pose update:
 
 1. Calculate center travel as the mean of the two wheel increments.
 2. Calculate heading change as
    `(right_increment_mm - left_increment_mm) / track_width_mm`.
-3. For a negligible heading change, advance center travel along the current
-   heading.
-4. For a curved increment, integrate the circular arc rather than treating it
-   as a straight segment.
-5. Store and return a new `Pose`. `Pose` wraps the resulting heading to the
-   course interval.
+3. When the heading change is effectively zero, advance the center travel along
+   the current heading.
+4. Otherwise calculate the motion along its circular arc rather than treating
+   it as a straight segment.
+5. Store and return a new `Pose`. `Pose` normalizes the heading so equivalent
+   angles have one representation.
 
-The inputs are measured travel in millimeters, not motor commands or requested
-wheel speeds. The API page specifies behavior before `reset()` and for invalid
+The inputs are measured wheel travel, not motor commands or requested wheel
+speeds. The API page specifies behavior before `reset()` and for invalid
 arguments.
 
-## Supplied project files and services
+## Provided files and tools
 
-| File or service | Use in this challenge |
+| File or tool | What it provides |
 | --- | --- |
 | `main.py` | Runs a measured straight segment, turns from the current odometry heading, then runs the return segment. |
 | `challenge.py` | Derives the named distances and heading from `world.json`. |
 | `robot_config.py` | Holds robot calibration, effective track width, straight speeds, and arrival tolerances. |
 | `course_setup.py` | Selects each of the four student classes independently. |
-| `component_checks.py` | Checks straight, curved, and in-place kinematics and odometry without motor motion. |
+| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
 | `StraightLineController` | Supplies the outbound and return forward commands. |
 | `Robot` | Calls the selected drive, wheel-control, measurement, and odometry classes once per sample. |
 
@@ -122,18 +117,18 @@ encoder counts -> SensorModel* -> wheel increments -> Odometry* -> Pose
 * student implementation
 ```
 
-## Work sequence
+## Complete the challenge
 
 1. Start Challenge 2 from the completed Challenge 1 project as described above.
-   For the first run, use the supplied DifferentialDrive and Odometry; carried
-   components retain their Challenge 1 selections.
+   For the first run, use the supplied DifferentialDrive and Odometry. Your
+   carried-forward components keep their Challenge 1 selections.
 2. Run the supplied virtual project. Observe the outbound segment, turn, return
    segment, and continuously updated pose.
 3. Implement `DifferentialDrive`. Select **Test components** and check equal
    wheel speeds for straight motion, opposite wheel speeds for an in-place
    turn, and unequal wheel speeds for a curve.
-4. Select only the student DifferentialDrive in `course_setup.py` and repeat
-   the complete virtual run.
+4. Select the student DifferentialDrive in `course_setup.py` and repeat the
+   complete virtual run with the supplied Odometry.
 5. Implement `Odometry`. Check reset, straight travel, an in-place turn, and a
    curved increment before selecting it.
 6. Run all selected student classes together. In the Monitor, compare odometry

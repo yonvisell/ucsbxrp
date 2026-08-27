@@ -1,7 +1,5 @@
 # Challenge 1: Straight Run
 
-## Objective
-
 Make the XRP travel from the start line to the finish and stop using measured
 wheel motion. The robot must not stop because a timer expired: encoder counts
 must be converted to wheel travel, and the measured wheel speeds must be used
@@ -10,32 +8,32 @@ to regulate the motors.
 `challenge.py` provides `INITIAL_POSE`, `TRAVEL_DISTANCE_MM`, and
 `TARGET_TIME_S`. The distance is derived from the finish marker in `world.json`.
 The target time is a value for comparing runs, not the stopping condition.
-`robot_config.py` contains the dimensions and calibration used in the
-calculations:
+Distances use millimeters, wheel speeds use millimeters per second, and device
+times use milliseconds. `robot_config.py` provides the dimensions and
+calibration used in the calculations:
 
-- `wheel_diameter_mm` gives wheel diameter in millimeters, and
-  `encoder_counts_per_revolution` gives the count change for one wheel
-  revolution;
+- `wheel_diameter_mm` and `encoder_counts_per_revolution` determine the wheel
+  travel represented by one encoder count;
 - `left_encoder_sign` and `right_encoder_sign` make forward wheel travel
   positive;
-- `left_start_command` and `right_start_command` give the minimum normalized
-  motor command used for nonzero motion;
+- `left_start_command` and `right_start_command` give the minimum motor command
+  used for nonzero motion;
 - `left_speed_command_gain` and `right_speed_command_gain` convert requested
-  wheel speed in mm/s to additional normalized motor command;
+  wheel speed to additional motor command;
 - `sample_period_ms` and `wheel_speed_filter_time_constant_ms` set the sampling
-  and response times in milliseconds; and
-- `wheel_speed_kp` converts wheel-speed error in mm/s to feedback correction,
-  while `max_drive_command` limits the normalized command magnitude.
+  and speed-estimator response times; and
+- `wheel_speed_kp` converts wheel-speed error to feedback correction, while
+  `max_drive_command` limits the magnitude of each motor command.
 
 Do not copy the current numerical settings into your class. Read them through
 `self.config` so the same code works after the robot is calibrated.
 
-## Student implementations
+## What you implement
 
-| File | Class | Responsibility |
+| File | Class | What it does |
 | --- | --- | --- |
 | `sensor_model.py` | `SensorModel` | Convert encoder counts and device time into wheel position, wheel increment, and wheel-speed measurements. |
-| `wheel_speed_controller.py` | `WheelSpeedController` | Convert requested and measured wheel speeds into safe left and right motor commands. |
+| `wheel_speed_controller.py` | `WheelSpeedController` | Convert requested and measured wheel speeds into limited left and right motor commands. |
 
 ### Implement `SensorModel`
 
@@ -52,9 +50,9 @@ a `Measurements` value with zero wheel position, increment, and speed. Preserve
    increment from the preceding count. Apply the corresponding encoder sign.
 3. Calculate `dt_s` from the two device times. Device time is in milliseconds;
    `dt_s` is in seconds.
-4. Estimate each wheel speed in mm/s from recent position and time samples.
-   Use `wheel_speed_filter_time_constant_ms` so a single encoder-count change
-   does not appear as an instantaneous speed jump. Do not smooth the wheel
+4. Estimate each wheel speed from recent changes in position and time. Use
+   `wheel_speed_filter_time_constant_ms` so a single encoder-count change does
+   not appear as an instantaneous speed jump. Do not smooth the wheel
    increments: odometry needs the measured travel in the latest sample.
 5. Return all fields in a new `Measurements` value and preserve the current
    range and USER-button readings.
@@ -67,8 +65,8 @@ here.
 `reset()` clears any values your controller retains between samples. It may do
 nothing if `update()` uses no history.
 
-`update(target, measured)` receives two `WheelSpeeds` values in mm/s and returns
-one `DriveCommand`:
+`update(target, measured)` receives two `WheelSpeeds` values and returns one
+`DriveCommand`:
 
 1. Treat the left and right wheels independently.
 2. If a requested wheel speed is exactly zero, return exactly zero for that
@@ -82,15 +80,15 @@ Use the left configuration fields for the left wheel and the right fields for
 the right wheel. The API page gives the required types, return values, and
 exceptions for both classes.
 
-## Supplied project files and services
+## Provided files and tools
 
-| File or service | Use in this challenge |
+| File or tool | What it provides |
 | --- | --- |
 | `main.py` | Starts the measured run, repeatedly requests the next straight-line command, and always stops the motors. |
 | `challenge.py` | Reads the initial pose and finish point from `world.json` and provides the named task values. |
 | `robot_config.py` | Holds robot dimensions, encoder signs, motor calibration, speed-estimation settings, and straight-run speed and tolerance fields. |
-| `course_setup.py` | Chooses the supplied or student version of each class. A `USE_STUDENT_*` flag of `False` uses the working supplied class. |
-| `component_checks.py` | Runs software examples of the student classes in MicroPython without starting either robot. |
+| `course_setup.py` | Chooses the supplied or student version of each class. |
+| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
 | `StraightLineController` | Uses measured mean wheel travel to request cruise speed, approach speed, or stop. |
 | Supplied `DifferentialDrive` and `Odometry` | Complete the measured robot loop until students implement these classes in Challenge 2. |
 
@@ -116,20 +114,19 @@ WheelSpeedController* --------- left/right motor commands
 * student implementation
 ```
 
-## Work sequence
+## Complete the challenge
 
-1. Run the unchanged project with both `USE_STUDENT_*` flags set to `False`.
-   In the Monitor, identify requested wheel speed, measured wheel speed, motor
-   command, and wheel position.
+1. Run the unchanged project with both supplied components selected. In the
+   Monitor, identify requested wheel speed, measured wheel speed, motor command,
+   and wheel position.
 2. Implement `SensorModel`. Select **Test components** and resolve every
    reported SensorModel error.
-3. Set only `USE_STUDENT_SENSOR_MODEL = True`. Run the virtual XRP and confirm
-   that forward wheel positions increase, increments remain measured travel,
-   and speed estimates respond smoothly.
+3. Select the student SensorModel in `course_setup.py`. Run the virtual XRP and
+   confirm that forward wheel positions increase, increments remain measured
+   travel, and speed estimates respond smoothly.
 4. Implement and check `WheelSpeedController`.
-5. Set `USE_STUDENT_WHEEL_SPEED_CONTROLLER = True`. Run both student classes
-   together on the virtual XRP. Confirm that the robot slows near the finish
-   and stops.
+5. Select the student WheelSpeedController. Run both student classes together
+   on the virtual XRP. Confirm that the robot slows near the finish and stops.
 6. Record a virtual run and compare final mean wheel travel with
    `TRAVEL_DISTANCE_MM`; compare elapsed time with `TARGET_TIME_S`.
 7. Put the physical XRP on a stable stand with both wheels clear. Select **Run**
@@ -140,10 +137,8 @@ WheelSpeedController* --------- left/right motor commands
 
 After both student components work in Challenge 1, select **Start Challenge 2 ·
 Turn and Return** in the IDE. The IDE creates a separate Challenge 2 project,
-copies `sensor_model.py` and `wheel_speed_controller.py`, and retains the current
-values of `USE_STUDENT_SENSOR_MODEL` and
-`USE_STUDENT_WHEEL_SPEED_CONTROLLER`. The Challenge 1 project remains
-unchanged.
+copies `sensor_model.py` and `wheel_speed_controller.py`, and keeps whether each
+student component is selected. The Challenge 1 project remains unchanged.
 
 The `finally` block in `main.py` commands zero drive after completion or an
 exception. Do not remove it.

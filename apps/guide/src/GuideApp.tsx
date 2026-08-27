@@ -1,8 +1,201 @@
 import type { ReactNode } from "react";
 
 import { AppNavigation } from "../../shared/AppNavigation";
+import { FlowDiagram, type DiagramEdge, type DiagramNode } from "./FlowDiagram";
 
 const componentReference = "../reference/#student-components";
+
+const controlLoopNodes = [
+  {
+    id: "program",
+    column: 1,
+    row: 0,
+    label: "main.py",
+    details: ["task sequence and completion"],
+    kind: "program",
+  },
+  {
+    id: "drive-model",
+    column: 0,
+    row: 1,
+    label: "DifferentialDrive*",
+    details: ["robot motion → wheel targets"],
+    href: "../reference/#differential-drive",
+    kind: "student",
+  },
+  {
+    id: "wheel-control",
+    column: 1,
+    row: 1,
+    label: "WheelSpeedController*",
+    details: ["target + measured speed → drive"],
+    href: "../reference/#wheel-speed-controller",
+    kind: "student",
+  },
+  {
+    id: "xrp",
+    column: 2,
+    row: 1,
+    label: "XRP target",
+    details: ["motors, encoders, range sensor"],
+    kind: "target",
+  },
+  {
+    id: "odometry",
+    column: 0,
+    row: 2,
+    label: "Odometry*",
+    details: ["wheel travel → pose"],
+    href: "../reference/#odometry",
+    kind: "student",
+  },
+  {
+    id: "sensor-model",
+    column: 2,
+    row: 2,
+    label: "SensorModel*",
+    details: ["counts + time → measurements"],
+    href: "../reference/#sensor-model",
+    kind: "student",
+  },
+] satisfies readonly DiagramNode[];
+
+const controlLoopEdges = [
+  {
+    from: "program",
+    to: "drive-model",
+    label: "MotionCommand",
+    fromSide: "bottom",
+    toSide: "top",
+    labelAt: { column: 0.48, row: 0.5 },
+  },
+  {
+    from: "drive-model",
+    to: "wheel-control",
+    label: "target wheel speeds",
+  },
+  {
+    from: "wheel-control",
+    to: "xrp",
+    label: "drive command",
+  },
+  {
+    from: "xrp",
+    to: "sensor-model",
+    label: "RawSensors",
+    fromSide: "bottom",
+    toSide: "top",
+    labelAt: { column: 2, row: 1.5 },
+  },
+  {
+    from: "sensor-model",
+    to: "wheel-control",
+    label: "measured speeds",
+    fromSide: "left",
+    toSide: "bottom",
+    via: [{ column: 1.55, row: 2 }],
+    labelAt: { column: 1.55, row: 1.72 },
+  },
+  {
+    from: "sensor-model",
+    to: "odometry",
+    label: "wheel increments",
+  },
+  {
+    from: "odometry",
+    to: "program",
+    label: "Pose",
+    fromSide: "left",
+    toSide: "left",
+    via: [
+      { column: -0.45, row: 2 },
+      { column: -0.45, row: 0 },
+    ],
+    labelAt: { column: -0.45, row: 1 },
+  },
+] satisfies readonly DiagramEdge[];
+
+const systemNodes = [
+  {
+    id: "project",
+    column: 0,
+    row: 0,
+    label: "Student project",
+    details: ["main.py and project modules"],
+    kind: "program",
+  },
+  {
+    id: "api",
+    column: 1,
+    row: 0,
+    label: "UCSB XRP API",
+    details: ["shared records and services"],
+    href: "../reference/",
+    kind: "service",
+  },
+  {
+    id: "adapter",
+    column: 2,
+    row: 0,
+    label: "XRPBot",
+    details: ["one hardware boundary"],
+    href: "../reference/#xrpbot",
+    kind: "service",
+  },
+  {
+    id: "virtual",
+    column: 1.5,
+    row: 1,
+    label: "Virtual XRP",
+    details: ["MicroPython + simulated XRPLib"],
+    kind: "target",
+  },
+  {
+    id: "physical",
+    column: 2.5,
+    row: 1,
+    label: "Physical XRP",
+    details: ["MicroPython + RP2350 XRPLib"],
+    kind: "target",
+  },
+  {
+    id: "monitor",
+    column: 0,
+    row: 1,
+    label: "IDE and Monitor",
+    details: ["edit, run, telemetry, exports"],
+    kind: "service",
+  },
+] satisfies readonly DiagramNode[];
+
+const systemEdges = [
+  { from: "project", to: "api", label: "calls" },
+  { from: "api", to: "adapter", label: "uses" },
+  {
+    from: "adapter",
+    to: "virtual",
+    label: "same project",
+    fromSide: "bottom",
+    toSide: "top",
+    labelAt: { column: 1.75, row: 0.53 },
+  },
+  {
+    from: "adapter",
+    to: "physical",
+    label: "same project",
+    fromSide: "bottom",
+    toSide: "top",
+    labelAt: { column: 2.48, row: 0.53 },
+  },
+  { from: "monitor", to: "virtual", label: "control and telemetry" },
+  {
+    from: "monitor",
+    to: "physical",
+    label: "control and telemetry",
+    via: [{ column: 1.1, row: 1.35 }],
+    labelAt: { column: 1.1, row: 1.35 },
+  },
+] satisfies readonly DiagramEdge[];
 
 export function GuideApp() {
   return (
@@ -34,43 +227,21 @@ export function GuideApp() {
           <a href="#offline-use">07 Offline application and storage</a>
           <a href="#github">08 Team version control</a>
           <a href="#shortcuts">09 Keyboard commands</a>
-          <a href="#troubleshooting">10 Error diagnosis</a>
+          <a href="#troubleshooting">10 Troubleshooting</a>
+          <span className="toc-group">Appendix</span>
+          <a href="#technical-overview">A System overview</a>
         </nav>
 
         <main className="guide-content">
           <section className="guide-intro">
-            <p className="eyebrow">Student operating procedure</p>
-            <h1>UCSBXRP student guide</h1>
+            <h1>UCSBXRP guide</h1>
             <p>
-              Sections 1–6 form the normal development sequence: run a project
-              virtually, save it, understand its data flow, test each student
-              component, transfer the same project to the physical XRP, and
-              record evidence. Sections 7–10 cover storage, version control,
-              keyboard commands, and fault diagnosis. Use the{" "}
-              <a href="../reference/">UCSB XRP API reference</a> for Python
-              constructors, methods, parameters, return values, exceptions, and
-              examples.
+              Use this guide to create a project, test it on the virtual XRP,
+              run the same project on a physical XRP, and record the results. It
+              also explains project storage, version control, and common errors.
+              The <a href="../reference/">UCSB XRP API reference</a> documents
+              the classes and functions available to project code.
             </p>
-            <nav className="guide-sequence" aria-label="Guide organization">
-              <a href="#virtual-run">
-                <strong>Start</strong>
-                <span>Virtual execution and project storage</span>
-              </a>
-              <a href="#project-structure">
-                <strong>Develop</strong>
-                <span>Program data flow and component checks</span>
-              </a>
-              <a href="#physical-xrp">
-                <strong>Run and measure</strong>
-                <span>Physical connection, telemetry, and exports</span>
-              </a>
-              <a href="#offline-use">
-                <strong>Store and troubleshoot</strong>
-                <span>
-                  Offline use, Git, keyboard commands, and error diagnosis
-                </span>
-              </a>
-            </nav>
           </section>
 
           <GuideSection id="virtual-run" number="01" title="First virtual run">
@@ -89,12 +260,31 @@ export function GuideApp() {
                 same Run/Stop state is available in both apps.
               </li>
             </ol>
-            <p>
-              <strong>Stop</strong> ends the program. <strong>Reset</strong>{" "}
-              returns the virtual robot to its starting state.{" "}
-              <strong>Validate</strong> checks Python files without running the
-              project; it is optional because Run validates when needed.
-            </p>
+            <h3>IDE controls</h3>
+            <ul className="action-list">
+              <li>
+                <strong>Run</strong> checks files that changed, transfers the
+                project to the selected target when necessary, and starts the
+                project&apos;s main Python file.
+              </li>
+              <li>
+                <strong>Stop</strong> ends the running program. On a physical
+                XRP, the course runtime also commands zero motor drive.
+              </li>
+              <li>
+                <strong>Reset</strong> restarts the selected target. It also
+                returns the virtual XRP to its initial pose.
+              </li>
+              <li>
+                <strong>Validate</strong> checks every Python file without
+                running the project. Run performs this check automatically when
+                the files have changed.
+              </li>
+              <li>
+                <strong>Flash project</strong> transfers and verifies a project
+                on a physical XRP without starting it.
+              </li>
+            </ul>
           </GuideSection>
 
           <GuideSection
@@ -115,12 +305,22 @@ export function GuideApp() {
               <span>└─ TeamDelivery/</span>
             </div>
             <p>
-              <strong>New project from template</strong> asks for a project
-              name, creates that folder, and opens it.{" "}
-              <strong>Open project</strong> opens an existing project folder.
-              After you grant the IDE access to that folder, edits save
-              automatically. <strong>Duplicate file</strong> creates a copy;{" "}
-              <strong>Make main</strong> chooses the file Run starts.
+              Under <strong>New project</strong>, choose a template and select
+              <strong> Create</strong>. The IDE asks for a project name, creates
+              that folder, and opens it. <strong>Open project</strong> opens an
+              existing project folder. After you grant the IDE access to that
+              folder, edits save automatically. Open the <strong>File</strong>{" "}
+              menu to rename, duplicate, delete, or make the active Python file
+              the main file.
+            </p>
+            <p>
+              At the end of a challenge, <strong>Start next challenge</strong>
+              creates a separate project folder. The IDE lists the student
+              component files that will be copied. If the completed project uses
+              your version of a component, the new project copies that file and
+              continues to use it. A newly introduced component begins with the
+              provided version selected until yours is ready. The completed
+              project is not changed.
             </p>
             <div
               className="project-catalog"
@@ -142,8 +342,8 @@ export function GuideApp() {
                     navigation.
                   </li>
                   <li>
-                    <strong>Mapped Route</strong> — add shortest-path grid
-                    planning.
+                    <strong>Mapped Route</strong> — plan a connected route
+                    through the free cells of a map.
                   </li>
                   <li>
                     <strong>Delivery Mission</strong> — estimate range, update a
@@ -175,10 +375,9 @@ export function GuideApp() {
               </section>
             </div>
             <div className="callout">
-              Before you choose a course folder, edits exist only in this
-              site&apos;s browser storage. Browser storage is not a normal file
-              and is erased when the site&apos;s data is cleared. Choose a
-              course folder before relying on the project.
+              Before you choose a course folder, edits exist only as a temporary
+              browser copy. Choose a course folder before relying on the
+              project.
             </div>
           </GuideSection>
 
@@ -195,96 +394,69 @@ export function GuideApp() {
               <code>Robot.step()</code> maintains sample timing and performs the
               command and measurement sequence below.
             </p>
-            <figure className="feedback-figure">
-              <div className="mission-node">
-                <strong>Program</strong>
-                <code>main.py</code>
-                <span>selects the task and completion condition</span>
-              </div>
-              <div className="flow-arrow mission-command" aria-hidden="true">
-                ↓ MotionCommand
-              </div>
-              <div className="actuation-path" aria-label="Actuation path">
-                <a href="../reference/#differential-drive">
-                  <strong>DifferentialDrive*</strong>
-                  <span>forward speed + turn rate → target wheel speeds</span>
-                </a>
-                <b>→</b>
-                <a href="../reference/#wheel-speed-controller">
-                  <strong>WheelSpeedController*</strong>
-                  <span>target + measured speed → drive command</span>
-                </a>
-                <b>→</b>
-                <div>
-                  <strong>XRP</strong>
-                  <span>motors, encoders, range sensor</span>
-                </div>
-              </div>
-              <div className="flow-arrow sensor-sample" aria-hidden="true">
-                ↓ RawSensors
-              </div>
-              <div className="measurement-path" aria-label="Measurement path">
-                <a href="../reference/#sensor-model">
-                  <strong>SensorModel*</strong>
-                  <span>counts + time → wheel travel and speed</span>
-                </a>
-                <div className="measurement-branches">
-                  <span>measured wheel speed ↖ WheelSpeedController</span>
-                  <span>wheel-distance increments ↓</span>
-                </div>
-                <a href="../reference/#odometry">
-                  <strong>Odometry*</strong>
-                  <span>wheel increments → Pose</span>
-                </a>
-              </div>
-              <div className="flow-arrow pose-return" aria-hidden="true">
-                Pose returns to the program or NavigationController ↑
-              </div>
-              <figcaption>
-                * Student-implemented component.{" "}
-                <a href="../reference/#grid-planner">
-                  <code>GridPlanner</code>
-                </a>{" "}
-                creates a route before <code>NavigationController</code> follows
-                its goals.
-              </figcaption>
-            </figure>
+            <FlowDiagram
+              caption="Arrows show the values passed during one sampled control cycle. An asterisk marks a student-implemented component; select its name to open the matching API entry."
+              columns={3}
+              description="The program sends a motion command through differential-drive conversion and wheel-speed control to the XRP. Raw sensor data returns through the sensor model to wheel control and odometry; odometry returns the estimated pose to the program."
+              edges={controlLoopEdges}
+              nodes={controlLoopNodes}
+              rows={3}
+              title="UCSBXRP measurement and control cycle"
+            />
             <div className="project-files-summary">
               <div>
                 <code>challenge.py</code>
-                <span>Task values and completion conditions.</span>
+                <span>Defines task values and stopping conditions.</span>
               </div>
               <div>
                 <code>world.json</code>
                 <span>
-                  World choices, bounds, initial pose, obstacles, and markers.
+                  Defines arena size, initial pose, obstacles, and markers.
                 </span>
               </div>
               <div>
                 <code>robot_config.py</code>
-                <span>Geometry, calibration, sample period, and gains.</span>
+                <span>
+                  Defines robot geometry, calibration, timing, and controller
+                  settings.
+                </span>
               </div>
               <div>
                 <code>course_setup.py</code>
                 <span>
-                  Selects and assembles supplied or student components.
+                  Chooses the provided or student version of each component.
                 </span>
               </div>
               <div>
                 <code>main.py</code>
                 <span>
-                  Runs the task and stops the motors in a finally block.
+                  Runs the task and always stops the motors when the program
+                  exits.
                 </span>
               </div>
             </div>
             <p>
-              Distances are in millimeters; linear and wheel speeds are in
-              millimeters per second; headings are in radians; and turn rates
-              are in radians per second. Positive <var>x</var> is the initial
+              Course distances and linear speeds use <code>mm</code> and{" "}
+              <code>mm/s</code>. Headings and turn rates use <code>rad</code>{" "}
+              and <code>rad/s</code>. Positive <var>x</var> is the initial
               forward direction, positive <var>y</var> is left, and positive
-              heading is counterclockwise. Do not add <code>sleep_ms()</code>{" "}
-              inside a <code>Robot.step()</code> loop.
+              heading is counterclockwise.
             </p>
+            <div className="timing-guidance">
+              <strong>Let Robot.step() control the sample timing.</strong>
+              <p>
+                Do not add <code>sleep_ms()</code> inside a loop that repeatedly
+                calls <code>Robot.step()</code>. Each call applies the requested
+                motion, waits until the next scheduled sensor sample, reads the
+                sensors once, updates the selected components, and publishes
+                telemetry. An additional sleep delays the following control
+                update, reduces the actual sample rate, and can make speed
+                estimation and feedback control inconsistent with the configured
+                sample period. Use a delay only outside this measured control
+                loop, when the program intentionally is not controlling or
+                measuring the robot.
+              </p>
+            </div>
             <p>
               The <a href="../reference/">UCSB XRP API reference</a> defines the
               records, component base classes, supplied services, maps,
@@ -302,9 +474,9 @@ export function GuideApp() {
               implement. <strong>Validate</strong> checks Python syntax.{" "}
               <strong>Test components</strong> runs{" "}
               <code>component_checks.py</code> in MicroPython without starting
-              either robot. That project file only lists the component classes
-              included in the challenge; the course library supplies the check
-              cases. Students normally do not edit it.
+              either robot. It runs the provided examples for the component
+              classes listed in that file. Students normally do not edit{" "}
+              <code>component_checks.py</code>.
             </p>
             <div className="result-key" aria-label="Component check results">
               <div>
@@ -335,12 +507,11 @@ export function GuideApp() {
             </ol>
             <p>
               A NOT IMPLEMENTED result identifies a method that remains to be
-              written; it does not prevent tests of other components. If no
-              check passes, the overall Test components run is unsuccessful, so
-              untouched starter methods cannot appear complete. Each check
-              examines a stated behavior, but the complete challenge must also
-              be tested. Component responsibilities and method requirements are
-              in the{" "}
+              written; it does not prevent tests of other components. If every
+              selected component is NOT IMPLEMENTED, Test components reports
+              that no completed work was tested. Each check examines one stated
+              behavior, and the complete challenge must also be run. Component
+              responsibilities and method requirements are in the{" "}
               <a href={componentReference}>student component reference</a>.
             </p>
           </GuideSection>
@@ -351,19 +522,21 @@ export function GuideApp() {
             title="Physical XRP connection"
           >
             <p>
-              Open <a href="../commission/">Set up or repair XRP</a> in current
-              desktop Chrome or Edge. The same action is available in IDE
-              Settings. The setup page uses USB-C to identify the RP2350
-              controller, install or repair the required files, verify them,
-              configure Wi-Fi, and reset the XRP. IDE Run and Monitor telemetry
-              then use the selected Wi-Fi connection.
+              Initial USB setup requires the desktop version of Google Chrome or
+              Microsoft Edge on Windows or macOS. These browsers can open a
+              serial connection to the XRP directly from the setup page. Safari
+              and browsers on phones or tablets do not provide that USB
+              connection. Open <a href="../commission/">Set up or repair XRP</a>
+              . The same action is available in IDE Settings. USB installs or
+              repairs the course software and configures the XRP. After setup,
+              the IDE transfers projects and the Monitor receives telemetry over
+              the Wi-Fi connection selected in the setup page.
             </p>
             <ol className="procedure">
               <li>
-                Connect the XRP by USB-C. If Chrome has used this XRP before,
-                confirm the identified controller. On first use, choose the XRP
-                Controller in Chrome&apos;s device chooser. Leave USB connected
-                until setup finishes.
+                Connect the XRP by USB-C and select it when the browser asks.
+                The choice is normally named <strong>XRP Controller</strong>.
+                Leave USB connected until setup finishes.
               </li>
               <li>
                 Choose the XRP's own <code>UCSB-XRP-…</code> hotspot or an
@@ -372,29 +545,16 @@ export function GuideApp() {
                 <code>UCSB-XRP-NAME</code>.
               </li>
               <li>
-                If firmware repair is requested, put the controller in firmware
-                mode and choose the temporary <code>RP2350</code> drive.
+                If the setup page reports that firmware repair is required,
+                follow its displayed BOOT and RESET instructions. Select the
+                temporary <code>RP2350</code> drive when prompted.
               </li>
               <li>
-                Follow the displayed network instruction. After the connection
-                check, the setup page opens the IDE in Physical XRP mode.
+                Follow the final Wi-Fi instruction shown on the setup page. The
+                page verifies the connection and then opens the IDE in Physical
+                XRP mode.
               </li>
             </ol>
-            <div className="command-guide" aria-label="IDE target commands">
-              <Command name="Validate">
-                Check every Python file without running it.
-              </Command>
-              <Command name="Flash project">
-                Transfer and verify without starting.
-              </Command>
-              <Command name="Run">
-                Validate and transfer when needed, then start.
-              </Command>
-              <Command name="Stop">
-                End the program and command zero drive.
-              </Command>
-              <Command name="Reset">Restart the selected target.</Command>
-            </div>
             <p>
               In hotspot mode, join the network named by the setup page. In
               existing-Wi-Fi mode, the computer and XRP must be on the same
@@ -480,10 +640,10 @@ export function GuideApp() {
             <p>
               First open the course site while the computer has internet access.
               Wait until it reports <strong>Course apps saved in Chrome</strong>
-              . Saving starts automatically; no installation action is required.
-              Chrome has then stored the application files, virtual XRP, Guide,
-              API reference, and XRP setup files for this site in the current
-              Chrome profile.
+              . Saving starts automatically. Chrome has then stored the IDE,
+              Monitor, virtual XRP, Guide, API reference, and setup page as data
+              for this site in that browser. The course folder remains the
+              separate location for project files that you create or edit.
             </p>
             <p>
               On the first load or after an update, Chrome may refresh the page
@@ -496,13 +656,14 @@ export function GuideApp() {
                 <ul>
                   <li>
                     Close and reopen the IDE, Monitor, Guide, and API reference
-                    in the same Chrome profile.
+                    in the same browser on that computer.
                   </li>
                   <li>Validate and run projects on the virtual XRP.</li>
                   <li>
                     Read and write project files after granting access to their
-                    course folder. Chrome may ask for access again after all
-                    course tabs have been closed.
+                    course folder. If the IDE later reports that folder access
+                    is needed, select <strong>Reconnect</strong> and choose the
+                    same course folder.
                   </li>
                   <li>
                     Connect to a physical XRP over local Wi-Fi while the
@@ -522,19 +683,15 @@ export function GuideApp() {
                   </li>
                   <li>
                     A project without a selected folder has only a temporary
-                    recovery copy in Chrome. Recordings and program output that
-                    are not saved or exported last only for the current session.
+                    browser copy. Recordings and program output that are not
+                    saved or exported last only for the current session.
                   </li>
                   <li>
                     Clearing this site&apos;s browser data removes the saved
-                    course apps, settings, recovery copies, and remembered
-                    folder access. It does not remove external project files;
-                    select the folder again to restore access.
-                  </li>
-                  <li>
-                    Chrome may also remove saved site data when storage is
-                    scarce. Reload the site once while online to restore the
-                    course apps.
+                    course apps, settings, temporary browser copies, and
+                    remembered folder access. It does not remove project files
+                    in the course folder; select that folder again to restore
+                    access.
                   </li>
                   <li>
                     The saved course apps are not copied into the course folder;
@@ -544,15 +701,14 @@ export function GuideApp() {
               </section>
             </div>
             <p>
-              <strong>Install UCSBXRP app</strong> on the landing page is
-              optional. It adds a launcher and a separate app window; it does
-              not create the saved course copy. The installed window uses the
-              same Chrome profile, site storage, and offline limits. When the
-              site is opened with internet access, Chrome checks for a newer
-              course-app version and reloads once if the application changed. No
-              Node server or other local server is required. This is a saved web
-              application, not a native executable or a copy that can be opened
-              from a <code>file://</code> folder.
+              Installing the UCSBXRP app window is strongly recommended when
+              Chrome offers that option in its address bar or browser menu. The
+              installation adds an application launcher and opens UCSBXRP in a
+              separate window. It does not copy the app into the course folder,
+              and it does not replace the automatic offline storage described
+              above. When UCSBXRP is opened with internet access, Chrome checks
+              for an updated course release and reloads once if the application
+              changed.
             </p>
           </GuideSection>
 
@@ -652,7 +808,7 @@ export function GuideApp() {
           <GuideSection
             id="troubleshooting"
             number="10"
-            title="Error diagnosis"
+            title="Troubleshooting"
           >
             <ul className="procedure troubleshooting-list">
               <li>
@@ -699,6 +855,142 @@ export function GuideApp() {
               </a>
             </div>
           </GuideSection>
+
+          <GuideSection
+            id="technical-overview"
+            number="A"
+            title="How UCSBXRP fits together"
+          >
+            <p>
+              A course project uses one Python interface on both targets. The
+              target-specific <code>XRPBot</code> implementation is the boundary
+              between course code and either simulated or physical hardware.
+              Navigation, odometry, mapping, planning, and mission logic remain
+              in the Python project; the browser does not perform them for the
+              student program.
+            </p>
+            <FlowDiagram
+              caption="The same project and UCSB XRP API are used on both targets. The IDE and Monitor coordinate the selected project, target state, commands, output, and telemetry."
+              columns={3.5}
+              description="A student project calls the UCSB XRP API and XRPBot hardware boundary. XRPBot runs against either the virtual XRP or the physical XRP. The IDE and Monitor control and observe both targets."
+              edges={systemEdges}
+              nodes={systemNodes}
+              rows={2}
+              title="UCSBXRP system boundary"
+            />
+            <h3>Student components</h3>
+            <dl className="component-overview-list">
+              <div>
+                <dt>
+                  <a href="../reference/#sensor-model">SensorModel</a>
+                </dt>
+                <dd>
+                  Converts raw encoder, time, range, and button readings into
+                  wheel travel and recent wheel-speed estimates. It keeps the
+                  encoder reference and samples needed for speed estimation.
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <a href="../reference/#wheel-speed-controller">
+                    WheelSpeedController
+                  </a>
+                </dt>
+                <dd>
+                  Compares requested wheel speed with the latest measured
+                  estimate and returns left and right motor commands. The
+                  provided proportional controller requires no history.
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <a href="../reference/#differential-drive">
+                    DifferentialDrive
+                  </a>
+                </dt>
+                <dd>
+                  Uses the wheel spacing to convert requested forward speed and
+                  turn rate into target left and right wheel speeds. It retains
+                  no state between calls.
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <a href="../reference/#odometry">Odometry</a>
+                </dt>
+                <dd>
+                  Updates the estimated position and heading from the exact
+                  wheel travel measured in each sample. It retains the current
+                  pose.
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <a href="../reference/#navigation-controller">
+                    NavigationController
+                  </a>
+                </dt>
+                <dd>
+                  Uses the current odometry pose and active goal to request
+                  forward and turning motion. It retains the route progress and
+                  current operating phase.
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <a href="../reference/#grid-planner">GridPlanner</a>
+                </dt>
+                <dd>
+                  Finds a connected route through free cells in a project map.
+                  It does not need to retain state between planning calls.
+                </dd>
+              </div>
+            </dl>
+            <h3>Virtual and physical targets</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Virtual XRP</th>
+                  <th>Physical XRP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Python runtime</td>
+                  <td>MicroPython in the browser</td>
+                  <td>MicroPython on the RP2350</td>
+                </tr>
+                <tr>
+                  <td>Hardware calls</td>
+                  <td>Simulated XRPLib</td>
+                  <td>RP2350 XRPLib</td>
+                </tr>
+                <tr>
+                  <td>Project transfer</td>
+                  <td>Browser worker file system</td>
+                  <td>Local Wi-Fi service on the XRP</td>
+                </tr>
+                <tr>
+                  <td>Telemetry</td>
+                  <td>Simulator and project state</td>
+                  <td>Measurements reported by the XRP</td>
+                </tr>
+                <tr>
+                  <td>Ground-truth pose</td>
+                  <td>Available for display and evaluation only</td>
+                  <td>Not supplied by the robot</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              The <a href="../reference/">UCSB XRP API reference</a> gives
+              method-level details. Instructors can use the{" "}
+              <a href="../author/">challenge creation wizard</a> to prepare and
+              check a new challenge specification before adding it to the course
+              repository.
+            </p>
+          </GuideSection>
         </main>
       </div>
     </div>
@@ -724,14 +1016,5 @@ function GuideSection({
         {children}
       </div>
     </section>
-  );
-}
-
-function Command({ children, name }: { children: ReactNode; name: string }) {
-  return (
-    <div>
-      <strong>{name}</strong>
-      <span>{children}</span>
-    </div>
   );
 }

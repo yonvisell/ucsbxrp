@@ -12,11 +12,39 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
 
   await expect(page.getByLabel("Project template")).toHaveValue("");
   await expect(
-    page.getByRole("tabpanel").getByText("Expanding spiral", { exact: true }),
+    page
+      .getByRole("complementary", { name: "Project" })
+      .getByText(/Expanding spiral · temporary browser copy/),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
   ).toBeVisible();
+});
+
+test("renders project README files and keeps their Markdown editable", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.getByLabel("Project template").selectOption("challenge_4");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page.getByRole("button", { name: "Open README.md" }).click();
+
+  const preview = page.getByLabel("Rendered Markdown preview");
+  await expect(preview).toBeVisible();
+  await expect(
+    preview.getByRole("heading", { name: "Challenge 4: Mapped Route" }),
+  ).toBeVisible();
+  await expect(preview.getByText("## Objective", { exact: true })).toHaveCount(
+    0,
+  );
+
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Edit", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".monaco-editor")).toBeVisible();
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(preview).toBeVisible();
 });
 
 test("keeps the former dashboard address as a Monitor redirect", async ({

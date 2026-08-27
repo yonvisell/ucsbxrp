@@ -63,7 +63,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /this site in this Chrome profile.*not stored in a project folder.*unsaved recordings and program output last only for the current session.*does not remove external project files/s,
+    /saved IDE and the other UCSBXRP course apps.*reopen them in this browser without internet.*Project files stay in the selected course folder.*temporary browser copy/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -255,7 +255,9 @@ test("reloads the complete production course shell without a network", async ({
     window.dispatchEvent(promptEvent);
   });
   await expect(installButton).toBeVisible();
-  await expect(installButton).toHaveText("Install UCSBXRP app (optional)");
+  await expect(installButton).toHaveText(
+    "Install UCSBXRP app — strongly recommended",
+  );
   await installButton.click();
   await expect(installButton).toBeHidden();
   expect(

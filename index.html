@@ -33,7 +33,7 @@
       <nav class="landing-actions" aria-label="Course tools">
         <a class="primary-link" href="./ide/">Open IDE</a>
         <a class="secondary-link" href="./monitor/">Open Monitor</a>
-        <a class="secondary-link" href="./guide/">Getting started</a>
+        <a class="secondary-link" href="./guide/">Guide and overview</a>
         <a class="secondary-link" href="./reference/">UCSB XRP API</a>
         <button
           aria-describedby="install-course-tools-help"
@@ -43,46 +43,46 @@
           id="install-course-tools"
           type="button"
         >
-          Install UCSBXRP app (optional)
+          Install UCSBXRP app — strongly recommended
         </button>
       </nav>
       <p class="landing-install-help" hidden id="install-course-tools-help">
-        Chrome saves the course apps automatically after the site loads
-        completely. Installation only adds a launcher and standalone window; it
-        uses the same saved copy in Chrome.
+        Adds a UCSBXRP launcher and app window. Course apps save automatically
+        in Chrome; project files remain in the course folder you choose.
+      </p>
+      <p class="landing-browser-support" id="landing-browser-support">
+        Checking browser support…
+      </p>
+      <p class="landing-offline-summary">
+        Course apps save automatically in this browser after one complete online
+        load.
       </p>
       <nav class="landing-setup-action" aria-label="XRP setup and repair">
         <a class="secondary-link" href="./commission/">
           Open wizard for XRP initial set up or repair
         </a>
       </nav>
-      <p class="release-note">
-        <a href="./guide/#offline-use">
-          How to reopen the course apps without internet
-        </a>
-      </p>
       <nav class="landing-instructor-links" aria-label="Instructor resources">
+        <span>Instructor resources:</span>
         <a href="./author/">challenge creation wizard</a>
-        <span aria-hidden="true">•</span>
-        <a href="./overview/">overview of UCSBXRP</a>
       </nav>
-      <p
-        aria-live="polite"
-        class="landing-install-status"
-        id="install-course-tools-status"
-      ></p>
     </main>
     <script type="module">
       import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
 
       registerOfflineShell();
 
+      const browserSupport = document.querySelector("#landing-browser-support");
       const installButton = document.querySelector("#install-course-tools");
-      const installStatus = document.querySelector(
-        "#install-course-tools-status",
-      );
       const installHelp = document.querySelector("#install-course-tools-help");
       let installPrompt = null;
+      const fullCourseWorkflow =
+        window.isSecureContext &&
+        "serial" in navigator &&
+        "showDirectoryPicker" in window;
+      browserSupport.textContent = fullCourseWorkflow
+        ? "This browser supports project folders, USB setup, the virtual XRP, and the physical XRP."
+        : "The Guide and virtual XRP are available here. Project folders and USB setup require current desktop Chrome or Edge.";
 
       window.addEventListener("beforeinstallprompt", (event) => {
         event.preventDefault();
@@ -95,29 +95,18 @@
         if (!installPrompt) return;
         installButton.disabled = true;
         await installPrompt.prompt();
-        const { outcome } = await installPrompt.userChoice;
+        await installPrompt.userChoice;
         installPrompt = null;
         installButton.hidden = true;
         installHelp.hidden = true;
         installButton.disabled = false;
-        installStatus.textContent =
-          outcome === "accepted"
-            ? "UCSBXRP Course Tools installed."
-            : "Installation was not completed.";
       });
 
       window.addEventListener("appinstalled", () => {
         installPrompt = null;
         installButton.hidden = true;
         installHelp.hidden = true;
-        installStatus.textContent =
-          "Installed. UCSBXRP now opens in its own app window.";
       });
-
-      if (window.matchMedia("(display-mode: standalone)").matches) {
-        installStatus.textContent =
-          "Installed app · course apps are available without internet after Chrome finishes saving them.";
-      }
     </script>
   </body>
 </html>

@@ -37,13 +37,9 @@ test("landing page exposes the instructor tools as compact text links", async ({
   const authorLink = page.getByRole("link", {
     name: "challenge creation wizard",
   });
-  const overviewLink = page.getByRole("link", {
-    name: "overview of UCSBXRP",
-  });
   await expect(authorLink).toHaveAttribute("href", "./author/");
-  await expect(overviewLink).toHaveAttribute("href", "./overview/");
   await expect(authorLink.locator("xpath=..")).toContainText(
-    "challenge creation wizard • overview of UCSBXRP",
+    "Instructor resources: challenge creation wizard",
   );
 });
 

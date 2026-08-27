@@ -1412,7 +1412,7 @@ export function DashboardApp() {
                   className="monitor-control-group signal-control-group"
                 >
                   <div className="signal-controls-heading">
-                    <h2 id="signal-controls-title">Signals</h2>
+                    <h2 id="signal-controls-title">Plot signals</h2>
                     <button
                       disabled={plotSamples.length === 0}
                       onClick={() => setPlotSamples([])}

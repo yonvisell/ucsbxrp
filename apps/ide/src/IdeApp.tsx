@@ -33,6 +33,7 @@ import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
+import { MarkdownPreview } from "./MarkdownPreview";
 import {
   chooseWorkspaceFolder,
   courseFolderIsWaitingForIde,
@@ -247,6 +248,9 @@ export function IdeApp() {
   const [project, setProject] = useState<ProjectSnapshot>(initialProject);
   const [activePath, setActivePath] = useState(initialProject.entrypoint);
   const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
+  const [markdownPreviewOpen, setMarkdownPreviewOpen] = useState(
+    initialProject.entrypoint.endsWith(".md"),
+  );
   const [workingFolder, setWorkingFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [workspaceFolder, setWorkspaceFolder] =
@@ -621,6 +625,7 @@ export function IdeApp() {
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
   );
+  const projectPathSet = useMemo(() => new Set(projectFiles), [projectFiles]);
   const followingChallenge = useMemo(
     () =>
       project.templateId ? nextChallengeTemplate(project.templateId) : null,
@@ -645,6 +650,10 @@ export function IdeApp() {
     setOpenPaths((paths) => (paths.includes(path) ? paths : [...paths, path]));
     setActivePath(path);
   }, []);
+
+  useEffect(() => {
+    setMarkdownPreviewOpen(activePath.endsWith(".md"));
+  }, [activePath]);
 
   const stageOpenedProject = useCallback(
     async (snapshot: ProjectSnapshot) => {
@@ -750,7 +759,7 @@ export function IdeApp() {
       ]);
       setOperationDetail(
         result.ok
-          ? "Component checks finished; review PASS and PENDING results below."
+          ? "Component checks finished; review PASS and NOT IMPLEMENTED results below."
           : "One or more component checks failed; review Program output.",
       );
     } catch (error) {
@@ -1993,7 +2002,7 @@ export function IdeApp() {
                   className="component-check-button"
                   disabled={componentCheckRunning}
                   onClick={() => void testComponents()}
-                  title="Run this challenge's component checks in MicroPython without starting either robot. PASS, PENDING, and FAIL results appear in Program output."
+                  title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
                 >
                   {componentCheckRunning
                     ? "Testing components…"
@@ -2130,6 +2139,30 @@ export function IdeApp() {
                   {folderSaveState === "error" ? "Save failed" : "Saving…"}
                 </span>
               ) : null}
+              {activePath.endsWith(".md") ? (
+                <div
+                  aria-label="Markdown view"
+                  className="markdown-view-toggle"
+                  role="group"
+                >
+                  <button
+                    aria-pressed={markdownPreviewOpen}
+                    className={markdownPreviewOpen ? "active" : ""}
+                    onClick={() => setMarkdownPreviewOpen(true)}
+                    title="Show this Markdown file as formatted documentation."
+                  >
+                    Preview
+                  </button>
+                  <button
+                    aria-pressed={!markdownPreviewOpen}
+                    className={!markdownPreviewOpen ? "active" : ""}
+                    onClick={() => setMarkdownPreviewOpen(false)}
+                    title="Edit the Markdown source."
+                  >
+                    Edit
+                  </button>
+                </div>
+              ) : null}
               {activeReference ? (
                 <a
                   className="editor-api-link"
@@ -2143,30 +2176,38 @@ export function IdeApp() {
               ) : null}
             </div>
             <div className="editor-frame" data-testid="python-editor">
-              <Editor
-                language={editorLanguage(activePath)}
-                onChange={(value) => updateActiveFile(value ?? "")}
-                options={{
-                  ariaLabel: `${activePath} editor`,
-                  automaticLayout: true,
-                  detectIndentation: false,
-                  fontFamily: "SFMono-Regular, Consolas, monospace",
-                  fontSize: settings.editorFontSize,
-                  insertSpaces: true,
-                  lineHeight: Math.round(settings.editorFontSize * 1.65),
-                  minimap: { enabled: settings.minimap },
-                  padding: { top: 5 },
-                  renderLineHighlight: "gutter",
-                  scrollBeyondLastLine: false,
-                  stickyScroll: { enabled: false },
-                  tabFocusMode: false,
-                  tabSize: settings.tabSize,
-                  wordWrap: settings.wordWrap,
-                }}
-                path={activePath}
-                theme="vs"
-                value={project.files[activePath] ?? ""}
-              />
+              {activePath.endsWith(".md") && markdownPreviewOpen ? (
+                <MarkdownPreview
+                  onOpenProjectFile={openFile}
+                  projectPaths={projectPathSet}
+                  source={project.files[activePath] ?? ""}
+                />
+              ) : (
+                <Editor
+                  language={editorLanguage(activePath)}
+                  onChange={(value) => updateActiveFile(value ?? "")}
+                  options={{
+                    ariaLabel: `${activePath} editor`,
+                    automaticLayout: true,
+                    detectIndentation: false,
+                    fontFamily: "SFMono-Regular, Consolas, monospace",
+                    fontSize: settings.editorFontSize,
+                    insertSpaces: true,
+                    lineHeight: Math.round(settings.editorFontSize * 1.65),
+                    minimap: { enabled: settings.minimap },
+                    padding: { top: 5 },
+                    renderLineHighlight: "gutter",
+                    scrollBeyondLastLine: false,
+                    stickyScroll: { enabled: false },
+                    tabFocusMode: false,
+                    tabSize: settings.tabSize,
+                    wordWrap: settings.wordWrap,
+                  }}
+                  path={activePath}
+                  theme="vs"
+                  value={project.files[activePath] ?? ""}
+                />
+              )}
             </div>
           </div>
 

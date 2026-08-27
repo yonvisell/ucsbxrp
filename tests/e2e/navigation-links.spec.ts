@@ -24,9 +24,9 @@ test("student and instructor pages have valid internal links and fragments", asy
     for (const href of await page
       .locator("a[href]")
       .evaluateAll((links) =>
-        links.map((link) => (link as HTMLAnchorElement).href),
+        links.map((link) => link.getAttribute("href") ?? ""),
       )) {
-      const target = new URL(href);
+      const target = new URL(href, page.url());
       if (target.origin === origin) internalLinks.add(target.toString());
     }
   }
@@ -36,6 +36,7 @@ test("student and instructor pages have valid internal links and fragments", asy
     if (response) {
       expect(response.ok(), `${href} should load`).toBe(true);
     }
+    if (new URL(href).pathname.endsWith(".md")) continue;
     await expect(page.locator("main")).toBeVisible();
 
     const fragment = decodeURIComponent(new URL(href).hash.slice(1));
@@ -130,26 +131,16 @@ test("IDE and Monitor title bars use navigation rather than duplicate page names
   }
 });
 
-test("Guide presents the student workflow in explicit objective sections", async ({
+test("Guide presents the course workflow in explicit objective sections", async ({
   page,
 }) => {
   await page.goto("/guide/");
   await expect(
-    page.getByRole("heading", { name: "UCSBXRP student guide" }),
+    page.getByRole("heading", { name: "UCSBXRP guide" }),
   ).toBeVisible();
-  const workflow = page.getByRole("navigation", {
-    name: "Guide organization",
-  });
-  for (const label of [
-    "Start",
-    "Develop",
-    "Run and measure",
-    "Store and troubleshoot",
-  ]) {
-    await expect(
-      workflow.getByRole("link", { name: new RegExp(label) }),
-    ).toBeVisible();
-  }
+  await expect(
+    page.getByRole("heading", { name: "IDE controls" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", {
       name: "Project files, units, and data flow",
@@ -281,7 +272,7 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
   await page.setViewportSize({ width: 375, height: 760 });
   await page.goto("/guide/");
   await expect(
-    page.getByRole("heading", { name: "UCSBXRP student guide" }),
+    page.getByRole("heading", { name: "UCSBXRP guide" }),
   ).toBeVisible();
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
@@ -294,14 +285,15 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(bodyFontSize).toBeGreaterThanOrEqual(15);
+  expect(bodyFontSize).toBeGreaterThanOrEqual(14);
   const inlineCodeFontSize = await page
     .locator(".guide-content code")
     .first()
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(14);
+  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(12);
+  expect(inlineCodeFontSize).toBeLessThanOrEqual(bodyFontSize);
 });
 
 test("Instructor reference remains readable at phone width", async ({

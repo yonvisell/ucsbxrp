@@ -393,11 +393,10 @@ class CourseStarterTests(unittest.TestCase):
             ),
         }
         required_sections = (
-            "## Objective",
-            "## Student implementations",
-            "## Supplied project files and services",
+            "## What you implement",
+            "## Provided files and tools",
             "## Program flow",
-            "## Work sequence",
+            "## Complete the challenge",
         )
 
         for challenge, student_files in expected_student_files.items():
@@ -405,6 +404,7 @@ class CourseStarterTests(unittest.TestCase):
             with self.subTest(challenge=challenge):
                 for section in required_sections:
                     self.assertIn(section, text)
+                self.assertNotIn("## Objective", text)
                 self.assertIn("```text", text)
                 self.assertIn("* student implementation", text)
                 self.assertIn("component_checks.py", text)
@@ -466,17 +466,12 @@ class CourseStarterTests(unittest.TestCase):
                 self.assertIn("Start " + entry["label"], normalized)
                 self.assertIn("separate project", normalized)
                 self.assertIn("folder remains unchanged", normalized)
+                self.assertIn("keeps whether", normalized)
                 for component in entry["components"]:
-                    self.assertIn("`%s`" % component["file"], start_section)
-                    self.assertIn(
-                        "`%s`" % component["selection_flag"],
-                        start_section,
-                    )
-                if any(
-                    not component["carry_forward"]
-                    for component in entry["components"]
-                ):
-                    self.assertRegex(normalized, r"flags? begins? as `False`")
+                    self.assertIn("`%s`" % component["file"], readme)
+                    if not component["carry_forward"]:
+                        self.assertIn("`%s`" % component["file"], start_section)
+                        self.assertIn("supplied", normalized)
 
     def test_mapped_route_states_results_without_prescribing_search_algorithm(self):
         readme = (STARTERS / "challenge_4" / "README.md").read_text(

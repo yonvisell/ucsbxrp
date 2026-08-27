@@ -998,4 +998,25 @@ project transfer, and stationary telemetry.
    results should refine configuration, not create another student workflow or
    target protocol.
 
+On 2026-08-26 the student-documentation slice replaced the Guide's improvised
+box diagrams with explicit SVG data-flow diagrams, removed redundant headings
+and control grids, clarified browser/USB/Wi-Fi roles, and explained why
+`Robot.step()` must own sampled-loop timing. Guide reading text is now 14 px
+(approximately 10.5 pt), with proportionally smaller secondary text. Challenge
+READMEs now open as sanitized rendered Markdown in the IDE by default and retain
+a compact Preview/Edit switch. The five challenge READMEs foreground the work
+introduced in each challenge, describe carried-forward files in plain language,
+and no longer prescribe a shortest-path algorithm for Challenge 4. The landing
+and offline text now distinguish cached course apps, ordinary project files,
+and temporary browser copies. Monitor Controls labels selectable data as Plot
+signals and uses the compact control text scale.
+
+The production build, 14 focused course-starter tests, offline reload, Markdown
+Preview/Edit, fresh default-project, link/fragment, commissioning, and narrow
+Guide workflows pass in Stable Chrome. The broader browser run completed 32 of
+38 workflows before six documentation/test expectation failures; five were
+corrected and rerun directly. The remaining tutorial-suite timeout is being
+treated as a performance/repetition investigation rather than accepted as a
+pass. Physical commissioning and repeated project execution are the next stage.
+
 The production preview remains available at `http://127.0.0.1:4174/`.
