@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { AppNavigation } from "../../shared/AppNavigation";
+import { CourseHeader } from "../../shared/CourseHeader";
 import { useHashTarget } from "../../shared/useHashTarget";
 
 type Parameter = {
@@ -149,7 +149,7 @@ const robotConfigFields: Parameter[] = [
     default: "155.0",
     units: "mm",
     description:
-      "Lateral distance between the wheel contact lines; must be positive.",
+      "Effective distance between the wheel paths used by differential drive and odometry. Begin with the measured separation and refine it from repeated turns; must be positive.",
   },
   {
     name: "left_motor_sign",
@@ -233,13 +233,7 @@ export function ReferenceApp() {
 
   return (
     <div className="reference-app">
-      <header className="app-header reference-header">
-        <div className="brand" aria-label="UCSBXRP">
-          <span className="brand-mark">UCSB</span>
-          <span className="brand-xrp">XRP</span>
-        </div>
-        <AppNavigation active="reference" />
-      </header>
+      <CourseHeader active="reference" className="reference-header" />
 
       <div className="reference-layout">
         <nav className="reference-toc" aria-label="API sections">

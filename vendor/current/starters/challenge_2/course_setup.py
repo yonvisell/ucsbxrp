@@ -1,4 +1,4 @@
-"""Select supplied or student components and assemble the Challenge 2 robot."""
+"""Choose one implementation of each component and assemble the Challenge 2 robot."""
 
 from differential_drive import DifferentialDrive as StudentDifferentialDrive
 from odometry import Odometry as StudentOdometry
@@ -23,32 +23,36 @@ USE_STUDENT_DIFFERENTIAL_DRIVE = False
 USE_STUDENT_ODOMETRY = False
 
 
-def _selected(flag, student, supplied):
-    return student if flag else supplied
+def make_sensor_model(config):
+    if USE_STUDENT_SENSOR_MODEL:
+        return StudentSensorModel(config)
+    return SuppliedSensorModel(config)
+
+
+def make_wheel_speed_controller(config):
+    if USE_STUDENT_WHEEL_SPEED_CONTROLLER:
+        return StudentWheelSpeedController(config)
+    return SuppliedWheelSpeedController(config)
+
+
+def make_differential_drive(config):
+    if USE_STUDENT_DIFFERENTIAL_DRIVE:
+        return StudentDifferentialDrive(config)
+    return SuppliedDifferentialDrive(config)
+
+
+def make_odometry(config):
+    if USE_STUDENT_ODOMETRY:
+        return StudentOdometry(config)
+    return SuppliedOdometry(config)
 
 
 def make_robot(config):
-    sensor_model = _selected(
-        USE_STUDENT_SENSOR_MODEL, StudentSensorModel, SuppliedSensorModel
-    )(config)
-    wheel_controller = _selected(
-        USE_STUDENT_WHEEL_SPEED_CONTROLLER,
-        StudentWheelSpeedController,
-        SuppliedWheelSpeedController,
-    )(config)
-    differential_drive = _selected(
-        USE_STUDENT_DIFFERENTIAL_DRIVE,
-        StudentDifferentialDrive,
-        SuppliedDifferentialDrive,
-    )(config)
-    odometry = _selected(USE_STUDENT_ODOMETRY, StudentOdometry, SuppliedOdometry)(
-        config
-    )
     return Robot(
         config,
         XRPBot(config),
-        sensor_model,
-        wheel_controller,
-        differential_drive,
-        odometry,
+        make_sensor_model(config),
+        make_wheel_speed_controller(config),
+        make_differential_drive(config),
+        make_odometry(config),
     )

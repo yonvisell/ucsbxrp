@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { AppNavigation } from "../../shared/AppNavigation";
+import { CourseHeader } from "../../shared/CourseHeader";
 import { useHashTarget } from "../../shared/useHashTarget";
 import { ControlCycleFlow, SystemBoundaryFlow } from "./CourseFlows";
 
@@ -11,13 +11,7 @@ export function GuideApp() {
 
   return (
     <div className="guide-app">
-      <header className="app-header guide-header">
-        <div className="brand" aria-label="UCSBXRP">
-          <span className="brand-mark">UCSB</span>
-          <span className="brand-xrp">XRP</span>
-        </div>
-        <AppNavigation active="guide" />
-      </header>
+      <CourseHeader active="guide" className="guide-header" />
 
       <div className="guide-layout">
         <nav className="guide-toc" aria-label="Guide sections">
@@ -73,6 +67,39 @@ export function GuideApp() {
                 same Run/Stop state is available in both apps.
               </li>
             </ol>
+            <h3>Prepare for Challenge 1</h3>
+            <p>
+              After the demo, complete the four tutorials in order. Each
+              tutorial edits only <code>student_work.py</code> and introduces
+              one part of the challenge workflow:
+            </p>
+            <ol className="tutorial-path">
+              <li>
+                <strong>Python essentials</strong> — write and check functions,
+                conditions, collections, loops, and errors without moving either
+                robot.
+              </li>
+              <li>
+                <strong>Draw with Virtual XRP</strong> — define objects and a
+                command sequence while supplied course services run the virtual
+                robot.
+              </li>
+              <li>
+                <strong>UCSBXRP robot programs</strong> — write the bounded{" "}
+                <code>Robot.start()</code>, <code>step()</code>, and{" "}
+                <code>stop()</code> sequence used by the challenges.
+              </li>
+              <li>
+                <strong>Behavior and telemetry</strong> — use measured state to
+                choose motion and publish live controls, watched values, and
+                plot signals in Monitor.
+              </li>
+            </ol>
+            <p>
+              Create Challenge 1 after Tutorial 4. Tutorial checks do not move
+              either robot; run Tutorials 2–4 on the Virtual XRP after their
+              checks pass.
+            </p>
             <h3>IDE controls</h3>
             <ul className="action-list">
               <li>
@@ -106,15 +133,13 @@ export function GuideApp() {
 
           <GuideSection id="projects" number="02" title="Projects and files">
             <p>
-              The <strong>Projects folder</strong> is the parent folder on your
-              computer that contains your UCSBXRP projects. Each project has its
-              own named <strong>project folder</strong>. The path above the IDE
-              file list shows the open project as <code>./ProjectName</code>.
+              The <strong>Working folder</strong> is the parent folder on your
+              computer. Each <strong>Current project</strong> is stored in one
+              named <strong>Project folder</strong> inside it. The path above
+              the IDE file list shows the open project as{" "}
+              <code>./ProjectName</code>.
             </p>
-            <div
-              className="folder-example"
-              aria-label="Projects folder example"
-            >
+            <div className="folder-example" aria-label="Working folder example">
               <code>UCSBXRP/</code>
               <span>├─ SpiralLab/</span>
               <span>├─ Challenge1/</span>
@@ -123,7 +148,7 @@ export function GuideApp() {
             <p>
               Select <strong>New project…</strong>, choose a template, and enter
               a project name. The IDE creates a named project folder inside the
-              Projects folder and opens it. If folder access is unavailable, you
+              Working folder and opens it. If folder access is unavailable, you
               can continue without a folder and save the project later. Select{" "}
               <strong>Open project…</strong> to open an existing project folder.
               Edits to an open project save automatically. The selected-file
@@ -208,7 +233,7 @@ export function GuideApp() {
             <div className="callout">
               Work that is not saved to a project folder is stored only in this
               browser and can be lost if its site data is cleared. Choose a
-              Projects folder to store each project as ordinary files on the
+              Working folder to store each project as ordinary files on the
               computer.
             </div>
           </GuideSection>
@@ -219,25 +244,57 @@ export function GuideApp() {
             title="Python project structure"
           >
             <p>
-              <code>main.py</code> is the program entry point. It reads the task
-              values, obtains the configured components from{" "}
-              <code>course_setup.py</code>, sends one <code>MotionCommand</code>{" "}
-              per sample, and defines the completion condition.{" "}
-              <code>Robot.step()</code> maintains sample timing and performs the
-              command and measurement sequence below.
+              <code>main.py</code> is the program entry point. Depending on the
+              project, it runs a measured loop directly, calls a supplied runner
+              or mission, or runs software-only checks. In a measured robot
+              loop,
+              <code>main.py</code> or the supplied mission passes one{" "}
+              <code>MotionCommand</code> at a time to <code>Robot.step()</code>.{" "}
+              <code>Robot</code> maintains sample timing, calls the selected
+              components, and returns both the newest measurements and odometry
+              pose in one <code>RobotState</code>.
             </p>
             <ControlCycleFlow />
+            <h3>Where project values and implementations come from</h3>
+            <div
+              className="project-data-flow"
+              aria-label="Project file and runtime dependencies"
+            >
+              <div>
+                <code>world.json</code>
+                <span aria-hidden="true">→</span>
+                <code>load_world()</code>
+                <span aria-hidden="true">→</span>
+                <code>challenge.py</code>
+              </div>
+              <div>
+                <code>robot_config.py</code>
+                <span aria-hidden="true">→</span>
+                <code>course_setup.py</code>
+                <span aria-hidden="true">→</span>
+                <span>selected components and services</span>
+              </div>
+              <div>
+                <code>challenge.py</code>
+                <span aria-hidden="true">+</span>
+                <span>selected services</span>
+                <span aria-hidden="true">→</span>
+                <code>main.py</code> <span>or a supplied mission</span>
+              </div>
+            </div>
             <div className="project-files-summary">
               <div>
                 <code>challenge.py</code>
                 <span>
-                  Defines task values that are not part of the world geometry.
+                  Loads world-owned task values and defines non-geometric task
+                  settings.
                 </span>
               </div>
               <div>
                 <code>world.json</code>
                 <span>
-                  Defines arena size, initial pose, obstacles, and markers.
+                  Defines one or more named worlds: arena size, initial pose,
+                  obstacles, changeable features, and markers.
                 </span>
               </div>
               <div>
@@ -250,15 +307,15 @@ export function GuideApp() {
               <div>
                 <code>course_setup.py</code>
                 <span>
-                  Chooses the supplied or student version of each component and
-                  constructs the selected services.
+                  Constructs supplied services. In challenges, it also chooses
+                  the supplied or student version of each component.
                 </span>
               </div>
               <div>
                 <code>main.py</code>
                 <span>
-                  Runs the task and always stops the motors when the program
-                  exits.
+                  Starts the project. It may run a loop, call a supplied mission
+                  or runner, or perform software-only work.
                 </span>
               </div>
               <div>
@@ -283,6 +340,15 @@ export function GuideApp() {
                   are complete and which still need work.
                 </span>
               </div>
+            </div>
+            <div className="callout">
+              A project may contain several named virtual cases. With the
+              Virtual XRP selected, the Monitor world selector chooses the case
+              used by the simulator and by <code>load_world()</code> for that
+              run without changing the saved <code>world.json</code>. On a
+              physical XRP, sensor readings and obstacles come from the actual
+              arena; changing the displayed world does not change the physical
+              surroundings.
             </div>
             <p>
               Course distances and linear speeds use <code>mm</code> and{" "}
@@ -492,7 +558,7 @@ export function GuideApp() {
                 <strong>Course apps available offline</strong>.
               </li>
               <li>
-                Choose a Projects folder in the IDE. Project files are ordinary
+                Choose a Working folder in the IDE. Project files are ordinary
                 files in that folder; Chrome does not store the course app
                 there.
               </li>
@@ -521,7 +587,7 @@ export function GuideApp() {
                   <li>Validate and run projects on the virtual XRP.</li>
                   <li>
                     Read and write project files after granting access to their
-                    Projects folder. If the IDE later reports that folder access
+                    Working folder. If the IDE later reports that folder access
                     is needed, select <strong>Reconnect</strong> and choose that
                     folder again.
                   </li>
@@ -544,13 +610,13 @@ export function GuideApp() {
                   <li>
                     Project changes that are not saved to a project folder exist
                     only in this site&apos;s browser data. Save the project in a
-                    Projects folder before relying on it offline.
+                    Working folder before relying on it offline.
                   </li>
                   <li>
                     Clearing this site&apos;s browser data removes the saved
                     course apps, settings, project changes held only by the
                     browser, and remembered folder access. It does not remove
-                    project files in the Projects folder; select that folder
+                    project files in the Working folder; select that folder
                     again to restore access.
                   </li>
                 </ul>
@@ -562,9 +628,9 @@ export function GuideApp() {
               course release. <strong>Course update ready</strong> means the new
               application files are already saved. The page waits for a run,
               file save, setup action, or export to finish before reopening.
-              Application updates do not replace projects in the Projects
-              folder. After a page reopens, wait for the selected XRP to report
-              ready before running.
+              Application updates do not replace projects in the Working folder.
+              After a page reopens, wait for the selected XRP to report ready
+              before running.
             </p>
           </GuideSection>
 
@@ -589,11 +655,11 @@ export function GuideApp() {
               </li>
               <li>
                 Clone the team repository to the computer. Use the cloned
-                repository as the UCSBXRP Projects folder so every named project
+                repository as the UCSBXRP Working folder so every named project
                 folder is included in version control.
               </li>
               <li>
-                In IDE <strong>Settings</strong>, choose or change the Projects
+                In IDE <strong>Settings</strong>, choose or change the Working
                 folder and select the cloned repository. Select{" "}
                 <strong>New project…</strong> to create a project from a
                 template, or <strong>Open project…</strong> to choose an
@@ -688,7 +754,7 @@ export function GuideApp() {
                 <a href="../commission/">Set up or repair XRP</a>.
               </li>
               <li>
-                <strong>The Projects folder is disconnected:</strong> select{" "}
+                <strong>The Working folder is disconnected:</strong> select{" "}
                 <strong>Reconnect</strong> and choose the same folder again.
               </li>
               <li>
@@ -767,9 +833,11 @@ export function GuideApp() {
                   </a>
                 </dt>
                 <dd>
-                  Uses the wheel spacing to convert requested forward speed and
-                  turn rate into target left and right wheel speeds. It retains
-                  no state between calls.
+                  Uses the effective track width to convert requested forward
+                  speed and turn rate into target left and right wheel speeds.
+                  The effective value is refined from measured turns and need
+                  not equal the ruler-measured chassis spacing. The component
+                  retains no state between calls.
                 </dd>
               </div>
               <div>

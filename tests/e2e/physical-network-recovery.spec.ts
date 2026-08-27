@@ -176,7 +176,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   ).toHaveValue("");
   await expect(
     ide.getByRole("button", {
-      name: "Choose Projects folder and create…",
+      name: "Choose Working folder and create…",
       exact: true,
     }),
   ).toBeDisabled();

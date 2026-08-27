@@ -52,7 +52,7 @@ test("specification editor validates and downloads the complete curriculum examp
 
   await expect(
     page.getByRole("heading", {
-      name: "UCSBXRP challenge specification editor",
+      name: "Challenge creation",
     }),
   ).toBeVisible();
   await expect(page.getByLabel("Starting challenge")).toHaveValue(
@@ -376,7 +376,7 @@ test("specification editor remains readable at phone width", async ({
   await page.goto("/author/");
   await expect(
     page.getByRole("heading", {
-      name: "UCSBXRP challenge specification editor",
+      name: "Challenge creation",
     }),
   ).toBeVisible();
   const geometry = await page.evaluate(() => ({
@@ -410,7 +410,7 @@ test("instructor overview states the system boundaries and release workflow", as
   await page.goto("/overview/");
   await expect(
     page.getByRole("heading", {
-      name: "UCSBXRP instructor system reference",
+      name: "UCSBXRP technical overview",
     }),
   ).toBeVisible();
   for (const heading of [

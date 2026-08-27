@@ -4,7 +4,8 @@
 
 Open **Set up or Repair** in current desktop Chrome or Edge.
 
-1. Choose one **course folder**. Each project receives its own subfolder there.
+1. Choose one **Working folder**. Each project receives its own named Project
+   folder there.
 2. Connect the XRP by USB-C and confirm the controller shown by the wizard. On
    first use, select **XRP Controller** in Chrome's device chooser.
 3. Choose **Robot hotspot** or **Existing Wi-Fi**. A hotspot works without a
@@ -16,9 +17,10 @@ Open **Set up or Repair** in current desktop Chrome or Edge.
    The wizard opens the IDE in Physical XRP mode after the service replies.
 
 USB-C is used for initial setup, firmware repair, and course-software repair.
-After setup, **Flash project**, **Run**, **Stop**, and telemetry use Wi-Fi. The
-computer must therefore be joined to the robot hotspot or the same local Wi-Fi
-as the robot.
+After setup, **Run**, **Stop**, Reset, and telemetry use Wi-Fi. Run validates
+the project when needed and loads the exact current project into the XRP's
+temporary run slot before starting it. The computer must therefore be joined to
+the robot hotspot or the same local Wi-Fi as the robot.
 
 The robot-hotspot password is `ucsb-xrp`; its service address is
 `192.168.4.1`. Reopen **Set up or Repair** to rename the hotspot, select a
@@ -26,16 +28,18 @@ different network, or repair an interrupted installation.
 
 ## Current development robot
 
-The attached RP2350 has release `2026.08-dev.22`. USB readback verified all 26
-installed files, service version, protocol version, and hotspot profile. Its
-hotspot is `UCSB-XRP-VISELL` at `192.168.4.1`.
+The strongest retained raised-wheel evidence is for robot runtime
+`2026.08-dev.36`, generation 17, on Pink. Run and Stop from both IDE and
+Monitor, Reset and rerun, motor effort, both encoders and wheel distances,
+sensors, pose, path, plots, logs, and final zero drive were observed. The exact
+record is
+`docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
 
-The current release has completed repeated network-service and raised-wheel
-tests. One unchanged robot boot handled 200 telemetry requests, ten project
-flashes, ten no-motion Run/Stop cycles, and two bounded motion runs. Both motors
-and encoders responded, the Monitor received course-loop telemetry, Stop
-returned the robot to zero output, and repeated polling did not grow a log file
-on the robot. The default Expanding Spiral project was restored afterward.
+The active browser/course bundle is `2026.08-dev.37`. It accepts compatible
+robot runtimes from generation 36 onward, so this application revision does not
+force a repair. Its native USB wizard, station lifecycle, and hotspot lifecycle
+still require the focused current-release repeat described in
+`docs/CURRENT_PRODUCT_OUTCOMES.md`.
 
 ## Remaining floor-dependent work
 

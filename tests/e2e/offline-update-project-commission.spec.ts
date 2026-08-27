@@ -38,12 +38,16 @@ async function writeProject(
   page: Page,
   folderName: string,
   project: StoredProject,
+  parentFolderName?: string,
 ) {
   await page.evaluate(
-    async ({ folderName, project }) => {
+    async ({ folderName, parentFolderName, project }) => {
       const root = await navigator.storage.getDirectory();
+      const parent = parentFolderName
+        ? await root.getDirectoryHandle(parentFolderName, { create: true })
+        : root;
       try {
-        await root.removeEntry(folderName, { recursive: true });
+        await parent.removeEntry(folderName, { recursive: true });
       } catch (error) {
         if (
           !(error instanceof DOMException) ||
@@ -52,7 +56,7 @@ async function writeProject(
           throw error;
         }
       }
-      const folder = await root.getDirectoryHandle(folderName, {
+      const folder = await parent.getDirectoryHandle(folderName, {
         create: true,
       });
       const write = async (name: string, content: string) => {
@@ -76,7 +80,7 @@ async function writeProject(
       );
       await write("main.py", project.source);
     },
-    { folderName, project },
+    { folderName, parentFolderName, project },
   );
 }
 
@@ -175,7 +179,12 @@ test("an IDE update waits for Open Project and reopens the newly remembered proj
   await page.goto("/ide/");
   await waitForOfflineShell(page);
   await writeProject(page, "prior-project", oldProject);
-  await writeProject(page, "newly-opened-project", nextProject);
+  await writeProject(
+    page,
+    "newly-opened-project",
+    nextProject,
+    "open-project-workspace",
+  );
   await rememberFolder(page, "prior-project", activeProjectFolderKey);
   await storeBrowserRecovery(page, oldProject);
   await page.reload();
@@ -196,7 +205,7 @@ test("an IDE update waits for Open Project and reopens the newly remembered proj
           testWindow.__resolveProjectPicker = () => {
             void navigator.storage
               .getDirectory()
-              .then((root) => root.getDirectoryHandle("newly-opened-project"))
+              .then((root) => root.getDirectoryHandle("open-project-workspace"))
               .then(resolve);
           };
         }),
@@ -226,6 +235,11 @@ test("an IDE update waits for Open Project and reopens the newly remembered proj
     };
     testWindow.__resolveProjectPicker?.();
   });
+  await page
+    .getByRole("button", {
+      name: "Open Newly opened project from newly-opened-project",
+    })
+    .click();
   await reloaded;
 
   await expect(page.getByTestId("project-folder")).toHaveText(
@@ -332,7 +346,7 @@ test("commissioning defers a course update until the folder picker and write che
         }),
     });
   });
-  await page.getByRole("button", { name: "Choose Projects folder" }).click();
+  await page.getByRole("button", { name: "Choose Working folder" }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -349,7 +363,7 @@ test("commissioning defers a course update until the folder picker and write che
 
   await announceCourseUpdate(page, "test-release-commission-folder");
   await expect(
-    page.getByRole("heading", { name: "Choose a Projects folder" }),
+    page.getByRole("heading", { name: "Choose a Working folder" }),
   ).toBeVisible();
 
   const reloaded = page.waitForEvent("load");
@@ -427,6 +441,6 @@ test("commissioning defers a course update until the serial picker closes", asyn
   });
   await reloaded;
   await expect(
-    page.getByRole("heading", { name: "Choose a Projects folder" }),
+    page.getByRole("heading", { name: "Choose a Working folder" }),
   ).toBeVisible();
 });

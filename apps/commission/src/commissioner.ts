@@ -499,7 +499,7 @@ async function ensureInstallDirectories(
         ` except OSError: pass\n` +
         `wd.feed()`,
     ),
-    "Preparing course folders",
+    "Preparing XRP software folders",
   );
 }
 

@@ -474,7 +474,9 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await expect(ide.getByTestId("project-name")).toHaveText(
     "Obstacle, left, obstacle",
   );
-  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,

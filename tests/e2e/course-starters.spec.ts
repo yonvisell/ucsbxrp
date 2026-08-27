@@ -23,7 +23,9 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
     page.getByRole("button", { name: "New project…", exact: true }),
   ).toBeVisible();
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
   ).toBeVisible();

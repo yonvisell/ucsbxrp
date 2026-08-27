@@ -333,8 +333,12 @@ if (isMainModule) {
   const projectRoot = path.dirname(
     path.dirname(fileURLToPath(import.meta.url)),
   );
+  const requestedOutputDirectory = process.argv[2];
+  const outputDirectory = requestedOutputDirectory
+    ? path.resolve(requestedOutputDirectory)
+    : path.join(projectRoot, "dist");
   const manifest = await generateOfflineBuild({
-    outputDirectory: path.join(projectRoot, "dist"),
+    outputDirectory,
     courseReleaseDirectory: path.join(projectRoot, "vendor", "current"),
   });
   process.stdout.write(

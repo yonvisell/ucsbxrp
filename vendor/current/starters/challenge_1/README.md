@@ -22,9 +22,10 @@ values into another file.
 Implement these two classes:
 
 - `SensorModel` in `sensor_model.py` converts encoder counts and device time
-  into wheel positions, wheel travel during the latest sample, and regularized
-  wheel-speed estimates. It retains the count and time origin, the preceding
-  sample, and the limited history needed by the speed estimate.
+  into wheel positions, wheel travel during the latest sample, and wheel-speed
+  estimates based on recent encoder samples. It retains the count and time
+  origin, the preceding sample, and the limited history needed by the speed
+  estimate.
 - `WheelSpeedController` in `wheel_speed_controller.py` compares requested and
   measured wheel speeds and returns a bounded `DriveCommand` for each motor. A
   zero wheel-speed request must produce an exact zero command for that wheel.
@@ -53,7 +54,8 @@ Your pair also maintains the measured and tuned values in `robot_config.py`.
 ## Provided files and tools
 
 - `main.py` runs the measured straight-line task and stops the motors in a
-  `finally` block.
+  `finally` block. At completion it reports mean measured wheel travel and
+  wrap-safe elapsed time so they can be compared with the assigned targets.
 - `StraightLineController` reduces the requested speed near the finish and
   stops at the assigned travel distance.
 - `challenge.py` and `world.json` define the task.
@@ -100,8 +102,9 @@ the matching `USE_STUDENT_*` flag in `course_setup.py` to `True`.
    stable without hiding changes in motion.
 3. Select your `WheelSpeedController`. Confirm that commands remain within the
    configured limit and return to zero at the finish.
-4. Record repeated virtual runs. Compare final wheel travel and elapsed time
-   with `TRAVEL_DISTANCE_MM` and `TARGET_TIME_S`.
+4. Record repeated virtual runs. In Program output, compare
+   `mean_wheel_travel_mm` and `measured_elapsed_time_s` with
+   `TRAVEL_DISTANCE_MM` and `TARGET_TIME_S`.
 5. On the physical XRP, first verify wheel direction and Stop with the wheels
    clear. On the marked lane, record final wheel travel, elapsed time, requested
    and measured speed, and drive command.

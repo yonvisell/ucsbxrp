@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   initialOfflineShellState,
+  offlineShellAssetsNeedReload,
   offlineShellIsolationNeedsReload,
   offlineShellUpdateNeedsReload,
   virtualRunNeedsPreparation,
@@ -25,6 +26,21 @@ describe("offline shell mode", () => {
     expect(offlineShellUpdateNeedsReload("old", "new", "new")).toBe(false);
     expect(offlineShellUpdateNeedsReload("new", "new", null)).toBe(false);
     expect(offlineShellUpdateNeedsReload(null, "new", null)).toBe(false);
+  });
+
+  it("reloads an older page even when another tab already recorded the new release", () => {
+    expect(
+      offlineShellAssetsNeedReload(
+        ["/assets/ide-old.js", "/assets/ide-old.css"],
+        ["/assets/ide-new.js", "/assets/ide-new.css"],
+      ),
+    ).toBe(true);
+    expect(
+      offlineShellAssetsNeedReload(
+        ["/assets/ide-new.js", "/assets/ide-new.css"],
+        ["/assets/ide-new.js", "/assets/ide-new.css", "/assets/monitor-new.js"],
+      ),
+    ).toBe(false);
   });
 
   it("reloads once after installation to enable isolated runtime controls", () => {

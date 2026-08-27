@@ -7,6 +7,7 @@ import {
   CURRENT_ROBOT_RELEASE_SEQUENCE,
   DirectPhysicalTargetClient,
   localNetworkRequestInit,
+  MINIMUM_ROBOT_RELEASE_SEQUENCE,
   PhysicalTargetClient,
   normalizePhysicalEndpoint,
 } from "./physical-target";
@@ -549,7 +550,7 @@ describe("physical target", () => {
   it.each([
     {
       label: "runtime generation",
-      runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE - 1,
+      runtimeReleaseSequence: MINIMUM_ROBOT_RELEASE_SEQUENCE - 1,
       courseApiRevision: CURRENT_COURSE_API_REVISION,
       protocolRevision: CURRENT_PROTOCOL_REVISION,
       code: "release_mismatch",

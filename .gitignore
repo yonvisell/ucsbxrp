@@ -9,3 +9,4 @@ test-results/
 .venv/
 .hardware-private/
 .git-archives/
+.preview/

@@ -43,18 +43,33 @@ zero-motion command after the last goal.
 
 Use the named values in `NAVIGATION_CONFIG`. The supplied
 `distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions
-apply the course coordinate and angle conventions. The student-owned component
-files in this project are `sensor_model.py`, `wheel_speed_controller.py`,
-`differential_drive.py`, `odometry.py`, and `navigation_controller.py`. The
-measured values in `robot_config.py` also remain your pair's work.
+apply the course coordinate and angle conventions.
+
+## Project modules
+
+The student-owned implementation files have separate responsibilities:
+
+| File | Responsibility |
+| --- | --- |
+| `sensor_model.py` | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
+| `wheel_speed_controller.py` | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
+| `differential_drive.py` | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
+| `odometry.py` | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
+| `navigation_controller.py` | Uses the current pose and active route goal to select the next `MotionCommand`. |
+| `robot_config.py` | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+
+`course_setup.py` contains one `USE_STUDENT_*` flag for each component class.
+`False` runs the supplied implementation; `True` runs the class in the named
+student file. **Test components always checks the student files**, regardless
+of which implementations are selected for a complete robot run.
 
 ## Provided files and tools
 
 - `main.py` starts the route, passes each new pose to navigation, and stops the
   motors in a `finally` block.
 - `challenge.py` and `world.json` define the initial pose and ordered route.
-- `course_setup.py` selects the supplied or student implementation of each
-  component. Change only the named `USE_STUDENT_*` flags after the matching
+- `course_setup.py` constructs each selected component and assembles the
+  `Robot`. Change only the named `USE_STUDENT_*` flags after the matching
   checks pass.
 - `component_checks.py` runs labeled route and motion examples without moving
   either robot.

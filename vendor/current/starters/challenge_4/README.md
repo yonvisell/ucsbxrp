@@ -13,6 +13,10 @@ project world and defines `GRID_RESOLUTION_MM` and `CLEARANCE_MM`. Use these
 named task values. Do not copy the current arena bounds, obstacle geometry,
 grid settings, start, or destination into the planner.
 
+`CLEARANCE_MM` is the required distance from a candidate cell center to the
+arena boundary and blocked geometry. `OccupancyGrid` applies it while sampling
+the arena; it is not the grid spacing or the distance between navigation goals.
+
 ## Continue from Challenge 3
 
 Open the completed Challenge 3 project and select **Continue to Challenge 4 ·
@@ -40,11 +44,25 @@ course accepts any valid route; it does not require a particular search method
 or a minimum-length route. Planning data belongs to one `plan()` call, so the
 class does not need to retain it between calls.
 
-The student-owned component files in this project are `sensor_model.py`,
-`wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
-`navigation_controller.py`, and `grid_planner.py`. Continue to correct the
-carried-forward files if a full route exposes a problem. Your pair also
-maintains the measured and tuned values in `robot_config.py`.
+## Project modules
+
+The student-owned implementation files have separate responsibilities:
+
+| File | Responsibility |
+| --- | --- |
+| `sensor_model.py` | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
+| `wheel_speed_controller.py` | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
+| `differential_drive.py` | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
+| `odometry.py` | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
+| `navigation_controller.py` | Uses the current pose and active route goal to select the next `MotionCommand`. |
+| `grid_planner.py` | Finds a connected sequence of free grid cells between the requested start and goal. |
+| `robot_config.py` | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+
+Continue to correct carried-forward files if a complete route exposes a
+problem. `course_setup.py` contains one `USE_STUDENT_*` flag for each component
+class. `False` runs the supplied implementation; `True` runs the class in the
+named student file. **Test components always checks the student files**,
+regardless of which implementations are selected for a complete robot run.
 
 ## Provided files and tools
 
@@ -54,8 +72,9 @@ maintains the measured and tuned values in `robot_config.py`.
   clearance for the current task.
 - `main.py` builds the occupancy grid, requests a path, converts a successful
   path to goals, and only then constructs the robot.
-- `course_setup.py` selects all six supplied or student components. Change
-  only the named `USE_STUDENT_*` flags after the matching checks pass.
+- `course_setup.py` constructs each selected component and assembles the
+  `Robot`, navigator, and planner. Change only the named `USE_STUDENT_*` flags
+  after the matching checks pass.
 - `component_checks.py` runs labeled direct, detour, one-cell, invalid, and
   disconnected planning examples without moving either robot.
 - `OccupancyGrid` supplies `world_to_cell()`, `is_blocked()`, and

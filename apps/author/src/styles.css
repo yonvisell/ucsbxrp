@@ -1,3 +1,8 @@
+.author-app {
+  min-height: 100vh;
+  background: #fff;
+}
+
 .author-shell {
   width: min(1040px, calc(100% - 2rem));
   margin: 0 auto;
@@ -7,7 +12,7 @@
   line-height: 1.55;
 }
 
-.author-header {
+.author-intro {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -16,29 +21,23 @@
   padding-bottom: 1rem;
 }
 
-.author-header h1 {
+.author-intro h1 {
   margin: 0;
   font-size: 32px;
   letter-spacing: -0.02em;
 }
 
-.author-header p:not(.eyebrow) {
+.author-intro p {
   max-width: 680px;
   margin: 0.45rem 0 0;
   color: var(--muted);
   font-size: 16px;
 }
 
-.author-header nav {
-  display: flex;
-  min-width: max-content;
-  gap: 0.8rem;
-  padding-top: 0.3rem;
-}
-
-.author-header a {
-  color: var(--brand);
-  font-size: 13px;
+.author-intro-status {
+  min-width: 0;
+  flex: 0 1 auto;
+  padding-top: 0.25rem;
 }
 
 .author-actions {
@@ -646,16 +645,14 @@
 }
 
 @media (max-width: 720px) {
-  .author-header,
+  .author-intro,
   .field-grid {
     display: grid;
     grid-template-columns: 1fr;
   }
 
-  .author-header nav {
-    min-width: 0;
-    flex-wrap: wrap;
-    padding: 0;
+  .author-intro-status {
+    padding-top: 0;
   }
 
   .author-shell {

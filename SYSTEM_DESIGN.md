@@ -31,7 +31,7 @@ guide, landing page, and shared packages.
 
 The IDE is the programming surface. It provides:
 
-- an optional Projects folder containing named project folders, automatic
+- an optional Working folder containing named Project folders, automatic
   project writes, and an independent browser-held draft;
 - multi-file creation, rename, duplicate, delete, tabs, and main-file
   metadata;
@@ -71,19 +71,19 @@ physical XRP after a page reload.
 A virtual Run retains the selected world when `world.json` is unchanged;
 replacing that file selects its declared default world.
 Catalog entries are complete `CourseProject` values, not a persistent special
-mode. A Projects folder is a parent directory; each project is one named child
+mode. A Working folder is a parent directory; each project is one named child
 directory containing source, metadata, rotated copies, run output, and
 telemetry. **Open project** accepts only a directory with a valid root
-`.ucsb-xrp-project.json` and the declared main file. It rejects a Projects-folder
+`.ucsb-xrp-project.json` and the declared main file. It rejects a Working-folder
 parent, nested project metadata, and malformed metadata before reading child
 trees or changing the active autosave connection. Legacy root metadata without
-session or digest fields remains importable. When a Projects folder is active,
+session or digest fields remains importable. When a Working folder is active,
 loading a template first asks for the child-directory name and writes the
-complete project immediately. Without a Projects folder, changes remain in a
+complete project immediately. Without a Working folder, changes remain in a
 browser-held draft until the student creates a project folder. Any Python file
-can be selected as its entrypoint. Projects-folder and active-project handles are
+can be selected as its entrypoint. Working-folder and active-project handles are
 retained separately in IndexedDB when structured handle storage is available.
-Changing the Projects folder does not move, close, or replace the current
+Changing the Working folder does not move, close, or replace the current
 project. If project read/write permission does not survive, one explicit
 Reconnect gesture restores it.
 Folder writes are debounced, serialized, and revision/epoch checked so an older
@@ -117,14 +117,14 @@ instructor.
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,
-outdated, or damaged XRP. A Projects folder is useful but not a commissioning
-prerequisite: students may select one for project folders and setup logs, or
+outdated, or damaged XRP. A Working folder is useful but not a commissioning
+prerequisite: students may select one for Project folders and setup logs, or
 defer it until the IDE. Selecting or changing it never creates, opens, moves, or
 replaces a project. The application cache remains browser-owned; a page cannot
-place that cache inside a user-selected folder. When a Projects folder is
+place that cache inside a user-selected folder. When a Working folder is
 selected, the wizard writes and reads back a small setup log before continuing.
 Meaningful controller, installation, reset, and network-probe events append to
-the same password-free log; without a Projects folder the visible log remains
+the same password-free log; without a Working folder the visible log remains
 copyable.
 Raw serial traffic is not retained.
 
@@ -157,11 +157,11 @@ incompatible service. An exact service/release and robot-identity reply stores
 the network mode and endpoint that were actually verified. Thus, a failed
 station join that fell back to a robot hotspot cannot hand the IDE the
 unreachable station route. Only after this check does the wizard create a
-short-lived Projects-folder handoff and open the IDE in physical mode;
+short-lived Working-folder handoff and open the IDE in physical mode;
 interrupted setup leaves no permanent pending state. The IDE retains an existing
 active project. In a fresh browser it opens the spiral example without saving
 it to a project folder; it does not silently create `./Expanding-Spiral` or
-write project files as a side effect of commissioning. The Projects folder
+write project files as a side effect of commissioning. The Working folder
 itself is not imported as a project; an existing project is loaded only through
 **Open project**. It cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
@@ -216,7 +216,7 @@ sent off-device.
 
 ### Guide and visual system
 
-The Guide covers the first virtual run, course and project folders, component
+The Guide covers the first virtual run, Working and Project folders, component
 tests, physical setup, Monitor evidence and exports, project flow, offline use,
 GitHub, shortcuts, and troubleshooting. The separate UCSB XRP API page is the
 detailed Python reference. It documents each student base class through its
@@ -228,7 +228,7 @@ including the project-owned world.json definition. Both pages open in a new
 tab and are part of the offline release.
 
 The offline shell belongs to the site and Chrome profile, not to a selected
-course folder. After one complete online load, the applications, virtual XRP,
+Working folder. After one complete online load, the applications, virtual XRP,
 Guide, API reference, and course release may reopen without internet or a local
 server. Installation adds a launcher but does not change that storage model.
 Clearing or evicting site data removes the shell and browser-held project data but
@@ -494,7 +494,7 @@ preceding complete caches are retained through the handoff.
 Development disables caching to prevent stale bundles from masking changes.
 Private reference source and instructor credentials are not web assets. This
 application cache is owned by the HTTPS origin and is not copied into the
-selected course folder. It needs no Node process after caching; a `file://` copy
+selected Working folder. It needs no Node process after caching; a `file://` copy
 is not substituted because the module, worker, WebAssembly, and service-worker
 boundaries require an HTTP(S) origin. Clearing site data removes the cached
 release but not project folders.
@@ -597,7 +597,7 @@ student's display merely because a program publishes diagnostics.
 
 The Web App Manifest provides an optional standalone installation and launcher;
 the service worker remains the offline authority. Installation does not copy a
-runnable site into the course folder and does not make browser storage permanent.
+runnable site into the Working folder and does not make browser storage permanent.
 
 Manual Monitor exports use `exports/` inside the active project when available.
 Without a project folder, the browser chooses a destination before expensive
@@ -608,7 +608,7 @@ simulation. Recording and robot execution remain independent states.
 ## 11. Student documentation and responsibility boundaries
 
 The Guide is task-oriented: it names the available challenges, demos, and
-tutorial, then presents virtual execution, Projects-folder storage, component
+tutorial, then presents virtual execution, Working-folder storage, component
 tests, physical setup, Monitor evidence, code roles, offline use, GitHub, and
 troubleshooting in that order. It avoids internal deployment vocabulary and
 defines each student-visible storage or target term where it first appears.

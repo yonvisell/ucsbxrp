@@ -1,13 +1,12 @@
-"""Run concrete, hardware-free examples of Challenge 5 student classes.
+"""Check the Challenge 5 student-owned component classes without moving a robot.
 
 Select Test components in the IDE. PASS means an example produced its expected
 result. NOT IMPLEMENTED means a method still raises NotImplementedError. FAIL
-names the behavior and received result to inspect. The range option adds
-ultrasonic examples.
-These checks do not start the virtual or physical robot.
+names the behavior and received result to inspect.
 
-The checker names each input, expected result, and observed result before PASS.
-This file only selects classes; the example code comes from UCSBXRP.
+The imports below are the classes in this project. The supplied checker calls
+each class with small labeled input examples, including ultrasonic range
+examples.
 """
 
 from differential_drive import DifferentialDrive

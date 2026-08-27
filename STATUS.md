@@ -4,6 +4,38 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 66 consolidates prior audits and current user observations into
+`docs/CURRENT_PRODUCT_OUTCOMES.md`, the only live product backlog. Historical
+requirements, red-team, architecture, and package-size documents remain as
+evidence rather than parallel plans. The implementation plan and system design
+now use one literal folder model: a Working folder contains named Project
+folders; a browser draft remains available when folder access is unavailable.
+
+Open Project now reconnects the remembered Working folder, lists only valid
+direct-child UCSBXRP projects, and opens the selected child without another
+system picker. New Project, next-challenge creation, denied permission,
+cancellation, autosave, and deferred application updates retain the same
+authority. Common headers, titles, and public terminology are aligned across
+the landing page, IDE, Monitor, Guide, API, commissioning, instructor author,
+and overview pages.
+
+Local development now uses the cache-free Vite server on fixed port 4174.
+Production preview serves one immutable build snapshot; application startup
+detects a mixed asset generation before continuing. Robot release identity is
+no longer an automatic repair requirement: course bundle dev.37 accepts the
+physically qualified compatible dev.36 runtime, while setup/repair may still
+update it deliberately.
+
+The first complete browser boundary run passed 103 workflows and exposed three
+regressions. Two ownership tests still modeled the obsolete direct
+Project-folder picker; they now exercise the Working-folder list and explicit
+child selection. Monaco retained an old width across a rapid shrink/grow
+sequence; the editor now lays out from an explicit frame ResizeObserver. The
+five affected multi-IDE and live-layout workflows pass together. The fast
+boundary check also passes: 227 Python tests, MicroPython source/bytecode and
+service proof, 359 TypeScript tests, production build, and the 253-file offline
+shell.
+
 Refinement 65 removes remaining implementation-facing language from common
 student surfaces. IDE Status now shows the next project and target, validation
 result, and physical-project readiness without tab ownership, revision, or

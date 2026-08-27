@@ -1,15 +1,20 @@
+.overview-app {
+  min-height: 100vh;
+  background: #fff;
+}
+
 .overview-layout {
   display: grid;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--course-header-height));
   grid-template-columns: 234px minmax(0, 1fr);
   color: var(--ink);
 }
 
 .overview-nav {
   position: sticky;
-  top: 0;
+  top: var(--course-header-height);
   align-self: start;
-  height: 100vh;
+  height: calc(100vh - var(--course-header-height));
   overflow-y: auto;
   border-right: 1px solid var(--pane-line);
   padding: 1.1rem 0.9rem;

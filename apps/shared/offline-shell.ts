@@ -131,6 +131,14 @@ export function offlineShellIsolationNeedsReload(
   return !isolated && lastReloadedVersion !== currentVersion;
 }
 
+export function offlineShellAssetsNeedReload(
+  documentAssetPaths: readonly string[],
+  manifestAssetPaths: readonly string[],
+): boolean {
+  const currentAssets = new Set(manifestAssetPaths);
+  return documentAssetPaths.some((asset) => !currentAssets.has(asset));
+}
+
 export function virtualRunNeedsPreparation(
   production: boolean,
   isolated: boolean,
@@ -464,6 +472,25 @@ async function installOfflineShell(basePath: string) {
   }
   await navigator.serviceWorker.ready;
   const manifest = await verifyPrecache(manifestUrl);
+  const documentAssets = [
+    ...Array.from(document.scripts, (script) => script.src),
+    ...Array.from(document.styleSheets, (sheet) => sheet.href ?? ""),
+  ]
+    .filter((source) => source !== "")
+    .map((source) => new URL(source, window.location.href))
+    .filter(
+      (url) =>
+        url.origin === window.location.origin &&
+        url.pathname.startsWith(`${basePath}assets/`),
+    )
+    .map((url) => url.pathname);
+  const manifestAssets = manifest.assets.map(
+    (asset) => new URL(asset.url, window.location.origin).pathname,
+  );
+  const documentNeedsReload = offlineShellAssetsNeedReload(
+    documentAssets,
+    manifestAssets,
+  );
   window.localStorage.setItem(offlineShellVersionKey, manifest.version);
   publishState("ready", { version: manifest.version });
   announceReleaseReady(manifest.version);
@@ -480,10 +507,13 @@ async function installOfflineShell(basePath: string) {
     manifest.version,
     window.sessionStorage.getItem(isolationReloadKey),
   );
-  if (updateNeedsReload || isolationNeedsReload) {
+  if (documentNeedsReload || updateNeedsReload || isolationNeedsReload) {
     requestOfflineShellReload({
       version: manifest.version,
-      reason: updateNeedsReload ? "release-update" : "isolation",
+      reason:
+        documentNeedsReload || updateNeedsReload
+          ? "release-update"
+          : "isolation",
     });
   } else {
     loadedOfflineShellVersion = manifest.version;

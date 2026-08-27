@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 interface RememberedFolderOptions {
   projectPermission?: PermissionState;
   workspacePermission?: PermissionState;
+  workspaceRequestPermission?: PermissionState;
   rememberRepositoryAsProject?: boolean;
   rememberExternalProject?: boolean;
 }
@@ -51,6 +52,7 @@ async function installRememberedFolders(
         private readonly permission: PermissionState,
         private readonly rootId: string,
         private readonly path: string[] = [],
+        private readonly permissionRequestResult: PermissionState = "granted",
       ) {}
 
       async *entries() {
@@ -105,7 +107,7 @@ async function installRememberedFolders(
 
       async requestPermission() {
         probe.permissionRequestCount += 1;
-        return "granted" as const;
+        return this.permissionRequestResult;
       }
     }
 
@@ -114,6 +116,8 @@ async function installRememberedFolders(
       {},
       configuration.workspacePermission ?? "prompt",
       "workspace",
+      [],
+      configuration.workspaceRequestPermission ?? "granted",
     );
     const repository = new MemoryDirectoryHandle(
       "Coursemobilerobotics",
@@ -249,7 +253,9 @@ test("does not restore a remembered repository as a student project", async ({
   await ide.goto("/ide/");
 
   await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
   await expect(
     ide.getByRole("button", { name: /Open AGENTS\.md/ }),
   ).toHaveCount(0);
@@ -275,7 +281,7 @@ test("does not restore a remembered repository as a student project", async ({
     .toMatchObject({ projectHandleRetained: false, writeCount: 0 });
 });
 
-test("migrates a valid v1 project independently of the Projects location", async ({
+test("migrates a valid v1 project independently of the Working folder", async ({
   page: ide,
 }) => {
   await installRememberedFolders(ide, {
@@ -352,12 +358,14 @@ test("offers to reconnect a remembered project instead of creating a duplicate f
 
   await ide.goto("/ide/");
 
-  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
   await expect(
     ide.getByRole("button", { name: "Reconnect project folder…" }),
   ).toBeVisible();
   await expect(
-    ide.getByRole("button", { name: "Save as project…" }),
+    ide.getByRole("button", { name: "Save to folder…" }),
   ).toHaveCount(0);
 
   await ide.getByRole("button", { name: "Reconnect project folder…" }).click();
@@ -416,4 +424,107 @@ test("asks before opening a template as a browser-only project", async ({
       ),
     )
     .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
+});
+
+test("Open reconnects a remembered Working folder without opening a picker", async ({
+  page: ide,
+}) => {
+  await installRememberedFolders(ide, { workspacePermission: "prompt" });
+  await ide.goto("/ide/");
+
+  const currentProject = await ide.getByTestId("project-name").textContent();
+  await ide.getByRole("button", { name: "Open project…" }).click();
+
+  await expect(
+    ide.getByRole("heading", { name: "Open a project" }),
+  ).toBeVisible();
+  await expect(ide.getByTestId("project-name")).toHaveText(
+    currentProject ?? "",
+  );
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                permissionRequestCount: number;
+                pickerCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
+    .toMatchObject({ permissionRequestCount: 1, pickerCount: 0 });
+});
+
+test("denied Working-folder access does not fall through to a picker", async ({
+  page: ide,
+}) => {
+  await installRememberedFolders(ide, {
+    workspacePermission: "prompt",
+    workspaceRequestPermission: "denied",
+  });
+  await ide.goto("/ide/");
+
+  const currentProject = await ide.getByTestId("project-name").textContent();
+  await ide.getByRole("button", { name: "Open project…" }).click();
+
+  await expect(ide.getByTestId("project-name")).toHaveText(
+    currentProject ?? "",
+  );
+  await expect(
+    ide.getByRole("heading", { name: "Open a project" }),
+  ).toHaveCount(0);
+  await expect(
+    ide.getByText(/Access to the Working folder xrp_test_2 was not granted/),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                permissionRequestCount: number;
+                pickerCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
+    .toMatchObject({ permissionRequestCount: 1, pickerCount: 0 });
+});
+
+test("New reconnects a remembered Working folder before creating", async ({
+  page: ide,
+}) => {
+  await installRememberedFolders(ide, { workspacePermission: "prompt" });
+  await ide.goto("/ide/");
+
+  const currentProject = await ide.getByTestId("project-name").textContent();
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide.getByLabel("Project template").selectOption("micropython_tutorial");
+  await ide
+    .getByRole("button", { name: "Choose Working folder and create…" })
+    .click();
+
+  await expect(ide.getByTestId("project-name")).toHaveText(
+    currentProject ?? "",
+  );
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __folderRecoveryProbe: {
+                permissionRequestCount: number;
+                pickerCount: number;
+              };
+            }
+          ).__folderRecoveryProbe,
+      ),
+    )
+    .toMatchObject({ permissionRequestCount: 1, pickerCount: 0 });
 });

@@ -1,12 +1,12 @@
-"""Run concrete, hardware-free examples of Challenge 2 student classes.
+"""Check the Challenge 2 student-owned component classes without moving a robot.
 
 Select Test components in the IDE. PASS means an example produced its expected
 result. NOT IMPLEMENTED means a method still raises NotImplementedError. FAIL
 names the behavior and received result to inspect.
-These checks do not start the virtual or physical robot.
 
-The checker names each input, expected result, and observed result before PASS.
-This file only selects classes; the example code comes from UCSBXRP.
+The imports below are the classes in this project. The supplied checker calls
+each class with small labeled input examples and prints the expected and
+observed values.
 """
 
 from differential_drive import DifferentialDrive

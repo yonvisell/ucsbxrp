@@ -11,9 +11,10 @@ the sample scheduling and stopping behavior are not duplicated.
 
 ## Live controls already declared for you
 
-The first part of `student_work.py` declares four controls:
+The first part of `student_work.py` declares five controls:
 
-- **Forward speed** and **Stop distance** use `live.number(...)`;
+- **Forward speed**, **Stop distance**, and **Turn rate** use
+  `live.number(...)`;
 - **Turn direction** uses `live.choice(...)`; and
 - **Run behavior** uses `live.toggle(...)`.
 

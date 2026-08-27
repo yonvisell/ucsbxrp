@@ -64,6 +64,9 @@ in-place motion.
 - `StraightLineController` supplies measured straight travel; `Robot` supplies
   the repeated control and measurement cycle.
 
+**Test components always checks the classes in the student files**, even while
+one or more supplied implementations are selected for a complete robot run.
+
 ## How the program runs
 
 1. `main.py` starts the robot at `INITIAL_POSE`.

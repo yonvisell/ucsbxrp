@@ -376,13 +376,13 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
   await ide
-    .getByRole("button", { name: "Save as project…", exact: true })
+    .getByRole("button", { name: "Save to folder…", exact: true })
     .click();
   await expect(ide.getByRole("dialog")).toContainText("Create a named folder");
   await ide.getByLabel("Folder name").fill("virtual-browser-check");
   await ide
     .getByRole("button", {
-      name: "Choose Projects folder and save…",
+      name: "Choose Working folder and save…",
       exact: true,
     })
     .click();
@@ -724,7 +724,7 @@ test("keeps the IDE reachable while a short window is resized", async ({
     element.scrollTo(0, element.scrollHeight),
   );
   await expect(
-    ide.getByRole("button", { name: "Add files…", exact: true }),
+    ide.getByRole("button", { name: "Import files…", exact: true }),
   ).toBeInViewport();
 
   await ide.getByRole("button", { name: "Expand output" }).click();

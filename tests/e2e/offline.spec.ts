@@ -71,7 +71,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toHaveAttribute("href", "../guide/#offline-use");
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Projects folder.*project changes remain in this browser only/s,
+    /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Working folder.*project changes remain in this browser only/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -214,7 +214,7 @@ test("reloads the complete production course shell without a network", async ({
   });
   await expect(
     author.getByRole("heading", {
-      name: "UCSBXRP challenge specification editor",
+      name: "Challenge creation",
     }),
   ).toBeVisible();
   await expect(author.getByText("Specification checks pass.")).toBeVisible();
@@ -227,7 +227,7 @@ test("reloads the complete production course shell without a network", async ({
   });
   await expect(
     overview.getByRole("heading", {
-      name: "UCSBXRP instructor system reference",
+      name: "UCSBXRP technical overview",
     }),
   ).toBeVisible();
   await expect(

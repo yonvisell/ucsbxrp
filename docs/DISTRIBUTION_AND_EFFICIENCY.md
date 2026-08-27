@@ -1,5 +1,9 @@
 # Web application efficiency and distribution
 
+> Historical size snapshot. The current package composition and optimization
+> priorities are recorded in `docs/CURRENT_PRODUCT_OUTCOMES.md`; remeasure
+> before using the byte or asset counts below.
+
 ## Current result
 
 The production `dist` directory is a self-contained static release. It contains

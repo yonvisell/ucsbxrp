@@ -202,16 +202,16 @@ device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
 student project changes with the network choice.
 
 The public commissioning wizard is the normal physical-robot entry point.
-Students may choose a **Projects folder** immediately or later, connect an
+Students may choose a **Working folder** immediately or later, connect an
 RP2350 XRP by USB-C, and use one repeatable setup/repair action. Each named
-project is stored in its own child folder inside the Projects folder; choosing a
-different parent folder does not move the project that is already open. The
-browser checks firmware and required runtime versions, installs and read-verifies
-only changed course files, prepares the selected Wi-Fi profile, verifies the
-local robot service, then opens the IDE on the verified physical target. USB
-handles installation and repair of the persistent course runtime. Physical Run
-validates the current project, prepares it in temporary controller RAM over the
-selected local Wi-Fi network, and starts its main Python file. Reset
+project is stored in its own named Project folder inside the Working folder;
+choosing a different parent folder does not move the project that is already
+open. The browser checks firmware and required runtime versions, installs and
+read-verifies only changed course files, prepares the selected Wi-Fi profile,
+verifies the local robot service, then opens the IDE on the verified physical
+target. USB handles installation and repair of the persistent course runtime.
+Physical Run validates the current project, prepares it in temporary controller
+RAM over the selected local Wi-Fi network, and starts its main Python file. Reset
 cooperatively stops the program and clears course telemetry and live state while
 retaining the prepared RAM project, boot state, and Wi-Fi connection. Run can
 therefore start the same revision again immediately. Monitor and telemetry use

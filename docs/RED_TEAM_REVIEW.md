@@ -1,5 +1,9 @@
 # UCSB XRP software red-team review
 
+> Historical snapshot from 2026-08-21. Use
+> `docs/CURRENT_PRODUCT_OUTCOMES.md` for current evidence and open work. Later
+> native-browser and robot failures supersede the closing conclusion below.
+
 Reviewed 2026-08-21 against the current course release, virtual target,
 physical-target protocol, IDE, Monitor, commissioning wizard, offline shell,
 and folder persistence.

@@ -1,53 +1,151 @@
 # Current UCSBXRP product outcomes
 
-This is the short, current view of the course product. It records the student or
-instructor result that matters, the strongest available evidence, and the next
-material improvement. It is not an acceptance contract and does not convert a
-single successful test into a general claim. User observations are design
-evidence; they are investigated rather than assumed either correct or incorrect.
-
-Update this file at each coherent implementation stage. Preserve detailed test
-records in `STATUS.md`, physical evidence in `docs/hardware/`, and historical
-request context in the `USER_REQUIREMENTS_*` documents.
+This is the single live product backlog. It merges current user observations,
+prior audits, direct browser and robot evidence, and unresolved design work.
+The `USER_REQUIREMENTS_*` files and `open-user-issues-now.md` remain source
+history; they are not parallel plans. Detailed validation belongs in
+`STATUS.md`, and retained physical evidence belongs in `docs/hardware/`.
 
 ## Current baseline
 
-- Browser applications: commit `2e7503a` plus the active uncommitted slice.
-- Physical XRP course runtime: `2026.08-dev.36`, generation 17, source baseline
-  `5d217ed`.
-- Local production origin: `http://127.0.0.1:4174/`.
-- The public GitHub Pages release is intentionally not updated during the
-  current local revision sequence.
+- Browser source: current repository `HEAD` plus the active integrated stage.
+- Attached XRP: physically qualified on `2026.08-dev.36`, generation 17, from
+  source commit `5d217ed`.
+- Current course bundle: `2026.08-dev.37`; it accepts compatible robot runtimes
+  from generation 36 onward, so application and course-material revisions do
+  not force an unnecessary robot repair.
+- Development origin: the only supported local development instance is the
+  cache-free Vite server at `http://127.0.0.1:4174/`.
+- The public GitHub Pages release remains unchanged during the local revision
+  sequence.
 
-## Outcomes and remaining work
+## Strongest current outcomes
 
-| Product outcome | Current evidence | Remaining work |
-| --- | --- | --- |
-| A student can open the suite and understand where Home, IDE, Monitor, Guide, setup, and API documentation are. | The applications share compact navigation and production-browser link tests pass. | Reconcile the landing, setup, authoring, Guide, and API title treatments; remove remaining redundant labels and verify every page at common laptop widths. |
-| The IDE and Monitor fill the available window and remain usable as it changes size. | Standalone short, wide, tall, and narrow layouts and the same-tab combined workspace have production-browser coverage. | Fix the confirmed narrow-to-wide Project-panel state defect; repeat real-window expansion after browser-test viewport state is cleared. Continue inspecting proportions, not only overflow. |
-| A student can tell which project is open and where its files are stored. | One active project authority, strict project-folder boundaries, folder-backed autosave, browser-draft fallback, and multi-IDE ownership tests pass. | Finish the human project model: group project actions, open remembered child projects without another system picker, explain temporary drafts once, and remove ambiguous storage controls. |
-| Project creation and challenge progression preserve student work. | Named project folders, explicit templates, file import, automatic saves, conflict handling, and carried-forward challenge modules are implemented and tested. | Reassess naming, duplication, progression, and Git workflow as one student experience. Test reopening and changing projects repeatedly from IDE and Monitor. |
-| Editing, validation, Run, Stop, Reset, output, and logs form one understandable workflow. | Virtual and physical command serialization, automatic validation when needed, retained program output, and shared IDE/Monitor run state have automated and physical evidence. | Remove remaining status duplication, make disabled states explain themselves, and stress repeated Run/Stop/Reset and project changes in both applications. Keep complete service detail available without dominating the student view. |
-| The default project demonstrates useful robot behavior immediately. | Expanding Spiral runs in the simulator and has raised-wheel physical evidence, live speed/winding controls, range stopping, plots, and output. | Repeat after the current project/UI revisions, then run the second demo and nontrivial challenge projects on the attached XRP. Floor behavior remains a later calibrated test. |
-| Setup or Repair can commission a new or existing RP2350 XRP without instructor-only steps. | Transactional Web Serial installation, changed-file comparison, release verification, restart, network profiles, and station-mode handoff have physical evidence. | Repeat reset/repair from the current browser release, then stress cancellation, zero-change repair, failed station join, hotspot handoff, custom hotspot name, and return to internet Wi-Fi. |
-| Station and hotspot modes select only a verified robot route. | The connection record now retains one robot identity with inactive alternate routes; station operation on Pink and earlier hotspot operation are recorded. | Repeat current-release hotspot operation end to end. Verify that the wizard gives an explicit computer-Wi-Fi instruction and never hands stale `192.168.4.1` to the IDE after a station connection. |
-| Monitor presents synchronized pose, telemetry, plots, controls, recording, notes, and export. | Shared virtual/physical state, late-open history, student plot registration, compact live controls, CSV/plot export, and WebM export have automated coverage. | Repeat physical telemetry under motor motion; review plot meanings and smoothing; refine annotation/export interaction; verify saved run artifacts use the active project folder. |
-| A project owns a readable world description used by simulation and Monitor. | `world.json` supplies bounds, initial pose, walls/blocks, and course markers to the current simulator and view. | Add a compact visual world editor for bounds, walls, rectangular obstacles, start/finish regions, lines, waypoints, and marker properties. Preserve readable JSON and backward compatibility. |
-| Course challenges state the task, student work, supplied support, and measurable result. | Five challenge starters, rendered README previews, isolated component checks, and virtual course workflows exist. | Continue the prose and program-structure review. Eliminate duplicated mutable parameters, make check outcomes literal, and use clear diagrams or simulator images where they materially clarify the task. |
-| Students learn the Python and UCSBXRP concepts needed by the challenges. | A seven-file MicroPython tutorial compiles and runs, but it is primarily a set of completed examples. | Replace it with active, ordered tutorial projects: Python essentials; drawing with Virtual XRP; the sampled UCSBXRP program structure; and behavior plus telemetry. Give each a stable `main.py`, short student tasks, immediate exercise feedback, and a clear successor. |
-| API and Guide documentation explain purpose as well as syntax. | The API lists public classes, arguments, units, returns, errors, and examples; the Guide covers setup, projects, targets, sampled timing, and offline use. | Continue student-legibility editing, reduce remaining oversized or inconsistent typography, use a diagram engine for nontrivial flows, add contextual API help, and merge the useful technical overview into a clear appendix. |
-| Instructors can create and revise challenges without editing the application source by hand. | A challenge specification, generator, authoring page, documentation, validation, and unpublished-output boundary exist. | Exercise the tool with a new curriculum-appropriate challenge, simplify its interface and documentation, integrate the visual world editor, and verify generated projects through virtual execution and telemetry. |
-| The web applications remain available after internet loss without owning student files. | The PWA caches the application shell and immediately preceding release; project files remain ordinary files in the chosen project folder. Offline production workflows pass. | Make installation/update language unambiguous, verify update adoption while edits and runs are active, and repeat with Windows/Edge and a Chromebook-class browser. Do not imply that cached browser assets are stored in the project folder. |
-| The implementation remains small enough to understand and responsive enough for classroom use. | Obsolete state layers and accidental dependencies have already been removed; current builds and runtime loops are bounded. | After the complete browser/robot suite passes on a frozen baseline, perform one cohesive browser and MicroPython refactor, prune obsolete compatibility code, then measure startup, bundle, memory, plot rendering, telemetry, and device-loop costs before making only material optimizations. |
+- One Working folder may contain several named Project folders. The IDE opens
+  only valid direct-child UCSBXRP projects, saves folder-backed projects
+  automatically, and preserves a browser draft when no folder is available.
+- The IDE and Monitor share the exact current project, run state, program
+  output, telemetry history, runtime controls, and robot identity. A fresh
+  Monitor can run the default virtual project.
+- Expanding Spiral and the physical command path have raised-wheel evidence for
+  Run, Stop, Reset, rerun, motor effort, encoders, wheel distance, sensor data,
+  pose, plots, logs, and final zero drive on dev.36.
+- The four active tutorial projects cover Python fundamentals, Virtual XRP
+  drawing, the sampled robot program, and behavior with telemetry. Each has
+  student tasks and immediate checks rather than a shipped solution.
+- Five cumulative challenge projects carry prior student modules forward.
+  Their README files identify the task, supplied code, student work, and
+  measurable behavior; mutable task values remain in code rather than prose.
+- The Guide and API reference describe the current project, setup, execution,
+  timing, component, and telemetry models. Graphviz generates the nontrivial
+  diagrams, and the IDE links relevant project files to reference sections.
+- The challenge author includes a visual world editor for bounds, initial pose,
+  walls, blocks, start/finish regions, waypoints, and display markers.
+- The production package is static and local-first: browser assets are cached
+  by the browser; student source, logs, recordings, and exports remain ordinary
+  files in the selected Project folder.
 
-## Immediate sequence
+## Active outcomes, in priority order
 
-1. Close the narrow-to-wide IDE layout defect and finish the project-action
-   workflow.
-2. Implement and validate the active tutorial redesign.
-3. Implement the project-owned visual world editor.
-4. Reconcile remaining titlebars, documentation, and student-facing source
-   comments.
-5. Run the complete virtual/browser suite, repeat current physical station and
-   hotspot workflows, and commit the frozen functional baseline.
-6. Refactor and measure performance only after that baseline is stable.
+### 1. Ordinary student project and run workflow
+
+Complete one native-Chrome walkthrough from a fresh browser state: understand
+the Working-folder prompt, create a named project, edit and autosave, reopen it,
+switch projects twice, use Validate/Run/Stop/Reset/rerun, and inspect persistent
+Program output and System log. Cancellation or denied folder permission must
+leave the current project unchanged and explain the next action. The interface
+must not expose repository files, recurse through the Working folder, or ask
+where a site may save without first explaining the Working-folder choice.
+
+The current real-window Chrome build fills both restored and expanded windows.
+Keep the output area as a compact drawer and continue to judge proportions and
+actual resizing, not only overflow tests. Add the application asset generation
+and course release to System/setup logs so a stale installed app or old server
+is immediately distinguishable without another visible status badge.
+
+### 2. Current-release setup, repair, and robot operation
+
+Qualify the native Web Serial wizard on the current bundle: same-release repair
+with zero changed files, interrupted/cancelled retry, station setup on Pink,
+atomic IDE handoff, default Run/Stop/Reset/rerun, a second nontrivial project,
+shared IDE/Monitor state, telemetry, and complete logs. Then repeat one hotspot
+cycle with a custom SSID, explicit computer-Wi-Fi instruction, and return to an
+internet network. Earlier hotspot evidence is regression history, not proof of
+the current release.
+
+Station discovery also needs a robot-specific hostname or equivalent candidate
+derived from stable robot identity; a classroom full of `ucsb-xrp.local`
+responders is ambiguous even though identity checks prevent commands to the
+wrong robot.
+
+### 3. Course-project clarity and consistency
+
+Generate repeated student component stubs from canonical documented templates
+so a student starting directly at a later challenge receives the same guidance
+as a student progressing sequentially. Remove module-global robot/state objects
+from student-visible examples; pass state explicitly and return the updated
+state. Review README repetition through a short novice observation rather than
+another wholesale prose rewrite.
+
+The existing visual world editor satisfies instructor world authoring. Reuse it
+inside the IDE for `world.json` only if students are expected to modify a world;
+retain readable JSON as the advanced representation.
+
+### 4. Instructor challenge creation
+
+Exercise the authoring tool with one new curriculum-appropriate challenge. The
+browser must produce an immediately usable unpublished project—preferably an
+Open draft in IDE action or a downloadable project archive—without requiring a
+repository checkout or Python CLI. Publication and catalog integration remain
+deliberate maintainer operations after virtual execution, telemetry review,
+and instructional review.
+
+### 5. Update behavior and release identity
+
+The offline manifest already provides content-derived application identity;
+do not add another build-ID mechanism. Treat `release_sequence` as robot runtime
+identity and raise `minimum_robot_release_sequence` only for an incompatible
+service, protocol, API, or installed-library change. Verify update adoption from
+an old installed PWA while a project picker, edit, and run are active. Explain
+the available/current release in student language without exposing cache
+machinery.
+
+Future challenge-template corrections need template revision and base-content
+identity so the IDE can offer a correction without replacing student work.
+
+### 6. Focused refactor and measured performance
+
+After the browser and robot journeys pass on one committed baseline, extract a
+single project-persistence controller from `IdeApp`. It should own the active
+Project-folder session, serialized write queue, autosave, deletions, external
+edit conflicts, and update-safe flush. Rename inverted internal folder terms to
+literal `workingFolder` and `projectFolder`, then remove only helpers proven
+unused.
+
+Measure before changing behavior. The first low-risk candidate is the Web
+Serial byte queue, which currently shifts individual bytes. Profile full-folder
+saves, target-worker replay, cache verification, browser startup, bundle size,
+and RP2350 heap/loop timing before optimizing them. Preserve command
+serialization, idempotent replies, transactional runtime slots, leases,
+watchdogs, and robot-identity checks.
+
+## Deferred empirical work
+
+- Wheel/track calibration, stopping distance, moving IMU/range comparison, and
+  all five physical challenges on the final course surface.
+- Windows/Edge, Chromebook-class Chromium, several nearby XRPs, and two laptops
+  addressing one robot.
+- Mobile hardware control and mobile WebM export; clear unsupported-capability
+  messages are sufficient.
+- Embedded browser Git or credential storage. Ordinary project folders plus
+  GitHub Desktop remain the lower-friction current approach.
+
+## Future external positioning seam
+
+Arena positioning will be an optional, provenance-bearing telemetry observation,
+not another odometry pose. Reserve independent fields for robot/tag identity,
+coordinate-frame identity, source timestamp, receive timestamp, `x_mm`, `y_mm`,
+optional heading, validity, and quality. It must remain distinct from estimated
+pose and simulator ground truth and must not affect control implicitly. When
+implemented, carry it through robot/service JSON, browser copying, archives, and
+a versioned recording/CSV schema.

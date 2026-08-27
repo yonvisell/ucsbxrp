@@ -2,10 +2,10 @@ digraph ControlCycle {
   graph [
     bgcolor="transparent",
     fontname="Arial",
-    nodesep=0.42,
+    nodesep=0.38,
     pad=0.08,
     rankdir=TB,
-    ranksep=0.82,
+    ranksep=0.62,
     splines=polyline
   ];
   node [
@@ -28,25 +28,31 @@ digraph ControlCycle {
     penwidth=1.1
   ];
 
-  main [label="main.py\nmission logic", color="#00588a", fillcolor="#eef4f7", group="left"];
-  drive [label="DifferentialDrive*\nwheel-speed targets", color="#39736f", fillcolor="#f3f8f7", group="center"];
-  controller [label="WheelSpeedController*\nmotor commands", color="#39736f", fillcolor="#f3f8f7", group="right"];
-  target [label="XRP target\nmotors and sensors", color="#8d7440", fillcolor="#f8f5ed", group="right"];
-  sensor [label="SensorModel*\nmeasurements", color="#39736f", fillcolor="#f3f8f7", group="center"];
-  odometry [label="Odometry*\nposition and heading", color="#39736f", fillcolor="#f3f8f7", group="left"];
+  main [label="main.py or\nsupplied mission", color="#00588a", fillcolor="#eef4f7"];
+  robot [label="Robot.step()\norchestrates sample", color="#00588a", fillcolor="#eef4f7"];
+  target [label="Selected XRP target\nmotors and sensors", color="#8d7440", fillcolor="#f8f5ed"];
 
-  { rank=same; main; drive; controller; }
-  { rank=same; odometry; sensor; target; }
+  drive [label="DifferentialDrive*\nWheelSpeeds", color="#39736f", fillcolor="#f3f8f7"];
+  controller [label="WheelSpeedController*\nDriveCommand", color="#39736f", fillcolor="#f3f8f7"];
+  bot [label="XRPBot\ndevice boundary", color="#667984", fillcolor="#ffffff"];
+  sensor [label="SensorModel*\nMeasurements", color="#39736f", fillcolor="#f3f8f7"];
+  odometry [label="Odometry*\nPose", color="#39736f", fillcolor="#f3f8f7"];
+  state [label="RobotState\nMeasurements + Pose", color="#667984", fillcolor="#ffffff"];
 
-  main -> drive [label="MotionCommand"];
+  { rank=same; bot; target; }
+
+  main -> robot [label="MotionCommand"];
+  robot -> drive [label="calls selected components"];
   drive -> controller [label="target wheel speeds"];
-  controller -> target [label="DriveCommand"];
-  odometry -> sensor -> target [style=invis, weight=100];
-  target -> sensor [label="RawSensors", constraint=false];
-  sensor -> odometry [label="wheel travel", constraint=false];
-  odometry -> main [label="RobotState"];
+  controller -> bot [label="motor command"];
+  bot -> target [label="DriveCommand /\nsensor values", dir=both];
+  bot -> sensor [label="RawSensors"];
+  sensor -> odometry [label="wheel increments"];
+  sensor -> state [label="Measurements"];
+  odometry -> state [label="Pose"];
+  state -> main [label="RobotState", constraint=false];
   sensor -> controller [
-    label="measured wheel speeds\n(next sample)",
+    label="latest measured wheel speeds\n(next step)",
     color="#006c64",
     fontcolor="#005f58",
     style=dashed,

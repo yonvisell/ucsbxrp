@@ -114,7 +114,7 @@ class ExampleTests(unittest.TestCase):
         self.assertIn("wheel_increment_mm: 6.283", output)
         self.assertIn("expected_increment_mm: 6.283", output)
         self.assertIn("instantaneous_wheel_speed_mm_s: 62.83", output)
-        self.assertIn("regularized_wheel_speed_mm_s: 34.90", output)
+        self.assertIn("estimated_wheel_speed_mm_s: 34.90", output)
         self.assertIn("calculated_drive_command: DriveCommand", output)
 
     def test_no_motion_sensor_example_writes_zero_only(self):

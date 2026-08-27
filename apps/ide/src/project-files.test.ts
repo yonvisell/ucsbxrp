@@ -799,7 +799,7 @@ describe("project-folder reads", () => {
     );
   });
 
-  it("rejects a Projects folder before reading files from its child projects", async () => {
+  it("rejects a Working folder before reading files from its child projects", async () => {
     const project = (name: string, marker: string) =>
       new ReadonlyDirectoryHandle(name, [
         [
@@ -821,7 +821,7 @@ describe("project-folder reads", () => {
     );
   });
 
-  it("lists only valid direct projects inside a Projects folder", async () => {
+  it("lists only valid direct projects inside a Working folder", async () => {
     const project = (folderName: string, projectName: string) =>
       new ReadonlyDirectoryHandle(folderName, [
         [

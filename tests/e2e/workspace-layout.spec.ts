@@ -32,6 +32,10 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await page.reload();
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
   await expect(
     page.getByRole("complementary", { name: "Project" }),
   ).toBeVisible();
@@ -68,6 +72,8 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
     .evaluate((element) => element.getBoundingClientRect().width);
   expect(targetWidth).toBeGreaterThanOrEqual(108);
 
+  await page.getByRole("button", { name: "Expand output" }).click();
+
   await page.setViewportSize({ width: 1320, height: 900 });
   await expect(
     page.getByRole("complementary", { name: "Project" }),
@@ -82,6 +88,9 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
         .querySelector(".monaco-editor")
         ?.getBoundingClientRect();
       return {
+        consoleHeight:
+          element.querySelector(".console-panel")?.getBoundingClientRect()
+            .height ?? 0,
         height: bounds.height,
         monacoHeight: monaco?.height ?? 0,
         monacoWidth: monaco?.width ?? 0,
@@ -90,8 +99,41 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
     });
   expect(expandedEditor.width).toBeGreaterThan(1120);
   expect(expandedEditor.height).toBeGreaterThan(840);
+  expect(expandedEditor.consoleHeight).toBeLessThanOrEqual(136);
   expect(expandedEditor.monacoWidth).toBeGreaterThan(1100);
-  expect(expandedEditor.monacoHeight).toBeGreaterThan(780);
+  expect(expandedEditor.monacoHeight).toBeGreaterThan(650);
+
+  for (const size of [
+    { width: 600, height: 760 },
+    { width: 1180, height: 840 },
+    { width: 820, height: 900 },
+    { width: 1320, height: 900 },
+  ]) {
+    await page.setViewportSize(size);
+    await expectShellFillsViewport(page, ".ide-app");
+    const editorGeometry = await page
+      .locator(".editor-frame")
+      .evaluate((element) => {
+        const frame = element.getBoundingClientRect();
+        const monaco = element
+          .querySelector(".monaco-editor")
+          ?.getBoundingClientRect();
+        return {
+          frameHeight: frame.height,
+          frameWidth: frame.width,
+          monacoHeight: monaco?.height ?? 0,
+          monacoWidth: monaco?.width ?? 0,
+        };
+      });
+    expect(editorGeometry.monacoWidth).toBeCloseTo(
+      editorGeometry.frameWidth,
+      0,
+    );
+    expect(editorGeometry.monacoHeight).toBeCloseTo(
+      editorGeometry.frameHeight,
+      0,
+    );
+  }
 });
 
 test("combined workspace shares Run and adapts between split and narrow layouts", async ({

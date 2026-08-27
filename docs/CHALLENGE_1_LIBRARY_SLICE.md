@@ -15,12 +15,12 @@ runs with simulated XRPLib in browser MicroPython or real XRPLib on the RP2350.
 - `course_setup.py` independently selects supplied or student components with
   explicit Boolean flags.
 
-`SensorModel` converts timestamped encoder counts to wheel positions,
-distance increments, and time-aware regularized wheel-speed estimates,
-increments, and speeds. `WheelSpeedController` converts requested and measured
-`WheelSpeeds` to bounded `DriveCommand`, with an exact zero command for a zero
-target. `StraightLineController` uses mean measured travel, slows near the
-destination, and stops within the specified position tolerance.
+`SensorModel` converts timestamped encoder counts to wheel positions, distance
+increments, and wheel-speed estimates based on recent timed samples.
+`WheelSpeedController` converts requested and measured `WheelSpeeds` to bounded
+`DriveCommand`, with an exact zero command for a zero target.
+`StraightLineController` uses mean measured travel, slows near the destination,
+and stops within the specified position tolerance.
 `Robot` owns the wrap-safe absolute sample schedule; the starter contains no
 manual sleep or periodic print loop.
 

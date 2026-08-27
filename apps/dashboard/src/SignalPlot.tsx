@@ -62,7 +62,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
     label: "Wheel speed",
     unit: "mm/s",
     description:
-      "Target wheel speeds and the regularized encoder-derived measurements used by the wheel controller.",
+      "Target wheel speeds and wheel-speed estimates based on recent encoder samples. The controller uses the same estimates.",
     series: [
       {
         label: "Measured L",

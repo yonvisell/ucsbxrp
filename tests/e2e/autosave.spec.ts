@@ -40,7 +40,7 @@ async function completeProjectFolderCreation(
   await expect(page.getByRole("dialog")).toBeVisible();
   await page
     .getByRole("button", {
-      name: /Create project|Save project|Choose Projects folder and (create|save)…/,
+      name: /Create project|Save project|Choose Working folder and (create|save)…/,
     })
     .click();
   await expect(page.getByTestId("project-folder")).toHaveText(expectedFolder);
@@ -101,9 +101,11 @@ test("creates the untouched default only after naming its project folder", async
   await installMemoryFolderPicker(ide);
   await ide.goto("/ide/");
 
-  await ide.getByRole("button", { name: "Save as project…" }).click();
+  await ide.getByRole("button", { name: "Save to folder…" }).click();
   await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
   const files = await readFolderFiles(ide, "student-course-project");
   expect(files["Expanding-spiral/main.py"]).toContain(
@@ -130,7 +132,7 @@ test("automatically saves project edits and retains four prior states", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Save as project…" }).click();
+  await ide.getByRole("button", { name: "Save to folder…" }).click();
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
 
   for (let revision = 1; revision <= 5; revision += 1) {

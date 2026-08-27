@@ -94,9 +94,51 @@ function developmentCourseFiles(): Plugin {
   };
 }
 
+/**
+ * Make every production Vite build a complete UCSBXRP release. Keeping these
+ * steps in the build lifecycle prevents a raw `vite build` from leaving HTML
+ * and JavaScript beside a missing or older offline worker.
+ */
+function productionCourseFiles(): Plugin {
+  let outputDirectory = path.resolve(projectRoot, "dist");
+
+  return {
+    name: "ucsb-xrp-production-course-files",
+    apply: "build",
+    configResolved(config) {
+      outputDirectory = path.resolve(config.root, config.build.outDir);
+    },
+    buildStart() {
+      execFileSync(
+        process.execPath,
+        [path.resolve(projectRoot, "scripts/render-guide-diagrams.mjs")],
+        { cwd: projectRoot, stdio: "inherit" },
+      );
+    },
+    closeBundle() {
+      execFileSync(
+        "python3",
+        [
+          path.resolve(projectRoot, "scripts/build_commissioning_bundle.py"),
+          path.join(outputDirectory, "course/commissioning"),
+        ],
+        { cwd: projectRoot, stdio: "inherit" },
+      );
+      execFileSync(
+        process.execPath,
+        [
+          path.resolve(projectRoot, "scripts/offline-build.mjs"),
+          outputDirectory,
+        ],
+        { cwd: projectRoot, stdio: "inherit" },
+      );
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
-  plugins: [react(), developmentCourseFiles()],
+  plugins: [react(), developmentCourseFiles(), productionCourseFiles()],
   assetsInclude: ["**/*.wasm"],
   optimizeDeps: {
     exclude: ["@micropython/micropython-webassembly-pyscript"],

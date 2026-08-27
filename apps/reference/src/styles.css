@@ -7,24 +7,7 @@
   position: sticky;
   z-index: 20;
   top: 0;
-  display: flex;
-  min-height: var(--app-header-height);
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--pane-line);
-  padding: 2px 8px;
   background: rgb(255 255 255 / 96%);
-}
-
-.reference-header nav {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.reference-header .tool-link:first-child {
-  border-left: 0;
 }
 
 .reference-layout {
@@ -38,7 +21,7 @@
 
 .reference-toc {
   position: sticky;
-  top: 47px;
+  top: calc(var(--course-header-height) + 20px);
   display: grid;
   max-height: calc(100vh - 58px);
   align-self: start;
@@ -356,15 +339,6 @@
 }
 
 @media (max-width: 760px) {
-  .reference-header {
-    flex-wrap: wrap;
-  }
-
-  .reference-header nav {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
   .reference-layout {
     display: block;
     width: min(100% - 20px, 900px);
@@ -397,7 +371,7 @@
   .function-reference,
   .record-reference,
   .class-reference {
-    scroll-margin-top: 72px;
+    scroll-margin-top: calc(var(--course-header-height) + 22px);
   }
 }
 

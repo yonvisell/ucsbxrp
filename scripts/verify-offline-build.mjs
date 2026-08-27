@@ -14,7 +14,9 @@ import {
 } from "./offline-build.mjs";
 
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const outputDirectory = path.join(projectRoot, "dist");
+const outputDirectory = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.join(projectRoot, "dist");
 const basePath = normalizeBasePath(process.env.COURSE_BASE_PATH ?? "/");
 
 const manifestText = await readFile(

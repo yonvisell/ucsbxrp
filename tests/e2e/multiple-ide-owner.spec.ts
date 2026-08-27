@@ -51,17 +51,24 @@ async function createProjectFolder(
   );
 }
 
-async function useFolderForNextPicker(
+async function openProject(
   page: Page,
   folderName: string,
+  projectName: string,
 ): Promise<void> {
-  await page.evaluate((name) => {
+  await page.evaluate(() => {
     Object.defineProperty(window, "showDirectoryPicker", {
       configurable: true,
-      value: async () =>
-        (await navigator.storage.getDirectory()).getDirectoryHandle(name),
+      value: async () => navigator.storage.getDirectory(),
     });
-  }, folderName);
+  });
+  await page.getByRole("button", { name: "Open project…" }).click();
+  await page
+    .getByRole("dialog", { name: "Open a project" })
+    .getByRole("button", {
+      name: `Open ${projectName} from ${folderName}`,
+    })
+    .click();
 }
 
 async function readActiveProjectAuthority(page: Page): Promise<{
@@ -267,8 +274,7 @@ test("standby project changes preserve reopen authority until explicit takeover"
     'print("STANDBY_B")\n',
     "standby-project-b-id",
   );
-  await useFolderForNextPicker(firstIde, "owner-project-a");
-  await firstIde.getByRole("button", { name: "Open project…" }).click();
+  await openProject(firstIde, "owner-project-a", "Owner project A");
   await expect(firstIde.getByTestId("project-folder")).toHaveText(
     "./owner-project-a",
   );
@@ -284,8 +290,7 @@ test("standby project changes preserve reopen authority until explicit takeover"
   await expect(standbyIde.getByTestId("project-owner-state")).toContainText(
     "Run uses another IDE tab",
   );
-  await useFolderForNextPicker(standbyIde, "standby-project-b");
-  await standbyIde.getByRole("button", { name: "Open project…" }).click();
+  await openProject(standbyIde, "standby-project-b", "Standby project B");
   await expect(standbyIde.getByTestId("project-folder")).toHaveText(
     "./standby-project-b",
   );
@@ -336,8 +341,7 @@ test("Monitor cannot replace active project authority with stale archive metadat
     'print("ARCHIVE_ONLY")\n',
     "monitor-archive-choice-id",
   );
-  await useFolderForNextPicker(ide, "monitor-owner-project");
-  await ide.getByRole("button", { name: "Open project…" }).click();
+  await openProject(ide, "monitor-owner-project", "Monitor owner project");
   await expect
     .poll(() => readActiveProjectAuthority(ide))
     .toEqual({

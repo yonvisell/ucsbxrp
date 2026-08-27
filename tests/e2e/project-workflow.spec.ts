@@ -64,24 +64,24 @@ test("groups folder actions separately from file creation and import", async ({
     projectActions.getByRole("button", { name: "New project…" }),
   ).toBeVisible();
   await expect(
-    projectActions.getByRole("button", { name: "Save as project…" }),
+    projectActions.getByRole("button", { name: "Save to folder…" }),
   ).toBeVisible();
 
   const fileActions = page.getByRole("group", {
-    name: "Create or add project files",
+    name: "Create or import project files",
   });
   await expect(
     fileActions.getByRole("button", { name: "New file…" }),
   ).toBeVisible();
   await expect(
-    fileActions.getByRole("button", { name: "Add files…" }),
+    fileActions.getByRole("button", { name: "Import files…" }),
   ).toBeVisible();
   await expect(
     fileActions.getByRole("button", { name: "Open project…" }),
   ).toHaveCount(0);
 });
 
-test("Open project rejects a Projects folder without flattening its child projects", async ({
+test("Open project lists project folders inside the selected Working folder", async ({
   page,
 }) => {
   await page.goto("/ide/");
@@ -132,18 +132,18 @@ test("Open project rejects a Projects folder without flattening its child projec
     .textContent();
   await page.getByRole("button", { name: "Open project…" }).click();
 
-  await expect(page.locator(".project-operation-detail")).toContainText(
-    "This folder contains multiple project folders (alpha, beta). Choose one project folder rather than their parent folder.",
-  );
+  const dialog = page.getByRole("dialog", { name: "Open a project" });
+  await expect(
+    dialog.getByRole("button", { name: "Open alpha from alpha" }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Open beta from beta" }),
+  ).toBeVisible();
   await expect(page.getByTestId("project-folder")).toHaveText(
     originalFolderLabel ?? "",
   );
-  await expect(
-    page.getByRole("button", { name: /Open alpha\/main\.py/ }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: /Open beta\/main\.py/ }),
-  ).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Open beta from beta" }).click();
+  await expect(page.getByTestId("project-folder")).toHaveText("./beta");
   const childSources = await page.evaluate(async () => {
     const browserRoot = await navigator.storage.getDirectory();
     const workingFolder = await browserRoot.getDirectoryHandle(
@@ -158,7 +158,7 @@ test("Open project rejects a Projects folder without flattening its child projec
   expect(childSources).toEqual(['print("alpha")\n', 'print("beta")\n']);
 });
 
-test("opens a valid project even when another Projects folder is remembered", async ({
+test("Open uses the remembered Working folder rather than a direct project picker", async ({
   page,
 }) => {
   await page.goto("/ide/");
@@ -221,50 +221,58 @@ test("opens a valid project even when another Projects folder is remembered", as
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const projectStorage = page
     .locator(".project-setting-state")
-    .filter({ hasText: "Projects folder" });
+    .filter({ hasText: "Working folder" });
   await expect(projectStorage.locator("strong")).toHaveText(
     "remembered-projects",
   );
   await page.getByRole("button", { name: "Close settings" }).click();
   await page.evaluate(() => {
+    (window as Window & { pickerCalls?: number }).pickerCalls = 0;
     Object.defineProperty(window, "showDirectoryPicker", {
       configurable: true,
-      value: async () =>
-        (await navigator.storage.getDirectory()).getDirectoryHandle(
+      value: async () => {
+        (window as Window & { pickerCalls?: number }).pickerCalls =
+          ((window as Window & { pickerCalls?: number }).pickerCalls ?? 0) + 1;
+        return (await navigator.storage.getDirectory()).getDirectoryHandle(
           "external-project",
-        ),
+        );
+      },
     });
   });
 
+  const originalProject = await page.getByTestId("project-name").textContent();
   await page.getByRole("button", { name: "Open project…" }).click();
   await expect(
     page.getByRole("heading", { name: "Open a project" }),
   ).toBeVisible();
   await expect(
     page.getByText(
-      "No valid UCSBXRP project folders were found directly inside this Projects folder.",
+      "No valid UCSBXRP project folders were found directly inside this Working folder.",
     ),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Open project folder elsewhere…" })
-    .click();
+  expect(
+    await page.evaluate(
+      () => (window as Window & { pickerCalls?: number }).pickerCalls ?? 0,
+    ),
+  ).toBe(0);
+  await page.getByRole("button", { name: "Change Working folder…" }).click();
 
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "./external-project",
+  await expect(page.getByTestId("project-name")).toHaveText(
+    originalProject ?? "",
   );
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const recovered = JSON.parse(
-          localStorage.getItem("ucsb-xrp-course-project-v2") ?? "{}",
-        );
-        return (recovered.project ?? recovered).files?.["main.py"] ?? null;
-      }),
-    )
-    .toBe('print("outside remembered parent")\n');
+  await expect(
+    page.getByText(
+      "No valid UCSBXRP project folders were found directly inside this Working folder.",
+    ),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => (window as Window & { pickerCalls?: number }).pickerCalls ?? 0,
+    ),
+  ).toBe(1);
 });
 
-test("lists direct projects in the remembered Projects folder and opens one without another picker", async ({
+test("lists direct projects in the remembered Working folder and opens one without another picker", async ({
   page,
 }) => {
   await page.goto("/ide/");
@@ -408,7 +416,51 @@ test("requires an explicit storage choice for a new project", async ({
       name: "Open main.py (main file)",
     }),
   ).toBeVisible();
-  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
+});
+
+test("cancelling Working folder selection leaves the current project unchanged", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  const originalName = await page.getByTestId("project-name").textContent();
+  const originalFolder = await page.getByTestId("project-folder").textContent();
+  await page.evaluate(() => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => {
+        throw new DOMException("Folder selection cancelled", "AbortError");
+      },
+    });
+  });
+
+  await page.getByRole("button", { name: "Open project…" }).click();
+  await expect(page.getByTestId("project-name")).toHaveText(originalName ?? "");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    originalFolder ?? "",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Open a project" }),
+  ).toHaveCount(0);
+
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByLabel("Project template")
+    .selectOption("micropython_tutorial");
+  await page
+    .getByRole("button", { name: "Choose Working folder and create…" })
+    .click();
+  await expect(page.getByTestId("project-name")).toHaveText(originalName ?? "");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    originalFolder ?? "",
+  );
+  await expect(
+    page.getByText(
+      "No Working folder was selected. The current project is unchanged.",
+    ),
+  ).toBeVisible();
 });
 
 test("exposes the previous unsaved browser draft after creating a folder-backed project", async ({
@@ -420,18 +472,20 @@ test("exposes the previous unsaved browser draft after creating a folder-backed 
     .getByLabel("Project template")
     .selectOption("micropython_tutorial");
   await page
-    .getByRole("button", { name: "Choose Projects folder and create…" })
+    .getByRole("button", { name: "Choose Working folder and create…" })
     .click();
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const previous = page.getByRole("button", {
-    name: "Open previous draft · Expanding spiral",
+    name: "Open previous unsaved project · Expanding spiral",
   });
   await expect(previous).toBeVisible();
   await previous.click();
 
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
   await expect(previous).toHaveCount(0);
 });
 
@@ -439,16 +493,16 @@ test("does not retain an identical draft when saving the current project", async
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByRole("button", { name: "Save as project…" }).click();
+  await page.getByRole("button", { name: "Save to folder…" }).click();
   await page
-    .getByRole("button", { name: "Choose Projects folder and save…" })
+    .getByRole("button", { name: "Choose Working folder and save…" })
     .click();
 
   await expect(page.getByTestId("project-folder")).toHaveText(
     "./Expanding-spiral",
   );
   await expect(
-    page.getByRole("button", { name: /Open previous draft/ }),
+    page.getByRole("button", { name: /Open previous unsaved project/ }),
   ).toHaveCount(0);
 });
 
@@ -535,13 +589,13 @@ test("stale parent metadata cannot flatten legacy child project trees", async ({
   });
 });
 
-test("choosing a Projects folder keeps the current project attached and saving", async ({
+test("choosing a Working folder keeps the current project attached and saving", async ({
   page,
 }) => {
   await page.goto("/ide/");
   await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory();
-    for (const name of ["location-project-a", "projects-location-b"]) {
+    for (const name of ["projects-location-a", "projects-location-b"]) {
       try {
         await root.removeEntry(name, { recursive: true });
       } catch (error) {
@@ -553,9 +607,18 @@ test("choosing a Projects folder keeps the current project attached and saving",
         }
       }
     }
-    const project = await root.getDirectoryHandle("location-project-a", {
-      create: true,
-    });
+    const firstWorkingFolder = await root.getDirectoryHandle(
+      "projects-location-a",
+      {
+        create: true,
+      },
+    );
+    const project = await firstWorkingFolder.getDirectoryHandle(
+      "location-project-a",
+      {
+        create: true,
+      },
+    );
     await root.getDirectoryHandle("projects-location-b", { create: true });
     const write = async (name: string, content: string) => {
       const file = await project.getFileHandle(name, { create: true });
@@ -579,10 +642,15 @@ test("choosing a Projects folder keeps the current project attached and saving",
     await write("main.py", 'print("LOCATION_A")\n');
     Object.defineProperty(window, "showDirectoryPicker", {
       configurable: true,
-      value: async () => project,
+      value: async () => firstWorkingFolder,
     });
   });
   await page.getByRole("button", { name: "Open project…" }).click();
+  await page
+    .getByRole("button", {
+      name: "Open Location project A from location-project-a",
+    })
+    .click();
   await expect(page.getByTestId("project-folder")).toHaveText(
     "./location-project-a",
   );
@@ -602,7 +670,7 @@ test("choosing a Projects folder keeps the current project attached and saving",
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page
     .getByRole("button", {
-      name: "Choose Projects folder…",
+      name: "Change Working folder…",
     })
     .click();
 
@@ -625,7 +693,11 @@ test("choosing a Projects folder keeps the current project attached and saving",
     .poll(() =>
       page.evaluate(async () => {
         const root = await navigator.storage.getDirectory();
-        const project = await root.getDirectoryHandle("location-project-a");
+        const firstWorkingFolder = await root.getDirectoryHandle(
+          "projects-location-a",
+        );
+        const project =
+          await firstWorkingFolder.getDirectoryHandle("location-project-a");
         const main = await project.getFileHandle("main.py");
         return (await main.getFile()).text();
       }),
@@ -643,7 +715,7 @@ test("creates the next challenge project and carries forward only earlier studen
     page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Choose Projects folder and create…" })
+    .getByRole("button", { name: "Choose Working folder and create…" })
     .click();
 
   await page.getByRole("button", { name: "New project…", exact: true }).click();
@@ -709,7 +781,9 @@ test("continues to the next challenge after saving a browser draft once", async 
   await page.getByRole("button", { name: "Continue without a folder" }).click();
 
   await expect(page.getByTestId("project-name")).toHaveText("1 · Straight Run");
-  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
 
   await page
     .getByRole("button", {
@@ -717,10 +791,10 @@ test("continues to the next challenge after saving a browser draft once", async 
     })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Save as a project" }),
+    page.getByRole("heading", { name: "Save to a folder" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Choose Projects folder and save…" })
+    .getByRole("button", { name: "Choose Working folder and save…" })
     .click();
 
   await expect(
@@ -739,11 +813,11 @@ test("continues to the next challenge after saving a browser draft once", async 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(
     page.getByRole("button", {
-      name: "Open previous draft · Expanding spiral",
+      name: "Open previous unsaved project · Expanding spiral",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Open previous draft · 1/ }),
+    page.getByRole("button", { name: /Open previous unsaved project · 1/ }),
   ).toHaveCount(0);
 });
 
@@ -766,7 +840,7 @@ test("continues between browser drafts when folder access is unavailable", async
       name: "Continue to Challenge 2 · Turn and Return…",
     })
     .click();
-  await page.getByRole("button", { name: "Keep browser draft" }).click();
+  await page.getByRole("button", { name: "Keep without a folder" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Create a project" }),
@@ -778,7 +852,9 @@ test("continues between browser drafts when folder access is unavailable", async
   await expect(page.getByTestId("project-name")).toHaveText(
     "2 · Turn and Return",
   );
-  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Not saved to a folder",
+  );
 });
 
 test("imports text files without overwriting an existing project file", async ({

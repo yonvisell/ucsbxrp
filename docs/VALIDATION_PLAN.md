@@ -63,8 +63,9 @@ observations are retained in one JSON record under `docs/hardware/`.
 - Derive tolerances from encoder quantization, simulation integration, and
   sensor resolution instead of one unexplained global epsilon.
 - Cover straight, curved, and in-place motion; wheel and encoder sign
-  conventions; regularized wheel-speed estimation; odometry; navigation state
-  changes; valid connected routes; blocked routes; and mission outcomes.
+  conventions; wheel-speed estimation from recent timed samples; odometry;
+  navigation state changes; valid connected routes; blocked routes; and mission
+  outcomes.
 - Test challenge requirements without prescribing the retained reference
   implementation, a particular route-search data structure, or one tie break.
 - Treat captured physical data as one robot observation, not universal ground
@@ -103,7 +104,7 @@ different project, target, or Monitor failure. The production suite covers:
 
 - first load, offline reload, update adoption at a safe boundary, root and
   repository-subpath deployment, and browser capability messages;
-- default project, Open project, Save as project, template creation, file
+- default project, Open project, Save to folder, template creation, file
   operations, main-file selection, automatic save, rotating copies, conflict
   recovery, and external folder changes;
 - multiple IDE tabs, explicit project ownership, Monitor-only virtual Run,

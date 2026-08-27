@@ -55,7 +55,7 @@ export interface FolderReadResult {
 }
 
 export interface ProjectFolderCandidate {
-  /** Direct child folder inside the selected Projects folder. */
+  /** Direct child folder inside the selected Working folder. */
   folder: CourseDirectoryHandle;
   folderName: string;
   projectName: string;
@@ -232,7 +232,7 @@ async function readProjectFolderMetadata(
   } catch (error) {
     if (isNotFoundError(error)) {
       throw new ProjectFolderMetadataError(
-        `This is not a UCSBXRP project folder. Choose the project folder that contains ${projectMetadataFile}, not the Projects folder that contains several projects.`,
+        `This is not a UCSBXRP project folder. Choose the project folder that contains ${projectMetadataFile}, not the Working folder that contains several projects.`,
       );
     }
     throw error;
@@ -752,7 +752,7 @@ async function likelyDirectProjectChildren(
 }
 
 /**
- * Return the valid UCSBXRP projects immediately inside a Projects folder.
+ * Return the valid UCSBXRP projects immediately inside a Working folder.
  * The full project reader is deliberately reused here so the chooser never
  * advertises a malformed, nested, or otherwise unreadable project as safe to
  * open. Files are only read; nothing is written until the student edits the
@@ -784,7 +784,7 @@ export async function listDirectProjectFolders(
         fileCount: Object.keys(opened.project.files).length,
       });
     } catch {
-      // A Projects folder may also contain notes, exports, or incomplete
+      // A Working folder may also contain notes, exports, or incomplete
       // folders. They remain untouched and are not presented as projects.
     }
   }

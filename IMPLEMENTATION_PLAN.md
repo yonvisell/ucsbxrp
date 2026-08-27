@@ -15,12 +15,16 @@ web and course-material changes do not necessarily change the robot runtime.
 The retained evidence is summarized at the top of `STATUS.md` and in
 `docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
 
+The active browser/course bundle is `2026.08-dev.37`. It accepts compatible
+robot runtimes from generation 36 onward; its higher release identity does not
+by itself require repairing a dev.36 robot.
+
 The baseline includes:
 
 - one MicroPython project and public `ucsb_xrp` API for virtual and physical
   targets;
-- five challenge starters, two robot demos, and a seven-lesson MicroPython
-  tutorial;
+- five challenge starters, two robot demos, and four active tutorial projects
+  covering Python, virtual drawing, sampled robot programs, and telemetry;
 - folder-backed projects with browser-draft fallback, automatic saves, output,
   telemetry, and conflict detection;
 - shared IDE/Monitor project ownership, Run/Stop/Reset state, program output,
@@ -44,9 +48,9 @@ Those remain empirical work rather than inferred passes.
   timing, hardware, telemetry, and course behavior in supplied code.
 - Preserve the separation between the browser connection layer, the
   MicroPython course package, the physical service, and simulated hardware.
-- Treat the project folder as the authoritative native project when permission
-  is available. Browser storage is a temporary or recovery copy, not a second
-  project model.
+- Treat the Project folder as the authoritative native project when permission
+  is available. A Working folder is only its parent. Browser storage preserves
+  a temporary draft; it is not a second folder tree.
 - Retain transactional runtime installation, exact project revision transfer,
   command serialization, and explicit robot identity. Simplification must not
   weaken those boundaries.
@@ -72,7 +76,9 @@ collection of implementation controls.
   command a literal action label, including connection recovery.
 - Keep one visible source of truth for the active project, main file, target,
   validation state, prepared robot project, and program state.
-- Exercise project creation, Open project, Save as project, file operations,
+- Explain the Working-folder choice before opening the system directory picker;
+  cancellation or denied permission must preserve the current project.
+- Exercise project creation, Open project, Save to folder, file operations,
   challenge progression, multiple IDE tabs, Monitor-only virtual Run, and
   physical-error recovery after the interface changes.
 
@@ -83,7 +89,9 @@ storage implementation.
 ## Next stage — Student materials and course-project consistency
 
 Reconcile the Guide, API reference, template READMEs, tutorial, challenge
-controls, and application language with the actual current workflow.
+controls, and application language with the actual current workflow. Most of
+this surface has already been revised; use a short novice walkthrough to find
+remaining confusion instead of another wholesale prose rewrite.
 
 - Describe each challenge task, student responsibility, supplied support, and
   measurable result in literal undergraduate-facing language.
@@ -128,9 +136,11 @@ browser state.
 Begin only after the preceding browser and robot workflows pass on one frozen
 baseline.
 
-- Separate application-build, course-content, public-API, robot-runtime, and
-  challenge-template identities. Update one layer without forcing unrelated
-  robot repair or replacing student work.
+- Keep the existing content-derived offline-manifest identity for application
+  assets. Treat robot release sequence and its minimum-compatible floor
+  separately; raise the floor only for an incompatible runtime change.
+- Add challenge-template revision and base-content identity so an instructor
+  correction can be offered without replacing student work.
 - Keep one verified robot profile with explicit station and hotspot routes.
   Rediscovery after restart may try known routes, but only an identity-checked
   response can become current.
@@ -149,13 +159,14 @@ intact.
 - Review the current authoring tool with a genuinely new curriculum-appropriate
   challenge, including generated project, virtual execution, telemetry, and
   export.
-- Replace raw world JSON entry with a compact visual editor for walls,
-  rectangles, arena bounds, start and finish regions, lines, and waypoint
-  markers while retaining a readable project-owned `world.json` file.
+- Reuse the completed visual world editor for the generated project and, only
+  if students must alter a world, offer the same editor for project-owned
+  `world.json` while retaining readable JSON as the advanced representation.
 - Keep student-component declarations, carried-forward work, supplied files,
   evidence, and publication data explicit in the challenge specification.
-- Generate an unpublished project first; publication remains a deliberate
-  instructor operation after functional and instructional review.
+- Let the browser produce an immediately usable unpublished project through
+  Open draft in IDE or a downloadable project archive. Publication remains a
+  deliberate instructor operation after functional and instructional review.
 
 Usable result: another instructor can create, inspect, test, revise, and publish
 a challenge without editing generator internals.

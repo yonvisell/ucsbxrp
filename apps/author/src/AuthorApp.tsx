@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import authoringInstructionsUrl from "../../../docs/INSTRUCTOR_CHALLENGE_AUTHORING.md?url";
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
-import { AppNavigation } from "../../shared/AppNavigation";
+import { CourseHeader } from "../../shared/CourseHeader";
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import {
   registerOfflineShellBeforeReload,
@@ -86,7 +86,6 @@ const componentDefaults: ChallengeComponentSpec[] = [
 function clonedExample(): ChallengeSpec {
   return JSON.parse(exampleSource) as ChallengeSpec;
 }
-
 function blankSpec(): ChallengeSpec {
   const value = clonedExample();
   return {
@@ -380,410 +379,415 @@ export function AuthorApp() {
     .filter(({ component }) => !defaultClasses.has(component.class_name));
 
   return (
-    <main className="author-shell">
-      <header className="author-header">
-        <div>
-          <p className="eyebrow">Instructor tool</p>
-          <h1>UCSBXRP challenge specification editor</h1>
-          <p>
-            Create and check a challenge specification, then download it as
-            JSON. This page does not modify the repository or student catalog.
-            Repository integration, project testing, review, and publication are
-            separate instructor steps.
-          </p>
-        </div>
-        <div>
-          <AppNavigation />
-          <OfflineReadiness
-            appName="the challenge editor"
-            pendingUpdateDetail="A newer UCSBXRP course release is saved in Chrome. Download the checked specification or restore the built-in example; the challenge editor will then reopen on the new release."
-          />
-        </div>
-      </header>
-
-      <div className="author-actions" aria-label="Specification examples">
-        <label className="file-open-button">
-          Open saved specification
-          <input
-            accept="application/json,.json"
-            type="file"
-            onClick={() => {
-              fileInteractionActiveRef.current = true;
-            }}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              void openSpecification(file).finally(() => {
-                fileInteractionActiveRef.current = false;
-                retryPendingOfflineShellReload();
-              });
-            }}
-            ref={specificationInputRef}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => replaceExample(clonedExample(), true)}
-        >
-          Load working slalom example
-        </button>
-        <button type="button" onClick={() => replaceExample(blankSpec())}>
-          Start a blank specification
-        </button>
-      </div>
-
-      <section className="author-section" aria-labelledby="structure-heading">
-        <div className="section-number">1</div>
-        <div>
-          <h2 id="structure-heading">Select an existing program structure</h2>
-          <p>
-            Choose the published challenge whose control flow is closest to the
-            new task. The later repository command copies that complete project;
-            it does not combine unrelated challenge implementations.
-          </p>
-          <div className="field-grid">
-            <label>
-              Starting challenge
-              <select
-                value={spec.source_id}
-                onChange={(event) => update("source_id", event.target.value)}
-              >
-                {sources.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <FieldHelp>
-                Determines the copied files and default mission flow.
-              </FieldHelp>
-              <button
-                className="inline-field-button"
-                type="button"
-                onClick={loadStartingWorld}
-              >
-                Load this challenge&apos;s example world
-              </button>
-            </label>
-            <label>
-              Challenge ID
-              <input
-                value={spec.id}
-                onChange={(event) => update("id", event.target.value)}
-                placeholder="challenge_6"
-              />
-              <FieldHelp>
-                Stable catalog and folder name; use challenge_N.
-              </FieldHelp>
-            </label>
-            <label>
-              Student-facing title
-              <input
-                value={spec.title}
-                onChange={(event) => update("title", event.target.value)}
-              />
-            </label>
-            <label>
-              Catalog summary
-              <input
-                value={spec.summary}
-                onChange={(event) => update("summary", event.target.value)}
-              />
-              <FieldHelp>
-                One sentence describing the observable task.
-              </FieldHelp>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <section className="author-section" aria-labelledby="learning-heading">
-        <div className="section-number">2</div>
-        <div>
-          <h2 id="learning-heading">Define student work and evidence</h2>
-          <label>
-            Objective
-            <textarea
-              rows={4}
-              value={spec.objective}
-              onChange={(event) => update("objective", event.target.value)}
-            />
-            <FieldHelp>
-              State what the robot does, what students implement, and the
-              comparison or conclusion supported by measured evidence.
-            </FieldHelp>
-          </label>
-          <fieldset>
-            <legend>Student implementations</legend>
-            <p className="field-help">
-              Select only components whose implementation is assessed in this
-              challenge. Edit the responsibility to make the boundary explicit.
-            </p>
-            <div className="component-list">
-              {componentDefaults.map((component) => {
-                const selected = selectedClasses.has(component.class_name);
-                const current = spec.student_implementations.find(
-                  (item) => item.class_name === component.class_name,
-                );
-                return (
-                  <div className="component-row" key={component.class_name}>
-                    <label className="component-choice">
-                      <input
-                        checked={selected}
-                        type="checkbox"
-                        onChange={(event) =>
-                          toggleComponent(component, event.target.checked)
-                        }
-                      />
-                      <code>{component.class_name}</code>
-                    </label>
-                    <textarea
-                      aria-label={`${component.class_name} responsibility`}
-                      disabled={!selected}
-                      rows={2}
-                      value={
-                        current?.responsibility ?? component.responsibility
-                      }
-                      onChange={(event) =>
-                        updateResponsibility(
-                          component.class_name,
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                );
-              })}
-              {additionalComponents.map(
-                ({ component, index }, visibleIndex) => (
-                  <div
-                    className="additional-component-row"
-                    key={`additional-${index}`}
-                  >
-                    <label>
-                      File
-                      <input
-                        aria-label={`Additional component ${visibleIndex + 1} file`}
-                        placeholder="localizer.py"
-                        value={component.file}
-                        onChange={(event) =>
-                          updateComponent(index, "file", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      Class
-                      <input
-                        aria-label={`Additional component ${visibleIndex + 1} class`}
-                        placeholder="Localizer"
-                        value={component.class_name}
-                        onChange={(event) =>
-                          updateComponent(
-                            index,
-                            "class_name",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      Selection flag
-                      <input
-                        aria-label={`Additional component ${visibleIndex + 1} selection flag`}
-                        placeholder="USE_STUDENT_LOCALIZER"
-                        value={component.selection_flag}
-                        onChange={(event) =>
-                          updateComponent(
-                            index,
-                            "selection_flag",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      Responsibility
-                      <textarea
-                        aria-label={`Additional component ${visibleIndex + 1} responsibility`}
-                        placeholder="State the inputs, required result, and retained state."
-                        rows={2}
-                        value={component.responsibility}
-                        onChange={(event) =>
-                          updateComponent(
-                            index,
-                            "responsibility",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </label>
-                    <button
-                      aria-label={`Remove additional component ${visibleIndex + 1}`}
-                      type="button"
-                      onClick={() => removeComponent(index)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ),
-              )}
-              <button
-                className="add-component-button"
-                type="button"
-                onClick={addComponent}
-              >
-                Add another component
-              </button>
-              <FieldHelp>
-                A new component also needs complete file overrides for its
-                module, course_setup.py integration, and hardware-free examples
-                in component_checks.py.
-              </FieldHelp>
-            </div>
-          </fieldset>
-          <div className="field-grid text-grid">
-            <label>
-              Required evidence — one item per line
-              <textarea
-                rows={6}
-                value={evidenceSource}
-                onChange={(event) => setEvidenceSource(event.target.value)}
-              />
-            </label>
-            <label>
-              Student work sequence — one step per line
-              <textarea
-                rows={6}
-                value={sequenceSource}
-                onChange={(event) => setSequenceSource(event.target.value)}
-              />
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <section className="author-section" aria-labelledby="project-heading">
-        <div className="section-number">3</div>
-        <div>
-          <h2 id="project-heading">Define the supplied project</h2>
-          <div className="field-grid text-grid">
-            <label>
-              Supplied files and services — name | use
-              <textarea
-                rows={8}
-                value={suppliedSource}
-                onChange={(event) => setSuppliedSource(event.target.value)}
-              />
-              <FieldHelp>
-                Include world.json once and describe each supplied item
-                objectively.
-              </FieldHelp>
-            </label>
-            <label>
-              Program sequence — one step per line
-              <textarea
-                rows={8}
-                value={spec.program_flow}
-                onChange={(event) => update("program_flow", event.target.value)}
-              />
-              <FieldHelp>
-                State the execution order in short sentences and name the data
-                passed between important parts.
-              </FieldHelp>
-            </label>
-          </div>
-          <div className="world-editor-field">
-            <h3>World configuration</h3>
-            <p className="field-help">
-              Arrange the measured arena, initial XRP pose, obstacles, and
-              markers. Waypoints enter the route in the order shown. Geometry
-              outside the arena is reported rather than moved automatically.
-            </p>
-            <WorldEditor source={worldSource} onChange={setWorldSource} />
-          </div>
-          <details>
-            <summary>Optional project-file overrides</summary>
+    <div className="author-app">
+      <CourseHeader />
+      <main className="author-shell">
+        <header className="author-intro">
+          <div>
+            <h1>Challenge creation</h1>
             <p>
-              Leave this as <code>{"{}"}</code> to retain the copied working
-              code. To change the mission structure, map project-relative file
-              names to complete text. Python files are syntax-checked before
-              draft creation.
+              Create and check a challenge specification, then download it as
+              JSON. This page does not modify the repository or student catalog.
+              Repository integration, project testing, review, and publication
+              are separate instructor steps.
             </p>
-            <textarea
-              aria-label="Project file overrides as JSON"
-              className="code-input large-code-input"
-              rows={14}
-              spellCheck={false}
-              value={filesSource}
-              onChange={(event) => setFilesSource(event.target.value)}
+          </div>
+          <div className="author-intro-status">
+            <OfflineReadiness
+              appName="the challenge editor"
+              pendingUpdateDetail="A newer UCSBXRP course release is saved in Chrome. Download the checked specification or restore the built-in example; the challenge editor will then reopen on the new release."
             />
-          </details>
-        </div>
-      </section>
+          </div>
+        </header>
 
-      <section className="author-section" aria-labelledby="review-heading">
-        <div className="section-number">4</div>
-        <div>
-          <h2 id="review-heading">Check and download the specification</h2>
-          <div
-            className={
-              currentSpec.errors.length === 0 ? "review-ok" : "review-errors"
-            }
-            role="status"
+        <div className="author-actions" aria-label="Specification examples">
+          <label className="file-open-button">
+            Open saved specification
+            <input
+              accept="application/json,.json"
+              type="file"
+              onClick={() => {
+                fileInteractionActiveRef.current = true;
+              }}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void openSpecification(file).finally(() => {
+                  fileInteractionActiveRef.current = false;
+                  retryPendingOfflineShellReload();
+                });
+              }}
+              ref={specificationInputRef}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => replaceExample(clonedExample(), true)}
           >
-            {currentSpec.errors.length === 0 ? (
-              <p>
-                Specification checks pass. No repository files have been created
-                or checked.
-              </p>
-            ) : (
-              <>
-                <p>{currentSpec.errors.length} item(s) require attention:</p>
-                <ul>
-                  {currentSpec.errors.map((error) => (
-                    <li key={error}>{error}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-          <div className="create-row">
-            <button
-              className="primary-button"
-              disabled={currentSpec.errors.length > 0}
-              title={
-                currentSpec.errors.length > 0
-                  ? "Resolve the listed specification errors before downloading"
-                  : "Download this checked challenge specification"
-              }
-              type="button"
-              onClick={download}
-            >
-              Download checked specification
-            </button>
-            <button type="button" onClick={copyCommand}>
-              Copy repository command
-            </button>
-            <code>{command}</code>
-          </div>
-          <nav
-            aria-label="Challenge authoring references"
-            className="author-reference-links"
-          >
-            <a href={authoringInstructionsUrl}>Authoring instructions</a>
-            <a href="../overview/#authoring">Technical overview</a>
-          </nav>
-          <p className="field-help">
-            After downloading the JSON, an instructor may run this command from
-            the UCSBXRP repository. It creates an unpublished project and runs
-            repository checks. Review and test that project before using the
-            separate publication command described in Authoring instructions.
-          </p>
-          <p aria-live="polite" className="author-message">
-            {message}
-          </p>
+            Load working slalom example
+          </button>
+          <button type="button" onClick={() => replaceExample(blankSpec())}>
+            Start a blank specification
+          </button>
         </div>
-      </section>
-    </main>
+
+        <section className="author-section" aria-labelledby="structure-heading">
+          <div className="section-number">1</div>
+          <div>
+            <h2 id="structure-heading">Select an existing program structure</h2>
+            <p>
+              Choose the published challenge whose control flow is closest to
+              the new task. The later repository command copies that complete
+              project; it does not combine unrelated challenge implementations.
+            </p>
+            <div className="field-grid">
+              <label>
+                Starting challenge
+                <select
+                  value={spec.source_id}
+                  onChange={(event) => update("source_id", event.target.value)}
+                >
+                  {sources.map(([id, label]) => (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <FieldHelp>
+                  Determines the copied files and default mission flow.
+                </FieldHelp>
+                <button
+                  className="inline-field-button"
+                  type="button"
+                  onClick={loadStartingWorld}
+                >
+                  Load this challenge&apos;s example world
+                </button>
+              </label>
+              <label>
+                Challenge ID
+                <input
+                  value={spec.id}
+                  onChange={(event) => update("id", event.target.value)}
+                  placeholder="challenge_6"
+                />
+                <FieldHelp>
+                  Stable catalog and folder name; use challenge_N.
+                </FieldHelp>
+              </label>
+              <label>
+                Student-facing title
+                <input
+                  value={spec.title}
+                  onChange={(event) => update("title", event.target.value)}
+                />
+              </label>
+              <label>
+                Catalog summary
+                <input
+                  value={spec.summary}
+                  onChange={(event) => update("summary", event.target.value)}
+                />
+                <FieldHelp>
+                  One sentence describing the observable task.
+                </FieldHelp>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section className="author-section" aria-labelledby="learning-heading">
+          <div className="section-number">2</div>
+          <div>
+            <h2 id="learning-heading">Define student work and evidence</h2>
+            <label>
+              Objective
+              <textarea
+                rows={4}
+                value={spec.objective}
+                onChange={(event) => update("objective", event.target.value)}
+              />
+              <FieldHelp>
+                State what the robot does, what students implement, and the
+                comparison or conclusion supported by measured evidence.
+              </FieldHelp>
+            </label>
+            <fieldset>
+              <legend>Student implementations</legend>
+              <p className="field-help">
+                Select only components whose implementation is assessed in this
+                challenge. Edit the responsibility to make the boundary
+                explicit.
+              </p>
+              <div className="component-list">
+                {componentDefaults.map((component) => {
+                  const selected = selectedClasses.has(component.class_name);
+                  const current = spec.student_implementations.find(
+                    (item) => item.class_name === component.class_name,
+                  );
+                  return (
+                    <div className="component-row" key={component.class_name}>
+                      <label className="component-choice">
+                        <input
+                          checked={selected}
+                          type="checkbox"
+                          onChange={(event) =>
+                            toggleComponent(component, event.target.checked)
+                          }
+                        />
+                        <code>{component.class_name}</code>
+                      </label>
+                      <textarea
+                        aria-label={`${component.class_name} responsibility`}
+                        disabled={!selected}
+                        rows={2}
+                        value={
+                          current?.responsibility ?? component.responsibility
+                        }
+                        onChange={(event) =>
+                          updateResponsibility(
+                            component.class_name,
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  );
+                })}
+                {additionalComponents.map(
+                  ({ component, index }, visibleIndex) => (
+                    <div
+                      className="additional-component-row"
+                      key={`additional-${index}`}
+                    >
+                      <label>
+                        File
+                        <input
+                          aria-label={`Additional component ${visibleIndex + 1} file`}
+                          placeholder="localizer.py"
+                          value={component.file}
+                          onChange={(event) =>
+                            updateComponent(index, "file", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        Class
+                        <input
+                          aria-label={`Additional component ${visibleIndex + 1} class`}
+                          placeholder="Localizer"
+                          value={component.class_name}
+                          onChange={(event) =>
+                            updateComponent(
+                              index,
+                              "class_name",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Selection flag
+                        <input
+                          aria-label={`Additional component ${visibleIndex + 1} selection flag`}
+                          placeholder="USE_STUDENT_LOCALIZER"
+                          value={component.selection_flag}
+                          onChange={(event) =>
+                            updateComponent(
+                              index,
+                              "selection_flag",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Responsibility
+                        <textarea
+                          aria-label={`Additional component ${visibleIndex + 1} responsibility`}
+                          placeholder="State the inputs, required result, and retained state."
+                          rows={2}
+                          value={component.responsibility}
+                          onChange={(event) =>
+                            updateComponent(
+                              index,
+                              "responsibility",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        aria-label={`Remove additional component ${visibleIndex + 1}`}
+                        type="button"
+                        onClick={() => removeComponent(index)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ),
+                )}
+                <button
+                  className="add-component-button"
+                  type="button"
+                  onClick={addComponent}
+                >
+                  Add another component
+                </button>
+                <FieldHelp>
+                  A new component also needs complete file overrides for its
+                  module, course_setup.py integration, and hardware-free
+                  examples in component_checks.py.
+                </FieldHelp>
+              </div>
+            </fieldset>
+            <div className="field-grid text-grid">
+              <label>
+                Required evidence — one item per line
+                <textarea
+                  rows={6}
+                  value={evidenceSource}
+                  onChange={(event) => setEvidenceSource(event.target.value)}
+                />
+              </label>
+              <label>
+                Student work sequence — one step per line
+                <textarea
+                  rows={6}
+                  value={sequenceSource}
+                  onChange={(event) => setSequenceSource(event.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section className="author-section" aria-labelledby="project-heading">
+          <div className="section-number">3</div>
+          <div>
+            <h2 id="project-heading">Define the supplied project</h2>
+            <div className="field-grid text-grid">
+              <label>
+                Supplied files and services — name | use
+                <textarea
+                  rows={8}
+                  value={suppliedSource}
+                  onChange={(event) => setSuppliedSource(event.target.value)}
+                />
+                <FieldHelp>
+                  Include world.json once and describe each supplied item
+                  objectively.
+                </FieldHelp>
+              </label>
+              <label>
+                Program sequence — one step per line
+                <textarea
+                  rows={8}
+                  value={spec.program_flow}
+                  onChange={(event) =>
+                    update("program_flow", event.target.value)
+                  }
+                />
+                <FieldHelp>
+                  State the execution order in short sentences and name the data
+                  passed between important parts.
+                </FieldHelp>
+              </label>
+            </div>
+            <div className="world-editor-field">
+              <h3>World configuration</h3>
+              <p className="field-help">
+                Arrange the measured arena, initial XRP pose, obstacles, and
+                markers. Waypoints enter the route in the order shown. Geometry
+                outside the arena is reported rather than moved automatically.
+              </p>
+              <WorldEditor source={worldSource} onChange={setWorldSource} />
+            </div>
+            <details>
+              <summary>Optional project-file overrides</summary>
+              <p>
+                Leave this as <code>{"{}"}</code> to retain the copied working
+                code. To change the mission structure, map project-relative file
+                names to complete text. Python files are syntax-checked before
+                draft creation.
+              </p>
+              <textarea
+                aria-label="Project file overrides as JSON"
+                className="code-input large-code-input"
+                rows={14}
+                spellCheck={false}
+                value={filesSource}
+                onChange={(event) => setFilesSource(event.target.value)}
+              />
+            </details>
+          </div>
+        </section>
+
+        <section className="author-section" aria-labelledby="review-heading">
+          <div className="section-number">4</div>
+          <div>
+            <h2 id="review-heading">Check and download the specification</h2>
+            <div
+              className={
+                currentSpec.errors.length === 0 ? "review-ok" : "review-errors"
+              }
+              role="status"
+            >
+              {currentSpec.errors.length === 0 ? (
+                <p>
+                  Specification checks pass. No repository files have been
+                  created or checked.
+                </p>
+              ) : (
+                <>
+                  <p>{currentSpec.errors.length} item(s) require attention:</p>
+                  <ul>
+                    {currentSpec.errors.map((error) => (
+                      <li key={error}>{error}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+            <div className="create-row">
+              <button
+                className="primary-button"
+                disabled={currentSpec.errors.length > 0}
+                title={
+                  currentSpec.errors.length > 0
+                    ? "Resolve the listed specification errors before downloading"
+                    : "Download this checked challenge specification"
+                }
+                type="button"
+                onClick={download}
+              >
+                Download checked specification
+              </button>
+              <button type="button" onClick={copyCommand}>
+                Copy repository command
+              </button>
+              <code>{command}</code>
+            </div>
+            <nav
+              aria-label="Challenge authoring references"
+              className="author-reference-links"
+            >
+              <a href={authoringInstructionsUrl}>Authoring instructions</a>
+              <a href="../overview/#authoring">Technical overview</a>
+            </nav>
+            <p className="field-help">
+              After downloading the JSON, an instructor may run this command
+              from the UCSBXRP repository. It creates an unpublished project and
+              runs repository checks. Review and test that project before using
+              the separate publication command described in Authoring
+              instructions.
+            </p>
+            <p aria-live="polite" className="author-message">
+              {message}
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

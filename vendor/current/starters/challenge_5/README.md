@@ -36,12 +36,27 @@ the wheel-measurement state:
 - otherwise return the median of the usable distances in millimeters.
 
 A `None` result means that no estimate was available; it does not mean a range
-of zero. The student-owned component files in this project are
-`sensor_model.py`, `wheel_speed_controller.py`, `differential_drive.py`,
-`odometry.py`, `navigation_controller.py`, and `grid_planner.py`. The earlier
-methods in `sensor_model.py` and the other five component files remain your
-pair's work. Your pair also maintains the measured and tuned values in
-`robot_config.py`.
+of zero. The earlier methods in `sensor_model.py` remain part of the same
+student-owned implementation.
+
+## Project modules
+
+The student-owned implementation files have separate responsibilities:
+
+| File | Responsibility |
+| --- | --- |
+| `sensor_model.py` | Converts raw readings into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`; in this challenge, it also estimates forward range from repeated ultrasonic readings. |
+| `wheel_speed_controller.py` | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
+| `differential_drive.py` | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
+| `odometry.py` | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
+| `navigation_controller.py` | Uses the current pose and active route goal to select the next `MotionCommand`. |
+| `grid_planner.py` | Finds a connected sequence of free grid cells between the requested start and goal. |
+| `robot_config.py` | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+
+`course_setup.py` contains one `USE_STUDENT_*` flag for each component class.
+`False` runs the supplied implementation; `True` runs the class in the named
+student file. **Test components always checks the student files**, regardless
+of which implementations are selected for a complete robot run.
 
 ## Provided files and tools
 
@@ -52,8 +67,9 @@ pair's work. Your pair also maintains the measured and tuned values in
 - `world.json` defines the observable cases, destination, and named map
   feature.
 - `main.py` runs `DeliveryMission` and prints its result and final pose.
-- `course_setup.py` selects each carried-forward component independently.
-  Change only the named `USE_STUDENT_*` flags after the matching checks pass.
+- `course_setup.py` constructs each selected component and assembles the
+  `Robot`, navigator, and planner. Change only the named `USE_STUDENT_*` flags
+  after the matching checks pass.
 - `component_checks.py` runs labeled component examples, including range
   estimation, without moving either robot.
 - `ArenaMap`, `OccupancyGrid`, and `GridPath.to_goals()` connect the observed

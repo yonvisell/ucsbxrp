@@ -1904,7 +1904,7 @@ export function DashboardApp() {
                         </div>
                       </>
                     ) : null}
-                    <div title="Regularized wheel speeds calculated by SensorModel from encoder counts and sample time. These are also used by the wheel controller.">
+                    <div title="Wheel-speed estimates calculated by SensorModel from recent encoder counts and sample times. The wheel controller uses the same estimates.">
                       <dt>measured wheel speed L/R</dt>
                       <dd data-testid="left-speed">
                         {value(sample.leftWheelSpeedMmS)} /{" "}

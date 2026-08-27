@@ -52,8 +52,8 @@ def _sensor_model(component_class):
     if not 0.0 < measured.left_speed_mm_s < raw_one_count_speed_mm_s:
         raise AssertionError(
             (
-                "left speed (mm/s): expected a positive regularized value "
-                "below {}, received {}"
+                "left speed (mm/s): expected a positive estimate based on "
+                "recent encoder samples below {}, received {}"
             ).format(
                 raw_one_count_speed_mm_s, measured.left_speed_mm_s
             )
@@ -61,8 +61,8 @@ def _sensor_model(component_class):
     if not 0.0 < measured.right_speed_mm_s < raw_one_count_speed_mm_s:
         raise AssertionError(
             (
-                "right speed (mm/s): expected a positive regularized value "
-                "below {}, received {}"
+                "right speed (mm/s): expected a positive estimate based on "
+                "recent encoder samples below {}, received {}"
             ).format(
                 raw_one_count_speed_mm_s, measured.right_speed_mm_s
             )

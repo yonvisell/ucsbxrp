@@ -1,5 +1,6 @@
 import ast
 import contextlib
+import importlib
 import io
 import json
 import os
@@ -8,6 +9,7 @@ import re
 import runpy
 import sys
 import tempfile
+import types
 import unittest
 
 
@@ -17,6 +19,91 @@ TEMPLATES = ROOT / "vendor" / "current" / "templates"
 
 
 class CourseStarterTests(unittest.TestCase):
+    def test_challenge_one_reports_wrap_safe_elapsed_time_and_mean_travel(self):
+        starter = STARTERS / "challenge_1"
+        elapsed_calls = []
+
+        class FakeMeasurements:
+            def __init__(self, time_ms, left_position_mm, right_position_mm):
+                self.time_ms = time_ms
+                self.left_position_mm = left_position_mm
+                self.right_position_mm = right_position_mm
+
+        class FakeState:
+            def __init__(self, measurements):
+                self.measurements = measurements
+
+        class FakeRobot:
+            def __init__(self):
+                self.stopped = False
+
+            def start(self, _initial_pose):
+                return FakeState(FakeMeasurements(1_073_741_800, 0.0, 0.0))
+
+            def step(self, _command):
+                return FakeState(FakeMeasurements(20, 496.0, 504.0))
+
+            def stop(self):
+                self.stopped = True
+
+        class FakeStraightLineController:
+            def __init__(self, _config):
+                self.update_count = 0
+
+            def start(self, _measurements, _distance_mm):
+                pass
+
+            def is_complete(self):
+                return self.update_count == 1
+
+            def update(self, _measurements):
+                self.update_count += 1
+                return object()
+
+        robot = FakeRobot()
+
+        def wrap_safe_elapsed_time_s(later_ms, earlier_ms):
+            elapsed_calls.append((later_ms, earlier_ms))
+            return 0.244
+
+        fake_modules = {
+            "challenge": types.SimpleNamespace(
+                INITIAL_POSE=object(),
+                TARGET_TIME_S=8.0,
+                TRAVEL_DISTANCE_MM=500.0,
+            ),
+            "course_setup": types.SimpleNamespace(
+                make_robot=lambda _config: robot,
+            ),
+            "robot_config": types.SimpleNamespace(
+                ROBOT_CONFIG=object(),
+                STRAIGHT_CONFIG=object(),
+            ),
+            "ucsb_xrp": types.SimpleNamespace(
+                StraightLineController=FakeStraightLineController,
+                elapsed_time_s=wrap_safe_elapsed_time_s,
+            ),
+        }
+        saved_modules = {
+            name: sys.modules.pop(name)
+            for name in fake_modules
+            if name in sys.modules
+        }
+        sys.modules.update(fake_modules)
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output):
+                runpy.run_path(str(starter / "main.py"), run_name="__main__")
+        finally:
+            for name in fake_modules:
+                sys.modules.pop(name, None)
+            sys.modules.update(saved_modules)
+
+        self.assertEqual(elapsed_calls, [(20, 1_073_741_800)])
+        self.assertTrue(robot.stopped)
+        self.assertIn("mean_wheel_travel_mm: 500.0", output.getvalue())
+        self.assertIn("measured_elapsed_time_s: 0.244", output.getvalue())
+
     def test_demo_and_tutorial_templates_are_complete_compilable_projects(self):
         directories = sorted(path for path in TEMPLATES.iterdir() if path.is_dir())
         self.assertEqual(
@@ -166,6 +253,92 @@ class CourseStarterTests(unittest.TestCase):
             }
             self.assertEqual(len(switches), expected_count, challenge)
 
+    def test_component_selection_uses_student_and_supplied_implementations(self):
+        base_cases = (
+            ("USE_STUDENT_SENSOR_MODEL", "make_sensor_model", "sensor_model"),
+            (
+                "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+                "make_wheel_speed_controller",
+                "wheel_speed_controller",
+            ),
+            (
+                "USE_STUDENT_DIFFERENTIAL_DRIVE",
+                "make_differential_drive",
+                "differential_drive",
+            ),
+            ("USE_STUDENT_ODOMETRY", "make_odometry", "odometry"),
+        )
+        module_names = (
+            "course_setup",
+            "sensor_model",
+            "wheel_speed_controller",
+            "differential_drive",
+            "odometry",
+            "navigation_controller",
+            "grid_planner",
+        )
+        for challenge_number in range(2, 6):
+            challenge = "challenge_{}".format(challenge_number)
+            directory = STARTERS / challenge
+            saved_modules = {
+                name: sys.modules.pop(name)
+                for name in module_names
+                if name in sys.modules
+            }
+            original_path = list(sys.path)
+            sys.path[:0] = [
+                str(directory),
+                str(ROOT / "vendor" / "current" / "reference_source"),
+                str(ROOT / "vendor" / "current"),
+            ]
+            try:
+                setup = importlib.import_module("course_setup")
+                from ucsb_xrp import NavigationConfig, RobotConfig
+
+                robot_config = RobotConfig()
+                navigation_config = NavigationConfig(
+                    120.0, 60.0, 150.0, 0.8, 10.0, 0.05, 0.2
+                )
+                cases = list(base_cases)
+                if challenge_number >= 3:
+                    cases.append(
+                        (
+                            "USE_STUDENT_NAVIGATION_CONTROLLER",
+                            "make_navigation_controller",
+                            "navigation_controller",
+                        )
+                    )
+                if challenge_number >= 4:
+                    cases.append(
+                        (
+                            "USE_STUDENT_GRID_PLANNER",
+                            "make_grid_planner",
+                            "grid_planner",
+                        )
+                    )
+
+                for flag, factory_name, student_module in cases:
+                    factory = getattr(setup, factory_name)
+                    if factory_name == "make_grid_planner":
+                        arguments = ()
+                    elif factory_name == "make_navigation_controller":
+                        arguments = (navigation_config,)
+                    else:
+                        arguments = (robot_config,)
+                    setattr(setup, flag, False)
+                    supplied = factory(*arguments)
+                    setattr(setup, flag, True)
+                    student = factory(*arguments)
+                    self.assertTrue(
+                        type(supplied).__module__.startswith("ucsb_xrp_reference")
+                    )
+                    self.assertEqual(type(student).__module__, student_module)
+            finally:
+                sys.path[:] = original_path
+                for name in module_names:
+                    sys.modules.pop(name, None)
+                sys.modules.update(saved_modules)
+
     def test_component_check_files_expose_one_clear_call_not_check_machinery(self):
         expected_components = {
             "challenge_1": 2,
@@ -188,8 +361,9 @@ class CourseStarterTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             with self.subTest(challenge=challenge):
                 self.assertLessEqual(len(source.splitlines()), 40)
-                self.assertIn("concrete, hardware-free examples", source)
+                self.assertIn("student-owned component classes", source)
                 self.assertIn("PASS means", source)
+                self.assertIn("The imports below are the classes", source)
                 self.assertIn("run_component_checks(", source)
                 self.assertNotIn("def check_", source)
                 self.assertNotIn("RawSensors", source)
@@ -570,6 +744,20 @@ class CourseStarterTests(unittest.TestCase):
                     self.assertIn("`%s`" % filename, text)
                 for parameter in expected_task_parameters[challenge]:
                     self.assertIn("`%s`" % parameter, text)
+                if challenge in ("challenge_3", "challenge_4", "challenge_5"):
+                    self.assertIn("## Project modules", text)
+                    self.assertIn(
+                        "Test components always checks the student files",
+                        text,
+                    )
+                    for responsibility in (
+                        "wheel-speed estimates based on recent encoder samples",
+                        "bounded left and right motor commands",
+                        "target wheel speeds",
+                        "estimated `Pose`",
+                        "next `MotionCommand`",
+                    ):
+                        self.assertIn(responsibility, text)
 
     def test_student_facing_challenge_text_uses_direct_task_language(self):
         unclear_terms = (
@@ -582,6 +770,7 @@ class CourseStarterTests(unittest.TestCase):
             "predecessor",
             "recovery copy",
             "recovery-copy",
+            "regularized",
             "safety tier",
             "task instance",
         )

@@ -88,7 +88,7 @@ describe("monitor signal plots", () => {
     ]);
   });
 
-  it("plots the regularized wheel-speed values supplied by SensorModel", () => {
+  it("plots the wheel-speed estimates supplied by SensorModel", () => {
     const data = signalPlotData(
       [
         sample(0, { leftWheelSpeedMmS: 80 }),

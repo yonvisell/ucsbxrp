@@ -1,5 +1,9 @@
 # Architecture and performance audit
 
+> Historical dev.27 snapshot. Several state-handoff and build-identity findings
+> are now resolved. The current refactor boundary and remaining measured
+> candidates are maintained in `docs/CURRENT_PRODUCT_OUTCOMES.md`.
+
 Audit snapshot: 2026-08-26, while the full browser and physical-XRP workflow was
 still being qualified. This is a source and built-artifact audit, not a runtime
 profile. Refactoring should begin only after the current end-to-end workflow has

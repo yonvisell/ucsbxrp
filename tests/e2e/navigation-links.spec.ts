@@ -72,29 +72,39 @@ test("direct Guide and API fragment links reveal their rendered section", async 
   }
 });
 
-test("student pages keep the complete course navigation visible without header collisions", async ({
+test("course pages keep the complete navigation visible without header collisions", async ({
   page,
 }) => {
-  const studentPages = [
-    "/",
-    "/ide/",
-    "/monitor/",
-    "/guide/",
-    "/reference/",
-    "/commission/",
-  ];
+  const coursePages = [
+    ["/", "Home"],
+    ["/ide/", "IDE"],
+    ["/monitor/", "Monitor"],
+    ["/guide/", "Guide"],
+    ["/reference/", "API"],
+    ["/commission/", "Set up or Repair"],
+    ["/author/", null],
+    ["/overview/", null],
+  ] as const;
   const labels = ["Home", "IDE", "Monitor", "Guide", "Set up or Repair", "API"];
 
-  for (const width of [700, 560]) {
+  for (const width of [700, 640, 600, 375]) {
     await page.setViewportSize({ width, height: 850 });
-    for (const entryPage of studentPages) {
+    for (const [entryPage, activeLabel] of coursePages) {
       await page.goto(entryPage);
       const header = page.locator(".app-header").first();
       await expect(header).toBeVisible();
+      await expect(header.locator(".brand")).toHaveText("UCSBXRP");
       for (const label of labels) {
         await expect(
           header.getByRole("link", { name: label, exact: true }),
         ).toBeVisible();
+      }
+      if (activeLabel) {
+        await expect(
+          header.getByRole("link", { name: activeLabel, exact: true }),
+        ).toHaveAttribute("aria-current", "page");
+      } else {
+        await expect(header.locator('[aria-current="page"]')).toHaveCount(0);
       }
 
       const boxes = await header.locator(":scope > *").evaluateAll((elements) =>
@@ -114,6 +124,17 @@ test("student pages keep the complete course navigation visible without header c
           })
           .filter((box) => box.right > box.left && box.bottom > box.top),
       );
+      const headerBox = await header.boundingBox();
+      expect(headerBox).not.toBeNull();
+      for (const box of boxes) {
+        expect(
+          box.left >= headerBox!.x - 0.5 &&
+            box.right <= headerBox!.x + headerBox!.width + 0.5 &&
+            box.top >= headerBox!.y - 0.5 &&
+            box.bottom <= headerBox!.y + headerBox!.height + 0.5,
+          `${entryPage} at ${width}px: ${box.name} escapes the header`,
+        ).toBe(true);
+      }
       for (let first = 0; first < boxes.length; first += 1) {
         for (let second = first + 1; second < boxes.length; second += 1) {
           const a = boxes[first]!;
@@ -129,6 +150,22 @@ test("student pages keep the complete course navigation visible without header c
         }
       }
     }
+  }
+});
+
+test("course pages use consistent browser-tab titles", async ({ page }) => {
+  for (const [entryPage, title] of [
+    ["/", "UCSBXRP Course Tools"],
+    ["/ide/", "UCSBXRP IDE"],
+    ["/monitor/", "UCSBXRP Monitor"],
+    ["/guide/", "UCSBXRP Guide"],
+    ["/commission/", "UCSBXRP Setup or Repair"],
+    ["/reference/", "UCSBXRP API Reference"],
+    ["/author/", "UCSBXRP Challenge Creation"],
+    ["/overview/", "UCSBXRP Technical Overview"],
+  ] as const) {
+    await page.goto(entryPage);
+    await expect(page).toHaveTitle(title);
   }
 });
 
@@ -204,7 +241,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
     "Project files are ordinary files in that folder; Chrome does not store the course app there",
   );
   await expect(page.locator("#github")).toContainText(
-    "Use the cloned repository as the UCSBXRP Projects folder",
+    "Use the cloned repository as the UCSBXRP Working folder",
   );
   await expect(page.locator("#projects")).toContainText(
     "Continue to Challenge",
@@ -478,7 +515,7 @@ test("Instructor reference remains readable at phone width", async ({
   await page.goto("/overview/");
   await expect(
     page.getByRole("heading", {
-      name: "UCSBXRP instructor system reference",
+      name: "UCSBXRP technical overview",
     }),
   ).toBeVisible();
   const geometry = await page.evaluate(() => ({
