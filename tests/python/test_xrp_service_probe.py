@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,6 +13,48 @@ SPEC.loader.exec_module(SERVICE_PROBE)
 
 
 class XrpServiceProbeTest(unittest.TestCase):
+    def test_wait_for_program_drains_ordered_terminal_telemetry_pages(self):
+        replies = [
+            {
+                "state": "ready",
+                "logs": [{"seq": 3, "stream": "system", "line": "running"}],
+                "samples": [{"seq": 1}],
+                "sample": {"seq": 1},
+                "moreLogs": True,
+                "moreSamples": True,
+            },
+            {
+                "state": "ready",
+                "logs": [{"seq": 4, "stream": "stdout", "line": "complete"}],
+                "samples": [{"seq": 2}],
+                "sample": {"seq": 2},
+                "moreLogs": False,
+                "moreSamples": False,
+            },
+        ]
+        paths = []
+
+        def request_json(_base_url, path, **_options):
+            paths.append(path)
+            return replies.pop(0), {}
+
+        cursor = {"logSeq": 2}
+        with patch.object(SERVICE_PROBE, "request_json", side_effect=request_json):
+            result = SERVICE_PROBE.wait_for_program(
+                "http://xrp", 7, cursor=cursor
+            )
+
+        self.assertEqual(
+            paths,
+            [
+                "/api/v1/telemetry?afterLogSeq=2&afterSampleSeq=0&runId=7",
+                "/api/v1/telemetry?afterLogSeq=3&afterSampleSeq=1&runId=7",
+            ],
+        )
+        self.assertEqual([entry["seq"] for entry in result["logs"]], [3, 4])
+        self.assertEqual(result["sample"]["seq"], 2)
+        self.assertEqual(cursor, {"logSeq": 4, "sampleSeq": 2, "runId": 7})
+
     def test_probe_projects_compile_and_keep_zero_output_explicit(self):
         projects = [
             SERVICE_PROBE.zero_output_project(),

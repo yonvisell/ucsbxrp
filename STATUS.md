@@ -33,6 +33,17 @@ and measured performance work remain after the full browser/robot suite is
 stable; telemetry optimization will preserve its role as observation rather
 than move control into the browser.
 
+A second USB installation of the identical dev.35 release was also idempotent:
+zero runtime files changed, generation 16 and the verified slot remained
+active, the XRP restarted on Pink, and no student project survived that true
+boot. The zero-output service probe initially revealed that its own harness
+mistook the first bounded terminal telemetry page for the complete result. The
+probe now carries log/sample cursors across runs and drains every terminal page.
+It then passed preflight, exact RAM preparation, stdout, pose telemetry,
+cooperative Stop, three immediate Prepare/Run cycles, course Reset, and
+post-Reset Run on one boot. Evidence is recorded in
+`docs/hardware/2026-08-27-dev35-idempotent-repair-and-probe.json`.
+
 Refinement 53 gives Run one explicit project owner across IDE tabs. The first
 connected IDE remains active; another IDE can edit and save independently but
 cannot change the project used by IDE or Monitor Run until the student chooses

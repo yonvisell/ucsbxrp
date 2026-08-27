@@ -83,27 +83,55 @@ def wait_for_service(base_url, timeout_s=8.0):
     raise ProbeError("service did not return: {}".format(last_error))
 
 
-def wait_for_program(base_url, run_id, timeout_s=8.0, until_running=False):
+def wait_for_program(
+    base_url, run_id, timeout_s=8.0, until_running=False, cursor=None
+):
     """Poll until a bounded probe program reaches the requested state.
 
     A short program may move from ``loading`` to ``ready`` before the first
     sample. Long-running probes renew their run lease as soon as ``running`` is
     observed.
     """
+    if cursor is None:
+        cursor = {}
+    if cursor.get("runId") != run_id:
+        cursor["runId"] = run_id
+        cursor["sampleSeq"] = 0
+    cursor.setdefault("logSeq", 0)
+    cursor.setdefault("sampleSeq", 0)
+
     deadline = time.monotonic() + timeout_s
     state = None
+    observed_logs = []
     attempt = 0
     while time.monotonic() < deadline:
-        state, _ = request_json(base_url, "/api/v1/telemetry")
+        path = (
+            "/api/v1/telemetry?afterLogSeq={}&afterSampleSeq={}&runId={}".format(
+                cursor["logSeq"], cursor["sampleSeq"], run_id
+            )
+        )
+        state, _ = request_json(base_url, path)
+        for entry in state.get("logs", []):
+            sequence = entry.get("seq")
+            if isinstance(sequence, int) and sequence > cursor["logSeq"]:
+                cursor["logSeq"] = sequence
+                observed_logs.append(entry)
+        for sample in state.get("samples", []):
+            sequence = sample.get("seq")
+            if isinstance(sequence, int) and sequence > cursor["sampleSeq"]:
+                cursor["sampleSeq"] = sequence
+        state["logs"] = list(observed_logs)
+        more = state.get("moreLogs") is True or state.get("moreSamples") is True
         run_state = state.get("state")
         if run_state == "running":
             command(base_url, "lease", 400 + attempt, runId=run_id)
             if until_running:
                 return state
-        elif run_state != "loading":
+        elif run_state != "loading" and not more:
             return state
         attempt += 1
-        time.sleep(0.05)
+        if not more:
+            time.sleep(0.05)
     raise ProbeError("program did not leave its startup/run state")
 
 
@@ -197,6 +225,7 @@ finally:
 def run_probe(address, include_reset=False):
     base_url = "http://{}".format(address)
     evidence = {"address": address, "operations": []}
+    telemetry_cursor = {}
 
     info = wait_for_service(base_url)
     if "project.current" not in info.get("capabilities", []):
@@ -234,7 +263,9 @@ def run_probe(address, include_reset=False):
     evidence["projectRevision"] = expected_revision
 
     run = command(base_url, "run", 3)
-    final_state = wait_for_program(base_url, run["runId"])
+    final_state = wait_for_program(
+        base_url, run["runId"], cursor=telemetry_cursor
+    )
     observed_logs = final_state.get("logs", [])
     if final_state is None or final_state.get("state") != "ready":
         raise ProbeError("zero-output project did not complete")
@@ -250,7 +281,9 @@ def run_probe(address, include_reset=False):
 
     command(base_url, "prepare", 5, project=pose_telemetry_project())
     pose_run = command(base_url, "run", 6)
-    pose_state = wait_for_program(base_url, pose_run["runId"])
+    pose_state = wait_for_program(
+        base_url, pose_run["runId"], cursor=telemetry_cursor
+    )
     sample = None if pose_state is None else pose_state.get("sample")
     if (
         pose_state is None
@@ -275,10 +308,14 @@ def run_probe(address, include_reset=False):
     if long_prepared.get("project", {}).get("revision") != long_revision:
         raise ProbeError("long-running project revision did not match its source")
     long_run = command(base_url, "run", 8)
-    wait_for_program(base_url, long_run["runId"], until_running=True)
+    wait_for_program(
+        base_url, long_run["runId"], until_running=True, cursor=telemetry_cursor
+    )
     before_stop, _ = request_json(base_url, "/api/v1/info")
     command(base_url, "stop", 9)
-    stopped_state = wait_for_program(base_url, long_run["runId"])
+    stopped_state = wait_for_program(
+        base_url, long_run["runId"], cursor=telemetry_cursor
+    )
     if stopped_state.get("state") != "ready":
         raise ProbeError("cooperative stop did not return to ready")
     after_stop, _ = request_json(base_url, "/api/v1/info")
@@ -297,7 +334,9 @@ def run_probe(address, include_reset=False):
         repeat_project["files"]["cycle.txt"] = "cycle {}\n".format(cycle + 1)
         command(base_url, "prepare", 20 + cycle * 2, project=repeat_project)
         repeat_run = command(base_url, "run", 21 + cycle * 2)
-        repeat_state = wait_for_program(base_url, repeat_run["runId"])
+        repeat_state = wait_for_program(
+            base_url, repeat_run["runId"], cursor=telemetry_cursor
+        )
         if repeat_state.get("state") != "ready":
             raise ProbeError("repeat cycle {} did not complete".format(cycle + 1))
         repeat_info, _ = request_json(base_url, "/api/v1/info")
@@ -312,10 +351,17 @@ def run_probe(address, include_reset=False):
         if reset_prepared.get("project", {}).get("revision") != reset_revision:
             raise ProbeError("reset-test project revision did not match its source")
         reset_run = command(base_url, "run", 41)
-        wait_for_program(base_url, reset_run["runId"], until_running=True)
+        wait_for_program(
+            base_url,
+            reset_run["runId"],
+            until_running=True,
+            cursor=telemetry_cursor,
+        )
         before_reset, _ = request_json(base_url, "/api/v1/info")
         command(base_url, "reset", 42)
-        reset_state = wait_for_program(base_url, reset_run["runId"])
+        reset_state = wait_for_program(
+            base_url, reset_run["runId"], cursor=telemetry_cursor
+        )
         if reset_state.get("state") != "ready":
             raise ProbeError("course-state Reset did not return to ready")
         after_reset, _ = request_json(base_url, "/api/v1/info")
@@ -324,9 +370,16 @@ def run_probe(address, include_reset=False):
         if after_reset.get("project", {}).get("revision") != reset_revision:
             raise ProbeError("ordinary Reset did not retain the RAM project")
         restored_run = command(base_url, "run", 43)
-        wait_for_program(base_url, restored_run["runId"], until_running=True)
+        wait_for_program(
+            base_url,
+            restored_run["runId"],
+            until_running=True,
+            cursor=telemetry_cursor,
+        )
         command(base_url, "stop", 44)
-        restored_state = wait_for_program(base_url, restored_run["runId"])
+        restored_state = wait_for_program(
+            base_url, restored_run["runId"], cursor=telemetry_cursor
+        )
         if restored_state.get("state") != "ready":
             raise ProbeError("retained project did not run after Reset")
         evidence["serviceAfterReset"] = after_reset
