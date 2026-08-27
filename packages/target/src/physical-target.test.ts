@@ -817,6 +817,80 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("keeps an edited IDE project stale while telemetry reports the retained device project", async () => {
+    vi.useFakeTimers();
+    const retainedRevision =
+      "f8ecfeb351b02819619f5bd6fd842977da0a01e5ef682f2b58a3db6f0ae7df27";
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).includes("/api/v1/telemetry")) {
+        return response({
+          bootId: "boot-a",
+          state: "ready",
+          detail: "Physical XRP ready",
+          runId: 0,
+          project: {
+            name: "Retained project",
+            entrypoint: "main.py",
+            revision: retainedRevision,
+          },
+          logs: [],
+          samples: [],
+        });
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-a",
+        robotName: "xrp-test",
+        address: "192.168.7.30",
+        project: {
+          name: "Retained project",
+          entrypoint: "main.py",
+          revision: retainedRevision,
+        },
+        capabilities: [
+          "project.check",
+          "project.prepare",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      target.markProjectChanged({
+        projectId: "project-1",
+        revision: 2,
+        name: "Edited project",
+        entrypoint: "main.py",
+      });
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(events.filter((event) => event.type === "project").at(-1)).toEqual({
+        type: "project",
+        project: {
+          name: "Edited project",
+          entrypoint: "main.py",
+          revision: "ide:project-1:2",
+          stale: true,
+        },
+      });
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not start polling after disconnecting during discovery", async () => {
     let resolveDiscovery: ((value: Response) => void) | undefined;
     const fetchMock = vi.fn(

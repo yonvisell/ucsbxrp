@@ -472,7 +472,7 @@ export function ReferenceApp() {
             name="WheelSpeedController"
             file="wheel_speed_controller.py"
             base="WheelSpeedControllerBase"
-            description="At each Robot sample, DifferentialDrive supplies the requested left and right wheel speeds and SensorModel supplies estimates of the actual wheel speeds from encoder data. The controller compares each requested speed with its estimate and calculates a normalized motor command. Robot writes that command to the motors."
+            description="At each Robot sample, the controller receives requested left and right wheel speeds from DifferentialDrive and measured wheel-speed estimates from SensorModel. SensorModel calculates those estimates from recent encoder samples. The controller compares each request with its estimate and calculates a normalized motor command. Robot writes that command to the motors."
             state="An implementation may keep controller memory between samples. reset() must return that state to its initial condition before every run."
             constructor="WheelSpeedController(config: RobotConfig)"
             example={componentExamples.wheelController}

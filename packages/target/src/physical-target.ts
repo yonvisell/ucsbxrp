@@ -807,9 +807,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.setCurrentProject({
       name: project.name,
       entrypoint: project.entrypoint,
-      revision:
-        this.currentProject?.revision ??
-        `ide:${project.projectId}:${project.revision}`,
+      // This is an IDE revision, not the content digest still reported by the
+      // XRP. Keeping the two identities distinct prevents the next telemetry
+      // poll from making an edited project appear ready again.
+      revision: `ide:${project.projectId}:${project.revision}`,
       stale: true,
     });
   }
@@ -1509,7 +1510,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
       return;
     }
     if (
-      this.stagedProject &&
       this.currentProject?.stale &&
       this.currentProject.revision !== manifest.revision
     ) {
