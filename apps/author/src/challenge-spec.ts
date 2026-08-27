@@ -1,8 +1,10 @@
 import { parseWorldCatalog } from "@ucsb-xrp/simulator";
+import catalogSource from "../../../vendor/current/project_catalog.json?raw";
 
 export interface ChallengeComponentSpec {
   file: string;
   class_name: string;
+  selection_flag: string;
   responsibility: string;
 }
 
@@ -27,38 +29,31 @@ export interface ChallengeSpec {
   files?: Record<string, string>;
 }
 
-const sourceComponentFiles: Record<string, ReadonlySet<string>> = {
-  challenge_1: new Set(["sensor_model.py", "wheel_speed_controller.py"]),
-  challenge_2: new Set([
-    "sensor_model.py",
-    "wheel_speed_controller.py",
-    "differential_drive.py",
-    "odometry.py",
-  ]),
-  challenge_3: new Set([
-    "sensor_model.py",
-    "wheel_speed_controller.py",
-    "differential_drive.py",
-    "odometry.py",
-    "navigation_controller.py",
-  ]),
-  challenge_4: new Set([
-    "sensor_model.py",
-    "wheel_speed_controller.py",
-    "differential_drive.py",
-    "odometry.py",
-    "navigation_controller.py",
-    "grid_planner.py",
-  ]),
-  challenge_5: new Set([
-    "sensor_model.py",
-    "wheel_speed_controller.py",
-    "differential_drive.py",
-    "odometry.py",
-    "navigation_controller.py",
-    "grid_planner.py",
-  ]),
-};
+interface CatalogComponent {
+  name: string;
+  file: string;
+  selection_flag: string;
+}
+
+interface CatalogChallenge {
+  id: string;
+  kind: string;
+  components?: CatalogComponent[];
+}
+
+const sourceComponents = new Map(
+  (JSON.parse(catalogSource) as CatalogChallenge[])
+    .filter((entry) => entry.kind === "challenge")
+    .map((entry) => [
+      entry.id,
+      new Map(
+        (entry.components ?? []).map((component) => [
+          component.file,
+          component,
+        ]),
+      ),
+    ]),
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -113,7 +108,7 @@ export function validateChallengeSpec(value: unknown): string[] {
   }
   for (const [key, label] of [
     ["objective", "Objective"],
-    ["program_flow", "Program flow"],
+    ["program_flow", "Program sequence"],
   ] as const) {
     if (typeof value[key] !== "string" || !value[key].trim()) {
       errors.push(`${label} is required.`);
@@ -141,7 +136,7 @@ export function validateChallengeSpec(value: unknown): string[] {
     value.student_implementations.forEach((item, index) => {
       if (
         !isRecord(item) ||
-        ["file", "class_name", "responsibility"].some(
+        ["file", "class_name", "selection_flag", "responsibility"].some(
           (key) => typeof item[key] !== "string" || !item[key].trim(),
         )
       ) {
@@ -162,16 +157,36 @@ export function validateChallengeSpec(value: unknown): string[] {
           `Student implementation ${index + 1} needs a valid Python class name.`,
         );
       }
+      if (
+        !/^USE_STUDENT_[A-Z][A-Z0-9_]*$/.test(item.selection_flag as string)
+      ) {
+        errors.push(
+          `Student implementation ${index + 1} needs a selection flag such as USE_STUDENT_LOCALIZER.`,
+        );
+      }
       const file = item.file as string;
       const className = item.class_name as string;
-      const inheritedFiles =
+      const inheritedComponent =
         typeof value.source_id === "string"
-          ? sourceComponentFiles[value.source_id]
+          ? sourceComponents.get(value.source_id)?.get(file)
           : undefined;
       const override = isRecord(value.files) ? value.files[file] : undefined;
-      if (!inheritedFiles?.has(file) && typeof override !== "string") {
+      if (!inheritedComponent && typeof override !== "string") {
         errors.push(
           `Student implementation ${index + 1} needs a complete ${file} project-file override.`,
+        );
+      }
+      if (inheritedComponent && inheritedComponent.name !== className) {
+        errors.push(
+          `${file} defines ${inheritedComponent.name} in the starting challenge, not ${className}.`,
+        );
+      }
+      if (
+        inheritedComponent &&
+        inheritedComponent.selection_flag !== item.selection_flag
+      ) {
+        errors.push(
+          `${className} must retain selection flag ${inheritedComponent.selection_flag}.`,
         );
       }
       if (

@@ -54,10 +54,11 @@ state the implementation must maintain. Do not prescribe one algorithm unless
 the algorithm itself is the learning objective. **Add another component**
 supports a new file and class when a challenge introduces a responsibility not
 covered by the existing six course components. For a genuinely new component,
-the `files` overrides must also supply that Python module and coordinate its
-factory or selection in `course_setup.py` plus its hardware-free examples in
-`component_checks.py`. The repository check rejects a declaration whose file
-or class is absent.
+give its `USE_STUDENT_...` selection flag and use the `files` overrides to
+supply that Python module and coordinate its factory or selection in
+`course_setup.py` plus its hardware-free examples in `component_checks.py`.
+The specification is the source for the class, file, and selection flag; the
+repository check verifies those declarations against the generated source.
 
 Evidence items should name observable quantities and units. Suitable evidence
 includes a saved path, final pose, wheel-speed plot, range samples, planned grid
@@ -67,9 +68,9 @@ criteria that can be met only by a particular internal implementation.
 ### Define the supplied project
 
 List every supplied file or service that students need to understand. Include
-`world.json` and explain the purpose of its geometry. The program-flow diagram
-should name the data exchanged between components, not only the component
-names.
+`world.json` and explain the purpose of its geometry. Write the program
+sequence as short steps in execution order. Name the important data passed
+between parts, but do not simulate a diagram with arrows or aligned text.
 
 Refer to task settings by their Python names, such as `GRID_RESOLUTION_MM` or
 `DELIVERY_TASK.range_sample_count`. Do not repeat the current numerical value
@@ -121,11 +122,12 @@ Python syntax errors.
 The wizard checks required teaching fields, component descriptions, unique
 world and geometry names, arena containment, the default world, and
 file-override paths. The repository command additionally verifies that every
-student file exists and defines the class named in the README. Download the
-JSON only after the page reports that the specification is complete. Keep it
-with the generated project; it is the concise source for future review or
-regeneration. Use **Open saved specification** to resume editing a downloaded
-specification.
+declared student file exists, defines the class named in the catalog metadata,
+and has the corresponding selector in `course_setup.py`. README layout and
+wording do not define project behavior. Download the JSON only after the page
+reports that the specification is complete. Keep it with the generated project;
+it is the concise source for future review or regeneration. Use **Open saved
+specification** to resume editing a downloaded specification.
 
 ## 2. Create the unpublished project
 
@@ -140,7 +142,8 @@ python3 scripts/challenge_authoring.py create \
 The command validates the specification again, copies the selected challenge,
 generates `README.md` and `world.json`, applies complete file overrides,
 compiles every Python file, checks the project structure, and adds an
-unpublished catalog entry. If any operation fails, the incomplete target folder
+unpublished catalog entry with the component and selection metadata used by the
+student template system. If any operation fails, the incomplete target folder
 is removed and the catalog remains unchanged.
 
 ## 3. Validate the task and component boundary
@@ -207,6 +210,7 @@ The complete checked specification is
     {
       "file": "navigation_controller.py",
       "class_name": "NavigationController",
+      "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
       "responsibility": "Advance through the ordered goals and compute a bounded MotionCommand from the current Pose and active goal."
     }
   ],
@@ -232,7 +236,7 @@ The complete checked specification is
       "use": "Runs the measured control loop and returns wheel measurements and the estimated pose."
     }
   ],
-  "program_flow": "world.json -> challenge.py ROUTE\n                         |\n                         v\nPose -> NavigationController -> MotionCommand -> Robot -> XRP\n ^                                                     |\n +---------------- Measurements -> Odometry <----------+",
+  "program_flow": "challenge.py loads the initial pose and ordered goals from world.json.\nmain.py passes the route to NavigationController and starts Robot.\nOn each sample, NavigationController uses the current Pose to return a MotionCommand.\nRobot converts the command to wheel targets, applies motor commands, reads encoders, and returns the next measured Pose.\nThe loop stops after NavigationController completes the final goal and heading.",
   "evidence": [
     "A Monitor path export for one route at each cruise speed, with the same world and starting pose.",
     "The final x, y, and heading estimate for each trial, reported in millimeters and radians.",

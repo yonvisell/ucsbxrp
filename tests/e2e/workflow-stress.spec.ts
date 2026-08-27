@@ -431,6 +431,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   // required validation and must start the newly opened project, not the old one.
   await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,

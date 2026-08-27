@@ -1,141 +1,82 @@
 # Challenge 2: Turn and Return
 
-Make the XRP travel to the turn point, rotate through 180 degrees, return to the
-start region, and recover its original heading. Convert the requested body
-speed and turn rate into separate wheel-speed targets, then estimate world
-position and heading from measured wheel travel.
+## Objective
 
-`challenge.py` provides `INITIAL_POSE`, `OUTBOUND_DISTANCE_MM`,
-`TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and `FINAL_HEADING_RAD`. These values
-come from the start and turn markers in `world.json`. Distances are in
-millimeters and headings are in radians.
+Travel to the turn marker, rotate to the heading assigned to that marker,
+return to the marked start region, and recover the initial heading. The robot
+must relate body motion to two wheel speeds and relate measured wheel travel to
+a world pose.
 
-`robot_config.py` contains two groups of settings:
-
-- `ROBOT_CONFIG.track_width_mm` is the effective distance between the left and
-  right wheel paths used by both turning calculations and odometry;
-- `NAVIGATION_CONFIG.cruise_speed_mm_s`,
-  `NAVIGATION_CONFIG.approach_speed_mm_s`, and
-  `NAVIGATION_CONFIG.slowdown_distance_mm` set the two straight-run speeds and
-  where the slower speed begins;
-- `NAVIGATION_CONFIG.position_tolerance_mm` sets the remaining distance
-  accepted as the end of a straight segment; and
-- `NAVIGATION_CONFIG.turn_rate_rad_s` and
-  `NAVIGATION_CONFIG.heading_tolerance_rad` set the in-place turn speed and the
-  accepted final heading error.
-
-Use these named fields rather than repeating their current numerical values in
-your classes.
+`world.json` owns the start pose and turn marker. `challenge.py` derives
+`INITIAL_POSE`, `OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`,
+`RETURN_DISTANCE_MM`, and `FINAL_HEADING_RAD` from that world. Do not repeat the
+marker coordinates, distance, or heading elsewhere.
 
 ## Continue from the previous challenge
 
-Open your Challenge 1 project and select **Create Challenge 2 · Turn and
-Return project**. The IDE creates a separate project. Your new work is
-`differential_drive.py` and `odometry.py`; the new project begins with the
-supplied versions selected. The IDE carries forward your Challenge 1
-`sensor_model.py` and `wheel_speed_controller.py` files and keeps whether each
-student version is selected. Challenge 2 provides its own task, world, main
-program, checks, and configuration. Your Challenge 1 folder remains unchanged.
+Open Challenge 1 and select **Create Challenge 2 · Turn and Return project**.
+The IDE creates a separate project, carries forward `sensor_model.py` and
+`wheel_speed_controller.py`, and keeps whether each student version is
+selected. The new `differential_drive.py` and `odometry.py` begin with their
+supplied versions selected. The Challenge 1 folder remains unchanged.
 
 ## What you implement
 
-| File | Class | What it does |
-| --- | --- | --- |
-| `differential_drive.py` | `DifferentialDrive` | Convert requested forward speed and counterclockwise turn rate into requested left and right wheel speeds. |
-| `odometry.py` | `Odometry` | Update the estimated world position and heading from each measured pair of wheel increments. |
-| `sensor_model.py` | `SensorModel` | Carried forward from Challenge 1; converts raw encoder data into wheel measurements. |
-| `wheel_speed_controller.py` | `WheelSpeedController` | Carried forward from Challenge 1; converts requested and measured wheel speeds into motor commands. |
+Your new work is `DifferentialDrive` and `Odometry`. The sensing and
+wheel-speed controller are carried forward.
 
-### Implement `DifferentialDrive`
+| Class | Responsibility, state, and use |
+| --- | --- |
+| `DifferentialDrive` in `differential_drive.py` | Converts a `MotionCommand`—forward speed and counterclockwise turn rate—into left and right `WheelSpeeds`. It needs no run history. `Robot` uses its result as the wheel-controller target. |
+| `Odometry` in `odometry.py` | Retains the latest `Pose`. `reset(initial_pose)` establishes the world pose; each `update(left_increment_mm, right_increment_mm)` advances it from measured wheel travel and returns the new estimate. Navigation uses this pose in later challenges. |
+| `SensorModel` in `sensor_model.py` | Carried forward from Challenge 1; supplies signed wheel increments and speeds. |
+| `WheelSpeedController` in `wheel_speed_controller.py` | Carried forward from Challenge 1; turns wheel targets and measurements into motor commands. |
 
-`wheel_speeds(command)` receives a `MotionCommand`. Let
-`v = command.forward_speed_mm_s`, `omega = command.turn_rate_rad_s`, and
-`b = self.config.track_width_mm`. Return:
+`ROBOT_CONFIG.track_width_mm` is the effective distance between the wheel paths
+used by both classes. Straight body motion produces equal wheel targets; a
+counterclockwise in-place turn produces a backward left target and forward
+right target. Equal measured wheel increments translate the pose without
+changing heading; unequal increments change heading and follow the corresponding
+planar arc. Inputs to odometry are measured increments, not requested speeds or
+motor commands.
 
-```text
-left wheel speed  = v - omega * b / 2
-right wheel speed = v + omega * b / 2
-```
-
-With zero turn rate the wheel speeds are equal. With zero forward speed and
-positive turn rate, the left wheel moves backward and the right wheel moves
-forward, producing a counterclockwise in-place turn.
-
-### Implement `Odometry`
-
-`reset(initial_pose)` stores and returns the supplied `Pose`. The read-only
-`pose` property returns the most recent estimate.
-
-`update(left_increment_mm, right_increment_mm)` performs one pose update:
-
-1. Calculate center travel as the mean of the two wheel increments.
-2. Calculate heading change as
-   `(right_increment_mm - left_increment_mm) / track_width_mm`.
-3. When the heading change is effectively zero, advance the center travel along
-   the current heading.
-4. Otherwise calculate the motion along its circular arc rather than treating
-   it as a straight segment.
-5. Store and return a new `Pose`. `Pose` normalizes the heading so equivalent
-   angles have one representation.
-
-The inputs are measured wheel travel, not motor commands or requested wheel
-speeds. The API page specifies behavior before `reset()` and for invalid
-arguments.
+The task also uses `cruise_speed_mm_s`, `approach_speed_mm_s`,
+`slowdown_distance_mm`, `position_tolerance_mm`, `turn_rate_rad_s`, and
+`heading_tolerance_rad` from `NAVIGATION_CONFIG`. Use the named configuration
+fields rather than their current numeric values.
 
 ## Provided files and tools
 
-| File or tool | What it provides |
+| File or service | Role |
 | --- | --- |
-| `main.py` | Runs the outward segment, turns to the return heading, travels back, and restores the initial heading. |
-| `challenge.py` | Derives the named distances and heading from `world.json`. |
-| `robot_config.py` | Holds robot calibration, effective track width, straight speeds, and arrival tolerances. |
-| `course_setup.py` | Selects each of the four student classes independently. |
-| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
-| `StraightLineController` | Supplies the outbound and return forward commands. |
-| `Robot` | Calls the selected drive, wheel-control, measurement, and odometry classes once per sample. |
-
-`world.json` defines the start/finish area and the turn waypoint displayed by
-the virtual XRP and Monitor.
+| `world.json` | Start/finish region and turn marker. |
+| `challenge.py` | Loads the task distances and headings from the world. |
+| `main.py` | Runs outward travel, the return turn, return travel, and final heading recovery. |
+| `robot_config.py` | Effective track width, robot calibration, motion speeds, and tolerances. |
+| `course_setup.py` | Selects all four components independently. |
+| `component_checks.py` | Compares labeled inputs, expected observations, and results without moving a robot. |
+| `StraightLineController` and `Robot` | Supply measured straight travel and the repeated control/measurement cycle. |
 
 ## How the program runs
 
-1. `main.py` advances through four phases: travel outward, turn to the return
-   heading, travel back, and turn to the initial heading.
-2. In each sample, it sends the current `MotionCommand` to your
-   `DifferentialDrive`, which returns target wheel speeds.
-3. The selected `WheelSpeedController` uses the target and measured wheel
-   speeds to command the motors.
-4. The target reads the resulting encoder counts. The selected `SensorModel`
-   converts them into signed, encoder-derived wheel-travel increments.
-5. Your `Odometry` applies those increments to its retained `Pose`.
-   `main.py` uses the updated pose to decide when to change phase or finish.
-
-Your new work is `DifferentialDrive` and `Odometry`. `SensorModel` and
-`WheelSpeedController` are carried forward from Challenge 1.
+`main.py` alternates measured straight travel with heading changes. On every
+sample, `DifferentialDrive` provides wheel targets, the carried-forward wheel
+controller drives the motors, `SensorModel` reports wheel increments, and
+`Odometry` updates the retained pose. The current pose determines when each
+phase is complete.
 
 ## Complete the challenge
 
-1. Create Challenge 2 from the completed Challenge 1 project as described above.
-   For the first run, use the supplied DifferentialDrive and Odometry. Your
-   carried-forward components keep their Challenge 1 selections.
-2. Run the supplied virtual project. Observe the outbound segment, return turn,
-   return segment, final turn, and continuously updated pose.
-3. Implement `DifferentialDrive`. Select **Test components** and read each
-   example before its result. Check equal wheel speeds for straight motion,
-   opposite wheel speeds for an in-place turn, and unequal wheel speeds for a
-   curve.
-4. Select the student DifferentialDrive in `course_setup.py` and repeat the
-   complete virtual run with the supplied Odometry.
-5. Implement `Odometry`. Check reset, straight travel, an in-place turn, and a
-   curved increment before selecting it.
-6. Run all selected student classes together. In the Monitor, compare odometry
-   with the simulator's ground-truth pose and inspect where their difference
-   begins.
-7. After USB setup/repair has installed the course runtime, select the physical
-   XRP over its configured Wi-Fi network. Run prepares this project in temporary
-   controller RAM. In a clear marked area, record the estimated final pose,
-   wheel increments, and requested turn rate; separately measure the actual
-   final position and heading.
+1. Run the supplied new components on the virtual XRP and observe all four
+   phases and the changing pose.
+2. Implement and check `DifferentialDrive`. Verify straight, in-place-turn, and
+   moving-turn relationships before selecting it.
+3. Implement and check `Odometry`. Verify reset, straight travel, in-place
+   rotation, and curved travel before selecting it.
+4. Run all selected student classes together. Compare estimated pose with the
+   simulator's ground-truth pose; they are distinct measurements.
+5. On the physical course, record wheel increments, estimated final pose, and
+   requested turn rate, then separately measure final position and heading.
 
-The simulator's ground-truth pose is provided only for comparison. Navigation
-and the physical robot use the `Pose` returned by your `Odometry`.
+The virtual ground-truth pose is for comparison only. Navigation and the
+physical XRP use the `Pose` returned by the selected `Odometry`.

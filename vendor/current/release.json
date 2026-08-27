@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.08-dev.35",
-  "release_sequence": 35,
+  "release_id": "2026.08-dev.36",
+  "release_sequence": 36,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.4-draft",
@@ -12,7 +12,7 @@
     "bootstrap_version": 1
   },
   "compatibility": {
-    "minimum_robot_release_sequence": 35
+    "minimum_robot_release_sequence": 36
   },
   "controller": {
     "id": "sparkfun-xrp-controller-rp2350",
@@ -40,7 +40,7 @@
     "version": "0.4.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
     "source_file_count": 16,
-    "source_sha256": "0833e473658ee750e1eeb0d589f501a0bdb76de7b8c664b097784d228fe8a872",
+    "source_sha256": "1c49ee2614d9d90f0a7a5866f3eb7af394b0a10bc62736b5f05c8b3ccf2db925",
     "reference_compiler": {
       "repository": "micropython/micropython",
       "tag": "v1.28.0",

@@ -4,6 +4,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import runpy
 import sys
 import tempfile
@@ -36,7 +37,9 @@ class CourseStarterTests(unittest.TestCase):
     def test_tutorial_is_progressive_and_student_facing(self):
         tutorial = TEMPLATES / "micropython_tutorial"
         readme = (tutorial / "README.md").read_text(encoding="utf-8")
+        normalized_readme = " ".join(readme.split())
         for section in (
+            "## Read before Lesson 1",
             "## Run a lesson",
             "## Lesson sequence",
             "## Python essentials used here",
@@ -51,6 +54,46 @@ class CourseStarterTests(unittest.TestCase):
             "Open the **File** menu and select **Make main**",
             readme,
         )
+        for concept in ("comment", "docstring", "assert", "tolerance"):
+            self.assertIn(concept, normalized_readme.lower())
+
+        for lesson_number in (1, 2):
+            source = next(tutorial.glob("{}_*.py".format(lesson_number))).read_text(
+                encoding="utf-8"
+            )
+            tree = ast.parse(source)
+            self.assertFalse(
+                any(isinstance(node, ast.Raise) for node in ast.walk(tree)),
+                "exceptions are introduced in Lesson 4",
+            )
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Assert):
+                    continue
+                for comparison in ast.walk(node.test):
+                    if not isinstance(comparison, ast.Compare):
+                        continue
+                    compared_values = [comparison.left, *comparison.comparators]
+                    self.assertFalse(
+                        isinstance(comparison.ops[0], (ast.Eq, ast.NotEq))
+                        and any(
+                            isinstance(value, ast.Constant)
+                            and isinstance(value.value, float)
+                            for value in compared_values
+                        ),
+                        "tutorial float assertions must use a tolerance",
+                    )
+
+        lesson_seven = (tutorial / "7_finite_state_machine.py").read_text(
+            encoding="utf-8"
+        )
+        lesson_seven_tree = ast.parse(lesson_seven)
+        next_state = next(
+            node
+            for node in ast.walk(lesson_seven_tree)
+            if isinstance(node, ast.FunctionDef) and node.name == "next_state"
+        )
+        self.assertEqual(next_state.args.defaults, [])
+        self.assertIn("range_mm is None", lesson_seven)
 
         for lesson_number in range(3, 8):
             source = next(tutorial.glob("{}_*.py".format(lesson_number))).read_text(
@@ -216,7 +259,9 @@ class CourseStarterTests(unittest.TestCase):
                     ),
                     text,
                 )
-                self.assertEqual(text.count("EXAMPLE · "), component_count)
+                self.assertEqual(text.count("CHECK · "), component_count)
+                self.assertEqual(text.count("INPUT · "), component_count)
+                self.assertEqual(text.count("EXPECT · "), component_count)
                 self.assertIn("input", source.lower())
                 self.assertIn("Complete SensorModel.reset", text)
                 self.assertNotIn("PENDING", text)
@@ -252,6 +297,10 @@ class CourseStarterTests(unittest.TestCase):
                 "7 passed · 0 not implemented · 0 failed",
                 output.getvalue(),
             )
+            self.assertEqual(output.getvalue().count("CHECK · "), 7)
+            self.assertEqual(output.getvalue().count("INPUT · "), 7)
+            self.assertEqual(output.getvalue().count("EXPECT · "), 7)
+            self.assertEqual(output.getvalue().count("OBSERVED · "), 7)
         finally:
             sys.path.remove(course_source)
             sys.path.remove(reference_source)
@@ -349,6 +398,109 @@ class CourseStarterTests(unittest.TestCase):
                 "1 passed · 1 not implemented · 0 failed",
                 output.getvalue(),
             )
+        finally:
+            sys.path.remove(course_source)
+            sys.path.remove(reference_source)
+            for name in tuple(sys.modules):
+                if name == "ucsb_xrp_reference" or name.startswith(
+                    "ucsb_xrp_reference."
+                ):
+                    sys.modules.pop(name, None)
+
+    def test_component_failure_names_the_compared_value(self):
+        course_source = str(ROOT / "vendor" / "current")
+        sys.path.insert(0, course_source)
+        try:
+            from ucsb_xrp import WheelSpeeds
+            from ucsb_xrp.component_checks import run_component_checks
+
+            class IncorrectDifferentialDrive:
+                def __init__(self, config):
+                    self.config = config
+
+                def wheel_speeds(self, command):
+                    return WheelSpeeds(0.0, 0.0)
+
+            IncorrectDifferentialDrive.__name__ = "DifferentialDrive"
+            output = io.StringIO()
+            with self.assertRaisesRegex(
+                AssertionError,
+                "1 component check",
+            ), contextlib.redirect_stdout(output):
+                run_component_checks(IncorrectDifferentialDrive)
+
+            self.assertIn(
+                "straight left target (mm/s): expected 80.0, received 0.0",
+                output.getvalue(),
+            )
+        finally:
+            sys.path.remove(course_source)
+
+    def test_component_examples_reject_missing_required_behavior(self):
+        course_source = str(ROOT / "vendor" / "current")
+        reference_source = str(ROOT / "vendor" / "current" / "reference_source")
+        sys.path.insert(0, reference_source)
+        sys.path.insert(0, course_source)
+        try:
+            from ucsb_xrp import Measurements, MotionCommand, Pose, WheelSpeeds
+            from ucsb_xrp.component_checks import run_component_checks
+            from ucsb_xrp_reference import (
+                NavigationController as SuppliedNavigationController,
+                Odometry as SuppliedOdometry,
+                SensorModel as SuppliedSensorModel,
+                WheelSpeedController as SuppliedWheelSpeedController,
+            )
+
+            class NominalTimeSensorModel(SuppliedSensorModel):
+                def update(self, raw):
+                    measured = super().update(raw)
+                    return Measurements(
+                        measured.time_ms,
+                        self.config.sample_period_ms / 1000.0,
+                        measured.left_position_mm,
+                        measured.right_position_mm,
+                        measured.left_increment_mm,
+                        measured.right_increment_mm,
+                        measured.left_speed_mm_s,
+                        measured.right_speed_mm_s,
+                        measured.range_mm,
+                        measured.button_pressed,
+                    )
+
+            class MeasurementBlindWheelController(SuppliedWheelSpeedController):
+                def update(self, target, measured):
+                    return super().update(target, WheelSpeeds(0.0, 0.0))
+
+            class IncorrectCurveOdometry(SuppliedOdometry):
+                def update(self, left_increment_mm, right_increment_mm):
+                    if left_increment_mm == 0.0 and right_increment_mm == 100.0:
+                        self._pose = Pose(1.0, 1.0, 1.0)
+                        return self._pose
+                    return super().update(left_increment_mm, right_increment_mm)
+
+            class AlwaysLeftNavigationController(SuppliedNavigationController):
+                def update(self, pose):
+                    command = super().update(pose)
+                    if command.turn_rate_rad_s < 0.0:
+                        return MotionCommand(
+                            command.forward_speed_mm_s,
+                            -command.turn_rate_rad_s,
+                        )
+                    return command
+
+            incomplete_components = (
+                (NominalTimeSensorModel, "SensorModel"),
+                (MeasurementBlindWheelController, "WheelSpeedController"),
+                (IncorrectCurveOdometry, "Odometry"),
+                (AlwaysLeftNavigationController, "NavigationController"),
+            )
+            for component_class, public_name in incomplete_components:
+                component_class.__name__ = public_name
+                with self.subTest(component=public_name), self.assertRaisesRegex(
+                    AssertionError,
+                    "1 component check",
+                ), contextlib.redirect_stdout(io.StringIO()):
+                    run_component_checks(component_class)
         finally:
             sys.path.remove(course_source)
             sys.path.remove(reference_source)
@@ -457,6 +609,7 @@ class CourseStarterTests(unittest.TestCase):
             ),
         }
         required_sections = (
+            "## Objective",
             "## What you implement",
             "## Provided files and tools",
             "## How the program runs",
@@ -468,7 +621,6 @@ class CourseStarterTests(unittest.TestCase):
             with self.subTest(challenge=challenge):
                 for section in required_sections:
                     self.assertIn(section, text)
-                self.assertNotIn("## Objective", text)
                 self.assertNotIn("## Program flow", text)
                 self.assertTrue(
                     "Your work" in text or "Your new work" in text,
@@ -506,6 +658,27 @@ class CourseStarterTests(unittest.TestCase):
             for term in unclear_terms:
                 with self.subTest(challenge=directory.name, term=term):
                     self.assertNotIn(term, student_text)
+
+    def test_challenge_guides_are_concise_and_behavioral(self):
+        prescriptive_terms = (
+            "breadth-first",
+            "depth-first",
+            "frontier",
+            "predecessor",
+            "left wheel speed  =",
+            "right wheel speed =",
+        )
+        hard_coded_geometry = re.compile(
+            r"(?:x_mm|y_mm|heading_rad)\s*[=:]\s*-?\d",
+            re.IGNORECASE,
+        )
+        for directory in sorted(path for path in STARTERS.iterdir() if path.is_dir()):
+            readme = (directory / "README.md").read_text(encoding="utf-8")
+            with self.subTest(challenge=directory.name):
+                self.assertIn("`world.json`", readme)
+                self.assertIsNone(hard_coded_geometry.search(readme))
+                for term in prescriptive_terms:
+                    self.assertNotIn(term, readme.lower())
 
     def test_challenge_progression_text_matches_the_catalog(self):
         catalog = json.loads(
@@ -545,9 +718,6 @@ class CourseStarterTests(unittest.TestCase):
         )
         self.assertNotIn("shortest", readme.lower())
         self.assertNotIn("four-neighbor", readme.lower())
-        self.assertIn("connected route through free grid cells", readme)
-        self.assertIn("shares one horizontal or vertical side", readme)
-        self.assertIn("accept any route", readme.lower())
 
         catalog = json.loads(
             (ROOT / "vendor/current/project_catalog.json").read_text(

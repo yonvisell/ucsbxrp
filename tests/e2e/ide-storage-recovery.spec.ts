@@ -375,7 +375,7 @@ test("asks before opening a template as a browser-only project", async ({
     )
     .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
 
-  await ide.getByRole("button", { name: "Use browser only" }).click();
+  await ide.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(
     ide.getByRole("button", {
       name: "Open 1_values_and_functions.py (main file)",

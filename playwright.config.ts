@@ -12,6 +12,7 @@ if (
   throw new Error("COURSE_PREVIEW_PORT must be an available user port");
 }
 const previewOrigin = `http://127.0.0.1:${previewPort}`;
+const reuseExistingServer = process.env.COURSE_REUSE_PREVIEW === "1";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -35,7 +36,7 @@ export default defineConfig({
   webServer: {
     command: `npm run preview -- --port ${previewPort}`,
     url: previewOrigin,
-    reuseExistingServer: false,
+    reuseExistingServer,
     timeout: 120_000,
   },
 });

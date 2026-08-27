@@ -216,7 +216,7 @@
 
 .additional-component-row {
   display: grid;
-  grid-template-columns: 150px 150px minmax(240px, 1fr) auto;
+  grid-template-columns: 130px 130px 220px minmax(220px, 1fr) auto;
   align-items: end;
   gap: 0.45rem;
   border-top: 1px solid var(--line);

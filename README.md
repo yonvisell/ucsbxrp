@@ -38,8 +38,8 @@ each named `USE_STUDENT_*` switch independently.
 
 ## IDE workflow
 
-A **working folder** is a parent folder containing one named folder per XRP
-project. After the IDE has access to a working folder, **Create from template**
+A **Projects folder** is a parent folder containing one named folder per XRP
+project. After the IDE has access to a Projects folder, **Create from template**
 asks for the project folder name, creates that folder, and writes the
 template immediately. **Open project** resumes an existing folder. Source edits
 then save automatically after a short pause; Command/Ctrl+S forces an immediate
@@ -51,10 +51,11 @@ monitored run output and telemetry. New, renamed, duplicated, and deleted files
 remain project-relative, and `.ucsb-xrp-project.json` stores the project name and
 main Python file.
 
-The browser backup is independent of the project folder. Chrome remembers folder
-handles when permitted and otherwise offers one reconnect action. With no
-working folder selected, a template remains in the browser backup until the
-student chooses a working folder and names its project folder.
+The copy retained by Chrome is independent of the project folder. Chrome
+remembers folder access when permitted and otherwise offers one reconnect
+action. With no Projects folder selected, project changes remain only in that
+browser until the student chooses a Projects folder and names the project
+folder.
 
 - **Validate** compiles every Python file with MicroPython without running
   it.
@@ -142,7 +143,7 @@ Open **Open wizard for XRP initial set up or repair** on the landing page, or
 **Set up or repair XRP** in IDE Settings, using current desktop Chrome or Edge
 on Windows or macOS. The wizard:
 
-1. optionally selects a working folder for named project folders and setup logs,
+1. optionally selects a Projects folder for named project folders and setup logs,
    and waits for the complete offline web release;
 2. selects the USB-C XRP through the browser's device picker;
 3. checks the RP2350 controller, MicroPython 1.28.0, XRPLib, course library,
@@ -166,10 +167,10 @@ existing network unless another mode is selected. **Existing Wi-Fi** is also
 available in the wizard and later from IDE Settings; credentials pass directly
 to the XRP over USB and are not stored by the web application.
 
-Selecting a working folder performs a real write-and-read check and creates
+Selecting a Projects folder performs a real write-and-read check and creates
 `UCSB_XRP_Autosaves/xrp-setup-latest.txt`. The collapsed **Setup log** records
 the controller check, changed-file count, reset, and each robot-service probe;
-it never records the Wi-Fi password. The working folder can be chosen later in
+it never records the Wi-Fi password. The Projects folder can be chosen later in
 the IDE;
 the visible log remains copyable meanwhile. **Verify robot connection** begins
 after USB installation and reset. Existing-Wi-Fi mode can verify without
@@ -178,10 +179,11 @@ shown by the wizard. Allow this site to access the local network when Chrome
 asks. On macOS, Chrome must also be enabled under **System Settings → Privacy &
 Security → Local Network**.
 
-The commissioning handoff remembers the working folder but does not import its
-contents as a project. For a new browser, the default expanding-spiral demo is
-written immediately to `./Expanding-Spiral`. Recovered student work is never
-moved automatically. A repository is opened only through **Open project**, so
+The commissioning handoff remembers the Projects folder but does not import its
+contents as a project. In a new browser, the built-in expanding-spiral demo
+opens without writing a project folder. The student can create its project
+folder when they decide to keep it. Existing student work is never moved
+automatically. A repository is opened only through **Open project**, so
 unrelated Python files cannot replace the current project.
 
 The same **Install or repair XRP** action is intentionally idempotent: matching
@@ -221,7 +223,7 @@ Detailed recovery and remaining floor-calibration work are in
 
 Each course team maintains one GitHub repository. Clone it with
 [GitHub Desktop](https://docs.github.com/en/desktop/overview/getting-started-with-github-desktop),
-then select that cloned repository as the IDE **Working folder**. Use **Open
+then select that cloned repository as the IDE **Projects folder**. Use **Open
 project** for one project subfolder inside it, or create a new project there.
 Pull before editing. The IDE saves source changes into the active project
 folder; GitHub Desktop shows those changes for review, commit, and push. This
@@ -273,14 +275,15 @@ and without an internet connection; no Node.js server or separate installation
 is required. Physical robot commands and telemetry still require the computer
 to use local Wi-Fi that can reach the XRP.
 
-The saved course apps are separate from student project files. A selected working
-folder remains an ordinary folder on the computer; without one, project recovery
-data belongs to Chrome, and recordings and program output that are not saved or
-exported last only for the current browser session. The course apps are not
-copied into the working folder. Clearing the site's Chrome data removes the saved
-course apps, settings, browser recovery data, and remembered folder handles, but
-does not remove files in a selected working folder. Select the folder again to
-restore access. The optional **Install UCSBXRP app** button on the landing page
+The saved course apps are separate from student project files. A selected
+Projects folder remains an ordinary folder on the computer; without one,
+project changes belong to Chrome, and recordings and program output that are
+not saved or exported last only for the current browser session. The course
+apps are not copied into the Projects folder. Clearing the site's Chrome data
+removes the saved course apps, settings, browser-held project changes, and
+remembered folder access, but does not remove files in a selected Projects
+folder. Select the folder again to restore access. The optional **Install
+UCSBXRP app** button on the landing page
 adds a launcher and standalone app window when Chrome offers it; the installed
 app uses the same browser storage and update process. Browser storage is not a
 permanent project backup and can also be removed under storage pressure;

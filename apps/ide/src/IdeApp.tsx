@@ -2468,8 +2468,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         (template) => template.id === pendingProject.templateId,
       )
     : null;
-  const progressingToNextChallenge =
-    pendingTemplate?.predecessorId === project.templateId;
+  const progressingToNextChallenge = Boolean(
+    project.templateId && pendingTemplate?.predecessorId === project.templateId,
+  );
   const carriedFiles =
     progressingToNextChallenge && pendingTemplate
       ? pendingTemplate.components
@@ -2628,7 +2629,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             >
               {workingFolder
                 ? `./${workingFolder.name}`
-                : `${project.name} · browser only`}
+                : `${project.name} · not saved to a folder`}
             </div>
             <div
               className={`project-owner-state ${projectProviderActive ? "active" : "standby"}`}
@@ -3510,10 +3511,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
               {!workspaceFolder && supportsWorkingFolders() ? (
                 <button
                   onClick={() => void createTemporaryPendingProject()}
-                  title="Create the project in this browser without saving it to a folder."
+                  title="Open the project now. Changes remain in this browser until you choose a Projects folder."
                   type="button"
                 >
-                  Use browser only
+                  Continue without a folder
                 </button>
               ) : null}
               <button className="primary-button" type="submit">
@@ -3521,7 +3522,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   ? "Create project"
                   : supportsWorkingFolders()
                     ? "Choose Projects folder and create"
-                    : "Create browser project"}
+                    : "Create without a folder"}
               </button>
             </div>
           </form>

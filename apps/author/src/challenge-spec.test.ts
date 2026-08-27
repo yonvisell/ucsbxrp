@@ -45,6 +45,7 @@ describe("challenge authoring specification", () => {
       {
         file: "../controller.py",
         class_name: "not-a-class",
+        selection_flag: "USE_STUDENT_CONTROLLER",
         responsibility: "Return a motion command.",
       },
     ];
@@ -91,6 +92,7 @@ describe("challenge authoring specification", () => {
     spec.student_implementations.push({
       file: "route_analyzer.py",
       class_name: "RouteAnalyzer",
+      selection_flag: "USE_STUDENT_ROUTE_ANALYZER",
       responsibility: "Return a route-error summary from recorded poses.",
     });
     expect(validateChallengeSpec(spec)).toContain(
@@ -107,6 +109,21 @@ describe("challenge authoring specification", () => {
 
     spec.files["route_analyzer.py"] = "class RouteAnalyzer:\n    pass\n";
     expect(validateChallengeSpec(spec)).toEqual([]);
+  });
+
+  it("uses catalog metadata for inherited class and selection identities", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    spec.student_implementations[0]!.class_name = "RenamedNavigator";
+    spec.student_implementations[0]!.selection_flag =
+      "USE_STUDENT_RENAMED_NAVIGATOR";
+
+    const errors = validateChallengeSpec(spec);
+    expect(errors).toContain(
+      "navigation_controller.py defines NavigationController in the starting challenge, not RenamedNavigator.",
+    );
+    expect(errors).toContain(
+      "RenamedNavigator must retain selection flag USE_STUDENT_NAVIGATION_CONTROLLER.",
+    );
   });
 
   it("parses compact line-oriented form fields without empty entries", () => {

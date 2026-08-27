@@ -11,6 +11,42 @@ XRP. Their commands and loops have explicit duration limits. Use the virtual
 target for this tutorial; physical experiments begin with the course challenge
 projects and the robot configuration measured for your XRP.
 
+## Read before Lesson 1
+
+A line beginning with `#` is a comment for a person reading the program. Python
+does not execute the text after `#`:
+
+```python
+# Millimeters traveled during this segment.
+distance_mm = 250.0
+```
+
+A string immediately inside a module, class, or function is a documentation
+string, or docstring. It describes that module, class, or function and can be
+read by Python tools. Triple-quoted strings are not a substitute for ordinary
+comments elsewhere in a program.
+
+Lessons 1 and 2 use `assert` to verify a required condition or compare a
+calculated result with a known result. Decimal calculations can differ by a
+tiny rounding amount, so compare floats with a tolerance rather than exact
+equality:
+
+```python
+expected_speed_mm_s = 150.0
+assert abs(speed_mm_s - expected_speed_mm_s) < 0.000001
+```
+
+`print(...)` displays values in Program output. `abs(...)` returns a number's
+magnitude. An assertion stops the program and reports its line when its
+condition is false.
+
+Before Lesson 3, note two rules used by every motion lesson. An `import` makes
+a class or function from another module available in the current file. A
+`try/finally` block guarantees that `bot.stop()` runs after the motion block,
+including when an error interrupts it. Lesson 4 introduces `raise` and `except`
+for reporting and handling an invalid value. Lesson 5 shows how to place a
+reusable function in your own module.
+
 ## Run a lesson
 
 1. Confirm that the target selector says **Virtual XRP**.
@@ -33,12 +69,12 @@ Program output with the file and line number.
 | File | Python idea | Robot result |
 | --- | --- | --- |
 | `1_values_and_functions.py` | values, names, expressions, functions, arguments, and return values | calculates a requested average speed |
-| `2_collections_and_loops.py` | lists, dictionaries, `for`, `if`, indexing, and accumulation | calculates the length of a route |
+| `2_collections_and_loops.py` | lists, dictionary lookup, `for`, and accumulation | calculates the length of a route |
 | `3_classes.py` | classes, objects, methods, and instance variables | executes a route made from motion-segment objects |
 | `4_exceptions.py` | `raise`, `try`, `except`, and `finally` | rejects an invalid duration and leaves motor commands at zero |
 | `5_modules.py` | modules, imports, and reusable functions | executes a route using `tutorial_helpers.py` |
 | `6_virtual_robot.py` | repeated sensor readings, a threshold, and a time limit | approaches the wall and stops from ultrasound range |
-| `7_finite_state_machine.py` | named states and explicit transitions | approaches, turns, departs, and stops |
+| `7_finite_state_machine.py` | named states, events, and explicit transitions | approaches, turns, departs, and stops |
 
 `world.json` defines the tutorial field displayed by Monitor, including the
 range target and the robot's starting pose. Robot programs do not contain a
@@ -63,6 +99,7 @@ The principal built-in types in these lessons are:
 - `float`: a number with a fractional part, such as `150.0` mm/s;
 - `str`: text enclosed in quotes;
 - `bool`: `True` or `False`;
+- `None`: no value is available;
 - `list`: an ordered, changeable sequence enclosed in `[]`;
 - `tuple`: an ordered, fixed sequence enclosed in `()`; and
 - `dict`: named key-value entries enclosed in `{}`.
@@ -79,7 +116,9 @@ constant during one run. Python does not enforce this convention.
 
 An expression produces a value. For example,
 `distance_mm / duration_s` produces a speed. Comparisons such as
-`duration_s <= 0.0` produce `True` or `False`.
+`distance_mm > 0.0` produce `True` or `False`. Use `value is None` to test
+whether no value is available and `value is not None` to test whether a result
+is available.
 
 `if`, `for`, `while`, `def`, `class`, `try`, and related statements introduce
 an indented block. Four spaces are used for each indentation level. Indentation
@@ -96,8 +135,6 @@ A function gives a calculation or operation a name:
 
 ```python
 def average_speed_mm_s(distance_mm, duration_s):
-    if duration_s <= 0.0:
-        raise ValueError("duration_s must be positive")
     return distance_mm / duration_s
 ```
 
@@ -167,20 +204,22 @@ maintains the sample schedule. Do not add `sleep_ms()` inside a challenge
 control loop: the extra wait changes the sample interval and therefore changes
 speed estimation, control, and odometry.
 
-Lesson 7 names four mutually exclusive modes: `APPROACH`, `TURN`, `DEPART`, and
-`DONE`. The program performs the behavior for the current state, then assigns
-the next state. A finite-state machine makes transitions visible and prevents
-several phases from being active at once. Later, `NavigationController` uses
-the same general structure for turning toward a destination, driving, and
-aligning to a final heading.
+Lesson 7 names four mutually exclusive states: `APPROACH`, `TURN`, `DEPART`,
+and `DONE`. An event states why the current action ended: the range sensor found
+an obstacle, its time limit expired, or a timed motion completed. The program
+uses the current state and event to select the next state. `drive_until_close()`
+returns `None` when its time limit expires without a detection. A finite-state
+machine makes transitions visible and prevents several phases from being active
+at once. Later, `NavigationController` uses the same general structure for
+turning toward a destination, driving, and aligning to a final heading.
 
 ## Suggested exercises
 
 Make one change at a time, predict the result, Run, and compare the prediction
 with Program output or Monitor.
 
-1. Change `TARGET_TIME_S` in Lesson 1. Update the assertion to the expected
-   speed rather than deleting the check.
+1. Change `TARGET_TIME_S` in Lesson 1. Update `expected_speed_mm_s` rather than
+   deleting the tolerance check.
 2. Add a fourth positive segment to Lesson 2 and update the expected total.
 3. Change one command or duration in Lesson 3 and describe the resulting path.
 4. Change the invalid duration in Lesson 4 to a positive value. Determine which

@@ -279,13 +279,13 @@ test("an IDE update waits for Create Project and reopens the created folder", as
   await page.getByLabel("Project template").selectOption("challenge_1");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Name the project folder" }),
+    page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
   await page.getByLabel("Folder name").fill("Created-During-Update");
 
   await announceCourseUpdate(page, "test-release-create-project");
   await expect(
-    page.getByRole("heading", { name: "Name the project folder" }),
+    page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
 
   const reloaded = page.waitForEvent("load");

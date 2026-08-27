@@ -378,9 +378,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await ide
     .getByRole("button", { name: "Choose Projects folder", exact: true })
     .click();
+  await expect(ide.getByRole("dialog")).toContainText(
+    "The project folder will be created",
+  );
   await ide.getByLabel("Folder name").fill("virtual-browser-check");
   await ide
-    .getByRole("button", { name: "Create project", exact: true })
+    .getByRole("button", {
+      name: "Choose Projects folder and create",
+      exact: true,
+    })
     .click();
   await ide.getByRole("tab", { name: "Status" }).click();
   await expect(ide.locator(".project-operation-detail")).toHaveText(
@@ -509,7 +515,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   ).toBeVisible();
   await expect(
     guide.getByRole("heading", {
-      name: "Project files, units, and data flow",
+      name: "Python project structure",
     }),
   ).toBeVisible();
   const apiReference = await context.newPage();

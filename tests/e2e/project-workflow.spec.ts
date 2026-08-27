@@ -237,14 +237,14 @@ test("requires an explicit storage choice for a new project", async ({
   await expect(page.getByTestId("project-folder")).toHaveText(
     originalProject ?? "",
   );
-  await page.getByRole("button", { name: "Use browser only" }).click();
+  await page.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(
     page.getByRole("button", {
       name: "Open 1_values_and_functions.py (main file)",
     }),
   ).toBeVisible();
   await expect(page.getByTestId("project-folder")).toContainText(
-    "browser only",
+    "not saved to a folder",
   );
 });
 
@@ -267,7 +267,7 @@ test("exposes the previous unsaved browser draft after creating a folder-backed 
   await previous.click();
 
   await expect(page.getByTestId("project-folder")).toContainText(
-    "Expanding spiral · browser only",
+    "Expanding spiral · not saved to a folder",
   );
   await expect(previous).toHaveCount(0);
 });
@@ -574,7 +574,7 @@ test("Monitor validates and runs the project currently open in the IDE", async (
 
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
-  await ide.getByRole("button", { name: "Use browser only" }).click();
+  await ide.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(
     ide.getByRole("button", {
       name: "Open 1_values_and_functions.py (main file)",

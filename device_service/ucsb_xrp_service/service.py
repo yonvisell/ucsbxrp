@@ -37,7 +37,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.35"
+COURSE_RELEASE = "2026.08-dev.36"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {

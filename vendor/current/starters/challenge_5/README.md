@@ -1,142 +1,85 @@
 # Challenge 5: Delivery Mission
 
-The XRP begins facing the opening between two fixed walls. Use stationary
-ultrasonic range measurements to determine whether that opening is blocked by
-the changeable gate. The supplied mission then updates the map, plans a route,
-and drives to the delivery point. Two outcomes are correct: complete the
-delivery when a route exists, or stop and report that no route exists.
+## Objective
 
-`challenge.py` constructs `DELIVERY_TASK`. Its named fields define the mission
-without requiring values to be repeated elsewhere. Distances and range
-measurements use millimeters:
+Begin at the observation pose, use repeated forward-range measurements to decide
+whether the named gate is blocked, update the map, and deliver when a route
+exists. Two outcomes are valid: `"delivered"` after navigation or
+`"no_path"` while the robot remains stopped.
 
-- `initial_pose`, `arena`, and `destination` define the world and route
-  endpoints;
-- `grid_resolution_mm` sets the planning-cell side length, and `clearance_mm`
-  sets the required space from boundaries and obstacles;
-- `observed_feature_name` identifies the map feature changed by the ultrasonic
-  observation;
-- `range_sample_count` is the number of stationary measurements requested, and
-  `minimum_usable_range_count` is the minimum number required for an estimate;
-- `blocked_range_threshold_mm` is the largest estimated range interpreted as a
-  blocked gate; and
-- `assume_blocked_without_range` sets whether the observed feature is treated
-  as blocked when no estimate can be calculated.
-
-Read these fields through `DELIVERY_TASK`. Do not copy their current numerical
-values into `sensor_model.py` or another component.
-
-`world.json` provides open-gate and blocked-gate virtual cases with the same
-geometry, start, and destination. Selecting a case in the Monitor changes the
-simulated ultrasonic measurement. `challenge.py` also loads the shared arena
-definition containing the named changeable gate. `DeliveryMission` classifies
-that gate from the range estimate; it does not use the selected virtual case as
-the answer.
+`world.json` contains two virtual cases with a shared start, destination, and
+observable map feature. The selected case determines the simulated physical
+condition and therefore the range readings. `DeliveryMission` is not given that
+condition: it must infer whether the named feature is blocked from those
+readings. `challenge.py` loads the world and observation settings into
+`DELIVERY_TASK`. Do not duplicate wall, feature, start, or destination
+coordinates in Python.
 
 ## Continue from the previous challenge
 
-Open your Challenge 4 project and select **Create Challenge 5 · Delivery
-Mission project**. Your new work is to complete `SensorModel.estimate_range(...)` in
-the carried-forward `sensor_model.py`. The IDE creates a separate project,
-carries forward all six component files from Challenge 4, and keeps whether
-each supplied or student version is selected. Challenge 5 provides its own
-task, worlds, main program, checks, and configuration. Your Challenge 4 folder
+Open Challenge 4 and select **Create Challenge 5 · Delivery Mission project**.
+The IDE creates a separate project, carries forward all six component files,
+and keeps whether each student version is selected. Your new work is the
+previously deferred range method in `sensor_model.py`. The Challenge 4 folder
 remains unchanged.
 
 ## What you implement
 
-| File | Class | What it does |
-| --- | --- | --- |
-| `sensor_model.py` | `SensorModel` | Add a median range estimate from several ultrasonic readings while retaining the encoder methods completed earlier. |
-| `grid_planner.py` | `GridPlanner` | Carried forward from Challenge 4; plans a connected route through free cells on the observed map. |
-| `navigation_controller.py` | `NavigationController` | Carried forward from Challenge 4; converts each route goal and current pose into a motion request. |
-| `odometry.py` | `Odometry` | Carried forward from Challenge 4; estimates pose from measured wheel travel. |
-| `differential_drive.py` | `DifferentialDrive` | Carried forward from Challenge 4; converts robot motion requests into wheel-speed requests. |
-| `wheel_speed_controller.py` | `WheelSpeedController` | Carried forward from Challenge 4; converts requested and measured wheel speeds into motor commands. |
+Your new work is `SensorModel.estimate_range(samples, minimum_usable)`.
+`SensorModel.reset()` and `update()`, plus `wheel_speed_controller.py`,
+`differential_drive.py`, `odometry.py`, `navigation_controller.py`, and
+`grid_planner.py`, are carried forward.
 
-### Implement `SensorModel.estimate_range`
+| Method or class | Responsibility, state, and use |
+| --- | --- |
+| `SensorModel.estimate_range` | Examines one supplied sequence without changing wheel-measurement state. It returns the median of the positive finite numeric readings when at least `minimum_usable` remain; otherwise it returns `None`. Boolean, missing, nonfinite, zero, and negative values are unusable. |
+| `DeliveryMission` | Supplied coordinator. It keeps the robot stopped while sampling, applies the range result to one named map feature, requests a plan, follows it when available, and stops on every exit. |
+| Carried-forward components | Measure wheel motion, control wheels, relate body and wheel motion, estimate pose, navigate goals, and plan the observed map. |
 
-`estimate_range(samples, minimum_usable)` receives a sequence of ultrasonic
-range readings and the required number of usable readings. Input ranges and a
-returned estimate are in millimeters. It returns `None` when no estimate can be
-calculated. `minimum_usable` must be an integer of at least one.
-
-1. Examine each value in `samples`.
-2. Keep it only when it is an `int` or `float`, is not a Boolean value, is
-   finite, and is greater than zero.
-3. Return `None` if fewer than `minimum_usable` values remain.
-4. Sort the remaining values.
-5. For an odd number of values, return the middle value. For an even number,
-   return the mean of the two middle values.
-
-This median calculation rejects isolated unusually small or large readings
-without assigning a distance to missing or invalid data. `None` means that no
-range estimate was available; it does not mean zero distance.
+`DELIVERY_TASK` owns `grid_resolution_mm`, `clearance_mm`,
+`observed_feature_name`, `range_sample_count`,
+`minimum_usable_range_count`, `blocked_range_threshold_mm`, and
+`assume_blocked_without_range`, as well as the initial pose, arena, and
+destination. Use these named values. `None` means no estimate was available;
+it does not mean a range of zero.
 
 ## Provided files and tools
 
-| File or tool | What it provides |
+| File or service | Role |
 | --- | --- |
-| `world.json` | Open-gate and blocked-gate virtual cases with the same walls, start, and destination. |
-| `challenge.py` | The named `DeliveryTask` fields used by every stage of the mission. |
-| `main.py` | Constructs `DeliveryMission`, runs it, and prints the mission result and final pose. |
-| `robot_config.py` | Robot calibration and waypoint-controller settings. |
-| `course_setup.py` | Selects the supplied or student version of each class independently. |
-| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
-| `DeliveryMission` | Keeps the robot stopped while sampling, decides whether the gate is blocked, updates the map, plans and follows the route, and stops the robot before exit. |
-| `ArenaMap` and `OccupancyGrid` | Represent the observed arena and the cells available for planning. |
-| `GridPath.to_goals(...)` | Keeps cells where the path turns and at the destination, converts their centers to waypoint goals, and applies the requested final heading. |
-| `Robot` and `XRPBot` | Supply measured robot state and isolate virtual or physical device access. |
-
-`DeliveryMission.result` is `"delivered"` after successful navigation and
-`"no_path"` when the planner cannot connect the start and destination.
+| `world.json` | Open and blocked virtual cases with shared geometry and named gate. |
+| `challenge.py` | Constructs `DELIVERY_TASK` from the selected world and mission settings. |
+| `main.py` | Runs `DeliveryMission` and prints its result and final pose. |
+| `robot_config.py` | Robot calibration and navigation settings. |
+| `course_setup.py` | Selects each carried-forward component independently. |
+| `component_checks.py` | Labels mixed range inputs, expected medians or `None`, and observed results. |
+| `ArenaMap`, `OccupancyGrid`, and `GridPath.to_goals(...)` | Represent the observed world and connect planning to navigation. |
+| `Robot` and `XRPBot` | Supply measured state and isolate virtual or physical hardware. |
 
 ## How the program runs
 
-1. The robot remains stopped while it collects repeated ultrasonic readings.
-2. Your `SensorModel.estimate_range(...)` returns the median usable range, or
-   `None` if too few usable readings were received.
-3. The supplied `DeliveryMission` compares a valid estimate with
-   `blocked_range_threshold_mm`. If the estimate is `None`, it uses
-   `assume_blocked_without_range` to choose the stated fallback.
-4. The mission records the observation in `ArenaMap`, builds a new
-   `OccupancyGrid`, and asks the selected `GridPlanner` for a route.
-5. If no route exists, the mission leaves the robot stopped and reports
-   `no_path`. Otherwise it converts the path to waypoint goals and the selected
-   `NavigationController` and `Robot` follow them.
-
-Your new work is the range-estimation method in `SensorModel`. The other
-student components are carried forward from the earlier challenges.
+The robot remains stopped while range samples are collected. Your estimator
+returns a median or `None`. The supplied mission compares an estimate with
+`blocked_range_threshold_mm`, or uses `assume_blocked_without_range` when no
+estimate exists. It changes only `observed_feature_name`, builds the occupancy
+grid, and requests a path. No path produces `"no_path"`; otherwise the
+carried-forward navigation and robot loop complete the delivery.
 
 ## Complete the challenge
 
-1. Create Challenge 5 from the completed Challenge 4 project as described above.
-   Your carried-forward components keep their Challenge 4 selections.
-   Run both virtual worlds and observe the stationary measurements in the
-   Monitor's Range plot and the route actually driven in the world view. Program
-   output reports the mission result and final pose.
-2. Implement `SensorModel.estimate_range`. Select **Test components** and check
-   valid odd and even sample counts, invalid values mixed with valid readings,
-   too few usable readings, and values far from the other readings.
-3. Select the student SensorModel in `course_setup.py` and repeat both virtual
-   worlds. Calculate the median from the displayed usable readings, then check
-   the gate decision, planned route, and mission result.
-4. Select the carried-forward student components one at a time. Repeat both
-   worlds after each selection so errors can be associated with range
-   measurement, the gate decision, planning, waypoint control, pose
-   estimation, or wheel control.
-5. Before a physical run, keep the XRP stationary and inspect several raw range
-   readings at the intended start pose. Verify their units and the direction in
-   which the sensor is aimed.
-6. After USB setup/repair has installed the course runtime, select the physical
-   XRP over its configured Wi-Fi network. Match the physical gate, walls, start,
-   and destination to the selected world. Put the XRP on a stable stand with
-   both wheels clear and select **Run**; Run prepares this project in temporary
-   controller RAM. Verify wheel direction, then select **Stop** and verify that
-   both wheels stop. Place the XRP at the marked start, run the mission in the
-   cleared arena, and record the range estimate, gate decision, path, result,
-   and final pose.
+1. Run both virtual worlds with the supplied estimator. Observe the stationary
+   range samples, selected map condition, route, mission result, and final pose.
+2. Implement and check `estimate_range`. Confirm odd and even medians, mixed
+   invalid readings, insufficient usable readings, and invalid
+   `minimum_usable`.
+3. Select the student `SensorModel` and repeat both worlds. Calculate the
+   expected median from the usable readings and compare it with the gate
+   decision and mission result.
+4. Repeat with carried-forward student components to distinguish observation,
+   planning, navigation, pose, and wheel-control results.
+5. Before physical motion, inspect stationary range values and sensor direction.
+   Then verify wheel direction with the wheels clear and Stop before running the
+   matched arena from its marked start.
 
-`DeliveryMission` sends a zero-motion command while collecting range samples
-and calls `robot.stop()` whether the mission completes, finds no path, or raises
-an error.
+`DeliveryMission` commands zero motion during observation and calls
+`robot.stop()` whether it delivers, finds no path, or raises an error.

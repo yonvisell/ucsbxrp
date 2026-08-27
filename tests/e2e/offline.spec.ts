@@ -52,7 +52,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
-  await ide.getByRole("button", { name: "Use browser only" }).click();
+  await ide.getByRole("button", { name: "Continue without a folder" }).click();
   expect(
     await ide
       .getByRole("link", { name: /Guide/ })
@@ -64,7 +64,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Projects folder.*temporary browser copy/s,
+    /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Projects folder.*project changes remain in this browser only/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),

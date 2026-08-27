@@ -31,8 +31,8 @@ guide, landing page, and shared packages.
 
 The IDE is the programming surface. It provides:
 
-- an optional Working folder containing named Project folders, automatic project
-  writes, and an independent browser recovery copy;
+- an optional Projects folder containing named project folders, automatic
+  project writes, and an independent browser-held draft;
 - multi-file creation, rename, duplicate, delete, tabs, and main-file
   metadata;
 - one grouped project catalog containing the five cumulative challenges,
@@ -67,19 +67,19 @@ physical XRP after a page reload.
 A virtual Run retains the selected world when `world.json` is unchanged;
 replacing that file selects its declared default world.
 Catalog entries are complete `CourseProject` values, not a persistent special
-mode. A Working folder is a parent directory; each project is one named child
+mode. A Projects folder is a parent directory; each project is one named child
 directory containing source, metadata, rotated copies, run output, and
 telemetry. **Open project** accepts only a directory with a valid root
-`.ucsb-xrp-project.json` and the declared main file. It rejects a Working-folder
+`.ucsb-xrp-project.json` and the declared main file. It rejects a Projects-folder
 parent, nested project metadata, and malformed metadata before reading child
 trees or changing the active autosave connection. Legacy root metadata without
-session or digest fields remains importable. When a Working folder is active,
+session or digest fields remains importable. When a Projects folder is active,
 loading a template first asks for the child-directory name and writes the
-complete project immediately. Without a Working folder, it remains in browser
-recovery until the student creates a Project folder. Any Python file can be
-selected as its entrypoint. Working-folder and active-project handles are
+complete project immediately. Without a Projects folder, changes remain in a
+browser-held draft until the student creates a project folder. Any Python file
+can be selected as its entrypoint. Projects-folder and active-project handles are
 retained separately in IndexedDB when structured handle storage is available.
-Changing the Working folder does not move, close, or replace the current
+Changing the Projects folder does not move, close, or replace the current
 project. If project read/write permission does not survive, one explicit
 Reconnect gesture restores it.
 Folder writes are debounced, serialized, and revision/epoch checked so an older
@@ -88,10 +88,10 @@ overwriting source, the previous complete project is rotated through four JSON
 generations in the project's `UCSB_XRP_Autosaves`.
 Each project also has a stable project ID, monotonic content revision, saved
 revision, and update time in `.ucsb-xrp-project.json`. IDE startup resolves the
-remembered Project folder and browser recovery copy before publishing one
+remembered project folder and browser-held draft before publishing one
 project to the shared target. The active IDE alone updates the global recovery
 copy and remembered active-project handle. A standby IDE may edit and autosave
-its own Project folder, but cannot replace the project used by Run or reopened
+its own project folder, but cannot replace the project used by Run or reopened
 on the next launch; the student must explicitly choose **Use this project**.
 Monitor reads that same active-project handle for run archives and can only
 request permission to reconnect it—it never selects a different project. While
@@ -101,23 +101,27 @@ target. It is not a normal delay or another project copy.
 
 The project catalog is declarative. The instructor authoring command copies the
 closest working challenge into a draft, registers it with `published: false`,
-and marks only the mission, world, and documentation decisions that cannot be
-inferred safely. Its validator checks Python syntax, required project files,
-README sections, and world geometry. Publishing repeats those checks before
-the catalog entry becomes visible to students; it does not synthesize or bless
-a robot behavior that has not been run by the instructor.
+and records the component file, class, selection flag, and carry-forward
+metadata used by the student template system. That catalog metadata, rather
+than README formatting, defines the component boundary. The validator checks
+the metadata against Python source and `course_setup.py`, then checks required
+project files, README sections, Python syntax, and world geometry. Publishing
+repeats those checks before the catalog entry becomes visible to students; it
+does not synthesize or bless a robot behavior that has not been run by the
+instructor.
 
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,
-outdated, or damaged XRP. A Working folder is useful but not a commissioning
-prerequisite: students may select one for Project folders and setup logs, or
+outdated, or damaged XRP. A Projects folder is useful but not a commissioning
+prerequisite: students may select one for project folders and setup logs, or
 defer it until the IDE. Selecting or changing it never creates, opens, moves, or
 replaces a project. The application cache remains browser-owned; a page cannot
-place that cache inside a user-selected folder. When a Working folder is
+place that cache inside a user-selected folder. When a Projects folder is
 selected, the wizard writes and reads back a small setup log before continuing.
 Meaningful controller, installation, reset, and network-probe events append to
-the same password-free log; without a Working folder the visible log remains copyable.
+the same password-free log; without a Projects folder the visible log remains
+copyable.
 Raw serial traffic is not retained.
 
 One user-selected Web Serial connection enters the MicroPython raw REPL. The
@@ -149,12 +153,13 @@ incompatible service. An exact service/release and robot-identity reply stores
 the network mode and endpoint that were actually verified. Thus, a failed
 station join that fell back to a robot hotspot cannot hand the IDE the
 unreachable station route. Only after this check does the wizard create a
-short-lived Working-folder handoff and open the IDE in physical mode;
+short-lived Projects-folder handoff and open the IDE in physical mode;
 interrupted setup leaves no permanent pending state. The IDE retains an existing
-active project. In a fresh browser it opens the spiral example in browser
-recovery; it does not silently create `./Expanding-Spiral` or write project files
-as a side effect of commissioning. The Working folder itself is not imported as
-a project; an existing project is loaded only through **Open project**. It cannot silently choose
+active project. In a fresh browser it opens the spiral example without saving
+it to a project folder; it does not silently create `./Expanding-Spiral` or
+write project files as a side effect of commissioning. The Projects folder
+itself is not imported as a project; an existing project is loaded only through
+**Open project**. It cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
 firmware-volume, and local-network permissions; these are the only intentional
 user-mediated boundaries.
@@ -222,7 +227,7 @@ The offline shell belongs to the site and Chrome profile, not to a selected
 course folder. After one complete online load, the applications, virtual XRP,
 Guide, API reference, and course release may reopen without internet or a local
 server. Installation adds a launcher but does not change that storage model.
-Clearing or evicting site data removes the shell and browser recovery data but
+Clearing or evicting site data removes the shell and browser-held project data but
 does not remove native project folders. Physical operation still requires a
 local network path to the XRP, and GitHub operations and first-load/update
 checks still require internet.
@@ -599,7 +604,7 @@ simulation. Recording and robot execution remain independent states.
 ## 11. Student documentation and responsibility boundaries
 
 The Guide is task-oriented: it names the available challenges, demos, and
-tutorial, then presents virtual execution, working-folder storage, component
+tutorial, then presents virtual execution, Projects-folder storage, component
 tests, physical setup, Monitor evidence, code roles, offline use, GitHub, and
 troubleshooting in that order. It avoids internal deployment vocabulary and
 defines each student-visible storage or target term where it first appears.
@@ -610,6 +615,7 @@ calls, constructor, properties, method parameters and types, return values,
 exceptions, units, and required behavior. The IDE maps known
 component/configuration filenames to the corresponding reference anchor, while
 the Guide retains the high-level closed command/measurement loop. Each challenge
-README repeats only the challenge-specific objective, student and supplied responsibilities,
-flow, and work sequence needed to understand that project without leaving its
-folder. The Guide and API pages are part of the verified offline shell.
+README repeats only the challenge-specific objective, student and supplied
+responsibilities, flow, and work sequence needed to understand that project
+without leaving its folder. The Guide and API pages are part of the verified
+offline shell.

@@ -109,6 +109,28 @@ class ChallengeAuthoringTests(unittest.TestCase):
                 AUTHORING.read_catalog(draft_root), "challenge_6"
             )
             self.assertFalse(entry["published"])
+            self.assertEqual(
+                [component["name"] for component in entry["components"]],
+                [
+                    "SensorModel",
+                    "WheelSpeedController",
+                    "DifferentialDrive",
+                    "Odometry",
+                    "NavigationController",
+                ],
+            )
+            self.assertEqual(
+                entry["components"][-1]["selection_flag"],
+                "USE_STUDENT_NAVIGATION_CONTROLLER",
+            )
+            generated_readme = (created / "README.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "1. challenge.py loads the initial pose", generated_readme
+            )
+            self.assertNotIn("```text", generated_readme)
+            self.assertNotIn("->", generated_readme)
             AUTHORING.publish(draft_root, "challenge_6")
             self.assertTrue(
                 AUTHORING.catalog_entry(
@@ -174,9 +196,87 @@ class ChallengeAuthoringTests(unittest.TestCase):
             draft_root = self.make_draft_root(directory)
             with self.assertRaisesRegex(
                 AUTHORING.AuthoringError,
-                "navigation_controller.py does not define class MissingController",
+                "navigation_controller.py declares class MissingController",
             ):
                 AUTHORING.create_draft_from_spec(draft_root, spec)
+
+    def test_generated_catalog_carries_new_component_template_metadata(self):
+        spec = json.loads(
+            (ROOT / "docs/examples/waypoint_slalom.challenge.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        spec["student_implementations"].append(
+            {
+                "file": "route_analyzer.py",
+                "class_name": "RouteAnalyzer",
+                "selection_flag": "USE_STUDENT_ROUTE_ANALYZER",
+                "responsibility": "Summarize route error from recorded poses.",
+            }
+        )
+        spec["files"]["route_analyzer.py"] = "class RouteAnalyzer:\n    pass\n"
+        spec["files"]["course_setup.py"] = (
+            ROOT / "vendor/current/starters/challenge_3/course_setup.py"
+        ).read_text(encoding="utf-8") + "\nUSE_STUDENT_ROUTE_ANALYZER = False\n"
+
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory)
+            AUTHORING.create_draft_from_spec(draft_root, spec)
+            entry = AUTHORING.catalog_entry(
+                AUTHORING.read_catalog(draft_root), "challenge_6"
+            )
+            self.assertEqual(
+                entry["components"][-1],
+                {
+                    "name": "RouteAnalyzer",
+                    "file": "route_analyzer.py",
+                    "selection_flag": "USE_STUDENT_ROUTE_ANALYZER",
+                    "carry_forward": False,
+                },
+            )
+            self.assertEqual(AUTHORING.project_errors(draft_root, entry), [])
+
+    def test_readme_layout_does_not_define_or_weaken_component_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory, "challenge_1")
+            entry = AUTHORING.catalog_entry(
+                AUTHORING.read_catalog(draft_root), "challenge_1"
+            )
+            project = draft_root / "vendor/current/starters/challenge_1"
+            (project / "README.md").write_text(
+                """# Challenge 1: Alternate documentation layout
+
+## What you implement
+
+The two student classes are explained in prose, without a metadata table.
+
+## Provided files and tools
+
+- `world.json` defines the visible arena.
+
+## How the program runs
+
+The robot measures, controls, and stops in a repeated sequence.
+
+## Complete the challenge
+
+1. Implement and test the two components.
+""",
+                encoding="utf-8",
+            )
+            self.assertEqual(AUTHORING.project_errors(draft_root, entry), [])
+
+            sensor_path = project / "sensor_model.py"
+            sensor_path.write_text(
+                sensor_path.read_text(encoding="utf-8").replace(
+                    "class SensorModel(", "class RenamedSensorModel(", 1
+                ),
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "challenge_1: sensor_model.py does not define class SensorModel",
+                AUTHORING.project_errors(draft_root, entry),
+            )
 
     def test_world_validation_covers_all_supported_geometry(self):
         world = {

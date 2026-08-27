@@ -4,6 +4,43 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 55 replaces prose-shaped challenge metadata with explicit catalog
+and specification data. The instructor authoring tool now carries each student
+component's file, class, selection flag, and carry-forward status into generated
+projects, and repository validation checks those declarations against the
+Python source and `course_setup.py` rather than parsing README tables. The
+working Waypoint Slalom specification exercises that path through generation,
+virtual execution, telemetry, and export. Program flow is presented as an
+ordered sequence instead of ASCII arrows.
+
+All five challenge READMEs and the MicroPython tutorial now state the task,
+student work, supplied code, program sequence, component checks, and measured
+evidence in rendered student-facing Markdown. Component checks cover timestamp
+use, encoder direction, regularized wheel speed, feedback response, curved
+odometry, signed turns, angle wrapping, and realignment; every passing result
+prints its numerical input, expected observation, and measured result. The
+Projects-folder language is consistent across the IDE, Guide, README, and
+system design. A project held only in browser storage is described directly as
+not saved to a folder. Saving an unclassified project can no longer be
+misidentified as progression to the next challenge.
+
+Release `2026.08-dev.36` is staged with a new deterministic course-library
+identity (`1c49ee2614d9d90f0a7a5866f3eb7af394b0a10bc62736b5f05c8b3ccf2db925`)
+rather than changing robot files under the dev.35 identity. It has not yet been
+installed on the attached XRP; the verified hardware state below remains
+dev.35 until the next physical regression slice.
+
+The complete local gate passes 224 Python tests, the MicroPython 1.28 source,
+service, and MPY proofs, 341 TypeScript tests, formatting, type checking, the
+production build, and the 225-file offline-shell verification. A production
+Stable Chrome run on the fixed `127.0.0.1:4174` origin passed 88 workflows and
+skipped the opt-in physical test. Its sole failure was an obsolete project-
+dialog/Guide locator; after updating the test and correcting the dialog edge
+condition, the complete multi-file workflow passed in 5.3 seconds. Visual
+inspection at normal and laptop-narrow widths covered the landing page, IDE,
+rendered challenge README, Monitor, Guide, API reference, and instructor
+authoring tool; one missing inline space in the Guide was corrected.
+
 Refinement 54 removes two physical cross-application failures exposed by a
 fresh raised-wheel stress run. The physical coordinator is now the sole
 authority for which attached IDE supplies a project: the shared HTTP backend

@@ -103,7 +103,7 @@ test("creates the untouched default only after naming its project folder", async
 
   await ide.getByRole("button", { name: "Choose Projects folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Expanding spiral · browser only",
+    "Expanding spiral · not saved to a folder",
   );
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
   const files = await readFolderFiles(ide, "student-course-project");
@@ -228,7 +228,7 @@ test("detaches Monitor autosaves when the IDE opens a browser-only template", as
   );
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
-  await ide.getByRole("button", { name: "Use browser only" }).click();
+  await ide.getByRole("button", { name: "Continue without a folder" }).click();
 
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "No project folder is connected",

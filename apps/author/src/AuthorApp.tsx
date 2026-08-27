@@ -41,36 +41,42 @@ const componentDefaults: ChallengeComponentSpec[] = [
   {
     file: "sensor_model.py",
     class_name: "SensorModel",
+    selection_flag: "USE_STUDENT_SENSOR_MODEL",
     responsibility:
       "Convert timestamped encoder and range readings into measurements in course units.",
   },
   {
     file: "wheel_speed_controller.py",
     class_name: "WheelSpeedController",
+    selection_flag: "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
     responsibility:
       "Convert target and measured wheel speeds into bounded left and right drive commands.",
   },
   {
     file: "differential_drive.py",
     class_name: "DifferentialDrive",
+    selection_flag: "USE_STUDENT_DIFFERENTIAL_DRIVE",
     responsibility:
       "Convert requested forward speed and turn rate into left and right wheel speeds.",
   },
   {
     file: "odometry.py",
     class_name: "Odometry",
+    selection_flag: "USE_STUDENT_ODOMETRY",
     responsibility:
       "Update the estimated planar pose from measured left and right wheel travel.",
   },
   {
     file: "navigation_controller.py",
     class_name: "NavigationController",
+    selection_flag: "USE_STUDENT_NAVIGATION_CONTROLLER",
     responsibility:
       "Advance through ordered goals and compute a bounded command from the current pose.",
   },
   {
     file: "grid_planner.py",
     class_name: "GridPlanner",
+    selection_flag: "USE_STUDENT_GRID_PLANNER",
     responsibility:
       "Find a connected free-cell path from the requested start cell to the destination cell.",
   },
@@ -319,7 +325,7 @@ export function AuthorApp() {
   function addComponent() {
     update("student_implementations", [
       ...spec.student_implementations,
-      { file: "", class_name: "", responsibility: "" },
+      { file: "", class_name: "", selection_flag: "", responsibility: "" },
     ]);
   }
 
@@ -580,6 +586,21 @@ export function AuthorApp() {
                       />
                     </label>
                     <label>
+                      Selection flag
+                      <input
+                        aria-label={`Additional component ${visibleIndex + 1} selection flag`}
+                        placeholder="USE_STUDENT_LOCALIZER"
+                        value={component.selection_flag}
+                        onChange={(event) =>
+                          updateComponent(
+                            index,
+                            "selection_flag",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
                       Responsibility
                       <textarea
                         aria-label={`Additional component ${visibleIndex + 1} responsibility`}
@@ -658,15 +679,15 @@ export function AuthorApp() {
               </FieldHelp>
             </label>
             <label>
-              Program flow
+              Program sequence — one step per line
               <textarea
-                className="code-input"
                 rows={8}
                 value={spec.program_flow}
                 onChange={(event) => update("program_flow", event.target.value)}
               />
               <FieldHelp>
-                Use a short text diagram that names data between parts.
+                State the execution order in short sentences and name the data
+                passed between important parts.
               </FieldHelp>
             </label>
           </div>

@@ -9,10 +9,10 @@ route = [
 total_distance_mm = 0.0
 for segment in route:
     distance_mm = segment["distance_mm"]
-    if distance_mm <= 0.0:
-        raise ValueError("every route distance must be positive")
+    assert distance_mm > 0.0
     total_distance_mm += distance_mm
     print(segment["name"], "=", distance_mm, "mm")
 
-assert total_distance_mm == 600.0
+expected_distance_mm = 600.0
+assert abs(total_distance_mm - expected_distance_mm) < 0.000001
 print("Lesson 2 complete:", len(route), "segments,", total_distance_mm, "mm")

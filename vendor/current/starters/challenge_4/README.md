@@ -1,131 +1,80 @@
 # Challenge 4: Mapped Route
 
-Plan a route around the known obstacles in `world.json`, then make the XRP
-follow that route to the destination. Planning happens before either robot is
-started. If no route exists, the program reports that result without applying
-motor commands.
+## Objective
 
-`challenge.py` supplies the complete problem:
+Use the known arena in `world.json` to produce a connected route through free
+grid cells from the initial pose to the destination, then follow it. Planning finishes before
+either robot starts. If the endpoints cannot be connected, the correct result
+is `None` and no motor command is applied.
 
-- `ARENA_MAP` contains the arena boundary and known obstacles;
-- `INITIAL_POSE` and `DESTINATION` define the route endpoints;
-- `GRID_RESOLUTION_MM` sets the side length of each square planning cell; and
-- `CLEARANCE_MM` sets the extra space required between a planned cell center
-  and a wall, obstacle, or arena boundary.
-
-Use these names directly. Do not repeat their current numerical values in the
-planner. Changing the resolution changes the number of planning cells, while
-changing the clearance changes which cells are safe.
+`challenge.py` loads `ARENA_MAP`, `INITIAL_POSE`, and `DESTINATION` from the
+world and names `GRID_RESOLUTION_MM` and `CLEARANCE_MM`. Do not duplicate the
+arena bounds, obstacle rectangles, start, or destination in the planner.
 
 ## Continue from the previous challenge
 
-Open your Challenge 3 project and select **Create Challenge 4 · Mapped Route project**.
-The IDE creates a separate project. Your new work is `grid_planner.py`; the new
-project begins with the supplied GridPlanner selected. The IDE carries forward
-your five earlier component files and keeps whether each student version is
-selected. Challenge 4 provides its own task, world, main program, checks, and
-configuration. Your Challenge 3 folder remains unchanged.
+Open Challenge 3 and select **Create Challenge 4 · Mapped Route project**. The
+IDE creates a separate project and carries forward `sensor_model.py`,
+`wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`, and
+`navigation_controller.py`, and keeps whether each student version is selected.
+The new
+`grid_planner.py` begins with the supplied version selected. The Challenge 3
+folder remains unchanged.
 
 ## What you implement
 
-| File | Class | What it does |
-| --- | --- | --- |
-| `grid_planner.py` | `GridPlanner` | Return a connected route through free grid cells from the start cell to the goal cell. |
-| `sensor_model.py` | `SensorModel` | Carried forward from Challenge 3; converts raw encoder data into wheel measurements. |
-| `wheel_speed_controller.py` | `WheelSpeedController` | Carried forward from Challenge 3; converts requested and measured wheel speeds into motor commands. |
-| `differential_drive.py` | `DifferentialDrive` | Carried forward from Challenge 3; converts robot motion requests into wheel-speed requests. |
-| `odometry.py` | `Odometry` | Carried forward from Challenge 3; estimates pose from measured wheel travel. |
-| `navigation_controller.py` | `NavigationController` | Carried forward from Challenge 3; converts each route goal and current pose into a motion request. |
+Your new work is `GridPlanner`; sensing, wheel control, drive, odometry, and
+navigation are carried forward.
 
-### Understand the supplied grid
+| Class | Responsibility, state, and use |
+| --- | --- |
+| `GridPlanner` in `grid_planner.py` | `plan(grid, start, goal)` returns a `GridPath` joining the endpoints through free cells, or `None`. Planning data belongs to one call; the class need not retain route state between calls. `main.py` converts a returned path into navigation goals. |
+| `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, `Odometry`, and `NavigationController` | Carried forward in their literal component files and used only after a path is available. |
 
-`OccupancyGrid.from_arena(...)` divides the arena into square cells and marks
-cells too close to a boundary or obstacle as blocked. The provided grid methods
-perform the coordinate and cell calculations:
-
-- `world_to_cell(x_mm, y_mm)` returns the cell containing a world position, or
-  `None` when the position is outside the grid;
-- `is_blocked(cell)` reports whether a cell is unavailable;
-- `neighbors(cell)` returns the free cells that share a horizontal or vertical
-  side with the given cell; and
-- `cell_center(cell)` returns the world coordinates at the center of a cell.
-
-A valid route moves horizontally or vertically between cells that share a side.
-Diagonal moves are not available.
-
-### Implement `GridPlanner.plan`
-
-`plan(grid, start, goal)` returns a `GridPath` or `None`. Its required behavior
-is:
-
-1. Return `None` if either the start or goal is `None` or blocked.
-2. If `start == goal`, return a one-cell path.
-3. A returned path begins with `start` and ends with `goal`.
-4. Every path cell is free.
-5. Each successive pair of cells shares one horizontal or vertical side. The
-   supplied `neighbors(cell)` method can check this relationship.
-6. Return `None` when no connected free-cell route exists.
-
-The component checks evaluate these returned results, including cases where no
-route exists. They accept any route that satisfies the six requirements above.
+`OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)` samples
+the known world. `world_to_cell()` locates the endpoints, `is_blocked()`
+reports unavailable cells, and `neighbors()` returns free cells sharing a
+horizontal or vertical side. A valid `GridPath` begins at `start`, ends at
+`goal`, contains only free cells, and moves between cells sharing a horizontal
+or vertical side. A
+missing, blocked, outside-grid, or disconnected endpoint produces `None`.
+When start and goal are the same free cell, the path contains that one cell.
+Any route satisfying these public results is accepted.
 
 ## Provided files and tools
 
-| File or tool | What it provides |
+| File or service | Role |
 | --- | --- |
-| `world.json` | Arena boundary, obstacle, initial pose, and destination for the simulator and Monitor. |
-| `challenge.py` | Named map, start, destination, grid-cell resolution, and clearance values for this challenge. |
-| `main.py` | Builds the grid, asks for a path, converts the path to waypoint goals, and runs the route. |
-| `robot_config.py` | Robot calibration and waypoint-controller settings. |
-| `course_setup.py` | Selects the supplied or student version of each class independently. |
-| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
-| `OccupancyGrid` | Converts the map to cells and provides the cell operations used by the planner. |
-| `GridPath.to_goals(...)` | Keeps cells where the path turns and at the destination, then converts their centers to waypoint goals. |
-| `Robot` and `XRPBot` | Execute the selected route on the virtual or physical XRP. |
+| `world.json` | Arena boundary, obstacle, initial pose, and destination. |
+| `challenge.py` | Loads the world values and names grid resolution and clearance. |
+| `main.py` | Builds the grid, requests a path, converts it to goals, and starts the robot only when a path exists. |
+| `robot_config.py` | Robot calibration and navigation settings. |
+| `course_setup.py` | Selects all six components independently. |
+| `component_checks.py` | Reports expected and observed path properties for direct, detour, invalid, and disconnected cases. |
+| `GridPath.to_goals(...)` | Converts the path's turns and destination into world-coordinate goals. |
+| `Robot` and `XRPBot` | Execute the route after planning succeeds. |
 
 ## How the program runs
 
-1. `world.json` supplies the arena boundary, obstacles, start, and destination.
-   `challenge.py` supplies the grid resolution and clearance.
-2. `main.py` builds an `OccupancyGrid` and converts the start and destination
-   positions into cells.
-3. Your `GridPlanner` searches the free cells and returns either a connected
-   `GridPath` or `None`.
-4. If no path exists, `main.py` reports that result without constructing or
-   starting the robot.
-5. If a path exists, `GridPath.to_goals(...)` converts it to waypoint goals.
-   The selected `NavigationController` and `Robot` then follow those goals on
-   the selected XRP.
-
-Your new work is `GridPlanner`. The sensing, wheel-control, drive, odometry,
-and navigation classes are carried forward from the earlier challenges.
+The project loads one world, samples it into an occupancy grid, and asks
+`GridPlanner` for a path. `None` ends the program without constructing a
+robot. A returned path becomes navigation goals; the carried-forward navigator
+and robot loop then execute those goals.
 
 ## Complete the challenge
 
-1. Create Challenge 4 from the completed Challenge 3 project as described above.
-   Use the supplied GridPlanner for the first virtual run. Your carried-forward
-   components keep their prior selections. Inspect the obstacle, destination,
-   and driven trajectory in the Monitor; inspect `path_cells` and `final_pose`
-   in Program output.
-2. Draw a small grid with a start, goal, and blocked cells. Mark one valid
-   direct route and one valid route around a blocked cell; verify that every
-   successive pair of marked cells shares a side.
-3. Implement `GridPlanner.plan`. Select **Test components** and check a direct
-   route, a detour, identical start and goal cells, blocked endpoints, and a
-   destination separated from the start by blocked cells.
-4. Select the student GridPlanner in `course_setup.py` and run the virtual
-   challenge. Confirm that every successive pair of path cells shares a
-   horizontal or vertical side and that no path cell is blocked.
-5. Select the carried-forward student classes one at a time and repeat the
-   virtual run. A correct path and correct route following are separate
-   results.
-6. After USB setup/repair has installed the course runtime, select the physical
-   XRP over its configured Wi-Fi network. Arrange the obstacle, destination,
-   and starting pose to match the selected world. Put the XRP on a stable stand
-   with both wheels clear, select **Run**, and verify wheel direction. Run
-   prepares this project in temporary controller RAM. Select **Stop**, verify
-   that both wheels stop, then place the XRP at the marked start and run the
-   route in the cleared arena.
+1. Run the supplied planner on the virtual XRP. Inspect the world obstacle,
+   `path_cells`, driven route, and final pose.
+2. Implement `GridPlanner.plan` to satisfy the path results above. **Test
+   components** checks direct, detour, one-cell, invalid-endpoint, and no-route
+   cases without requiring a particular search method.
+3. Select the student planner and verify that every returned cell is free and
+   every successive pair shares a side.
+4. Repeat with carried-forward student components. Treat path validity and
+   physical route following as separate results.
+5. Before the physical route, verify wheel direction with the wheels clear and
+   use Stop. Then arrange the arena to match `world.json` and run from the
+   marked initial pose.
 
-`main.py` constructs `Robot` only after a path has been found, and its
-`finally` block stops the robot after every attempted route.
+`main.py` constructs `Robot` only after a path is found and stops it in
+`finally` after every attempted route.

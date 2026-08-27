@@ -123,8 +123,8 @@ export function GuideApp() {
             <p>
               Select <strong>New project</strong>, choose a template, and enter
               a project name. The IDE creates a named project folder inside the
-              Projects folder and opens it. If folder access is unavailable, the
-              IDE offers an explicit temporary browser copy instead. Select
+              Projects folder and opens it. If folder access is unavailable, you
+              can continue without a folder and save the project later. Select{" "}
               <strong>Open project</strong> to open an existing project folder.
               Edits to an open project save automatically. The selected-file
               menu can rename, duplicate, or delete that file, or set a Python
@@ -194,9 +194,10 @@ export function GuideApp() {
               </section>
             </div>
             <div className="callout">
-              A temporary browser copy can be lost if this site&apos;s browser
-              data is cleared. Choose a Projects folder so each project is
-              stored as ordinary files on the computer.
+              Work that is not saved to a project folder is stored only in this
+              browser and can be lost if its site data is cleared. Choose a
+              Projects folder to store each project as ordinary files on the
+              computer.
             </div>
           </GuideSection>
 
@@ -507,16 +508,16 @@ export function GuideApp() {
                     GitHub pull, push, and web pages require internet access.
                   </li>
                   <li>
-                    A temporary browser project exists only in this site&apos;s
-                    browser data. Save it in a Projects folder before relying on
-                    it offline.
+                    Project changes that are not saved to a project folder exist
+                    only in this site&apos;s browser data. Save the project in a
+                    Projects folder before relying on it offline.
                   </li>
                   <li>
                     Clearing this site&apos;s browser data removes the saved
-                    course apps, settings, temporary browser copies, and
-                    remembered folder access. It does not remove project files
-                    in the Projects folder; select that folder again to restore
-                    access.
+                    course apps, settings, project changes held only by the
+                    browser, and remembered folder access. It does not remove
+                    project files in the Projects folder; select that folder
+                    again to restore access.
                   </li>
                 </ul>
               </section>

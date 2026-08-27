@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const starters = [
   { option: "challenge_2", completion: "Challenge 2 complete" },
@@ -7,6 +7,15 @@ const starters = [
   { option: "challenge_5", completion: "Challenge 5 result: delivered" },
 ];
 
+async function openTemplateInBrowser(page: Page, templateId: string) {
+  await page.getByLabel("Project template").selectOption(templateId);
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a project" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Continue without a folder" }).click();
+}
+
 test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
@@ -14,7 +23,7 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await expect(
     page
       .getByRole("complementary", { name: "Project" })
-      .getByText(/Expanding spiral · temporary browser copy/),
+      .getByText(/Expanding spiral · not saved to a folder/),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
@@ -25,8 +34,7 @@ test("renders project README files and keeps their Markdown editable", async ({
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByLabel("Project template").selectOption("challenge_4");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(page, "challenge_4");
   await page.getByRole("button", { name: "Open README.md" }).click();
 
   const preview = page.getByLabel("Rendered Markdown preview");
@@ -37,12 +45,11 @@ test("renders project README files and keeps their Markdown editable", async ({
   await expect(
     preview.getByRole("heading", { name: "How the program runs" }),
   ).toBeVisible();
-  await expect(preview.locator("pre")).toHaveCount(0);
   await expect(
-    preview.getByText(
-      "Your new work is GridPlanner. The sensing, wheel-control, drive, odometry, and navigation classes are carried forward from the earlier challenges.",
-    ),
+    preview.getByRole("heading", { name: "Objective" }),
   ).toBeVisible();
+  await expect(preview.locator("pre")).toHaveCount(0);
+  await expect(preview.getByText(/Your new work is GridPlanner/)).toBeVisible();
   const typography = await preview.evaluate((element) => {
     const inlineCode = element.querySelector("code");
     return {
@@ -211,13 +218,18 @@ test("runs hardware-free student component checks without changing the target", 
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByLabel("Project template").selectOption("challenge_1");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(page, "challenge_1");
 
   await expect(
     page.getByRole("button", { name: "Open README.md" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Test components" }).click();
+  await expect(page.getByRole("log")).toContainText(
+    "INPUT · reset at counts 10/20",
+  );
+  await expect(page.getByRole("log")).toContainText(
+    "EXPECT · device timestamps set dt",
+  );
   await expect(page.getByRole("log")).toContainText(
     "NOT IMPLEMENTED · SensorModel",
   );
@@ -252,8 +264,7 @@ for (const starter of starters) {
     await expect(page.getByTestId("target-status")).toContainText(
       "Virtual XRP · ready",
     );
-    await page.getByLabel("Project template").selectOption(starter.option);
-    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await openTemplateInBrowser(page, starter.option);
     await page.getByRole("button", { name: "Validate" }).click();
     await expect(page.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
@@ -326,10 +337,7 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   );
   await expect(page.locator(".file-type-icon")).toHaveCount(0);
 
-  await page
-    .getByLabel("Project template")
-    .selectOption("micropython_tutorial");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(page, "micropython_tutorial");
   await expect(
     page.getByRole("button", { name: "Open 7_finite_state_machine.py" }),
   ).toBeVisible();
@@ -347,8 +355,7 @@ test("validates and runs every staged tutorial lesson on the virtual XRP", async
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByLabel("Project template").selectOption("micropython_tutorial");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(ide, "micropython_tutorial");
   await expect(
     ide.getByRole("button", { name: /Open 1_values_and_functions\.py/ }),
   ).toBeVisible();
@@ -471,8 +478,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(ide, "demo_obstacle_turn");
   await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
@@ -558,8 +564,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
     "Virtual XRP · ready",
   );
 
-  await ide.getByLabel("Project template").selectOption("demo_spiral");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(ide, "demo_spiral");
   await ide.getByRole("button", { name: "Validate" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
@@ -669,8 +674,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByLabel("Project template").selectOption("challenge_5");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await openTemplateInBrowser(ide, "challenge_5");
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText(
     "Challenge 5 result: delivered",

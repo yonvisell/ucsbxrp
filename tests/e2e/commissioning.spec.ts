@@ -838,7 +838,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       },
     });
   await expect(page.getByTestId("project-folder")).toHaveText(
-    "Expanding spiral · temporary browser copy",
+    "Expanding spiral · not saved to a folder",
   );
   await expect
     .poll(() =>

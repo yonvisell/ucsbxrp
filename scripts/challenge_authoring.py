@@ -140,6 +140,15 @@ def _python_class_name(value):
     return value
 
 
+def _selection_flag(value):
+    value = _single_line(value, "component selection_flag")
+    if re.fullmatch(r"USE_STUDENT_[A-Z][A-Z0-9_]*", value) is None:
+        raise AuthoringError(
+            "component selection_flag must have the form USE_STUDENT_COMPONENT_NAME"
+        )
+    return value
+
+
 def read_spec(path):
     try:
         with Path(path).open(encoding="utf-8") as source:
@@ -188,6 +197,7 @@ def validate_spec(spec):
         normalized_item = {
             "file": _safe_component_path(item.get("file")),
             "class_name": _python_class_name(item.get("class_name")),
+            "selection_flag": _selection_flag(item.get("selection_flag")),
             "responsibility": _single_line(
                 item.get("responsibility"), "component responsibility"
             ),
@@ -353,19 +363,19 @@ def render_spec_readme(spec):
                 _markdown_cell(item["name"]), _markdown_cell(item["use"])
             )
         )
+    lines.extend(["", "## How the program runs", ""])
     lines.extend(
-        [
-            "",
-            "## How the program runs",
-            "",
-            "```text",
-            spec["program_flow"],
-            "```",
-            "",
-            "## Evidence to collect",
-            "",
-        ]
+        "{}. {}".format(index, item)
+        for index, item in enumerate(
+            (
+                line.strip()
+                for line in spec["program_flow"].splitlines()
+                if line.strip()
+            ),
+            start=1,
+        )
     )
+    lines.extend(["", "## Evidence to collect", ""])
     lines.extend("- " + item for item in spec["evidence"])
     lines.extend(["", "## Complete the challenge", ""])
     lines.extend(
@@ -373,6 +383,87 @@ def render_spec_readme(spec):
         for index, item in enumerate(spec["work_sequence"], start=1)
     )
     return "\n".join(lines) + "\n"
+
+
+def _catalog_components(entry, project_id):
+    """Return normalized component metadata and human-readable catalog errors."""
+    raw_components = entry.get("components")
+    if not isinstance(raw_components, list) or not raw_components:
+        return [], [project_id + ": challenge catalog has no component metadata"]
+
+    components = []
+    errors = []
+    files = set()
+    class_names = set()
+    selection_flags = set()
+    for index, item in enumerate(raw_components):
+        prefix = "{}: catalog component {}".format(project_id, index + 1)
+        if not isinstance(item, dict):
+            errors.append(prefix + " must be an object")
+            continue
+        try:
+            component = {
+                "name": _python_class_name(item.get("name")),
+                "file": _safe_component_path(item.get("file")),
+                "selection_flag": _selection_flag(item.get("selection_flag")),
+                "carry_forward": item.get("carry_forward"),
+            }
+        except AuthoringError as error:
+            errors.append(prefix + ": " + str(error))
+            continue
+        if not isinstance(component["carry_forward"], bool):
+            errors.append(prefix + ": carry_forward must be true or false")
+            continue
+        for value, seen, label in (
+            (component["file"], files, "file"),
+            (component["name"], class_names, "class"),
+            (component["selection_flag"], selection_flags, "selection flag"),
+        ):
+            if value in seen:
+                errors.append(prefix + " repeats " + label + " " + value)
+            seen.add(value)
+        components.append(component)
+    return components, errors
+
+
+def _draft_components(source, spec):
+    """Merge copied-project metadata with components introduced by the spec."""
+    source_id = str(source.get("id", "source challenge"))
+    components, errors = _catalog_components(source, source_id)
+    if errors:
+        raise AuthoringError("\n".join(errors))
+
+    by_file = {item["file"]: item for item in components}
+    for declared in spec["student_implementations"]:
+        inherited = by_file.get(declared["file"])
+        if inherited is not None:
+            if inherited["name"] != declared["class_name"]:
+                raise AuthoringError(
+                    "{} declares class {}, but {} defines that component as {}".format(
+                        declared["file"],
+                        declared["class_name"],
+                        source_id,
+                        inherited["name"],
+                    )
+                )
+            if inherited["selection_flag"] != declared["selection_flag"]:
+                raise AuthoringError(
+                    "{} must retain selection flag {} from {}".format(
+                        declared["class_name"],
+                        inherited["selection_flag"],
+                        source_id,
+                    )
+                )
+            continue
+        component = {
+            "name": declared["class_name"],
+            "file": declared["file"],
+            "selection_flag": declared["selection_flag"],
+            "carry_forward": False,
+        }
+        components.append(component)
+        by_file[component["file"]] = component
+    return components
 
 
 def create_draft_from_spec(root, spec):
@@ -419,6 +510,7 @@ def create_draft_from_spec(root, spec):
             ),
             "summary": spec["summary"],
             "entrypoint": "main.py",
+            "components": _draft_components(source, spec),
             "published": False,
         }
         errors = project_errors(root, entry)
@@ -483,6 +575,10 @@ def create_draft(root, source_id, project_id, title, summary):
         encoding="utf-8",
     )
 
+    source_components, component_errors = _catalog_components(source, source_id)
+    if component_errors:
+        shutil.rmtree(target_directory, ignore_errors=True)
+        raise AuthoringError("\n".join(component_errors))
     catalog.append(
         {
             "id": project_id,
@@ -492,6 +588,7 @@ def create_draft(root, source_id, project_id, title, summary):
             "short_label": "{} · {}".format(number, title.strip()),
             "summary": summary.strip(),
             "entrypoint": "main.py",
+            "components": source_components,
             "published": False,
         }
     )
@@ -731,34 +828,18 @@ def _world_errors(world, prefix):
     return errors
 
 
-_STUDENT_IMPLEMENTATION_ROW = re.compile(
-    r"^\|\s*`([^`]+\.py)`\s*\|\s*`([^`]+)`\s*\|", re.MULTILINE
-)
-
-
-def _student_implementation_errors(directory, readme_text, project_id):
-    """Verify each student file/class named by the README exists in source."""
+def _student_implementation_errors(directory, entry, project_id):
+    """Verify the catalog's student-template metadata against project source."""
     errors = []
-    rows = _STUDENT_IMPLEMENTATION_ROW.findall(readme_text)
-    if not rows:
-        return [project_id + ": README names no student implementation classes"]
-    seen = set()
-    for raw_path, class_name in rows:
-        try:
-            relative_path = _safe_component_path(raw_path)
-            class_name = _python_class_name(class_name)
-        except AuthoringError as error:
-            errors.append(project_id + ": " + str(error))
-            continue
-        key = (relative_path, class_name)
-        if key in seen:
-            errors.append(
-                "{}: README repeats {} in {}".format(
-                    project_id, class_name, relative_path
-                )
-            )
-            continue
-        seen.add(key)
+    components, metadata_errors = _catalog_components(entry, project_id)
+    errors.extend(metadata_errors)
+    course_setup = directory / "course_setup.py"
+    course_setup_text = (
+        course_setup.read_text(encoding="utf-8") if course_setup.is_file() else ""
+    )
+    for component in components:
+        relative_path = component["file"]
+        class_name = component["name"]
         path = directory / relative_path
         if not path.is_file():
             errors.append(project_id + ": missing student file " + relative_path)
@@ -775,6 +856,18 @@ def _student_implementation_errors(directory, readme_text, project_id):
             errors.append(
                 "{}: {} does not define class {}".format(
                     project_id, relative_path, class_name
+                )
+            )
+        if re.search(
+            r"^{}\s*=\s*(?:True|False)\s*$".format(
+                re.escape(component["selection_flag"])
+            ),
+            course_setup_text,
+            flags=re.MULTILINE,
+        ) is None:
+            errors.append(
+                "{}: course_setup.py does not define {}".format(
+                    project_id, component["selection_flag"]
                 )
             )
     return errors
@@ -818,7 +911,8 @@ def project_errors(root, entry):
                 errors.append(project_id + ": README is missing " + section)
         if "world.json" not in text:
             errors.append(project_id + ": README does not explain world.json")
-        errors.extend(_student_implementation_errors(directory, text, project_id))
+    if entry.get("kind") == "challenge":
+        errors.extend(_student_implementation_errors(directory, entry, project_id))
 
     world_path = directory / "world.json"
     if world_path.is_file():

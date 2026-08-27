@@ -6,8 +6,8 @@ names the behavior and received result to inspect. The range option adds
 ultrasonic examples.
 These checks do not start the virtual or physical robot.
 
-The checker prints each example's input and expected behavior before its
-result. This file only selects classes; the example code comes from UCSBXRP.
+The checker names each input, expected result, and observed result before PASS.
+This file only selects classes; the example code comes from UCSBXRP.
 """
 
 from differential_drive import DifferentialDrive

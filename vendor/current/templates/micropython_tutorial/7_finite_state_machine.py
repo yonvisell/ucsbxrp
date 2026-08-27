@@ -10,13 +10,18 @@ TURN = "turn"
 DEPART = "depart"
 DONE = "done"
 
+OBSTACLE_DETECTED = "obstacle_detected"
+TIME_LIMIT_REACHED = "time_limit_reached"
+MOTION_COMPLETE = "motion_complete"
 
-def next_state(state, obstacle_detected=True):
-    if state == APPROACH:
-        return TURN if obstacle_detected else DONE
-    if state == TURN:
+
+def next_state(state, event):
+    """Return the state reached from one explicit state/event pair."""
+    if state == APPROACH and event == OBSTACLE_DETECTED:
+        return TURN
+    if state == TURN and event == MOTION_COMPLETE:
         return DEPART
-    if state == DEPART:
+    if state == DEPART and event == MOTION_COMPLETE:
         return DONE
     return DONE
 
@@ -34,13 +39,18 @@ try:
                 stop_range_mm=350.0,
                 time_limit_ms=3000,
             )
-            state = next_state(state, obstacle_detected=range_mm is not None)
+            # No range means the time limit ended before an obstacle was found.
+            if range_mm is None:
+                event = TIME_LIMIT_REACHED
+            else:
+                event = OBSTACLE_DETECTED
+            state = next_state(state, event)
         elif state == TURN:
             drive_for(bot, -0.34, 0.34, 650)
-            state = next_state(state)
+            state = next_state(state, MOTION_COMPLETE)
         elif state == DEPART:
             drive_for(bot, 0.34, 0.34, 800)
-            state = next_state(state)
+            state = next_state(state, MOTION_COMPLETE)
 finally:
     bot.stop()
 

@@ -60,6 +60,10 @@ test("specification editor validates and downloads the complete curriculum examp
   );
   await expect(page.getByLabel("Challenge ID")).toHaveValue("challenge_6");
   await expect(
+    page.getByLabel("Program sequence — one step per line"),
+  ).toHaveValue(/challenge\.py loads the initial pose/);
+  await expect(page.getByText("Program flow", { exact: true })).toHaveCount(0);
+  await expect(
     page.getByText(
       "Specification checks pass. No repository files have been created or checked.",
     ),
@@ -101,6 +105,9 @@ test("specification editor validates and downloads the complete curriculum examp
   ).toBeDisabled();
   await page.getByLabel("Additional component 1 file").fill("localizer.py");
   await page.getByLabel("Additional component 1 class").fill("Localizer");
+  await page
+    .getByLabel("Additional component 1 selection flag")
+    .fill("USE_STUDENT_LOCALIZER");
   await page
     .getByLabel("Additional component 1 responsibility")
     .fill("Estimate the robot pose from the supplied landmark observations.");

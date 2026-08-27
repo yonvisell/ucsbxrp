@@ -9,6 +9,7 @@
     {
       "file": "navigation_controller.py",
       "class_name": "NavigationController",
+      "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
       "responsibility": "Advance through the ordered goals and compute a bounded MotionCommand from the current Pose and active goal."
     }
   ],
@@ -34,7 +35,7 @@
       "use": "Runs the measured control loop and returns wheel measurements and the estimated pose."
     }
   ],
-  "program_flow": "world.json -> challenge.py ROUTE\n                         |\n                         v\nPose -> NavigationController -> MotionCommand -> Robot -> XRP\n ^                                                     |\n +---------------- Measurements -> Odometry <----------+",
+  "program_flow": "challenge.py loads the initial pose and ordered goals from world.json.\nmain.py passes the route to NavigationController and starts Robot.\nOn each sample, NavigationController uses the current Pose to return a MotionCommand.\nRobot converts the command to wheel targets, applies motor commands, reads encoders, and returns the next measured Pose.\nThe loop stops after NavigationController completes the final goal and heading.",
   "evidence": [
     "A Monitor path export for one route at each cruise speed, with the same world and starting pose.",
     "The final x, y, and heading estimate for each trial, reported in millimeters and radians.",

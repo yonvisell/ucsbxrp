@@ -463,34 +463,37 @@ Pose -----------------------------> NavigationController ------+
             The <a href="../author/">challenge specification editor</a> checks
             and downloads a machine-readable JSON specification: the closest
             existing program structure, catalog identity, objective, assessed
-            components, supplied files, evidence, work sequence, world, and
-            optional complete file overrides. The browser does not create
-            repository files or publish a challenge.
+            component files, classes and selection flags, supplied files,
+            evidence, work sequence, world, and optional complete file
+            overrides. The browser does not create repository files or publish a
+            challenge.
           </p>
-          <CodeFlow>{`browser: check and download specification JSON
-        |
-        v
-instructor: challenge_authoring.py create --spec ...
-        |
-        +-> copy a published, working challenge structure
-        +-> generate README.md and world.json
-        +-> apply complete file overrides
-        +-> add unpublished catalog entry
-        +-> run structural and Python checks
-        |
-        v
-instructor: review files + virtual run + component fault checks + course tests
-        |
-        v
-instructor: challenge_authoring.py publish challenge_N`}</CodeFlow>
+          <ol>
+            <li>Check and download the specification JSON in the browser.</li>
+            <li>
+              Run <code>challenge_authoring.py create --spec ...</code>. The
+              command copies a published challenge, generates the README and
+              world, applies file overrides, records template metadata, and
+              checks the draft.
+            </li>
+            <li>
+              Review the files, run the virtual task, exercise component fault
+              checks, and run the course tests.
+            </li>
+            <li>
+              Run <code>challenge_authoring.py publish challenge_N</code> only
+              after that functional review passes.
+            </li>
+          </ol>
           <p>
             The create command makes an unpublished repository draft and checks
-            its structure, paths, Python syntax, world data, and required README
-            sections. The instructor then reviews the generated files, runs the
-            supplied implementation, enables each assessed student component
-            independently, and verifies that representative defects fail the
-            intended component check. Publication is a separate command after
-            those checks pass.
+            its structure, component metadata, paths, Python syntax, world data,
+            and required README sections. README wording does not define the
+            component boundary. The instructor then reviews the generated files,
+            runs the supplied implementation, enables each assessed student
+            component independently, and verifies that representative defects
+            fail the intended component check. Publication is a separate command
+            after those checks pass.
           </p>
         </section>
 
