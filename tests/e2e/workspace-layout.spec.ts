@@ -67,6 +67,31 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
     .getByLabel("Run on")
     .evaluate((element) => element.getBoundingClientRect().width);
   expect(targetWidth).toBeGreaterThanOrEqual(108);
+
+  await page.setViewportSize({ width: 1320, height: 900 });
+  await expect(
+    page.getByRole("complementary", { name: "Project" }),
+  ).toBeVisible();
+  await expectShellFillsViewport(page, ".ide-app");
+
+  const expandedEditor = await page
+    .locator(".editor-stack")
+    .evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const monaco = element
+        .querySelector(".monaco-editor")
+        ?.getBoundingClientRect();
+      return {
+        height: bounds.height,
+        monacoHeight: monaco?.height ?? 0,
+        monacoWidth: monaco?.width ?? 0,
+        width: bounds.width,
+      };
+    });
+  expect(expandedEditor.width).toBeGreaterThan(1120);
+  expect(expandedEditor.height).toBeGreaterThan(840);
+  expect(expandedEditor.monacoWidth).toBeGreaterThan(1100);
+  expect(expandedEditor.monacoHeight).toBeGreaterThan(780);
 });
 
 test("combined workspace shares Run and adapts between split and narrow layouts", async ({

@@ -4,6 +4,30 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 62 closes two first-use workspace defects. When a Projects folder is
+remembered, **Open project** now presents its valid direct-child UCSBXRP
+projects inside the IDE instead of immediately reopening a system folder
+picker. The student can still choose **Open project folder elsewhere…** when
+the desired project is outside that parent. Open, New, Save as project, and
+Reconnect are grouped as project actions; New file and Add files remain file
+actions. The dialog states that the selected folder has read-write access and
+that edits save automatically. Existing project boundaries, browser-draft
+recovery, active-project ownership, and autosave behavior are unchanged.
+
+The responsive Project rail now handles both directions of a live resize. It
+closes when an already-open IDE becomes narrow and returns when that same
+window becomes wide again. The regression exercises 1180 to 850 to 1320 pixels
+without reloading, verifies exact viewport bounds at every size, and verifies
+the Monaco editor itself expands in width and height. This corrects the state
+transition that a static wide or narrow screenshot could not expose.
+
+The project workflow passes 59 focused unit tests, 15 focused Stable Chrome
+workflows, the complete virtual multi-file workflow, type checking, formatting,
+and a production build. The added same-page resize regression passes against
+the current source application. `docs/CURRENT_PRODUCT_OUTCOMES.md` is now the
+concise live record of implemented evidence and material remaining work;
+detailed history remains in the existing requirement and evidence documents.
+
 Refinement 61 makes IDE and Monitor geometry adaptive in both directions and
 adds a permission-free combined workspace at `/workspace/`. The standalone apps
 now explicitly fill the browser viewport, the compact header wraps before its

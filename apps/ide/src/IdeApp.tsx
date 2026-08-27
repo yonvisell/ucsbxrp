@@ -413,14 +413,11 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       return;
     }
     const narrowLayout = window.matchMedia("(max-width: 900px)");
-    const collapseProjectPanel = (event: MediaQueryListEvent) => {
-      if (event.matches) {
-        setProjectPanelOpen(false);
-      }
+    const adaptProjectPanel = (event: MediaQueryListEvent) => {
+      setProjectPanelOpen(!event.matches);
     };
-    narrowLayout.addEventListener("change", collapseProjectPanel);
-    return () =>
-      narrowLayout.removeEventListener("change", collapseProjectPanel);
+    narrowLayout.addEventListener("change", adaptProjectPanel);
+    return () => narrowLayout.removeEventListener("change", adaptProjectPanel);
   }, []);
   const folderWriteQueue = useRef<Promise<void>>(Promise.resolve());
   const projectFolderHandleWriteRef = useRef<Promise<boolean>>(
