@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from urllib.parse import urljoin
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +15,17 @@ import install_xrp_service as INSTALLER  # noqa: E402
 
 
 class BrowserCommissioningBundleTest(unittest.TestCase):
+    def test_firmware_url_identity_changes_with_the_firmware_digest(self):
+        first = BUNDLE.firmware_bundle_url(
+            {"asset": "xrp.uf2", "sha256": "a" * 64}
+        )
+        second = BUNDLE.firmware_bundle_url(
+            {"asset": "xrp.uf2", "sha256": "b" * 64}
+        )
+
+        self.assertEqual(first, "firmware/sha256/{}/xrp.uf2".format("a" * 64))
+        self.assertNotEqual(first, second)
+
     def test_manifest_separates_bootstrap_and_slot_relative_runtime(self):
         manifest = BUNDLE.commissioning_manifest()
         runtime_sources = INSTALLER.runtime_files()
@@ -103,6 +115,7 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
             )
             declared = {
                 "manifest.json",
+                manifest["micropython"]["firmware"]["url"],
                 manifest["runtime"]["manifest"]["url"],
                 *(entry["url"] for entry in manifest["bootstrapFiles"]),
                 *(entry["url"] for entry in manifest["runtime"]["files"]),
@@ -114,6 +127,56 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
             }
             self.assertEqual(written, declared)
             self.assertFalse(any("reference_source" in path for path in written))
+
+    def test_command_writes_an_immutable_release_scoped_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "commissioning"
+            output.mkdir()
+            (output / "manifest.json").write_text("stale mutable manifest\n")
+
+            self.assertEqual(BUNDLE.main([str(output)]), 0)
+
+            release = INSTALLER.release_metadata()
+            manifest_path = (
+                output
+                / "releases"
+                / str(release["release_sequence"])
+                / "manifest.json"
+            )
+            self.assertTrue(manifest_path.is_file())
+            self.assertFalse((output / "manifest.json").exists())
+
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            deployment_manifest_url = (
+                "https://course.test/ucsbxrp/course/commissioning/releases/"
+                "{}/manifest.json".format(release["release_sequence"])
+            )
+            firmware = manifest["micropython"]["firmware"]
+            self.assertEqual(
+                urljoin(deployment_manifest_url, firmware["url"]),
+                "https://course.test/ucsbxrp/course/commissioning/releases/"
+                "{}/firmware/sha256/{}/{}".format(
+                    release["release_sequence"],
+                    firmware["sha256"],
+                    firmware["asset"],
+                ),
+            )
+            firmware_path = manifest_path.parent / firmware["url"]
+            self.assertEqual(firmware_path.stat().st_size, firmware["bytes"])
+            self.assertEqual(
+                hashlib.sha256(firmware_path.read_bytes()).hexdigest(),
+                firmware["sha256"],
+            )
+            self.assertEqual(
+                urljoin(
+                    deployment_manifest_url,
+                    manifest["runtime"]["manifest"]["url"],
+                ),
+                "https://course.test/ucsbxrp/course/commissioning/releases/"
+                "{}/files/runtime/runtime-manifest.json".format(
+                    release["release_sequence"]
+                ),
+            )
 
 
 if __name__ == "__main__":

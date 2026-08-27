@@ -135,7 +135,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
 
   await monitor
     .locator(".monitor-controls")
-    .getByRole("button", { name: "Clear recording", exact: true })
+    .getByRole("button", { name: "Clear recording and notes", exact: true })
     .click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
     "0 samples · 10 min at 50 Hz capacity",

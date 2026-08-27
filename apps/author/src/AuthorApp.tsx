@@ -1,8 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import authoringInstructionsUrl from "../../../docs/INSTRUCTOR_CHALLENGE_AUTHORING.md?url";
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
 import { AppNavigation } from "../../shared/AppNavigation";
+import { OfflineReadiness } from "../../shared/OfflineReadiness";
+import {
+  registerOfflineShellBeforeReload,
+  retryPendingOfflineShellReload,
+} from "../../shared/offline-shell";
 import {
   authoringCommand,
   linesFromText,
@@ -13,6 +18,10 @@ import {
   type ChallengeComponentSpec,
   type ChallengeSpec,
 } from "./challenge-spec";
+import {
+  challengeAuthorDraftFingerprint,
+  challengeAuthorReloadIsSafe,
+} from "./author-release-reload";
 
 const exampleSpec = JSON.parse(exampleSource) as ChallengeSpec;
 const starterWorldSources = import.meta.glob(
@@ -108,6 +117,29 @@ export function AuthorApp() {
     suppliedFilesToText(exampleSpec.supplied_files),
   );
   const [message, setMessage] = useState("");
+  const currentDraftFingerprint = useMemo(
+    () =>
+      challengeAuthorDraftFingerprint({
+        spec,
+        worldSource,
+        filesSource,
+        evidenceSource,
+        sequenceSource,
+        suppliedSource,
+      }),
+    [
+      evidenceSource,
+      filesSource,
+      sequenceSource,
+      spec,
+      suppliedSource,
+      worldSource,
+    ],
+  );
+  const reloadableSpecificationRef = useRef(currentDraftFingerprint);
+  const currentSpecificationRef = useRef(currentDraftFingerprint);
+  const fileInteractionActiveRef = useRef(false);
+  const specificationInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentSpec = useMemo(() => {
     const errors: string[] = [];
@@ -146,15 +178,66 @@ export function AuthorApp() {
 
   const filename = specificationFilename(currentSpec.spec);
   const command = authoringCommand(filename);
+  currentSpecificationRef.current = currentDraftFingerprint;
 
-  function replaceExample(value: ChallengeSpec) {
+  useEffect(
+    () =>
+      registerOfflineShellBeforeReload(() =>
+        challengeAuthorReloadIsSafe(
+          currentSpecificationRef.current,
+          reloadableSpecificationRef.current,
+          fileInteractionActiveRef.current,
+        ),
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    if (
+      challengeAuthorReloadIsSafe(
+        currentDraftFingerprint,
+        reloadableSpecificationRef.current,
+        fileInteractionActiveRef.current,
+      )
+    ) {
+      retryPendingOfflineShellReload();
+    }
+  }, [currentDraftFingerprint]);
+
+  useEffect(() => {
+    const input = specificationInputRef.current;
+    if (!input) return;
+    const finishCancelledSelection = () => {
+      fileInteractionActiveRef.current = false;
+      retryPendingOfflineShellReload();
+    };
+    input.addEventListener("cancel", finishCancelledSelection);
+    return () => input.removeEventListener("cancel", finishCancelledSelection);
+  }, []);
+
+  function replaceExample(value: ChallengeSpec, reloadable = false) {
+    const nextWorldSource = JSON.stringify(value.world, null, 2);
+    const nextFilesSource = JSON.stringify(value.files ?? {}, null, 2);
+    const nextEvidenceSource = value.evidence.join("\n");
+    const nextSequenceSource = value.work_sequence.join("\n");
+    const nextSuppliedSource = suppliedFilesToText(value.supplied_files);
     setSpec(value);
-    setWorldSource(JSON.stringify(value.world, null, 2));
-    setFilesSource(JSON.stringify(value.files ?? {}, null, 2));
-    setEvidenceSource(value.evidence.join("\n"));
-    setSequenceSource(value.work_sequence.join("\n"));
-    setSuppliedSource(suppliedFilesToText(value.supplied_files));
+    setWorldSource(nextWorldSource);
+    setFilesSource(nextFilesSource);
+    setEvidenceSource(nextEvidenceSource);
+    setSequenceSource(nextSequenceSource);
+    setSuppliedSource(nextSuppliedSource);
     setMessage("");
+    reloadableSpecificationRef.current = reloadable
+      ? challengeAuthorDraftFingerprint({
+          spec: value,
+          worldSource: nextWorldSource,
+          filesSource: nextFilesSource,
+          evidenceSource: nextEvidenceSource,
+          sequenceSource: nextSequenceSource,
+          suppliedSource: nextSuppliedSource,
+        })
+      : "";
   }
 
   async function openSpecification(file: File | undefined) {
@@ -265,7 +348,9 @@ export function AuthorApp() {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+    reloadableSpecificationRef.current = currentSpecificationRef.current;
     setMessage(`${filename} downloaded. No repository files were changed.`);
+    retryPendingOfflineShellReload();
   }
 
   async function copyCommand() {
@@ -300,7 +385,13 @@ export function AuthorApp() {
             separate instructor steps.
           </p>
         </div>
-        <AppNavigation />
+        <div>
+          <AppNavigation />
+          <OfflineReadiness
+            appName="the challenge editor"
+            pendingUpdateDetail="A newer UCSBXRP course release is saved in Chrome. Download the checked specification or restore the built-in example; the challenge editor will then reopen on the new release."
+          />
+        </div>
       </header>
 
       <div className="author-actions" aria-label="Specification examples">
@@ -309,13 +400,24 @@ export function AuthorApp() {
           <input
             accept="application/json,.json"
             type="file"
-            onChange={(event) => {
-              void openSpecification(event.target.files?.[0]);
-              event.target.value = "";
+            onClick={() => {
+              fileInteractionActiveRef.current = true;
             }}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              void openSpecification(file).finally(() => {
+                fileInteractionActiveRef.current = false;
+                retryPendingOfflineShellReload();
+              });
+            }}
+            ref={specificationInputRef}
           />
         </label>
-        <button type="button" onClick={() => replaceExample(clonedExample())}>
+        <button
+          type="button"
+          onClick={() => replaceExample(clonedExample(), true)}
+        >
           Load working slalom example
         </button>
         <button type="button" onClick={() => replaceExample(blankSpec())}>

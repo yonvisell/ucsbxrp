@@ -75,7 +75,11 @@
       </nav>
     </main>
     <script type="module">
-      import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
+      import {
+        registerOfflineShell,
+        registerOfflineShellBeforeReload,
+        retryPendingOfflineShellReload,
+      } from "/apps/shared/offline-shell.ts";
 
       registerOfflineShell();
 
@@ -83,6 +87,8 @@
       const installButton = document.querySelector("#install-course-tools");
       const installHelp = document.querySelector("#install-course-tools-help");
       let installPrompt = null;
+      let installPromptActive = false;
+      registerOfflineShellBeforeReload(() => !installPromptActive);
       const supportsCourseApps =
         window.isSecureContext &&
         "serviceWorker" in navigator &&
@@ -112,13 +118,19 @@
 
       installButton.addEventListener("click", async () => {
         if (!installPrompt) return;
+        installPromptActive = true;
         installButton.disabled = true;
-        await installPrompt.prompt();
-        await installPrompt.userChoice;
-        installPrompt = null;
-        installButton.hidden = true;
-        installHelp.hidden = true;
-        installButton.disabled = false;
+        try {
+          await installPrompt.prompt();
+          await installPrompt.userChoice;
+          installPrompt = null;
+          installButton.hidden = true;
+          installHelp.hidden = true;
+        } finally {
+          installPromptActive = false;
+          installButton.disabled = false;
+          retryPendingOfflineShellReload();
+        }
       });
 
       window.addEventListener("appinstalled", () => {

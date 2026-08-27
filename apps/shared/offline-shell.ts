@@ -11,6 +11,12 @@ export interface OfflineShellStatus {
   state: OfflineShellState;
   version?: string;
   message?: string;
+  updateVersion?: string;
+}
+
+interface OfflineShellRegistrationOptions {
+  /** Read-only pages may adopt a completed course update immediately. */
+  reloadWithoutAppState?: boolean;
 }
 
 interface OfflineManifest {
@@ -34,11 +40,60 @@ interface OfflineShellReleaseSignal {
   version: string;
 }
 
+interface NavigationReloadResult {
+  committed: Promise<unknown>;
+}
+
+interface NavigationApi {
+  reload(): NavigationReloadResult;
+}
+
+function storeReloadMarkers(version: string) {
+  window.sessionStorage.setItem(offlineShellReloadKey, version);
+  window.sessionStorage.setItem(isolationReloadKey, version);
+}
+
+function removeMatchingReloadMarkers(version: string) {
+  if (window.sessionStorage.getItem(offlineShellReloadKey) === version) {
+    window.sessionStorage.removeItem(offlineShellReloadKey);
+  }
+  if (window.sessionStorage.getItem(isolationReloadKey) === version) {
+    window.sessionStorage.removeItem(isolationReloadKey);
+  }
+}
+
 const reloadCoordinator = new OfflineReleaseCoordinator({
   reload: (request) => {
-    window.sessionStorage.setItem(offlineShellReloadKey, request.version);
-    window.sessionStorage.setItem(isolationReloadKey, request.version);
+    const navigationApi = (window as unknown as { navigation?: NavigationApi })
+      .navigation;
+    if (navigationApi) {
+      storeReloadMarkers(request.version);
+      let navigationResult: NavigationReloadResult;
+      try {
+        navigationResult = navigationApi.reload();
+      } catch {
+        removeMatchingReloadMarkers(request.version);
+        reloadCoordinator.resumeAfterCancelledReload(request);
+        return;
+      }
+      void navigationResult.committed.catch(() => {
+        removeMatchingReloadMarkers(request.version);
+        reloadCoordinator.resumeAfterCancelledReload(request);
+      });
+      return;
+    }
+
+    const confirmNavigation = () => {
+      storeReloadMarkers(request.version);
+      reloadCoordinator.confirmReload(request);
+      publishPendingRelease(null);
+    };
+    window.addEventListener("pagehide", confirmNavigation, { once: true });
     window.location.reload();
+    window.setTimeout(() => {
+      window.removeEventListener("pagehide", confirmNavigation);
+      reloadCoordinator.resumeAfterCancelledReload(request);
+    }, 1_000);
   },
   reportError: (error) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -100,6 +155,7 @@ export function retryPendingOfflineShellReload() {
 }
 
 function requestOfflineShellReload(request: OfflineShellReloadRequest) {
+  publishPendingRelease(request.version);
   reloadCoordinator.request(request);
 }
 
@@ -191,8 +247,25 @@ function publishState(
   }
   window.dispatchEvent(
     new CustomEvent(OFFLINE_SHELL_EVENT, {
-      detail: { state, ...options },
+      detail: {
+        state,
+        ...options,
+        updateVersion:
+          document.documentElement.dataset.offlineShellUpdateVersion,
+      },
     }),
+  );
+}
+
+function publishPendingRelease(version: string | null) {
+  if (version === null) {
+    delete document.documentElement.dataset.offlineShellUpdateVersion;
+  } else {
+    document.documentElement.dataset.offlineShellUpdateVersion = version;
+  }
+  const status = readOfflineShellStatus();
+  window.dispatchEvent(
+    new CustomEvent(OFFLINE_SHELL_EVENT, { detail: status }),
   );
 }
 
@@ -216,6 +289,7 @@ export function readOfflineShellStatus(): OfflineShellStatus {
         ),
     version: document.documentElement.dataset.offlineShellVersion,
     message: document.documentElement.dataset.offlineShellMessage,
+    updateVersion: document.documentElement.dataset.offlineShellUpdateVersion,
   };
 }
 
@@ -411,10 +485,17 @@ async function installOfflineShell(basePath: string) {
       version: manifest.version,
       reason: updateNeedsReload ? "release-update" : "isolation",
     });
+  } else {
+    loadedOfflineShellVersion = manifest.version;
   }
 }
 
-export function registerOfflineShell() {
+export function registerOfflineShell(
+  options: OfflineShellRegistrationOptions = {},
+) {
+  if (options.reloadWithoutAppState) {
+    registerOfflineShellBeforeReload(() => true);
+  }
   const supported =
     "serviceWorker" in navigator &&
     "caches" in window &&

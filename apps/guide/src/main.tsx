@@ -6,7 +6,7 @@ import "../../shared/theme.css";
 import "./styles.css";
 import { GuideApp } from "./GuideApp";
 
-registerOfflineShell();
+registerOfflineShell({ reloadWithoutAppState: true });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

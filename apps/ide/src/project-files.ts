@@ -490,14 +490,16 @@ export function loadRecoveredProject(): ProjectSnapshot {
 export function storeRecoveredProject(
   project: ProjectSnapshot,
   preservedDraft?: ProjectSnapshot,
-): void {
+): boolean {
   try {
     localStorage.setItem(
       projectRecoveryKey,
       JSON.stringify(preservedDraft ? { project, preservedDraft } : project),
     );
+    return true;
   } catch {
     // The in-memory project remains usable if browser recovery is unavailable.
+    return false;
   }
 }
 

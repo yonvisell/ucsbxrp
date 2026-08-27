@@ -14,6 +14,9 @@ const idle: IdeReloadActivity = {
   targetState: "ready",
   targetCommandActive: false,
   componentCheckActive: false,
+  uiDraftActive: false,
+  folderInteractionActive: false,
+  folderSaveActive: false,
 };
 
 function session(
@@ -48,6 +51,9 @@ describe("IDE course-update reload", () => {
     ["target run", { targetState: "running" as const }],
     ["target command", { targetCommandActive: true }],
     ["component check", { componentCheckActive: true }],
+    ["open dialog or settings draft", { uiDraftActive: true }],
+    ["folder picker or permission request", { folderInteractionActive: true }],
+    ["project save", { folderSaveActive: true }],
   ])("rejects reload during %s", (_label, change) => {
     expect(ideReloadIsIdle({ ...idle, ...change })).toBe(false);
   });
@@ -79,7 +85,11 @@ describe("IDE course-update reload", () => {
   });
 
   it("defers a release until the command and exact folder save complete", async () => {
-    let activity = { ...idle, targetCommandActive: true };
+    let activity: IdeReloadActivity = {
+      ...idle,
+      targetCommandActive: true,
+      folderSaveActive: true,
+    };
     let current = session(5, 4);
     const expected = projectRevisionIdentity(current);
     const reload = vi.fn();
@@ -99,6 +109,31 @@ describe("IDE course-update reload", () => {
     current = session(5, 5);
     coordinator.retry();
     await finishAttempt();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("does not reload a dirty attached project until that exact revision is saved", async () => {
+    let activity: IdeReloadActivity = { ...idle, folderSaveActive: true };
+    let current = session(9, 8);
+    const expected = projectRevisionIdentity(current);
+    const reload = vi.fn();
+    const coordinator = new OfflineReleaseCoordinator({ reload });
+    coordinator.registerBeforeReload(() => {
+      return (
+        ideReloadIsIdle(activity) &&
+        projectRevisionIsReloadable(current, expected, true)
+      );
+    });
+
+    coordinator.request({ version: "release-b", reason: "release-update" });
+    await finishAttempt();
+    expect(reload).not.toHaveBeenCalled();
+
+    current = session(9, 9);
+    activity = idle;
+    coordinator.retry();
+    await finishAttempt();
+
     expect(reload).toHaveBeenCalledOnce();
   });
 });

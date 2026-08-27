@@ -512,8 +512,14 @@ export function GuideApp() {
               an application launcher and a separate UCSBXRP window; it is not
               required for offline use and does not copy the application into
               the working folder. Whenever UCSBXRP opens with internet access,
-              Chrome checks for a newer course release. If an update reloads the
-              page, wait until the target returns to ready before running.
+              Chrome checks for a newer course release.{" "}
+              <strong>Course update ready</strong> means the complete update is
+              already saved; the current page will reopen after its run, file
+              save, setup action, or export finishes. In the Monitor, export
+              anything needed and then clear the retained recording and notes.
+              Project files in the working folder are not replaced. After the
+              page reopens, wait for the selected XRP to report ready before
+              running.
             </p>
           </GuideSection>
 

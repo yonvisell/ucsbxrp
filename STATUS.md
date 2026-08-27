@@ -1305,3 +1305,31 @@ removed an accidental Node 22 dependency from the Web Serial test harness, so it
 passes under the installed Node 20 runtime. The next slice is update-safe PWA
 lifecycle behavior, followed by the full virtual and physical stress pass before
 structural refactoring and measured optimization.
+
+The update-safe PWA lifecycle slice is complete. A newly cached course release
+now waits at an application-specific safe boundary: IDE protects source edits,
+folder operations, target commands, and settings drafts; Monitor protects target
+commands, recording, notes, exports, and folder writes; commissioning protects
+USB selection, installation, setup-log writes, and Wi-Fi handoff; and the
+challenge author protects both valid and temporarily invalid specification text.
+A cancelled browser reload remains pending and is retried by the next safe
+operation. Static read-only pages opt into immediate adoption explicitly rather
+than relying on a permissive default.
+
+Commissioning artifacts are now release scoped. The manifest lives below the
+release sequence, and the pinned RP2350 UF2 has a full SHA-256-addressed URL. The
+offline package contains one firmware copy rather than mutable and versioned
+duplicates, while its service worker retains the current and immediately
+preceding course caches so an open tab can finish saving before it reloads.
+
+Validation for this slice includes 215 Python tests, MicroPython 1.28 source and
+reference-bytecode parity, 333 Vitest tests, the production build, and verification
+of all 223 offline payload files. Stable Chrome exercised first-session A-to-B
+updates, cancelled navigation, IDE Open/Create Project, commissioning folder and
+serial pickers, retained Monitor recording and notes, invalid challenge JSON,
+offline reload, project autosaves, rotating copies, and Monitor run archives. The
+broad browser run passed 84 workflows and skipped only the opt-in attached-hardware
+proof; its one obsolete **Clear recording** label expectation was updated to the
+intentional **Clear recording and notes** wording and passed on its focused rerun.
+The next slice is reset/repair commissioning followed by repeated virtual and
+physical project execution and IDE/Monitor synchronization on the attached XRP.

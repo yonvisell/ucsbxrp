@@ -7,7 +7,7 @@ import {
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   millidegreesPerSecondToRadiansPerSecond,
@@ -289,6 +289,7 @@ interface SignalPlotProps {
   annotations?: readonly MonitorAnnotation[];
   definition: SignalPlotDefinition;
   onAddAnnotation?: (tMs: number, label: string) => void;
+  onAnnotationDraftChange?: (plotId: string, active: boolean) => void;
   samples: readonly TelemetrySample[];
   showAnnotations?: boolean;
   timeWindowS: number;
@@ -317,6 +318,7 @@ export function SignalPlot({
   annotations = [],
   definition,
   onAddAnnotation,
+  onAnnotationDraftChange,
   samples,
   showAnnotations = true,
   timeWindowS,
@@ -335,6 +337,14 @@ export function SignalPlot({
   useEffect(() => {
     noteInputRef.current?.focus();
   }, [noteLocation]);
+
+  useLayoutEffect(() => {
+    const active = noteLocation !== null;
+    onAnnotationDraftChange?.(definition.id, active);
+    return () => {
+      if (active) onAnnotationDraftChange?.(definition.id, false);
+    };
+  }, [definition.id, noteLocation, onAnnotationDraftChange]);
 
   useEffect(() => {
     if (!elementRef.current) {

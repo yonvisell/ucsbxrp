@@ -13,6 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 FIRMWARE_DIRECTORY = ROOT / "vendor/current/firmware"
 
 
+def firmware_bundle_url(firmware):
+    """Return a URL whose identity changes whenever the UF2 bytes change."""
+    return "firmware/sha256/{}/{}".format(
+        firmware["sha256"],
+        firmware["asset"],
+    )
+
+
 def commissioning_manifest():
     release = install_xrp_service.release_metadata()
     firmware = release["micropython"]
@@ -69,7 +77,7 @@ def commissioning_manifest():
             "board": firmware["board"],
             "firmware": {
                 "asset": firmware["asset"],
-                "url": "../current/firmware/{}".format(firmware["asset"]),
+                "url": firmware_bundle_url(firmware),
                 "bytes": firmware["byte_size"],
                 "sha256": firmware["sha256"],
             },
@@ -113,6 +121,11 @@ def write_bundle(output_directory):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(bootstrap_sources[entry["destination"]], destination)
 
+    firmware = manifest["micropython"]["firmware"]
+    firmware_destination = output / firmware["url"]
+    firmware_destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(FIRMWARE_DIRECTORY / firmware["asset"], firmware_destination)
+
     runtime_sources = install_xrp_service.runtime_files()
     for entry in manifest["runtime"]["files"]:
         destination = output / entry["url"]
@@ -141,7 +154,10 @@ def main(argv=None):
         default=ROOT / "dist/course/commissioning",
     )
     args = parser.parse_args(argv)
-    manifest = write_bundle(args.output)
+    release_sequence = install_xrp_service.release_metadata()["release_sequence"]
+    if args.output.exists():
+        shutil.rmtree(args.output)
+    manifest = write_bundle(args.output / "releases" / str(release_sequence))
     print(
         "Commissioning bundle {}: {} runtime and {} bootstrap files".format(
             manifest["releaseId"],

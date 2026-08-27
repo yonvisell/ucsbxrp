@@ -2,103 +2,46 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function installMemoryFolderPicker(page: Page) {
   await page.addInitScript(() => {
-    const savedFiles: Record<string, string> = {};
-
-    class MemoryFileHandle {
-      readonly kind = "file";
-
-      constructor(
-        readonly name: string,
-        private readonly path: string,
-      ) {}
-
-      async getFile() {
-        const content = savedFiles[this.path] ?? "";
-        return {
-          size: new TextEncoder().encode(content).byteLength,
-          text: async () => content,
-        };
-      }
-
-      async createWritable() {
-        return {
-          write: async (content: string) => {
-            savedFiles[this.path] = String(content);
-          },
-          close: async () => undefined,
-        };
-      }
-    }
-
-    class MemoryDirectoryHandle {
-      readonly kind = "directory";
-
-      constructor(
-        readonly name: string,
-        private readonly prefix = "",
-      ) {}
-
-      async *entries() {
-        const directories = new Set<string>();
-        for (const path of Object.keys(savedFiles).sort()) {
-          if (!path.startsWith(this.prefix)) {
-            continue;
-          }
-          const remainder = path.slice(this.prefix.length);
-          const slash = remainder.indexOf("/");
-          if (slash < 0) {
-            yield [remainder, new MemoryFileHandle(remainder, path)] as const;
-          } else {
-            const directory = remainder.slice(0, slash);
-            if (!directories.has(directory)) {
-              directories.add(directory);
-              yield [
-                directory,
-                new MemoryDirectoryHandle(
-                  directory,
-                  `${this.prefix}${directory}/`,
-                ),
-              ] as const;
-            }
-          }
-        }
-      }
-
-      async getDirectoryHandle(name: string, options?: { create?: boolean }) {
-        const prefix = `${this.prefix}${name}/`;
-        if (
-          !options?.create &&
-          !Object.keys(savedFiles).some((path) => path.startsWith(prefix))
-        ) {
-          throw new DOMException("Directory not found", "NotFoundError");
-        }
-        return new MemoryDirectoryHandle(name, prefix);
-      }
-
-      async getFileHandle(name: string, options?: { create?: boolean }) {
-        const path = `${this.prefix}${name}`;
-        if (!options?.create && !(path in savedFiles)) {
-          throw new DOMException("File not found", "NotFoundError");
-        }
-        return new MemoryFileHandle(name, path);
-      }
-
-      async removeEntry(name: string) {
-        const path = `${this.prefix}${name}`;
-        if (!(path in savedFiles)) {
-          throw new DOMException("File not found", "NotFoundError");
-        }
-        delete savedFiles[path];
-      }
-    }
-
-    Object.defineProperty(window, "__courseAutosaveFiles", {
-      value: savedFiles,
-    });
     Object.defineProperty(window, "showDirectoryPicker", {
-      value: async () => new MemoryDirectoryHandle("student-course-project"),
+      value: async () => {
+        const root = await navigator.storage.getDirectory();
+        return root.getDirectoryHandle("student-course-project", {
+          create: true,
+        });
+      },
     });
   });
+}
+
+async function readFolderFiles(page: Page, rootName: string) {
+  return page.evaluate(async (selectedRootName) => {
+    const files: Record<string, string> = {};
+    const root = await navigator.storage.getDirectory();
+    const selected = await root.getDirectoryHandle(selectedRootName);
+    const read = async (folder: FileSystemDirectoryHandle, prefix = "") => {
+      for await (const [name, handle] of folder.entries()) {
+        const path = `${prefix}${name}`;
+        if (handle.kind === "directory") {
+          await read(handle, `${path}/`);
+        } else {
+          files[path] = await (await handle.getFile()).text();
+        }
+      }
+    };
+    await read(selected);
+    return files;
+  }, rootName);
+}
+
+async function completeProjectFolderCreation(
+  page: Page,
+  expectedFolder: string,
+) {
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  await expect(page.getByTestId("project-folder")).toHaveText(expectedFolder);
 }
 
 async function seedRememberedProjectFolder(page: Page) {
@@ -150,7 +93,7 @@ async function seedRememberedProjectFolder(page: Page) {
   });
 }
 
-test("creates the untouched default inside the selected working folder", async ({
+test("creates the untouched default only after naming its project folder", async ({
   page: ide,
 }) => {
   await installMemoryFolderPicker(ide);
@@ -158,21 +101,15 @@ test("creates the untouched default inside the selected working folder", async (
 
   await ide.getByRole("button", { name: "Choose working folder" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
-    "./Expanding-Spiral",
+    "Expanding spiral · temporary browser copy",
   );
-  const files = await ide.evaluate(
-    () =>
-      (
-        window as unknown as {
-          __courseAutosaveFiles: Record<string, string>;
-        }
-      ).__courseAutosaveFiles,
-  );
-  expect(files["Expanding-Spiral/main.py"]).toContain(
+  await completeProjectFolderCreation(ide, "./Expanding-spiral");
+  const files = await readFolderFiles(ide, "student-course-project");
+  expect(files["Expanding-spiral/main.py"]).toContain(
     '"spiral_winding_turns_per_m"',
   );
   expect(
-    JSON.parse(files["Expanding-Spiral/.ucsb-xrp-project.json"] ?? "{}"),
+    JSON.parse(files["Expanding-spiral/.ucsb-xrp-project.json"] ?? "{}"),
   ).toMatchObject({
     name: "Expanding spiral",
     entrypoint: "main.py",
@@ -193,9 +130,7 @@ test("automatically saves project edits and retains four prior states", async ({
     "Virtual XRP · ready",
   );
   await ide.getByRole("button", { name: "Choose working folder" }).click();
-  await expect(ide.getByTestId("project-folder")).toHaveText(
-    "./Expanding-Spiral",
-  );
+  await completeProjectFolderCreation(ide, "./Expanding-spiral");
 
   for (let revision = 1; revision <= 5; revision += 1) {
     await ide.getByRole("button", { name: "New file", exact: true }).click();
@@ -204,24 +139,17 @@ test("automatically saves project edits and retains four prior states", async ({
       .fill(`notes/revision_${revision}.txt`);
     await ide.getByRole("button", { name: "Create file" }).click();
     await expect(
-      ide.getByText("Saved changes to ./Expanding-Spiral."),
+      ide.getByText("Saved changes to ./Expanding-spiral."),
     ).toBeVisible({ timeout: 5_000 });
   }
 
-  const saved = await ide.evaluate(
-    () =>
-      (
-        window as unknown as {
-          __courseAutosaveFiles: Record<string, string>;
-        }
-      ).__courseAutosaveFiles,
-  );
-  expect(saved["Expanding-Spiral/notes/revision_5.txt"]).toBe("");
+  const saved = await readFolderFiles(ide, "student-course-project");
+  expect(saved["Expanding-spiral/notes/revision_5.txt"]).toBe("");
   const newestPrior = JSON.parse(
-    saved["Expanding-Spiral/UCSB_XRP_Autosaves/project-1.json"] ?? "{}",
+    saved["Expanding-spiral/UCSB_XRP_Autosaves/project-1.json"] ?? "{}",
   ) as { project?: { files?: Record<string, string> } };
   const oldestPrior = JSON.parse(
-    saved["Expanding-Spiral/UCSB_XRP_Autosaves/project-4.json"] ?? "{}",
+    saved["Expanding-spiral/UCSB_XRP_Autosaves/project-4.json"] ?? "{}",
   ) as { project?: { files?: Record<string, string> } };
   expect(newestPrior.project?.files?.["notes/revision_4.txt"]).toBe("");
   expect(newestPrior.project?.files?.["notes/revision_5.txt"]).toBeUndefined();
@@ -241,6 +169,7 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
   );
 
   const ide = await context.newPage();
+  await installMemoryFolderPicker(ide);
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -252,9 +181,10 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
       "1 · Straight Run is stored temporarily in Chrome. Choose a working folder to create its project folder.",
     ),
   ).toBeVisible();
-  await monitor.getByRole("button", { name: "Choose project folder" }).click();
+  await ide.getByRole("button", { name: "Choose working folder" }).click();
+  await completeProjectFolderCreation(ide, "./1-Straight-Run");
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
-    "Runs save to ./student-course-project",
+    "Runs save to ./1-Straight-Run",
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
@@ -265,22 +195,15 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
     { timeout: 10_000 },
   );
 
-  const saved = await monitor.evaluate(
-    () =>
-      (
-        window as unknown as {
-          __courseAutosaveFiles: Record<string, string>;
-        }
-      ).__courseAutosaveFiles,
-  );
-  expect(saved["UCSB_XRP_Autosaves/run-1.txt"]).toContain(
+  const saved = await readFolderFiles(monitor, "student-course-project");
+  expect(saved["1-Straight-Run/UCSB_XRP_Autosaves/run-1.txt"]).toContain(
     "Challenge 1 complete",
   );
-  const csv = saved["UCSB_XRP_Autosaves/telemetry-1.csv"] ?? "";
+  const csv = saved["1-Straight-Run/UCSB_XRP_Autosaves/telemetry-1.csv"] ?? "";
   expect(csv.split("\n")[0]).toContain("left_wheel_speed_mm_s");
   expect(csv.split("\n").length).toBeGreaterThan(2);
   const metadata = JSON.parse(
-    saved["UCSB_XRP_Autosaves/run-1.json"] ?? "{}",
+    saved["1-Straight-Run/UCSB_XRP_Autosaves/run-1.json"] ?? "{}",
   ) as {
     target?: string;
     project?: { name?: string };
@@ -313,9 +236,6 @@ test("detaches Monitor autosaves when the IDE opens a browser-only template", as
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "No project folder is connected",
   );
-  await expect(
-    monitor.getByRole("button", { name: "Choose project folder" }),
-  ).toBeVisible();
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Lesson 1 complete", {

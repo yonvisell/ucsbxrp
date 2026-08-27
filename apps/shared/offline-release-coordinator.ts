@@ -22,6 +22,7 @@ interface OfflineReleaseCoordinatorOptions {
 export class OfflineReleaseCoordinator {
   private beforeReload: PrepareForOfflineShellReload | null = null;
   private pending: OfflineShellReloadRequest | null = null;
+  private reloadRequested: OfflineShellReloadRequest | null = null;
   private attemptInProgress = false;
 
   constructor(private readonly options: OfflineReleaseCoordinatorOptions) {}
@@ -48,10 +49,31 @@ export class OfflineReleaseCoordinator {
   }
 
   retry() {
-    if (this.attemptInProgress || this.pending === null) {
+    if (
+      this.attemptInProgress ||
+      this.pending === null ||
+      this.reloadRequested === this.pending
+    ) {
       return;
     }
     void this.attempt(this.pending);
+  }
+
+  /** Confirm that the requested navigation actually began. */
+  confirmReload(request: OfflineShellReloadRequest) {
+    if (this.reloadRequested === request) {
+      this.reloadRequested = null;
+    }
+    if (this.pending === request) {
+      this.pending = null;
+    }
+  }
+
+  /** Keep the update pending when beforeunload cancels the navigation. */
+  resumeAfterCancelledReload(request: OfflineShellReloadRequest) {
+    if (this.reloadRequested === request) {
+      this.reloadRequested = null;
+    }
   }
 
   get pendingRequest(): OfflineShellReloadRequest | null {
@@ -60,25 +82,30 @@ export class OfflineReleaseCoordinator {
 
   private async attempt(request: OfflineShellReloadRequest) {
     this.attemptInProgress = true;
+    const handler = this.beforeReload;
     let ready = false;
     try {
-      ready =
-        this.beforeReload === null ||
-        (await this.beforeReload(request)) === true;
+      // Interactive applications register their safety guard after the first
+      // React render. Until then, keeping the update pending is safer than
+      // reloading during startup or a restored browser interaction.
+      ready = handler !== null && (await handler(request)) === true;
     } catch (error) {
       this.options.reportError?.(error);
     } finally {
       this.attemptInProgress = false;
     }
 
-    if (ready && this.pending === request) {
-      this.pending = null;
+    if (ready && this.pending === request && this.beforeReload === handler) {
+      this.reloadRequested = request;
       this.options.reload(request);
       return;
     }
 
     // A newer release may have arrived while an asynchronous save was running.
-    if (this.pending !== null && this.pending !== request) {
+    if (
+      this.pending !== null &&
+      (this.pending !== request || this.beforeReload !== handler)
+    ) {
       this.retry();
     }
   }

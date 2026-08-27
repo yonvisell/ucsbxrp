@@ -540,6 +540,7 @@ export function DashboardApp() {
   const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
   const [autosaveFolder, setAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
+  const [folderInteractionRevision, setFolderInteractionRevision] = useState(0);
   const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [runAutosaveDetail, setRunAutosaveDetail] = useState(
@@ -570,6 +571,49 @@ export function DashboardApp() {
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
   const recordingStartedAt = useRef<number | null>(null);
+  const projectBootstrapPendingRef = useRef(projectBootstrapPending);
+  const folderInteractionCountRef = useRef(0);
+  const runArchiveCountRef = useRef(0);
+  const targetCommandCountRef = useRef(0);
+  const annotationDraftIdsRef = useRef(new Set<string>());
+
+  projectBootstrapPendingRef.current = projectBootstrapPending;
+
+  const beginTargetCommand = useCallback(() => {
+    targetCommandCountRef.current += 1;
+  }, []);
+
+  const finishTargetCommand = useCallback(() => {
+    targetCommandCountRef.current = Math.max(
+      0,
+      targetCommandCountRef.current - 1,
+    );
+    retryPendingOfflineShellReload();
+  }, []);
+
+  const beginFolderInteraction = useCallback(() => {
+    folderInteractionCountRef.current += 1;
+  }, []);
+
+  const finishFolderInteraction = useCallback(() => {
+    folderInteractionCountRef.current = Math.max(
+      0,
+      folderInteractionCountRef.current - 1,
+    );
+    setFolderInteractionRevision((current) => current + 1);
+  }, []);
+
+  const setAnnotationDraftActive = useCallback(
+    (plotId: string, active: boolean) => {
+      if (active) {
+        annotationDraftIdsRef.current.add(plotId);
+      } else {
+        annotationDraftIdsRef.current.delete(plotId);
+        retryPendingOfflineShellReload();
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (targetState === "running") {
@@ -580,6 +624,7 @@ export function DashboardApp() {
     }
     runtimeUpdateTimers.current.clear();
     setRuntimeDrafts({});
+    retryPendingOfflineShellReload();
   }, [targetState]);
 
   useEffect(() => {
@@ -601,40 +646,45 @@ export function DashboardApp() {
     let disposed = false;
     let refreshRevision = 0;
     const refreshFolder = async (preserveUnrememberedFolder = false) => {
-      const revision = ++refreshRevision;
-      const folder = await loadRememberedProjectFolder();
-      if (disposed || revision !== refreshRevision) {
-        return;
-      }
-      if (folder === null) {
-        if (preserveUnrememberedFolder && !autosaveFolderRemembered.current) {
+      beginFolderInteraction();
+      try {
+        const revision = ++refreshRevision;
+        const folder = await loadRememberedProjectFolder();
+        if (disposed || revision !== refreshRevision) {
           return;
         }
-        autosaveFolderRemembered.current = false;
-        autosaveFolderRef.current = null;
-        setRememberedAutosaveFolder(null);
-        setAutosaveFolder(null);
-        setRunAutosaveDetail(
-          "No project folder is connected. Runs remain visible in the Monitor but are not saved to the previous folder.",
-        );
-        return;
-      }
-      autosaveFolderRemembered.current = true;
-      setRememberedAutosaveFolder(folder);
-      const permission = await courseFolderPermission(folder);
-      if (disposed || revision !== refreshRevision) {
-        return;
-      }
-      if (permission === "granted") {
-        autosaveFolderRef.current = folder;
-        setAutosaveFolder(folder);
-        setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
-      } else {
-        autosaveFolderRef.current = null;
-        setAutosaveFolder(null);
-        setRunAutosaveDetail(
-          `Reconnect project folder ${folder.name} to resume run saving.`,
-        );
+        if (folder === null) {
+          if (preserveUnrememberedFolder && !autosaveFolderRemembered.current) {
+            return;
+          }
+          autosaveFolderRemembered.current = false;
+          autosaveFolderRef.current = null;
+          setRememberedAutosaveFolder(null);
+          setAutosaveFolder(null);
+          setRunAutosaveDetail(
+            "No project folder is connected. Runs remain visible in the Monitor but are not saved to the previous folder.",
+          );
+          return;
+        }
+        autosaveFolderRemembered.current = true;
+        setRememberedAutosaveFolder(folder);
+        const permission = await courseFolderPermission(folder);
+        if (disposed || revision !== refreshRevision) {
+          return;
+        }
+        if (permission === "granted") {
+          autosaveFolderRef.current = folder;
+          setAutosaveFolder(folder);
+          setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
+        } else {
+          autosaveFolderRef.current = null;
+          setAutosaveFolder(null);
+          setRunAutosaveDetail(
+            `Reconnect project folder ${folder.name} to resume run saving.`,
+          );
+        }
+      } finally {
+        finishFolderInteraction();
       }
     };
     const folderChanged = (event: StorageEvent) => {
@@ -655,7 +705,7 @@ export function DashboardApp() {
       disposed = true;
       window.removeEventListener("storage", folderChanged);
     };
-  }, []);
+  }, [beginFolderInteraction, finishFolderInteraction]);
 
   const archiveAutomaticRun = useCallback(
     (finalState: TargetRunState, finalDetail: string) => {
@@ -751,6 +801,7 @@ export function DashboardApp() {
       const queued = runArchiveQueue.current.then(async () => {
         return withCourseFolderWriteLock("run", writeArchive);
       });
+      runArchiveCountRef.current += 1;
       runArchiveQueue.current = queued.then(
         () => undefined,
         () => undefined,
@@ -767,6 +818,13 @@ export function DashboardApp() {
           setRunAutosaveDetail(
             `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
           );
+        })
+        .finally(() => {
+          runArchiveCountRef.current = Math.max(
+            0,
+            runArchiveCountRef.current - 1,
+          );
+          retryPendingOfflineShellReload();
         });
     },
     [automaticRecorder, target.kind],
@@ -882,6 +940,8 @@ export function DashboardApp() {
         }
       }
     });
+    beginTargetCommand();
+    targetStateRef.current = "connecting";
     setTargetState("connecting");
     setSample(null);
     setPlotSamples([]);
@@ -895,11 +955,14 @@ export function DashboardApp() {
         await target.connect();
       } catch (error: unknown) {
         if (!disposed) {
+          targetStateRef.current = "error";
           setTargetState("error");
           setTargetDetail(
             error instanceof Error ? error.message : String(error),
           );
         }
+      } finally {
+        finishTargetCommand();
       }
     };
     void connect();
@@ -915,14 +978,25 @@ export function DashboardApp() {
       runtimeUpdateTimers.current.clear();
       target.disconnect();
     };
-  }, [archiveAutomaticRun, automaticRecorder, recorder, target]);
+  }, [
+    archiveAutomaticRun,
+    automaticRecorder,
+    beginTargetCommand,
+    finishTargetCommand,
+    recorder,
+    target,
+  ]);
 
   const reset = async () => {
+    beginTargetCommand();
     try {
       await target.reset();
     } catch (error: unknown) {
+      targetStateRef.current = "error";
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      finishTargetCommand();
     }
   };
 
@@ -938,6 +1012,7 @@ export function DashboardApp() {
     if (runStarting || (!stopping && !canRunCurrent)) {
       return;
     }
+    beginTargetCommand();
     try {
       if (stopping) {
         await target.stop();
@@ -968,16 +1043,21 @@ export function DashboardApp() {
     } finally {
       runStartingRef.current = false;
       setRunStarting(false);
+      finishTargetCommand();
     }
   };
 
   const changeWorld = async (nextWorldId: string) => {
     setSelectedWorldId(nextWorldId);
+    beginTargetCommand();
     try {
       await target.setSimulationScenario?.(nextWorldId);
     } catch (error: unknown) {
+      targetStateRef.current = "error";
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      finishTargetCommand();
     }
   };
 
@@ -985,6 +1065,7 @@ export function DashboardApp() {
     if (!rememberedAutosaveFolder) {
       return;
     }
+    beginFolderInteraction();
     try {
       const permission = await requestCourseFolderPermission(
         rememberedAutosaveFolder,
@@ -1003,6 +1084,8 @@ export function DashboardApp() {
           `Folder reconnection failed: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
+    } finally {
+      finishFolderInteraction();
     }
   };
 
@@ -1075,6 +1158,7 @@ export function DashboardApp() {
     nextValue: RuntimeParameterValue,
   ) => {
     setRuntimeUpdateError("");
+    beginTargetCommand();
     try {
       await target.setRuntimeParameter(name, nextValue);
       setRuntimeDrafts((current) => {
@@ -1091,6 +1175,8 @@ export function DashboardApp() {
         delete next[name];
         return next;
       });
+    } finally {
+      finishTargetCommand();
     }
   };
 
@@ -1258,6 +1344,10 @@ export function DashboardApp() {
     () =>
       registerOfflineShellBeforeReload(async () => {
         const activity = () => ({
+          projectBootstrapPending: projectBootstrapPendingRef.current,
+          targetCommandActive:
+            targetCommandCountRef.current > 0 ||
+            runtimeUpdateTimers.current.size > 0,
           runActive:
             runStartingRef.current ||
             automaticRunActive.current ||
@@ -1265,6 +1355,10 @@ export function DashboardApp() {
           exportActive: exportActiveRef.current,
           recordingActive: recorder.isRecording,
           retainedRecording: recorder.sampleCount > 0,
+          retainedAnnotations: annotationsRef.current.length > 0,
+          annotationDraftActive: annotationDraftIdsRef.current.size > 0,
+          folderInteractionActive: folderInteractionCountRef.current > 0,
+          saveActive: runArchiveCountRef.current > 0,
         });
         if (!monitorReloadIsSafe(activity())) return false;
         await runArchiveQueue.current;
@@ -1276,15 +1370,32 @@ export function DashboardApp() {
   useEffect(() => {
     if (
       monitorReloadIsSafe({
+        projectBootstrapPending,
+        targetCommandActive:
+          targetCommandCountRef.current > 0 ||
+          runtimeUpdateTimers.current.size > 0,
         runActive: runStarting || isRunning,
         exportActive: exportState !== "idle",
         recordingActive,
         retainedRecording: recordedSamples > 0,
+        retainedAnnotations: annotations.length > 0,
+        annotationDraftActive: annotationDraftIdsRef.current.size > 0,
+        folderInteractionActive: folderInteractionCountRef.current > 0,
+        saveActive: runArchiveCountRef.current > 0,
       })
     ) {
       retryPendingOfflineShellReload();
     }
-  }, [exportState, isRunning, recordedSamples, recordingActive, runStarting]);
+  }, [
+    exportState,
+    folderInteractionRevision,
+    isRunning,
+    annotations.length,
+    projectBootstrapPending,
+    recordedSamples,
+    recordingActive,
+    runStarting,
+  ]);
   const worldPreviewSample = useMemo(
     () => centeredWorldPreview(target.kind),
     [target.kind],
@@ -1567,11 +1678,15 @@ export function DashboardApp() {
                       {recordingActive ? "Stop recording" : "Start recording"}
                     </button>
                     <button
-                      disabled={recordedSamples === 0 && !recordingActive}
+                      disabled={
+                        recordedSamples === 0 &&
+                        !recordingActive &&
+                        annotations.length === 0
+                      }
                       onClick={clearRecording}
-                      title="Discard the current in-browser recording."
+                      title="Discard the current in-browser recording and its notes."
                     >
-                      Clear recording
+                      Clear recording and notes
                     </button>
                   </div>
                   <label
@@ -1675,7 +1790,10 @@ export function DashboardApp() {
                         Reconnect project
                       </button>
                     ) : null}
-                    <OfflineReadiness appName="Monitor" />
+                    <OfflineReadiness
+                      appName="Monitor"
+                      pendingUpdateDetail="A newer UCSBXRP course release is saved in Chrome. Finish the current operation, then export anything needed and clear the retained recording and notes; Monitor will reopen on the new release."
+                    />
                   </div>
                 </section>
               </div>
@@ -1935,6 +2053,7 @@ export function DashboardApp() {
                         annotations={annotations}
                         definition={plot}
                         onAddAnnotation={addAnnotation}
+                        onAnnotationDraftChange={setAnnotationDraftActive}
                         samples={plotSamples}
                         showAnnotations={annotationsVisible}
                         timeWindowS={monitorSettings.timeWindowS}

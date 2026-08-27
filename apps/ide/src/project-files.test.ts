@@ -392,9 +392,23 @@ describe("project recovery", () => {
       },
     };
 
-    storeRecoveredProject(project);
+    expect(storeRecoveredProject(project)).toBe(true);
 
     expect(loadRecoveredProject()).toEqual(project);
+  });
+
+  it("reports when browser recovery storage rejects a project", () => {
+    vi.spyOn(storage, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage full", "QuotaExceededError");
+    });
+
+    expect(
+      storeRecoveredProject({
+        name: "unsaved",
+        entrypoint: "main.py",
+        files: { "main.py": "print('keep me')\n" },
+      }),
+    ).toBe(false);
   });
 
   it("migrates the previous recovery once and ignores later stale writes", () => {

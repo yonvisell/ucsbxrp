@@ -104,7 +104,6 @@ const PRECACHE_URLS = ${JSON.stringify(precacheUrls, null, 2)};
 const PRECACHE_PATHS = new Set(PRECACHE_URLS);
 const NETWORK_FIRST_PATHS = new Set([
   ${JSON.stringify(manifestUrl)},
-  SCOPE_PATH + "course/commissioning/manifest.json",
   SCOPE_PATH + "course/current/release.json",
 ]);
 
@@ -246,16 +245,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  const isVersionedAsset = canonicalUrl.startsWith(SCOPE_PATH + "assets/");
+  const isVersionedAsset =
+    canonicalUrl.startsWith(SCOPE_PATH + "assets/") ||
+    // New builds use immutable release-scoped commissioning paths. Retaining
+    // the broader prefix lets the first scoped release serve an already-open
+    // legacy page from the immediately preceding cache, without publishing a
+    // new mutable commissioning manifest.
+    canonicalUrl.startsWith(SCOPE_PATH + "course/commissioning/") ||
+    canonicalUrl.startsWith(SCOPE_PATH + "course/current/firmware/");
   if (!isVersionedAsset) {
     return;
   }
 
-    event.respondWith(
-      caches
-        .match(url.toString(), { ignoreSearch: true })
-        .then((cached) => cached ?? fetch(request))
-        .then(withIsolationHeaders),
+  event.respondWith(
+    caches
+      .match(url.toString(), { ignoreSearch: true })
+      .then((cached) => cached ?? fetch(request))
+      .then(withIsolationHeaders),
   );
 });
 `;
@@ -281,15 +287,20 @@ export async function generateOfflineBuild({
       recursive: true,
       filter: (sourcePath) => {
         const relativePath = path.relative(courseReleaseDirectory, sourcePath);
-        return relativePath
-          .split(path.sep)
-          .every(
-            (segment) =>
-              segment === "" ||
-              (!segment.startsWith(".") &&
-                !PRIVATE_RELEASE_SEGMENTS.has(segment) &&
-                !segment.endsWith(".pyc")),
-          );
+        const segments = relativePath.split(path.sep);
+        // The commissioning bundle publishes the verified UF2 once at a
+        // content-addressed, release-scoped URL. Do not also publish the same
+        // 1.7 MB image below the mutable course/current path.
+        if (segments[0] === "firmware") {
+          return false;
+        }
+        return segments.every(
+          (segment) =>
+            segment === "" ||
+            (!segment.startsWith(".") &&
+              !PRIVATE_RELEASE_SEGMENTS.has(segment) &&
+              !segment.endsWith(".pyc")),
+        );
       },
     });
   }

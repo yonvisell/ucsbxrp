@@ -7,10 +7,16 @@ import {
 } from "./monitor-release-reload";
 
 const idle: MonitorReloadActivity = {
+  projectBootstrapPending: false,
+  targetCommandActive: false,
   runActive: false,
   exportActive: false,
   recordingActive: false,
   retainedRecording: false,
+  retainedAnnotations: false,
+  annotationDraftActive: false,
+  folderInteractionActive: false,
+  saveActive: false,
 };
 
 async function finishAttempt() {
@@ -20,10 +26,16 @@ async function finishAttempt() {
 
 describe("Monitor course-update reload", () => {
   it.each([
+    "projectBootstrapPending",
+    "targetCommandActive",
     "runActive",
     "exportActive",
     "recordingActive",
     "retainedRecording",
+    "retainedAnnotations",
+    "annotationDraftActive",
+    "folderInteractionActive",
+    "saveActive",
   ] as const)("is not safe while %s", (activity) => {
     expect(monitorReloadIsSafe({ ...idle, [activity]: true })).toBe(false);
   });
@@ -77,6 +89,26 @@ describe("Monitor course-update reload", () => {
     expect(reload).not.toHaveBeenCalled();
 
     finishArchive?.();
+    await finishAttempt();
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("keeps retained telemetry pending through a folder permission interaction", async () => {
+    let activity: MonitorReloadActivity = {
+      ...idle,
+      retainedRecording: true,
+      folderInteractionActive: true,
+    };
+    const reload = vi.fn();
+    const coordinator = new OfflineReleaseCoordinator({ reload });
+    coordinator.registerBeforeReload(() => monitorReloadIsSafe(activity));
+
+    coordinator.request({ version: "release-b", reason: "release-update" });
+    await finishAttempt();
+    expect(reload).not.toHaveBeenCalled();
+
+    activity = idle;
+    coordinator.retry();
     await finishAttempt();
     expect(reload).toHaveBeenCalledOnce();
   });

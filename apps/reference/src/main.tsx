@@ -6,7 +6,7 @@ import "../../shared/theme.css";
 import "./styles.css";
 import { ReferenceApp } from "./ReferenceApp";
 
-registerOfflineShell();
+registerOfflineShell({ reloadWithoutAppState: true });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

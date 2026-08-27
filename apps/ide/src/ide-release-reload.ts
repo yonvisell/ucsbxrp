@@ -7,6 +7,9 @@ export interface IdeReloadActivity {
   targetState: TargetRunState;
   targetCommandActive: boolean;
   componentCheckActive: boolean;
+  uiDraftActive: boolean;
+  folderInteractionActive: boolean;
+  folderSaveActive: boolean;
 }
 
 export interface ProjectRevisionIdentity {
@@ -20,6 +23,9 @@ export function ideReloadIsIdle(activity: IdeReloadActivity): boolean {
     activity.projectReady &&
     !activity.targetCommandActive &&
     !activity.componentCheckActive &&
+    !activity.uiDraftActive &&
+    !activity.folderInteractionActive &&
+    !activity.folderSaveActive &&
     activity.targetState !== "connecting" &&
     activity.targetState !== "loading" &&
     activity.targetState !== "running"

@@ -17,10 +17,12 @@ const stateText: Record<Exclude<OfflineShellState, "ready">, string> = {
 
 interface OfflineReadinessProps {
   appName?: string;
+  pendingUpdateDetail?: string;
 }
 
 export function OfflineReadiness({
   appName = "Course tools",
+  pendingUpdateDetail,
 }: OfflineReadinessProps) {
   const [status, setStatus] = useState(readOfflineShellStatus);
 
@@ -33,12 +35,15 @@ export function OfflineReadiness({
     return () => window.removeEventListener(OFFLINE_SHELL_EVENT, handleState);
   }, []);
 
-  const stateLabel =
-    status.state === "ready"
+  const stateLabel = status.updateVersion
+    ? "Course update ready"
+    : status.state === "ready"
       ? "Course apps saved in Chrome"
       : stateText[status.state];
-  const detail =
-    status.state === "ready"
+  const detail = status.updateVersion
+    ? (pendingUpdateDetail ??
+      "A newer UCSBXRP course release is saved in Chrome. This page will reopen after its current run, save, setup step, or export is complete.")
+    : status.state === "ready"
       ? `Chrome saved ${appName} and the other UCSBXRP course apps for this site; reopen them in this browser without internet. Project files stay in the selected working folder; without one, only a temporary browser copy is available.`
       : status.state === "development"
         ? `Course release ${courseRelease.release_id}; this local development page does not save the course apps in Chrome.`

@@ -621,3 +621,24 @@ remain optional for compatibility with an older commissioned service.
 Usable result: course instructions to test a module have a concrete tool, and
 the virtual Monitor no longer lets simulator truth conceal an incorrect student
 controller or odometry implementation.
+
+### Refinement 23 — Update-safe local-first applications
+
+Status: implemented; full browser and attached-XRP stress testing follows.
+
+- Publish commissioning resources under immutable release paths and retain the
+  immediately preceding complete application cache during an update.
+- Treat a missing application reload policy as unsafe. Let each stateful page
+  adopt a newer cached release only after its current project, command, save,
+  recording, export, USB, or authoring operation is reproducible.
+- Keep a cancelled reload pending, reject results from obsolete asynchronous
+  page guards, and show a concise **Course update ready** state while work is
+  retained.
+- Exercise a real two-build update in Stable Chrome, including a cancelled
+  `beforeunload`, one subsequent safe retry, and offline access to assets from
+  both retained releases.
+
+Usable result: publishing a course correction does not overwrite student files,
+interrupt setup or robot commands, discard retained observations, or combine
+commissioning files from different releases. An open page moves to the new
+release at its next safe boundary.

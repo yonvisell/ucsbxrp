@@ -466,14 +466,24 @@ reference bytecode, the pinned RP2350 UF2 and commissioning manifest, and
 third-party notices—and exposes a visible readiness state. One GitHub Pages
 artifact workflow obtains either the root or project
 base path from Pages and publishes the same static release. When a newer
-complete shell activates, a long-open tab reloads once for that build so an
-older interface does not remain in memory. Development disables caching to
-prevent stale bundles from masking changes. Private reference source and
-instructor credentials are not web assets. This application cache is owned by
-the HTTPS origin and is not copied into the selected course folder. It needs no
-Node process after caching; a `file://` copy is not substituted because the
-module, worker, WebAssembly, and service-worker boundaries require an HTTP(S)
-origin. Clearing site data removes the cached release but not project folders.
+complete shell activates, each open page adopts it only at a state-safe
+boundary. Read-only pages may reload immediately. The IDE first preserves the
+exact active project revision and folder handle; the Monitor waits for commands,
+recordings, notes, exports, and automatic run archives; setup waits for folder,
+serial, installation, and network operations; the challenge editor waits until
+its current specification is reproducible. A cancelled browser reload remains
+pending and can be retried. Commissioning payloads use release-scoped paths and
+the firmware URL includes its complete SHA-256 digest, so a newly active worker
+cannot mix new setup files with an older page. The current and immediately
+preceding complete caches are retained through the handoff.
+
+Development disables caching to prevent stale bundles from masking changes.
+Private reference source and instructor credentials are not web assets. This
+application cache is owned by the HTTPS origin and is not copied into the
+selected course folder. It needs no Node process after caching; a `file://` copy
+is not substituted because the module, worker, WebAssembly, and service-worker
+boundaries require an HTTP(S) origin. Clearing site data removes the cached
+release but not project folders.
 
 Robot commands and telemetry still cross the selected local robot network.
 When an HTTPS Pages origin (the site address and protocol that own the browser

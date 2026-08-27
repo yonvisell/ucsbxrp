@@ -39,6 +39,12 @@ assert.equal(
   renderServiceWorker(expectedManifest),
   "service-worker.js must be the deterministic worker for this manifest",
 );
+assert.ok(
+  serviceWorkerText.includes(
+    'canonicalUrl.startsWith(SCOPE_PATH + "course/commissioning/")',
+  ),
+  "the first release-scoped worker must retain legacy commissioning files for already-open tabs",
+);
 
 for (const requiredPath of [
   "index.html",
@@ -59,7 +65,6 @@ for (const requiredPath of [
   "third-party-licenses/micropython--micropython-webassembly-pyscript/LICENSE",
   `${COURSE_RELEASE_OUTPUT_PATH}/release.json`,
   `${COURSE_RELEASE_OUTPUT_PATH}/ucsb_xrp/__init__.py`,
-  "course/commissioning/manifest.json",
 ]) {
   assert.ok(
     assets.some((asset) => asset.path === requiredPath),
@@ -167,18 +172,54 @@ const courseRelease = JSON.parse(
     "utf8",
   ),
 );
+const commissioningManifestPath = `course/commissioning/releases/${courseRelease.release_sequence}/manifest.json`;
+assert.ok(
+  assets.some((asset) => asset.path === commissioningManifestPath),
+  `offline shell is missing ${commissioningManifestPath}`,
+);
+const commissioningManifest = JSON.parse(
+  await readFile(path.join(outputDirectory, commissioningManifestPath), "utf8"),
+);
 const referenceArtifacts = courseRelease.ucsb_xrp?.reference_artifacts ?? [];
 const firmwareAsset = courseRelease.micropython?.asset;
 assert.equal(typeof firmwareAsset, "string", "course firmware name is missing");
+const firmwareSha256 = courseRelease.micropython?.sha256;
+assert.equal(
+  typeof firmwareSha256,
+  "string",
+  "course firmware digest is missing",
+);
+const commissioningFirmware = commissioningManifest.micropython?.firmware;
+assert.deepEqual(
+  commissioningFirmware,
+  {
+    asset: firmwareAsset,
+    url: `firmware/sha256/${firmwareSha256}/${firmwareAsset}`,
+    bytes: courseRelease.micropython.byte_size,
+    sha256: firmwareSha256,
+  },
+  "commissioning firmware must use its content-addressed release URL",
+);
+const commissioningFirmwarePath = path.posix.normalize(
+  path.posix.join(
+    path.posix.dirname(commissioningManifestPath),
+    commissioningFirmware.url,
+  ),
+);
 assert.ok(
   assets.some(
     (asset) =>
-      asset.path ===
-        `${COURSE_RELEASE_OUTPUT_PATH}/firmware/${firmwareAsset}` &&
+      asset.path === commissioningFirmwarePath &&
       asset.bytes === courseRelease.micropython.byte_size &&
-      asset.sha256 === courseRelease.micropython.sha256,
+      asset.sha256 === firmwareSha256,
   ),
   "offline commissioning firmware differs from release.json",
+);
+assert.ok(
+  !assets.some((asset) =>
+    asset.path.startsWith(`${COURSE_RELEASE_OUTPUT_PATH}/firmware/`),
+  ),
+  "offline shell must not duplicate firmware under course/current",
 );
 for (const artifact of referenceArtifacts) {
   const publishedPath = `${COURSE_RELEASE_OUTPUT_PATH}/${artifact.path}`;

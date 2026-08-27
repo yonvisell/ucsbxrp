@@ -16,11 +16,17 @@ async function finishAttempt() {
 }
 
 describe("offline release coordinator", () => {
-  it("reloads an application without transient state immediately", async () => {
+  it("holds an update until the application registers its reload guard", async () => {
     const reload = vi.fn();
     const coordinator = new OfflineReleaseCoordinator({ reload });
 
     coordinator.request(update);
+    await finishAttempt();
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(coordinator.pendingRequest).toEqual(update);
+
+    coordinator.registerBeforeReload(() => true);
     await finishAttempt();
 
     expect(reload).toHaveBeenCalledOnce();
@@ -78,6 +84,69 @@ describe("offline release coordinator", () => {
 
     expect(reload).not.toHaveBeenCalled();
     expect(reportError).toHaveBeenCalledWith(error);
+    expect(coordinator.pendingRequest).toEqual(update);
+  });
+
+  it("retains a declined reload across guard teardown and remount", async () => {
+    const reload = vi.fn();
+    const coordinator = new OfflineReleaseCoordinator({ reload });
+    const unregister = coordinator.registerBeforeReload(() => false);
+
+    coordinator.request(update);
+    await finishAttempt();
+    expect(reload).not.toHaveBeenCalled();
+    expect(coordinator.pendingRequest).toEqual(update);
+
+    unregister();
+    coordinator.retry();
+    await finishAttempt();
+    expect(reload).not.toHaveBeenCalled();
+    expect(coordinator.pendingRequest).toEqual(update);
+
+    coordinator.registerBeforeReload(() => true);
+    await finishAttempt();
+    expect(reload).toHaveBeenCalledOnce();
+    expect(coordinator.pendingRequest).toEqual(update);
+
+    coordinator.confirmReload(update);
+    expect(coordinator.pendingRequest).toBeNull();
+  });
+
+  it("keeps an update pending when the browser cancels the reload", async () => {
+    const reload = vi.fn();
+    const coordinator = new OfflineReleaseCoordinator({ reload });
+    coordinator.registerBeforeReload(() => true);
+
+    coordinator.request(update);
+    await finishAttempt();
+    expect(reload).toHaveBeenCalledOnce();
+
+    coordinator.resumeAfterCancelledReload(update);
+    expect(coordinator.pendingRequest).toEqual(update);
+
+    coordinator.retry();
+    await finishAttempt();
+    expect(reload).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not reload from a guard that React has already replaced", async () => {
+    let finishOldGuard: ((ready: boolean) => void) | undefined;
+    const reload = vi.fn();
+    const coordinator = new OfflineReleaseCoordinator({ reload });
+    coordinator.registerBeforeReload(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishOldGuard = resolve;
+        }),
+    );
+
+    coordinator.request(update);
+    await finishAttempt();
+    coordinator.registerBeforeReload(() => false);
+    finishOldGuard?.(true);
+    await finishAttempt();
+
+    expect(reload).not.toHaveBeenCalled();
     expect(coordinator.pendingRequest).toEqual(update);
   });
 

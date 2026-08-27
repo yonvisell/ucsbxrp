@@ -20,7 +20,11 @@ import {
   requestCourseFolderPermission,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
-import { waitForOfflineShell } from "../../shared/offline-shell";
+import {
+  registerOfflineShellBeforeReload,
+  retryPendingOfflineShellReload,
+  waitForOfflineShell,
+} from "../../shared/offline-shell";
 import {
   FirmwareRequiredError,
   chooseFirmwareVolume,
@@ -50,6 +54,7 @@ import {
   type MicroPythonSession,
   type SerialPortLike,
 } from "./web-serial";
+import { commissionReloadIsSafe } from "./commission-release-reload";
 import {
   createSetupLogEntry,
   renderSetupLog,
@@ -114,7 +119,7 @@ function wasCancelled(error: unknown): boolean {
 
 function manifestLocation(): URL {
   return new URL(
-    `${import.meta.env.BASE_URL}course/commissioning/manifest.json`,
+    `${import.meta.env.BASE_URL}course/commissioning/releases/${courseRelease.release_sequence}/manifest.json`,
     window.location.origin,
   );
 }
@@ -189,6 +194,8 @@ export function CommissionApp() {
   );
   const [checkingAuthorizedPort, setCheckingAuthorizedPort] = useState(false);
   const [selectingRobot, setSelectingRobot] = useState(false);
+  const [folderInteractionActive, setFolderInteractionActive] = useState(false);
+  const [interactionRevision, setInteractionRevision] = useState(0);
   const [replUnavailable, setReplUnavailable] = useState(false);
   const [checkingWifi, setCheckingWifi] = useState(false);
   const [wifiProbeEnabled, setWifiProbeEnabled] = useState(false);
@@ -211,6 +218,34 @@ export function CommissionApp() {
   const manifestReleaseRef = useRef(courseRelease.release_id);
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
   const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
+  const folderInteractionCountRef = useRef(0);
+  const serialInteractionCountRef = useRef(0);
+
+  const beginFolderInteraction = useCallback(() => {
+    folderInteractionCountRef.current += 1;
+    setFolderInteractionActive(true);
+  }, []);
+
+  const finishFolderInteraction = useCallback(() => {
+    folderInteractionCountRef.current = Math.max(
+      0,
+      folderInteractionCountRef.current - 1,
+    );
+    setFolderInteractionActive(folderInteractionCountRef.current > 0);
+    setInteractionRevision((current) => current + 1);
+  }, []);
+
+  const beginSerialInteraction = useCallback(() => {
+    serialInteractionCountRef.current += 1;
+  }, []);
+
+  const finishSerialInteraction = useCallback(() => {
+    serialInteractionCountRef.current = Math.max(
+      0,
+      serialInteractionCountRef.current - 1,
+    );
+    setInteractionRevision((current) => current + 1);
+  }, []);
 
   const hotspotName = useMemo(() => {
     try {
@@ -347,6 +382,7 @@ export function CommissionApp() {
 
   const chooseFolder = useCallback(async () => {
     setError("");
+    beginFolderInteraction();
     try {
       const selected = await chooseWorkspaceFolder();
       recordSetup("Folder", `Checking write access to ${selected.name}.`);
@@ -380,13 +416,16 @@ export function CommissionApp() {
         );
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
+    } finally {
+      finishFolderInteraction();
     }
-  }, [recordSetup]);
+  }, [beginFolderInteraction, finishFolderInteraction, recordSetup]);
 
   const continueWithFolder = useCallback(async () => {
     const selected = folderRef.current;
     if (!selected) return;
     setError("");
+    beginFolderInteraction();
     try {
       if (!folderVerified) {
         const permission = await requestCourseFolderPermission(selected);
@@ -421,33 +460,46 @@ export function CommissionApp() {
       const message = errorDetail(folderError);
       setError(message);
       recordSetup("Folder", `Write check failed: ${message}`, "error");
+    } finally {
+      finishFolderInteraction();
     }
-  }, [folderVerified, recordSetup]);
+  }, [
+    beginFolderInteraction,
+    finishFolderInteraction,
+    folderVerified,
+    recordSetup,
+  ]);
 
   const skipFolder = useCallback(async () => {
     setError("");
-    if (!(await forgetWorkspaceFolder())) {
-      setError(
-        "Chrome could not clear the remembered folder. Reload this page, then try again.",
+    beginFolderInteraction();
+    try {
+      if (!(await forgetWorkspaceFolder())) {
+        setError(
+          "Chrome could not clear the remembered folder. Reload this page, then try again.",
+        );
+        return;
+      }
+      folderRef.current = null;
+      setFolder(null);
+      setFolderVerified(false);
+      setDetail(
+        "Connect the XRP by USB-C and keep it connected through setup. You can choose a working folder in the IDE later.",
       );
-      return;
+      recordSetup(
+        "Folder",
+        "Continued without a working folder; the visible setup log remains available to copy.",
+      );
+      setStage("usb");
+    } finally {
+      finishFolderInteraction();
     }
-    folderRef.current = null;
-    setFolder(null);
-    setFolderVerified(false);
-    setDetail(
-      "Connect the XRP by USB-C and keep it connected through setup. You can choose a working folder in the IDE later.",
-    );
-    recordSetup(
-      "Folder",
-      "Continued without a working folder; the visible setup log remains available to copy.",
-    );
-    setStage("usb");
-  }, [recordSetup]);
+  }, [beginFolderInteraction, finishFolderInteraction, recordSetup]);
 
   useEffect(() => {
     if (stage !== "usb" || !manifest || !supportsWebSerial()) return;
     let disposed = false;
+    beginSerialInteraction();
     setCheckingAuthorizedPort(true);
     setDetail(
       "Checking whether Chrome already has permission to use the connected XRP…",
@@ -468,12 +520,13 @@ export function CommissionApp() {
         setError(errorDetail(portError));
       })
       .finally(() => {
+        finishSerialInteraction();
         if (!disposed) setCheckingAuthorizedPort(false);
       });
     return () => {
       disposed = true;
     };
-  }, [manifest, stage]);
+  }, [beginSerialInteraction, finishSerialInteraction, manifest, stage]);
 
   const inspectPort = useCallback(
     async (port: SerialPortLike) => {
@@ -574,6 +627,7 @@ export function CommissionApp() {
     if (!manifest || selectingRobot) return;
     setError("");
     setSelectingRobot(true);
+    beginSerialInteraction();
     setDetail(
       "Chrome opened its device picker. Select the SparkFun XRP controller and choose Connect; setup then continues automatically.",
     );
@@ -592,19 +646,35 @@ export function CommissionApp() {
         recordSetup("USB", `Device selection failed: ${message}`, "error");
       }
     } finally {
+      finishSerialInteraction();
       setSelectingRobot(false);
     }
-  }, [inspectPort, manifest, recordSetup, selectingRobot]);
+  }, [
+    beginSerialInteraction,
+    finishSerialInteraction,
+    inspectPort,
+    manifest,
+    recordSetup,
+    selectingRobot,
+  ]);
 
   const confirmAuthorizedRobot = useCallback(async () => {
     if (!authorizedPort || selectingRobot) return;
     setSelectingRobot(true);
+    beginSerialInteraction();
     try {
       await inspectPort(authorizedPort);
     } finally {
+      finishSerialInteraction();
       setSelectingRobot(false);
     }
-  }, [authorizedPort, inspectPort, selectingRobot]);
+  }, [
+    authorizedPort,
+    beginSerialInteraction,
+    finishSerialInteraction,
+    inspectPort,
+    selectingRobot,
+  ]);
 
   useEffect(() => {
     if ((stage !== "network" && stage !== "firmware") || !sessionRef.current) {
@@ -1052,6 +1122,38 @@ export function CommissionApp() {
       window.removeEventListener("beforeunload", keepSetupOpen);
     };
   }, [stage]);
+
+  useEffect(() => {
+    const currentActivity = () =>
+      commissionReloadIsSafe({
+        appReady: manifest !== null && stage !== "loading",
+        folderInteractionActive: folderInteractionCountRef.current > 0,
+        serialInteractionActive:
+          serialInteractionCountRef.current > 0 ||
+          sessionRef.current !== null ||
+          stage === "network" ||
+          stage === "firmware" ||
+          stage === "firmware-volume",
+        installActive: stage === "installing",
+        networkHandoffActive:
+          stage === "wifi" || checkingWifi || wifiProbeEnabled,
+        navigationActive: navigatingRef.current || stage === "complete",
+      });
+    const unregister = registerOfflineShellBeforeReload(async () => {
+      if (!currentActivity()) return false;
+      await setupLogWriteRef.current.catch(() => undefined);
+      return currentActivity();
+    });
+    if (currentActivity()) retryPendingOfflineShellReload();
+    return unregister;
+  }, [
+    checkingWifi,
+    folderInteractionActive,
+    interactionRevision,
+    manifest,
+    stage,
+    wifiProbeEnabled,
+  ]);
 
   const activeStep = workflowStep(stage);
   const progressPercent =

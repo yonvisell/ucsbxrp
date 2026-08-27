@@ -309,6 +309,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     "browser" | "pending" | "saving" | "current" | "permission" | "error"
   >("browser");
   const [folderDirty, setFolderDirty] = useState(false);
+  const [folderInteractionRevision, setFolderInteractionRevision] = useState(0);
   const [projectFolderConflict, setProjectFolderConflict] =
     useState<ProjectFolderConflictState | null>(null);
   const [operationDetail, setOperationDetail] = useState(
@@ -356,6 +357,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const [pathDraft, setPathDraft] = useState("");
   const [pathOperationError, setPathOperationError] = useState("");
   const [fileActionsOpen, setFileActionsOpen] = useState(false);
+  const [addressDraftActive, setAddressDraftActive] = useState(false);
+  const [stationAddressDraft, setStationAddressDraft] = useState(
+    targetPreference.stationEndpoint,
+  );
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const [pendingFolderDeletions, setPendingFolderDeletions] = useState(
     () => new Set<string>(),
@@ -390,6 +395,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       narrowLayout.removeEventListener("change", collapseProjectPanel);
   }, []);
   const folderWriteQueue = useRef<Promise<void>>(Promise.resolve());
+  const projectFolderHandleWriteRef = useRef<Promise<boolean>>(
+    Promise.resolve(true),
+  );
   const folderWriteEpoch = useRef(0);
   const pendingFolderDeletionsRef = useRef(new Set<string>());
   const projectSessionReadyRef = useRef(false);
@@ -399,12 +407,15 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const projectProviderActiveRef = useRef(false);
   const targetCommandCountRef = useRef(0);
   const componentCheckRunningRef = useRef(false);
+  const folderInteractionCountRef = useRef(0);
+  const folderSaveStateRef = useRef(folderSaveState);
 
   projectSessionReadyRef.current = projectSessionReady;
   workingFolderRef.current = workingFolder;
   folderDirtyRef.current = folderDirty;
   targetStateRef.current = targetState;
   projectProviderActiveRef.current = projectProviderActive;
+  folderSaveStateRef.current = folderSaveState;
 
   const provideProjectRunSnapshot = useCallback(() => {
     const session = projectSessionRef.current;
@@ -434,7 +445,50 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       0,
       targetCommandCountRef.current - 1,
     );
+    retryPendingOfflineShellReload();
   }, []);
+
+  const beginFolderInteraction = useCallback(() => {
+    folderInteractionCountRef.current += 1;
+  }, []);
+
+  const finishFolderInteraction = useCallback(() => {
+    folderInteractionCountRef.current = Math.max(
+      0,
+      folderInteractionCountRef.current - 1,
+    );
+    setFolderInteractionRevision((current) => current + 1);
+  }, []);
+
+  const commitStationAddressDraft = useCallback(() => {
+    if (addressDraftActive) {
+      updateTargetPreference((current) =>
+        targetPreferenceForConfiguredNetwork(current, {
+          mode: "station",
+          stationAddress: stationAddressDraft,
+        }),
+      );
+    }
+    setAddressDraftActive(false);
+  }, [addressDraftActive, stationAddressDraft, updateTargetPreference]);
+
+  const closeSettings = useCallback(() => {
+    commitStationAddressDraft();
+    setSettingsOpen(false);
+  }, [commitStationAddressDraft]);
+
+  useEffect(() => {
+    if (!addressDraftActive) {
+      setStationAddressDraft(targetPreference.stationEndpoint);
+    }
+  }, [addressDraftActive, targetPreference.stationEndpoint]);
+
+  useEffect(() => {
+    const input = importInputRef.current;
+    if (!input) return;
+    input.addEventListener("cancel", finishFolderInteraction);
+    return () => input.removeEventListener("cancel", finishFolderInteraction);
+  }, [finishFolderInteraction]);
 
   const publishProjectSession = useCallback((next: ProjectSession) => {
     projectSessionRef.current = next;
@@ -526,6 +580,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
 
   useEffect(() => {
     if (!projectSessionReady) {
+      targetStateRef.current = "disconnected";
       setTargetState("disconnected");
       setTargetDetail("Opening the saved project…");
       return;
@@ -568,6 +623,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setProjectProviderAvailable(event.available);
       }
     });
+    targetStateRef.current = "connecting";
     setTargetState("connecting");
     setTargetDetail(`Connecting to ${target.kind} XRP…`);
     setCurrentProject(null);
@@ -577,6 +633,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         await target.connect();
       } catch (error: unknown) {
         if (disposed) return;
+        targetStateRef.current = "error";
         setTargetState("error");
         setTargetDetail(errorDetail(error));
       } finally {
@@ -621,11 +678,11 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
 
   useEffect(() => {
     if (!projectSessionReady || !projectProviderActive) return;
-    if (workingFolder) {
-      void rememberProjectFolder(workingFolder);
-    } else {
-      void forgetProjectFolder();
-    }
+    projectFolderHandleWriteRef.current = (
+      workingFolder
+        ? rememberProjectFolder(workingFolder)
+        : forgetProjectFolder()
+    ).finally(retryPendingOfflineShellReload);
   }, [projectProviderActive, projectSessionReady, workingFolder]);
 
   useEffect(() => {
@@ -1114,6 +1171,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   }, [beginTargetCommand, finishTargetCommand, isConnected, target]);
 
   const openWorkingFolder = useCallback(async () => {
+    beginFolderInteraction();
     try {
       const folder = await chooseWorkingFolder();
       const courseFolder = workspaceFolder ?? rememberedWorkspaceFolder;
@@ -1163,8 +1221,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       if (!wasCancelled(error)) {
         setOperationDetail(errorDetail(error));
       }
+    } finally {
+      finishFolderInteraction();
     }
   }, [
+    beginFolderInteraction,
+    finishFolderInteraction,
     rememberedWorkspaceFolder,
     publishProjectSession,
     reconcileFolderSnapshot,
@@ -1175,6 +1237,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   ]);
 
   const selectWorkspaceFolder = useCallback(async () => {
+    beginFolderInteraction();
     try {
       const folder = await chooseWorkspaceFolder();
       if (await isCourseRepositoryFolder(folder)) {
@@ -1197,16 +1260,24 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setOperationDetail(errorDetail(error));
       }
       return null;
+    } finally {
+      finishFolderInteraction();
     }
-  }, []);
+  }, [beginFolderInteraction, finishFolderInteraction]);
 
   const prepareProjectCreation = useCallback(
     async (snapshot: ProjectSnapshot, chooseWorkspaceIfMissing = false) => {
       let workspace = workspaceFolder;
       if (!workspace && chooseWorkspaceIfMissing && rememberedWorkspaceFolder) {
-        const permission = await requestCourseFolderPermission(
-          rememberedWorkspaceFolder,
-        );
+        beginFolderInteraction();
+        let permission: PermissionState;
+        try {
+          permission = await requestCourseFolderPermission(
+            rememberedWorkspaceFolder,
+          );
+        } finally {
+          finishFolderInteraction();
+        }
         if (permission === "granted") {
           workspace = rememberedWorkspaceFolder;
           setWorkspaceFolder(workspace);
@@ -1252,6 +1323,8 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       setNewProjectOpen(true);
     },
     [
+      beginFolderInteraction,
+      finishFolderInteraction,
       rememberedWorkspaceFolder,
       publishProjectSession,
       replacePendingFolderDeletions,
@@ -1266,6 +1339,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     if (!rememberedFolder || !rememberedFolderCanAttach) {
       return;
     }
+    beginFolderInteraction();
     try {
       const permission = await requestCourseFolderPermission(rememberedFolder);
       if (permission !== "granted") {
@@ -1313,8 +1387,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setFolderSaveState("error");
         setOperationDetail(errorDetail(error));
       }
+    } finally {
+      finishFolderInteraction();
     }
   }, [
+    beginFolderInteraction,
+    finishFolderInteraction,
     rememberedFolder,
     rememberedFolderCanAttach,
     publishProjectSession,
@@ -1627,6 +1705,13 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             targetState: targetStateRef.current,
             targetCommandActive: targetCommandCountRef.current > 0,
             componentCheckActive: componentCheckRunningRef.current,
+            uiDraftActive:
+              newProjectOpen ||
+              newFileOpen ||
+              pathOperation !== null ||
+              addressDraftActive,
+            folderInteractionActive: folderInteractionCountRef.current > 0,
+            folderSaveActive: folderSaveStateRef.current === "saving",
           });
 
         if (!projectSessionReadyRef.current || projectFolderConflict) {
@@ -1634,16 +1719,42 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         }
         const sessionToSave = projectSessionRef.current;
         const expected = projectRevisionIdentity(sessionToSave);
+        let browserRecoveryAvailable = false;
         if (projectProviderActiveRef.current) {
-          storeRecoveredProject(
+          browserRecoveryAvailable = storeRecoveredProject(
             snapshotForProjectSession(sessionToSave),
             preservedBrowserDraftRef.current,
           );
         }
         if (!activity()) return false;
 
+        if (
+          projectProviderActiveRef.current &&
+          !(await projectFolderHandleWriteRef.current)
+        ) {
+          setOperationDetail(
+            "Chrome could not remember the active project folder. Reopen the project folder before applying the course update.",
+          );
+          return false;
+        }
+
         const folder = workingFolderRef.current;
         if (folder === null) {
+          // Only the active IDE publishes browser recovery. A standby tab may
+          // contain a distinct draft, so it waits for explicit project
+          // takeover or closure instead of silently discarding that work.
+          if (
+            !projectProviderActiveRef.current &&
+            projectSessionHasUnsavedChanges(sessionToSave)
+          ) {
+            return false;
+          }
+          if (projectProviderActiveRef.current && !browserRecoveryAvailable) {
+            setOperationDetail(
+              "Chrome could not preserve this project for the course update. Save it to a project folder, then the update can continue.",
+            );
+            return false;
+          }
           return (
             activity() &&
             projectRevisionIsReloadable(
@@ -1753,6 +1864,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         );
       }),
     [
+      addressDraftActive,
+      newFileOpen,
+      newProjectOpen,
+      pathOperation,
       projectFolderConflict,
       publishProjectSession,
       recordProjectFolderConflict,
@@ -1769,14 +1884,25 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       targetState !== "running" &&
       folderSaveState !== "saving" &&
       folderSaveState !== "permission" &&
-      folderSaveState !== "error"
+      folderSaveState !== "error" &&
+      !newProjectOpen &&
+      !newFileOpen &&
+      pathOperation === null &&
+      !addressDraftActive &&
+      folderInteractionCountRef.current === 0
     ) {
       retryPendingOfflineShellReload();
     }
   }, [
+    addressDraftActive,
     componentCheckRunning,
     folderDirty,
+    folderInteractionRevision,
     folderSaveState,
+    newFileOpen,
+    newProjectOpen,
+    pathOperation,
+    projectProviderActive,
     projectSession.projectId,
     projectSession.revision,
     projectSession.savedRevision,
@@ -1849,6 +1975,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setNewProjectError(validationError);
         return;
       }
+      beginFolderInteraction();
       try {
         setNewProjectError("");
         setOperationDetail(`Creating ${newProjectDraft.trim()}…`);
@@ -1892,9 +2019,13 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         );
       } catch (error) {
         setNewProjectError(errorDetail(error));
+      } finally {
+        finishFolderInteraction();
       }
     },
     [
+      beginFolderInteraction,
+      finishFolderInteraction,
       newProjectDraft,
       pendingProject,
       publishProjectSession,
@@ -2123,7 +2254,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setSettingsOpen(false);
+        closeSettings();
         setNewFileOpen(false);
         setNewProjectOpen(false);
         setPendingProject(null);
@@ -2146,18 +2277,21 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         void runTarget();
       } else if (command && event.key === ",") {
         event.preventDefault();
-        setSettingsOpen((open) => !open);
+        if (settingsOpen) closeSettings();
+        else setSettingsOpen(true);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
+    closeSettings,
     deletePath,
     newFileOpen,
     newProjectOpen,
     pathOperation,
     runTarget,
     saveProjectFiles,
+    settingsOpen,
     validateCode,
   ]);
 
@@ -2206,12 +2340,12 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         !settingsDrawerRef.current?.contains(targetNode) &&
         !targetElement?.closest(".settings-button")
       ) {
-        setSettingsOpen(false);
+        closeSettings();
       }
     };
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [settingsOpen]);
+  }, [closeSettings, settingsOpen]);
 
   useEffect(() => {
     if (!fileActionsOpen) return;
@@ -2407,7 +2541,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           <button
             aria-expanded={settingsOpen}
             className="quiet-button settings-button"
-            onClick={() => setSettingsOpen((open) => !open)}
+            onClick={() => {
+              if (settingsOpen) closeSettings();
+              else setSettingsOpen(true);
+            }}
             title="IDE settings (⌘/Ctrl+,)"
           >
             Settings
@@ -2506,7 +2643,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   New file
                 </button>
                 <button
-                  onClick={() => importInputRef.current?.click()}
+                  onClick={() => {
+                    beginFolderInteraction();
+                    importInputRef.current?.click();
+                  }}
                   title="Import one or more text files into this project. Existing files are not overwritten."
                 >
                   Import files
@@ -2515,7 +2655,11 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   accept=".csv,.ini,.json,.md,.py,.toml,.txt,.yaml,.yml,text/*"
                   hidden
                   multiple
-                  onChange={importProjectFiles}
+                  onChange={(event) => {
+                    void importProjectFiles(event).finally(
+                      finishFolderInteraction,
+                    );
+                  }}
                   ref={importInputRef}
                   type="file"
                 />
@@ -3042,7 +3186,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             <button
               aria-label="Close settings"
               className="icon-button"
-              onClick={() => setSettingsOpen(false)}
+              onClick={closeSettings}
             >
               ×
             </button>
@@ -3099,18 +3243,18 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   <input
                     aria-label="XRP address"
                     aria-describedby="physical-address-help"
-                    defaultValue={targetPreference.stationEndpoint}
-                    key={targetPreference.stationEndpoint}
-                    onBlur={(event) =>
-                      updateTargetPreference((current) =>
-                        targetPreferenceForConfiguredNetwork(current, {
-                          mode: "station",
-                          stationAddress: event.target.value,
-                        }),
-                      )
-                    }
+                    onBlur={commitStationAddressDraft}
+                    onChange={(event) => {
+                      setAddressDraftActive(true);
+                      setStationAddressDraft(event.target.value);
+                    }}
+                    onFocus={() => setAddressDraftActive(true)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                    }}
                     spellCheck={false}
                     type="url"
+                    value={stationAddressDraft}
                   />
                   <small id="physical-address-help">
                     USB setup reports this address. Monitor uses the same

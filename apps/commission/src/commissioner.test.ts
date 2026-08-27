@@ -15,7 +15,7 @@ import type { MicroPythonSession, ReplResult } from "./web-serial";
 
 const encoder = new TextEncoder();
 const manifestUrl = new URL(
-  "https://course.test/course/commissioning/manifest.json",
+  "https://course.test/course/commissioning/releases/28/manifest.json",
 );
 const courseFile = encoder.encode("course release\n");
 const courseBoot = encoder.encode(
@@ -74,7 +74,7 @@ function manifest(): CommissioningManifest {
       board: "SPARKFUN_XRP_CONTROLLER",
       firmware: {
         asset: "xrp.uf2",
-        url: "../current/firmware/xrp.uf2",
+        url: "firmware/sha256/test-digest/xrp.uf2",
         bytes: 4,
         sha256: digest(Uint8Array.of(1, 2, 3, 4)),
       },
@@ -673,8 +673,12 @@ describe("browser XRP commissioning", () => {
       volume,
       manifest: manifest(),
       manifestUrl,
-      fetch: (async () =>
-        new Response(Uint8Array.of(1, 2, 3, 4))) as typeof fetch,
+      fetch: (async (input: URL | RequestInfo) => {
+        expect(String(input)).toBe(
+          "https://course.test/course/commissioning/releases/28/firmware/sha256/test-digest/xrp.uf2",
+        );
+        return new Response(Uint8Array.of(1, 2, 3, 4));
+      }) as typeof fetch,
     });
     expect(written).toEqual(Uint8Array.of(1, 2, 3, 4));
   });
