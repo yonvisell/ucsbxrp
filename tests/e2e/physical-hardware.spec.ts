@@ -100,16 +100,28 @@ function numericPair(text: string | null): number[] {
 }
 
 async function robotInfo(request: APIRequestContext, endpoint: string) {
-  const response = await request.get(`${endpoint}/api/v1/info`, {
-    timeout: 3_000,
-  });
-  expect(response.ok()).toBe(true);
-  return (await response.json()) as {
-    bootId: string;
-    courseRelease: string;
-    robotId: string;
-    project?: { revision?: string; lifetime?: string } | null;
-  };
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await request.get(`${endpoint}/api/v1/info`, {
+        timeout: 1_000,
+      });
+      expect(response.ok()).toBe(true);
+      return (await response.json()) as {
+        bootId: string;
+        courseRelease: string;
+        robotId: string;
+        project?: { revision?: string; lifetime?: string } | null;
+      };
+    } catch (error) {
+      lastError = error;
+      // This diagnostic client is independent of the shared browser transport.
+      // A request can collide with its active telemetry socket on Phew; retry
+      // immediately, but keep the total bound far below a controller restart.
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw lastError;
 }
 
 async function robotLogsAfter(

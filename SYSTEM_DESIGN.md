@@ -250,7 +250,9 @@ fields.
 physical target it transactionally prepares a boot-lifetime RAM project; it
 does not write internal flash. Connection state and current/stale project
 identity are shown separately, so a connected robot cannot be mistaken for a
-robot that has the current project ready.
+robot that has the current project ready. A true controller boot has no
+current student project until a browser prepares one; an obsolete flash copy
+is never an implicit execution source.
 
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
 descriptors, 16 watch values, and 16 numerical plot values. For the virtual

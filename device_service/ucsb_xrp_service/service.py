@@ -37,10 +37,8 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.33"
+COURSE_RELEASE = "2026.08-dev.34"
 CONFIG_PATH = "/xrp_wifi.json"
-PROJECT_ROOT = "/course_projects"
-ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
     "a": "/course_ram_a",
@@ -85,7 +83,6 @@ _sample_seq = 0
 _sample_epoch_start_ms = 0
 _last_sample = None
 _last_hardware = None
-_active_manifest = None
 _active_ram_slot = None
 _active_ram_manifest = None
 _ram_project_volumes = {"a": None, "b": None}
@@ -278,24 +275,6 @@ def _ensure_dir(path):
         pass
 
 
-def _remove_tree(path):
-    _feed_watchdog_now()
-    try:
-        entries = list(os.ilistdir(path))
-    except OSError:
-        return
-    for entry in entries:
-        _feed_watchdog_now()
-        child = path + "/" + entry[0]
-        if entry[1] == 0x4000:
-            _remove_tree(child)
-        else:
-            os.remove(child)
-        _feed_watchdog_now()
-    os.rmdir(path)
-    _feed_watchdog_now()
-
-
 def _make_parent_dirs(root, relative_path):
     parts = relative_path.split("/")[:-1]
     current = root
@@ -400,7 +379,7 @@ def _ensure_ram_project_mounts():
 
 
 def _initialize_project_worker(watchdog):
-    """Establish flash-backed mountpoint entries, then start persistent core 1."""
+    """Establish RAM-project mountpoints, then start persistent core 1."""
     _ensure_ram_project_mounts()
     watchdog.feed()
     _start_project_worker(watchdog)
@@ -489,99 +468,15 @@ def _prepare_ram_project(project):
     return manifest
 
 
-def _active_slot_name():
-    try:
-        value = open(ACTIVE_POINTER).read().strip()
-        if value in SLOTS:
-            return value
-    except OSError:
-        pass
-    return "a"
-
-
-def _active_slot_path():
-    return PROJECT_ROOT + "/" + _active_slot_name()
-
-
 def _active_project_path():
     if _active_ram_slot in SLOTS and _active_ram_manifest is not None:
         return RAM_PROJECT_MOUNTS[_active_ram_slot]
-    return _active_slot_path()
+    return None
 
 
 def _read_manifest():
-    global _active_manifest
-    if _active_ram_manifest is not None:
-        return _active_ram_manifest
-    if _active_manifest is not None:
-        return _active_manifest
-    try:
-        _active_manifest = json.load(open(_active_slot_path() + "/.project.json"))
-        if "revision" not in _active_manifest:
-            files = {}
-            for path in _active_manifest["files"]:
-                files[path] = open(_active_slot_path() + "/" + path).read()
-            _active_manifest["revision"] = project_revision(
-                {
-                    "entrypoint": _active_manifest["entrypoint"],
-                    "files": files,
-                }
-            )
-        if (
-            "worldJson" not in _active_manifest
-            and "world.json" in _active_manifest.get("files", ())
-        ):
-            _active_manifest["worldJson"] = open(
-                _active_slot_path() + "/world.json"
-            ).read()
-        return _active_manifest
-    except Exception:
-        return None
-
-
-def _write_project(project):
-    global _active_manifest
-    _ensure_dir(PROJECT_ROOT)
-    active = _active_slot_name()
-    inactive = "b" if active == "a" else "a"
-    slot_path = PROJECT_ROOT + "/" + inactive
-    _remove_tree(slot_path)
-    _ensure_dir(slot_path)
-    _feed_watchdog_now()
-
-    try:
-        for path, content in project["files"].items():
-            _feed_watchdog_now()
-            _make_parent_dirs(slot_path, path)
-            with open(slot_path + "/" + path, "w") as handle:
-                handle.write(content)
-            _feed_watchdog_now()
-        manifest = {
-            "name": project["name"],
-            "entrypoint": project["entrypoint"],
-            "files": sorted(project["files"].keys()),
-            "bytes": project["bytes"],
-            "revision": project_revision(project),
-        }
-        if "world.json" in project["files"]:
-            manifest["worldJson"] = project["files"]["world.json"]
-        with open(slot_path + "/.project.json", "w") as handle:
-            json.dump(manifest, handle)
-        _feed_watchdog_now()
-        pointer_tmp = ACTIVE_POINTER + ".tmp"
-        with open(pointer_tmp, "w") as handle:
-            handle.write(inactive)
-        try:
-            os.remove(ACTIVE_POINTER)
-        except OSError:
-            pass
-        os.rename(pointer_tmp, ACTIVE_POINTER)
-        _feed_watchdog_now()
-        _active_manifest = manifest
-        return manifest
-    except Exception:
-        _remove_tree(slot_path)
-        raise
+    """Return the project prepared during this controller boot, if any."""
+    return _active_ram_manifest
 
 
 def _compile_project(project):
@@ -1480,6 +1375,10 @@ def run_project(request):
                     "no_project", "prepare a project before running"
                 )
             slot_path = _active_project_path()
+            if slot_path is None:
+                raise ProtocolError(
+                    "no_project", "prepare a project before running"
+                )
             entrypoint = manifest["entrypoint"]
             with open(slot_path + "/" + entrypoint) as handle:
                 source = handle.read()
@@ -1709,10 +1608,10 @@ def run(watchdog=None, network_activation=None):
     _append_log("system", "XRP hardware interfaces ready")
     watchdog.feed()
 
-    # Creating these root entries can touch internal flash on a new board. Do
-    # it once before core 1 starts; later VfsFat formatting and project writes
-    # are confined to bytearrays. The worker then remains blocked on its wake
-    # lock between runs for the service lifetime.
+    # Creating the mountpoint entries can touch internal flash on a new board.
+    # Do it once before core 1 starts; project files themselves live only in
+    # bytearrays. The worker then remains blocked on its wake lock between runs
+    # for the service lifetime.
     _initialize_project_worker(watchdog)
     _append_log("system", "Program runner ready")
     watchdog.feed()

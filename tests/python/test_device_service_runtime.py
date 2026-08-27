@@ -192,6 +192,14 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         cls.service = importlib.util.module_from_spec(service_spec)
         sys.modules[service_spec.name] = cls.service
         service_spec.loader.exec_module(cls.service)
+        cls.original_read_manifest = staticmethod(cls.service._read_manifest)
+        cls.original_active_project_path = staticmethod(
+            cls.service._active_project_path
+        )
+        cls.original_clear_project_modules = staticmethod(
+            cls.service._clear_project_modules
+        )
+        cls.original_stop_motors = staticmethod(cls.service._stop_motors)
 
     @classmethod
     def tearDownClass(cls):
@@ -232,7 +240,6 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._reply_order.clear()
         self.service._last_hardware = None
         self.service._last_sample = None
-        self.service._active_manifest = None
         self.service._active_ram_slot = None
         self.service._active_ram_manifest = None
         self.service._ram_project_volumes = {"a": None, "b": None}
@@ -241,6 +248,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._sample_epoch_start_ms = 0
         self.service._reset_pending = False
         self.service._network_state = None
+        self.service._read_manifest = self.original_read_manifest
+        self.service._active_project_path = self.original_active_project_path
+        self.service._clear_project_modules = self.original_clear_project_modules
+        self.service._stop_motors = self.original_stop_motors
 
     def test_run_reply_precedes_second_core_dispatch(self):
         with tempfile.TemporaryDirectory() as project_dir:
@@ -252,7 +263,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "revision": "test-revision",
             }
             self.service._read_manifest = lambda: manifest
-            self.service._active_slot_path = lambda: project_dir
+            self.service._active_project_path = lambda: project_dir
             self.service._clear_project_modules = lambda _manifest: None
             self.service._stop_motors = lambda: None
             self.service._sample_seq = 41
@@ -451,7 +462,6 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         with (
             patch.object(self.service, "validate_project") as validate,
             patch.object(self.service, "_compile_project") as compile_project,
-            patch.object(self.service, "_write_project") as write_project,
         ):
             response = self.service.sync(
                 types.SimpleNamespace(
@@ -468,7 +478,6 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertIn("USB setup/repair", reply["error"]["detail"])
         validate.assert_not_called()
         compile_project.assert_not_called()
-        write_project.assert_not_called()
 
     def test_run_preparation_releases_execution_lock_before_dispatch(self):
         events = []
@@ -489,7 +498,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "files": ["main.py"],
                 "revision": "test-revision",
             }
-            self.service._active_slot_path = lambda: project_dir
+            self.service._active_project_path = lambda: project_dir
             self.service._clear_project_modules = lambda _manifest: events.append(
                 "prepare"
             )
@@ -1047,55 +1056,22 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             [sys.modules["phew.logging"].LOG_ALL],
         )
 
-    def test_project_flash_feeds_watchdog_during_compile_and_each_file(self):
-        class Watchdog:
-            def __init__(self):
-                self.feeds = 0
+    def test_true_boot_has_no_project_until_browser_prepares_one(self):
+        self.service._active_ram_slot = None
+        self.service._active_ram_manifest = None
 
-            def feed(self):
-                self.feeds += 1
+        info = json.loads(
+            self.service.info(types.SimpleNamespace()).body.decode("utf-8")
+        )
+        run = json.loads(
+            self.service.run_project(
+                types.SimpleNamespace(data={"requestId": "run-before-prepare"})
+            ).body.decode("utf-8")
+        )
 
-        watchdog = Watchdog()
-        project = {
-            "name": "Watchdog project",
-            "entrypoint": "main.py",
-            "files": {
-                "main.py": "print('ready')\n",
-                "helper.py": "VALUE = 1\n",
-                "README.md": "Test project.\n",
-            },
-            "bytes": 43,
-        }
-        self.service._service_watchdog = watchdog
-
-        def ilistdir(path):
-            return [
-                (
-                    entry.name,
-                    0x4000 if entry.is_dir() else 0x8000,
-                    0,
-                    entry.stat().st_size,
-                )
-                for entry in self.service.os.scandir(path)
-            ]
-
-        with tempfile.TemporaryDirectory() as project_root:
-            with (
-                patch.object(self.service, "PROJECT_ROOT", project_root),
-                patch.object(
-                    self.service,
-                    "ACTIVE_POINTER",
-                    project_root + "/active.txt",
-                ),
-                patch.object(self.service.os, "ilistdir", ilistdir, create=True),
-            ):
-                self.service._compile_project(project)
-                manifest = self.service._write_project(project)
-
-        self.assertEqual(manifest["name"], "Watchdog project")
-        # Two feeds around each Python compile and at least two around every
-        # filesystem entry, plus manifest and active-pointer activation.
-        self.assertGreaterEqual(watchdog.feeds, 12)
+        self.assertIsNone(info["project"])
+        self.assertFalse(run["ok"])
+        self.assertEqual(run["error"]["code"], "no_project")
 
     def test_physical_sample_labels_odometry_without_claiming_ground_truth(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]

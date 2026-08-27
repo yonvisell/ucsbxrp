@@ -4,6 +4,25 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 52 removes the obsolete flash-project fallback. Release
+`2026.08-dev.34` starts every true controller boot with no runnable student
+project; Run must validate and prepare the exact current browser project in
+RAM. An older `/course_projects` copy can therefore neither appear as the
+current project nor run after commissioning, repair, watchdog recovery, or a
+power cycle. Course Reset remains the fast dev.33 operation: it retains the
+current RAM project without rebooting.
+
+The attached XRP runs dev.34 as runtime generation 15 at `192.168.7.25` on
+Pink. USB installation changed only the service, runtime manifest, and
+activation record, then verified `project: null` after the real restart. The
+direct service probe passed exact preparation, stdout, pose telemetry,
+cooperative Stop, three immediate Prepare/Run cycles, soft Reset, and
+post-Reset Run on one boot. The complete raised-wheel Stable Chrome
+IDE/Monitor workflow then passed twice consecutively, including cross-window
+Run/Stop, exact edit transfer, encoder and wheel-distance changes, motor
+effort, final zero effort, retained logs, and default-spiral cleanup. Evidence
+is recorded in `docs/hardware/2026-08-27-dev34-boot-project-lifecycle.json`.
+
 Refinement 51 separates course Reset from controller restart. Release
 `2026.08-dev.33` cooperatively stops an active student program, clears its
 telemetry and live-control state, retains the exact RAM project, and keeps the

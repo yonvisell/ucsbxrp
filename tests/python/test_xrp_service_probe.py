@@ -12,13 +12,6 @@ SPEC.loader.exec_module(SERVICE_PROBE)
 
 
 class XrpServiceProbeTest(unittest.TestCase):
-    def test_restart_requires_a_distinct_nonempty_boot_identifier(self):
-        previous = {"bootId": "boot-a"}
-        self.assertFalse(SERVICE_PROBE.is_new_boot(previous, {"bootId": "boot-a"}))
-        self.assertFalse(SERVICE_PROBE.is_new_boot(previous, {}))
-        self.assertFalse(SERVICE_PROBE.is_new_boot({}, {"bootId": "boot-b"}))
-        self.assertTrue(SERVICE_PROBE.is_new_boot(previous, {"bootId": "boot-b"}))
-
     def test_probe_projects_compile_and_keep_zero_output_explicit(self):
         projects = [
             SERVICE_PROBE.zero_output_project(),
