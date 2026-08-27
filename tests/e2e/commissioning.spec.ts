@@ -91,6 +91,7 @@ test("explains a cancelled XRP device selection without an error", async ({
   });
   await page.goto("/commission/");
   await page.getByRole("button", { name: "Continue without folder" }).click();
+  await expect(page.getByText(/No XRP was selected/i)).toHaveCount(0);
   await page.getByRole("button", { name: "Choose connected XRP" }).click();
 
   await expect(
@@ -279,7 +280,10 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   });
 
   await page.addInitScript(() => {
-    localStorage.clear();
+    if (!sessionStorage.getItem("ucsb-commission-test-initialized")) {
+      localStorage.clear();
+      sessionStorage.setItem("ucsb-commission-test-initialized", "true");
+    }
 
     const selectedFolderName = "My XRP Projects";
     Object.defineProperty(window, "showDirectoryPicker", {
@@ -381,6 +385,10 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       private async receive(chunk: Uint8Array) {
         if (chunk.length === 2 && chunk[0] === 13 && chunk[1] === 1) {
           this.send("raw REPL; CTRL-B to exit\r\n>");
+          return;
+        }
+        if (!this.rawPaste && chunk.length === 1 && chunk[0] === 4) {
+          this.send("soft reboot\r\nraw REPL; CTRL-B to exit\r\n>");
           return;
         }
         if (
@@ -676,7 +684,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     .toMatchObject({
       kind: "physical",
       physicalConnection: "access_point",
-      physicalEndpoint: "http://192.168.4.1",
+      physicalEndpoint: "http://ucsb-xrp.local",
     });
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
   await expect(page.getByTestId("project-folder")).toHaveText(

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  loadTargetPreference,
   localNetworkRequestInit,
   storeTargetPreference,
-  type TargetPreference,
+  targetPreferenceForPhysicalNetwork,
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
@@ -90,6 +91,9 @@ class XrpServiceProbeError extends Error {
   }
 }
 
+const WIFI_PROBE_TIMEOUT_MS = 1_000;
+const WIFI_PROBE_INTERVAL_MS = 1_250;
+
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -131,6 +135,22 @@ function navigationDestinationName(destination: string): string {
   return "Home";
 }
 
+export function networkChoiceVisibility(
+  profile: ExistingNetworkProfile | null,
+): {
+  keepCurrent: boolean;
+  robotHotspot: boolean;
+  existingWifi: true;
+} {
+  return {
+    keepCurrent: Boolean(profile?.present),
+    // Keeping an existing hotspot and selecting a second hotspot choice would
+    // represent the same action. Its optional name remains editable below.
+    robotHotspot: profile?.mode !== "access_point",
+    existingWifi: true,
+  };
+}
+
 export function CommissionApp() {
   const manifestUrl = useMemo(manifestLocation, []);
   const [manifest, setManifest] = useState<CommissioningManifest | null>(null);
@@ -148,6 +168,7 @@ export function CommissionApp() {
   const [stationPassword, setStationPassword] = useState("");
   const [hotspotLastName, setHotspotLastName] = useState("");
   const [progress, setProgress] = useState<CommissioningProgress | null>(null);
+  const [installElapsedSeconds, setInstallElapsedSeconds] = useState(0);
   const [result, setResult] = useState<CommissioningResult | null>(null);
   const [authorizedPort, setAuthorizedPort] = useState<SerialPortLike | null>(
     null,
@@ -187,6 +208,7 @@ export function CommissionApp() {
       return { error: errorDetail(hotspotError), ssid: undefined };
     }
   }, [hotspotLastName]);
+  const visibleNetworkChoices = networkChoiceVisibility(existingNetwork);
 
   const recordSetup = useCallback(
     (step: string, message: string, level: SetupLogLevel = "info") => {
@@ -436,6 +458,9 @@ export function CommissionApp() {
     if (stage !== "usb" || !manifest || !supportsWebSerial()) return;
     let disposed = false;
     setCheckingAuthorizedPort(true);
+    setDetail(
+      "Checking whether Chrome already has permission to use the connected XRP…",
+    );
     void findGrantedXrpPort(manifest.controller)
       .then((port) => {
         if (disposed) return;
@@ -703,6 +728,7 @@ export function CommissionApp() {
           : { mode: "access_point", ssid: hotspotName.ssid };
     setError("");
     setProgress(null);
+    setInstallElapsedSeconds(0);
     lastInstallProgressPhaseRef.current = "";
     setStage("installing");
     recordSetup(
@@ -734,12 +760,13 @@ export function CommissionApp() {
       setStationPassword("");
       if (folderRef.current) handCourseFolderToIde();
       setResult(completed);
-      const preference: TargetPreference = {
-        kind: "physical",
-        physicalConnection:
-          completed.network.mode === "station" ? "station" : "access_point",
-        physicalEndpoint: `http://${completed.network.address}`,
-      };
+      const preference = targetPreferenceForPhysicalNetwork(
+        { ...loadTargetPreference(), kind: "physical" },
+        {
+          mode: completed.network.mode,
+          address: `http://${completed.network.address}`,
+        },
+      );
       storeTargetPreference(preference);
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";
@@ -801,7 +828,10 @@ export function CommissionApp() {
     setWifiAttempts(attempt);
     const endpoint = `http://${result.network.address}`;
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 3_000);
+    const timeout = window.setTimeout(
+      () => controller.abort(),
+      WIFI_PROBE_TIMEOUT_MS,
+    );
     try {
       const response = await fetch(
         `${endpoint}/api/v1/info`,
@@ -843,7 +873,7 @@ export function CommissionApp() {
     } catch (probeError) {
       const serviceFailure = probeError instanceof XrpServiceProbeError;
       const issue = wasCancelled(probeError)
-        ? "No response within three seconds."
+        ? "No response within one second."
         : serviceFailure
           ? probeError.message
           : `Chrome could not reach the XRP (${errorDetail(probeError)}).`;
@@ -873,7 +903,10 @@ export function CommissionApp() {
   useEffect(() => {
     if (stage !== "wifi" || !wifiProbeEnabled) return;
     void verifyWifi();
-    const timer = window.setInterval(() => void verifyWifi(), 2_000);
+    const timer = window.setInterval(
+      () => void verifyWifi(),
+      WIFI_PROBE_INTERVAL_MS,
+    );
     return () => clearInterval(timer);
   }, [stage, verifyWifi, wifiProbeEnabled]);
 
@@ -967,12 +1000,24 @@ export function CommissionApp() {
 
   useEffect(() => {
     if (stage !== "installing") return;
+    const startedAt = performance.now();
+    setInstallElapsedSeconds(0);
+    const elapsedTimer = window.setInterval(
+      () =>
+        setInstallElapsedSeconds(
+          Math.max(0, Math.floor((performance.now() - startedAt) / 1_000)),
+        ),
+      250,
+    );
     const keepSetupOpen = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", keepSetupOpen);
-    return () => window.removeEventListener("beforeunload", keepSetupOpen);
+    return () => {
+      clearInterval(elapsedTimer);
+      window.removeEventListener("beforeunload", keepSetupOpen);
+    };
   }, [stage]);
 
   const activeStep = workflowStep(stage);
@@ -1160,7 +1205,7 @@ export function CommissionApp() {
                 change; robot-hotspot mode requires joining the named hotspot
                 once.
               </p>
-              {existingNetwork?.present ? (
+              {visibleNetworkChoices.keepCurrent ? (
                 <label>
                   <input
                     checked={networkMode === "keep"}
@@ -1170,19 +1215,19 @@ export function CommissionApp() {
                   />
                   <span>
                     <strong>
-                      {existingNetwork.mode === "access_point"
+                      {existingNetwork?.mode === "access_point"
                         ? "Keep current robot hotspot"
                         : "Keep current Wi-Fi"}
                     </strong>
                     <small>
-                      {existingNetwork.mode === "station"
-                        ? (existingNetwork.stationSsid ?? "Existing Wi-Fi")
-                        : (existingNetwork.accessPointSsid ?? "Robot hotspot")}
+                      {existingNetwork?.mode === "station"
+                        ? (existingNetwork?.stationSsid ?? "Existing Wi-Fi")
+                        : (existingNetwork?.accessPointSsid ?? "Robot hotspot")}
                     </small>
                   </span>
                 </label>
               ) : null}
-              {existingNetwork?.mode !== "access_point" ? (
+              {visibleNetworkChoices.robotHotspot ? (
                 <label>
                   <input
                     checked={networkMode === "access_point"}
@@ -1298,6 +1343,7 @@ export function CommissionApp() {
                 {progress?.total
                   ? `${progress.completed ?? 0} of ${progress.total} changed files`
                   : "Checking the installed release"}
+                {` · ${installElapsedSeconds} s elapsed`}
               </small>
               <ol aria-label="Installation stages">
                 {[
@@ -1382,8 +1428,12 @@ export function CommissionApp() {
                 ) : (
                   <>
                     <li>
-                      Keep this computer connected to{" "}
+                      On this computer, stay connected to{" "}
                       <strong>{result.network.ssid}</strong>.
+                    </li>
+                    <li>
+                      If the Wi-Fi menu shows another network, join{" "}
+                      <strong>{result.network.ssid}</strong> first.
                     </li>
                     <li>Use the button below to check the robot service.</li>
                   </>
@@ -1501,7 +1551,7 @@ export function CommissionApp() {
                   onClick={() => void goBack()}
                   type="button"
                 >
-                  Back
+                  {stage === "wifi" ? "Repair again by USB" : "Back"}
                 </button>
               ) : null}
               <button
