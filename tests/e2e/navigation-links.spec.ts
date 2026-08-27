@@ -181,6 +181,21 @@ test("Guide presents the course workflow in explicit objective sections", async 
     "Wheel-speed feedback",
   );
   await expect(page.locator("#project-structure svg")).toHaveCount(0);
+  await expect(page.locator("#virtual-run")).toContainText(
+    "temporary controller RAM over Wi-Fi",
+  );
+  await expect(page.locator("#virtual-run")).toContainText(
+    "Reset retains that RAM copy",
+  );
+  await expect(page.locator("#virtual-run")).not.toContainText(
+    "Reset clears that RAM copy",
+  );
+  await expect(page.locator("#physical-xrp")).toContainText(
+    "install or repair the persistent course runtime",
+  );
+  await expect(page.locator("#technical-overview")).not.toContainText(
+    "Project storage on the XRP",
+  );
   await expect(page.locator("#offline-use")).toContainText(
     "Chrome saves the IDE, Monitor, virtual XRP, Guide, API reference, and setup page in the current Chrome profile",
   );
@@ -188,7 +203,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
     "The course application copy and your project files are separate",
   );
   await expect(page.locator("#github")).toContainText(
-    "Use the cloned repository as the UCSBXRP course folder",
+    "Use the cloned repository as the UCSBXRP working folder",
   );
   await expect(page.locator("#projects")).toContainText(
     "Create next challenge project",
@@ -224,6 +239,7 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
   await expect(
     section.getByRole("heading", { name: "SensorModel example" }),
   ).toBeVisible();
+  await expect(section).toContainText("left speed (mm/s)");
 
   await page.goto("/reference/#wheel-speed-controller");
   await expect(page.locator("#wheel-speed-controller")).toContainText(

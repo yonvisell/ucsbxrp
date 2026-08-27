@@ -1,14 +1,14 @@
 # Challenge 2: Turn and Return
 
-Make the XRP travel to the turn point, rotate to the requested heading, and
-travel the same distance again. The new engineering work is to convert the
-robot's requested forward speed and turn rate into separate wheel speeds, then
-use measured wheel travel to estimate position and heading.
+Make the XRP travel to the turn point, rotate through 180 degrees, return to the
+start region, and recover its original heading. Convert the requested body
+speed and turn rate into separate wheel-speed targets, then estimate world
+position and heading from measured wheel travel.
 
 `challenge.py` provides `INITIAL_POSE`, `OUTBOUND_DISTANCE_MM`,
-`TURN_HEADING_RAD`, and `RETURN_DISTANCE_MM`. These values come from the start
-and turn markers in `world.json`. Distances are in millimeters and heading is
-in radians.
+`TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and `FINAL_HEADING_RAD`. These values
+come from the start and turn markers in `world.json`. Distances are in
+millimeters and headings are in radians.
 
 `robot_config.py` contains two groups of settings:
 
@@ -86,7 +86,7 @@ arguments.
 
 | File or tool | What it provides |
 | --- | --- |
-| `main.py` | Runs a measured straight segment, turns from the current odometry heading, then runs the return segment. |
+| `main.py` | Runs the outward segment, turns to the return heading, travels back, and restores the initial heading. |
 | `challenge.py` | Derives the named distances and heading from `world.json`. |
 | `robot_config.py` | Holds robot calibration, effective track width, straight speeds, and arrival tolerances. |
 | `course_setup.py` | Selects each of the four student classes independently. |
@@ -99,14 +99,14 @@ the virtual XRP and Monitor.
 
 ## How the program runs
 
-1. `main.py` advances through three phases: travel outward, turn to the return
-   heading, and travel back.
+1. `main.py` advances through four phases: travel outward, turn to the return
+   heading, travel back, and turn to the initial heading.
 2. In each sample, it sends the current `MotionCommand` to your
    `DifferentialDrive`, which returns target wheel speeds.
 3. The selected `WheelSpeedController` uses the target and measured wheel
    speeds to command the motors.
 4. The target reads the resulting encoder counts. The selected `SensorModel`
-   converts them into exact wheel-travel increments.
+   converts them into signed, encoder-derived wheel-travel increments.
 5. Your `Odometry` applies those increments to its retained `Pose`.
    `main.py` uses the updated pose to decide when to change phase or finish.
 
@@ -118,8 +118,8 @@ Your new work is `DifferentialDrive` and `Odometry`. `SensorModel` and
 1. Create Challenge 2 from the completed Challenge 1 project as described above.
    For the first run, use the supplied DifferentialDrive and Odometry. Your
    carried-forward components keep their Challenge 1 selections.
-2. Run the supplied virtual project. Observe the outbound segment, turn, return
-   segment, and continuously updated pose.
+2. Run the supplied virtual project. Observe the outbound segment, return turn,
+   return segment, final turn, and continuously updated pose.
 3. Implement `DifferentialDrive`. Select **Test components** and read each
    example before its result. Check equal wheel speeds for straight motion,
    opposite wheel speeds for an in-place turn, and unequal wheel speeds for a
@@ -129,10 +129,13 @@ Your new work is `DifferentialDrive` and `Odometry`. `SensorModel` and
 5. Implement `Odometry`. Check reset, straight travel, an in-place turn, and a
    curved increment before selecting it.
 6. Run all selected student classes together. In the Monitor, compare odometry
-   with the simulator's exact pose and inspect where their difference begins.
-7. On the physical XRP, use a clear marked area. Record the estimated final
-   pose, wheel increments, and requested turn rate; separately measure the
-   actual final position and heading.
+   with the simulator's ground-truth pose and inspect where their difference
+   begins.
+7. After USB setup/repair has installed the course runtime, select the physical
+   XRP over its configured Wi-Fi network. Run prepares this project in temporary
+   controller RAM. In a clear marked area, record the estimated final pose,
+   wheel increments, and requested turn rate; separately measure the actual
+   final position and heading.
 
-The simulator's exact pose is provided only for comparison. Navigation and the
-physical robot use the `Pose` returned by your `Odometry`.
+The simulator's ground-truth pose is provided only for comparison. Navigation
+and the physical robot use the `Pose` returned by your `Odometry`.

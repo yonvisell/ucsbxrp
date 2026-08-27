@@ -428,7 +428,10 @@ left_increment_mm, right_increment_mm: float
     Signed wheel travel since the preceding SensorModel update.
 
 left_speed_mm_s, right_speed_mm_s: float
-    Average wheel speed over dt_s.
+    Regularized wheel-speed estimates derived from recent encoder position
+    changes and sample times. The response time is
+    RobotConfig.wheel_speed_filter_time_constant_ms; zero disables
+    regularization.
 
 range_mm: float | None
     Current range reading, or None.
@@ -1247,7 +1250,10 @@ correspond to raw.
 
 Returns measurements relative to the latest reset and the preceding update.
 Encoder direction and distance per count come from RobotConfig. dt_s is
-calculated with elapsed_time_s().
+calculated with elapsed_time_s(). Wheel increments report the latest measured
+travel without smoothing. Wheel speeds are regularized estimates derived from
+recent encoder position changes and sample times, using
+config.wheel_speed_filter_time_constant_ms as the response time.
 
 When no positive time has elapsed, report dt_s as zero without dividing by
 zero; positions and increments still reflect the new encoder counts.

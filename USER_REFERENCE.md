@@ -41,7 +41,7 @@ period. Always put `robot.stop()` in `finally`.
 
 | File | Purpose |
 | --- | --- |
-| `main.py` | Mission control: construct services, start the robot, sequence the task, and stop cleanly. |
+| `main.py` | Constructs services, starts the robot, sequences the task, and ensures that the motors stop when the program exits. |
 | `challenge.py` | Task-specific distances, thresholds, routes, and completion conditions. |
 | `world.json` | World choices, bounds, initial pose, rectangular obstacles, start markers, and waypoints. |
 | `robot_config.py` | Measured robot geometry, signs, calibration, controller gains, and reusable navigation settings. |
@@ -90,7 +90,7 @@ Projects normally obtain a `Robot` with `make_robot(ROBOT_CONFIG)` rather than
 constructing it directly.
 
 - `robot.start(initial_pose)` -> `RobotState`
-  Resets encoders and student components, establishes the initial pose, and
+  Resets encoders and the selected components, establishes the initial pose, and
   publishes the first state.
 - `robot.step(command, read_range=False)` -> `RobotState`
   Runs one complete command, measurement, control, odometry, telemetry, and
@@ -226,8 +226,8 @@ and required behavior.
 - `update(raw: RawSensors)` -> `Measurements`
   Converts signed encoder-count changes and elapsed device time into total
   wheel positions, latest increments, and regularized wheel-speed estimates.
-  Exact distance increments remain unfiltered. It must be called after
-  `reset()`.
+  Encoder-derived distance increments remain unfiltered. It must be called
+  after `reset()`.
 - `estimate_range(samples: sequence[float | None], minimum_usable: int)` ->
   `float | None`
   Rejects missing, nonfinite, and nonpositive readings. It returns the median
@@ -332,8 +332,9 @@ live.plot("speed_error", 12.5, unit="mm/s", label="Speed error")
 - `live.apply_updates()` -> Boolean; applies pending parameter values and
   reports whether one changed.
 
-`Robot.step()` calls `live.apply_updates()` automatically at a sample
-boundary. Call it explicitly only in a program that does not use `Robot`.
+`Robot.start()` and `Robot.step()` call `live.apply_updates()` automatically at
+sample boundaries. Call it explicitly only in a program that does not use
+`Robot`.
 Parameter names are Python-style identifiers and must be unique. A project may
 declare up to 16 parameters, 16 watch values, and 16 plot values.
 
@@ -353,7 +354,9 @@ milestones or explanations, not repeated measurement logging.
 
 `load_world(path="world.json", world_id=None)` returns a validated
 `ProjectWorld`. With `world_id=None`, it selects the file's `default_world`.
-Each project transfers its own `world.json` to the virtual or physical XRP.
+Run prepares each project's `world.json` with its Python files. A virtual Run
+loads the project in the virtual-run worker; a physical Run loads it into
+temporary controller RAM.
 
 A `ProjectWorld` provides:
 
@@ -517,13 +520,17 @@ These are application actions, not Python functions:
 
 - **Validate** compiles every project Python file with MicroPython without
   running it.
-- **Flash project** writes the current complete project to a physical XRP.
 - **Run** starts the selected main file on the virtual or physical XRP and
-  becomes **Stop** while it is active.
+  becomes **Stop** while it is active. For a physical target, Run validates and
+  prepares the complete current project in temporary controller RAM over Wi-Fi
+  before starting it. Reset cooperatively stops the program and clears live
+  course state while retaining the prepared RAM project, boot state, and Wi-Fi
+  connection. Run can therefore start the same revision again immediately.
 - **Monitor** receives program output, live values, telemetry, world pose, and
   recordings from the selected target.
-- **Set up or repair XRP** installs or repairs the firmware, course library,
-  reference bytecode, robot service, and Wi-Fi profile over USB-C.
+- **Set up or repair XRP** persistently installs or repairs MicroPython, XRPLib,
+  the course library, reference bytecode, robot service, and Wi-Fi profile over
+  USB-C. Normal Run does not install or repair this course runtime.
 
 The web application automatically publishes telemetry from programs that use
 `Robot`. Student code does not call the private telemetry channel.

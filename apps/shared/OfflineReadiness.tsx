@@ -39,7 +39,7 @@ export function OfflineReadiness({
       : stateText[status.state];
   const detail =
     status.state === "ready"
-      ? `Chrome saved ${appName} and the other UCSBXRP course apps for this site; reopen them in this browser without internet. Project files stay in the selected course folder; without one, only a temporary browser copy is available.`
+      ? `Chrome saved ${appName} and the other UCSBXRP course apps for this site; reopen them in this browser without internet. Project files stay in the selected working folder; without one, only a temporary browser copy is available.`
       : status.state === "development"
         ? `Course release ${courseRelease.release_id}; this local development page does not save the course apps in Chrome.`
         : (status.message ??

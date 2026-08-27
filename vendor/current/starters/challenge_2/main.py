@@ -1,6 +1,7 @@
 """Challenge 2: drive out, turn around, and return."""
 
 from challenge import (
+    FINAL_HEADING_RAD,
     INITIAL_POSE,
     OUTBOUND_DISTANCE_MM,
     RETURN_DISTANCE_MM,
@@ -23,11 +24,9 @@ def drive_straight(distance_mm):
         state = robot.step(controller.update(state.measurements))
 
 
-try:
-    state = robot.start(INITIAL_POSE)
-    drive_straight(OUTBOUND_DISTANCE_MM)
-
-    heading_error = wrap_angle_rad(TURN_HEADING_RAD - state.pose.heading_rad)
+def turn_to_heading(target_heading_rad):
+    global state
+    heading_error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
     while abs(heading_error) > NAVIGATION_CONFIG.heading_tolerance_rad:
         turn_rate = (
             NAVIGATION_CONFIG.turn_rate_rad_s
@@ -35,9 +34,16 @@ try:
             else -NAVIGATION_CONFIG.turn_rate_rad_s
         )
         state = robot.step(MotionCommand(0.0, turn_rate))
-        heading_error = wrap_angle_rad(TURN_HEADING_RAD - state.pose.heading_rad)
+        heading_error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
 
+
+try:
+    state = robot.start(INITIAL_POSE)
+    drive_straight(OUTBOUND_DISTANCE_MM)
+
+    turn_to_heading(TURN_HEADING_RAD)
     drive_straight(RETURN_DISTANCE_MM)
+    turn_to_heading(FINAL_HEADING_RAD)
     print("Challenge 2 complete")
     print("final_pose:", state.pose)
 finally:

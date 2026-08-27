@@ -62,13 +62,16 @@ export function ControlCycleFlow() {
           DifferentialDrive*
         </FlowStep>
         <FlowStep
-          detail="uses target and measured speeds"
+          detail="compares target speeds with the latest measured speeds"
           output="DriveCommand"
           tone="student"
         >
           WheelSpeedController*
         </FlowStep>
-        <FlowStep detail="applies motor commands" tone="target">
+        <FlowStep
+          detail="applies the command until the next sample time"
+          tone="target"
+        >
           XRP target
         </FlowStep>
       </FlowLane>
@@ -83,7 +86,7 @@ export function ControlCycleFlow() {
         </FlowStep>
         <FlowStep
           detail="calculates wheel travel and measured wheel speed"
-          output="wheel increments"
+          output="Measurements"
           tone="student"
         >
           SensorModel*
@@ -106,8 +109,9 @@ export function ControlCycleFlow() {
         command calculation.
       </p>
       <figcaption id="control-cycle-caption">
-        Values passed during one sampled control cycle. An asterisk marks a
-        student-implemented component.
+        Values passed during one sampled control cycle. An asterisk marks one of
+        the six components students implement during the course; each project
+        initially selects its supplied version.
       </figcaption>
     </figure>
   );
@@ -126,7 +130,7 @@ export function SystemBoundaryFlow() {
         </FlowStep>
         <FlowStep
           detail="shared records, components, and services"
-          output="hardware operations"
+          output="device operations"
         >
           UCSB XRP API
         </FlowStep>

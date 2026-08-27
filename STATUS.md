@@ -1224,7 +1224,7 @@ project transfer, and stationary telemetry.
    target protocol.
 
 On 2026-08-26 the student-documentation slice replaced the Guide's improvised
-box diagrams with explicit SVG data-flow diagrams, removed redundant headings
+box diagrams with semantic HTML/CSS data-flow diagrams, removed redundant headings
 and control grids, clarified browser/USB/Wi-Fi roles, and explained why
 `Robot.step()` must own sampled-loop timing. Guide reading text is now 14 px
 (approximately 10.5 pt), with proportionally smaller secondary text. Challenge
@@ -1256,3 +1256,25 @@ release, and robot identity agree, expires after two minutes, and is consumed
 by the IDE. Focused target, commissioning, and handoff tests pass. Physical
 station operation remains verified on Pink; a deliberate failed-station
 fallback will be repeated during the later hotspot stress pass.
+
+The next documentation and starter stage reconciled the student-facing
+terminology around one **Working folder** containing named **Project folders**,
+made USB-installed course software distinct from the temporary project prepared
+by Run, and aligned the Guide, API, user reference, active course documents, and
+challenge READMEs. Challenge 2 now explicitly performs and documents four
+phases—outward travel, return turn, return travel, and recovery of the initial
+heading. Its end-to-end Stable Chrome test checks the reported final heading,
+so the final turn cannot disappear while the completion text still passes.
+Challenge 1 now states its actual time objective: a valid run must not finish
+before the target time and should minimize positive lateness.
+
+Validation for this stage includes 213 Python tests, MicroPython 1.28 source and
+reference-bytecode parity, a complete production/offline build, 22 focused
+commissioning/navigation/offline/project workflows, all 17 virtual
+course-starter/tutorial/demo workflows after correcting one obsolete log-text
+expectation, and direct Chrome visual inspection of the revised setup and Guide
+surfaces. No physical motion was needed for this documentation and virtual-task
+stage. A separate project-ownership audit identified the next material design
+task: the Run owner, reload recovery, remembered project handle, and Monitor run
+archive destination must be made one coherent active-project authority before
+another physical stress pass.

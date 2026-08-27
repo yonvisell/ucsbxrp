@@ -397,6 +397,7 @@ class CourseStarterTests(unittest.TestCase):
                 "OUTBOUND_DISTANCE_MM",
                 "TURN_HEADING_RAD",
                 "RETURN_DISTANCE_MM",
+                "FINAL_HEADING_RAD",
             ),
             "challenge_3": ("ROUTE",),
             "challenge_4": (

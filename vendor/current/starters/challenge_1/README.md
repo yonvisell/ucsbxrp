@@ -1,13 +1,16 @@
 # Challenge 1: Straight Run
 
-Make the XRP travel from the start line to the finish and stop using measured
-wheel motion. The robot must not stop because a timer expired: encoder counts
-must be converted to wheel travel, and the measured wheel speeds must be used
-to regulate the motors.
+Make the XRP travel from the start line to the finish and stop at the specified
+wheel travel. Convert encoder counts to wheel position and speed, use measured
+wheel speed in the motor controller, and use measured travel rather than elapsed
+time as the stopping condition.
 
 `challenge.py` provides `INITIAL_POSE`, `TRAVEL_DISTANCE_MM`, and
 `TARGET_TIME_S`. The distance is derived from the finish marker in `world.json`.
-The target time is a value for comparing runs, not the stopping condition.
+The target time is a performance objective, not the stopping condition: a valid
+run must not finish sooner than `TARGET_TIME_S`, and should finish as close to
+that time as possible. Tune the commanded speeds while retaining measured wheel
+travel as the stopping condition.
 Distances use millimeters, wheel speeds use millimeters per second, and device
 times use milliseconds. `robot_config.py` provides the dimensions and
 calibration used in the calculations:
@@ -120,15 +123,20 @@ other classes in the sequence are supplied.
    example, and resolve every SensorModel result that is not PASS.
 3. Select the student SensorModel in `course_setup.py`. Run the virtual XRP and
    confirm that forward wheel positions increase, increments remain measured
-   travel, and speed estimates respond smoothly.
+   travel, and an isolated one-count encoder change does not appear as an
+   instantaneous wheel-speed spike.
 4. Implement and check `WheelSpeedController`.
 5. Select the student WheelSpeedController. Run both student classes together
    on the virtual XRP. Confirm that the robot slows near the finish and stops.
 6. Record a virtual run and compare final mean wheel travel with
-   `TRAVEL_DISTANCE_MM`; compare elapsed time with `TARGET_TIME_S`.
-7. Put the physical XRP on a stable stand with both wheels clear. Select **Run**
-   and verify that both wheels turn forward, then select **Stop** and verify that
-   both wheels stop.
+   `TRAVEL_DISTANCE_MM`. Confirm that elapsed time is not less than
+   `TARGET_TIME_S`, then reduce the positive time difference while retaining
+   the distance result.
+7. After USB setup/repair has installed the course runtime, select the physical
+   XRP over its configured Wi-Fi network. Put the robot on a stable stand with
+   both wheels clear. Select **Run**; Run prepares this project in temporary
+   controller RAM and starts it. Verify that both wheels turn forward, then
+   select **Stop** and verify that both wheels stop.
 8. Place the XRP at the marked start of a clear lane. Run the same project and
    record distance, time, requested speed, measured speed, and motor command.
 

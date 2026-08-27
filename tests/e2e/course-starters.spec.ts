@@ -95,7 +95,7 @@ test("runs the default project directly from a fresh Monitor", async ({
   await ide.goto("/ide/");
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText(
-    "Project prepared for the virtual XRP",
+    "Starting Expanding spiral (main.py) on the virtual XRP",
   );
   await page
     .locator(".app-header")
@@ -262,6 +262,17 @@ for (const starter of starters) {
     await expect(page.getByRole("log")).toContainText(starter.completion, {
       timeout: 40_000,
     });
+    if (starter.option === "challenge_2") {
+      const output = await page.getByRole("log").textContent();
+      const finalPose = output?.match(
+        /final_pose: Pose\(x_mm=[^,]+, y_mm=[^,]+, heading_rad=([^)]+)\)/,
+      );
+      expect(
+        finalPose,
+        "Challenge 2 should report its final pose",
+      ).not.toBeNull();
+      expect(Math.abs(Number(finalPose?.[1]))).toBeLessThanOrEqual(0.08);
+    }
     await expect(page.getByTestId("target-status")).toContainText(
       "Virtual XRP · ready",
     );

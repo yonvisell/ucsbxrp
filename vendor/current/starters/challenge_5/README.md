@@ -26,12 +26,12 @@ measurements use millimeters:
 Read these fields through `DELIVERY_TASK`. Do not copy their current numerical
 values into `sensor_model.py` or another component.
 
-`WORLD` is the virtual case selected in the Monitor. It supplies the virtual
-range reading and the displayed start and destination. `MISSION_MAP_WORLD_ID`
-selects the one dimensioned map that defines the changeable feature's name and
-location. `DeliveryMission` decides whether that feature is open or blocked
-from the range estimate. Selecting a virtual case therefore changes the
-measurement, not the decision inside the student program.
+`world.json` provides open-gate and blocked-gate virtual cases with the same
+geometry, start, and destination. Selecting a case in the Monitor changes the
+simulated ultrasonic measurement. `challenge.py` also loads the shared arena
+definition containing the named changeable gate. `DeliveryMission` classifies
+that gate from the range estimate; it does not use the selected virtual case as
+the answer.
 
 ## Continue from the previous challenge
 
@@ -128,11 +128,14 @@ student components are carried forward from the earlier challenges.
 5. Before a physical run, keep the XRP stationary and inspect several raw range
    readings at the intended start pose. Verify their units and the direction in
    which the sensor is aimed.
-6. Match the physical gate, walls, start, and destination to the selected world.
-   Put the XRP on a stable stand with both wheels clear, select **Run**, verify
-   wheel direction, then select **Stop** and verify that both wheels stop. Place
-   the XRP at the marked start, run the mission in the cleared arena, and record
-   the range estimate, gate decision, path, result, and final pose.
+6. After USB setup/repair has installed the course runtime, select the physical
+   XRP over its configured Wi-Fi network. Match the physical gate, walls, start,
+   and destination to the selected world. Put the XRP on a stable stand with
+   both wheels clear and select **Run**; Run prepares this project in temporary
+   controller RAM. Verify wheel direction, then select **Stop** and verify that
+   both wheels stop. Place the XRP at the marked start, run the mission in the
+   cleared arena, and record the range estimate, gate decision, path, result,
+   and final pose.
 
 `DeliveryMission` sends a zero-motion command while collecting range samples
 and calls `robot.stop()` whether the mission completes, finds no path, or raises

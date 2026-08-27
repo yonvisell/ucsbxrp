@@ -44,8 +44,9 @@ unchanged.
 
 ### Implement `NavigationController`
 
-The class retains the route, the index of the current destination, and whether
-the robot is turning, driving, or aligning its final heading.
+The class retains the route, the index of the current destination, and any
+state needed to distinguish turning toward the destination, driving toward it,
+and aligning to a requested final heading.
 
 `start(goals)` accepts a list or tuple of `NavigationGoal` values. Store a
 private copy and select the first goal. An empty route is valid and is already
@@ -113,13 +114,14 @@ odometry classes are carried forward from Challenges 1 and 2.
    `is_complete()` first. Select **Test components** and verify that an empty
    route completes and a nonempty route returns its first goal.
 4. Implement `update()` for one position-only goal, then add ordered goals and
-   a required final heading. Run the software checks after each part.
+   a required final heading. Select **Test components** after each part.
 5. Select the student NavigationController in `course_setup.py` and run the
    virtual route. Confirm that goals are visited in order and the final command
    is zero.
 6. Select the carried-forward student classes one at a time. Compare the
-   odometry path with the simulator's exact path to distinguish pose error from
-   navigation logic.
-7. Run the complete selected implementation on the physical XRP in a clear
-   marked area. Record the goal sequence, estimated pose, requested motion, and
-   final measured position and heading.
+   odometry path with the simulator's ground-truth path to distinguish pose
+   error from navigation logic.
+7. After USB setup/repair has installed the course runtime, select the physical
+   XRP over its configured Wi-Fi network. Run prepares this project in temporary
+   controller RAM. In a clear marked area, record the goal sequence, estimated
+   pose, requested motion, and final measured position and heading.

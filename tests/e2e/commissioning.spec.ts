@@ -62,10 +62,10 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   await page.goto("/commission/");
 
   await expect(
-    page.getByRole("heading", { name: "Choose a course folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Choose course folder" }),
+    page.getByRole("button", { name: "Choose working folder" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -85,7 +85,7 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   ).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(
-    page.getByRole("heading", { name: "Choose a course folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Exit setup" }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -660,9 +660,9 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
   await page.goto("/commission/");
   await expect(
-    page.getByRole("heading", { name: "Choose a course folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Choose course folder" }).click();
+  await page.getByRole("button", { name: "Choose working folder" }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -876,13 +876,13 @@ test("does not advance when the selected folder fails its write check", async ({
   });
 
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Choose course folder" }).click();
+  await page.getByRole("button", { name: "Choose working folder" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Choose a course folder" }),
+    page.getByRole("heading", { name: "Choose a working folder" }),
   ).toBeVisible();
   await expect(page.getByRole("alert")).toContainText(
-    "selected course folder could not be written and read",
+    "selected working folder could not be written and read",
   );
   await page.getByText("Setup log", { exact: true }).click();
   await expect(page.getByLabel("Setup log")).toContainText(

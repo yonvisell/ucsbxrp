@@ -74,7 +74,7 @@ route exists. They accept any route that satisfies the six requirements above.
 | File or tool | What it provides |
 | --- | --- |
 | `world.json` | Arena boundary, obstacle, initial pose, and destination for the simulator and Monitor. |
-| `challenge.py` | Named map, start, destination, grid-size, and clearance values for this challenge. |
+| `challenge.py` | Named map, start, destination, grid-cell resolution, and clearance values for this challenge. |
 | `main.py` | Builds the grid, asks for a path, converts the path to waypoint goals, and runs the route. |
 | `robot_config.py` | Robot calibration and waypoint-controller settings. |
 | `course_setup.py` | Selects the supplied or student version of each class independently. |
@@ -119,11 +119,13 @@ and navigation classes are carried forward from the earlier challenges.
 5. Select the carried-forward student classes one at a time and repeat the
    virtual run. A correct path and correct route following are separate
    results.
-6. Arrange the physical obstacle, destination, and starting pose to match the
-   selected world. Put the XRP on a stable stand with both wheels clear, select
-   **Run**, verify wheel direction, then select **Stop** and verify that both
-   wheels stop. Place the XRP at the marked start and run the route in the
-   cleared arena.
+6. After USB setup/repair has installed the course runtime, select the physical
+   XRP over its configured Wi-Fi network. Arrange the obstacle, destination,
+   and starting pose to match the selected world. Put the XRP on a stable stand
+   with both wheels clear, select **Run**, and verify wheel direction. Run
+   prepares this project in temporary controller RAM. Select **Stop**, verify
+   that both wheels stop, then place the XRP at the marked start and run the
+   route in the cleared arena.
 
 `main.py` constructs `Robot` only after a path has been found, and its
 `finally` block stops the robot after every attempted route.

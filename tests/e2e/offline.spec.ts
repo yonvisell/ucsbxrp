@@ -63,7 +63,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /saved IDE and the other UCSBXRP course apps.*reopen them in this browser without internet.*Project files stay in the selected course folder.*temporary browser copy/s,
+    /saved IDE and the other UCSBXRP course apps.*reopen them in this browser without internet.*Project files stay in the selected working folder.*temporary browser copy/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),

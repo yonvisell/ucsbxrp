@@ -2727,7 +2727,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 </button>
               ) : null}
               <div className="template-control">
-                <span>New project</span>
+                <span>Create from template</span>
                 <div className="template-actions">
                   <select
                     aria-label="Project template"

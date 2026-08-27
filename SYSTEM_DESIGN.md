@@ -525,9 +525,9 @@ the target protocol or student workflow.
 IDE **Validate** compiles every Python file; it does not claim algorithmic
 correctness. Challenge projects separately include `component_checks.py` and a
 **Test components** action. These small repeatable checks execute in an
-isolated MicroPython worker without commanding either target. PASS, PENDING,
-and FAIL remain visible in Program output, and PENDING is not a gate: students
-can implement and select one component at a time. The project file only imports
+isolated MicroPython worker without commanding either target. PASS, NOT
+IMPLEMENTED, and FAIL remain visible in Program output, and NOT IMPLEMENTED is
+not a gate: students can implement and select one component at a time. The project file only imports
 the classes introduced by that challenge and calls the supplied check runner;
 fixtures and assertions live once in `ucsb_xrp.component_checks`. This keeps the
 student-visible use case short and prevents five challenge copies of test logic
@@ -577,7 +577,7 @@ simulation. Recording and robot execution remain independent states.
 ## 11. Student documentation and responsibility boundaries
 
 The Guide is task-oriented: it names the available challenges, demos, and
-tutorial, then presents virtual execution, course-folder storage, component
+tutorial, then presents virtual execution, working-folder storage, component
 tests, physical setup, Monitor evidence, code roles, offline use, GitHub, and
 troubleshooting in that order. It avoids internal deployment vocabulary and
 defines each student-visible storage or target term where it first appears.

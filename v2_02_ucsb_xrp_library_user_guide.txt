@@ -154,6 +154,23 @@ software tests. Early challenge starters contain only the flags for components
 introduced so far.
 
 
+PHYSICAL XRP SETUP AND PROJECT RUNS
+
+Use the browser's XRP setup/repair page over USB-C to install or repair the
+persistent course runtime and to configure the robot's Wi-Fi profile. This
+runtime includes MicroPython, XRPLib, the UCSB-XRP library, supplied reference
+modules, and the robot service.
+
+After setup, an IDE Run uses the selected local Wi-Fi connection. It validates
+the current project, prepares the complete project in temporary controller RAM,
+and starts the project's main Python file. Stop, program output, and telemetry
+use the same Wi-Fi connection. Reset cooperatively stops the program and clears
+course telemetry and live state while retaining the prepared RAM project, boot
+state, and Wi-Fi connection. Run can therefore start the same revision again
+immediately. A full controller reboot is reserved for setup or exceptional
+recovery. Normal Run does not install or repair the course runtime.
+
+
 RUNNING A DIRECT MOTOR EXPERIMENT
 
 XRPBot is used directly for fixed-command motor measurements. This short
@@ -195,8 +212,10 @@ STARTING AND STOPPING ROBOT
 make_robot() constructs Robot with the selected SensorModel,
 WheelSpeedController, DifferentialDrive, and Odometry implementations.
 
-Robot.start(initial_pose) waits for a USER-button press and release, resets the
-encoders and component state, and returns the first RobotState.
+Robot.start(initial_pose) resets the encoders and component state and returns
+the first RobotState. An IDE-managed Run begins immediately because selecting
+Run is the start action. A program launched directly on the XRP waits for a
+USER-button press and release before resetting.
 
 Robot.step(command) runs one sample period and returns the next RobotState.
 Robot maintains absolute, wrap-safe sample deadlines internally. Student code
@@ -234,7 +253,9 @@ left_increment_mm, right_increment_mm
     Wheel travel during the latest sample.
 
 left_speed_mm_s, right_speed_mm_s
-    Average wheel speed during the latest sample.
+    Regularized wheel-speed estimates derived from recent encoder position
+    changes and sample times. The response time comes from
+    RobotConfig.wheel_speed_filter_time_constant_ms.
 
 wheel_speeds
     A WheelSpeeds value containing the two measured wheel speeds.

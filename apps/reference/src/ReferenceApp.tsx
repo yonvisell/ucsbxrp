@@ -55,7 +55,8 @@ const componentExamples = {
     "first = RawSensors(0, 0, 0, None, False)",
     "model.reset(first)",
     "measurement = model.update(RawSensors(20, 4, 5, None, False))",
-    "print(measurement.left_increment_mm, measurement.left_speed_mm_s)",
+    'print("left increment (mm):", measurement.left_increment_mm)',
+    'print("left speed (mm/s):", measurement.left_speed_mm_s)',
   ].join("\n"),
   wheelController: [
     "from robot_config import ROBOT_CONFIG",
@@ -68,6 +69,7 @@ const componentExamples = {
     "    WheelSpeeds(120.0, 120.0),",
     "    WheelSpeeds(105.0, 112.0),",
     ")",
+    'print("normalized commands:", command.left, command.right)',
   ].join("\n"),
   differentialDrive: [
     "from differential_drive import DifferentialDrive",
@@ -76,6 +78,7 @@ const componentExamples = {
     "",
     "drive = DifferentialDrive(ROBOT_CONFIG)",
     "targets = drive.wheel_speeds(MotionCommand(100.0, 0.5))",
+    'print("target wheel speeds (mm/s):")',
     "print(targets.left_mm_s, targets.right_mm_s)",
   ].join("\n"),
   odometry: [
@@ -86,7 +89,8 @@ const componentExamples = {
     "odometry = Odometry(ROBOT_CONFIG)",
     "odometry.reset(Pose(0.0, 0.0, 0.0))",
     "pose = odometry.update(12.0, 14.0)",
-    "print(pose.x_mm, pose.y_mm, pose.heading_rad)",
+    'print("position (mm):", pose.x_mm, pose.y_mm)',
+    'print("heading (rad):", pose.heading_rad)',
   ].join("\n"),
   navigation: [
     "from navigation_controller import NavigationController",
@@ -96,16 +100,24 @@ const componentExamples = {
     "navigation = NavigationController(NAVIGATION_CONFIG)",
     "navigation.start((NavigationGoal(600.0, 200.0),))",
     "command = navigation.update(Pose(0.0, 0.0, 0.0))",
+    'print("forward speed (mm/s):", command.forward_speed_mm_s)',
+    'print("turn rate (rad/s):", command.turn_rate_rad_s)',
   ].join("\n"),
   planner: [
-    "from challenge import ARENA_MAP",
+    "from challenge import (",
+    "    ARENA_MAP, CLEARANCE_MM, DESTINATION,",
+    "    GRID_RESOLUTION_MM, INITIAL_POSE,",
+    ")",
     "from grid_planner import GridPlanner",
     "from ucsb_xrp import OccupancyGrid",
     "",
-    "grid = OccupancyGrid.from_arena(ARENA_MAP, 100.0, 90.0)",
-    "start = grid.world_to_cell(100.0, 100.0)",
-    "goal = grid.world_to_cell(900.0, 500.0)",
+    "grid = OccupancyGrid.from_arena(",
+    "    ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM",
+    ")",
+    "start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)",
+    "goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)",
     "path = GridPlanner().plan(grid, start, goal)",
+    'print("path cells:", None if path is None else path.cells)',
   ].join("\n"),
 } as const;
 
@@ -255,12 +267,12 @@ export function ReferenceApp() {
                 and turn rate to requested wheel speeds.
               </li>
               <li>
-                <code>WheelSpeedController</code> compares requested and
-                measured wheel speeds and returns a motor command.
+                <code>WheelSpeedController</code> compares requested and the
+                latest measured wheel speeds and returns a motor command.
               </li>
               <li>
-                <code>Robot</code> waits for the next absolute sample time and
-                reads the XRP sensors.
+                <code>Robot</code> applies that command, waits until the next
+                absolute sample time, and reads the XRP sensors.
               </li>
               <li>
                 <code>SensorModel</code> converts encoder counts and time into
@@ -309,6 +321,12 @@ export function ReferenceApp() {
               visible behavior while leaving the internal calculation to the
               implementation.
             </p>
+            <p>
+              The component summaries below state the physical quantity passed
+              across each boundary. Method tables give argument and return
+              types, units, and required behavior. A normalized motor command is
+              dimensionless; grid cells use integer row and column indices.
+            </p>
             <h3>Component check results</h3>
             <ul>
               <li>
@@ -344,7 +362,7 @@ export function ReferenceApp() {
             name="SensorModel"
             file="sensor_model.py"
             base="SensorModelBase"
-            description="Converts raw encoder, time, range, and USER-button readings into physical measurements. Wheel travel and increments remain exact encoder conversions. Wheel speed is estimated from recent samples so individual encoder-count steps are not reported as instantaneous physical speed changes."
+            description="Converts raw encoder, time, range, and USER-button readings into physical measurements. Wheel position and increments are unsmoothed signed conversions of encoder-count differences. Wheel speed is estimated from recent samples so individual encoder-count steps are not reported as instantaneous physical speed changes."
             state="After reset(), the component keeps the encoder and time origins, the previous sample, total wheel positions, and any state used by its wheel-speed estimator."
             constructor="SensorModel(config: RobotConfig)"
             example={componentExamples.sensorModel}
@@ -367,6 +385,7 @@ export function ReferenceApp() {
                 {
                   name: "raw",
                   type: "RawSensors",
+                  units: "ms, count, mm",
                   description:
                     "First hardware sample after the encoders have been reset.",
                 },
@@ -391,6 +410,7 @@ export function ReferenceApp() {
                 {
                   name: "raw",
                   type: "RawSensors",
+                  units: "ms, count, mm",
                   description:
                     "Next chronological encoder, time, range, and button sample.",
                 },
@@ -398,7 +418,7 @@ export function ReferenceApp() {
               returns={{
                 type: "Measurements",
                 description:
-                  "Total wheel positions, exact latest increments, wheel-speed estimates, elapsed time, range, and button state.",
+                  "Total wheel positions, unsmoothed latest increments, wheel-speed estimates, elapsed time, range, and button state.",
               }}
               errors={[
                 "RuntimeError if reset() has not been called.",
@@ -529,6 +549,7 @@ export function ReferenceApp() {
                 {
                   name: "command",
                   type: "MotionCommand",
+                  units: "mm/s, rad/s",
                   description:
                     "Forward speed v and counterclockwise turn rate ω.",
                 },
@@ -576,6 +597,7 @@ export function ReferenceApp() {
                 {
                   name: "initial_pose",
                   type: "Pose",
+                  units: "mm, rad",
                   description:
                     "Known or assigned starting pose in world coordinates.",
                 },
@@ -669,6 +691,7 @@ export function ReferenceApp() {
                 {
                   name: "pose",
                   type: "Pose",
+                  units: "mm, rad",
                   description: "Latest odometry estimate.",
                 },
               ]}
@@ -731,12 +754,14 @@ export function ReferenceApp() {
                 {
                   name: "start",
                   type: "GridCell | None",
+                  units: "cell index",
                   description:
                     "Starting cell; None means the world position was outside the grid.",
                 },
                 {
                   name: "goal",
                   type: "GridCell | None",
+                  units: "cell index",
                   description:
                     "Destination cell; None means the world position was outside the grid.",
                 },
@@ -959,7 +984,8 @@ export function ReferenceApp() {
                 {
                   name: "column, row",
                   type: "int",
-                  description: "Integer occupancy-grid coordinates.",
+                  description:
+                    "Immutable occupancy-grid coordinates. Column increases with world x; row increases with world y. GridCell values may be dictionary keys or set members.",
                 },
               ]}
             />
@@ -1131,6 +1157,7 @@ export function ReferenceApp() {
                 {
                   name: "last_overrun_ms",
                   type: "int",
+                  units: "ms",
                   description:
                     "Milliseconds by which the most recent calculation exceeded its sample deadline; zero when it finished on time.",
                 },
@@ -1145,6 +1172,7 @@ export function ReferenceApp() {
                   {
                     name: "initial_pose",
                     type: "Pose",
+                    units: "mm, rad",
                     description: "Assigned pose at the start of the run.",
                   },
                 ]}
@@ -1169,6 +1197,7 @@ export function ReferenceApp() {
                   {
                     name: "command",
                     type: "MotionCommand",
+                    units: "mm/s, rad/s",
                     description:
                       "Requested forward speed and turn rate for this sample.",
                   },
@@ -1424,7 +1453,7 @@ export function ReferenceApp() {
             />
             <FunctionReference
               signature="live.apply_updates() -> bool"
-              description="Apply pending control values. Robot.step() calls this automatically."
+              description="Apply pending control values. Robot.start() and Robot.step() call this automatically at sample boundaries."
               returns={{
                 type: "bool",
                 description: "True when at least one value changed.",
@@ -2744,17 +2773,17 @@ export function ReferenceApp() {
 function componentSummary(id: string) {
   switch (id) {
     case "sensor-model":
-      return "Raw sensors to wheel travel, wheel-speed estimates, and range";
+      return "Convert encoder counts and sample time to wheel travel (mm) and wheel speed (mm/s); combine range readings (mm).";
     case "wheel-speed-controller":
-      return "Requested and measured wheel speed to motor command";
+      return "Compare target and measured wheel speeds (mm/s); return normalized motor commands.";
     case "differential-drive":
-      return "Body forward speed and turn rate to left/right wheel speed";
+      return "Convert body speed (mm/s) and turn rate (rad/s) to left and right wheel-speed targets.";
     case "odometry":
-      return "Measured wheel increments to estimated pose";
+      return "Integrate measured wheel travel (mm) into estimated world position (mm) and heading (rad).";
     case "navigation-controller":
-      return "Ordered world goals to forward-speed and turn-rate commands";
+      return "Use ordered world goals and odometry pose to return body speed (mm/s) and turn rate (rad/s).";
     default:
-      return "Occupancy grid to a connected route through free cells";
+      return "Use a grid and two cell indices to return a connected free-cell path or None.";
   }
 }
 
