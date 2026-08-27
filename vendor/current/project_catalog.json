@@ -7,6 +7,20 @@
     "short_label": "1 · Straight Run",
     "summary": "Measure wheel motion and control a straight-line run.",
     "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": false
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": false
+      }
+    ],
     "published": true
   },
   {
@@ -17,6 +31,33 @@
     "short_label": "2 · Turn and Return",
     "summary": "Add differential-drive kinematics and planar odometry.",
     "entrypoint": "main.py",
+    "predecessor_id": "challenge_1",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": false
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": false
+      }
+    ],
     "published": true
   },
   {
@@ -27,6 +68,39 @@
     "short_label": "3 · Waypoint Courier",
     "summary": "Follow ordered world-coordinate goals.",
     "entrypoint": "main.py",
+    "predecessor_id": "challenge_2",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": true
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": true
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
+        "carry_forward": false
+      }
+    ],
     "published": true
   },
   {
@@ -37,6 +111,45 @@
     "short_label": "4 · Mapped Route",
     "summary": "Plan a shortest free grid path and execute it.",
     "entrypoint": "main.py",
+    "predecessor_id": "challenge_3",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": true
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": true
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER",
+        "carry_forward": false
+      }
+    ],
     "published": true
   },
   {
@@ -47,6 +160,45 @@
     "short_label": "5 · Delivery Mission",
     "summary": "Observe, update the map, plan, and deliver.",
     "entrypoint": "main.py",
+    "predecessor_id": "challenge_4",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": true
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": true
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER",
+        "carry_forward": true
+      }
+    ],
     "published": true
   },
   {

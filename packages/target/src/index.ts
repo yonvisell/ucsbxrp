@@ -41,10 +41,13 @@ export {
   DEFAULT_COURSE_PROJECT,
   DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
   STAGE_ONE_PROJECT,
+  createNextChallengeProject,
   courseProjectTemplate,
   courseStarter,
+  nextChallengeTemplate,
 } from "./course-project";
 export type {
+  CourseComponentTemplate,
   CourseProjectKind,
   CourseProjectTemplate,
   CourseStarter,

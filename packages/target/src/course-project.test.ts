@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   COURSE_PROJECT_TEMPLATES,
   COURSE_STARTERS,
+  createNextChallengeProject,
   courseProjectTemplate,
   courseStarter,
+  nextChallengeTemplate,
 } from "./course-project";
 
 describe("course starter catalog", () => {
@@ -75,5 +77,118 @@ describe("course starter catalog", () => {
     for (const template of COURSE_PROJECT_TEMPLATES) {
       expect(template.project.files["world.json"]).toContain('"worlds"');
     }
+  });
+
+  it("declares the challenge sequence and student component progression", () => {
+    expect(nextChallengeTemplate("challenge_1")?.id).toBe("challenge_2");
+    expect(nextChallengeTemplate("challenge_5")).toBeNull();
+    expect(nextChallengeTemplate("demo_spiral")).toBeNull();
+
+    const second = courseProjectTemplate("challenge_2");
+    expect(second.predecessorId).toBe("challenge_1");
+    expect(second.components.map((component) => component.name)).toEqual([
+      "SensorModel",
+      "WheelSpeedController",
+      "DifferentialDrive",
+      "Odometry",
+    ]);
+    expect(
+      second.components
+        .filter((component) => component.carryForward)
+        .map((component) => component.file),
+    ).toEqual(["sensor_model.py", "wheel_speed_controller.py"]);
+  });
+
+  it("creates a self-contained next challenge with only declared work carried forward", () => {
+    const first = courseProjectTemplate("challenge_1").project;
+    const current = {
+      ...first,
+      files: {
+        ...first.files,
+        "sensor_model.py": "# completed sensor model\n",
+        "wheel_speed_controller.py": "# completed wheel controller\n",
+        "main.py": "# a changed Challenge 1 task\n",
+        "notes.txt": "not part of the next challenge\n",
+      },
+    };
+
+    const next = createNextChallengeProject("challenge_1", current);
+    const canonical = courseProjectTemplate("challenge_2").project;
+
+    expect(next.name).toBe(canonical.name);
+    expect(next.entrypoint).toBe("main.py");
+    expect(next.files["sensor_model.py"]).toBe("# completed sensor model\n");
+    expect(next.files["wheel_speed_controller.py"]).toBe(
+      "# completed wheel controller\n",
+    );
+    expect(next.files["main.py"]).toBe(canonical.files["main.py"]);
+    expect(next.files["notes.txt"]).toBeUndefined();
+    expect(next.files["course_setup.py"]).toContain(
+      "USE_STUDENT_SENSOR_MODEL = True",
+    );
+    expect(next.files["course_setup.py"]).toContain(
+      "USE_STUDENT_WHEEL_SPEED_CONTROLLER = True",
+    );
+    expect(next.files["course_setup.py"]).toContain(
+      "USE_STUDENT_DIFFERENTIAL_DRIVE = False",
+    );
+    expect(next.files["course_setup.py"]).toContain(
+      "USE_STUDENT_ODOMETRY = False",
+    );
+    expect(first.files["sensor_model.py"]).not.toBe(
+      "# completed sensor model\n",
+    );
+  });
+
+  it("carries exactly the declared components through every challenge transition", () => {
+    for (let challenge = 1; challenge < 5; challenge += 1) {
+      const currentId = `challenge_${challenge}`;
+      const current = courseProjectTemplate(currentId).project;
+      const nextTemplate = nextChallengeTemplate(currentId)!;
+      const markedFiles = Object.fromEntries(
+        nextTemplate.components
+          .filter((component) => component.carryForward)
+          .map((component) => [
+            component.file,
+            `# carried ${component.name} from ${currentId}\n`,
+          ]),
+      );
+      const next = createNextChallengeProject(currentId, {
+        ...current,
+        files: { ...current.files, ...markedFiles },
+      });
+
+      for (const component of nextTemplate.components) {
+        if (component.carryForward) {
+          expect(next.files[component.file]).toBe(markedFiles[component.file]);
+          expect(next.files["course_setup.py"]).toContain(
+            `${component.selectionFlag} = True`,
+          );
+        } else {
+          expect(next.files[component.file]).toBe(
+            nextTemplate.project.files[component.file],
+          );
+          expect(next.files["course_setup.py"]).toContain(
+            `${component.selectionFlag} = False`,
+          );
+        }
+      }
+    }
+  });
+
+  it("rejects incomplete or terminal challenge progression", () => {
+    const first = courseProjectTemplate("challenge_1").project;
+    expect(() =>
+      createNextChallengeProject("challenge_1", {
+        ...first,
+        files: { ...first.files, "sensor_model.py": undefined as never },
+      }),
+    ).toThrow("sensor_model.py");
+    expect(() =>
+      createNextChallengeProject(
+        "challenge_5",
+        courseProjectTemplate("challenge_5").project,
+      ),
+    ).toThrow("No challenge follows");
   });
 });
