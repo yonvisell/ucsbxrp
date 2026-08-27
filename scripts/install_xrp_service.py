@@ -18,6 +18,7 @@ REFERENCE_SOURCE = ROOT / "vendor/current/reference_mpy/ucsb_xrp_reference"
 EXPECTED_VID = 0x1B4F
 EXPECTED_PID = 0x0046
 ADDRESS_PREFIX = "UCSB_XRP_ADDRESS="
+HASH_PREFIX = "UCSB_XRP_HASHES="
 INSTALL_WATCHDOG_MS = 8388
 USB_INSTALL_ATTEMPTS = 3
 
@@ -27,10 +28,13 @@ class InstallError(RuntimeError):
 
 
 def enter_raw_repl(transport):
-    """Interrupt a running course service before mpremote enters raw REPL."""
+    """Interrupt the service and retire both RP2350 Python cores."""
     transport.serial.write(b"\r\x03\x03\x03")
     time.sleep(0.15)
-    transport.enter_raw_repl(soft_reset=False)
+    # MicroPython 1.28 includes the RP2 thread/flash-lockout repair. A soft
+    # reset is therefore the cleanest commissioning boundary: it retires the
+    # persistent project worker before any flash file is inspected or changed.
+    transport.enter_raw_repl(soft_reset=True)
 
 
 def reset_and_close(transport):
@@ -182,11 +186,45 @@ def _remote_file_matches(transport, destination, expected):
         return False
 
 
+def _remote_hashes(transport, paths):
+    """Hash installed files on the XRP and return only compact digests."""
+    code = (
+        "import binascii, hashlib, json, machine\n"
+        "wd=machine.WDT(timeout={watchdog})\n"
+        "out={{}}\n"
+        "for p in {paths!r}:\n"
+        " try:\n"
+        "  h=hashlib.sha256(); f=open(p,'rb')\n"
+        "  while True:\n"
+        "   b=f.read(1024)\n"
+        "   if not b: break\n"
+        "   h.update(b); wd.feed()\n"
+        "  f.close(); out[p]=binascii.hexlify(h.digest()).decode()\n"
+        " except OSError: out[p]=None\n"
+        "print({prefix!r}+json.dumps(out))"
+    ).format(
+        watchdog=INSTALL_WATCHDOG_MS,
+        paths=list(paths),
+        prefix=HASH_PREFIX,
+    )
+    output = transport.exec(code)
+    text = (
+        output.decode("utf-8", errors="replace")
+        if isinstance(output, bytes)
+        else str(output)
+    )
+    for line in text.splitlines():
+        if line.startswith(HASH_PREFIX):
+            return json.loads(line[len(HASH_PREFIX) :])
+    raise InstallError("XRP did not return file hashes")
+
+
 def _replace_remote_file(transport, destination, data):
     """Write, verify, and then activate one replacement file."""
     temporary = destination + ".commissioning"
+    expected_hash = file_sha256(data)
     transport.fs_writefile(temporary, data)
-    if transport.fs_readfile(temporary) != data:
+    if _remote_hashes(transport, [temporary]).get(temporary) != expected_hash:
         raise InstallError("readback mismatch for " + destination)
     transport.exec(
         "import os\n"
@@ -195,11 +233,11 @@ def _replace_remote_file(transport, destination, data):
             destination=destination,
         )
     )
-    if transport.fs_readfile(destination) != data:
+    if _remote_hashes(transport, [destination]).get(destination) != expected_hash:
         raise InstallError("readback mismatch for " + destination)
 
 
-def install(port):
+def install(port, discover_address=True):
     try:
         from mpremote.transport_serial import SerialTransport
     except ImportError as exc:
@@ -224,6 +262,12 @@ def install(port):
         feed_install_watchdog(transport)
         _ensure_remote_dirs(transport)
         feed_install_watchdog(transport)
+        expected_by_path = {
+            destination: file_sha256(source.read_bytes())
+            for destination, source in sources.items()
+        }
+        remote_by_path = _remote_hashes(transport, list(sources))
+        feed_install_watchdog(transport)
         for destination, source in sources.items():
             data = source.read_bytes()
             record = {
@@ -233,7 +277,7 @@ def install(port):
             }
             files.append(record)
             feed_install_watchdog(transport)
-            if _remote_file_matches(transport, destination, data):
+            if remote_by_path.get(destination) == expected_by_path[destination]:
                 unchanged.append(record)
                 continue
             _replace_remote_file(transport, destination, data)
@@ -262,7 +306,7 @@ def install(port):
                     # that the new service booted.
                     pass
     return {
-        "address": read_address_after_restart(port),
+        "address": read_address_after_restart(port) if discover_address else None,
         "files": files,
         "installed_files": installed,
         "unchanged_files": unchanged,
@@ -271,14 +315,16 @@ def install(port):
     }
 
 
-def install_with_usb_retry(port, attempts=USB_INSTALL_ATTEMPTS):
+def install_with_usb_retry(
+    port, attempts=USB_INSTALL_ATTEMPTS, discover_address=True
+):
     """Retry only transient USB transport loss; logical failures stay immediate."""
     if attempts < 1:
         raise ValueError("attempts must be at least 1")
     last_error = None
     for attempt in range(attempts):
         try:
-            return install(port)
+            return install(port, discover_address=discover_address)
         except InstallError as exc:
             last_error = exc
             if not str(exc).startswith("USB service installation failed:"):
@@ -323,7 +369,10 @@ def make_parser():
 def main(argv=None):
     args = make_parser().parse_args(argv)
     try:
-        result = install_with_usb_retry(choose_port(args.port))
+        result = install_with_usb_retry(
+            choose_port(args.port),
+            discover_address=not args.skip_network_check,
+        )
         if not args.skip_network_check:
             result["service"] = wait_for_service(result["address"])
     except InstallError as exc:

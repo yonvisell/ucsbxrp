@@ -146,6 +146,12 @@ export type TargetEvent =
       catalog: WorldCatalog;
       selectedWorldId: string;
     }
+  | {
+      type: "physical-network";
+      mode: "access_point" | "station";
+      address: string;
+      ssid?: string;
+    }
   | ({
       type: "console";
       stream: "stdout" | "stderr" | "system";

@@ -13,8 +13,9 @@ import {
   PhysicalTargetClient,
   VirtualTargetClient,
   loadTargetPreference,
-  physicalEndpointForPreference,
+  physicalEndpointCandidates,
   storeTargetPreference,
+  targetPreferenceForPhysicalNetwork,
   testCourseProjectComponents,
   type TargetClient,
   type TargetEvent,
@@ -222,20 +223,18 @@ export function IdeApp() {
   const [targetPreference, setTargetPreference] =
     useState(loadTargetPreference);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
-  const target = useMemo<TargetClient>(
-    () =>
-      targetPreference.kind === "physical"
-        ? new PhysicalTargetClient(
-            physicalEndpointForPreference(targetPreference),
-          )
-        : new VirtualTargetClient(),
-    [
-      targetPreference.kind,
-      targetPreference.physicalConnection,
-      targetPreference.physicalEndpoint,
-      connectionAttempt,
-    ],
-  );
+  const target = useMemo<TargetClient>(() => {
+    if (targetPreference.kind !== "physical") return new VirtualTargetClient();
+    const endpoints = physicalEndpointCandidates(targetPreference);
+    return new PhysicalTargetClient(endpoints[0]!, {
+      candidateEndpoints: endpoints.slice(1),
+    });
+  }, [
+    targetPreference.kind,
+    targetPreference.physicalConnection,
+    targetPreference.physicalEndpoint,
+    connectionAttempt,
+  ]);
   const virtualRuntimePreparing =
     target.kind === "virtual" &&
     virtualRunNeedsPreparation(
@@ -342,6 +341,10 @@ export function IdeApp() {
       if (event.type === "status") {
         setTargetState(event.state);
         setTargetDetail(event.detail);
+      } else if (event.type === "physical-network") {
+        setTargetPreference((current) =>
+          targetPreferenceForPhysicalNetwork(current, event),
+        );
       } else if (event.type === "console") {
         const id = event.eventId ?? `ide-target-${nextConsoleId.current++}`;
         setConsoleEntries((entries) => {

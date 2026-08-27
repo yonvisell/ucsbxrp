@@ -261,6 +261,64 @@ describe("physical target", () => {
       state: "ready",
       detail: `ucsb-xrp · UCSB-XRP-AA71 fallback · 192.168.4.1 · course ${CURRENT_COURSE_RELEASE}`,
     });
+    expect(events).toContainEqual({
+      type: "physical-network",
+      mode: "access_point",
+      address: "http://192.168.4.1",
+      ssid: "UCSB-XRP-AA71",
+    });
+    target.disconnect();
+  });
+
+  it("recovers through the alternate known endpoint within a short discovery timeout", async () => {
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.startsWith("http://192.168.7.30")) {
+        throw new TypeError("station address unavailable");
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-fallback",
+        robotName: "ucsb-xrp",
+        address: "192.168.4.1",
+        network: {
+          mode: "access_point",
+          address: "192.168.4.1",
+          ssid: "UCSB-XRP-TEST",
+        },
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new PhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      candidateEndpoints: ["192.168.4.1"],
+      discoveryTimeoutMs: 1_000,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "http://192.168.7.30/api/v1/info",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("http://192.168.4.1/api/v1/info");
+    expect(events).toContainEqual({
+      type: "physical-network",
+      mode: "access_point",
+      address: "http://192.168.4.1",
+      ssid: "UCSB-XRP-TEST",
+    });
     target.disconnect();
   });
 
@@ -543,6 +601,72 @@ describe("physical target", () => {
       expect(close).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(100);
       expect(close).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+      if (originalDescriptor) {
+        Object.defineProperty(globalThis, "SharedWorker", originalDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, "SharedWorker");
+      }
+    }
+  });
+
+  it("fails ordinary shared commands promptly but preserves reboot recovery", async () => {
+    vi.useFakeTimers();
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "SharedWorker",
+    );
+    const port = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      start: vi.fn(),
+      close: vi.fn(),
+      postMessage(message: { type: string; requestId?: string }) {
+        if (message.type === "connect" && message.requestId) {
+          queueMicrotask(() =>
+            this.onmessage?.({
+              data: {
+                type: "response",
+                requestId: message.requestId,
+                ok: true,
+              },
+            } as MessageEvent),
+          );
+        }
+      },
+    };
+    class FakeSharedWorker {
+      readonly port = port;
+    }
+    Object.defineProperty(globalThis, "SharedWorker", {
+      configurable: true,
+      value: FakeSharedWorker,
+    });
+
+    try {
+      const target = new PhysicalTargetClient("192.168.7.30");
+      await target.connect();
+
+      let checkError: Error | undefined;
+      void target.check(project).catch((error: Error) => {
+        checkError = error;
+      });
+      await vi.advanceTimersByTimeAsync(2_999);
+      expect(checkError).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(checkError?.message).toBe("Physical target check timed out");
+
+      let resetError: Error | undefined;
+      void target.reset().catch((error: Error) => {
+        resetError = error;
+      });
+      await vi.advanceTimersByTimeAsync(7_999);
+      expect(resetError).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(resetError?.message).toBe("Physical target reset timed out");
+
+      target.disconnect();
+      await vi.advanceTimersByTimeAsync(100);
     } finally {
       vi.useRealTimers();
       if (originalDescriptor) {
@@ -937,6 +1061,78 @@ describe("physical target", () => {
           .filter((event) => event.type === "telemetry")
           .map((event) => event.sample.seq),
       ).toEqual([7, 1, 2]);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports retained telemetry samples lost between polls", async () => {
+    vi.useFakeTimers();
+    const replies = [
+      {
+        bootId: "boot-a",
+        state: "running",
+        detail: "Running main.py",
+        runId: 1,
+        logs: [],
+        samples: [physicalSample(1), physicalSample(2)],
+        sample: physicalSample(2),
+      },
+      {
+        bootId: "boot-a",
+        state: "running",
+        detail: "Running main.py",
+        runId: 1,
+        logs: [],
+        samples: [physicalSample(6), physicalSample(7)],
+        sample: physicalSample(7),
+      },
+    ];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.sync",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response(replies.shift());
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(
+        events
+          .filter((event) => event.type === "console")
+          .map((event) => event.line),
+      ).toContain("Telemetry gap · 3 samples unavailable");
+      expect(
+        events
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([1, 2, 6, 7]);
     } finally {
       target.disconnect();
       vi.useRealTimers();
@@ -1708,7 +1904,7 @@ describe("physical target", () => {
     try {
       await target.connect();
       await target.runCurrent();
-      await vi.advanceTimersByTimeAsync(4_500);
+      await vi.advanceTimersByTimeAsync(3_500);
       expect(events.at(-1)).toMatchObject({
         type: "status",
         state: "connecting",

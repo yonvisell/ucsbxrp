@@ -31,7 +31,7 @@ def project_revision(project):
     return digest.hexdigest()
 
 
-def request_json(base_url, path, method="GET", body=None, timeout=5.0):
+def request_json(base_url, path, method="GET", body=None, timeout=2.0):
     data = None
     headers = {}
     if body is not None:
@@ -59,6 +59,7 @@ def command(base_url, name, counter, **values):
         "/api/v1/" + name,
         method="POST",
         body=dict(values, requestId=request_id),
+        timeout=3.0,
     )
     if reply.get("requestId") != request_id:
         raise ProbeError("uncorrelated {} reply".format(name))
@@ -68,17 +69,17 @@ def command(base_url, name, counter, **values):
     return reply.get("result", {})
 
 
-def wait_for_service(base_url, timeout_s=25.0):
+def wait_for_service(base_url, timeout_s=8.0):
     deadline = time.monotonic() + timeout_s
     last_error = None
     while time.monotonic() < deadline:
         try:
-            info, _ = request_json(base_url, "/api/v1/info", timeout=2.0)
+            info, _ = request_json(base_url, "/api/v1/info", timeout=0.6)
             if info.get("protocol") == 1:
                 return info
         except ProbeError as exc:
             last_error = str(exc)
-        time.sleep(0.35)
+        time.sleep(0.1)
     raise ProbeError("service did not return: {}".format(last_error))
 
 
@@ -88,29 +89,28 @@ def is_new_boot(previous, current):
     return bool(previous_id and current_id and current_id != previous_id)
 
 
-def wait_for_new_boot(base_url, previous, timeout_s=25.0):
+def wait_for_new_boot(base_url, previous, timeout_s=8.0):
     deadline = time.monotonic() + timeout_s
     last_error = None
     while time.monotonic() < deadline:
         try:
-            info, _ = request_json(base_url, "/api/v1/info", timeout=2.0)
+            info, _ = request_json(base_url, "/api/v1/info", timeout=0.6)
             if is_new_boot(previous, info):
                 return info
             last_error = "service still reports boot {}".format(info.get("bootId"))
         except ProbeError as exc:
             last_error = str(exc)
-        time.sleep(0.35)
+        time.sleep(0.1)
     raise ProbeError("service did not complete a new boot: {}".format(last_error))
 
 
 def wait_for_program(base_url, run_id, timeout_s=8.0, until_running=False):
-    """Poll after the RP2350 startup quiet window.
+    """Poll until a bounded probe program reaches the requested state.
 
     A short program may move from ``loading`` to ``ready`` before the first
     sample. Long-running probes renew their run lease as soon as ``running`` is
     observed.
     """
-    time.sleep(0.55)
     deadline = time.monotonic() + timeout_s
     state = None
     attempt = 0
@@ -124,7 +124,7 @@ def wait_for_program(base_url, run_id, timeout_s=8.0, until_running=False):
         elif run_state != "loading":
             return state
         attempt += 1
-        time.sleep(0.2)
+        time.sleep(0.05)
     raise ProbeError("program did not leave its startup/run state")
 
 
@@ -137,7 +137,10 @@ from ucsb_xrp import RobotConfig, XRPBot
 bot = XRPBot(RobotConfig())
 try:
     while True:
-        time.sleep_ms(100)
+        # read() is a normal course-library boundary and observes the browser's
+        # cooperative Stop request. Motor effort remains zero throughout.
+        bot.read()
+        time.sleep_ms(50)
 finally:
     bot.stop()
 """
@@ -212,7 +215,7 @@ finally:
     }
 
 
-def run_probe(address):
+def run_probe(address, include_reset=False):
     base_url = "http://{}".format(address)
     evidence = {"address": address, "operations": []}
 
@@ -230,7 +233,7 @@ def run_probe(address):
             "Access-Control-Request-Private-Network": "true",
         },
     )
-    with urlopen(preflight, timeout=5.0) as response:
+    with urlopen(preflight, timeout=1.5) as response:
         allowed = response.headers.get("Access-Control-Allow-Private-Network")
     if allowed != "true":
         raise ProbeError("private-network preflight header is missing")
@@ -283,6 +286,8 @@ def run_probe(address):
     evidence["operations"].append("course pose telemetry")
     evidence["poseTelemetry"] = sample
 
+    # A normal Stop must preserve the current boot and return the worker to an
+    # immediately reusable state. This is the ordinary student workflow.
     long_project = zero_output_project(wait_forever=True)
     long_sync = command(base_url, "sync", 7, project=long_project)
     long_revision = project_revision(long_project)
@@ -292,32 +297,59 @@ def run_probe(address):
     wait_for_program(base_url, long_run["runId"], until_running=True)
     before_stop, _ = request_json(base_url, "/api/v1/info")
     command(base_url, "stop", 9)
-    after_stop = wait_for_new_boot(base_url, before_stop)
+    stopped_state = wait_for_program(base_url, long_run["runId"])
+    if stopped_state.get("state") != "ready":
+        raise ProbeError("cooperative stop did not return to ready")
+    after_stop, _ = request_json(base_url, "/api/v1/info")
+    if after_stop.get("bootId") != before_stop.get("bootId"):
+        raise ProbeError("ordinary Stop unexpectedly rebooted the XRP")
     if after_stop.get("project", {}).get("revision") != long_revision:
-        raise ProbeError("stop restart did not retain the current project")
+        raise ProbeError("Stop did not retain the current project")
     evidence["serviceAfterStop"] = after_stop
-    evidence["operations"].append("stop and restart")
+    evidence["operations"].append("cooperative stop without reboot")
 
-    before_reset = after_stop
-    command(base_url, "reset", 10)
-    after_reset = wait_for_new_boot(base_url, before_reset)
-    if after_reset.get("project", {}).get("revision") != long_revision:
-        raise ProbeError("target reset did not retain the current project")
-    evidence["serviceAfterReset"] = after_reset
-    evidence["operations"].append("reset and reconnect")
+    # Repeated immediate Flash/Run cycles exercise the boundary that previously
+    # allowed core-1 teardown to collide with a flash write.
+    repeated_boot_id = after_stop.get("bootId")
+    for cycle in range(3):
+        repeat_project = zero_output_project()
+        repeat_project["files"]["cycle.txt"] = "cycle {}\n".format(cycle + 1)
+        command(base_url, "sync", 20 + cycle * 2, project=repeat_project)
+        repeat_run = command(base_url, "run", 21 + cycle * 2)
+        repeat_state = wait_for_program(base_url, repeat_run["runId"])
+        if repeat_state.get("state") != "ready":
+            raise ProbeError("repeat cycle {} did not complete".format(cycle + 1))
+        repeat_info, _ = request_json(base_url, "/api/v1/info")
+        if repeat_info.get("bootId") != repeated_boot_id:
+            raise ProbeError("repeat cycle {} rebooted the XRP".format(cycle + 1))
+    evidence["operations"].append("three immediate Flash/Run cycles on one boot")
+
+    if include_reset:
+        before_reset, _ = request_json(base_url, "/api/v1/info")
+        command(base_url, "reset", 10)
+        after_reset = wait_for_new_boot(base_url, before_reset)
+        if not after_reset.get("project", {}).get("revision"):
+            raise ProbeError("target reset did not retain the current project")
+        evidence["serviceAfterReset"] = after_reset
+        evidence["operations"].append("reset and reconnect")
     return evidence
 
 
 def make_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--address", required=True)
+    parser.add_argument(
+        "--include-reset",
+        action="store_true",
+        help="also exercise the exceptional full-controller Reset path",
+    )
     return parser
 
 
 def main(argv=None):
     args = make_parser().parse_args(argv)
     try:
-        evidence = run_probe(args.address)
+        evidence = run_probe(args.address, include_reset=args.include_reset)
     except ProbeError as exc:
         print("Service probe error: {}".format(exc), file=sys.stderr)
         return 2

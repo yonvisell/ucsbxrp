@@ -98,6 +98,9 @@ describe("Web Serial raw REPL", () => {
     const until = [
       encoder.encode("raw REPL; CTRL-B to exit\r\n"),
       encoder.encode(">"),
+      encoder.encode("soft reboot\r\n"),
+      encoder.encode("raw REPL; CTRL-B to exit\r\n"),
+      encoder.encode(">"),
       Uint8Array.of(4),
       encoder.encode("done\r\n\x04"),
       Uint8Array.of(4),

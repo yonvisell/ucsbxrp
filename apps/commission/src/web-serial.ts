@@ -300,6 +300,13 @@ export class RawReplSession implements MicroPythonSession {
     this.connection.clearInput();
     await this.connection.write(Uint8Array.of(13, 1));
     await this.connection.readUntil("raw REPL; CTRL-B to exit\r\n", 10_000);
+    await this.connection.readUntil(Uint8Array.of(62), 2_000);
+    // A soft reset in raw REPL retires MicroPython state on both RP2350 cores
+    // without running main.py again. Installation then owns one quiet
+    // interpreter and cannot race the course service's project worker.
+    await this.connection.write(Uint8Array.of(4));
+    await this.connection.readUntil("soft reboot\r\n", 10_000);
+    await this.connection.readUntil("raw REPL; CTRL-B to exit\r\n", 10_000);
   }
 
   async execute(code: string, timeoutMs = 10_000): Promise<ReplResult> {

@@ -6,7 +6,13 @@ import type {
 } from "./types";
 
 export type PhysicalWorkerCommand =
-  | { type: "connect"; requestId: string; endpoint: string }
+  | {
+      type: "connect";
+      requestId: string;
+      endpoints?: readonly string[];
+      endpoint?: string;
+      discoveryTimeoutMs?: number;
+    }
   | { type: "disconnect" }
   | { type: "check"; requestId: string; project: CourseProject }
   | { type: "sync"; requestId: string; project: CourseProject }

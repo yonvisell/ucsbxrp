@@ -4,9 +4,12 @@ import {
   DEFAULT_TARGET_PREFERENCE,
   TARGET_PREFERENCE_KEY,
   XRP_ACCESS_POINT_ENDPOINT,
+  XRP_LOCAL_ENDPOINT,
   loadTargetPreference,
+  physicalEndpointCandidates,
   physicalEndpointForPreference,
   storeTargetPreference,
+  targetPreferenceForPhysicalNetwork,
 } from "./target-preference";
 
 describe("shared target preference", () => {
@@ -50,6 +53,83 @@ describe("shared target preference", () => {
       XRP_ACCESS_POINT_ENDPOINT,
     );
     expect(preference.physicalEndpoint).toBe("http://192.168.7.34");
+    expect(physicalEndpointCandidates(preference)).toEqual([
+      XRP_ACCESS_POINT_ENDPOINT,
+      XRP_LOCAL_ENDPOINT,
+      "http://192.168.7.34",
+    ]);
+  });
+
+  it("tries the last station address before the hotspot when station is selected", () => {
+    expect(
+      physicalEndpointCandidates({
+        kind: "physical",
+        physicalConnection: "station",
+        physicalEndpoint: "http://192.168.7.34",
+      }),
+    ).toEqual([
+      "http://192.168.7.34",
+      XRP_LOCAL_ENDPOINT,
+      XRP_ACCESS_POINT_ENDPOINT,
+    ]);
+  });
+
+  it("uses the XRP hostname when a router changed its DHCP address", () => {
+    expect(
+      physicalEndpointCandidates({
+        kind: "physical",
+        physicalConnection: "station",
+        physicalEndpoint: "http://192.168.7.30",
+      }),
+    ).toContain(XRP_LOCAL_ENDPOINT);
+  });
+
+  it("adopts reported station details and retains them during hotspot fallback", () => {
+    const station = targetPreferenceForPhysicalNetwork(
+      {
+        kind: "physical",
+        physicalConnection: "access_point",
+        physicalEndpoint: "http://192.168.7.30",
+      },
+      { mode: "station", address: "http://192.168.7.25" },
+    );
+    expect(station).toEqual({
+      kind: "physical",
+      physicalConnection: "station",
+      physicalEndpoint: "http://192.168.7.25",
+    });
+    expect(
+      targetPreferenceForPhysicalNetwork(station, {
+        mode: "access_point",
+        address: XRP_ACCESS_POINT_ENDPOINT,
+      }),
+    ).toEqual({
+      kind: "physical",
+      physicalConnection: "access_point",
+      physicalEndpoint: "http://192.168.7.25",
+    });
+  });
+
+  it("keeps the same preference object when the reported network is unchanged", () => {
+    const station = {
+      kind: "physical" as const,
+      physicalConnection: "station" as const,
+      physicalEndpoint: "http://192.168.7.25",
+    };
+    expect(
+      targetPreferenceForPhysicalNetwork(station, {
+        mode: "station",
+        address: "http://192.168.7.25",
+      }),
+    ).toBe(station);
+
+    const hotspot = { ...station, physicalConnection: "access_point" as const };
+    expect(
+      targetPreferenceForPhysicalNetwork(hotspot, {
+        mode: "access_point",
+        address: XRP_ACCESS_POINT_ENDPOINT,
+      }),
+    ).toBe(hotspot);
   });
 
   it("migrates the station-only stored record without changing its route", () => {

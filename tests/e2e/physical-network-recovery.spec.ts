@@ -90,11 +90,11 @@ test.beforeAll(async () => {
       ? {
           ...common,
           robotName: "ucsb-xrp",
-          address: "127.0.0.1",
+          address: mockXrpEndpoint,
           network: {
             mode: "station",
             ssid: "TEST-NETWORK",
-            address: "127.0.0.1",
+            address: mockXrpEndpoint,
             fallback: false,
           },
           capabilities: [
@@ -145,7 +145,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
       "ucsb-xrp-target-v1",
       JSON.stringify({
         kind: "physical",
-        physicalConnection: "station",
+        physicalConnection: "access_point",
         physicalEndpoint: endpoint,
       }),
     );
@@ -197,6 +197,17 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(
     ide.getByRole("button", { name: "Flash project" }),
   ).toBeEnabled();
+  await expect
+    .poll(() =>
+      ide.evaluate(() =>
+        JSON.parse(localStorage.getItem("ucsb-xrp-target-v1") ?? "{}"),
+      ),
+    )
+    .toEqual({
+      kind: "physical",
+      physicalConnection: "station",
+      physicalEndpoint: mockXrpEndpoint,
+    });
 
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText("Connected to ucsb-xrp");

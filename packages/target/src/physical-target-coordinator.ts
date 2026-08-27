@@ -13,7 +13,10 @@ export interface PhysicalWorkerPort {
   close(): void;
 }
 
-type PhysicalTargetFactory = (endpoint: string) => TargetClient;
+type PhysicalTargetFactory = (
+  endpoint: string,
+  requestTimeoutMs?: number,
+) => TargetClient;
 type ConsoleEvent = Extract<TargetEvent, { type: "console" }>;
 
 const CONSOLE_HISTORY_LIMIT = 2_000;
@@ -115,7 +118,10 @@ export class PhysicalTargetCoordinator {
   ): Promise<void> {
     try {
       if (command.type === "connect") {
-        const replayRequired = await this.connectTarget(command.endpoint);
+        const replayRequired = await this.connectTarget(
+          command.endpoints ?? (command.endpoint ? [command.endpoint] : []),
+          command.discoveryTimeoutMs ?? 1_000,
+        );
         this.send(port, {
           type: "response",
           requestId: command.requestId,
@@ -184,8 +190,15 @@ export class PhysicalTargetCoordinator {
   }
 
   /** Return true only when the caller joined an already-settled target. */
-  private async connectTarget(endpoint: string): Promise<boolean> {
-    if (this.target && this.targetEndpoint === endpoint) {
+  private async connectTarget(
+    endpoints: readonly string[],
+    discoveryTimeoutMs: number,
+  ): Promise<boolean> {
+    if (
+      this.target &&
+      this.targetEndpoint &&
+      endpoints.includes(this.targetEndpoint)
+    ) {
       if (this.connection) {
         await this.connection;
         return false;
@@ -194,32 +207,33 @@ export class PhysicalTargetCoordinator {
     }
 
     this.target?.disconnect();
+    this.target = null;
+    this.targetEndpoint = null;
     this.clearRetainedState();
-    const nextTarget = this.makeTarget(endpoint);
-    this.target = nextTarget;
-    this.targetEndpoint = endpoint;
-    nextTarget.subscribe((event) => this.broadcast(event));
-    const pendingConnection = nextTarget.connect();
-    this.connection = pendingConnection;
-    try {
-      await pendingConnection;
-      if (this.target !== nextTarget) {
-        throw new Error("Physical XRP target changed while connecting");
-      }
-      return false;
-    } catch (error) {
-      if (this.target === nextTarget) {
-        // Retain the broadcast error state, but release the failed target. All
-        // attached tabs remain available for the next shared Retry action.
-        this.target = null;
-        this.targetEndpoint = null;
-      }
-      throw error;
-    } finally {
-      if (this.connection === pendingConnection) {
-        this.connection = null;
+    let lastError: unknown = new Error("No XRP address is available");
+    for (const endpoint of endpoints) {
+      const nextTarget = this.makeTarget(endpoint, discoveryTimeoutMs);
+      const buffered: TargetEvent[] = [];
+      const unsubscribe = nextTarget.subscribe((event) => buffered.push(event));
+      const pendingConnection = nextTarget.connect();
+      this.connection = pendingConnection;
+      try {
+        await pendingConnection;
+        unsubscribe();
+        this.target = nextTarget;
+        this.targetEndpoint = endpoint;
+        nextTarget.subscribe((event) => this.broadcast(event));
+        for (const event of buffered) this.broadcast(event);
+        return false;
+      } catch (error) {
+        unsubscribe();
+        nextTarget.disconnect();
+        lastError = error;
+      } finally {
+        if (this.connection === pendingConnection) this.connection = null;
       }
     }
+    throw lastError;
   }
 
   private clearRetainedState(): void {

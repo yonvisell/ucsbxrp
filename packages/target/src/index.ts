@@ -54,8 +54,10 @@ export {
   TARGET_PREFERENCE_KEY,
   XRP_ACCESS_POINT_ENDPOINT,
   loadTargetPreference,
+  physicalEndpointCandidates,
   physicalEndpointForPreference,
   storeTargetPreference,
+  targetPreferenceForPhysicalNetwork,
 } from "./target-preference";
 export type {
   PhysicalConnectionMode,

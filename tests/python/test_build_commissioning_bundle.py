@@ -18,8 +18,8 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
         manifest = BUNDLE.commissioning_manifest()
         expected = INSTALLER.installation_files()
 
-        self.assertEqual(manifest["releaseId"], "2026.08-dev.20")
-        self.assertEqual(manifest["serviceVersion"], "2026.08-dev.20")
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.22")
+        self.assertEqual(manifest["serviceVersion"], "2026.08-dev.22")
         self.assertEqual(manifest["courseLibraryVersion"], "0.4.0-dev")
         self.assertEqual(
             {entry["destination"] for entry in manifest["files"]},

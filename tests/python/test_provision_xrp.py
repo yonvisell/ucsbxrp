@@ -64,8 +64,8 @@ class ProvisionXrpTest(unittest.TestCase):
                 "wait_for_service",
                 return_value={
                     "robotName": "ucsb-xrp",
-                    "courseRelease": "2026.08-dev.20",
-                    "serviceVersion": "2026.08-dev.20",
+                    "courseRelease": "2026.08-dev.22",
+                    "serviceVersion": "2026.08-dev.22",
                 },
             ),
         ):
@@ -73,7 +73,7 @@ class ProvisionXrpTest(unittest.TestCase):
 
         configure.assert_called_once()
         install.assert_called_once_with("/dev/test")
-        self.assertEqual(result["courseRelease"], "2026.08-dev.20")
+        self.assertEqual(result["courseRelease"], "2026.08-dev.22")
         self.assertEqual(result["installedFiles"], 1)
         self.assertEqual(result["unchangedFiles"], 2)
 
@@ -113,13 +113,13 @@ class ProvisionXrpTest(unittest.TestCase):
         wait_for_service.assert_not_called()
         self.assertEqual(result["mode"], "access_point")
         self.assertEqual(result["network"], "UCSB-XRP-AA71")
-        self.assertEqual(result["serviceVersion"], "2026.08-dev.20")
+        self.assertEqual(result["serviceVersion"], "2026.08-dev.22")
         self.assertFalse(result["serviceVerified"])
         self.assertEqual(result["releaseIdentitySource"], "local release files")
         self.assertIn("not network-verified", result["serviceVerification"])
 
     def test_local_service_version_reads_the_device_protocol(self):
-        self.assertEqual(PROVISION.local_service_version(), "2026.08-dev.20")
+        self.assertEqual(PROVISION.local_service_version(), "2026.08-dev.22")
 
 
 if __name__ == "__main__":

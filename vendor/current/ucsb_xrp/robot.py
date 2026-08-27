@@ -126,7 +126,7 @@ class Robot:
         self._wheel_controller.reset()
         pose = self._odometry.reset(initial_pose)
         self._state = RobotState(measurements, pose)
-        publish_state(self._state)
+        publish_state(self._state, raw_sensors=raw)
         apply_updates()
         self._last_overrun_ms = 0
         self._next_sample_ms = self._ticks_add(
@@ -161,7 +161,13 @@ class Robot:
                 measurements.right_increment_mm,
             )
             self._state = RobotState(measurements, pose)
-            publish_state(self._state, drive_command, command, target)
+            publish_state(
+                self._state,
+                drive_command,
+                command,
+                target,
+                raw_sensors=raw,
+            )
             apply_updates()
             self._advance_deadline()
             return self._state

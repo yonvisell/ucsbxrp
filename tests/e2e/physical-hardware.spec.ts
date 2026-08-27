@@ -99,7 +99,7 @@ function numericPair(text: string | null): number[] {
 
 async function robotInfo(request: APIRequestContext, endpoint: string) {
   const response = await request.get(`${endpoint}/api/v1/info`, {
-    timeout: 5_000,
+    timeout: 3_000,
   });
   expect(response.ok()).toBe(true);
   return (await response.json()) as { bootId: string; courseRelease: string };
@@ -114,7 +114,7 @@ async function robotCommand(
   const requestId = `e2e-${command}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
   const response = await request.post(`${endpoint}/api/v1/${command}`, {
     data: { ...value, requestId },
-    timeout: 15_000,
+    timeout: 3_000,
   });
   expect(response.ok()).toBe(true);
   const reply = (await response.json()) as {
@@ -132,12 +132,12 @@ async function waitForRobotReady(
     .poll(
       async () => {
         const response = await request.get(`${endpoint}/api/v1/state`, {
-          timeout: 5_000,
+          timeout: 3_000,
         });
         if (!response.ok()) return "unreachable";
         return ((await response.json()) as { state: string }).state;
       },
-      { timeout: 12_000 },
+      { timeout: 5_000 },
     )
     .toBe("ready");
 }
@@ -162,7 +162,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     !flashAllowed,
     "Set XRP_E2E_ALLOW_FLASH=1 only for the designated course test XRP",
   );
-  test.setTimeout(150_000);
+  test.setTimeout(90_000);
 
   const endpoint = `http://${xrpAddress}`;
   const request = context.request;
@@ -174,7 +174,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
         "ucsb-xrp-target-v1",
         JSON.stringify({
           kind: "physical",
-          physicalConnection: "access_point",
+          physicalConnection: "station",
           physicalEndpoint: `http://${address}`,
         }),
       );
@@ -201,7 +201,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     const ideStatus = ide.getByTestId("target-status");
     const monitorStatus = monitor.getByTestId("target-status");
     await expect(ideStatus).toContainText("Physical XRP · ready", {
-      timeout: 30_000,
+      timeout: 5_000,
     });
     await expect(monitorStatus).toContainText("Physical XRP · ready");
 
@@ -211,18 +211,18 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     await ide.getByRole("button", { name: "Flash project" }).click();
     await expect(
       ide.getByText("The complete project is flashed and ready on the XRP."),
-    ).toBeVisible({ timeout: 20_000 });
+    ).toBeVisible({ timeout: 5_000 });
     await expect(monitorRun).toBeEnabled();
 
     // First run: start from Monitor, observe the project output in IDE, and
     // stop from Monitor. This project never applies motor effort.
     await monitorRun.click();
     await expect(ideStatus).toContainText("Physical XRP · running", {
-      timeout: 15_000,
+      timeout: 5_000,
     });
     await ide.getByRole("tab", { name: /Program output/ }).click();
     await expect(ide.getByRole("log")).toContainText(noMotionSentinel, {
-      timeout: 10_000,
+      timeout: 5_000,
     });
     const firstStopStarted = Date.now();
     await monitor
@@ -230,9 +230,9 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       .getByRole("button", { name: "Stop", exact: true })
       .click();
     await expect(ideStatus).toContainText("Physical XRP · ready", {
-      timeout: 15_000,
+      timeout: 5_000,
     });
-    expect(Date.now() - firstStopStarted).toBeLessThan(8_000);
+    expect(Date.now() - firstStopStarted).toBeLessThan(3_000);
     await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
     // A project edit is shared immediately: Monitor cannot run a stale robot
@@ -245,24 +245,24 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     await ide.getByRole("button", { name: "Flash project" }).click();
     await expect(
       ide.getByText("The complete project is flashed and ready on the XRP."),
-    ).toBeVisible({ timeout: 20_000 });
+    ).toBeVisible({ timeout: 5_000 });
     await expect(monitorRun).toBeEnabled();
 
     // Second run: start from IDE and stop from Monitor to exercise the other
     // cross-window command direction.
     await ide.getByRole("button", { name: "Run", exact: true }).click();
     await expect(monitorStatus).toContainText("Physical XRP · running", {
-      timeout: 15_000,
+      timeout: 5_000,
     });
     await expect(ide.getByRole("log")).toContainText(noMotionSentinel, {
-      timeout: 10_000,
+      timeout: 5_000,
     });
     await monitor
       .locator(".app-header")
       .getByRole("button", { name: "Stop", exact: true })
       .click();
     await expect(monitorStatus).toContainText("Physical XRP · ready", {
-      timeout: 15_000,
+      timeout: 5_000,
     });
 
     if (motionAllowed) {
@@ -275,20 +275,20 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       await ide.reload();
       await monitor.reload();
       await expect(ideStatus).toContainText("Physical XRP · ready", {
-        timeout: 30_000,
+        timeout: 5_000,
       });
       await ide.getByRole("button", { name: "Flash project" }).click();
       await expect(
         ide.getByText("The complete project is flashed and ready on the XRP."),
-      ).toBeVisible({ timeout: 20_000 });
+      ).toBeVisible({ timeout: 5_000 });
 
       await ide.getByRole("button", { name: "Run", exact: true }).click();
       await expect(monitorStatus).toContainText("Physical XRP · running", {
-        timeout: 15_000,
+        timeout: 5_000,
       });
       await ide.getByRole("tab", { name: /Program output/ }).click();
       await expect(ide.getByRole("log")).toContainText(motionSentinel, {
-        timeout: 10_000,
+        timeout: 5_000,
       });
       await expect
         .poll(async () => {
@@ -313,9 +313,9 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
         .getByRole("button", { name: "Stop", exact: true })
         .click();
       await expect(ideStatus).toContainText("Physical XRP · ready", {
-        timeout: 15_000,
+        timeout: 5_000,
       });
-      expect(Date.now() - motionStopStarted).toBeLessThan(8_000);
+      expect(Date.now() - motionStopStarted).toBeLessThan(3_000);
       await expect(monitor.getByTestId("motor-effort")).toHaveText(
         "0.00 / 0.00",
       );

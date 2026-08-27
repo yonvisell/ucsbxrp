@@ -1,4 +1,6 @@
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -33,7 +35,7 @@ class InstallXrpServiceTest(unittest.TestCase):
         INSTALLER.enter_raw_repl(transport)
 
         self.assertEqual(transport.serial.writes, [b"\r\x03\x03\x03"])
-        self.assertFalse(transport.soft_reset)
+        self.assertTrue(transport.soft_reset)
 
     def test_reset_and_close_restarts_normal_boot_before_releasing_usb(self):
         class Transport:
@@ -112,24 +114,58 @@ class InstallXrpServiceTest(unittest.TestCase):
 
             def exec(self, code):
                 self.operations.append(("code", code))
+                if INSTALLER.HASH_PREFIX in code:
+                    path = max(
+                        (path for path in self.files if path in code),
+                        key=len,
+                    )
+                    digest = hashlib.sha256(self.files[path]).hexdigest()
+                    return (
+                        INSTALLER.HASH_PREFIX
+                        + json.dumps({path: digest})
+                        + "\r\n"
+                    ).encode()
                 self.operations.append(("activate", "/main.py"))
                 self.files["/main.py"] = self.files.pop("/main.py.commissioning")
+                return b""
 
         transport = Transport()
         INSTALLER._replace_remote_file(transport, "/main.py", b"new")
 
         self.assertEqual(transport.files["/main.py"], b"new")
         self.assertLess(
-            transport.operations.index(("read", "/main.py.commissioning")),
+            next(
+                index
+                for index, operation in enumerate(transport.operations)
+                if operation[0] == "code"
+                and "/main.py.commissioning" in operation[1]
+            ),
             transport.operations.index(("activate", "/main.py")),
         )
         activation_code = next(
             operation[1]
             for operation in transport.operations
-            if operation[0] == "code"
+            if operation[0] == "code" and "os.rename" in operation[1]
         )
         self.assertIn("os.rename", activation_code)
         self.assertNotIn("os.remove", activation_code)
+
+    def test_remote_hashes_return_digests_without_transferring_file_bytes(self):
+        class Transport:
+            def exec(self, code):
+                self.code = code
+                return (
+                    INSTALLER.HASH_PREFIX
+                    + '{"/main.py":"abc123"}\r\n'
+                ).encode()
+
+        transport = Transport()
+        self.assertEqual(
+            INSTALLER._remote_hashes(transport, ["/main.py"]),
+            {"/main.py": "abc123"},
+        )
+        self.assertIn("hashlib.sha256", transport.code)
+        self.assertIn("f.read(1024)", transport.code)
 
     def test_parses_only_a_usable_post_restart_address(self):
         self.assertEqual(
@@ -155,7 +191,7 @@ class InstallXrpServiceTest(unittest.TestCase):
             code.index("_watchdog.feed()"),
             code.index("from ucsb_xrp_service"),
         )
-        self.assertIn("run(_watchdog)", code)
+        self.assertIn("run(_watchdog, network_activation=_network_activation)", code)
 
     def test_transient_usb_install_failure_retries_without_user_action(self):
         expected = {"address": "192.168.7.32", "files": []}
@@ -176,6 +212,7 @@ class InstallXrpServiceTest(unittest.TestCase):
 
         self.assertEqual(result, expected)
         self.assertEqual(install.call_count, 2)
+        install.assert_called_with("/dev/test", discover_address=True)
         sleep.assert_called_once_with(1.0)
 
     def test_readback_mismatch_is_not_retried(self):
@@ -187,7 +224,20 @@ class InstallXrpServiceTest(unittest.TestCase):
             with self.assertRaisesRegex(INSTALLER.InstallError, "readback mismatch"):
                 INSTALLER.install_with_usb_retry("/dev/test")
 
-        install.assert_called_once_with("/dev/test")
+        install.assert_called_once_with("/dev/test", discover_address=True)
+
+    def test_skip_network_install_avoids_post_restart_discovery(self):
+        with patch.object(
+            INSTALLER,
+            "install",
+            return_value={"address": None, "files": []},
+        ) as install:
+            result = INSTALLER.install_with_usb_retry(
+                "/dev/test", discover_address=False
+            )
+
+        self.assertIsNone(result["address"])
+        install.assert_called_once_with("/dev/test", discover_address=False)
 
 
 if __name__ == "__main__":

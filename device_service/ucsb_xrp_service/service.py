@@ -24,10 +24,14 @@ from phew import server
 from .protocol import LineLogWriter, PROTOCOL_VERSION, SERVICE_VERSION, ProtocolError
 from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
-from .networking import activate_network, public_network_state
+from .networking import (
+    begin_network_activation,
+    finish_network_activation,
+    public_network_state,
+)
 
 
-COURSE_RELEASE = "2026.08-dev.20"
+COURSE_RELEASE = "2026.08-dev.22"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -38,6 +42,8 @@ LAUNCH_AFTER_RESPONSE_MS = 80
 SERVICE_WATCHDOG_MS = 7000
 LOG_LIMIT = 160
 STOP_GRACE_MS = 2500
+PROJECT_WORKER_IDLE_MS = 5
+PROJECT_WORKER_START_TIMEOUT_MS = 500
 
 _boot_ms = time.ticks_ms()
 try:
@@ -49,6 +55,10 @@ _state = "ready"
 _detail = "Physical XRP ready"
 _thread_active = False
 _launch_pending = False
+_project_job = None
+_project_worker_started = False
+_project_worker_ready = False
+_project_worker_shutdown = False
 _lease_deadline = None
 _stop_acknowledged_run_id = None
 _service_watchdog = None
@@ -63,6 +73,7 @@ _last_project_module_names = []
 _last_reply_by_id = {}
 _reply_order = []
 _network_state = None
+_reset_pending = False
 
 
 def _cors_headers():
@@ -420,30 +431,119 @@ def _project_runner(slot_path, entrypoint, entry_code, startup_modules, run_id):
                 pass
         os.chdir(previous_cwd)
         _lease_deadline = None
+        _thread_active = False
         if run_id == _run_id:
             _set_state(outcome_state, outcome_detail)
-        # This is deliberately the final shared-state write. Once the service
-        # core sees False, the student core will do no more cleanup or XRPLib
-        # work.
-        _thread_active = False
+
+
+def _project_worker_step():
+    """Run one queued project and return whether work was available."""
+    global _project_job
+    job = _project_job
+    if job is None:
+        return False
+    _project_job = None
+    _project_runner(*job)
+    return True
+
+
+def _project_worker():
+    """Keep core 1 alive so project completion has an exact idle boundary.
+
+    RP2 MicroPython does not provide a thread join operation. Previously each
+    run created a native thread and published ``ready`` just before that thread
+    returned, leaving a small interval in which the browser could begin a
+    flash transaction while the runtime was still retiring core 1. One worker
+    now remains alive for the service lifetime. When ``_project_runner`` has
+    completed its cleanup, the worker is immediately idle and flash-safe; no
+    guessed settling delay is required.
+    """
+    global _project_worker_ready, _thread_active, _lease_deadline
+    global _project_job
+    _project_worker_ready = True
+    try:
+        while not _project_worker_shutdown:
+            try:
+                worked = _project_worker_step()
+            except BaseException as exc:
+                # A cleanup failure must not destroy the only core-1 worker.
+                # Keep the HTTP service responsive, stop the motors, and make
+                # the failure visible before accepting another run.
+                _project_job = None
+                _thread_active = False
+                _lease_deadline = None
+                _stop_motors()
+                detail = "Project worker recovered from {}: {}".format(
+                    type(exc).__name__, str(exc)
+                )
+                _append_log("stderr", detail)
+                _set_state("error", detail)
+                worked = True
+            if not worked:
+                time.sleep_ms(PROJECT_WORKER_IDLE_MS)
+    finally:
+        _project_worker_ready = False
+
+
+def _start_project_worker(watchdog):
+    """Start core 1 once during service startup and verify that it is idle."""
+    global _project_worker_started, _project_worker_shutdown
+    if _project_worker_started:
+        return
+    _project_worker_shutdown = False
+    _project_worker_started = True
+    _thread.start_new_thread(_project_worker, ())
+    deadline = time.ticks_add(time.ticks_ms(), PROJECT_WORKER_START_TIMEOUT_MS)
+    while not _project_worker_ready:
+        watchdog.feed()
+        if time.ticks_diff(deadline, time.ticks_ms()) <= 0:
+            raise RuntimeError("Project worker did not start")
+        time.sleep_ms(PROJECT_WORKER_IDLE_MS)
+
+
+def _begin_project_worker_shutdown():
+    """Ask core 1 to exit before reset or a USB raw-REPL session."""
+    global _project_worker_shutdown, _launch_pending, _project_job
+    _project_worker_shutdown = True
+    _launch_pending = False
+    if _project_job is not None and not _thread_active:
+        _project_job = None
+    if _thread_active:
+        try:
+            from ucsb_xrp._run_control import request_stop
+
+            request_stop()
+        except Exception:
+            pass
+
+
+def prepare_for_repl(timeout_ms=300):
+    """Retire core 1 so Web Serial can enter raw REPL reliably."""
+    _begin_project_worker_shutdown()
+    deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
+    while (
+        _project_worker_ready
+        and time.ticks_diff(deadline, time.ticks_ms()) > 0
+    ):
+        time.sleep_ms(PROJECT_WORKER_IDLE_MS)
 
 
 async def _launch_project_after_response(
     slot_path, entrypoint, entry_code, startup_modules, run_id
 ):
-    """Start core 1 only after the small run response has left core 0.
+    """Dispatch work to core 1 after the small run response has left core 0.
 
-    RP2350 MicroPython shares one VM and heap across both cores. Starting a
-    project while the HTTP handler is still allocating its response can make a
-    rare allocator/flash lockup unrecoverable. The browser treats ``loading``
-    as an active run state, so this short deferred launch is visible without
-    adding another student-facing step.
+    RP2350 MicroPython shares one interpreter and heap across both cores.
+    Starting project execution while the HTTP handler is still allocating its
+    response can make an allocator lockup unrecoverable. The browser treats
+    ``loading`` as an active run state, so this short deferred dispatch is
+    visible without adding another student-facing step.
     """
-    global _launch_pending, _thread_active, _lease_deadline
+    global _launch_pending, _thread_active, _lease_deadline, _project_job
     import uasyncio
 
     await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
-    if not _launch_pending or run_id != _run_id:
+    if _project_worker_shutdown or not _launch_pending or run_id != _run_id:
         return
     _launch_pending = False
     _thread_active = True
@@ -453,25 +553,33 @@ async def _launch_project_after_response(
     # lease; the hardware watchdog remains the faster recovery for a VM lock.
     _extend_run_lease(STARTUP_LEASE_MS)
     _set_state("running", "Running " + entrypoint)
-    try:
-        _thread.start_new_thread(
-            _project_runner,
-            (slot_path, entrypoint, entry_code, startup_modules, run_id),
-        )
-    except Exception as exc:
+    if not _project_worker_ready or _project_job is not None:
         _thread_active = False
         _lease_deadline = None
-        detail = "Could not start project: {}: {}".format(
-            type(exc).__name__, str(exc)
-        )
+        detail = "Project worker is unavailable"
         _append_log("stderr", detail)
         _set_state("error", detail)
+        return
+    _project_job = (
+        slot_path,
+        entrypoint,
+        entry_code,
+        startup_modules,
+        run_id,
+    )
 
 
 async def _reset_after_response(delay_ms):
     import uasyncio
 
     await uasyncio.sleep_ms(delay_ms)
+    _begin_project_worker_shutdown()
+    deadline = time.ticks_add(time.ticks_ms(), 300)
+    while (
+        _project_worker_ready
+        and time.ticks_diff(deadline, time.ticks_ms()) > 0
+    ):
+        await uasyncio.sleep_ms(PROJECT_WORKER_IDLE_MS)
     machine.reset()
 
 
@@ -479,6 +587,8 @@ def _schedule_reset(delay_ms=220):
     # Hardware Timer callbacks run in interrupt context, where importing and
     # reset setup are unreliable. An event-loop task lets the HTTP response
     # leave first, then resets in ordinary MicroPython execution context.
+    global _reset_pending
+    _reset_pending = True
     server.loop.create_task(_reset_after_response(delay_ms))
 
 
@@ -566,8 +676,16 @@ def _empty_hardware():
 
 def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
     """Build one wire sample without reading any device."""
-    left_count = hardware["leftEncoderCount"]
-    right_count = hardware["rightEncoderCount"]
+    left_count = (
+        hardware["leftEncoderCount"]
+        if pose is None or pose.get("leftEncoderCount") is None
+        else pose["leftEncoderCount"]
+    )
+    right_count = (
+        hardware["rightEncoderCount"]
+        if pose is None or pose.get("rightEncoderCount") is None
+        else pose["rightEncoderCount"]
+    )
     return {
         "tMs": time_ms,
         "seq": sequence,
@@ -596,8 +714,16 @@ def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
         "targetRightWheelSpeedMmS": (
             None if pose is None else pose.get("targetRightWheelSpeedMmS")
         ),
-        "leftEffort": 0.0 if pose is None else pose["leftEffort"],
-        "rightEffort": 0.0 if pose is None else pose["rightEffort"],
+        "leftEffort": (
+            hardware.get("leftEffort", 0.0)
+            if pose is None
+            else pose["leftEffort"]
+        ),
+        "rightEffort": (
+            hardware.get("rightEffort", 0.0)
+            if pose is None
+            else pose["rightEffort"]
+        ),
         "leftWheelSpeedMmS": left_speed,
         "rightWheelSpeedMmS": right_speed,
         "leftWheelDistanceMm": (
@@ -660,13 +786,19 @@ def _hardware_sample():
         pose = state_snapshot()
     except Exception:
         pose = None
+    try:
+        from ucsb_xrp._telemetry import hardware_snapshot
+
+        mirrored_hardware = hardware_snapshot()
+    except (ImportError, AttributeError):
+        mirrored_hardware = None
 
     # XRPLib's I2C and encoder drivers are not safe for concurrent access from
     # both RP2350 cores. While a student program is active, use its published
     # course state and the latest stationary peripheral sample. Direct device
     # reads resume as soon as the program thread finishes.
     if _thread_active:
-        hardware = _last_hardware or _empty_hardware()
+        hardware = mirrored_hardware or _last_hardware or _empty_hardware()
         if pose is not None:
             return _course_sample(pose, hardware)
         return _sample_value(None, hardware, 0, 0, 0.0, 0.0)
@@ -709,10 +841,16 @@ def _buffered_course_samples(after_sample_seq):
         # A service installed beside an older course package still exposes the
         # legacy single-sample response instead of failing the endpoint.
         snapshots = ()
+    try:
+        from ucsb_xrp._telemetry import hardware_snapshot
+
+        mirrored_hardware = hardware_snapshot()
+    except (ImportError, AttributeError):
+        mirrored_hardware = None
     if not snapshots:
         return []
     hardware = (
-        (_last_hardware or _empty_hardware())
+        (mirrored_hardware or _last_hardware or _empty_hardware())
         if _thread_active
         else _read_hardware()
     )
@@ -1035,18 +1173,24 @@ async def _feed_service_watchdog(watchdog):
     import uasyncio
 
     while True:
-        watchdog.feed()
+        if not _reset_pending:
+            watchdog.feed()
         await uasyncio.sleep_ms(500)
 
 
-def _connect_wifi(timeout_ms=20000, watchdog=None):
+def _connect_wifi(timeout_ms=20000, watchdog=None, activation=None):
     global _network_state
-    config = json.load(open(CONFIG_PATH))
-    _network_state = activate_network(
-        config,
+    if activation is None:
+        config = json.load(open(CONFIG_PATH))
+        activation = begin_network_activation(
+            config,
+            watchdog=watchdog,
+            network_module=network,
+        )
+    _network_state = finish_network_activation(
+        activation,
         timeout_ms=timeout_ms,
         watchdog=watchdog,
-        network_module=network,
         time_module=time,
     )
     if not _network_state.get("ready") or not _network_state.get("address"):
@@ -1058,7 +1202,7 @@ def _connect_wifi(timeout_ms=20000, watchdog=None):
     return _network_state["address"]
 
 
-def run(watchdog=None):
+def run(watchdog=None, network_activation=None):
     global _service_watchdog
     if watchdog is None:
         watchdog = machine.WDT(timeout=SERVICE_WATCHDOG_MS)
@@ -1075,6 +1219,7 @@ def run(watchdog=None):
     # student threads then reuse the normal module cache.
     import ucsb_xrp
     import ucsb_xrp_reference
+    _append_log("system", "Course API loaded")
     watchdog.feed()
     from XRPLib.board import Board
     from XRPLib.encoded_motor import EncodedMotor
@@ -1092,9 +1237,20 @@ def run(watchdog=None):
     watchdog.feed()
     IMU.get_default_imu()
     Rangefinder.get_default_rangefinder()
+    _append_log("system", "XRP hardware interfaces ready")
     watchdog.feed()
 
-    address = _connect_wifi(watchdog=watchdog)
+    # Start one persistent core-1 worker after all shared modules and hardware
+    # singletons are resident. It remains idle until a browser Run command,
+    # avoiding native thread teardown between ordinary course runs.
+    _start_project_worker(watchdog)
+    _append_log("system", "Program runner ready")
+    watchdog.feed()
+
+    address = _connect_wifi(
+        watchdog=watchdog,
+        activation=network_activation,
+    )
     _append_log(
         "system",
         "Course service {} at {} ({})".format(

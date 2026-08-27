@@ -178,6 +178,31 @@ class DeviceNetworkingTest(unittest.TestCase):
         self.assertNotIn("password", result)
         self.assertGreater(watchdog.feeds, 0)
 
+    def test_station_association_can_begin_before_other_boot_work(self):
+        fake_network = FakeNetwork(station_connects=True)
+        config = {
+            "version": 2,
+            "mode": "station",
+            "hostname": "ucsb-xrp",
+            "station": {"ssid": "Pink", "password": "secret"},
+            "access_point": {"password": "ucsb-xrp"},
+        }
+
+        activation = NETWORKING.begin_network_activation(
+            config,
+            network_module=fake_network,
+        )
+        self.assertEqual(
+            fake_network.interfaces[0].connected_with,
+            ("Pink", "secret"),
+        )
+        result = NETWORKING.finish_network_activation(
+            activation,
+            time_module=FakeTime(),
+        )
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["address"], "192.168.7.34")
+
     def test_access_point_uses_unique_name_fixed_address_and_distributed_channel(self):
         fake_network = FakeNetwork()
         result = NETWORKING.activate_network(

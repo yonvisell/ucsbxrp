@@ -43,6 +43,7 @@ interface PhysicalInfo {
     requested_mode?: "access_point" | "station";
     fallback?: boolean;
     ssid?: string;
+    address?: string;
   };
   capabilities: string[];
   project?: PhysicalProjectManifest | null;
@@ -81,6 +82,8 @@ export interface PhysicalTargetOptions {
   activePollIntervalMs?: number;
   pollIntervalMs?: number;
   requestTimeoutMs?: number;
+  candidateEndpoints?: readonly string[];
+  discoveryTimeoutMs?: number;
 }
 
 export class PhysicalTargetError extends Error {
@@ -139,8 +142,11 @@ function physicalConnectionRecovery(endpoint: string): string {
 }
 
 const RUN_STARTUP_QUIET_MS = 500;
-const RESET_RECONNECT_TIMEOUT_MS = 30_000;
-const POLL_QUIESCE_WAIT_MS = 75;
+const RESET_RECONNECT_TIMEOUT_MS = 8_000;
+const SHARED_COMMAND_TIMEOUT_MS = 3_000;
+const SHARED_RECOVERY_TIMEOUT_MS = RESET_RECONNECT_TIMEOUT_MS;
+const POLL_QUIESCE_WAIT_MS = 750;
+const POLL_ABORT_SETTLE_MS = 100;
 const POLL_FAILURES_BEFORE_ERROR = 2;
 const POLL_RECOVERY_DELAY_MS = 900;
 
@@ -175,6 +181,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly activePollIntervalMs: number;
   private readonly pollIntervalMs: number;
   private readonly requestTimeoutMs: number;
+  private readonly connectTimeoutMs: number;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollInFlight: Promise<void> | null = null;
@@ -210,7 +217,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.pollIntervalMs = options.pollIntervalMs ?? 250;
     this.activePollIntervalMs =
       options.activePollIntervalMs ?? options.pollIntervalMs ?? 60;
-    this.requestTimeoutMs = options.requestTimeoutMs ?? 4_000;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
+    this.connectTimeoutMs =
+      options.discoveryTimeoutMs ?? this.requestTimeoutMs;
   }
 
   async connect(): Promise<void> {
@@ -228,7 +237,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.emitStatus("connecting", `Connecting to ${this.endpoint}`);
     let info: PhysicalInfo;
     try {
-      info = await this.getJson<PhysicalInfo>("/api/v1/info");
+      info = await this.getJson<PhysicalInfo>(
+        "/api/v1/info",
+        this.connectTimeoutMs,
+      );
       assertCompatiblePhysicalInfo(info);
       const required = [
         "project.check",
@@ -280,6 +292,19 @@ export class DirectPhysicalTargetClient implements TargetClient {
         requestId,
       },
     );
+    const networkMode = info.network?.mode;
+    const networkAddress = info.network?.address ?? info.address;
+    if (
+      (networkMode === "access_point" || networkMode === "station") &&
+      networkAddress
+    ) {
+      this.emit({
+        type: "physical-network",
+        mode: networkMode,
+        address: normalizePhysicalEndpoint(networkAddress),
+        ssid: info.network?.ssid,
+      });
+    }
     this.consumeProjectManifest(info.project);
     this.consumeRuntimeState(info.runtimeJson);
     this.schedulePoll(0);
@@ -736,14 +761,28 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.pollGeneration += 1;
     this.stopPolling();
     const activePoll = this.pollInFlight;
-    this.abortActivePoll();
     if (activePoll) {
-      await Promise.race([
-        activePoll.catch(() => undefined),
-        new Promise<void>((resolve) =>
-          setTimeout(resolve, POLL_QUIESCE_WAIT_MS),
+      // Let the XRP finish the current HTTP response before issuing a command.
+      // Aborting immediately leaves the single-connection MicroPython server
+      // writing to a closed socket while Stop or Flash opens another one.
+      const settled = await Promise.race([
+        activePoll.then(
+          () => true,
+          () => true,
+        ),
+        new Promise<false>((resolve) =>
+          setTimeout(() => resolve(false), POLL_QUIESCE_WAIT_MS),
         ),
       ]);
+      if (!settled) {
+        this.abortActivePoll();
+        await Promise.race([
+          activePoll.catch(() => undefined),
+          new Promise<void>((resolve) =>
+            setTimeout(resolve, POLL_ABORT_SETTLE_MS),
+          ),
+        ]);
+      }
     }
   }
 
@@ -869,6 +908,19 @@ export class DirectPhysicalTargetClient implements TargetClient {
         ) {
           continue;
         }
+        if (this.lastSampleSeq > 0 && sample.seq > this.lastSampleSeq + 1) {
+          const firstMissing = this.lastSampleSeq + 1;
+          const lastMissing = sample.seq - 1;
+          this.emitConsole(
+            "system",
+            `Telemetry gap · ${lastMissing - firstMissing + 1} sample${lastMissing === firstMissing ? "" : "s"} unavailable`,
+            {
+              action: "telemetry",
+              phase: "error",
+              eventId: `${state.bootId}:sample-gap:${firstMissing}-${lastMissing}`,
+            },
+          );
+        }
         this.emitTelemetry(sample);
         this.lastSampleSeq = sample.seq;
       }
@@ -923,9 +975,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   private async reconnectAfterReset(): Promise<void> {
     this.stopPolling();
-    // Pink required 17 seconds from an RP2350 reset to a reachable HTTP
-    // service in physical testing. Retain margin for ordinary DHCP variance;
-    // this is an automatic retry window, not another student-facing step.
+    // A controller reset includes boot, Wi-Fi association, DHCP, and service
+    // startup. Keep this explicit recovery window separate from the much
+    // shorter ordinary-command timeout.
     const deadline = performance.now() + RESET_RECONNECT_TIMEOUT_MS;
     let lastError: unknown = null;
     while (performance.now() < deadline && this.connected) {
@@ -961,7 +1013,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   private async waitForProgramStop(): Promise<void> {
-    const deadline = performance.now() + 4_000;
+    const deadline = performance.now() + 2_000;
     let lastError: unknown = null;
     while (performance.now() < deadline && this.connected) {
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -1178,25 +1230,39 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly consoleEventOrder: string[] = [];
   private nextRequest = 1;
   private localNetworkPermissionPrimed = false;
+  private readonly candidateEndpoints: readonly string[];
+  private readonly discoveryTimeoutMs: number;
+  private readonly directMode: boolean;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
     this.options = options;
-    if (options.fetch || !("SharedWorker" in globalThis)) {
-      this.useDirectClient();
-    }
+    this.candidateEndpoints = [
+      ...new Set([
+        this.endpoint,
+        ...(options.candidateEndpoints ?? []).map(normalizePhysicalEndpoint),
+      ]),
+    ];
+    this.discoveryTimeoutMs = options.discoveryTimeoutMs ?? 1_000;
+    this.directMode = Boolean(options.fetch) || !("SharedWorker" in globalThis);
   }
 
   async connect(): Promise<void> {
-    if (this.direct) {
-      await this.direct.connect();
+    if (this.directMode) {
+      if (this.direct) {
+        await this.direct.connect();
+        return;
+      }
+      await this.connectDirectCandidate();
       return;
     }
     if (!this.worker) {
       try {
         this.worker = new SharedWorker(
           new URL("./physical-target.shared-worker.ts", import.meta.url),
-          { type: "module", name: "ucsb-xrp-physical-target-v2" },
+          // Change the name when connection discovery semantics change so an
+          // already-open course app cannot retain an older worker indefinitely.
+          { type: "module", name: "ucsb-xrp-physical-target-v3" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1212,7 +1278,25 @@ export class PhysicalTargetClient implements TargetClient {
     // probe fails because the computer is on the wrong Wi-Fi, the tab still
     // receives the authoritative state when the other app reconnects later.
     try {
-      await this.primeLocalNetworkPermission();
+      const reachableEndpoint = await this.primeLocalNetworkPermission();
+      if (reachableEndpoint) {
+        const selectedIndex =
+          this.candidateEndpoints.indexOf(reachableEndpoint);
+        if (selectedIndex > 0) {
+          const reordered = [
+            reachableEndpoint,
+            ...this.candidateEndpoints.filter(
+              (candidate) => candidate !== reachableEndpoint,
+            ),
+          ];
+          await this.request({
+            type: "connect",
+            endpoints: reordered,
+            discoveryTimeoutMs: this.discoveryTimeoutMs,
+          });
+          return;
+        }
+      }
     } catch (error) {
       this.emit({
         type: "console",
@@ -1227,7 +1311,11 @@ export class PhysicalTargetClient implements TargetClient {
     }
     // Keep this port attached after a failed discovery. A retry from either
     // tab can then restore one shared connection and one shared state stream.
-    await this.request({ type: "connect", endpoint: this.endpoint });
+    await this.request({
+      type: "connect",
+      endpoints: this.candidateEndpoints,
+      discoveryTimeoutMs: this.discoveryTimeoutMs,
+    });
   }
 
   disconnect(): void {
@@ -1317,50 +1405,88 @@ export class PhysicalTargetClient implements TargetClient {
     return this.direct;
   }
 
-  private async primeLocalNetworkPermission(): Promise<void> {
+  private async connectDirectCandidate(): Promise<void> {
+    let lastError: unknown = new Error("No XRP address is available");
+    for (const endpoint of this.candidateEndpoints) {
+      const candidate = new DirectPhysicalTargetClient(endpoint, {
+        ...this.options,
+        discoveryTimeoutMs: this.discoveryTimeoutMs,
+        candidateEndpoints: undefined,
+      });
+      const buffered: TargetEvent[] = [];
+      const unsubscribe = candidate.subscribe((event) => buffered.push(event));
+      try {
+        await candidate.connect();
+        unsubscribe();
+        this.direct = candidate;
+        candidate.subscribe((event) => this.emit(event));
+        for (const event of buffered) this.emit(event);
+        return;
+      } catch (error) {
+        unsubscribe();
+        candidate.disconnect();
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
+  private async primeLocalNetworkPermission(): Promise<string | null> {
     if (
       this.localNetworkPermissionPrimed ||
       typeof window === "undefined" ||
       window.location.protocol !== "https:" ||
       new URL(this.endpoint).protocol !== "http:"
     ) {
-      return;
+      return null;
     }
-
-    const controller = new AbortController();
-    const timeoutMs = this.options.requestTimeoutMs ?? 4_000;
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      await globalThis.fetch(
-        `${this.endpoint}/api/v1/info`,
-        localNetworkRequestInit(
-          this.endpoint,
-          {
-            cache: "no-store",
-            method: "GET",
-            signal: controller.signal,
-          },
-          window.location.protocol,
-        ),
+    let lastError: unknown = new Error("No XRP address is available");
+    for (const endpoint of this.candidateEndpoints) {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        this.discoveryTimeoutMs,
       );
-      this.localNetworkPermissionPrimed = true;
-    } catch (error) {
-      const detail =
-        error instanceof DOMException && error.name === "AbortError"
-          ? `XRP did not reply within ${timeoutMs / 1_000} seconds`
-          : `Cannot reach ${this.endpoint}: ${errorDetail(error)}`;
-      throw new PhysicalTargetError(
-        "network_error",
-        `${detail}. ${physicalConnectionRecovery(this.endpoint)}`,
-      );
-    } finally {
-      clearTimeout(timeout);
+      try {
+        const response = await globalThis.fetch(
+          `${endpoint}/api/v1/info`,
+          localNetworkRequestInit(
+            endpoint,
+            {
+              cache: "no-store",
+              method: "GET",
+              signal: controller.signal,
+            },
+            window.location.protocol,
+          ),
+        );
+        if (!response.ok)
+          throw new Error(`XRP returned HTTP ${response.status}`);
+        this.localNetworkPermissionPrimed = true;
+        return endpoint;
+      } catch (error) {
+        lastError = error;
+      } finally {
+        clearTimeout(timeout);
+      }
     }
+    const detail =
+      lastError instanceof DOMException && lastError.name === "AbortError"
+        ? `Known XRP addresses did not reply within ${this.discoveryTimeoutMs / 1_000} second per address`
+        : `Cannot reach a known XRP address: ${errorDetail(lastError)}`;
+    throw new PhysicalTargetError(
+      "network_error",
+      `${detail}. ${physicalConnectionRecovery(this.endpoint)}`,
+    );
   }
 
   private request(
     command:
-      | { type: "connect"; endpoint: string }
+      | {
+          type: "connect";
+          endpoints: readonly string[];
+          discoveryTimeoutMs: number;
+        }
       | { type: "check"; project: CourseProject }
       | { type: "sync"; project: CourseProject }
       | { type: "run"; project: CourseProject }
@@ -1380,10 +1506,17 @@ export class PhysicalTargetClient implements TargetClient {
     const requestId = `physical-${this.nextRequest}`;
     this.nextRequest += 1;
     return new Promise((resolve, reject) => {
+      // Ordinary commands should fail promptly. Stop and Reset are the only
+      // operations allowed a longer ceiling because their defined recovery
+      // path can reboot the controller and wait for Wi-Fi to return.
+      const timeoutMs =
+        command.type === "stop" || command.type === "reset"
+          ? SHARED_RECOVERY_TIMEOUT_MS
+          : SHARED_COMMAND_TIMEOUT_MS;
       const timeout = setTimeout(() => {
         this.pending.delete(requestId);
         reject(new Error(`Physical target ${command.type} timed out`));
-      }, 35_000);
+      }, timeoutMs);
       this.pending.set(requestId, { resolve, reject, timeout });
       this.worker?.port.postMessage({ ...command, requestId });
     });

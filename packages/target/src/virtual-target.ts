@@ -13,6 +13,7 @@ import type {
   TargetEvent,
 } from "./types";
 import { describeProject } from "./project-identity";
+import { projectWithSelectedWorld } from "./project-world";
 import { MAX_RUNTIME_PARAMETERS } from "./runtime-controls";
 import type { RuntimeParameterValue } from "./types";
 
@@ -273,7 +274,7 @@ export class VirtualTargetClient implements TargetClient {
     };
     runtimeWorker.postMessage({
       mode: "run",
-      project,
+      project: projectWithSelectedWorld(project, scenario),
       scenario,
       world,
       liveParameterBuffer: this.liveValues?.buffer,

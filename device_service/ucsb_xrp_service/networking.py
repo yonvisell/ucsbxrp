@@ -178,7 +178,7 @@ def _activate_access_point(config, network_module, watchdog):
     }
 
 
-def _activate_station(config, timeout_ms, network_module, time_module, watchdog):
+def _begin_station(config, network_module, watchdog):
     ap = network_module.WLAN(_interface_id(network_module, "IF_AP", "AP_IF"))
     if ap.active():
         ap.active(False)
@@ -201,6 +201,14 @@ def _activate_station(config, timeout_ms, network_module, time_module, watchdog)
         wlan.ifconfig(tuple(profile["ifconfig"]))
     if not wlan.isconnected():
         wlan.connect(profile["ssid"], profile["password"])
+    _feed(watchdog)
+    return wlan
+
+
+def _finish_station(
+    config, wlan, timeout_ms, network_module, time_module, watchdog
+):
+    profile = config["station"]
 
     deadline = time_module.ticks_add(time_module.ticks_ms(), timeout_ms)
     failure_values = tuple(
@@ -234,6 +242,65 @@ def _activate_station(config, timeout_ms, network_module, time_module, watchdog)
     }
 
 
+def begin_network_activation(
+    value,
+    watchdog=None,
+    network_module=None,
+):
+    """Start station association so other boot work can proceed in parallel."""
+    if network_module is None:
+        import network as network_module
+    config = normalize_config(value)
+    network_module.hostname(config["hostname"])
+    _feed(watchdog)
+    station = None
+    if config["mode"] == MODE_STATION:
+        station = _begin_station(config, network_module, watchdog)
+    return {
+        "config": config,
+        "station": station,
+        "network_module": network_module,
+    }
+
+
+def finish_network_activation(
+    activation,
+    timeout_ms=20000,
+    watchdog=None,
+    time_module=None,
+):
+    """Finish a previously started association and apply AP fallback."""
+    if time_module is None:
+        import time as time_module
+    config = activation["config"]
+    network_module = activation["network_module"]
+    if config["mode"] == MODE_ACCESS_POINT:
+        result = _activate_access_point(config, network_module, watchdog)
+        result["requested_mode"] = MODE_ACCESS_POINT
+        result["fallback"] = False
+        return result
+
+    result = _finish_station(
+        config,
+        activation["station"],
+        timeout_ms,
+        network_module,
+        time_module,
+        watchdog,
+    )
+    result["requested_mode"] = MODE_STATION
+    result["fallback"] = False
+    if result["ready"] or not config["fallback_to_access_point"]:
+        return result
+
+    station_status = result["status"]
+    fallback = _activate_access_point(config, network_module, watchdog)
+    fallback["requested_mode"] = MODE_STATION
+    fallback["fallback"] = True
+    fallback["station_status"] = station_status
+    return fallback
+
+
 def activate_network(
     value,
     timeout_ms=20000,
@@ -247,29 +314,17 @@ def activate_network(
     if time_module is None:
         import time as time_module
 
-    config = normalize_config(value)
-    network_module.hostname(config["hostname"])
-    _feed(watchdog)
-    if config["mode"] == MODE_ACCESS_POINT:
-        result = _activate_access_point(config, network_module, watchdog)
-        result["requested_mode"] = MODE_ACCESS_POINT
-        result["fallback"] = False
-        return result
-
-    result = _activate_station(
-        config, timeout_ms, network_module, time_module, watchdog
+    activation = begin_network_activation(
+        value,
+        watchdog=watchdog,
+        network_module=network_module,
     )
-    result["requested_mode"] = MODE_STATION
-    result["fallback"] = False
-    if result["ready"] or not config["fallback_to_access_point"]:
-        return result
-
-    station_status = result["status"]
-    fallback = _activate_access_point(config, network_module, watchdog)
-    fallback["requested_mode"] = MODE_STATION
-    fallback["fallback"] = True
-    fallback["station_status"] = station_status
-    return fallback
+    return finish_network_activation(
+        activation,
+        timeout_ms=timeout_ms,
+        watchdog=watchdog,
+        time_module=time_module,
+    )
 
 
 def public_network_state(result):

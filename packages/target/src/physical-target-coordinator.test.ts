@@ -200,6 +200,48 @@ function telemetry(seq: number): TelemetrySample {
 }
 
 describe("physical target coordinator", () => {
+  it("tries known endpoints in order with the bounded discovery timeout", async () => {
+    const attempts: Array<{ endpoint: string; timeoutMs?: number }> = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint, timeoutMs) => {
+      attempts.push({ endpoint, timeoutMs });
+      const target = new FakePhysicalTarget(endpoint);
+      if (endpoint.endsWith("7.30")) {
+        target.connectError = new Error("stale station address");
+      }
+      return target;
+    });
+    const ide = new FakePort();
+    coordinator.attach(ide);
+
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.30", "http://192.168.4.1"],
+        discoveryTimeoutMs: 1_000,
+        requestId: "discover",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "discover")).toEqual([
+        expect.objectContaining({ ok: true }),
+      ]),
+    );
+
+    expect(attempts).toEqual([
+      { endpoint: "http://192.168.7.30", timeoutMs: 1_000 },
+      { endpoint: "http://192.168.4.1", timeoutMs: 1_000 },
+    ]);
+    expect(events(ide, "status")).not.toContainEqual(
+      expect.objectContaining({ detail: "stale station address" }),
+    );
+    expect(events(ide, "status")).toContainEqual({
+      type: "status",
+      state: "ready",
+      detail: "http://192.168.4.1",
+    });
+  });
+
   it("shares one connection and replays each retained console event once", async () => {
     const targets: FakePhysicalTarget[] = [];
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {

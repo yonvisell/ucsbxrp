@@ -29,6 +29,9 @@ class XrpServiceProbeTest(unittest.TestCase):
             with self.subTest(project=project["name"]):
                 compile(project["files"]["main.py"], "main.py", "exec")
         pose_source = projects[-1]["files"]["main.py"]
+        long_source = projects[1]["files"]["main.py"]
+        self.assertIn("bot.read()", long_source)
+        self.assertIn("bot.stop()", long_source)
         self.assertIn("robot.step(STOP_COMMAND)", pose_source)
         self.assertIn("finally:\n    robot.stop()", pose_source)
         self.assertNotIn("self._bot.reset_encoders()", pose_source)

@@ -1,8 +1,30 @@
 # Project status
 
-Last updated: 2026-08-25
+Last updated: 2026-08-26
 
 ## Current result
+
+Refinement 44 closes the physical command-path regression with observable
+hardware evidence. Release `2026.08-dev.22` keeps project execution on the
+RP2350's second core, mirrors encoder and motor state into the service
+telemetry stream, retains a bounded sample history, and avoids simultaneous
+XRPLib hardware reads from the service and student program. Physical endpoint
+discovery now tries the retained address, `ucsb-xrp.local`, and the hotspot
+address; the address reported by the XRP becomes authoritative for both IDE and
+Monitor. Discovery uses its own short timeout, while Flash, Run, and Stop retain
+an ordinary command timeout.
+
+The remaining intermittent Stop failure came from aborting an in-flight
+telemetry response immediately before opening the command request. The client
+now lets that response finish and only aborts it after a bounded fallback
+interval, so the single-connection MicroPython service is not left writing to a
+closed socket. On the attached XRP at `192.168.7.25`, the Stable Chrome hardware
+workflow flashed the default project, started it from both IDE and Monitor,
+observed motor motion, encoder-distance change, and live telemetry, stopped it
+from both applications, confirmed zero final motor effort, and repeated the run
+without a controller restart. The focused 41-test target suite and the complete
+22.2-second attached-hardware browser workflow pass. The robot remains on Pink
+with the default Expanding Spiral project restored.
 
 Refinement 43 removes the remaining intermittent physical-run failure rather
 than treating one successful run as sufficient evidence. The RP2350 HTTP

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { worldCatalogForProject } from "./project-world";
+import {
+  projectWithSelectedWorld,
+  worldCatalogForProject,
+} from "./project-world";
 
 describe("project world", () => {
   it("loads the project-owned default world, obstacles, and markers", () => {
@@ -81,5 +84,52 @@ describe("project world", () => {
         },
       }),
     ).toThrow("positive width and height");
+  });
+
+  it("selects a world for virtual execution without changing the project", () => {
+    const project = {
+      entrypoint: "main.py",
+      files: {
+        "main.py": "pass\n",
+        "world.json": JSON.stringify({
+          default_world: "first",
+          course_note: "preserved",
+          worlds: [
+            {
+              id: "first",
+              label: "First",
+              bounds: {
+                minimum_x_mm: 0,
+                minimum_y_mm: 0,
+                maximum_x_mm: 1000,
+                maximum_y_mm: 1000,
+              },
+            },
+            {
+              id: "second",
+              label: "Second",
+              bounds: {
+                minimum_x_mm: -100,
+                minimum_y_mm: -100,
+                maximum_x_mm: 900,
+                maximum_y_mm: 900,
+              },
+            },
+          ],
+        }),
+      },
+    };
+
+    const selected = projectWithSelectedWorld(project, "second");
+    const executionWorld = JSON.parse(selected.files["world.json"] ?? "{}");
+    const savedWorld = JSON.parse(project.files["world.json"]);
+
+    expect(executionWorld.default_world).toBe("second");
+    expect(executionWorld.course_note).toBe("preserved");
+    expect(savedWorld.default_world).toBe("first");
+    expect(projectWithSelectedWorld(project, "first")).toBe(project);
+    expect(() => projectWithSelectedWorld(project, "missing")).toThrow(
+      "Unknown world 'missing'",
+    );
   });
 });

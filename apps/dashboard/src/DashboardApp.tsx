@@ -14,10 +14,11 @@ import {
   TelemetryRecorder,
   VirtualTargetClient,
   loadTargetPreference,
-  physicalEndpointForPreference,
+  physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
   storeTargetPreference,
+  targetPreferenceForPhysicalNetwork,
   telemetryRecordingToCsv,
   type TargetClient,
   type TargetEvent,
@@ -482,20 +483,18 @@ export function DashboardApp() {
     document.addEventListener("pointerdown", closeOverlay);
     return () => document.removeEventListener("pointerdown", closeOverlay);
   }, [controlsOpen]);
-  const target = useMemo<TargetClient>(
-    () =>
-      targetPreference.kind === "physical"
-        ? new PhysicalTargetClient(
-            physicalEndpointForPreference(targetPreference),
-          )
-        : new VirtualTargetClient(),
-    [
-      targetPreference.kind,
-      targetPreference.physicalConnection,
-      targetPreference.physicalEndpoint,
-      connectionAttempt,
-    ],
-  );
+  const target = useMemo<TargetClient>(() => {
+    if (targetPreference.kind !== "physical") return new VirtualTargetClient();
+    const endpoints = physicalEndpointCandidates(targetPreference);
+    return new PhysicalTargetClient(endpoints[0]!, {
+      candidateEndpoints: endpoints.slice(1),
+    });
+  }, [
+    targetPreference.kind,
+    targetPreference.physicalConnection,
+    targetPreference.physicalEndpoint,
+    connectionAttempt,
+  ]);
   const recorder = useMemo(() => new TelemetryRecorder(), []);
   const virtualRuntimePreparing =
     target.kind === "virtual" &&
@@ -834,6 +833,10 @@ export function DashboardApp() {
         }
         setTargetState(event.state);
         setTargetDetail(event.detail);
+      } else if (event.type === "physical-network") {
+        setTargetPreference((current) =>
+          targetPreferenceForPhysicalNetwork(current, event),
+        );
       } else if (event.type === "project") {
         currentProjectRef.current = event.project;
         if (

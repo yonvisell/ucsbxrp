@@ -2,11 +2,13 @@
 
 from ._validation import isfinite
 from ._run_control import check_stop
+from ._telemetry import publish_drive_command, publish_raw_sensors
 from .config import RobotConfig
 from .records import DriveCommand, RawSensors
 from .utils import clamp
 
 try:
+    from time import ticks_diff as _default_ticks_diff
     from time import ticks_ms as _default_ticks_ms
 except ImportError:  # CPython tests
     from time import monotonic
@@ -14,11 +16,17 @@ except ImportError:  # CPython tests
     def _default_ticks_ms():
         return int(monotonic() * 1000.0)
 
+    def _default_ticks_diff(newer, older):
+        return newer - older
+
+
+_DIAGNOSTIC_PERIOD_MS = 250
+
 
 class _XRPLibDevices:
     """Lazy adapter around only the upstream devices the course uses."""
 
-    __slots__ = ("left_motor", "right_motor", "board", "rangefinder")
+    __slots__ = ("left_motor", "right_motor", "board", "rangefinder", "imu")
 
     def __init__(self):
         from XRPLib.board import Board
@@ -29,6 +37,14 @@ class _XRPLibDevices:
         self.right_motor = EncodedMotor.get_default_encoded_motor(index=2)
         self.board = Board.get_default_board()
         self.rangefinder = Rangefinder.get_default_rangefinder()
+        try:
+            from XRPLib.imu import IMU
+
+            self.imu = IMU.get_default_imu()
+        except Exception:
+            # Motion and encoder feedback remain usable if optional IMU
+            # diagnostics are unavailable.
+            self.imu = None
 
 
 class XRPBot:
@@ -38,7 +54,7 @@ class XRPBot:
     interface tests. Student programs construct ``XRPBot(config)``.
     """
 
-    __slots__ = ("_config", "_devices", "_ticks_ms")
+    __slots__ = ("_config", "_devices", "_ticks_ms", "_last_diagnostics_ms")
 
     def __init__(self, config, _devices=None, _ticks_ms=None):
         if not isinstance(config, RobotConfig):
@@ -46,6 +62,7 @@ class XRPBot:
         self._config = config
         self._devices = _XRPLibDevices() if _devices is None else _devices
         self._ticks_ms = _default_ticks_ms if _ticks_ms is None else _ticks_ms
+        self._last_diagnostics_ms = None
         self.stop()
 
     @property
@@ -69,8 +86,9 @@ class XRPBot:
             ):
                 range_mm = float(range_cm) * 10.0
 
-        return RawSensors(
-            time_ms=int(self._ticks_ms()),
+        now_ms = int(self._ticks_ms())
+        raw = RawSensors(
+            time_ms=now_ms,
             left_encoder_count=int(
                 self._devices.left_motor.get_position_counts()
             ),
@@ -80,6 +98,16 @@ class XRPBot:
             range_mm=range_mm,
             button_pressed=bool(self._devices.board.is_button_pressed()),
         )
+        try:
+            publish_raw_sensors(
+                raw,
+                range_sampled=include_range,
+                diagnostics=self._read_diagnostics(now_ms),
+            )
+        except Exception:
+            # Browser diagnostics must never interrupt a student program.
+            pass
+        return raw
 
     def reset_encoders(self):
         check_stop()
@@ -124,12 +152,15 @@ class XRPBot:
         right = float(right)
 
         limit = self._config.max_drive_command
-        left = clamp(left, -limit, limit) * self._config.left_motor_sign
-        right = clamp(right, -limit, limit) * self._config.right_motor_sign
+        logical_left = clamp(left, -limit, limit)
+        logical_right = clamp(right, -limit, limit)
+        left = logical_left * self._config.left_motor_sign
+        right = logical_right * self._config.right_motor_sign
 
         try:
             self._devices.left_motor.set_effort(left)
             self._devices.right_motor.set_effort(right)
+            self._publish_drive_safely(DriveCommand(logical_left, logical_right))
         except Exception:
             self._best_effort_stop()
             raise
@@ -159,4 +190,39 @@ class XRPBot:
         except Exception as error:
             if first_error is None:
                 first_error = error
+        self._publish_drive_safely(DriveCommand(0.0, 0.0))
         return first_error
+
+    def _publish_drive_safely(self, command):
+        try:
+            publish_drive_command(command)
+        except Exception:
+            pass
+
+    def _read_diagnostics(self, now_ms):
+        if (
+            self._last_diagnostics_ms is not None
+            and _default_ticks_diff(now_ms, self._last_diagnostics_ms)
+            < _DIAGNOSTIC_PERIOD_MS
+        ):
+            return None
+        self._last_diagnostics_ms = now_ms
+        diagnostics = {}
+        errors = []
+        battery_reader = getattr(self._devices.board, "get_battery_voltage", None)
+        if callable(battery_reader):
+            try:
+                diagnostics["batteryV"] = float(battery_reader())
+            except Exception as error:
+                errors.append("battery: " + type(error).__name__)
+        imu = getattr(self._devices, "imu", None)
+        if imu is not None:
+            try:
+                diagnostics["accelerationMg"] = list(imu.get_acc_rates())
+                diagnostics["angularRateMdps"] = list(imu.get_gyro_rates())
+                diagnostics["temperatureC"] = float(imu.temperature())
+            except Exception as error:
+                errors.append("IMU: " + type(error).__name__)
+        if diagnostics or errors:
+            diagnostics["sensorError"] = "; ".join(errors) if errors else None
+        return diagnostics or None

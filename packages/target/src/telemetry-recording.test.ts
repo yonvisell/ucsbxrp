@@ -66,6 +66,16 @@ describe("TelemetryRecorder", () => {
     expect(recorder.droppedSampleCount).toBe(2);
   });
 
+  it("counts telemetry sequence gaps in the recording metadata", () => {
+    const recorder = new TelemetryRecorder();
+    recorder.start();
+    recorder.capture(sample(2));
+    recorder.capture(sample(3));
+    recorder.capture(sample(7));
+
+    expect(recorder.stop().droppedSamples).toBe(3);
+  });
+
   it("validates its capacity and resets state on start and clear", () => {
     expect(() => new TelemetryRecorder(0)).toThrow(
       "maximumSamples must be a positive integer",

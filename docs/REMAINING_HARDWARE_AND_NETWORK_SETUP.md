@@ -26,7 +26,7 @@ different network, or repair an interrupted installation.
 
 ## Current development robot
 
-The attached RP2350 has release `2026.08-dev.20`. USB readback verified all 25
+The attached RP2350 has release `2026.08-dev.22`. USB readback verified all 26
 installed files, service version, protocol version, and hotspot profile. Its
 hotspot is `UCSB-XRP-VISELL` at `192.168.4.1`.
 

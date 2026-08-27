@@ -39,6 +39,7 @@ from ucsb_xrp._run_control import (  # noqa: E402
     clear_stop,
     request_stop,
 )
+from ucsb_xrp import _telemetry as course_telemetry  # noqa: E402
 
 
 class FakeMotor:
@@ -290,9 +291,11 @@ class StudentInterfaceContractTests(unittest.TestCase):
 class XRPBotContractTests(unittest.TestCase):
     def setUp(self):
         clear_stop()
+        course_telemetry.clear_state()
 
     def tearDown(self):
         clear_stop()
+        course_telemetry.clear_state()
 
     def make_bot(self, config=None):
         devices = FakeDevices()
@@ -317,6 +320,11 @@ class XRPBotContractTests(unittest.TestCase):
         sample = bot.read(include_range=True)
         self.assertEqual(sample, RawSensors(1234, 12, -9, 255.0, True))
         self.assertEqual(devices.rangefinder.read_count, 1)
+        mirrored = course_telemetry.hardware_snapshot()
+        self.assertEqual(mirrored["leftEncoderCount"], 12)
+        self.assertEqual(mirrored["rightEncoderCount"], -9)
+        self.assertEqual(mirrored["rangeMm"], 255.0)
+        self.assertTrue(mirrored["buttonPressed"])
 
     def test_rangefinder_sentinel_and_nonfinite_values_become_missing(self):
         bot, devices = self.make_bot()
@@ -330,6 +338,9 @@ class XRPBotContractTests(unittest.TestCase):
         bot.set_drive(DriveCommand(0.9, -0.7))
         self.assertEqual(devices.left_motor.efforts[-1], -0.4)
         self.assertEqual(devices.right_motor.efforts[-1], -0.4)
+        mirrored = course_telemetry.hardware_snapshot()
+        self.assertEqual(mirrored["leftEffort"], 0.4)
+        self.assertEqual(mirrored["rightEffort"], -0.4)
 
     def test_default_effort_limit_accepts_the_record_range(self):
         bot, devices = self.make_bot(RobotConfig())

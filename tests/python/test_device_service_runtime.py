@@ -178,6 +178,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         sys.modules["ucsb_xrp._run_control"].stop_requested = False
         self.service._thread_active = False
         self.service._launch_pending = False
+        self.service._project_job = None
+        self.service._project_worker_started = True
+        self.service._project_worker_ready = True
+        self.service._project_worker_shutdown = False
         self.service._run_id = 0
         self.service._lease_deadline = None
         self.service._stop_acknowledged_run_id = None
@@ -189,8 +193,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._last_sample = None
         self.service._sample_seq = 0
         self.service._sample_epoch_start_ms = 0
+        self.service._reset_pending = False
 
-    def test_run_reply_precedes_second_core_launch(self):
+    def test_run_reply_precedes_second_core_dispatch(self):
         with tempfile.TemporaryDirectory() as project_dir:
             Path(project_dir, "main.py").write_text("print('ready')\n")
             manifest = {
@@ -220,7 +225,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
             asyncio.run(self.server.loop.tasks.pop())
             self.assertEqual(self.service._state, "running")
-            self.assertEqual(len(self.thread_calls), 1)
+            self.assertEqual(self.thread_calls, [])
+            self.assertTrue(self.service._thread_active)
+            self.assertIsNotNone(self.service._project_job)
             self.assertEqual(
                 self.service._lease_deadline,
                 100 + self.service.STARTUP_LEASE_MS,
@@ -268,6 +275,73 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
         self.assertEqual(self.managed_start_updates, [True, False])
 
+    def test_persistent_worker_completes_one_job_without_thread_restart(self):
+        self.service._stop_motors = lambda: None
+        with tempfile.TemporaryDirectory() as project_dir:
+            self.service._thread_active = True
+            self.service._project_job = (
+                project_dir,
+                "main.py",
+                compile("pass\n", "main.py", "exec"),
+                [],
+                0,
+            )
+            self.assertTrue(self.service._project_worker_step())
+
+        self.assertIsNone(self.service._project_job)
+        self.assertFalse(self.service._thread_active)
+        self.assertEqual(self.service._state, "ready")
+        self.assertEqual(self.service._detail, "Program completed")
+        self.assertFalse(self.service._project_worker_step())
+        self.assertEqual(self.thread_calls, [])
+
+    def test_persistent_worker_survives_a_project_cleanup_failure(self):
+        class StopWorker(BaseException):
+            pass
+
+        self.service._project_job = ("slot", "main.py", None, [], 1)
+        self.service._thread_active = True
+        self.service._stop_motors = lambda: None
+        with (
+            patch.object(
+                self.service,
+                "_project_runner",
+                side_effect=RuntimeError("cleanup failed"),
+            ),
+            patch.object(
+                self.service.time,
+                "sleep_ms",
+                side_effect=StopWorker(),
+            ),
+        ):
+            with self.assertRaises(StopWorker):
+                self.service._project_worker()
+
+        self.assertFalse(self.service._project_worker_ready)
+        self.assertIsNone(self.service._project_job)
+        self.assertFalse(self.service._thread_active)
+        self.assertEqual(self.service._state, "error")
+        self.assertIn("cleanup failed", self.service._detail)
+
+    def test_prepare_for_repl_requests_worker_shutdown(self):
+        self.service._thread_active = True
+        self.service._project_worker_ready = False
+
+        self.service.prepare_for_repl()
+
+        self.assertTrue(self.service._project_worker_shutdown)
+        self.assertTrue(sys.modules["ucsb_xrp._run_control"].stop_requested)
+
+    def test_reset_retires_idle_worker_before_machine_reset(self):
+        self.service._project_worker_ready = False
+        self.service._schedule_reset(delay_ms=0)
+
+        self.assertTrue(self.service._reset_pending)
+        asyncio.run(self.server.loop.tasks.pop())
+
+        self.assertTrue(self.service._project_worker_shutdown)
+        self.assertEqual(self.reset_calls, [True])
+
     def test_stop_requests_cooperative_exit_without_resetting_wifi(self):
         self.service._thread_active = True
         response = self.service.stop(
@@ -296,6 +370,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         asyncio.run(self.server.loop.tasks.pop())
         self.assertEqual(self.service._state, "error")
         self.assertEqual(len(self.server.loop.tasks), 1)
+        # The fake thread never executes the worker's finally block; represent
+        # its native exit before running the scheduled reset task.
+        self.service._project_worker_ready = False
         asyncio.run(self.server.loop.tasks.pop())
         self.assertEqual(self.reset_calls, [True])
 
@@ -514,6 +591,54 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(sample["leftWheelDistanceMm"], 345.0)
         self.assertEqual(sample["rightWheelDistanceMm"], 351.0)
 
+    def test_active_program_uses_student_thread_hardware_mirror(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        mirrored = {
+            "leftEncoderCount": 140,
+            "rightEncoderCount": 144,
+            "rangeMm": 280.0,
+            "buttonPressed": True,
+            "accelerationMg": [1.0, 2.0, 999.0],
+            "angularRateMdps": [10.0, 20.0, 30.0],
+            "temperatureC": 27.0,
+            "batteryV": 6.2,
+            "sensorError": None,
+            "leftEffort": 0.2,
+            "rightEffort": 0.25,
+        }
+        self.service._thread_active = True
+        self.service._last_hardware = {
+            **mirrored,
+            "leftEncoderCount": 1,
+            "rightEncoderCount": 2,
+            "batteryV": 5.0,
+        }
+
+        with (
+            patch.object(
+                course_telemetry,
+                "state_snapshot",
+                return_value=None,
+                create=True,
+            ),
+            patch.object(
+                course_telemetry,
+                "hardware_snapshot",
+                return_value=mirrored,
+                create=True,
+            ),
+            patch.object(self.service, "_read_hardware") as read_hardware,
+        ):
+            sample = self.service._hardware_sample()
+
+        self.assertEqual(sample["leftEncoderCount"], 140)
+        self.assertEqual(sample["rightEncoderCount"], 144)
+        self.assertEqual(sample["batteryV"], 6.2)
+        self.assertEqual(sample["temperatureC"], 27.0)
+        self.assertEqual(sample["leftEffort"], 0.2)
+        self.assertEqual(sample["rightEffort"], 0.25)
+        read_hardware.assert_not_called()
+
     def test_telemetry_endpoint_returns_ordered_new_samples_and_legacy_latest(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
         base = {
@@ -688,22 +813,31 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             patch.object(self.service.json, "load", return_value=config),
             patch.object(
                 self.service,
-                "activate_network",
+                "begin_network_activation",
+                return_value="pending-network",
+            ) as begin,
+            patch.object(
+                self.service,
+                "finish_network_activation",
                 return_value={
                     "ready": True,
                     "mode": "station",
                     "address": "192.168.7.32",
                 },
-            ) as activate,
+            ) as finish,
         ):
             address = self.service._connect_wifi(watchdog=watchdog)
 
         self.assertEqual(address, "192.168.7.32")
-        activate.assert_called_once_with(
+        begin.assert_called_once_with(
             config,
-            timeout_ms=20000,
             watchdog=watchdog,
             network_module=self.service.network,
+        )
+        finish.assert_called_once_with(
+            "pending-network",
+            timeout_ms=20000,
+            watchdog=watchdog,
             time_module=self.service.time,
         )
 

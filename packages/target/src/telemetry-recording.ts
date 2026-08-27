@@ -14,6 +14,8 @@ export class TelemetryRecorder {
   private samples: TelemetrySample[] = [];
   private nextWriteIndex = 0;
   private droppedSamples = 0;
+  private lastCapturedSequence: number | null = null;
+  private lastCapturedSource: TelemetrySample["source"] | null = null;
   private active = false;
 
   constructor(readonly maximumSamples = 30_000) {
@@ -38,6 +40,8 @@ export class TelemetryRecorder {
     this.samples = [];
     this.nextWriteIndex = 0;
     this.droppedSamples = 0;
+    this.lastCapturedSequence = null;
+    this.lastCapturedSource = null;
     this.active = true;
   }
 
@@ -50,6 +54,8 @@ export class TelemetryRecorder {
     this.samples = [];
     this.nextWriteIndex = 0;
     this.droppedSamples = 0;
+    this.lastCapturedSequence = null;
+    this.lastCapturedSource = null;
     this.active = false;
   }
 
@@ -57,6 +63,15 @@ export class TelemetryRecorder {
     if (!this.active) {
       return;
     }
+    if (
+      this.lastCapturedSource === sample.source &&
+      this.lastCapturedSequence !== null &&
+      sample.seq > this.lastCapturedSequence + 1
+    ) {
+      this.droppedSamples += sample.seq - this.lastCapturedSequence - 1;
+    }
+    this.lastCapturedSource = sample.source;
+    this.lastCapturedSequence = sample.seq;
     const copy = copySample(sample);
     if (this.samples.length < this.maximumSamples) {
       this.samples.push(copy);
