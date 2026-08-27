@@ -201,7 +201,7 @@ test("an IDE update waits for Open Project and reopens the newly remembered proj
         }),
     });
   });
-  await page.getByRole("button", { name: "Open project" }).click();
+  await page.getByRole("button", { name: "Open project…" }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -277,7 +277,9 @@ test("an IDE update waits for Create Project and reopens the created folder", as
   );
 
   await page.getByLabel("Project template").selectOption("challenge_1");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create new project…", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();

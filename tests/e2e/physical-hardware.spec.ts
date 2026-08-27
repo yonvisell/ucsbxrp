@@ -290,7 +290,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     // action now identifies that the edited project must be validated and
     // loaded before it starts. Stop immediately after the running state to
     // exercise the real Run/Stop ordering before main.py reaches its loop.
-    await ide.getByRole("button", { name: "New file", exact: true }).click();
+    await ide.getByRole("button", { name: "New file…", exact: true }).click();
     await ide.getByLabel("Project-relative path").fill("notes.md");
     await ide.getByRole("button", { name: "Create file" }).click();
     await expect(monitorRun).toBeEnabled();

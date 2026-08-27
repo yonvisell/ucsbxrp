@@ -263,7 +263,7 @@ test("standby project changes preserve reopen authority until explicit takeover"
     "standby-project-b-id",
   );
   await useFolderForNextPicker(firstIde, "owner-project-a");
-  await firstIde.getByRole("button", { name: "Open project" }).click();
+  await firstIde.getByRole("button", { name: "Open project…" }).click();
   await expect(firstIde.getByTestId("project-folder")).toHaveText(
     "./owner-project-a",
   );
@@ -280,7 +280,7 @@ test("standby project changes preserve reopen authority until explicit takeover"
     "Another IDE tab controls Run",
   );
   await useFolderForNextPicker(standbyIde, "standby-project-b");
-  await standbyIde.getByRole("button", { name: "Open project" }).click();
+  await standbyIde.getByRole("button", { name: "Open project…" }).click();
   await expect(standbyIde.getByTestId("project-folder")).toHaveText(
     "./standby-project-b",
   );
@@ -332,7 +332,7 @@ test("Monitor cannot replace active project authority with stale archive metadat
     "monitor-archive-choice-id",
   );
   await useFolderForNextPicker(ide, "monitor-owner-project");
-  await ide.getByRole("button", { name: "Open project" }).click();
+  await ide.getByRole("button", { name: "Open project…" }).click();
   await expect
     .poll(() => readActiveProjectAuthority(ide))
     .toEqual({

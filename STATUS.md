@@ -4,6 +4,42 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 57 makes the IDE's project model explicit without adding another
+persistence layer. The Project panel now presents one current-project block:
+project name, `./folder` or `Browser draft`, and its automatic-save state. The
+separate Projects folder is identified only as the default parent for new
+projects. **Open project**, **Save as project**, file actions, template creation,
+and challenge progression are distinct operations. Continuing to the next
+challenge resumes after the student chooses a Projects folder or saves the
+current browser draft; a browser without folder access can continue between
+browser drafts. Saving the current project no longer creates an identical
+fallback draft that can detach the folder just created.
+
+The Monitor now retains the newest 1,200 plot samples in a fixed ring and
+publishes one ordered React snapshot per display frame. A physical telemetry
+page can therefore contribute all of its samples without eight successive
+array copies and renders. SVG, PNG, and WebM encoder code loads only when an
+export is requested. Plot order, epoch changes, duplicate suppression, clearing,
+late-Monitor history, recording, and all export formats retain their previous
+behavior.
+
+The complete fast gate passes 224 Python tests, the MicroPython source, service,
+and MPY proofs, 345 TypeScript tests, formatting, type checking, the production
+build, and the 231-file offline-shell verification. On the fixed
+`127.0.0.1:4174` production origin, 24 combined project, autosave, offline,
+recording, export, and late-history workflows passed. An adversarial review
+then exposed and closed three untested project-dialog cases; 13 project workflow
+cases and the complete multi-file workflow pass after correction. Direct
+Chrome inspection at 1,440 and 820 pixels confirms zero page or header overflow,
+an unclipped template selector, and no redundant untouched-project status row.
+
+Release `2026.08-dev.36` is installed as runtime generation 17 on the attached
+RP2350 at `192.168.7.25` on Pink. The strict service probe passed browser
+preflight, compile, exact RAM-project preparation, stdout, pose telemetry,
+cooperative Stop, three immediate prepare/run cycles on one boot, course Reset,
+retained RAM project, and a post-Reset Run. The full physical browser and
+raised-wheel motion regression follows this committed stage.
+
 Refinement 56 removes dormant state and persistence layers without changing the
 student workflow. The unused commissioning-era default-project writer, three
 deprecated folder wrappers, an unconsumed workspace-change notification, an
@@ -42,11 +78,10 @@ system design. A project held only in browser storage is described directly as
 not saved to a folder. Saving an unclassified project can no longer be
 misidentified as progression to the next challenge.
 
-Release `2026.08-dev.36` is staged with a new deterministic course-library
+Release `2026.08-dev.36` has a new deterministic course-library
 identity (`1c49ee2614d9d90f0a7a5866f3eb7af394b0a10bc62736b5f05c8b3ccf2db925`)
-rather than changing robot files under the dev.35 identity. It has not yet been
-installed on the attached XRP; the verified hardware state below remains
-dev.35 until the next physical regression slice.
+rather than changing robot files under the dev.35 identity. Its installation
+and strict service probe are recorded in Refinement 57 above.
 
 The complete local gate passes 224 Python tests, the MicroPython 1.28 source,
 service, and MPY proofs, 341 TypeScript tests, formatting, type checking, the

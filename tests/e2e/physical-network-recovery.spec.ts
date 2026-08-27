@@ -171,7 +171,9 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(
     ide.getByRole("combobox", { name: "Project template" }),
   ).toHaveValue("");
-  await expect(ide.getByRole("button", { name: "Create" })).toBeDisabled();
+  await expect(
+    ide.getByRole("button", { name: "Create new project…" }),
+  ).toBeDisabled();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · error · connection required",
   );

@@ -837,9 +837,8 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         address: "http://192.168.4.1",
       },
     });
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Expanding spiral · not saved to a folder",
-  );
+  await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
   await expect
     .poll(() =>
       page.evaluate(() =>

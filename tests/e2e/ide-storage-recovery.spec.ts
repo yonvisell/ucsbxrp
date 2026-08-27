@@ -349,7 +349,9 @@ test("asks before opening a template as a browser-only project", async ({
   await ide.goto("/ide/");
 
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "Create new project…", exact: true })
+    .click();
 
   await expect(
     ide.getByRole("heading", { name: "Create a project" }),

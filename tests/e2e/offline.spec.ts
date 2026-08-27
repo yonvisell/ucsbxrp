@@ -51,7 +51,9 @@ test("reloads the complete production course shell without a network", async ({
     "Virtual XRP · ready",
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "Create new project…", exact: true })
+    .click();
   await ide.getByRole("button", { name: "Continue without a folder" }).click();
   expect(
     await ide
@@ -59,6 +61,8 @@ test("reloads the complete production course shell without a network", async ({
       .evaluate((link) => (link as HTMLAnchorElement).href),
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
+  await expect(ide.getByTestId("offline-readiness")).toHaveCount(0);
+  await ide.getByRole("button", { name: "Settings" }).click();
   await expect(ide.getByTestId("offline-readiness")).toContainText(
     "Course apps available offline",
   );
@@ -70,19 +74,15 @@ test("reloads the complete production course shell without a network", async ({
     ide.locator(".app-header").getByTestId("offline-readiness"),
   ).toHaveCount(0);
   const ideOfflineBox = await ide
-    .locator(".project-storage")
+    .getByTestId("settings-panel")
     .getByTestId("offline-readiness")
     .boundingBox();
-  const projectRailBox = await ide.locator(".project-rail").boundingBox();
-  expect(ideOfflineBox?.x).toBeGreaterThanOrEqual(projectRailBox?.x ?? 0);
+  const settingsBox = await ide.getByTestId("settings-panel").boundingBox();
+  expect(ideOfflineBox?.x).toBeGreaterThanOrEqual(settingsBox?.x ?? 0);
   expect(
     (ideOfflineBox?.x ?? 0) + (ideOfflineBox?.width ?? 0),
-  ).toBeLessThanOrEqual(
-    (projectRailBox?.x ?? 0) + (projectRailBox?.width ?? 0),
-  );
-  expect(ideOfflineBox?.y).toBeGreaterThan(
-    (projectRailBox?.y ?? 0) + (projectRailBox?.height ?? 0) * 0.65,
-  );
+  ).toBeLessThanOrEqual((settingsBox?.x ?? 0) + (settingsBox?.width ?? 0));
+  expect(ideOfflineBox?.y).toBeGreaterThan(settingsBox?.y ?? 0);
   await expect(ide.locator(".ide-offline-status")).toHaveCount(0);
 
   const manifest = await ide.evaluate(async (manifestPath) => {
@@ -115,6 +115,8 @@ test("reloads the complete production course shell without a network", async ({
     "Virtual XRP · ready",
   );
   await expectOfflineShellReady(ide);
+  await expect(ide.getByTestId("offline-readiness")).toHaveCount(0);
+  await ide.getByRole("button", { name: "Settings" }).click();
   await expect(ide.getByTestId("offline-readiness")).toContainText(
     "Course apps available offline",
   );

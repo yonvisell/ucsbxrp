@@ -9,7 +9,9 @@ const starters = [
 
 async function openTemplateInBrowser(page: Page, templateId: string) {
   await page.getByLabel("Project template").selectOption(templateId);
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create new project…", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
@@ -23,8 +25,9 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await expect(
     page
       .getByRole("complementary", { name: "Project" })
-      .getByText(/Expanding spiral · not saved to a folder/),
+      .getByText("Expanding spiral", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
   ).toBeVisible();

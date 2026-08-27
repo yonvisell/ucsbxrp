@@ -54,7 +54,7 @@
 
 .project-actions {
   display: grid;
-  grid-template-columns: 1.3fr 0.85fr 0.72fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3px;
   padding: 3px;
 }
@@ -174,14 +174,47 @@
 }
 
 .project-root {
+  display: grid;
+  gap: 1px;
   border-bottom: 1px solid var(--line);
-  padding: 3px 6px;
+  padding: 4px 6px 5px;
+}
+
+.project-root > strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--font-sm);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-location {
   color: var(--muted);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: var(--font-xs);
   font-weight: 650;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.project-save-state {
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+}
+
+.project-root-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.project-root-actions button {
+  min-height: 18px;
+  padding: 1px 5px;
+  font-size: var(--font-xs);
 }
 
 .project-owner-state {
@@ -282,6 +315,13 @@
   text-overflow: ellipsis;
 }
 
+.project-feedback {
+  display: grid;
+  gap: 3px;
+  border-top: 1px solid var(--line);
+  padding: 4px 6px;
+}
+
 .folder-reconnect {
   justify-self: start;
   padding: 1px 5px;
@@ -332,27 +372,6 @@
   background: var(--panel);
   font-size: var(--font-sm);
   white-space: nowrap;
-}
-
-.project-storage .offline-readiness {
-  min-width: 0;
-  gap: 3px;
-  margin-top: 3px;
-  border-top: 1px solid var(--line);
-  padding: 4px 0 0;
-  overflow: hidden;
-  font-size: var(--font-xs);
-}
-
-.project-storage .offline-readiness-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-}
-
-.project-storage .offline-readiness > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .editor-stack {
@@ -918,6 +937,13 @@
   color: var(--muted);
   font-size: 0.64rem;
   line-height: 1.42;
+}
+
+.offline-settings-note .offline-readiness {
+  max-width: 100%;
+  padding: 0;
+  font-size: var(--font-xs);
+  white-space: normal;
 }
 
 .shortcuts-note dl {

@@ -40,7 +40,7 @@ async function completeProjectFolderCreation(
   await expect(page.getByRole("dialog")).toBeVisible();
   await page
     .getByRole("button", {
-      name: /Create project|Choose Projects folder and create/,
+      name: /Create project|Save project|Choose Projects folder and (create|save)…/,
     })
     .click();
   await expect(page.getByTestId("project-folder")).toHaveText(expectedFolder);
@@ -101,10 +101,9 @@ test("creates the untouched default only after naming its project folder", async
   await installMemoryFolderPicker(ide);
   await ide.goto("/ide/");
 
-  await ide.getByRole("button", { name: "Choose Projects folder" }).click();
-  await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Expanding spiral · not saved to a folder",
-  );
+  await ide.getByRole("button", { name: "Save as project…" }).click();
+  await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(ide.getByTestId("project-folder")).toHaveText("Browser draft");
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
   const files = await readFolderFiles(ide, "student-course-project");
   expect(files["Expanding-spiral/main.py"]).toContain(
@@ -131,11 +130,11 @@ test("automatically saves project edits and retains four prior states", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Choose Projects folder" }).click();
+  await ide.getByRole("button", { name: "Save as project…" }).click();
   await completeProjectFolderCreation(ide, "./Expanding-spiral");
 
   for (let revision = 1; revision <= 5; revision += 1) {
-    await ide.getByRole("button", { name: "New file", exact: true }).click();
+    await ide.getByRole("button", { name: "New file…", exact: true }).click();
     await ide
       .getByLabel("Project-relative path")
       .fill(`notes/revision_${revision}.txt`);
@@ -177,7 +176,9 @@ test("automatically saves monitored run output and unit-labeled telemetry", asyn
     "Virtual XRP · ready",
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "Create new project…", exact: true })
+    .click();
   await completeProjectFolderCreation(ide, "./1-Straight-Run");
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "Runs save to ./1-Straight-Run",
@@ -227,7 +228,9 @@ test("detaches Monitor autosaves when the IDE opens a browser-only template", as
     "./monitor-detach-project",
   );
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
-  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "Create new project…", exact: true })
+    .click();
   await ide.getByRole("button", { name: "Continue without a folder" }).click();
 
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(

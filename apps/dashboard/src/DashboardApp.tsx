@@ -60,15 +60,13 @@ import {
 import { WorldView } from "./WorldView";
 import {
   createMonitorAnnotation,
-  createSignalPlotsSvg,
-  createWorldReplayWebm,
   downloadBlob,
-  svgToPng,
   timestampedName,
   webmExportSupported,
   type MonitorAnnotation,
-} from "./monitor-export";
+} from "./monitor-export-core";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
+import { PlotSampleHistory } from "./plot-sample-history";
 
 interface ConsoleEntry {
   id: string;
@@ -79,6 +77,7 @@ interface ConsoleEntry {
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
 const maximumPlotSamples = 1_200;
 const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
+const loadMonitorExport = () => import("./monitor-export");
 const emptyRuntimeState: RuntimeState = {
   revision: 0,
   parameters: [],
@@ -513,6 +512,16 @@ export function DashboardApp() {
   const [plotSamples, setPlotSamples] = useState<readonly TelemetrySample[]>(
     [],
   );
+  const plotSampleHistory = useMemo(
+    () =>
+      new PlotSampleHistory(
+        maximumPlotSamples,
+        setPlotSamples,
+        (callback) => window.requestAnimationFrame(callback),
+        (frameId) => window.cancelAnimationFrame(frameId),
+      ),
+    [],
+  );
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
   const [targetDetail, setTargetDetail] = useState("Not connected");
@@ -841,22 +850,7 @@ export function DashboardApp() {
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
         setSample(event.sample);
-        setPlotSamples((samples) => {
-          const previous = samples.at(-1);
-          if (
-            previous?.seq === event.sample.seq &&
-            previous.source === event.sample.source
-          ) {
-            return samples;
-          }
-          const retained =
-            previous &&
-            (event.sample.seq < previous.seq ||
-              event.sample.source !== previous.source)
-              ? []
-              : samples.slice(-(maximumPlotSamples - 1));
-          return [...retained, event.sample];
-        });
+        plotSampleHistory.append(event.sample);
         recorder.capture(event.sample);
         automaticRecorder.capture(event.sample);
         if (recorder.isRecording) {
@@ -944,7 +938,7 @@ export function DashboardApp() {
     targetStateRef.current = "connecting";
     setTargetState("connecting");
     setSample(null);
-    setPlotSamples([]);
+    plotSampleHistory.clear();
     annotationsRef.current = [];
     setAnnotations([]);
     currentProjectRef.current = null;
@@ -976,6 +970,7 @@ export function DashboardApp() {
         clearTimeout(timer);
       }
       runtimeUpdateTimers.current.clear();
+      plotSampleHistory.clear(false);
       target.disconnect();
     };
   }, [
@@ -983,6 +978,7 @@ export function DashboardApp() {
     automaticRecorder,
     beginTargetCommand,
     finishTargetCommand,
+    plotSampleHistory,
     recorder,
     target,
   ]);
@@ -1236,6 +1232,7 @@ export function DashboardApp() {
       );
       if (!destination) return;
       setExportDetail(`Preparing ${format.toUpperCase()}…`);
+      const { createSignalPlotsSvg, svgToPng } = await loadMonitorExport();
       const svg = createSignalPlotsSvg(
         plotSamples,
         visiblePlots,
@@ -1273,6 +1270,7 @@ export function DashboardApp() {
       );
       if (!destination) return;
       setExportDetail("Preparing world replay…");
+      const { createWorldReplayWebm } = await loadMonitorExport();
       let shownProgress = -1;
       const blob = await createWorldReplayWebm({
         samples,
@@ -1567,7 +1565,7 @@ export function DashboardApp() {
                     <h2 id="signal-controls-title">Plot signals</h2>
                     <button
                       disabled={plotSamples.length === 0}
-                      onClick={() => setPlotSamples([])}
+                      onClick={() => plotSampleHistory.clear()}
                       title="Clear the visible signal history. New samples continue plotting."
                     >
                       Clear plots
