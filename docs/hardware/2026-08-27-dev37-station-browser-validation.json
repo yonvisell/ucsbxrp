@@ -1,0 +1,44 @@
+{
+  "date": "2026-08-27",
+  "sourceCommit": "073d888",
+  "courseRelease": "2026.08-dev.37",
+  "robot": {
+    "address": "192.168.7.25",
+    "robotId": "4c91fae8f1775aa4",
+    "bootId": "7455cf3f638b",
+    "runtimeReleaseSequence": 37,
+    "runtimeGeneration": 18,
+    "network": {
+      "mode": "station",
+      "ssid": "Pink",
+      "addressMode": "dhcp"
+    }
+  },
+  "commissioning": {
+    "browser": "Chrome Profile 3 with Web Serial",
+    "initialUpdate": "Installed and verified release 2026.08-dev.37, then handed the verified Pink endpoint to the IDE.",
+    "idempotentRepair": "Verified 0 changed and 28 unchanged files, restarted the XRP, paused for the explicit computer-network check, verified the robot identity on Pink, and opened the IDE.",
+    "workingFolder": "The diagnostic continued without a Working folder; the wizard explained that project storage remains available later in the IDE."
+  },
+  "browserWorkflow": {
+    "result": "pass",
+    "command": "COURSE_PREVIEW_PORT=4174 COURSE_REUSE_PREVIEW=1 XRP_ADDRESS=192.168.7.25 XRP_E2E_PHYSICAL=1 XRP_E2E_MOTION=raised_wheels npx playwright test tests/e2e/physical-hardware.spec.ts --project=stable-chrome --reporter=line",
+    "elapsedSeconds": 33.0,
+    "verified": [
+      "IDE and Monitor shared physical readiness, run state, project state, output, and telemetry",
+      "Run from Monitor used the exact current IDE project",
+      "creating a file immediately made the prior robot project visibly stale",
+      "Run from either app validated and prepared the current project before starting",
+      "Stop and Reset worked across the two applications without rebooting the controller",
+      "a bounded raised-wheel run changed both encoders and both wheel distances",
+      "range, motor supply, IMU temperature, estimated pose, path, plots, and retained logs were populated",
+      "final left and right drive effort returned to zero",
+      "the Expanding spiral project was restored at cleanup"
+    ]
+  },
+  "correctionQualifiedByThisRun": {
+    "issue": "Telemetry could report the old robot digest immediately after an IDE file edit and make Monitor appear ready for obsolete code.",
+    "resolution": "Pending IDE revisions now have a distinct identity until Prepare replaces them with the robot content digest.",
+    "regression": "A direct-target polling test and the complete physical two-window workflow both passed."
+  }
+}

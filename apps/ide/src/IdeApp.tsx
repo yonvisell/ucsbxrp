@@ -240,10 +240,6 @@ const contextHelpByFilename: Record<string, { href: string; label: string }> = {
     href: "../reference/#project-loop",
     label: "Measured program loop",
   },
-  "course_setup.py": {
-    href: "../reference/#student-components",
-    label: "Component selection reference",
-  },
   "component_checks.py": {
     href: "../guide/#components",
     label: "Component check guide",

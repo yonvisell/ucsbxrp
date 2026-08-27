@@ -9,8 +9,8 @@ history; they are not parallel plans. Detailed validation belongs in
 ## Current baseline
 
 - Browser source: current repository `HEAD` plus the active integrated stage.
-- Attached XRP: physically qualified on `2026.08-dev.36`, generation 17, from
-  source commit `5d217ed`.
+- Attached XRP: physically qualified on `2026.08-dev.37`, generation 18, from
+  source commit `073d888`.
 - Current course bundle: `2026.08-dev.37`; it accepts compatible robot runtimes
   from generation 36 onward, so application and course-material revisions do
   not force an unnecessary robot repair.
@@ -27,9 +27,10 @@ history; they are not parallel plans. Detailed validation belongs in
 - The IDE and Monitor share the exact current project, run state, program
   output, telemetry history, runtime controls, and robot identity. A fresh
   Monitor can run the default virtual project.
-- Expanding Spiral and the physical command path have raised-wheel evidence for
-  Run, Stop, Reset, rerun, motor effort, encoders, wheel distance, sensor data,
-  pose, plots, logs, and final zero drive on dev.36.
+- Expanding Spiral and the physical command path have current-release,
+  raised-wheel evidence for Run, Stop, Reset, rerun, project edits, motor
+  effort, encoders, wheel distance, sensor data, pose, plots, logs, and final
+  zero drive on dev.37.
 - The four active tutorial projects cover Python fundamentals, Virtual XRP
   drawing, the sampled robot program, and behavior with telemetry. Each has
   student tasks and immediate checks rather than a shipped solution.
@@ -62,19 +63,19 @@ where a site may save without first explaining the Working-folder choice.
 
 The current real-window Chrome build fills both restored and expanded windows.
 Keep the output area as a compact drawer and continue to judge proportions and
-actual resizing, not only overflow tests. Add the application asset generation
-and course release to System/setup logs so a stale installed app or old server
-is immediately distinguishable without another visible status badge.
+actual resizing, not only overflow tests. System and setup logs identify the
+application build and course release without another visible status badge.
 
 ### 2. Current-release setup, repair, and robot operation
 
-Qualify the native Web Serial wizard on the current bundle: same-release repair
-with zero changed files, interrupted/cancelled retry, station setup on Pink,
-atomic IDE handoff, default Run/Stop/Reset/rerun, a second nontrivial project,
-shared IDE/Monitor state, telemetry, and complete logs. Then repeat one hotspot
-cycle with a custom SSID, explicit computer-Wi-Fi instruction, and return to an
-internet network. Earlier hotspot evidence is regression history, not proof of
-the current release.
+Current dev.37 native Web Serial setup and idempotent repair pass on Pink,
+including zero changed files, explicit network verification, robot-identity
+verification, atomic IDE handoff, two projects, Run/Stop/Reset/rerun, shared
+IDE/Monitor state, telemetry, and complete logs. Repeat one current-release
+hotspot cycle with a custom SSID, explicit computer-Wi-Fi instruction, offline
+reopening, and return to an internet network. Earlier hotspot evidence is
+regression history, not proof of the current release. Retain cancellation and
+retry coverage in the simulated commissioning suite.
 
 Station discovery also needs a robot-specific hostname or equivalent candidate
 derived from stable robot identity; a classroom full of `ucsb-xrp.local`
@@ -94,16 +95,7 @@ The existing visual world editor satisfies instructor world authoring. Reuse it
 inside the IDE for `world.json` only if students are expected to modify a world;
 retain readable JSON as the advanced representation.
 
-### 4. Instructor challenge creation
-
-Exercise the authoring tool with one new curriculum-appropriate challenge. The
-browser must produce an immediately usable unpublished project—preferably an
-Open draft in IDE action or a downloadable project archive—without requiring a
-repository checkout or Python CLI. Publication and catalog integration remain
-deliberate maintainer operations after virtual execution, telemetry review,
-and instructional review.
-
-### 5. Update behavior and release identity
+### 4. Update behavior and release identity
 
 The offline manifest already provides content-derived application identity;
 do not add another build-ID mechanism. Treat `release_sequence` as robot runtime
@@ -116,7 +108,7 @@ machinery.
 Future challenge-template corrections need template revision and base-content
 identity so the IDE can offer a correction without replacing student work.
 
-### 6. Focused refactor and measured performance
+### 5. Focused refactor and measured performance
 
 After the browser and robot journeys pass on one committed baseline, extract a
 single project-persistence controller from `IdeApp`. It should own the active

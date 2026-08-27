@@ -4,6 +4,24 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 67 qualifies the current dev.37 station workflow on the attached
+RP2350 XRP. Native Chrome Web Serial completed an idempotent repair with zero
+changed and 28 unchanged files, restarted the controller, paused for the
+explicit Pink network check, verified robot identity at `192.168.7.25`, and
+handed the verified endpoint to the IDE. The complete physical browser workflow
+then passed in 33.0 seconds: two-window project ownership, exact-project Run,
+file-edit invalidation, Validate/Prepare, Run/Stop/Reset/rerun, retained output
+and logs, raised-wheel motor effort, both encoders and wheel distances, range,
+motor supply, IMU temperature, estimated pose, plots, and final zero drive.
+
+That run exposed and closed one shared-state defect. A changed IDE project had
+reused the robot's old content digest, so the next telemetry poll could make
+Monitor appear ready for obsolete code. Pending IDE revisions now have a
+distinct identity until Prepare replaces it with the verified robot digest.
+The focused target/coordinator suite passes 64 tests, and the same edit →
+Monitor Run → Stop sequence passes on the physical XRP. Evidence is retained in
+`docs/hardware/2026-08-27-dev37-station-browser-validation.json`.
+
 Refinement 66 consolidates prior audits and current user observations into
 `docs/CURRENT_PRODUCT_OUTCOMES.md`, the only live product backlog. Historical
 requirements, red-team, architecture, and package-size documents remain as
