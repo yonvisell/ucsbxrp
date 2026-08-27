@@ -4,6 +4,19 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 59 makes both application shells follow the browser viewport rather
+than their content. The IDE Project rail now scrolls as one body, the editor and
+output tracks can shrink without clipping, and the compact two-row header starts
+before the physical-error controls collide. The Monitor world view absorbs
+unused height on tall narrow windows while each strip plot retains its fixed
+height; an open Controls drawer closes when a wide window becomes narrow.
+
+The production build passes 26 focused Stable Chrome workflows on the fixed
+`127.0.0.1:4174` origin. They include `820×400`, `1440×350`, wide-to-narrow,
+`700×1200`, phone-width, physical-error, navigation, recording, export, and
+physical reconnect/Stop/Reset states. No project, robot-runtime, or telemetry
+semantics changed in this slice.
+
 Refinement 58 closes the fixed-origin production and attached-hardware
 regression. The complete Stable Chrome suite passes 92 workflows on
 `127.0.0.1:4174`; only the deliberately opt-in motor-hardware case is skipped

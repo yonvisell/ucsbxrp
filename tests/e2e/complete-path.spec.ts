@@ -676,6 +676,65 @@ test("keeps project and output controls usable on a narrow screen", async ({
   expect(browserErrors).toEqual([]);
 });
 
+test("keeps the IDE reachable while a short window is resized", async ({
+  page: ide,
+}) => {
+  await ide.setViewportSize({ width: 820, height: 400 });
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  const verifyShell = async () => {
+    const geometry = await ide.evaluate(() => {
+      const rectangle = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) throw new Error(`Missing ${selector}`);
+        const box = element.getBoundingClientRect();
+        return { right: box.right, bottom: box.bottom };
+      };
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        shell: rectangle(".app-shell"),
+        workspace: rectangle(".ide-workspace"),
+        editor: rectangle(".editor-stack"),
+      };
+    });
+    expect(geometry.shell.right).toBeCloseTo(geometry.viewport.width, 0);
+    expect(geometry.shell.bottom).toBeCloseTo(geometry.viewport.height, 0);
+    expect(geometry.workspace.bottom).toBeCloseTo(geometry.viewport.height, 0);
+    expect(geometry.editor.bottom).toBeLessThanOrEqual(
+      geometry.viewport.height + 1,
+    );
+  };
+
+  await verifyShell();
+  const railBody = ide.locator(".project-rail-body");
+  await expect(railBody).toBeVisible();
+  await railBody.evaluate((element) =>
+    element.scrollTo(0, element.scrollHeight),
+  );
+  await expect(
+    ide.getByRole("button", { name: /Projects folder/ }),
+  ).toBeInViewport();
+
+  await ide.getByRole("button", { name: "Expand output" }).click();
+  await expect(
+    ide.getByRole("button", { name: "Collapse output" }),
+  ).toBeVisible();
+  await verifyShell();
+
+  await ide.setViewportSize({ width: 1440, height: 350 });
+  await verifyShell();
+  await expect(ide.locator(".editor-frame")).toBeVisible();
+  await expect(
+    ide.getByRole("button", { name: "Collapse output" }),
+  ).toBeInViewport();
+
+  await ide.setViewportSize({ width: 820, height: 700 });
+  await verifyShell();
+});
+
 test("collapses an open project drawer when the IDE becomes narrow", async ({
   page: ide,
 }) => {

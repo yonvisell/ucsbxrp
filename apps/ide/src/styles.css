@@ -1,5 +1,7 @@
 .ide-app {
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -8,10 +10,12 @@
 }
 
 .ide-workspace {
+  position: relative;
   display: grid;
   min-height: 0;
   grid-template-columns: 188px minmax(0, 1fr);
   gap: 0;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -28,6 +32,16 @@
   border-radius: 0;
   background: var(--panel);
   box-shadow: none;
+}
+
+.project-rail-body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .project-heading {
@@ -168,8 +182,8 @@
 }
 
 .file-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 0 96px;
+  min-height: 96px;
   overflow: auto;
 }
 
@@ -378,13 +392,14 @@
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: minmax(300px, 1fr) 136px;
+  grid-template-rows: minmax(0, 1fr) clamp(84px, 18dvh, 136px);
   gap: 0;
   border-right: var(--pane-divider-width) solid var(--pane-line);
+  overflow: hidden;
 }
 
 .editor-stack.output-collapsed {
-  grid-template-rows: minmax(300px, 1fr) 26px;
+  grid-template-rows: minmax(0, 1fr) 26px;
 }
 
 .editor-panel {
@@ -1028,7 +1043,6 @@
 
 @media (max-width: 1080px) {
   .ide-app {
-    height: 100vh;
     overflow: hidden;
   }
 
@@ -1043,9 +1057,9 @@
   }
 
   .project-rail {
-    position: fixed;
+    position: absolute;
     z-index: 12;
-    top: var(--app-header-height);
+    top: 0;
     bottom: 0;
     left: 0;
     display: flex;
@@ -1055,11 +1069,11 @@
 
   .editor-stack {
     min-height: 0;
-    grid-template-rows: minmax(300px, 1fr) 150px;
+    grid-template-rows: minmax(0, 1fr) clamp(84px, 22dvh, 150px);
   }
 
   .editor-stack.output-collapsed {
-    grid-template-rows: minmax(300px, 1fr) 26px;
+    grid-template-rows: minmax(0, 1fr) 26px;
   }
 
   .status-grid {

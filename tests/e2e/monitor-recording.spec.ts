@@ -404,6 +404,44 @@ test("keeps the Monitor compact and operable at laptop-narrow width", async ({
   await expect(page.getByTestId("world-view")).toBeVisible();
 });
 
+test("uses tall narrow space and closes wide controls after a live resize", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await page.goto("/monitor/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(
+    page.getByRole("button", { name: "Collapse monitor controls" }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 700, height: 1200 });
+  await expect(
+    page.getByRole("button", { name: "Open monitor controls" }),
+  ).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const rectangle = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      const box = element.getBoundingClientRect();
+      return { bottom: box.bottom, height: box.height };
+    };
+    return {
+      viewportHeight: innerHeight,
+      workspace: rectangle(".monitor-workspace"),
+      dashboard: rectangle(".dashboard-grid"),
+      world: rectangle(".world-panel"),
+      plots: rectangle(".plots-panel"),
+    };
+  });
+  expect(geometry.workspace.bottom).toBeCloseTo(geometry.viewportHeight, 0);
+  expect(geometry.dashboard.bottom).toBeCloseTo(geometry.viewportHeight, 0);
+  expect(geometry.world.height).toBeGreaterThan(300);
+  expect(geometry.plots.bottom).toBeCloseTo(geometry.viewportHeight, 0);
+});
+
 test("keeps every header command reachable without hidden scrolling at phone width", async ({
   page,
 }) => {

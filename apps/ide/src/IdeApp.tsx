@@ -2714,323 +2714,327 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                 ‹
               </button>
             </div>
-            <div className="project-root" title={projectStorageDetail}>
-              <strong data-testid="project-name">{project.name}</strong>
-              <span className="project-location" data-testid="project-folder">
-                {workingFolder ? `./${workingFolder.name}` : "Browser draft"}
-              </span>
-              <small
-                className="project-save-state"
-                data-testid="project-save-state"
-              >
-                {projectStorageSummary}
-              </small>
-              {!workingFolder ? (
-                <div className="project-root-actions">
-                  <button
-                    disabled={!supportsWorkingFolders()}
-                    onClick={() => void saveProjectFiles()}
-                    title={`Create a named project folder for ${project.name}.`}
-                  >
-                    Save as project…
-                  </button>
-                  {rememberedFolder && rememberedFolderCanAttach ? (
+            <div className="project-rail-body">
+              <div className="project-root" title={projectStorageDetail}>
+                <strong data-testid="project-name">{project.name}</strong>
+                <span className="project-location" data-testid="project-folder">
+                  {workingFolder ? `./${workingFolder.name}` : "Browser draft"}
+                </span>
+                <small
+                  className="project-save-state"
+                  data-testid="project-save-state"
+                >
+                  {projectStorageSummary}
+                </small>
+                {!workingFolder ? (
+                  <div className="project-root-actions">
                     <button
-                      onClick={reconnectWorkingFolder}
-                      title={`Restore write access to ${rememberedFolder.name}.`}
+                      disabled={!supportsWorkingFolders()}
+                      onClick={() => void saveProjectFiles()}
+                      title={`Create a named project folder for ${project.name}.`}
                     >
-                      Reconnect…
+                      Save as project…
                     </button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-            <div
-              className={`project-owner-state ${projectProviderActive ? "active" : "standby"}`}
-              data-testid="project-owner-state"
-              role="status"
-            >
-              <span>
-                {projectProviderActive
-                  ? "Active project for Run and Monitor"
-                  : projectProviderAvailable
-                    ? "Another IDE tab controls Run and Monitor"
-                    : "No active IDE project"}
-              </span>
-              {!projectProviderActive ? (
-                <button
-                  disabled={!isConnected}
-                  onClick={useThisProjectForRun}
-                  title="Use this tab's current project for the next IDE or Monitor Run."
-                >
-                  Use this project
-                </button>
-              ) : null}
-            </div>
-            <div className="file-list">
-              {projectFiles.map((path) => (
-                <button
-                  aria-label={`Open ${path}${
-                    path === project.entrypoint ? " (main file)" : ""
-                  }`}
-                  aria-current={path === activePath ? "true" : undefined}
-                  className={`file-row ${path === activePath ? "active" : ""}`}
-                  key={path}
-                  onClick={() => openFile(path)}
-                  title={`Open ${path}.`}
-                  type="button"
-                >
-                  <span className="file-path">{path}</span>
-                  {path === project.entrypoint ? (
-                    <span className="startup-badge">main</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-            <div className="project-controls">
-              <div className="project-actions">
-                <button
-                  aria-label="Open project…"
-                  className="open-folder-button"
-                  disabled={!supportsWorkingFolders()}
-                  onClick={openWorkingFolder}
-                  title="Open an existing UCSBXRP project folder. If the current browser project has unsaved work, it can be reopened below."
-                >
-                  Open…
-                </button>
-                <button
-                  aria-label="New file…"
-                  onClick={() => {
-                    setNewFileOpen(true);
-                    setNewFileError("");
-                  }}
-                  title="Create a new text file inside this project."
-                >
-                  New file…
-                </button>
-                <button
-                  aria-label="Add files…"
-                  onClick={() => {
-                    beginFolderInteraction();
-                    importInputRef.current?.click();
-                  }}
-                  title="Add copies of one or more text files to this project. Existing files are not overwritten."
-                >
-                  Add files…
-                </button>
-                <input
-                  accept=".csv,.ini,.json,.md,.py,.toml,.txt,.yaml,.yml,text/*"
-                  hidden
-                  multiple
-                  onChange={(event) => {
-                    void importProjectFiles(event).finally(
-                      finishFolderInteraction,
-                    );
-                  }}
-                  ref={importInputRef}
-                  type="file"
-                />
-              </div>
-              <div className="file-menu" ref={fileActionsRef}>
-                <button
-                  aria-expanded={fileActionsOpen}
-                  className="file-menu-trigger"
-                  onClick={() => setFileActionsOpen((open) => !open)}
-                  title={`Rename, duplicate, make main, or delete ${activePath}.`}
-                >
-                  <span>File</span>
-                  <strong>{activePath.split("/").at(-1)}</strong>
-                  <span aria-hidden="true">{fileActionsOpen ? "▴" : "▾"}</span>
-                </button>
-                {fileActionsOpen ? (
-                  <div
-                    className="file-actions"
-                    aria-label={`Actions for ${activePath}`}
-                  >
-                    <button
-                      onClick={() => {
-                        setFileActionsOpen(false);
-                        beginPathOperation("rename");
-                      }}
-                      title={`Rename ${activePath}.`}
-                    >
-                      Rename file…
-                    </button>
-                    <button
-                      onClick={() => {
-                        setFileActionsOpen(false);
-                        beginPathOperation("duplicate");
-                      }}
-                      title={`Create a second editable copy of ${activePath}.`}
-                    >
-                      Duplicate file…
-                    </button>
-                    <button
-                      disabled={
-                        activePath === project.entrypoint ||
-                        !activePath.endsWith(".py")
-                      }
-                      onClick={() => {
-                        setFileActionsOpen(false);
-                        useActiveFileAsEntrypoint();
-                      }}
-                      title={
-                        !activePath.endsWith(".py")
-                          ? "Only a Python file can be the main file"
-                          : activePath === project.entrypoint
-                            ? "Run already executes this file first"
-                            : `Make ${activePath} the file Run executes first`
-                      }
-                    >
-                      Make main
-                    </button>
-                    <button
-                      className="danger-button"
-                      disabled={!canDeleteActiveFile}
-                      onClick={() => {
-                        setFileActionsOpen(false);
-                        setDeletePath(activePath);
-                      }}
-                      title={
-                        canDeleteActiveFile
-                          ? `Delete ${activePath} from the project`
-                          : activePath === project.entrypoint
-                            ? "Choose another Python file as main before deleting this file"
-                            : "A project must contain at least one file"
-                      }
-                    >
-                      Delete file…
-                    </button>
+                    {rememberedFolder && rememberedFolderCanAttach ? (
+                      <button
+                        onClick={reconnectWorkingFolder}
+                        title={`Restore write access to ${rememberedFolder.name}.`}
+                      >
+                        Reconnect…
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
-              {"component_checks.py" in project.files ? (
-                <button
-                  className="component-check-button"
-                  disabled={componentCheckRunning}
-                  onClick={() => void testComponents()}
-                  title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
-                >
-                  {componentCheckRunning
-                    ? "Testing components…"
-                    : "Test components"}
-                </button>
-              ) : null}
-              {followingChallenge ? (
-                <button
-                  className="next-challenge-button"
-                  onClick={() => void startNextChallenge()}
-                  title={`Continue in a separate ${followingChallenge.label} project. Copies ${followingChallengeCarriedFiles.join(", ")} from this project; this project remains unchanged.`}
-                >
-                  Continue to {followingChallenge.label}…
-                </button>
-              ) : null}
-              <div className="template-control">
-                <span>New project from template</span>
-                <div className="template-actions">
-                  <select
-                    aria-label="Project template"
-                    onChange={(event) =>
-                      setSelectedTemplateId(event.target.value)
-                    }
-                    title="Choose a complete challenge, demo, or tutorial project."
-                    value={selectedTemplateId}
-                  >
-                    <option disabled value="">
-                      Choose template…
-                    </option>
-                    {templateGroups.map((group) => (
-                      <optgroup key={group.kind} label={group.label}>
-                        {COURSE_PROJECT_TEMPLATES.filter(
-                          (template) => template.kind === group.kind,
-                        ).map((template) => (
-                          <option key={template.id} value={template.id}>
-                            {template.shortLabel}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+              <div
+                className={`project-owner-state ${projectProviderActive ? "active" : "standby"}`}
+                data-testid="project-owner-state"
+                role="status"
+              >
+                <span>
+                  {projectProviderActive
+                    ? "Active project for Run and Monitor"
+                    : projectProviderAvailable
+                      ? "Another IDE tab controls Run and Monitor"
+                      : "No active IDE project"}
+                </span>
+                {!projectProviderActive ? (
                   <button
-                    aria-label="Create new project…"
-                    disabled={!selectedTemplateId}
-                    onClick={loadProjectTemplate}
-                    title="Create a new editable project from this template."
+                    disabled={!isConnected}
+                    onClick={useThisProjectForRun}
+                    title="Use this tab's current project for the next IDE or Monitor Run."
                   >
-                    Create…
+                    Use this project
+                  </button>
+                ) : null}
+              </div>
+              <div className="file-list">
+                {projectFiles.map((path) => (
+                  <button
+                    aria-label={`Open ${path}${
+                      path === project.entrypoint ? " (main file)" : ""
+                    }`}
+                    aria-current={path === activePath ? "true" : undefined}
+                    className={`file-row ${path === activePath ? "active" : ""}`}
+                    key={path}
+                    onClick={() => openFile(path)}
+                    title={`Open ${path}.`}
+                    type="button"
+                  >
+                    <span className="file-path">{path}</span>
+                    {path === project.entrypoint ? (
+                      <span className="startup-badge">main</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+              <div className="project-controls">
+                <div className="project-actions">
+                  <button
+                    aria-label="Open project…"
+                    className="open-folder-button"
+                    disabled={!supportsWorkingFolders()}
+                    onClick={openWorkingFolder}
+                    title="Open an existing UCSBXRP project folder. If the current browser project has unsaved work, it can be reopened below."
+                  >
+                    Open…
+                  </button>
+                  <button
+                    aria-label="New file…"
+                    onClick={() => {
+                      setNewFileOpen(true);
+                      setNewFileError("");
+                    }}
+                    title="Create a new text file inside this project."
+                  >
+                    New file…
+                  </button>
+                  <button
+                    aria-label="Add files…"
+                    onClick={() => {
+                      beginFolderInteraction();
+                      importInputRef.current?.click();
+                    }}
+                    title="Add copies of one or more text files to this project. Existing files are not overwritten."
+                  >
+                    Add files…
+                  </button>
+                  <input
+                    accept=".csv,.ini,.json,.md,.py,.toml,.txt,.yaml,.yml,text/*"
+                    hidden
+                    multiple
+                    onChange={(event) => {
+                      void importProjectFiles(event).finally(
+                        finishFolderInteraction,
+                      );
+                    }}
+                    ref={importInputRef}
+                    type="file"
+                  />
+                </div>
+                <div className="file-menu" ref={fileActionsRef}>
+                  <button
+                    aria-expanded={fileActionsOpen}
+                    className="file-menu-trigger"
+                    onClick={() => setFileActionsOpen((open) => !open)}
+                    title={`Rename, duplicate, make main, or delete ${activePath}.`}
+                  >
+                    <span>File</span>
+                    <strong>{activePath.split("/").at(-1)}</strong>
+                    <span aria-hidden="true">
+                      {fileActionsOpen ? "▴" : "▾"}
+                    </span>
+                  </button>
+                  {fileActionsOpen ? (
+                    <div
+                      className="file-actions"
+                      aria-label={`Actions for ${activePath}`}
+                    >
+                      <button
+                        onClick={() => {
+                          setFileActionsOpen(false);
+                          beginPathOperation("rename");
+                        }}
+                        title={`Rename ${activePath}.`}
+                      >
+                        Rename file…
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFileActionsOpen(false);
+                          beginPathOperation("duplicate");
+                        }}
+                        title={`Create a second editable copy of ${activePath}.`}
+                      >
+                        Duplicate file…
+                      </button>
+                      <button
+                        disabled={
+                          activePath === project.entrypoint ||
+                          !activePath.endsWith(".py")
+                        }
+                        onClick={() => {
+                          setFileActionsOpen(false);
+                          useActiveFileAsEntrypoint();
+                        }}
+                        title={
+                          !activePath.endsWith(".py")
+                            ? "Only a Python file can be the main file"
+                            : activePath === project.entrypoint
+                              ? "Run already executes this file first"
+                              : `Make ${activePath} the file Run executes first`
+                        }
+                      >
+                        Make main
+                      </button>
+                      <button
+                        className="danger-button"
+                        disabled={!canDeleteActiveFile}
+                        onClick={() => {
+                          setFileActionsOpen(false);
+                          setDeletePath(activePath);
+                        }}
+                        title={
+                          canDeleteActiveFile
+                            ? `Delete ${activePath} from the project`
+                            : activePath === project.entrypoint
+                              ? "Choose another Python file as main before deleting this file"
+                              : "A project must contain at least one file"
+                        }
+                      >
+                        Delete file…
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                {"component_checks.py" in project.files ? (
+                  <button
+                    className="component-check-button"
+                    disabled={componentCheckRunning}
+                    onClick={() => void testComponents()}
+                    title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
+                  >
+                    {componentCheckRunning
+                      ? "Testing components…"
+                      : "Test components"}
+                  </button>
+                ) : null}
+                {followingChallenge ? (
+                  <button
+                    className="next-challenge-button"
+                    onClick={() => void startNextChallenge()}
+                    title={`Continue in a separate ${followingChallenge.label} project. Copies ${followingChallengeCarriedFiles.join(", ")} from this project; this project remains unchanged.`}
+                  >
+                    Continue to {followingChallenge.label}…
+                  </button>
+                ) : null}
+                <div className="template-control">
+                  <span>New project from template</span>
+                  <div className="template-actions">
+                    <select
+                      aria-label="Project template"
+                      onChange={(event) =>
+                        setSelectedTemplateId(event.target.value)
+                      }
+                      title="Choose a complete challenge, demo, or tutorial project."
+                      value={selectedTemplateId}
+                    >
+                      <option disabled value="">
+                        Choose template…
+                      </option>
+                      {templateGroups.map((group) => (
+                        <optgroup key={group.kind} label={group.label}>
+                          {COURSE_PROJECT_TEMPLATES.filter(
+                            (template) => template.kind === group.kind,
+                          ).map((template) => (
+                            <option key={template.id} value={template.id}>
+                              {template.shortLabel}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <button
+                      aria-label="Create new project…"
+                      disabled={!selectedTemplateId}
+                      onClick={loadProjectTemplate}
+                      title="Create a new editable project from this template."
+                    >
+                      Create…
+                    </button>
+                  </div>
+                </div>
+                {preservedBrowserDraft ||
+                projectFolderConflict ||
+                operationDetail ? (
+                  <div className="project-feedback">
+                    {preservedBrowserDraft ? (
+                      <button
+                        className="folder-reconnect"
+                        disabled={
+                          folderDirty ||
+                          folderSaveState === "saving" ||
+                          projectFolderConflict !== null
+                        }
+                        onClick={() => void reopenPreviousBrowserDraft()}
+                        title={`Open the previous browser draft ${preservedBrowserDraft.name}. The current folder-backed project remains on disk.`}
+                      >
+                        Open previous draft · {preservedBrowserDraft.name}
+                      </button>
+                    ) : null}
+                    {projectFolderConflict ? (
+                      <div
+                        aria-live="polite"
+                        className="project-folder-conflict"
+                        role="alert"
+                      >
+                        <small>
+                          The folder changed outside UCSBXRP. Choose which files
+                          to keep. Neither version has been overwritten.
+                        </small>
+                        <div>
+                          <button
+                            onClick={useFolderConflictFiles}
+                            title="Open the files currently in the project folder. The current IDE draft will be available as Previous draft below."
+                          >
+                            Use folder files
+                          </button>
+                          <button
+                            onClick={keepIdeConflictFiles}
+                            title="Write the IDE files to the project folder and retain the previous folder files in autosaves."
+                          >
+                            Keep IDE files
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <small
+                        aria-live="polite"
+                        className="project-operation-detail"
+                        title={operationDetail}
+                      >
+                        {operationDetail}
+                      </small>
+                    )}
+                  </div>
+                ) : null}
+                <div className="project-storage">
+                  <span>Projects folder</span>
+                  <strong>{projectsFolderName ?? "Not selected"}</strong>
+                  <small className="project-storage-status">
+                    Default location for new projects
+                  </small>
+                  <button
+                    className="folder-reconnect"
+                    disabled={!supportsWorkingFolders()}
+                    onClick={selectWorkspaceFolder}
+                    title="Choose the default Projects folder for new projects. The current project stays in its present folder."
+                  >
+                    {projectsFolderName
+                      ? "Change Projects folder…"
+                      : "Choose Projects folder…"}
                   </button>
                 </div>
-              </div>
-              {preservedBrowserDraft ||
-              projectFolderConflict ||
-              operationDetail ? (
-                <div className="project-feedback">
-                  {preservedBrowserDraft ? (
-                    <button
-                      className="folder-reconnect"
-                      disabled={
-                        folderDirty ||
-                        folderSaveState === "saving" ||
-                        projectFolderConflict !== null
-                      }
-                      onClick={() => void reopenPreviousBrowserDraft()}
-                      title={`Open the previous browser draft ${preservedBrowserDraft.name}. The current folder-backed project remains on disk.`}
-                    >
-                      Open previous draft · {preservedBrowserDraft.name}
-                    </button>
-                  ) : null}
-                  {projectFolderConflict ? (
-                    <div
-                      aria-live="polite"
-                      className="project-folder-conflict"
-                      role="alert"
-                    >
-                      <small>
-                        The folder changed outside UCSBXRP. Choose which files
-                        to keep. Neither version has been overwritten.
-                      </small>
-                      <div>
-                        <button
-                          onClick={useFolderConflictFiles}
-                          title="Open the files currently in the project folder. The current IDE draft will be available as Previous draft below."
-                        >
-                          Use folder files
-                        </button>
-                        <button
-                          onClick={keepIdeConflictFiles}
-                          title="Write the IDE files to the project folder and retain the previous folder files in autosaves."
-                        >
-                          Keep IDE files
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <small
-                      aria-live="polite"
-                      className="project-operation-detail"
-                      title={operationDetail}
-                    >
-                      {operationDetail}
-                    </small>
-                  )}
-                </div>
-              ) : null}
-              <div className="project-storage">
-                <span>Projects folder</span>
-                <strong>{projectsFolderName ?? "Not selected"}</strong>
-                <small className="project-storage-status">
-                  Default location for new projects
-                </small>
-                <button
-                  className="folder-reconnect"
-                  disabled={!supportsWorkingFolders()}
-                  onClick={selectWorkspaceFolder}
-                  title="Choose the default Projects folder for new projects. The current project stays in its present folder."
-                >
-                  {projectsFolderName
-                    ? "Change Projects folder…"
-                    : "Choose Projects folder…"}
-                </button>
               </div>
             </div>
           </aside>

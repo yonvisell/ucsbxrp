@@ -485,6 +485,17 @@ export function DashboardApp() {
     document.addEventListener("pointerdown", closeOverlay);
     return () => document.removeEventListener("pointerdown", closeOverlay);
   }, [controlsOpen]);
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const narrowLayout = window.matchMedia("(max-width: 900px)");
+    const closeControlsOnNarrowLayout = (event: MediaQueryListEvent) => {
+      if (event.matches) setControlsOpen(false);
+    };
+    narrowLayout.addEventListener("change", closeControlsOnNarrowLayout);
+    return () =>
+      narrowLayout.removeEventListener("change", closeControlsOnNarrowLayout);
+  }, []);
   const target = useMemo<TargetClient>(() => {
     if (targetPreference.kind !== "physical") return new VirtualTargetClient();
     const endpoints = physicalEndpointCandidates(targetPreference);

@@ -167,6 +167,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
     );
   }, mockXrpEndpoint);
 
+  await ide.setViewportSize({ width: 850, height: 752 });
   await ide.goto("/ide/");
   await expect(
     ide.getByRole("combobox", { name: "Project template" }),
@@ -186,6 +187,22 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
     ide.getByRole("button", { name: "Run", exact: true }),
   ).toBeDisabled();
   await expect(ide.getByRole("button", { name: "Reset" })).toBeDisabled();
+
+  const [toolbarBox, statusBox] = await Promise.all([
+    ide.locator(".toolbar").boundingBox(),
+    ide.locator(".header-statuses").boundingBox(),
+  ]);
+  const overlapWidth =
+    Math.min(
+      (toolbarBox?.x ?? 0) + (toolbarBox?.width ?? 0),
+      (statusBox?.x ?? 0) + (statusBox?.width ?? 0),
+    ) - Math.max(toolbarBox?.x ?? 0, statusBox?.x ?? 0);
+  const overlapHeight =
+    Math.min(
+      (toolbarBox?.y ?? 0) + (toolbarBox?.height ?? 0),
+      (statusBox?.y ?? 0) + (statusBox?.height ?? 0),
+    ) - Math.max(toolbarBox?.y ?? 0, statusBox?.y ?? 0);
+  expect(overlapWidth <= 0.5 || overlapHeight <= 0.5).toBe(true);
 
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
