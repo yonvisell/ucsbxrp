@@ -132,10 +132,18 @@ WheelSpeedController* --------- left/right motor commands
    and stops.
 6. Record a virtual run and compare final mean wheel travel with
    `TRAVEL_DISTANCE_MM`; compare elapsed time with `TARGET_TIME_S`.
-7. Raise and secure the physical XRP for the first bounded motor check. After
-   signs and zero commands are correct, place it in a clear lane, run the same
-   project, and record distance, time, requested speed, measured speed, and
-   motor command.
+7. Put the physical XRP on a stable stand with both wheels clear. Select **Run**
+   and verify that both wheels turn forward, then select **Stop** and verify that
+   both wheels stop.
+8. Place the XRP at the marked start of a clear lane. Run the same project and
+   record distance, time, requested speed, measured speed, and motor command.
+
+After both student components work in Challenge 1, select **Start Challenge 2 ·
+Turn and Return** in the IDE. The IDE creates a separate Challenge 2 project,
+copies `sensor_model.py` and `wheel_speed_controller.py`, and retains the current
+values of `USE_STUDENT_SENSOR_MODEL` and
+`USE_STUDENT_WHEEL_SPEED_CONTROLLER`. The Challenge 1 project remains
+unchanged.
 
 The `finally` block in `main.py` commands zero drive after completion or an
 exception. Do not remove it.

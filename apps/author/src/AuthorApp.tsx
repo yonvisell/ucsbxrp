@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import authoringInstructionsUrl from "../../../docs/INSTRUCTOR_CHALLENGE_AUTHORING.md?url";
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
 import { AppNavigation } from "../../shared/AppNavigation";
 import {
@@ -264,13 +265,13 @@ export function AuthorApp() {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
-    setMessage(`${filename} downloaded. Keep it with the course repository.`);
+    setMessage(`${filename} downloaded. No repository files were changed.`);
   }
 
   async function copyCommand() {
     try {
       await navigator.clipboard.writeText(command);
-      setMessage("Creation command copied.");
+      setMessage("Repository creation command copied.");
     } catch {
       setMessage("Copy was unavailable. Select the displayed command instead.");
     }
@@ -291,12 +292,12 @@ export function AuthorApp() {
       <header className="author-header">
         <div>
           <p className="eyebrow">Instructor tool</p>
-          <h1>UCSBXRP challenge creation</h1>
+          <h1>UCSBXRP challenge specification editor</h1>
           <p>
-            Define a complete, reviewable challenge specification. The
-            repository command copies the selected challenge structure, creates
-            an unpublished draft, and checks its files before it can enter the
-            student catalog.
+            Create and check a challenge specification, then download it as
+            JSON. This page does not modify the repository or student catalog.
+            Repository integration, project testing, review, and publication are
+            separate instructor steps.
           </p>
         </div>
         <AppNavigation />
@@ -328,8 +329,8 @@ export function AuthorApp() {
           <h2 id="structure-heading">Select an existing program structure</h2>
           <p>
             Choose the published challenge whose control flow is closest to the
-            new task. The tool copies that complete project; it does not combine
-            unrelated challenge implementations.
+            new task. The later repository command copies that complete project;
+            it does not combine unrelated challenge implementations.
           </p>
           <div className="field-grid">
             <label>
@@ -606,7 +607,7 @@ export function AuthorApp() {
       <section className="author-section" aria-labelledby="review-heading">
         <div className="section-number">4</div>
         <div>
-          <h2 id="review-heading">Validate and create the draft</h2>
+          <h2 id="review-heading">Check and download the specification</h2>
           <div
             className={
               currentSpec.errors.length === 0 ? "review-ok" : "review-errors"
@@ -615,8 +616,8 @@ export function AuthorApp() {
           >
             {currentSpec.errors.length === 0 ? (
               <p>
-                Specification complete. The repository performs the final file
-                checks.
+                Specification checks pass. No repository files have been created
+                or checked.
               </p>
             ) : (
               <>
@@ -636,7 +637,7 @@ export function AuthorApp() {
               title={
                 currentSpec.errors.length > 0
                   ? "Resolve the listed specification errors before downloading"
-                  : "Download this checked authoring specification"
+                  : "Download this checked challenge specification"
               }
               type="button"
               onClick={download}
@@ -644,14 +645,22 @@ export function AuthorApp() {
               Download checked specification
             </button>
             <button type="button" onClick={copyCommand}>
-              Copy creation command
+              Copy repository command
             </button>
             <code>{command}</code>
           </div>
+          <nav
+            aria-label="Challenge authoring references"
+            className="author-reference-links"
+          >
+            <a href={authoringInstructionsUrl}>Authoring instructions</a>
+            <a href="../overview/#authoring">Technical overview</a>
+          </nav>
           <p className="field-help">
-            Run the command from the UCSBXRP repository. It creates an
-            unpublished folder under vendor/current/starters, writes the catalog
-            entry, and refuses publication until the project checks pass.
+            After downloading the JSON, an instructor may run this command from
+            the UCSBXRP repository. It creates an unpublished project and runs
+            repository checks. Review and test that project before using the
+            separate publication command described in Authoring instructions.
           </p>
           <p aria-live="polite" className="author-message">
             {message}

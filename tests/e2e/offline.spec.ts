@@ -189,9 +189,11 @@ test("reloads the complete production course shell without a network", async ({
     waitUntil: "domcontentloaded",
   });
   await expect(
-    author.getByRole("heading", { name: "UCSBXRP challenge creation" }),
+    author.getByRole("heading", {
+      name: "UCSBXRP challenge specification editor",
+    }),
   ).toBeVisible();
-  await expect(author.getByText("Specification complete.")).toBeVisible();
+  await expect(author.getByText("Specification checks pass.")).toBeVisible();
   await expectOfflineShellReady(author);
 
   const overview = await context.newPage();

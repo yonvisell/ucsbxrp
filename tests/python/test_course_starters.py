@@ -31,7 +31,7 @@ class CourseStarterTests(unittest.TestCase):
         lessons = sorted((TEMPLATES / "micropython_tutorial").glob("[1-7]_*.py"))
         self.assertEqual([path.name[0] for path in lessons], list("1234567"))
 
-    def test_tutorial_is_progressive_bounded_and_student_facing(self):
+    def test_tutorial_is_progressive_and_student_facing(self):
         tutorial = TEMPLATES / "micropython_tutorial"
         readme = (tutorial / "README.md").read_text(encoding="utf-8")
         for section in (
@@ -45,6 +45,10 @@ class CourseStarterTests(unittest.TestCase):
             self.assertIn(section, readme)
         for lesson_number in range(1, 8):
             self.assertIn("`{}_".format(lesson_number), readme)
+        self.assertIn(
+            "Open the **File** menu and select **Make main**",
+            readme,
+        )
 
         for lesson_number in range(3, 8):
             source = next(tutorial.glob("{}_*.py".format(lesson_number))).read_text(
@@ -414,6 +418,8 @@ class CourseStarterTests(unittest.TestCase):
 
     def test_student_facing_challenge_text_uses_direct_task_language(self):
         unclear_terms = (
+            "bounded course run procedure",
+            "bounded motor check",
             "contract",
             "frontier",
             "inverse kinematics",
@@ -421,6 +427,7 @@ class CourseStarterTests(unittest.TestCase):
             "predecessor",
             "recovery copy",
             "recovery-copy",
+            "safety tier",
             "task instance",
         )
         for directory in sorted(path for path in STARTERS.iterdir() if path.is_dir()):
@@ -432,6 +439,54 @@ class CourseStarterTests(unittest.TestCase):
             for term in unclear_terms:
                 with self.subTest(challenge=directory.name, term=term):
                     self.assertNotIn(term, student_text)
+
+    def test_challenge_progression_text_matches_the_catalog(self):
+        catalog = json.loads(
+            (ROOT / "vendor/current/project_catalog.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        challenges = {
+            entry["id"]: entry
+            for entry in catalog
+            if entry["kind"] == "challenge" and entry["published"]
+        }
+        for challenge_number in range(2, 6):
+            challenge_id = "challenge_%d" % challenge_number
+            entry = challenges[challenge_id]
+            readme = (STARTERS / challenge_id / "README.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("## Start this challenge", readme)
+            start_section = readme.split("## Start this challenge", 1)[1].split(
+                "\n## ", 1
+            )[0]
+            normalized = " ".join(start_section.split())
+            with self.subTest(challenge=challenge_id):
+                self.assertIn("Start " + entry["label"], normalized)
+                self.assertIn("separate project", normalized)
+                self.assertIn("folder remains unchanged", normalized)
+                for component in entry["components"]:
+                    self.assertIn("`%s`" % component["file"], start_section)
+                    self.assertIn(
+                        "`%s`" % component["selection_flag"],
+                        start_section,
+                    )
+                if any(
+                    not component["carry_forward"]
+                    for component in entry["components"]
+                ):
+                    self.assertRegex(normalized, r"flags? begins? as `False`")
+
+    def test_mapped_route_states_results_without_prescribing_search_algorithm(self):
+        readme = (STARTERS / "challenge_4" / "README.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("shortest", readme.lower())
+        self.assertNotIn("four-neighbor", readme.lower())
+        self.assertIn("connected route through free grid cells", readme)
+        self.assertIn("shares one horizontal or vertical side", readme)
+        self.assertIn("design choice", readme)
 
     def test_navigation_settings_are_named_and_show_units(self):
         expected_names = {

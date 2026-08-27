@@ -23,6 +23,18 @@ radians or `None`.
 Read these fields from `self.config`. Do not copy their current numerical values
 into `navigation_controller.py`.
 
+## Start this challenge
+
+Open your Challenge 2 project and select **Start Challenge 3 · Waypoint
+Courier**. The IDE creates a separate project and copies `sensor_model.py`,
+`wheel_speed_controller.py`, `differential_drive.py`, and `odometry.py`. It
+retains `USE_STUDENT_SENSOR_MODEL`, `USE_STUDENT_WHEEL_SPEED_CONTROLLER`,
+`USE_STUDENT_DIFFERENTIAL_DRIVE`, and `USE_STUDENT_ODOMETRY` from Challenge 2.
+Challenge 3 supplies a new `navigation_controller.py`; its
+`USE_STUDENT_NAVIGATION_CONTROLLER` flag begins as `False`. The task, world,
+main program, checks, and configuration come from Challenge 3, and the Challenge
+2 folder remains unchanged.
+
 ## Student implementations
 
 | File | Class | Responsibility |
@@ -97,8 +109,9 @@ active goal + turn/drive/align state + completion
 
 ## Work sequence
 
-1. Bring the checked classes from Challenges 1 and 2 into this project. Begin
-   with every `USE_STUDENT_*` flag `False`.
+1. Start Challenge 3 from the completed Challenge 2 project as described above.
+   Use the supplied NavigationController for the first run; carried components
+   retain their prior selections.
 2. Run the supplied route on the virtual XRP. Identify each waypoint in the
    world view and observe the turn, drive, approach, and final-alignment phases.
 3. Implement `NavigationController.start()`, `current_goal()`, and

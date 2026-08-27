@@ -239,8 +239,8 @@ Pose -----------------------------> NavigationController ------+
             </tbody>
           </table>
           <p>
-            Supplied services are <code>XRPBot</code>, <code>Robot</code>,
-            <code>StraightLineController</code>, <code>ArenaMap</code>,
+            Supplied services are <code>XRPBot</code>, <code>Robot</code>,{" "}
+            <code>StraightLineController</code>, <code>ArenaMap</code>,{" "}
             <code>OccupancyGrid</code>, and <code>DeliveryMission</code>. Their
             public behavior is defined by the API reference. Reference
             implementations are replaceable course source. Public interfaces and
@@ -460,18 +460,17 @@ Pose -----------------------------> NavigationController ------+
         <section id="authoring">
           <h2>Challenge authoring</h2>
           <p>
-            The <a href="../author/">challenge authoring tool</a> captures a
-            machine-readable specification: the closest existing program
-            structure, catalog identity, objective, assessed components,
-            supplied files, evidence, work sequence, world, and optional
-            complete file overrides. The downloaded JSON is retained with the
-            repository so an assignment can be reviewed independently of
-            generated files.
+            The <a href="../author/">challenge specification editor</a> checks
+            and downloads a machine-readable JSON specification: the closest
+            existing program structure, catalog identity, objective, assessed
+            components, supplied files, evidence, work sequence, world, and
+            optional complete file overrides. The browser does not create
+            repository files or publish a challenge.
           </p>
-          <CodeFlow>{`authoring specification
+          <CodeFlow>{`browser: check and download specification JSON
         |
         v
-challenge_authoring.py create --spec ...
+instructor: challenge_authoring.py create --spec ...
         |
         +-> copy a published, working challenge structure
         +-> generate README.md and world.json
@@ -480,18 +479,18 @@ challenge_authoring.py create --spec ...
         +-> run structural and Python checks
         |
         v
-virtual run + component fault checks + course test suite
+instructor: review files + virtual run + component fault checks + course tests
         |
         v
-challenge_authoring.py publish challenge_N`}</CodeFlow>
+instructor: challenge_authoring.py publish challenge_N`}</CodeFlow>
           <p>
-            Publication is an explicit state change. The tool rejects unresolved
-            author tasks, missing project files, malformed worlds, duplicate
-            world identifiers, unsafe override paths, Python syntax errors, and
-            incomplete README sections. Functional validation remains necessary:
-            run the supplied implementation, enable each assessed student
-            component independently, and verify that representative defects fail
-            the intended component check.
+            The create command makes an unpublished repository draft and checks
+            its structure, paths, Python syntax, world data, and required README
+            sections. The instructor then reviews the generated files, runs the
+            supplied implementation, enables each assessed student component
+            independently, and verifies that representative defects fail the
+            intended component check. Publication is a separate command after
+            those checks pass.
           </p>
         </section>
 
@@ -513,7 +512,7 @@ challenge_authoring.py publish challenge_N`}</CodeFlow>
             site data removes the cached application and any unsaved project
             data held by the site, not files in that folder.
           </p>
-          <h3>Required validation levels</h3>
+          <h3>Release checks</h3>
           <ol>
             <li>
               Python unit and challenge tests, including authoring checks.
@@ -531,9 +530,9 @@ challenge_authoring.py publish challenge_N`}</CodeFlow>
             </li>
           </ol>
           <p>
-            Test records distinguish simulator, browser, and physical evidence.
-            A virtual result does not establish physical timing, networking,
-            sensor, or motor behavior.
+            Record whether each result came from the simulator, browser, or
+            physical XRP. A virtual result does not establish physical timing,
+            networking, sensor, or motor behavior.
           </p>
         </section>
       </main>

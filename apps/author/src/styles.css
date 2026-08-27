@@ -3,8 +3,8 @@
   margin: 0 auto;
   padding: 1.5rem 0 3rem;
   color: var(--ink);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .author-header {
@@ -18,7 +18,7 @@
 
 .author-header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 32px;
   letter-spacing: -0.02em;
 }
 
@@ -26,6 +26,7 @@
   max-width: 680px;
   margin: 0.45rem 0 0;
   color: var(--muted);
+  font-size: 16px;
 }
 
 .author-header nav {
@@ -37,7 +38,7 @@
 
 .author-header a {
   color: var(--brand);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .author-actions {
@@ -55,7 +56,11 @@
   background: #eef0f2;
   color: var(--ink);
   cursor: pointer;
-  font-size: var(--font-sm);
+  font-size: 14px;
+}
+
+.author-actions button {
+  font-size: 14px;
 }
 
 .file-open-button:hover {
@@ -73,33 +78,34 @@
 
 .author-section {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 0.9rem;
   border-top: 1px solid var(--line);
   padding: 1.2rem 0 1.35rem;
 }
 
 .section-number {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   border-radius: 50%;
   background: var(--brand);
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .author-section h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 21px;
 }
 
 .author-section h2 + p {
   max-width: 800px;
   margin: 0.3rem 0 0.85rem;
   color: var(--muted);
+  font-size: 15px;
 }
 
 .field-grid {
@@ -116,7 +122,7 @@
   display: grid;
   gap: 0.22rem;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 650;
 }
 
@@ -126,16 +132,16 @@
   width: 100%;
   border: 1px solid var(--line-bright);
   border-radius: 2px;
-  padding: 0.35rem 0.42rem;
+  padding: 0.48rem 0.52rem;
   background: white;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
 .author-section select,
 .author-section input {
-  min-height: 27px;
+  min-height: 36px;
 }
 
 .author-section textarea {
@@ -145,7 +151,7 @@
 
 .field-help {
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 400;
 }
 
@@ -155,10 +161,10 @@
 
 .author-section .inline-field-button {
   width: max-content;
-  min-height: 22px;
+  min-height: 30px;
   margin-top: 0.12rem;
-  padding: 0.15rem 0.4rem;
-  font-size: 10px;
+  padding: 0.25rem 0.48rem;
+  font-size: 12px;
 }
 
 .author-section fieldset {
@@ -169,7 +175,7 @@
 
 .author-section legend {
   padding: 0 0.25rem;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -219,9 +225,9 @@
 
 .additional-component-row button,
 .add-component-button {
-  min-height: 27px;
-  padding: 0.2rem 0.45rem;
-  font-size: 10px;
+  min-height: 34px;
+  padding: 0.3rem 0.5rem;
+  font-size: 12px;
 }
 
 .add-component-button {
@@ -233,7 +239,7 @@
 .component-row code,
 .author-section details code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10.5px !important;
+  font-size: 14px !important;
 }
 
 .large-code-input {
@@ -249,13 +255,14 @@
 
 .author-section summary {
   cursor: pointer;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .author-section details p {
   max-width: 780px;
   color: var(--muted);
+  font-size: 15px;
 }
 
 .review-ok,
@@ -274,6 +281,7 @@
 .review-ok p,
 .review-errors p {
   margin: 0;
+  font-size: 14px;
 }
 
 .review-errors ul {
@@ -294,10 +302,24 @@
   color: var(--muted);
 }
 
+.author-reference-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.55rem;
+}
+
+.author-reference-links a {
+  color: var(--brand);
+  font-size: 14px;
+  text-underline-offset: 2px;
+}
+
 .author-message {
   min-height: 1.1rem;
   margin: 0.45rem 0 0;
   color: var(--cyan-deep);
+  font-size: 14px;
 }
 
 @media (max-width: 720px) {
@@ -308,7 +330,17 @@
   }
 
   .author-header nav {
+    min-width: 0;
+    flex-wrap: wrap;
     padding: 0;
+  }
+
+  .author-shell {
+    width: min(100% - 1rem, 1040px);
+  }
+
+  .author-section > div:last-child {
+    min-width: 0;
   }
 
   .component-row {

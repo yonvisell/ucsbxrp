@@ -16,7 +16,8 @@ projects and the robot configuration measured for your XRP.
 1. Confirm that the target selector says **Virtual XRP**.
 2. Open the lesson file in the Project list.
 3. Read the code from top to bottom and predict its output.
-4. Select **Make main**. The `main` tag moves to that file.
+4. Open the **File** menu and select **Make main**. The `main` tag moves to that
+   file.
 5. Select **Run**. Run validates all Python files before starting the main file.
 6. Read **Program output** and inspect the path in Monitor.
 7. Select **Reset** before another robot lesson to return the virtual XRP to the
@@ -197,8 +198,8 @@ After each exercise, confirm that the final drive command in Monitor is
 6. Reset the virtual XRP before comparing two motion experiments.
 
 Course projects additionally provide component checks, live watch values, and
-recorded telemetry. These preserve repeatable evidence without filling Program
-output with counters or per-sample print statements.
+recorded telemetry. Use these to compare runs without filling Program output
+with counters or per-sample print statements.
 
 ## MicroPython and standard Python
 

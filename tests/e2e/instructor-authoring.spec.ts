@@ -47,7 +47,7 @@ test("landing page exposes the instructor tools as compact text links", async ({
   );
 });
 
-test("wizard validates and downloads the complete curriculum example", async ({
+test("specification editor validates and downloads the complete curriculum example", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -55,7 +55,9 @@ test("wizard validates and downloads the complete curriculum example", async ({
   await page.goto("/author/");
 
   await expect(
-    page.getByRole("heading", { name: "UCSBXRP challenge creation" }),
+    page.getByRole("heading", {
+      name: "UCSBXRP challenge specification editor",
+    }),
   ).toBeVisible();
   await expect(page.getByLabel("Starting challenge")).toHaveValue(
     "challenge_3",
@@ -63,7 +65,7 @@ test("wizard validates and downloads the complete curriculum example", async ({
   await expect(page.getByLabel("Challenge ID")).toHaveValue("challenge_6");
   await expect(
     page.getByText(
-      "Specification complete. The repository performs the final file checks.",
+      "Specification checks pass. No repository files have been created or checked.",
     ),
   ).toBeVisible();
   await expect(
@@ -90,7 +92,7 @@ test("wizard validates and downloads the complete curriculum example", async ({
   ).toBeVisible();
   await expect(
     page.getByText(
-      "Specification complete. The repository performs the final file checks.",
+      "Specification checks pass. No repository files have been created or checked.",
     ),
   ).toBeVisible();
 
@@ -122,7 +124,7 @@ test("wizard validates and downloads the complete curriculum example", async ({
   await overrideEditor.fill(JSON.stringify(overrides, null, 2));
   await expect(
     page.getByText(
-      "Specification complete. The repository performs the final file checks.",
+      "Specification checks pass. No repository files have been created or checked.",
     ),
   ).toBeVisible();
   await expect(
@@ -156,10 +158,45 @@ test("wizard validates and downloads the complete curriculum example", async ({
     .click();
   await expect(
     page.getByText(
-      "Specification complete. The repository performs the final file checks.",
+      "Specification checks pass. No repository files have been created or checked.",
     ),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Authoring instructions" }),
+  ).toHaveAttribute("href", /INSTRUCTOR_CHALLENGE_AUTHORING.*\.md$/);
+  await expect(
+    page.getByRole("link", { name: "Technical overview" }),
+  ).toHaveAttribute("href", "../overview/#authoring");
   expect(browserErrors).toEqual([]);
+});
+
+test("specification editor remains readable at phone width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 760 });
+  await page.goto("/author/");
+  await expect(
+    page.getByRole("heading", {
+      name: "UCSBXRP challenge specification editor",
+    }),
+  ).toBeVisible();
+  const geometry = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  const labelFontSize = await page
+    .getByLabel("Starting challenge")
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(labelFontSize).toBeGreaterThanOrEqual(14);
+  const commandFontSize = await page
+    .locator(".create-row code")
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(commandFontSize).toBeGreaterThanOrEqual(14);
 });
 
 test("instructor overview states the system boundaries and release workflow", async ({
@@ -167,21 +204,30 @@ test("instructor overview states the system boundaries and release workflow", as
 }) => {
   await page.goto("/overview/");
   await expect(
-    page.getByRole("heading", { name: "UCSBXRP technical overview" }),
+    page.getByRole("heading", {
+      name: "UCSBXRP instructor system reference",
+    }),
   ).toBeVisible();
   for (const heading of [
-    "Course progression",
+    "Challenge sequence",
     "Runtime architecture",
     "Project structure",
     "Virtual and physical targets",
     "Challenge authoring",
     "Release, offline operation, and validation",
+    "Release checks",
   ]) {
     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
   }
   await expect(
-    page.getByRole("link", { name: "Open challenge creation wizard" }),
+    page.getByRole("link", { name: "Create or revise a challenge" }),
   ).toHaveAttribute("href", "../author/");
+  await expect(page.locator("#components")).toContainText(
+    "XRPBot, Robot, StraightLineController, ArenaMap, OccupancyGrid, and DeliveryMission",
+  );
+  await expect(page.locator("#authoring")).toContainText(
+    "The browser does not create repository files or publish a challenge.",
+  );
 });
 
 test("generated Waypoint Slalom runs in the virtual XRP and exports telemetry", async ({

@@ -26,12 +26,26 @@ experiment without requiring values to be repeated elsewhere:
 Read these fields through `DELIVERY_TASK`. Do not copy their current numerical
 values into `sensor_model.py` or another component.
 
+## Start this challenge
+
+Open your Challenge 4 project and select **Start Challenge 5 · Delivery
+Mission**. The IDE creates a separate project and copies `sensor_model.py`,
+`wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
+`navigation_controller.py`, and `grid_planner.py`. It retains all six
+selection values from Challenge 4: `USE_STUDENT_SENSOR_MODEL`,
+`USE_STUDENT_WHEEL_SPEED_CONTROLLER`, `USE_STUDENT_DIFFERENTIAL_DRIVE`,
+`USE_STUDENT_ODOMETRY`, `USE_STUDENT_NAVIGATION_CONTROLLER`, and
+`USE_STUDENT_GRID_PLANNER`. Challenge 5 supplies its own task, worlds, main
+program, checks, and configuration. The new work extends the copied
+`SensorModel` by completing `estimate_range(...)`; the Challenge 4 folder
+remains unchanged.
+
 ## Student implementations
 
 | File | Class | Responsibility |
 | --- | --- | --- |
 | `sensor_model.py` | `SensorModel` | Add a reliable estimate from several ultrasonic samples while retaining the checked encoder methods from Challenge 1. |
-| `grid_planner.py` | `GridPlanner` | Use the checked shortest-route planner from Challenge 4 on the observed map. |
+| `grid_planner.py` | `GridPlanner` | Use the checked connected-route planner from Challenge 4 on the observed map. |
 | `navigation_controller.py` | `NavigationController` | Use the checked waypoint controller from Challenge 3. |
 | `odometry.py` | `Odometry` | Use the checked pose estimator from Challenge 2. |
 | `differential_drive.py` | `DifferentialDrive` | Use the checked wheel-speed conversion from Challenge 2. |
@@ -103,10 +117,10 @@ SensorModel*.estimate_range()
 
 ## Work sequence
 
-1. Keep all `USE_STUDENT_...` flags `False`. Run both virtual worlds and observe
-   the stationary measurements in the Monitor's Range plot and the route
-   actually driven in the world view. Program output reports the mission result
-   and final pose.
+1. Start Challenge 5 from the completed Challenge 4 project as described above.
+   Run both virtual worlds and observe the stationary measurements in the
+   Monitor's Range plot and the route actually driven in the world view. Program
+   output reports the mission result and final pose.
 2. Implement `SensorModel.estimate_range`. Select **Test components** and check
    valid odd and even sample counts, invalid values mixed with valid readings,
    too few usable readings, and values far from the other readings.
@@ -122,8 +136,10 @@ SensorModel*.estimate_range()
    readings at the intended start pose. Verify their units and the direction in
    which the sensor is aimed.
 6. Match the physical gate, walls, start, and destination to the selected world.
-   Then use the bounded course run procedure and record the range estimate,
-   gate decision, path, result, and final pose.
+   Put the XRP on a stable stand with both wheels clear, select **Run**, verify
+   wheel direction, then select **Stop** and verify that both wheels stop. Place
+   the XRP at the marked start, run the mission in the cleared arena, and record
+   the range estimate, gate decision, path, result, and final pose.
 
 `DeliveryMission` sends a zero-motion command while collecting range samples
 and calls `robot.stop()` whether the mission completes, finds no path, or raises

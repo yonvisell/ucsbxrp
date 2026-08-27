@@ -29,6 +29,18 @@ in radians.
 Use these named fields rather than repeating their current numerical values in
 your classes.
 
+## Start this challenge
+
+Open your Challenge 1 project and select **Start Challenge 2 · Turn and
+Return**. The IDE creates a separate project and copies `sensor_model.py` and
+`wheel_speed_controller.py` from Challenge 1. It also retains the current
+values of `USE_STUDENT_SENSOR_MODEL` and
+`USE_STUDENT_WHEEL_SPEED_CONTROLLER`. Challenge 2 supplies new
+`differential_drive.py` and `odometry.py` files; their
+`USE_STUDENT_DIFFERENTIAL_DRIVE` and `USE_STUDENT_ODOMETRY` flags begin as
+`False`. The task, world, main program, checks, and configuration come from the
+Challenge 2 project, and the Challenge 1 folder remains unchanged.
+
 ## Student implementations
 
 | File | Class | Responsibility |
@@ -112,8 +124,9 @@ encoder counts -> SensorModel* -> wheel increments -> Odometry* -> Pose
 
 ## Work sequence
 
-1. Bring your checked `SensorModel` and `WheelSpeedController` work into this
-   project. Leave all four `USE_STUDENT_*` flags `False` for the first run.
+1. Start Challenge 2 from the completed Challenge 1 project as described above.
+   For the first run, use the supplied DifferentialDrive and Odometry; carried
+   components retain their Challenge 1 selections.
 2. Run the supplied virtual project. Observe the outbound segment, turn, return
    segment, and continuously updated pose.
 3. Implement `DifferentialDrive`. Select **Test components** and check equal
