@@ -254,6 +254,15 @@ robot that has the current project ready. A true controller boot has no
 current student project until a browser prepares one; an obsolete flash copy
 is never an implicit execution source.
 
+One IDE tab is the active source for Run. The first connected IDE owns that
+role until it closes or a student explicitly selects **Use this project** in
+another IDE. Standby IDEs remain fully editable and continue saving their own
+files, but their edits do not mark, prepare, or run a shared target project.
+Every IDE- or Monitor-initiated Run requests the active IDE's current in-memory
+snapshot at that moment; a retained target descriptor is never substituted for
+a missing editor. Ownership is not stored on disk or in browser storage, and a
+closed or nonresponding owner is not silently replaced by another tab.
+
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
 descriptors, 16 watch values, and 16 numerical plot values. For the virtual
 target, each parameter has one fixed shared-memory slot; numbers are encoded as
@@ -300,11 +309,12 @@ and authoritative simulator state. Terminating the worker stops non-yielding
 student code without freezing either application.
 
 Run in the IDE validates changed or previously unchecked files before launch.
-A fresh Monitor has one intentional fallback: it validates and prepares the
-default expanding-spiral project when no shared project exists, then starts it.
-Once a project exists, Monitor Run uses only that exact retained revision and
-remains disabled if IDE edits make it stale. Bounded console history is retained
-across runs and cleared only by an explicit UI action or target replacement.
+When an IDE is active, Monitor Run obtains that IDE's exact current snapshot,
+including an edit made immediately before Run. With no active IDE, the virtual
+Monitor has one intentional fallback: it validates and starts the immutable
+default Expanding spiral project. The physical Monitor instead asks the user to
+open or select an IDE project. Bounded console history is retained across runs
+and cleared only by an explicit UI action or target replacement.
 
 The deterministic plant uses fixed 20 ms integration, differential-drive
 kinematics, drive-command deadbands, asymmetric response, first-order acceleration and

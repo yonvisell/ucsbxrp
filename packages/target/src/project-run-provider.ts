@@ -22,8 +22,9 @@ interface PendingSnapshot<Port> {
 const PROVIDER_RESPONSE_TIMEOUT_MS = 1_000;
 
 /**
- * Correlates one Monitor Run request with the current IDE project snapshot.
- * The retained target project remains available only when no IDE is registered.
+ * Correlates one Monitor Run request with the active IDE project snapshot.
+ * The first IDE remains active until it closes or another IDE explicitly
+ * takes over; opening a tab never changes project authority by itself.
  */
 export class ProjectRunProviderBroker<Port> {
   private provider: Port | null = null;
@@ -35,10 +36,12 @@ export class ProjectRunProviderBroker<Port> {
       port: Port,
       request: ProjectRunSnapshotRequest,
     ) => void,
+    private readonly onProviderUnavailable: () => void = () => undefined,
   ) {}
 
-  register(port: Port): void {
-    if (this.provider === port) return;
+  register(port: Port, takeover = false): boolean {
+    if (this.provider === port) return true;
+    if (this.provider !== null && !takeover) return false;
     const previous = this.provider;
     this.provider = port;
     if (previous !== null) {
@@ -47,25 +50,49 @@ export class ProjectRunProviderBroker<Port> {
         "The active IDE changed before it provided the current project.",
       );
     }
+    return true;
   }
 
-  unregister(port: Port): void {
-    if (this.provider !== port) return;
+  unregister(port: Port): boolean {
+    if (this.provider !== port) return false;
     this.provider = null;
     this.rejectForPort(
       port,
       "The IDE closed before it provided the current project.",
     );
+    return true;
   }
 
-  request(): Promise<ProjectRunSnapshot | null> {
+  hasProvider(): boolean {
+    return this.provider !== null;
+  }
+
+  providerIs(port: Port): boolean {
+    return this.provider === port;
+  }
+
+  request(): Promise<ProjectRunSnapshot> {
     const provider = this.provider;
-    if (provider === null) return Promise.resolve(null);
+    if (provider === null) {
+      return Promise.reject(
+        new Error(
+          "No active IDE project is available. Open the IDE or choose Use this project in an open IDE.",
+        ),
+      );
+    }
 
     const requestId = `project-run-${this.nextRequest++}`;
     return new Promise<ProjectRunSnapshot>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(requestId);
+        if (this.provider === provider) {
+          this.provider = null;
+          this.rejectForPort(
+            provider,
+            "The active IDE stopped responding before it provided the current project.",
+          );
+          this.onProviderUnavailable();
+        }
         reject(
           new Error(
             "The IDE did not provide the current project. Keep the IDE open, then try Run again.",

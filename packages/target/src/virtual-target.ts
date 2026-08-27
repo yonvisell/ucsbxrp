@@ -98,8 +98,10 @@ export class VirtualTargetClient implements TargetClient {
   private runHeartbeat: ReturnType<typeof setInterval> | null = null;
   private liveValues: Int32Array | null = null;
   private projectRunProvider: ProjectRunProvider | null = null;
+  private pageLifecycleObserved = false;
 
   async connect(): Promise<void> {
+    this.observePageLifecycle();
     if (this.worker) {
       return;
     }
@@ -110,7 +112,7 @@ export class VirtualTargetClient implements TargetClient {
     }
     this.worker = new SharedWorker(
       new URL("./virtual-target.shared-worker.ts", import.meta.url),
-      { type: "module", name: "ucsb-xrp-virtual-target-v4" },
+      { type: "module", name: "ucsb-xrp-virtual-target-v5" },
     );
     this.worker.port.onmessage = (event: MessageEvent<TargetWorkerMessage>) =>
       this.handleMessage(event.data);
@@ -122,6 +124,7 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   disconnect(): void {
+    this.stopObservingPageLifecycle();
     if (!this.worker) {
       return;
     }
@@ -145,6 +148,36 @@ export class VirtualTargetClient implements TargetClient {
       pending.reject(new Error("Virtual target disconnected"));
     }
     this.pending.clear();
+  }
+
+  private readonly releaseOnPageHide = (event: PageTransitionEvent): void => {
+    if (!event.persisted) this.disconnect();
+  };
+
+  private readonly releaseOnBeforeUnload = (): void => this.disconnect();
+
+  private observePageLifecycle(): void {
+    if (
+      this.pageLifecycleObserved ||
+      typeof window === "undefined" ||
+      typeof window.addEventListener !== "function"
+    )
+      return;
+    window.addEventListener("pagehide", this.releaseOnPageHide);
+    window.addEventListener("beforeunload", this.releaseOnBeforeUnload);
+    this.pageLifecycleObserved = true;
+  }
+
+  private stopObservingPageLifecycle(): void {
+    if (
+      !this.pageLifecycleObserved ||
+      typeof window === "undefined" ||
+      typeof window.removeEventListener !== "function"
+    )
+      return;
+    window.removeEventListener("pagehide", this.releaseOnPageHide);
+    window.removeEventListener("beforeunload", this.releaseOnBeforeUnload);
+    this.pageLifecycleObserved = false;
   }
 
   async check(project: CourseProject): Promise<CheckResult> {
@@ -266,11 +299,15 @@ export class VirtualTargetClient implements TargetClient {
     await this.startRun({ type: "prepare-run" });
   }
 
-  setProjectRunProvider(provider: ProjectRunProvider | null): void {
+  setProjectRunProvider(
+    provider: ProjectRunProvider | null,
+    options?: { takeover?: boolean },
+  ): void {
     this.projectRunProvider = provider;
     this.worker?.port.postMessage({
       type: "set-project-run-provider",
       providesProject: provider !== null,
+      takeover: options?.takeover === true,
     } satisfies TargetWorkerCommand);
   }
 

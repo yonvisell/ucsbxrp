@@ -399,11 +399,11 @@ describe("physical target coordinator", () => {
 
     coordinator.handle(
       ide,
-      command({ type: "run-current", requestId: "run-ide" }),
+      command({ type: "run", requestId: "run-ide", project }),
     );
     coordinator.handle(
       monitor,
-      command({ type: "run-current", requestId: "run-monitor" }),
+      command({ type: "run", requestId: "run-monitor", project }),
     );
     await vi.waitFor(() =>
       expect(responses(monitor, "run-monitor")).toHaveLength(1),
@@ -413,7 +413,7 @@ describe("physical target coordinator", () => {
     target.complete();
     coordinator.handle(
       monitor,
-      command({ type: "run-current", requestId: "run-again" }),
+      command({ type: "run", requestId: "run-again", project }),
     );
     await vi.waitFor(() =>
       expect(responses(monitor, "run-again")).toHaveLength(1),
@@ -507,6 +507,276 @@ describe("physical target coordinator", () => {
       expect(responses(monitor, "monitor-run")).toHaveLength(1),
     );
     expect(target.runProjects).toEqual([latestProject]);
+  });
+
+  it("keeps the first IDE active and ignores project changes from a standby IDE", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const firstIde = new FakePort();
+    const standbyIde = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(firstIde);
+    coordinator.attach(standbyIde);
+    coordinator.attach(monitor);
+
+    coordinator.handle(
+      firstIde,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "first-connect",
+        providesProject: true,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(firstIde, "first-connect")).toHaveLength(1),
+    );
+    coordinator.handle(
+      standbyIde,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "standby-connect",
+        providesProject: true,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(standbyIde, "standby-connect")).toHaveLength(1),
+    );
+
+    expect(events(firstIde, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: true,
+      available: true,
+    });
+    expect(events(standbyIde, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: false,
+      available: true,
+    });
+
+    const projectEventsBeforeStandbyEdit = events(monitor, "project").length;
+    coordinator.handle(
+      standbyIde,
+      command({
+        type: "mark-project-changed",
+        project: {
+          projectId: "standby-project",
+          revision: 9,
+          name: "Standby edit",
+          entrypoint: "main.py",
+        },
+      }),
+    );
+    expect(events(monitor, "project")).toHaveLength(
+      projectEventsBeforeStandbyEdit,
+    );
+
+    const latestProject: CourseProject = {
+      ...project,
+      name: "First IDE latest project",
+      files: { "main.py": "print('first IDE latest source')\n" },
+    };
+    coordinator.handle(
+      firstIde,
+      command({
+        type: "mark-project-changed",
+        project: {
+          projectId: "first-project",
+          revision: 3,
+          name: latestProject.name!,
+          entrypoint: latestProject.entrypoint,
+        },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(events(monitor, "project").at(-1)).toMatchObject({
+        project: { name: latestProject.name, stale: true },
+      }),
+    );
+
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "first-provider-run" }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        firstIde.messages.some(
+          (message) => message.type === "project-run-snapshot-request",
+        ),
+      ).toBe(true),
+    );
+    expect(
+      standbyIde.messages.some(
+        (message) => message.type === "project-run-snapshot-request",
+      ),
+    ).toBe(false);
+
+    const request = firstIde.messages.find(
+      (message) => message.type === "project-run-snapshot-request",
+    );
+    if (!request || request.type !== "project-run-snapshot-request") {
+      throw new Error("Expected the first IDE to receive the snapshot request");
+    }
+    coordinator.handle(
+      firstIde,
+      command({
+        type: "project-run-snapshot",
+        requestId: request.requestId,
+        snapshot: {
+          projectId: "first-project",
+          revision: 3,
+          project: latestProject,
+        },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "first-provider-run")).toEqual([
+        expect.objectContaining({ ok: true }),
+      ]),
+    );
+    expect(target.runProjects).toEqual([latestProject]);
+  });
+
+  it("moves project authority only after explicit takeover", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const firstIde = new FakePort();
+    const secondIde = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(firstIde);
+    coordinator.attach(secondIde);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      firstIde,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "connect",
+        providesProject: true,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(firstIde, "connect")).toHaveLength(1),
+    );
+    coordinator.handle(
+      secondIde,
+      command({ type: "set-project-run-provider", providesProject: true }),
+    );
+    coordinator.handle(
+      secondIde,
+      command({
+        type: "set-project-run-provider",
+        providesProject: true,
+        takeover: true,
+      }),
+    );
+
+    expect(events(firstIde, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: false,
+      available: true,
+    });
+    expect(events(secondIde, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: true,
+      available: true,
+    });
+
+    const takeoverProject: CourseProject = {
+      ...project,
+      name: "Second IDE project",
+      files: { "main.py": "print('second IDE source')\n" },
+    };
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "takeover-run" }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        secondIde.messages.some(
+          (message) => message.type === "project-run-snapshot-request",
+        ),
+      ).toBe(true),
+    );
+    expect(
+      firstIde.messages.some(
+        (message) => message.type === "project-run-snapshot-request",
+      ),
+    ).toBe(false);
+    const request = secondIde.messages.find(
+      (message) => message.type === "project-run-snapshot-request",
+    );
+    if (!request || request.type !== "project-run-snapshot-request") {
+      throw new Error(
+        "Expected the second IDE to receive the snapshot request",
+      );
+    }
+    coordinator.handle(
+      secondIde,
+      command({
+        type: "project-run-snapshot",
+        requestId: request.requestId,
+        snapshot: {
+          projectId: "second-project",
+          revision: 1,
+          project: takeoverProject,
+        },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "takeover-run")).toEqual([
+        expect.objectContaining({ ok: true }),
+      ]),
+    );
+    expect(target.runProjects).toEqual([takeoverProject]);
+  });
+
+  it("leaves no active project provider when its IDE disconnects", async () => {
+    const coordinator = new PhysicalTargetCoordinator(
+      (endpoint) => new FakePhysicalTarget(endpoint),
+    );
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "connect",
+        providesProject: true,
+      }),
+    );
+    await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+
+    coordinator.handle(ide, command({ type: "disconnect" }));
+    expect(ide.closed).toBe(true);
+    expect(events(monitor, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: false,
+      available: false,
+    });
+
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "run-without-provider" }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "run-without-provider")).toEqual([
+        expect.objectContaining({
+          ok: false,
+          error: expect.stringContaining("No active IDE project"),
+        }),
+      ]),
+    );
   });
 
   it("changes the shared endpoint once for all attached tabs", async () => {
@@ -615,7 +885,7 @@ describe("physical target coordinator", () => {
     target.nextRunError = new Error("project must be prepared");
     coordinator.handle(
       monitor,
-      command({ type: "run-current", requestId: "failed-run" }),
+      command({ type: "run", requestId: "failed-run", project }),
     );
     await vi.waitFor(() =>
       expect(responses(monitor, "failed-run")[0]).toMatchObject({ ok: false }),

@@ -34,7 +34,11 @@ export interface CourseTelemetryState {
 export type TargetWorkerCommand =
   | { type: "connect"; requestId: string; providesProject?: boolean }
   | { type: "disconnect" }
-  | { type: "set-project-run-provider"; providesProject: boolean }
+  | {
+      type: "set-project-run-provider";
+      providesProject: boolean;
+      takeover?: boolean;
+    }
   | { type: "mark-project-changed"; project: ProjectRevisionNotice }
   | ProjectRunSnapshotResponse
   | {

@@ -520,6 +520,8 @@ export function DashboardApp() {
   const [targetDetail, setTargetDetail] = useState("Not connected");
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
+  const [projectProviderAvailable, setProjectProviderAvailable] =
+    useState(false);
   const [runStarting, setRunStarting] = useState(false);
   const [recordingActive, setRecordingActive] = useState(false);
   const [runtimeState, setRuntimeState] =
@@ -844,6 +846,8 @@ export function DashboardApp() {
           automaticRunProject.current = event.project;
         }
         setCurrentProject(event.project);
+      } else if (event.type === "project-provider") {
+        setProjectProviderAvailable(event.available);
       } else if (event.type === "runtime") {
         setRuntimeState(event.state);
         if (event.state.plots.length > 0) {
@@ -886,6 +890,7 @@ export function DashboardApp() {
     annotationsRef.current = [];
     setAnnotations([]);
     currentProjectRef.current = null;
+    setProjectProviderAvailable(false);
     let disposed = false;
     const connect = async () => {
       try {
@@ -928,8 +933,7 @@ export function DashboardApp() {
     !projectBootstrapPending &&
     (targetState === "ready" ||
       (target.kind === "virtual" && targetState === "error")) &&
-    (currentProject !== null ||
-      (target.kind === "virtual" && currentProject === null));
+    (projectProviderAvailable || target.kind === "virtual");
 
   const runOrStop = async () => {
     const stopping = targetState === "running" || targetState === "loading";
@@ -948,15 +952,15 @@ export function DashboardApp() {
           if (
             target.kind !== "virtual" ||
             !(error instanceof Error) ||
-            !error.message.includes("No project is ready")
+            (!error.message.includes("No project is ready") &&
+              !error.message.includes("No active IDE project"))
           ) {
             throw error;
           }
           setTargetDetail(
             `Validating ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}…`,
           );
-          await target.synchronize(DEFAULT_COURSE_PROJECT);
-          await target.runCurrent();
+          await target.run(DEFAULT_COURSE_PROJECT);
         }
       }
     } catch (error: unknown) {
@@ -1373,13 +1377,17 @@ export function DashboardApp() {
                     ? "Opening the saved IDE project before Run."
                     : runStarting
                       ? "Validating the default project before Run."
-                      : currentProject?.stale
-                        ? `Validate and run the current IDE project: ${currentProject.name}.`
-                        : currentProject
-                          ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                          : target.kind === "virtual"
-                            ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
-                            : "Open a project in the IDE before Run."
+                      : !projectProviderAvailable && target.kind === "physical"
+                        ? "Open the IDE to choose the project for the physical XRP."
+                        : !projectProviderAvailable
+                          ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                          : currentProject?.stale
+                            ? `Validate and run the current IDE project: ${currentProject.name}.`
+                            : currentProject
+                              ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                              : target.kind === "virtual"
+                                ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                                : "Open a project in the IDE before Run."
             }
           >
             <RunStopIcon running={isRunning} />

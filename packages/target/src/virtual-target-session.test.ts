@@ -143,6 +143,11 @@ describe("virtual target shared session", () => {
     const ideEvents: TargetEvent[] = [];
     monitor.subscribe((event) => monitorEvents.push(event));
     ide.subscribe((event) => ideEvents.push(event));
+    ide.setProjectRunProvider(() => ({
+      projectId: "shared-project",
+      revision: 1,
+      project,
+    }));
 
     // The Monitor is deliberately opened first. It prepares the default
     // project, then the IDE joins the same retained worker session.
@@ -248,17 +253,157 @@ describe("virtual target shared session", () => {
     monitor.disconnect();
   });
 
-  it("runs the retained project when no IDE provider is registered", async () => {
+  it("does not use a retained project when no IDE provider is active", async () => {
     const { VirtualTargetClient } = await import("./virtual-target");
     const monitor = new VirtualTargetClient();
     await monitor.connect();
     await monitor.synchronize(project);
 
-    await monitor.runCurrent();
+    await expect(monitor.runCurrent()).rejects.toThrow("No active IDE project");
 
-    expect(FakeRuntimeWorker.runProjects.at(-1)?.files["main.py"]).toBe(
-      "print('shared')\n",
+    expect(FakeRuntimeWorker.runProjects).toEqual([]);
+    monitor.disconnect();
+  });
+
+  it("keeps the first IDE active, ignores standby edits, and supports explicit takeover", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const monitor = new VirtualTargetClient();
+    const firstIde = new VirtualTargetClient();
+    const secondIde = new VirtualTargetClient();
+    const monitorEvents: TargetEvent[] = [];
+    const firstEvents: TargetEvent[] = [];
+    const secondEvents: TargetEvent[] = [];
+    monitor.subscribe((event) => monitorEvents.push(event));
+    firstIde.subscribe((event) => firstEvents.push(event));
+    secondIde.subscribe((event) => secondEvents.push(event));
+
+    let firstProject: CourseProject = {
+      ...project,
+      name: "First IDE project",
+    };
+    let secondProject: CourseProject = {
+      ...project,
+      name: "Second IDE project",
+      files: { "main.py": "print('second IDE source')\n" },
+    };
+    firstIde.setProjectRunProvider(() => ({
+      projectId: "first-project",
+      revision: 1,
+      project: firstProject,
+    }));
+    secondIde.setProjectRunProvider(() => ({
+      projectId: "second-project",
+      revision: 1,
+      project: secondProject,
+    }));
+
+    await monitor.connect();
+    await monitor.synchronize(project);
+    await firstIde.connect();
+    await secondIde.connect();
+
+    expect(
+      firstEvents.filter((event) => event.type === "project-provider").at(-1),
+    ).toEqual({
+      type: "project-provider",
+      active: true,
+      available: true,
+    });
+    expect(
+      secondEvents.filter((event) => event.type === "project-provider").at(-1),
+    ).toEqual({
+      type: "project-provider",
+      active: false,
+      available: true,
+    });
+
+    const projectEventsBeforeStandbyEdit = monitorEvents.filter(
+      (event) => event.type === "project",
+    ).length;
+    secondIde.markProjectChanged({
+      projectId: "second-project",
+      revision: 2,
+      name: "Ignored standby edit",
+      entrypoint: "main.py",
+    });
+    expect(
+      monitorEvents.filter((event) => event.type === "project"),
+    ).toHaveLength(projectEventsBeforeStandbyEdit);
+
+    firstProject = {
+      ...firstProject,
+      files: { "main.py": "print('latest first IDE source')\n" },
+    };
+    firstIde.markProjectChanged({
+      projectId: "first-project",
+      revision: 2,
+      name: firstProject.name!,
+      entrypoint: firstProject.entrypoint,
+    });
+    expect(
+      monitorEvents.filter((event) => event.type === "project").at(-1),
+    ).toMatchObject({ project: { name: firstProject.name, stale: true } });
+
+    await monitor.runCurrent();
+    expect(FakeRuntimeWorker.runProjects.at(-1)).toEqual(firstProject);
+
+    secondIde.setProjectRunProvider(
+      () => ({
+        projectId: "second-project",
+        revision: 2,
+        project: secondProject,
+      }),
+      { takeover: true },
     );
+    expect(
+      firstEvents.filter((event) => event.type === "project-provider").at(-1),
+    ).toEqual({
+      type: "project-provider",
+      active: false,
+      available: true,
+    });
+    expect(
+      secondEvents.filter((event) => event.type === "project-provider").at(-1),
+    ).toEqual({
+      type: "project-provider",
+      active: true,
+      available: true,
+    });
+
+    firstIde.markProjectChanged({
+      projectId: "first-project",
+      revision: 3,
+      name: "Ignored former owner edit",
+      entrypoint: "main.py",
+    });
+    secondProject = {
+      ...secondProject,
+      files: { "main.py": "print('latest second IDE source')\n" },
+    };
+    secondIde.markProjectChanged({
+      projectId: "second-project",
+      revision: 2,
+      name: secondProject.name!,
+      entrypoint: secondProject.entrypoint,
+    });
+    expect(
+      monitorEvents.filter((event) => event.type === "project").at(-1),
+    ).toMatchObject({ project: { name: secondProject.name, stale: true } });
+
+    await monitor.runCurrent();
+    expect(FakeRuntimeWorker.runProjects.at(-1)).toEqual(secondProject);
+
+    secondIde.disconnect();
+    expect(
+      firstEvents.filter((event) => event.type === "project-provider").at(-1),
+    ).toEqual({
+      type: "project-provider",
+      active: false,
+      available: false,
+    });
+    await expect(monitor.runCurrent()).rejects.toThrow("No active IDE project");
+
+    firstIde.disconnect();
     monitor.disconnect();
   });
 });

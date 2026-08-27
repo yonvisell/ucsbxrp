@@ -322,6 +322,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const [targetDetail, setTargetDetail] = useState("Not connected");
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
+  const [projectProviderActive, setProjectProviderActive] = useState(false);
+  const [projectProviderAvailable, setProjectProviderAvailable] =
+    useState(false);
   const [checkDetail, setCheckDetail] = useState(
     "Current files have not been checked.",
   );
@@ -396,6 +399,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const workingFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const folderDirtyRef = useRef(false);
   const targetStateRef = useRef<TargetRunState>("disconnected");
+  const projectProviderActiveRef = useRef(false);
   const targetCommandCountRef = useRef(0);
   const componentCheckRunningRef = useRef(false);
 
@@ -403,6 +407,16 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   workingFolderRef.current = workingFolder;
   folderDirtyRef.current = folderDirty;
   targetStateRef.current = targetState;
+  projectProviderActiveRef.current = projectProviderActive;
+
+  const provideProjectRunSnapshot = useCallback(() => {
+    const session = projectSessionRef.current;
+    return {
+      projectId: session.projectId,
+      revision: session.revision,
+      project: session.project,
+    };
+  }, []);
 
   useEffect(() => {
     if (!projectFolderConflict) return;
@@ -519,14 +533,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       setTargetDetail("Opening the saved project…");
       return;
     }
-    target.setProjectRunProvider(() => {
-      const session = projectSessionRef.current;
-      return {
-        projectId: session.projectId,
-        revision: session.revision,
-        project: session.project,
-      };
-    });
+    setProjectProviderActive(false);
+    setProjectProviderAvailable(false);
+    projectProviderActiveRef.current = false;
+    target.setProjectRunProvider(provideProjectRunSnapshot);
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "status") {
         targetStateRef.current = event.state;
@@ -555,6 +565,10 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         });
       } else if (event.type === "project") {
         setCurrentProject(event.project);
+      } else if (event.type === "project-provider") {
+        projectProviderActiveRef.current = event.active;
+        setProjectProviderActive(event.active);
+        setProjectProviderAvailable(event.available);
       }
     });
     setTargetState("connecting");
@@ -564,7 +578,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     const connect = async () => {
       try {
         await target.connect();
-        await target.markProjectStale(projectRef.current);
       } catch (error: unknown) {
         if (disposed) return;
         setTargetState("error");
@@ -583,6 +596,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   }, [
     projectBootstrapOwner,
     projectSessionReady,
+    provideProjectRunSnapshot,
     target,
     updateTargetPreference,
   ]);
@@ -610,6 +624,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
 
   useEffect(() => {
     if (!projectSessionReady) return;
+    if (!projectProviderActive) return;
     target.markProjectChanged({
       projectId: projectSession.projectId,
       revision: projectSession.revision,
@@ -622,6 +637,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     projectSession.projectId,
     projectSession.revision,
     projectSessionReady,
+    projectProviderActive,
     target,
   ]);
 
@@ -829,6 +845,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   const canCommand =
     targetState === "ready" ||
     (target.kind === "virtual" && targetState === "error");
+  const canRunProject = canCommand && projectProviderActive;
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -865,6 +882,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
 
   const stageOpenedProject = useCallback(
     async (snapshot: ProjectSnapshot) => {
+      if (!projectProviderActiveRef.current) return;
       beginTargetCommand();
       try {
         await target.markProjectStale(snapshot);
@@ -876,6 +894,23 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     },
     [beginTargetCommand, finishTargetCommand, target],
   );
+
+  useEffect(() => {
+    if (!projectSessionReady || !projectProviderActive || !isConnected) return;
+    void stageOpenedProject(projectRef.current);
+  }, [
+    isConnected,
+    projectProviderActive,
+    projectSessionReady,
+    stageOpenedProject,
+  ]);
+
+  const useThisProjectForRun = useCallback(() => {
+    target.setProjectRunProvider(provideProjectRunSnapshot, { takeover: true });
+    setOperationDetail(
+      `Selecting ${projectSessionRef.current.project.name} as the active project for Run and Monitor.`,
+    );
+  }, [provideProjectRunSnapshot, target]);
 
   const closeFile = useCallback(
     (path: string) => {
@@ -1005,7 +1040,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   }, [componentCheckRunning, project]);
 
   const runTarget = useCallback(async () => {
-    if (!canCommand || isRunning || virtualRuntimePreparing) {
+    if (!canRunProject || isRunning || virtualRuntimePreparing) {
       return;
     }
     beginTargetCommand();
@@ -1050,7 +1085,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     }
   }, [
     beginTargetCommand,
-    canCommand,
+    canRunProject,
     checkOk,
     finishTargetCommand,
     isRunning,
@@ -2428,16 +2463,18 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           <button
             aria-label={isRunning ? "Stop" : "Run"}
             className={`command-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
-            disabled={!isRunning && (!canCommand || virtualRuntimePreparing)}
+            disabled={!isRunning && (!canRunProject || virtualRuntimePreparing)}
             onClick={isRunning ? stopProgram : runTarget}
             title={
               isRunning
                 ? "Stop the running program."
                 : virtualRuntimePreparing
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                  : target.kind === "physical" && targetState === "error"
-                    ? targetDetail
-                    : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+                  : !projectProviderActive
+                    ? "Another IDE tab controls Run. Choose Use this project in the Project panel to switch."
+                    : target.kind === "physical" && targetState === "error"
+                      ? targetDetail
+                      : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
             <RunStopIcon running={isRunning} />
@@ -2520,6 +2557,28 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
               {workingFolder
                 ? `./${workingFolder.name}`
                 : `${project.name} · temporary browser copy`}
+            </div>
+            <div
+              className={`project-owner-state ${projectProviderActive ? "active" : "standby"}`}
+              data-testid="project-owner-state"
+              role="status"
+            >
+              <span>
+                {projectProviderActive
+                  ? "Active project for Run and Monitor"
+                  : projectProviderAvailable
+                    ? "Another IDE tab controls Run and Monitor"
+                    : "No active IDE project"}
+              </span>
+              {!projectProviderActive ? (
+                <button
+                  disabled={!isConnected}
+                  onClick={useThisProjectForRun}
+                  title="Use this tab's current project for the next IDE or Monitor Run."
+                >
+                  Use this project
+                </button>
+              ) : null}
             </div>
             <div className="file-list">
               {projectFiles.map((path) => (

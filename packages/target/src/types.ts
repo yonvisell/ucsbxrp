@@ -154,6 +154,11 @@ export type TargetEvent =
       project: SynchronizedProject | null;
     }
   | {
+      type: "project-provider";
+      active: boolean;
+      available: boolean;
+    }
+  | {
       type: "runtime";
       state: RuntimeState;
     }
@@ -185,7 +190,10 @@ export interface TargetClient {
   synchronize(project: CourseProject): Promise<void>;
   run(project: CourseProject): Promise<void>;
   runCurrent(): Promise<void>;
-  setProjectRunProvider(provider: ProjectRunProvider | null): void;
+  setProjectRunProvider(
+    provider: ProjectRunProvider | null,
+    options?: { takeover?: boolean },
+  ): void;
   markProjectChanged(project: ProjectRevisionNotice): void;
   markProjectStale(project: CourseProject): Promise<void>;
   stop(): Promise<void>;

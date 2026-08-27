@@ -4,6 +4,23 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 53 gives Run one explicit project owner across IDE tabs. The first
+connected IDE remains active; another IDE can edit and save independently but
+cannot change the project used by IDE or Monitor Run until the student chooses
+**Use this project**. Closing the owner leaves no implicit successor. Physical
+Monitor Run then waits for an IDE project, while a Monitor-only virtual session
+continues to run the immutable Expanding spiral default. No owner ID, project
+copy, heartbeat, or lease is persisted.
+
+The project-provider broker, physical coordinator, and virtual shared-session
+tests pass 69 focused cases. A Stable Chrome three-window workflow passed
+first-owner selection, ignored standby edits, immediate current-source Run,
+explicit takeover, owner-tab closure, the Monitor-only virtual fallback, and
+explicit reclaim by the remaining IDE. The production build and 223-file
+offline shell also pass. Both target clients now release their SharedWorker
+port on normal page exit; an unresponsive provider is discarded after its
+bounded snapshot request rather than remaining a false authority.
+
 Refinement 52 removes the obsolete flash-project fallback. Release
 `2026.08-dev.34` starts every true controller boot with no runnable student
 project; Run must validate and prepare the exact current browser project in

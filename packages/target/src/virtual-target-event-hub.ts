@@ -54,6 +54,10 @@ export class VirtualTargetEventHub {
     return this.ports.size;
   }
 
+  forEachPort(callback: (port: VirtualWorkerPort) => void): void {
+    for (const port of this.ports) callback(port);
+  }
+
   broadcast(rawEvent: TargetEvent): void {
     const event =
       rawEvent.type === "console"

@@ -47,6 +47,7 @@ const events = new VirtualTargetEventHub();
 const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
 const projectRunProvider = new ProjectRunProviderBroker<MessagePort>(
   (port, request) => send(port, request),
+  () => publishProjectProviderState(),
 );
 let activeRunId = 0;
 let currentState: TargetRunState = "ready";
@@ -73,6 +74,21 @@ function status(state: TargetRunState, detail: string): void {
   currentState = state;
   currentDetail = detail;
   broadcast({ type: "status", state, detail });
+}
+
+function sendProjectProviderState(port: MessagePort): void {
+  send(port, {
+    type: "event",
+    event: {
+      type: "project-provider",
+      active: projectRunProvider.providerIs(port),
+      available: projectRunProvider.hasProvider(),
+    },
+  });
+}
+
+function publishProjectProviderState(): void {
+  events.forEachPort((port) => sendProjectProviderState(port as MessagePort));
 }
 
 function clearRuntimeState(): void {
@@ -350,11 +366,12 @@ function handleRuntimeMessage(
 
 function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
   if (command.type === "disconnect") {
-    projectRunProvider.unregister(port);
+    const providerChanged = projectRunProvider.unregister(port);
     if (runOwnerLease.ownsPort(port)) {
       invalidateRun("Run owner disconnected; drive command set to zero");
     }
     events.detach(port);
+    if (providerChanged) publishProjectProviderState();
     if (events.size === 0) {
       stopRuntime();
       currentState = "ready";
@@ -365,6 +382,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
 
   if (command.type === "connect") {
     if (command.providesProject) projectRunProvider.register(port);
+    publishProjectProviderState();
     send(port, { type: "response", requestId: command.requestId, ok: true });
     send(port, {
       type: "event",
@@ -395,12 +413,18 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     }
     events.replayConsole(port);
   } else if (command.type === "set-project-run-provider") {
-    if (command.providesProject) projectRunProvider.register(port);
-    else projectRunProvider.unregister(port);
+    if (command.providesProject) {
+      projectRunProvider.register(port, command.takeover === true);
+    } else {
+      projectRunProvider.unregister(port);
+    }
+    publishProjectProviderState();
   } else if (command.type === "project-run-snapshot") {
     projectRunProvider.accept(port, command);
   } else if (command.type === "mark-project-changed") {
-    markProjectChanged(command.project);
+    if (projectRunProvider.providerIs(port)) {
+      markProjectChanged(command.project);
+    }
   } else if (command.type === "publish-console") {
     broadcast(command.event);
   } else if (command.type === "prepare-run") {
@@ -420,7 +444,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
           requestId: command.requestId,
           ok: true,
           result: {
-            project: snapshot?.project ?? currentProject ?? undefined,
+            project: snapshot.project,
             descriptor: currentProjectDescriptor ?? undefined,
           },
         });
@@ -598,6 +622,7 @@ self.onconnect = (event: MessageEvent) => {
     return;
   }
   events.attach(port);
+  sendProjectProviderState(port);
   port.onmessage = (message: MessageEvent<TargetWorkerCommand>) => {
     handleCommand(port, message.data);
   };

@@ -21,7 +21,11 @@ export type PhysicalWorkerCommand =
       providesProject?: boolean;
     }
   | { type: "disconnect" }
-  | { type: "set-project-run-provider"; providesProject: boolean }
+  | {
+      type: "set-project-run-provider";
+      providesProject: boolean;
+      takeover?: boolean;
+    }
   | { type: "mark-project-changed"; project: ProjectRevisionNotice }
   | ProjectRunSnapshotResponse
   | { type: "check"; requestId: string; project: CourseProject }

@@ -61,8 +61,9 @@ export class PhysicalTargetCoordinator {
   private readonly retainedConsoleIds = new Set<string>();
   private readonly telemetryHistory = new TelemetryEventHistory();
   private readonly projectRunProvider =
-    new ProjectRunProviderBroker<PhysicalWorkerPort>((port, request) =>
-      this.send(port, request),
+    new ProjectRunProviderBroker<PhysicalWorkerPort>(
+      (port, request) => this.send(port, request),
+      () => this.publishProjectProviderState(),
     );
   private target: TargetClient | null = null;
   private targetEndpoint: string | null = null;
@@ -88,6 +89,7 @@ export class PhysicalTargetCoordinator {
     for (const event of this.telemetryHistory.chronological()) {
       this.send(port, { type: "event", event });
     }
+    this.sendProjectProviderState(port);
   }
 
   handle(port: PhysicalWorkerPort, command: PhysicalWorkerCommand): void {
@@ -96,8 +98,12 @@ export class PhysicalTargetCoordinator {
       return;
     }
     if (command.type === "set-project-run-provider") {
-      if (command.providesProject) this.projectRunProvider.register(port);
-      else this.projectRunProvider.unregister(port);
+      if (command.providesProject) {
+        this.projectRunProvider.register(port, command.takeover === true);
+      } else {
+        this.projectRunProvider.unregister(port);
+      }
+      this.publishProjectProviderState();
       return;
     }
     if (command.type === "project-run-snapshot") {
@@ -105,6 +111,7 @@ export class PhysicalTargetCoordinator {
       return;
     }
     if (command.type === "mark-project-changed") {
+      if (!this.projectRunProvider.providerIs(port)) return;
       const operation = this.commandQueue.then(() => {
         if (this.ports.has(port))
           this.target?.markProjectChanged(command.project);
@@ -114,6 +121,7 @@ export class PhysicalTargetCoordinator {
     }
     if (command.type === "connect" && command.providesProject) {
       this.projectRunProvider.register(port);
+      this.publishProjectProviderState();
     }
     const operation = this.commandQueue.then(async () => {
       if (!this.ports.has(port)) {
@@ -125,11 +133,12 @@ export class PhysicalTargetCoordinator {
   }
 
   private detach(port: PhysicalWorkerPort): void {
-    this.projectRunProvider.unregister(port);
+    const providerChanged = this.projectRunProvider.unregister(port);
     this.ports.delete(port);
     this.deliveredConsoleIds.delete(port);
     this.deliveredTelemetry.delete(port);
     port.close();
+    if (providerChanged) this.publishProjectProviderState();
     if (this.ports.size !== 0) {
       return;
     }
@@ -181,8 +190,7 @@ export class PhysicalTargetCoordinator {
         await this.target.run(command.project);
       } else if (command.type === "run-current") {
         const snapshot = await this.projectRunProvider.request();
-        if (snapshot) await this.target.run(snapshot.project);
-        else await this.target.runCurrent();
+        await this.target.run(snapshot.project);
       } else if (command.type === "mark-project-stale") {
         await this.target.markProjectStale(command.project);
       } else if (command.type === "stop") {
@@ -225,6 +233,21 @@ export class PhysicalTargetCoordinator {
         this.broadcast(this.latestStatus);
       }
     }
+  }
+
+  private sendProjectProviderState(port: PhysicalWorkerPort): void {
+    this.send(port, {
+      type: "event",
+      event: {
+        type: "project-provider",
+        active: this.projectRunProvider.providerIs(port),
+        available: this.projectRunProvider.hasProvider(),
+      },
+    });
+  }
+
+  private publishProjectProviderState(): void {
+    for (const port of this.ports) this.sendProjectProviderState(port);
   }
 
   /** Return true only when the caller joined an already-settled target. */

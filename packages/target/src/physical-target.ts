@@ -393,6 +393,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
         requestId,
       },
     );
+    this.emit({
+      type: "project-provider",
+      active: this.projectRunProvider !== null,
+      available: this.projectRunProvider !== null,
+    });
     const networkMode = info.network?.mode;
     const networkAddress = info.network?.address ?? info.address;
     if (
@@ -737,8 +742,18 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
   }
 
-  setProjectRunProvider(provider: ProjectRunProvider | null): void {
+  setProjectRunProvider(
+    provider: ProjectRunProvider | null,
+    _options?: { takeover?: boolean },
+  ): void {
     this.projectRunProvider = provider;
+    if (this.connected) {
+      this.emit({
+        type: "project-provider",
+        active: provider !== null,
+        available: provider !== null,
+      });
+    }
   }
 
   markProjectChanged(project: ProjectRevisionNotice): void {
@@ -1537,6 +1552,7 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly consoleEventOrder: string[] = [];
   private nextRequest = 1;
   private localNetworkPermissionPrimed = false;
+  private pageLifecycleObserved = false;
   private readonly candidateEndpoints: readonly string[];
   private readonly discoveryTimeoutMs: number;
   private readonly directMode: boolean;
@@ -1556,6 +1572,7 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   async connect(): Promise<void> {
+    this.observePageLifecycle();
     if (this.directMode) {
       if (this.direct) {
         await this.direct.connect();
@@ -1570,7 +1587,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v8" },
+          { type: "module", name: "ucsb-xrp-physical-target-v9" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1639,6 +1656,7 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   disconnect(): void {
+    this.stopObservingPageLifecycle();
     if (this.direct) {
       this.direct.disconnect();
       return;
@@ -1685,12 +1703,16 @@ export class PhysicalTargetClient implements TargetClient {
     await this.request({ type: "mark-project-stale", project });
   }
 
-  setProjectRunProvider(provider: ProjectRunProvider | null): void {
+  setProjectRunProvider(
+    provider: ProjectRunProvider | null,
+    options?: { takeover?: boolean },
+  ): void {
     this.projectRunProvider = provider;
-    this.direct?.setProjectRunProvider(provider);
+    this.direct?.setProjectRunProvider(provider, options);
     this.worker?.port.postMessage({
       type: "set-project-run-provider",
       providesProject: provider !== null,
+      takeover: options?.takeover === true,
     } satisfies PhysicalWorkerCommand);
   }
 
@@ -1931,6 +1953,36 @@ export class PhysicalTargetClient implements TargetClient {
       // the port. This matters during React's intentional effect remounts.
       setTimeout(() => worker.port.close(), 100);
     }
+  }
+
+  private readonly releaseOnPageHide = (event: PageTransitionEvent): void => {
+    if (!event.persisted) this.disconnect();
+  };
+
+  private readonly releaseOnBeforeUnload = (): void => this.disconnect();
+
+  private observePageLifecycle(): void {
+    if (
+      this.pageLifecycleObserved ||
+      typeof window === "undefined" ||
+      typeof window.addEventListener !== "function"
+    )
+      return;
+    window.addEventListener("pagehide", this.releaseOnPageHide);
+    window.addEventListener("beforeunload", this.releaseOnBeforeUnload);
+    this.pageLifecycleObserved = true;
+  }
+
+  private stopObservingPageLifecycle(): void {
+    if (
+      !this.pageLifecycleObserved ||
+      typeof window === "undefined" ||
+      typeof window.removeEventListener !== "function"
+    )
+      return;
+    window.removeEventListener("pagehide", this.releaseOnPageHide);
+    window.removeEventListener("beforeunload", this.releaseOnBeforeUnload);
+    this.pageLifecycleObserved = false;
   }
 
   private rejectPending(detail: string): void {
