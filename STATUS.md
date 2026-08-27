@@ -4,6 +4,31 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 64 adds a direct-manipulation world editor to the instructor
+challenge-creation page. Instructors can add, select, move, and resize arena
+walls, blocks, start and finish lines or areas, waypoints, and visual markers;
+they can also set arena bounds, initial XRP position and heading, route order,
+grid snap, named worlds, and the default world. The editor changes the same
+`world.json` source used by project Python, the simulator, the Monitor, and
+exports. The exact JSON remains available in a collapsed advanced section.
+
+Graphic edits retain unknown extension fields and untouched array order.
+Invalid JSON remains unchanged until corrected, out-of-bounds geometry is
+reported instead of cropped, and an initial robot-obstacle overlap is a
+warning. The implementation is split between source/world orchestration, SVG
+geometry and pointer interaction, object/property inspection, and JSON-
+preserving model operations. It adds no graphics dependency.
+
+Validation includes 225 Python tests, 358 TypeScript tests, MicroPython proof,
+the production and 252-file offline builds, 17 focused model/specification
+tests after the component split, all seven instructor-authoring browser
+workflows, narrow 375-pixel layout, offline update/reload, and a generated
+Waypoint Slalom virtual run and export. The broad Stable Chrome run passed 99
+workflows and skipped the opt-in hardware test; its two failures were obsolete
+narrow-layout test steps that tried to use the automatically collapsed Project
+rail without first opening it. Those test steps are corrected in the following
+integration slice.
+
 Refinement 63 replaces the passive seven-file Python example set with four
 ordered, active tutorial projects: Python essentials, drawing with the Virtual
 XRP, sampled UCSBXRP robot programs, and behavior with telemetry. Each project

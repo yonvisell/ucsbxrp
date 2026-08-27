@@ -22,6 +22,7 @@ import {
   challengeAuthorDraftFingerprint,
   challengeAuthorReloadIsSafe,
 } from "./author-release-reload";
+import { WorldEditor } from "./WorldEditor";
 
 const exampleSpec = JSON.parse(exampleSource) as ChallengeSpec;
 const starterWorldSources = import.meta.glob(
@@ -691,23 +692,15 @@ export function AuthorApp() {
               </FieldHelp>
             </label>
           </div>
-          <label>
-            World configuration in millimeters
-            <textarea
-              className="code-input large-code-input"
-              rows={18}
-              spellCheck={false}
-              value={worldSource}
-              onChange={(event) => setWorldSource(event.target.value)}
-            />
-            <FieldHelp>
-              Bounds are the arena walls. Obstacles are blocks or walls. Markers
-              may be start or finish lines and boxes, general labeled points, or
-              waypoints. Every item must be inside the bounds. Only waypoints
-              enter the route returned by world.waypoints(), in their file
-              order.
-            </FieldHelp>
-          </label>
+          <div className="world-editor-field">
+            <h3>World configuration</h3>
+            <p className="field-help">
+              Arrange the measured arena, initial XRP pose, obstacles, and
+              markers. Waypoints enter the route in the order shown. Geometry
+              outside the arena is reported rather than moved automatically.
+            </p>
+            <WorldEditor source={worldSource} onChange={setWorldSource} />
+          </div>
           <details>
             <summary>Optional project-file overrides</summary>
             <p>

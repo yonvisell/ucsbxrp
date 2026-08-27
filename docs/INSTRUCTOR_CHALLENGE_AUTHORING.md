@@ -83,6 +83,23 @@ the task.
 markers. Distances use millimeters and headings use radians. The simulator and
 Monitor read the same file that Python accesses through `load_world()`.
 
+Use the visual world editor for ordinary changes. Select a world, then add or
+move items on the measured grid. Selecting an item exposes its dimensions,
+name, and label. Rectangle and line handles change size; the initial-pose
+heading handle changes orientation. Grid snap is 25 mm by default and can be
+set to 10, 50, or 100 mm, or turned off. The item list sets waypoint route
+order. A world may be added, duplicated, deleted, or selected as the catalog
+default; the final world cannot be deleted.
+
+The editor does not move or crop geometry to make it fit. An item outside the
+arena is an error. An initial XRP footprint that overlaps an obstacle is a
+warning because the measured robot and course setup still determine whether
+the starting arrangement is usable. **Advanced world.json** exposes the same
+data for exact editing and optional extension fields. Graphic edits retain
+fields that this release does not interpret. If the JSON is incomplete or
+invalid, its text remains unchanged and the graphic editor stays unavailable
+until the JSON is corrected.
+
 The world `bounds` are the four arena walls. Every initial pose, obstacle, and
 marker must lie within them. Obstacles are axis-aligned `block` or `wall`
 rectangles. `start_line`, `start_box`, `finish_line`, and `finish_box` identify
@@ -92,7 +109,8 @@ to project Python through `ProjectWorld.waypoint()` and
 `ProjectWorld.waypoints()`; it may add `heading_rad` when arrival orientation is
 part of the task. Waypoints retain their file order. Marker names and
 conditional obstacle `feature` names must be unique within a world.
-The exact supported shapes are ordinary JSON:
+The exact supported shapes are ordinary JSON. Instructors normally create them
+with the visual editor; this reference is useful for review and extension:
 
 ```json
 {

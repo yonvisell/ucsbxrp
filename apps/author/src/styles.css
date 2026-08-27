@@ -247,6 +247,329 @@
   white-space: pre;
 }
 
+.world-editor-field {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.7rem;
+}
+
+.world-editor-field > h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.world-editor-field > p {
+  margin: 0.2rem 0 0.55rem;
+}
+
+.world-editor {
+  min-width: 0;
+  border: 1px solid var(--line-bright);
+  background: #f7f8f8;
+  color: var(--ink);
+}
+
+.world-editor button,
+.world-editor select,
+.world-editor input {
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.world-editor-world-row,
+.world-editor-identity {
+  display: flex;
+  align-items: end;
+  gap: 0.45rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.45rem;
+  background: white;
+}
+
+.world-editor-world-row > label {
+  width: min(300px, 100%);
+}
+
+.world-editor-world-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.world-editor-identity {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(180px, 1.4fr) 110px;
+  align-items: end;
+}
+
+.world-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 294px;
+  min-width: 0;
+}
+
+.world-editor-canvas-panel {
+  min-width: 0;
+  padding: 0.45rem;
+  background: #f2f4f4;
+}
+
+.world-editor-canvas {
+  display: block;
+  width: 100%;
+  max-height: 580px;
+  aspect-ratio: 20 / 13;
+  border: 1px solid #929da3;
+  background: #dfe3e5;
+  touch-action: none;
+  user-select: none;
+}
+
+.world-arena {
+  fill: #fff;
+  stroke: #1d282f;
+  stroke-width: 2;
+}
+
+.world-grid-line,
+.world-grid-axis {
+  pointer-events: none;
+  stroke: #d7dcdf;
+  stroke-width: 1;
+}
+
+.world-grid-axis {
+  stroke: #aab2b7;
+  stroke-width: 1.4;
+}
+
+.world-obstacle,
+.world-start_box,
+.world-finish_box,
+.world-start_line,
+.world-finish_line,
+.world-point,
+.world-initial-pose {
+  cursor: move;
+}
+
+.world-obstacle {
+  fill: #a49b89;
+  stroke: #48443d;
+  stroke-width: 2;
+}
+
+.world-wall {
+  fill: #777d80;
+}
+
+.world-start_box,
+.world-finish_box {
+  fill: rgb(49 134 95 / 12%);
+  stroke: #31865f;
+  stroke-width: 2.5;
+}
+
+.world-finish_box {
+  fill: rgb(37 95 142 / 10%);
+  stroke: #255f8e;
+}
+
+.world-start_line,
+.world-finish_line {
+  stroke: #31865f;
+  stroke-width: 5;
+}
+
+.world-finish_line {
+  stroke: #255f8e;
+}
+
+.world-point circle,
+.world-point path {
+  fill: white;
+  stroke: #255f8e;
+  stroke-width: 3;
+}
+
+.world-marker path {
+  fill: #f2d06f;
+  stroke: #6f5715;
+}
+
+.world-point text {
+  pointer-events: none;
+  fill: #24323a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.world-initial-pose polygon {
+  fill: #4d5559;
+  stroke: #1c2428;
+  stroke-width: 2;
+}
+
+.world-initial-pose line {
+  stroke: #171d20;
+  stroke-width: 4;
+}
+
+.world-initial-pose.is-selected polygon,
+.is-selected.world-obstacle,
+.is-selected.world-start_box,
+.is-selected.world-finish_box,
+.is-selected.world-start_line,
+.is-selected.world-finish_line,
+.world-point.is-selected circle,
+.world-point.is-selected path {
+  filter: drop-shadow(0 0 2px #0076a8);
+  stroke: #0076a8;
+  stroke-width: 4;
+}
+
+.world-editor-handle,
+.world-editor-heading-handle {
+  cursor: crosshair;
+  fill: white;
+  stroke: #0076a8;
+  stroke-width: 3;
+}
+
+.world-editor-canvas-note,
+.world-editor-warning,
+.world-editor-message {
+  margin: 0.28rem 0 0;
+  color: var(--quiet);
+  font-size: 12px;
+}
+
+.world-editor-warning {
+  color: #8a4b12;
+}
+
+.world-editor-inspector {
+  min-width: 0;
+  border-left: 1px solid var(--line-bright);
+  background: white;
+}
+
+.world-editor-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.4rem;
+}
+
+.world-editor-object-list {
+  display: grid;
+  max-height: 208px;
+  overflow: auto;
+  border-bottom: 1px solid var(--line);
+  padding: 0.25rem;
+}
+
+.world-editor-object-list button {
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid #edf0f1;
+  border-radius: 0;
+  padding: 0.24rem 0.35rem;
+  background: white;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-editor-object-list button:hover,
+.world-editor-object-list button.is-selected {
+  background: #e8f1f5;
+}
+
+.world-editor-properties {
+  padding: 0.45rem;
+}
+
+.world-editor-properties h3 {
+  margin: 0 0 0.35rem;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.world-editor-text-properties,
+.world-editor-number-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.world-editor-text-properties {
+  margin-bottom: 0.35rem;
+}
+
+.world-editor-number-grid label,
+.world-editor-text-properties label {
+  gap: 0.08rem;
+  color: var(--quiet);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.world-editor-number-grid input,
+.world-editor-text-properties input {
+  min-width: 0;
+  padding: 0.25rem 0.3rem;
+}
+
+.world-editor-reorder {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  font-size: 11px;
+}
+
+.world-editor-delete-item {
+  margin-top: 0.45rem;
+}
+
+.world-editor-invalid {
+  display: grid;
+  gap: 0.2rem;
+  border-left: 3px solid var(--red);
+  padding: 0.7rem;
+  background: #fbf4f3;
+  color: #6d312b;
+  font-size: 13px;
+}
+
+.world-editor-message {
+  padding: 0 0.45rem 0.35rem;
+  color: var(--red);
+}
+
+.world-editor-json {
+  margin: 0 !important;
+  border-top: 1px solid var(--line-bright) !important;
+  padding: 0.45rem !important;
+  background: white;
+}
+
+.world-editor-json summary {
+  font-size: 12px;
+}
+
+.world-editor-json p {
+  margin: 0.3rem 0 !important;
+  font-size: 12px !important;
+}
+
+.world-editor-json textarea {
+  font-size: 12px !important;
+}
+
 .author-section details {
   margin-top: 0.9rem;
   border-top: 1px solid var(--line);
@@ -349,5 +672,41 @@
 
   .additional-component-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .world-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .world-editor-inspector {
+    border-top: 1px solid var(--line-bright);
+    border-left: 0;
+  }
+
+  .world-editor-object-list {
+    max-height: 160px;
+  }
+}
+
+@media (max-width: 560px) {
+  .world-editor-world-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .world-editor-world-row > label {
+    width: 100%;
+  }
+
+  .world-editor-identity,
+  .world-editor-text-properties,
+  .world-editor-number-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .world-editor-canvas-panel {
+    padding: 0.25rem;
   }
 }

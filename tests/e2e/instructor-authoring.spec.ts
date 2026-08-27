@@ -173,6 +173,202 @@ test("specification editor validates and downloads the complete curriculum examp
   expect(browserErrors).toEqual([]);
 });
 
+test("visual world editor changes the downloadable world without losing advanced fields", async ({
+  page,
+}) => {
+  await page.goto("/author/");
+  const editor = page.locator(".world-editor");
+
+  await expect(editor.getByLabel("World to edit")).toHaveValue(
+    "waypoint-slalom",
+  );
+  await expect(editor.getByLabel("Grid snap")).toHaveValue("25");
+  await expect(
+    editor.getByRole("img", { name: "Graphic editor for Waypoint slalom" }),
+  ).toBeVisible();
+  await expect(editor.getByText("Advanced world.json")).toBeVisible();
+  await expect(editor.getByLabel("World configuration JSON")).not.toBeVisible();
+
+  await editor.getByLabel("World item type").selectOption("block");
+  await editor.getByRole("button", { name: "Add item" }).click();
+  const inspector = editor.locator(".world-editor-inspector");
+  await expect(
+    inspector.getByRole("heading", { name: "block · Block" }),
+  ).toBeVisible();
+  await inspector.getByLabel("Label").fill("Foam barrier");
+  await inspector.getByLabel("Feature name").fill("foam_barrier");
+  await expect(
+    editor.getByRole("button", { name: "block · Foam barrier" }),
+  ).toBeVisible();
+
+  await editor.getByText("Advanced world.json").click();
+  const rawEditor = editor.getByLabel("World configuration JSON");
+  const editedSource = await rawEditor.inputValue();
+  const extended = JSON.parse(editedSource) as Record<string, any>;
+  extended.instructor_extension = { keep: "yes" };
+  extended.worlds[0].markers[0].appearance = "dashed";
+  await rawEditor.fill(JSON.stringify(extended, null, 2));
+  await expect(
+    editor.getByRole("img", { name: "Graphic editor for Waypoint slalom" }),
+  ).toBeVisible();
+
+  await inspector.getByRole("button", { name: "waypoint · 1" }).click();
+  await inspector.getByLabel("Label").fill("First gate");
+  const retained = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  expect(retained.instructor_extension).toEqual({ keep: "yes" });
+  expect(retained.worlds[0].markers[0].appearance).toBe("dashed");
+  expect(retained.worlds[0].markers[1].label).toBe("First gate");
+
+  await editor.getByRole("button", { name: "Add world" }).click();
+  await expect(editor.getByLabel("World to edit")).toHaveValue("world");
+  await editor.getByRole("button", { name: "Duplicate" }).click();
+  await expect(editor.getByLabel("World to edit")).toHaveValue("world-copy");
+  await editor.getByRole("button", { name: "Make default" }).click();
+  await expect(
+    editor.getByLabel("World to edit").locator("option:checked"),
+  ).toContainText("default");
+  await editor.getByRole("button", { name: "Delete" }).click();
+  await expect(editor.getByLabel("World to edit")).toHaveValue("world");
+  await editor.getByLabel("World to edit").selectOption("waypoint-slalom");
+  await editor.getByRole("button", { name: "Make default" }).click();
+
+  const validExtendedSource = await editor
+    .getByLabel("World configuration JSON")
+    .inputValue();
+  await editor.getByLabel("World configuration JSON").fill("{");
+  await expect(editor.getByRole("alert")).toContainText(
+    "Graphic editor unavailable",
+  );
+  await expect(editor.getByLabel("World configuration JSON")).toHaveValue("{");
+  await editor.getByLabel("World configuration JSON").fill(validExtendedSource);
+  await expect(
+    editor.getByRole("img", { name: /Graphic editor for/ }),
+  ).toBeVisible();
+
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download checked specification" })
+    .click();
+  const download = await downloadEvent;
+  const downloadedPath = await download.path();
+  expect(downloadedPath).not.toBeNull();
+  const downloaded = JSON.parse(
+    readFileSync(downloadedPath!, "utf8"),
+  ) as Record<string, any>;
+  expect(downloaded.world.instructor_extension).toEqual({ keep: "yes" });
+  expect(downloaded.world.worlds[0].obstacles.at(-1)).toMatchObject({
+    type: "block",
+    label: "Foam barrier",
+    feature: "foam_barrier",
+  });
+});
+
+test("visual world handles resize lines and boxes and set initial heading", async ({
+  page,
+}) => {
+  await page.goto("/author/");
+  const editor = page.locator(".world-editor");
+  const rawEditor = editor.getByLabel("World configuration JSON");
+  await editor.getByText("Advanced world.json").click();
+
+  await editor.getByRole("button", { name: "start box · Start" }).click();
+  const rectangleHandle = editor
+    .locator('circle[aria-label="Resize start_box"]')
+    .first();
+  await rectangleHandle.scrollIntoViewIfNeeded();
+  const rectangleBox = await rectangleHandle.boundingBox();
+  expect(rectangleBox).not.toBeNull();
+  const beforeRectangle = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  await page.mouse.move(
+    rectangleBox!.x + rectangleBox!.width / 2,
+    rectangleBox!.y + rectangleBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(rectangleBox!.x - 14, rectangleBox!.y + 14);
+  await page.mouse.up();
+  const afterRectangle = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  expect(afterRectangle.worlds[0].markers[0]).not.toEqual(
+    beforeRectangle.worlds[0].markers[0],
+  );
+
+  await editor.getByLabel("World item type").selectOption("start_line");
+  await editor.getByRole("button", { name: "Add item" }).click();
+  const lineHandle = editor
+    .locator('circle[aria-label="Move start_line first endpoint"]')
+    .first();
+  await lineHandle.scrollIntoViewIfNeeded();
+  const lineBox = await lineHandle.boundingBox();
+  expect(lineBox).not.toBeNull();
+  const beforeLine = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  await page.mouse.move(
+    lineBox!.x + lineBox!.width / 2,
+    lineBox!.y + lineBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(lineBox!.x + 22, lineBox!.y - 18);
+  await page.mouse.up();
+  const afterLine = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  expect(afterLine.worlds[0].markers.at(-1)).not.toEqual(
+    beforeLine.worlds[0].markers.at(-1),
+  );
+
+  await editor.getByRole("button", { name: "Initial XRP pose" }).click();
+  const headingHandle = editor.locator(
+    'circle[aria-label="Set initial XRP heading"]',
+  );
+  await headingHandle.scrollIntoViewIfNeeded();
+  const headingBox = await headingHandle.boundingBox();
+  expect(headingBox).not.toBeNull();
+  await page.mouse.move(
+    headingBox!.x + headingBox!.width / 2,
+    headingBox!.y + headingBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(headingBox!.x - 15, headingBox!.y - 36);
+  await page.mouse.up();
+  const afterHeading = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  expect(afterHeading.worlds[0].initial_pose.heading_rad).not.toBe(0);
+
+  const poseHandle = editor.locator(
+    'circle[aria-label="Move initial XRP pose"]',
+  );
+  const poseBox = await poseHandle.boundingBox();
+  expect(poseBox).not.toBeNull();
+  await page.mouse.move(
+    poseBox!.x + poseBox!.width / 2,
+    poseBox!.y + poseBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(poseBox!.x + 32, poseBox!.y - 22);
+  await page.mouse.up();
+  const afterPoseMove = JSON.parse(await rawEditor.inputValue()) as Record<
+    string,
+    any
+  >;
+  expect(afterPoseMove.worlds[0].initial_pose).not.toMatchObject({
+    x_mm: 0,
+    y_mm: 0,
+  });
+});
+
 test("specification editor remains readable at phone width", async ({
   page,
 }) => {
@@ -200,6 +396,12 @@ test("specification editor remains readable at phone width", async ({
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
   expect(commandFontSize).toBeGreaterThanOrEqual(14);
+  const editorLayout = page.locator(".world-editor-layout");
+  await expect(editorLayout).toBeVisible();
+  const layoutColumns = await editorLayout.evaluate(
+    (element) => getComputedStyle(element).gridTemplateColumns,
+  );
+  expect(layoutColumns.trim().split(/\s+/)).toHaveLength(1);
 });
 
 test("instructor overview states the system boundaries and release workflow", async ({

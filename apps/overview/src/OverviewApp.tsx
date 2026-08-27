@@ -468,6 +468,14 @@ Pose -----------------------------> NavigationController ------+
             overrides. The browser does not create repository files or publish a
             challenge.
           </p>
+          <p>
+            Its visual world editor changes the same <code>world.json</code>
+            source used by the simulator, Monitor, and project Python. It
+            supports multiple named worlds, arena bounds, initial pose, walls,
+            blocks, start and finish regions, waypoints, and general visual
+            markers. Advanced JSON remains available for extension fields;
+            graphic edits retain fields they do not interpret.
+          </p>
           <ol>
             <li>Check and download the specification JSON in the browser.</li>
             <li>
