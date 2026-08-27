@@ -1,6 +1,6 @@
 # Challenge 4: Mapped Route
 
-Plan a route around the known obstacle in `world.json`, then make the XRP
+Plan a route around the known obstacles in `world.json`, then make the XRP
 follow that route to the destination. Planning happens before either robot is
 started. If no route exists, the program reports that result without applying
 motor commands.
@@ -66,9 +66,8 @@ is:
    supplied `neighbors(cell)` method can check this relationship.
 6. Return `None` when no connected free-cell route exists.
 
-How the implementation examines and stores cells is your design choice. The
-component checks evaluate the returned route and cases where no route exists,
-not the names or internal organization used by your search.
+The component checks evaluate these returned results, including cases where no
+route exists. They accept any route that satisfies the six requirements above.
 
 ## Provided files and tools
 
@@ -79,7 +78,7 @@ not the names or internal organization used by your search.
 | `main.py` | Builds the grid, asks for a path, converts the path to waypoint goals, and runs the route. |
 | `robot_config.py` | Robot calibration and waypoint-controller settings. |
 | `course_setup.py` | Selects the supplied or student version of each class independently. |
-| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
+| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
 | `OccupancyGrid` | Converts the map to cells and provides the cell operations used by the planner. |
 | `GridPath.to_goals(...)` | Keeps cells where the path turns and at the destination, then converts their centers to waypoint goals. |
 | `Robot` and `XRPBot` | Execute the selected route on the virtual or physical XRP. |

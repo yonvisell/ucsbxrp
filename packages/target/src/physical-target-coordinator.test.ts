@@ -200,6 +200,36 @@ function telemetry(seq: number): TelemetrySample {
 }
 
 describe("physical target coordinator", () => {
+  it("carries the commissioned robot identity into shared discovery", async () => {
+    const identities: Array<string | undefined> = [];
+    const coordinator = new PhysicalTargetCoordinator(
+      (endpoint, _timeoutMs, expectedRobotId) => {
+        identities.push(expectedRobotId);
+        return new FakePhysicalTarget(endpoint);
+      },
+    );
+    const ide = new FakePort();
+    coordinator.attach(ide);
+
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.30"],
+        discoveryTimeoutMs: 1_000,
+        expectedRobotId: "ROBOT-A",
+        requestId: "identity",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "identity")).toEqual([
+        expect.objectContaining({ ok: true }),
+      ]),
+    );
+
+    expect(identities).toEqual(["robot-a"]);
+  });
+
   it("tries known endpoints in order with the bounded discovery timeout", async () => {
     const attempts: Array<{ endpoint: string; timeoutMs?: number }> = [];
     const coordinator = new PhysicalTargetCoordinator((endpoint, timeoutMs) => {

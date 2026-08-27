@@ -173,10 +173,14 @@ test("creates the untouched default inside the selected course folder", async ({
   );
   expect(
     JSON.parse(files["Expanding-Spiral/.ucsb-xrp-project.json"] ?? "{}"),
-  ).toEqual({
+  ).toMatchObject({
     name: "Expanding spiral",
     entrypoint: "main.py",
     templateId: "demo_spiral",
+    session: {
+      revision: 1,
+      savedRevision: 1,
+    },
   });
 });
 

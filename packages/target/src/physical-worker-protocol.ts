@@ -12,6 +12,7 @@ export type PhysicalWorkerCommand =
       endpoints?: readonly string[];
       endpoint?: string;
       discoveryTimeoutMs?: number;
+      expectedRobotId?: string;
     }
   | { type: "disconnect" }
   | { type: "check"; requestId: string; project: CourseProject }

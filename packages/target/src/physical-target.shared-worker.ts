@@ -7,8 +7,11 @@ import type { PhysicalWorkerCommand } from "./physical-worker-protocol";
 declare const self: SharedWorkerGlobalScope;
 
 const coordinator = new PhysicalTargetCoordinator(
-  (endpoint, discoveryTimeoutMs) =>
-    new DirectPhysicalTargetClient(endpoint, { discoveryTimeoutMs }),
+  (endpoint, discoveryTimeoutMs, expectedRobotId) =>
+    new DirectPhysicalTargetClient(endpoint, {
+      discoveryTimeoutMs,
+      expectedRobotId,
+    }),
 );
 
 self.onconnect = (event: MessageEvent) => {

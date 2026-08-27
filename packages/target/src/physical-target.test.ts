@@ -232,6 +232,7 @@ describe("physical target", () => {
         serviceVersion: CURRENT_COURSE_RELEASE,
         courseRelease: CURRENT_COURSE_RELEASE,
         bootId: "boot-ap",
+        robotId: "4c91fae8f1775aa4",
         robotName: "ucsb-xrp",
         address: "192.168.4.1",
         network: {
@@ -269,7 +270,57 @@ describe("physical target", () => {
       mode: "access_point",
       address: "http://192.168.4.1",
       ssid: "UCSB-XRP-AA71",
+      requestedMode: "station",
+      fallback: true,
+      robotId: "4c91fae8f1775aa4",
     });
+    target.disconnect();
+  });
+
+  it("rejects a compatible service with the wrong robot identity before publishing it", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-wrong-robot",
+        robotId: "robot-b",
+        robotName: "ucsb-xrp-b",
+        address: "192.168.7.40",
+        network: {
+          mode: "station",
+          requested_mode: "station",
+          fallback: false,
+          ssid: "Pink",
+        },
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      }),
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.40", {
+      fetch: fetchMock as typeof fetch,
+      expectedRobotId: "robot-a",
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await expect(target.connect()).rejects.toMatchObject({
+      code: "robot_identity_mismatch",
+      message: expect.stringContaining("configured for robot-a"),
+    });
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "physical-network" }),
+    );
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "status", state: "ready" }),
+    );
     target.disconnect();
   });
 
@@ -322,6 +373,64 @@ describe("physical target", () => {
       address: "http://192.168.4.1",
       ssid: "UCSB-XRP-TEST",
     });
+    target.disconnect();
+  });
+
+  it("skips a reachable wrong robot while discovering the commissioned identity", async () => {
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      const correct = url.startsWith("http://192.168.7.31");
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: correct ? "boot-a" : "boot-b",
+        robotId: correct ? "robot-a" : "robot-b",
+        robotName: correct ? "ucsb-xrp-a" : "ucsb-xrp-b",
+        address: correct ? "192.168.7.31" : "192.168.7.30",
+        network: {
+          mode: "station",
+          address: correct ? "192.168.7.31" : "192.168.7.30",
+          ssid: "Pink",
+        },
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new PhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      candidateEndpoints: ["192.168.7.31"],
+      expectedRobotId: "robot-a",
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+
+    expect(fetchMock.mock.calls.slice(0, 2).map((call) => call[0])).toEqual([
+      "http://192.168.7.30/api/v1/info",
+      "http://192.168.7.31/api/v1/info",
+    ]);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "physical-network",
+        address: "http://192.168.7.31",
+        robotId: "robot-a",
+      }),
+    );
+    expect(events).not.toContainEqual(
+      expect.objectContaining({
+        type: "physical-network",
+        robotId: "robot-b",
+      }),
+    );
     target.disconnect();
   });
 
@@ -700,8 +809,7 @@ describe("physical target", () => {
     }
   });
 
-  it("fails ordinary shared commands promptly but preserves reboot recovery", async () => {
-    vi.useFakeTimers();
+  it("uses target deadlines and rejects pending commands if the shared worker fails", async () => {
     const originalDescriptor = Object.getOwnPropertyDescriptor(
       globalThis,
       "SharedWorker",
@@ -724,8 +832,14 @@ describe("physical target", () => {
         }
       },
     };
+    const sharedWorkers: FakeSharedWorker[] = [];
     class FakeSharedWorker {
       readonly port = port;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+
+      constructor() {
+        sharedWorkers.push(this);
+      }
     }
     Object.defineProperty(globalThis, "SharedWorker", {
       configurable: true,
@@ -736,28 +850,18 @@ describe("physical target", () => {
       const target = new PhysicalTargetClient("192.168.7.30");
       await target.connect();
 
-      let checkError: Error | undefined;
-      void target.check(project).catch((error: Error) => {
-        checkError = error;
-      });
-      await vi.advanceTimersByTimeAsync(2_999);
-      expect(checkError).toBeUndefined();
-      await vi.advanceTimersByTimeAsync(1);
-      expect(checkError?.message).toBe("Physical target check timed out");
-
-      let resetError: Error | undefined;
-      void target.reset().catch((error: Error) => {
-        resetError = error;
-      });
-      await vi.advanceTimersByTimeAsync(7_999);
-      expect(resetError).toBeUndefined();
-      await vi.advanceTimersByTimeAsync(1);
-      expect(resetError?.message).toBe("Physical target reset timed out");
+      const check = target.check(project);
+      expect(sharedWorkers).toHaveLength(1);
+      sharedWorkers[0]?.onerror?.({
+        message: "worker crashed",
+        preventDefault: vi.fn(),
+      } as unknown as ErrorEvent);
+      await expect(check).rejects.toThrow(
+        "Physical target worker failed: worker crashed",
+      );
 
       target.disconnect();
-      await vi.advanceTimersByTimeAsync(100);
     } finally {
-      vi.useRealTimers();
       if (originalDescriptor) {
         Object.defineProperty(globalThis, "SharedWorker", originalDescriptor);
       } else {

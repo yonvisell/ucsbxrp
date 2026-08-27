@@ -54,9 +54,12 @@ test("starts the next challenge and carries forward only earlier student modules
   await expect(
     page.getByRole("button", { name: "Open differential_drive.py" }),
   ).toBeVisible();
-  const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ucsb-xrp-course-project-v1") ?? "{}"),
-  );
+  const stored = await page.evaluate(() => {
+    const recovered = JSON.parse(
+      localStorage.getItem("ucsb-xrp-course-project-v1") ?? "{}",
+    );
+    return recovered.project ?? recovered;
+  });
   expect(stored.templateId).toBe("challenge_2");
   expect(stored.files["course_setup.py"]).toContain(
     "USE_STUDENT_SENSOR_MODEL = False",

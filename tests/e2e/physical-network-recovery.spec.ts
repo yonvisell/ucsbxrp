@@ -201,13 +201,21 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect
     .poll(() =>
       ide.evaluate(() =>
-        JSON.parse(localStorage.getItem("ucsb-xrp-target-v1") ?? "{}"),
+        JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "{}"),
       ),
     )
-    .toEqual({
+    .toMatchObject({
+      schemaVersion: 2,
       kind: "physical",
       physicalConnection: "station",
-      physicalEndpoint: mockXrpEndpoint,
+      stationEndpoint: mockXrpEndpoint,
+      accessPointEndpoint: "http://192.168.4.1",
+      lastObservedNetwork: {
+        mode: "station",
+        address: mockXrpEndpoint,
+        ssid: "TEST-NETWORK",
+        fallback: false,
+      },
     });
 
   await ide.getByRole("tab", { name: /System log/ }).click();

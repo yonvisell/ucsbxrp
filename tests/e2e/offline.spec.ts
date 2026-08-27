@@ -159,7 +159,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toBeVisible();
   await expect(
     guide.getByRole("heading", {
-      name: "Offline application and storage",
+      name: "Using UCSBXRP without internet",
     }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);
@@ -171,16 +171,14 @@ test("reloads the complete production course shell without a network", async ({
   });
   await expect(
     reference.getByRole("heading", {
-      name: "UCSB XRP Python API reference",
+      name: "API reference",
       exact: true,
     }),
   ).toBeVisible();
   await expect(reference.locator("#sensor-model")).toContainText(
     "State between calls",
   );
-  await expect(reference.locator("#sensor-model")).toContainText(
-    "Required behavior",
-  );
+  await expect(reference.locator("#sensor-model")).toContainText("Behavior");
   await expectOfflineShellReady(reference);
 
   const author = await context.newPage();

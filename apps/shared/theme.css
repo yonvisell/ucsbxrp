@@ -572,6 +572,11 @@ input[type="radio"] {
   color: var(--quiet);
 }
 
+.landing-offline-summary a {
+  color: var(--muted);
+  text-underline-offset: 2px;
+}
+
 .primary-link,
 .secondary-link {
   border: 1px solid var(--line-bright);

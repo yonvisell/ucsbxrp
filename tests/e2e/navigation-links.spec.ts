@@ -50,6 +50,27 @@ test("student and instructor pages have valid internal links and fragments", asy
   }
 });
 
+test("direct Guide and API fragment links reveal their rendered section", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const [path, id] of [
+    ["/guide/#offline-use", "offline-use"],
+    ["/reference/#sensor-model", "sensor-model"],
+  ] as const) {
+    await page.goto(path);
+    await page.locator(`#${id}`).waitFor({ state: "attached" });
+    await expect
+      .poll(async () => {
+        const top = await page
+          .locator(`#${id}`)
+          .evaluate((element) => element.getBoundingClientRect().top);
+        return top >= 60 && top < 90;
+      })
+      .toBe(true);
+  }
+});
+
 test("student pages keep the complete course navigation visible without header collisions", async ({
   page,
 }) => {
@@ -135,9 +156,8 @@ test("Guide presents the course workflow in explicit objective sections", async 
   page,
 }) => {
   await page.goto("/guide/");
-  await expect(
-    page.getByRole("heading", { name: "UCSBXRP guide" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Guide" })).toBeVisible();
+  await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
   await expect(
     page.getByRole("heading", { name: "IDE controls" }),
   ).toBeVisible();
@@ -149,12 +169,37 @@ test("Guide presents the course workflow in explicit objective sections", async 
   await expect(
     page.getByRole("heading", { name: "Implement and test components" }),
   ).toBeVisible();
+  await expect(
+    page.getByText("Do not add sleep_ms() to a loop that calls Robot.step().", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator("#projects")).toContainText("Challenges");
+  await expect(page.locator("#projects")).toContainText("Demos");
+  await expect(page.locator("#projects")).toContainText("Tutorial");
+  await expect(page.locator("#project-structure .course-flow")).toContainText(
+    "Wheel-speed feedback",
+  );
+  await expect(page.locator("#project-structure svg")).toHaveCount(0);
+  await expect(page.locator("#offline-use")).toContainText(
+    "This copy belongs to the Chrome profile that loaded it",
+  );
+  await expect(page.locator("#offline-use")).toContainText(
+    "The course application copy and your project files are separate",
+  );
+  await expect(page.locator("#github")).toContainText(
+    "Use the cloned repository as the UCSBXRP course folder",
+  );
 });
 
 test("API class entries contain signatures, parameters, defaults, returns, exceptions, and examples", async ({
   page,
 }) => {
   await page.goto("/reference/#sensor-model");
+  await expect(
+    page.getByRole("heading", { name: "API reference" }),
+  ).toBeVisible();
+  await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
   const section = page.locator("#sensor-model");
   await expect(section).toContainText("Base class SensorModelBase");
   await expect(section).toContainText("class SensorModel(SensorModelBase):");
@@ -171,8 +216,26 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
     section.getByText("Exceptions", { exact: true }).first(),
   ).toBeVisible();
   await expect(
-    section.getByRole("heading", { name: "SensorModel call example" }),
+    section.getByRole("heading", { name: "SensorModel example" }),
   ).toBeVisible();
+
+  await page.goto("/reference/#wheel-speed-controller");
+  await expect(page.locator("#wheel-speed-controller")).toContainText(
+    "requested left and right wheel speeds from DifferentialDrive",
+  );
+  await expect(page.locator("#wheel-speed-controller")).toContainText(
+    "measured wheel-speed estimates from SensorModel",
+  );
+
+  await page.goto("/reference/#grid-planner");
+  const gridPlanner = page.locator("#grid-planner");
+  await expect(gridPlanner).toContainText(
+    "Find a valid connected route from the start cell to the goal cell.",
+  );
+  await expect(gridPlanner).toContainText(
+    "A minimum-length route is not required",
+  );
+  await expect(gridPlanner).not.toContainText("Find a minimum-length route");
 
   await page.goto("/reference/#configuration");
   const configuration = page.locator("#configuration");
@@ -256,14 +319,16 @@ test("API sections remain readable without page clipping at phone width", async 
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(signatureFontSize).toBeGreaterThanOrEqual(14);
+  expect(signatureFontSize).toBeGreaterThanOrEqual(10.5);
+  expect(signatureFontSize).toBeLessThanOrEqual(12);
   const exampleFontSize = await page
     .locator("#sensor-model .code-example pre code")
     .first()
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(exampleFontSize).toBeGreaterThanOrEqual(14);
+  expect(exampleFontSize).toBeGreaterThanOrEqual(10.5);
+  expect(exampleFontSize).toBeLessThanOrEqual(12);
 });
 
 test("Guide remains usable without horizontal page scrolling at phone width", async ({
@@ -271,9 +336,7 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
 }) => {
   await page.setViewportSize({ width: 375, height: 760 });
   await page.goto("/guide/");
-  await expect(
-    page.getByRole("heading", { name: "UCSBXRP guide" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Guide" })).toBeVisible();
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -285,15 +348,23 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(bodyFontSize).toBeGreaterThanOrEqual(14);
+  expect(bodyFontSize).toBeGreaterThanOrEqual(11.5);
+  expect(bodyFontSize).toBeLessThanOrEqual(12.5);
   const inlineCodeFontSize = await page
     .locator(".guide-content code")
     .first()
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(12);
+  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(10.5);
   expect(inlineCodeFontSize).toBeLessThanOrEqual(bodyFontSize);
+
+  const flowsFit = await page
+    .locator(".course-flow")
+    .evaluateAll((flows) =>
+      flows.every((flow) => flow.scrollWidth <= flow.clientWidth + 1),
+    );
+  expect(flowsFit).toBe(true);
 });
 
 test("Instructor reference remains readable at phone width", async ({

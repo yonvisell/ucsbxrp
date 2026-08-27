@@ -90,7 +90,7 @@ arguments.
 | `challenge.py` | Derives the named distances and heading from `world.json`. |
 | `robot_config.py` | Holds robot calibration, effective track width, straight speeds, and arrival tolerances. |
 | `course_setup.py` | Selects each of the four student classes independently. |
-| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
+| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
 | `StraightLineController` | Supplies the outbound and return forward commands. |
 | `Robot` | Calls the selected drive, wheel-control, measurement, and odometry classes once per sample. |
 
@@ -124,9 +124,10 @@ encoder counts -> SensorModel* -> wheel increments -> Odometry* -> Pose
    carried-forward components keep their Challenge 1 selections.
 2. Run the supplied virtual project. Observe the outbound segment, turn, return
    segment, and continuously updated pose.
-3. Implement `DifferentialDrive`. Select **Test components** and check equal
-   wheel speeds for straight motion, opposite wheel speeds for an in-place
-   turn, and unequal wheel speeds for a curve.
+3. Implement `DifferentialDrive`. Select **Test components** and read each
+   example before its result. Check equal wheel speeds for straight motion,
+   opposite wheel speeds for an in-place turn, and unequal wheel speeds for a
+   curve.
 4. Select the student DifferentialDrive in `course_setup.py` and repeat the
    complete virtual run with the supplied Odometry.
 5. Implement `Odometry`. Check reset, straight travel, an in-place turn, and a

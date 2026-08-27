@@ -24,16 +24,18 @@ test("changes the explicit XRP Wi-Fi mode without cross-network fallback", async
   await connection.selectOption("access_point");
   await expect(wifi.getByLabel("XRP address")).toHaveCount(0);
   const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ucsb-xrp-target-v1") ?? "null"),
+    JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "null"),
   );
   expect(stored).toMatchObject({
+    schemaVersion: 2,
     kind: "physical",
     physicalConnection: "access_point",
-    physicalEndpoint: "http://192.168.4.1",
+    stationEndpoint: "http://192.168.7.44",
+    accessPointEndpoint: "http://192.168.4.1",
   });
 
   await connection.selectOption("station");
   await expect(wifi.getByLabel("XRP address")).toHaveValue(
-    "http://ucsb-xrp.local",
+    "http://192.168.7.44",
   );
 });

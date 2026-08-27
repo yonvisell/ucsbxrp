@@ -27,10 +27,11 @@ course; each challenge retains the components developed in earlier challenges.
    final-heading alignment.
 4. **Mapped Route** — Reach a destination while avoiding known obstacles in a
    supplied dimensioned `ArenaMap`. Students implement `GridPlanner` to return
-   a valid shortest four-neighbor route through free cells of an
-   `OccupancyGrid`, or report that no route exists. The grid path is converted
-   to world-coordinate goals and followed with the existing navigation
-   component.
+   a valid connected route through free cells of an `OccupancyGrid`, or report
+   that no route exists. Each route step moves horizontally or vertically to a
+   cell that shares an edge; the route need not use the fewest cells. The grid
+   path is converted to world-coordinate goals and followed with the existing
+   navigation component.
 5. **Delivery Mission** — At a known observation pose, collect repeated forward
    range readings, determine whether one named map feature is blocked, plan in
    the corresponding occupancy grid, and complete the delivery. Students add
@@ -94,11 +95,12 @@ A normal run calls `Robot.start(initial_pose)`, repeatedly calls
 student control loops do not call `sleep_ms`.
 
 For experiments and debugging, `ucsb_xrp.live` supplies bounded numeric,
-Boolean, and enumerated parameters plus named watch values. The Monitor renders
-the declared controls and current values; `Robot` applies queued parameter
-changes together at a sample boundary. Saved task and robot settings remain in
-`challenge.py` and `robot_config.py`, while complete histories remain
-telemetry rather than printed counters.
+Boolean, and enumerated parameters plus named watch and plot values. The
+Monitor renders the declared controls, current values, and optional calculated
+strip plots; `Robot` applies queued parameter changes together at a sample
+boundary. Saved task and robot settings remain in `challenge.py` and
+`robot_config.py`, while complete histories remain telemetry rather than
+printed counters.
 
 The principal run-time paths are:
 
@@ -137,8 +139,9 @@ of one named map feature before planning and navigation. It reports
 The public records imported from `ucsb_xrp` are `RobotConfig`,
 `NavigationConfig`, `DeliveryTask`, `RawSensors`, `Measurements`, `Pose`,
 `RobotState`, `MotionCommand`, `WheelSpeeds`, `DriveCommand`,
-`NavigationGoal`, `GridCell`, and `GridPath`. `STOP_COMMAND` is the shared
-zero-motion command.
+`NavigationGoal`, `GridCell`, `GridPath`, `Rectangle`, and `ProjectWorld`.
+`load_world()` reads the project's `world.json` and returns the selected
+`ProjectWorld`. `STOP_COMMAND` is the shared zero-motion command.
 
 Distances, positions, wheel travel, map coordinates, clearances, and grid
 resolution use millimeters. Linear and wheel speeds use millimeters per second.
@@ -155,7 +158,8 @@ physical wiring. A `Pose` heading is wrapped to \([-\pi,\pi)\).
 `GridCell.column` increases with world \(x\), and `GridCell.row` increases with
 world \(y\). `OccupancyGrid.world_to_cell()` maps a world position to its
 containing cell, `cell_center()` performs the corresponding cell-to-world
-lookup, and `neighbors()` returns free four-neighbor cells.
+lookup, and `neighbors()` returns free cells that share a horizontal or
+vertical edge with the requested cell.
 
 ## Component interfaces
 

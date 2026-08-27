@@ -40,9 +40,9 @@ Program output with the file and line number.
 | `6_virtual_robot.py` | repeated sensor readings, a threshold, and a time limit | approaches the wall and stops from ultrasound range |
 | `7_finite_state_machine.py` | named states and explicit transitions | approaches, turns, departs, and stops |
 
-`world.json` defines the tutorial field displayed by Monitor. The range target
-is 620 mm in front of the start pose. Robot programs do not contain a second
-copy of that geometry.
+`world.json` defines the tutorial field displayed by Monitor, including the
+range target and the robot's starting pose. Robot programs do not contain a
+second copy of that geometry.
 
 ## Python essentials used here
 
@@ -160,6 +160,13 @@ Lesson 6 repeats the same cycle: read range, compare with a threshold, command
 motion, and stop when the threshold or time limit is reached. This is feedback:
 the next action depends on a measurement of the current world.
 
+Lessons 3 through 7 use `XRPBot` directly so that each Python idea is visible
+in a short file. Their timed helper functions use `sleep_ms()` and always stop
+the motors in `finally`. Challenge projects instead use `Robot.step()`, which
+maintains the sample schedule. Do not add `sleep_ms()` inside a challenge
+control loop: the extra wait changes the sample interval and therefore changes
+speed estimation, control, and odometry.
+
 Lesson 7 names four mutually exclusive modes: `APPROACH`, `TURN`, `DEPART`, and
 `DONE`. The program performs the behavior for the current state, then assigns
 the next state. A finite-state machine makes transitions visible and prevents
@@ -182,7 +189,7 @@ with Program output or Monitor.
 6. Change `STOP_RANGE_MM` in Lesson 6 within 250–400 mm. Predict whether the
    final x position increases or decreases.
 7. Add a second turn state to Lesson 7. Give it a distinct name and an explicit
-   transition; retain a bounded duration and final `DONE` state.
+   transition; retain a finite duration and final `DONE` state.
 
 After each exercise, confirm that the final drive command in Monitor is
 `0.00 / 0.00`.

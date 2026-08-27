@@ -5,7 +5,7 @@ import {
   loadTargetPreference,
   localNetworkRequestInit,
   storeTargetPreference,
-  targetPreferenceForPhysicalNetwork,
+  targetPreferenceForCommissionedRobot,
 } from "@ucsb-xrp/target";
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
@@ -85,13 +85,14 @@ interface PhysicalInfo {
   runtimeGeneration?: number;
   runtimeManifestSha256?: string;
   courseApiRevision?: string;
+  robotId?: string;
   robotName: string;
   address: string;
 }
 
 class XrpServiceProbeError extends Error {
   constructor(
-    readonly kind: "http" | "version",
+    readonly kind: "http" | "version" | "identity",
     message: string,
   ) {
     super(message);
@@ -151,12 +152,20 @@ export function networkChoiceVisibility(
   existingWifi: true;
 } {
   return {
-    keepCurrent: Boolean(profile?.present),
+    keepCurrent: hasUsableNetworkProfile(profile),
     // Keeping an existing hotspot and selecting a second hotspot choice would
     // represent the same action. Its optional name remains editable below.
     robotHotspot: profile?.mode !== "access_point",
     existingWifi: true,
   };
+}
+
+export function hasUsableNetworkProfile(
+  profile: ExistingNetworkProfile | null,
+): boolean {
+  if (!profile?.present) return false;
+  if (profile.mode === "access_point") return true;
+  return profile.mode === "station" && Boolean(profile.stationSsid?.trim());
 }
 
 export function CommissionApp() {
@@ -169,6 +178,7 @@ export function CommissionApp() {
   const [error, setError] = useState("");
   const [existingNetwork, setExistingNetwork] =
     useState<ExistingNetworkProfile | null>(null);
+  const [inspectedRobotId, setInspectedRobotId] = useState("");
   const [networkMode, setNetworkMode] = useState<
     "keep" | "access_point" | "station"
   >("access_point");
@@ -503,6 +513,7 @@ export function CommissionApp() {
     async (port: SerialPortLike) => {
       if (!manifest) return;
       setError("");
+      setInspectedRobotId("");
       setDetail("Checking the XRP controller and course runtime…");
       recordSetup("USB", "Selected an XRP and opened its serial connection.");
       portRef.current = port;
@@ -540,12 +551,13 @@ export function CommissionApp() {
       }
       sessionRef.current = session;
       try {
-        await inspectDevice(session, manifest);
+        const inspection = await inspectDevice(session, manifest);
+        setInspectedRobotId(inspection.robotId);
         setReplUnavailable(false);
         const profile = await readExistingNetworkProfile(session);
         await feedCommissioningWatchdog(session);
         setExistingNetwork(profile);
-        if (profile.present) {
+        if (hasUsableNetworkProfile(profile)) {
           setNetworkMode("keep");
           setStationSsid(profile.stationSsid ?? "");
           setDetail(
@@ -558,13 +570,18 @@ export function CommissionApp() {
           );
         } else {
           setNetworkMode("access_point");
+          setStationSsid("");
           setDetail(
-            "The controller is compatible. A device-specific XRP hotspot is the default.",
+            profile.present
+              ? "The controller is compatible, but its saved network settings are incomplete. Choose a robot hotspot or a local Wi-Fi network."
+              : "The controller is compatible. A device-specific XRP hotspot is the default.",
           );
           recordSetup(
             "USB",
-            "Verified the RP2350 controller and MicroPython runtime; no course network profile was installed.",
-            "success",
+            profile.present
+              ? "Verified the RP2350 controller and MicroPython runtime; the incomplete network profile will be replaced."
+              : "Verified the RP2350 controller and MicroPython runtime; no course network profile was installed.",
+            profile.present ? "warning" : "success",
           );
         }
         setStage("network");
@@ -752,10 +769,10 @@ export function CommissionApp() {
     recordSetup(
       "Install",
       network.mode === "station"
-        ? `Starting repair and configuring existing Wi-Fi ${network.ssid}.`
+        ? `Checking course software and configuring Wi-Fi ${network.ssid}.`
         : network.mode === "keep"
-          ? "Starting repair and retaining the installed network profile."
-          : `Starting repair and configuring ${network.ssid ?? "the robot hotspot"}.`,
+          ? "Checking course software and retaining the installed network profile."
+          : `Checking course software and configuring ${network.ssid ?? "the robot hotspot"}.`,
     );
     try {
       await waitForOfflineShell();
@@ -806,9 +823,13 @@ export function CommissionApp() {
         // A USB disconnect can close the browser stream before cleanup runs.
       }
       setError(message);
-      recordSetup("Install", `Repair failed: ${message}`, "error");
+      recordSetup(
+        "Install",
+        `Course software update failed: ${message}`,
+        "error",
+      );
       setDetail(
-        "The USB session ended before setup completed. Select the connected XRP again; completed file updates are retained.",
+        "Setup stopped before the final connection check. Review the message above, then select the XRP again; verified file updates are retained.",
       );
       setStage("usb");
     }
@@ -871,11 +892,26 @@ export function CommissionApp() {
           "The XRP replied, but it did not start the course runtime that was just installed. Reconnect it by USB-C and run repair again.",
         );
       }
-      const preference = targetPreferenceForPhysicalNetwork(
-        { ...loadTargetPreference(), kind: "physical" },
+      const verifiedRobotId = info.robotId?.trim().toLocaleLowerCase();
+      if (
+        !verifiedRobotId ||
+        !inspectedRobotId ||
+        verifiedRobotId !== inspectedRobotId.toLocaleLowerCase()
+      ) {
+        throw new XrpServiceProbeError(
+          "identity",
+          "The XRP reached over Wi-Fi is not the controller selected over USB-C. Check the robot and network, then try again.",
+        );
+      }
+      const preference = targetPreferenceForCommissionedRobot(
+        loadTargetPreference(),
         {
+          robotId: verifiedRobotId,
+          requestedMode: result.network.requested_mode,
           mode: result.network.mode,
           address: `http://${result.network.address}`,
+          ssid: result.network.ssid,
+          fallback: result.network.fallback,
         },
       );
       storeTargetPreference(preference);
@@ -900,6 +936,7 @@ export function CommissionApp() {
           : `Chrome could not reach the XRP (${errorDetail(probeError)}).`;
       setWifiIssue(issue);
       setWifiNeedsRepair(serviceFailure);
+      if (serviceFailure) setWifiProbeEnabled(false);
       const issueKind = serviceFailure ? probeError.kind : "network";
       const logKey = `${issueKind}:${issue}`;
       if (
@@ -919,7 +956,7 @@ export function CommissionApp() {
       wifiCheckInFlightRef.current = false;
       setCheckingWifi(false);
     }
-  }, [manifest, recordSetup, result]);
+  }, [inspectedRobotId, manifest, recordSetup, result]);
 
   useEffect(() => {
     if (stage !== "wifi" || !wifiProbeEnabled) return;
@@ -935,6 +972,7 @@ export function CommissionApp() {
     if (!result || wifiProbeEnabled) return;
     setError("");
     setWifiIssue("");
+    setWifiNeedsRepair(false);
     setWifiProbeEnabled(true);
     setDetail(`Checking the XRP at ${result.network.address}…`);
     recordSetup(
@@ -1311,7 +1349,7 @@ export function CommissionApp() {
                   <label>
                     Wi-Fi password
                     <input
-                      autoComplete="current-password"
+                      autoComplete="off"
                       onChange={(event) =>
                         setStationPassword(event.target.value)
                       }
@@ -1321,7 +1359,7 @@ export function CommissionApp() {
                   </label>
                   <small>
                     The password is sent over USB and is not saved by the web
-                    app.
+                    app. Wi-Fi passwords contain at least 8 characters.
                   </small>
                 </div>
               ) : null}
@@ -1359,14 +1397,13 @@ export function CommissionApp() {
               <button
                 className="primary-button"
                 disabled={
-                  (networkMode === "station" && !stationSsid.trim()) ||
+                  (networkMode === "station" &&
+                    (!stationSsid.trim() || stationPassword.length < 8)) ||
                   (networkMode !== "station" && Boolean(hotspotName.error))
                 }
                 onClick={beginCommissioning}
               >
-                {existingNetwork?.present
-                  ? "Check and repair course software"
-                  : "Install course software"}
+                Install or repair course software
               </button>
             </div>
           ) : null}
@@ -1521,9 +1558,11 @@ export function CommissionApp() {
                   ? "Checking…"
                   : wifiProbeEnabled
                     ? "Check again now"
-                    : result.network.mode === "access_point"
-                      ? `I joined ${result.network.ssid} — check XRP`
-                      : `Check XRP on ${result.network.ssid}`}
+                    : wifiNeedsRepair
+                      ? "Check XRP again"
+                      : result.network.mode === "access_point"
+                        ? `I joined ${result.network.ssid} — check XRP`
+                        : `Check XRP on ${result.network.ssid}`}
               </button>
               <p className="wifi-instruction">
                 If Chrome asks to find and connect to devices on the local

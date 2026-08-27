@@ -102,7 +102,11 @@ async function robotInfo(request: APIRequestContext, endpoint: string) {
     timeout: 3_000,
   });
   expect(response.ok()).toBe(true);
-  return (await response.json()) as { bootId: string; courseRelease: string };
+  return (await response.json()) as {
+    bootId: string;
+    courseRelease: string;
+    robotId: string;
+  };
 }
 
 async function robotCommand(
@@ -169,13 +173,16 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
   const initialInfo = await robotInfo(request, endpoint);
 
   await context.addInitScript(
-    ({ address, project }) => {
+    ({ address, project, robotId }) => {
       localStorage.setItem(
-        "ucsb-xrp-target-v1",
+        "ucsb-xrp-robot-profile-v2",
         JSON.stringify({
+          schemaVersion: 2,
           kind: "physical",
+          robotId,
           physicalConnection: "station",
-          physicalEndpoint: `http://${address}`,
+          stationEndpoint: `http://${address}`,
+          accessPointEndpoint: "http://192.168.4.1",
         }),
       );
       if (!localStorage.getItem("ucsb-xrp-course-project-v1")) {
@@ -185,7 +192,11 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
         );
       }
     },
-    { address: xrpAddress!, project: retainedZeroOutputProject },
+    {
+      address: xrpAddress!,
+      project: retainedZeroOutputProject,
+      robotId: initialInfo.robotId,
+    },
   );
 
   const errors: string[] = [];

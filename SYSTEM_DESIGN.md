@@ -79,6 +79,13 @@ Folder writes are debounced, serialized, and revision/epoch checked so an older
 queued snapshot cannot overwrite a newer edit or explicit save. Before
 overwriting source, the previous complete project is rotated through four JSON
 generations in the project's `UCSB_XRP_Autosaves`.
+Each project also has a stable project ID, monotonic content revision, saved
+revision, and update time in `.ucsb-xrp-project.json`. IDE startup resolves the
+remembered folder and browser recovery copy before publishing one project to
+the shared target. While that resolution is active, a short explicit
+cross-tab bootstrap record disables Monitor Run; it is cleared when the
+resolved project reaches the target. It is not a normal delay or another
+project copy.
 
 The project catalog is declarative. The instructor authoring command copies the
 closest working challenge into a draft, registers it with `published: false`,
@@ -252,8 +259,14 @@ connection and broadcasts status, telemetry, and output to IDE and Monitor;
 tests and browsers without `SharedWorker` use the same direct client as a
 fallback. Only failure to construct the browser worker selects that fallback;
 a robot discovery error is returned without opening a duplicate connection.
-Selected target and endpoint are shared between applications through a small,
-versioned browser-storage record.
+Selected target and endpoint are shared between applications through one
+versioned browser RobotProfile. It stores the commissioned `robotId`, the
+explicitly selected network, separate station and hotspot routes, and the last
+verified network observation. A verified station connection may refresh its
+DHCP route. A hotspot or station-fallback observation never replaces that
+route, and neither application accepts a reachable service whose identity does
+not match the selected robot. RobotProfile is browser/device configuration; it
+does not belong in a student project folder or Git repository.
 
 ## 4. Virtual XRP
 

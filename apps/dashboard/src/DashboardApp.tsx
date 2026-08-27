@@ -33,7 +33,13 @@ import { AppNavigation } from "../../shared/AppNavigation";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import { useTargetPreference } from "../../shared/use-target-preference";
-import { virtualRunNeedsPreparation } from "../../shared/offline-shell";
+import {
+  registerOfflineShellBeforeReload,
+  retryPendingOfflineShellReload,
+  virtualRunNeedsPreparation,
+} from "../../shared/offline-shell";
+import { projectBootstrapIsPending } from "../../shared/project-bootstrap";
+import { useProjectBootstrapPending } from "../../shared/use-project-bootstrap";
 import {
   chooseProjectFolder,
   courseFolderChangedKey,
@@ -65,6 +71,7 @@ import {
   webmExportSupported,
   type MonitorAnnotation,
 } from "./monitor-export";
+import { monitorReloadIsSafe } from "./monitor-release-reload";
 
 interface ConsoleEntry {
   id: string;
@@ -452,6 +459,7 @@ function centeredWorldPreview(
 }
 
 export function DashboardApp() {
+  const projectBootstrapPending = useProjectBootstrapPending();
   const [targetPreference, updateTargetPreference] = useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [worldCatalog, setWorldCatalog] = useState<WorldCatalog>(
@@ -486,11 +494,14 @@ export function DashboardApp() {
     const endpoints = physicalEndpointCandidates(targetPreference);
     return new PhysicalTargetClient(endpoints[0]!, {
       candidateEndpoints: endpoints.slice(1),
+      expectedRobotId: targetPreference.robotId,
     });
   }, [
     targetPreference.kind,
     targetPreference.physicalConnection,
-    targetPreference.physicalEndpoint,
+    targetPreference.stationEndpoint,
+    targetPreference.accessPointEndpoint,
+    targetPreference.robotId,
     connectionAttempt,
   ]);
   const recorder = useMemo(() => new TelemetryRecorder(), []);
@@ -539,7 +550,7 @@ export function DashboardApp() {
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
   const [exportReplayAfterStop, setExportReplayAfterStop] = useState(false);
   const [exportState, setExportState] = useState<
-    "idle" | "plots-svg" | "plots-png" | "world-webm"
+    "idle" | "telemetry-csv" | "plots-svg" | "plots-png" | "world-webm"
   >("idle");
   const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
@@ -553,6 +564,9 @@ export function DashboardApp() {
   const automaticRunOutput = useRef<ConsoleEntry[]>([]);
   const annotationsRef = useRef<MonitorAnnotation[]>([]);
   const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
+  const targetStateRef = useRef<TargetRunState>("disconnected");
+  const runStartingRef = useRef(false);
+  const exportActiveRef = useRef(false);
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
@@ -798,6 +812,7 @@ export function DashboardApp() {
           }
         }
       } else if (event.type === "status") {
+        targetStateRef.current = event.state;
         const nextRunActive = isActiveRunState(event.state);
         if (nextRunActive && !automaticRunActive.current) {
           annotationsRef.current = [];
@@ -911,11 +926,17 @@ export function DashboardApp() {
 
   const runOrStop = async () => {
     const stopping = targetState === "running" || targetState === "loading";
-    if (runStarting || (!stopping && virtualRuntimePreparing)) return;
+    if (
+      runStarting ||
+      (!stopping && (virtualRuntimePreparing || projectBootstrapIsPending()))
+    ) {
+      return;
+    }
     try {
       if (stopping) {
         await target.stop();
       } else {
+        runStartingRef.current = true;
         setRunStarting(true);
         try {
           await target.runCurrent();
@@ -935,9 +956,11 @@ export function DashboardApp() {
         }
       }
     } catch (error: unknown) {
+      targetStateRef.current = "error";
       setTargetState("error");
       setTargetDetail(error instanceof Error ? error.message : String(error));
     } finally {
+      runStartingRef.current = false;
       setRunStarting(false);
     }
   };
@@ -1037,20 +1060,31 @@ export function DashboardApp() {
     setRecordingElapsedMs(0);
     annotationsRef.current = [];
     setAnnotations([]);
+    retryPendingOfflineShellReload();
   };
 
   const exportRecording = async () => {
-    const fileName = timestampedName("xrp-telemetry", "csv");
-    const destination = await prepareExportDestination(
-      autosaveFolder,
-      fileName,
-      "text/csv",
-    );
-    if (!destination) return;
-    const csv = telemetryRecordingToCsv(recorder.snapshot());
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    await destination.save(blob);
-    setExportDetail(`Saved ${destination.description}`);
+    exportActiveRef.current = true;
+    setExportState("telemetry-csv");
+    try {
+      const fileName = timestampedName("xrp-telemetry", "csv");
+      const destination = await prepareExportDestination(
+        autosaveFolder,
+        fileName,
+        "text/csv",
+      );
+      if (!destination) return;
+      const csv = telemetryRecordingToCsv(recorder.snapshot());
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      await destination.save(blob);
+      setExportDetail(`Saved ${destination.description}`);
+    } catch (error) {
+      setExportDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      exportActiveRef.current = false;
+      setExportState("idle");
+      retryPendingOfflineShellReload();
+    }
   };
 
   const commitRuntimeParameter = async (
@@ -1121,17 +1155,18 @@ export function DashboardApp() {
 
   const exportPlots = async (format: "svg" | "png") => {
     if (visiblePlots.length === 0 || plotSamples.length === 0) return;
-    const fileName = timestampedName("xrp-plots", format);
-    const destination = await prepareExportDestination(
-      autosaveFolder,
-      fileName,
-      format === "svg" ? "image/svg+xml" : "image/png",
-    );
-    if (!destination) return;
     const nextState = format === "svg" ? "plots-svg" : "plots-png";
+    exportActiveRef.current = true;
     setExportState(nextState);
-    setExportDetail(`Preparing ${format.toUpperCase()}…`);
     try {
+      const fileName = timestampedName("xrp-plots", format);
+      const destination = await prepareExportDestination(
+        autosaveFolder,
+        fileName,
+        format === "svg" ? "image/svg+xml" : "image/png",
+      );
+      if (!destination) return;
+      setExportDetail(`Preparing ${format.toUpperCase()}…`);
       const svg = createSignalPlotsSvg(
         plotSamples,
         visiblePlots,
@@ -1149,24 +1184,27 @@ export function DashboardApp() {
     } catch (error) {
       setExportDetail(error instanceof Error ? error.message : String(error));
     } finally {
+      exportActiveRef.current = false;
       setExportState("idle");
+      retryPendingOfflineShellReload();
     }
   };
 
   const exportWorldReplay = async (
     samples: readonly TelemetrySample[] = recorder.snapshot().samples,
   ) => {
-    const fileName = timestampedName("xrp-world-replay", "webm");
-    const destination = await prepareExportDestination(
-      autosaveFolder,
-      fileName,
-      "video/webm",
-    );
-    if (!destination) return;
+    exportActiveRef.current = true;
     setExportState("world-webm");
-    setExportDetail("Preparing world replay…");
-    let shownProgress = -1;
     try {
+      const fileName = timestampedName("xrp-world-replay", "webm");
+      const destination = await prepareExportDestination(
+        autosaveFolder,
+        fileName,
+        "video/webm",
+      );
+      if (!destination) return;
+      setExportDetail("Preparing world replay…");
+      let shownProgress = -1;
       const blob = await createWorldReplayWebm({
         samples,
         annotations: annotationsVisible ? annotations : [],
@@ -1186,7 +1224,9 @@ export function DashboardApp() {
     } catch (error) {
       setExportDetail(error instanceof Error ? error.message : String(error));
     } finally {
+      exportActiveRef.current = false;
       setExportState("idle");
+      retryPendingOfflineShellReload();
     }
   };
 
@@ -1228,8 +1268,43 @@ export function DashboardApp() {
     "--monitor-primary-width": `${monitorSettings.layout.worldWidthPercent}%`,
   } as CSSProperties;
   const isRunning = targetState === "running" || targetState === "loading";
+  targetStateRef.current = targetState;
+  runStartingRef.current = runStarting;
+
+  useEffect(
+    () =>
+      registerOfflineShellBeforeReload(async () => {
+        const activity = () => ({
+          runActive:
+            runStartingRef.current ||
+            automaticRunActive.current ||
+            isActiveRunState(targetStateRef.current),
+          exportActive: exportActiveRef.current,
+          recordingActive: recorder.isRecording,
+          retainedRecording: recorder.sampleCount > 0,
+        });
+        if (!monitorReloadIsSafe(activity())) return false;
+        await runArchiveQueue.current;
+        return monitorReloadIsSafe(activity());
+      }),
+    [recorder],
+  );
+
+  useEffect(() => {
+    if (
+      monitorReloadIsSafe({
+        runActive: runStarting || isRunning,
+        exportActive: exportState !== "idle",
+        recordingActive,
+        retainedRecording: recordedSamples > 0,
+      })
+    ) {
+      retryPendingOfflineShellReload();
+    }
+  }, [exportState, isRunning, recordedSamples, recordingActive, runStarting]);
   const canRunCurrent =
     !virtualRuntimePreparing &&
+    !projectBootstrapPending &&
     (targetState === "ready" ||
       (target.kind === "virtual" && targetState === "error")) &&
     (currentProject !== null ||
@@ -1297,15 +1372,17 @@ export function DashboardApp() {
                 ? "Stop the running program."
                 : virtualRuntimePreparing
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                  : runStarting
-                    ? "Validating the default project before Run."
-                    : currentProject?.stale
-                      ? `Validate and run the current IDE project: ${currentProject.name}.`
-                      : currentProject
-                        ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                        : target.kind === "virtual"
-                          ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
-                          : "Run or flash a project in the IDE first."
+                  : projectBootstrapPending
+                    ? "Opening the saved IDE project before Run."
+                    : runStarting
+                      ? "Validating the default project before Run."
+                      : currentProject?.stale
+                        ? `Validate and run the current IDE project: ${currentProject.name}.`
+                        : currentProject
+                          ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                          : target.kind === "virtual"
+                            ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                            : "Run or flash a project in the IDE first."
             }
           >
             <RunStopIcon running={isRunning} />

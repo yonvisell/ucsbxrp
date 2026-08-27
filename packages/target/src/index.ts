@@ -54,16 +54,21 @@ export type {
 } from "./course-project";
 export {
   DEFAULT_TARGET_PREFERENCE,
+  LEGACY_TARGET_PREFERENCE_KEY,
   TARGET_PREFERENCE_KEY,
   XRP_ACCESS_POINT_ENDPOINT,
   loadTargetPreference,
   physicalEndpointCandidates,
   physicalEndpointForPreference,
   storeTargetPreference,
+  targetPreferenceForCommissionedRobot,
+  targetPreferenceForConfiguredNetwork,
   targetPreferenceForPhysicalNetwork,
 } from "./target-preference";
 export type {
+  PhysicalNetworkObservation,
   PhysicalConnectionMode,
+  RobotProfile,
   TargetKind,
   TargetPreference,
 } from "./target-preference";

@@ -1,3 +1,9 @@
+import {
+  OfflineReleaseCoordinator,
+  type OfflineShellReloadRequest,
+  type PrepareForOfflineShellReload,
+} from "./offline-release-coordinator";
+
 export type OfflineShellState =
   "development" | "installing" | "ready" | "unsupported" | "error";
 
@@ -14,11 +20,31 @@ interface OfflineManifest {
 }
 
 export const OFFLINE_SHELL_EVENT = "ucsb-xrp:offline-shell-state";
+export const OFFLINE_SHELL_RELEASE_EVENT = "ucsb-xrp:release-ready";
 const offlineShellVersionKey = "ucsb-xrp-offline-shell-version-v1";
 const offlineShellReloadKey = "ucsb-xrp-offline-shell-reload-v1";
 const isolationReloadKey = "ucsb-xrp-isolation-reload-v1";
 const courseShellCachePrefix = "ucsb-xrp-course-shell-";
 let offlinePreparation: Promise<void> = Promise.resolve();
+let loadedOfflineShellVersion: string | null = null;
+let releaseChannel: BroadcastChannel | null = null;
+
+interface OfflineShellReleaseSignal {
+  type: "release-ready";
+  version: string;
+}
+
+const reloadCoordinator = new OfflineReleaseCoordinator({
+  reload: (request) => {
+    window.sessionStorage.setItem(offlineShellReloadKey, request.version);
+    window.sessionStorage.setItem(isolationReloadKey, request.version);
+    window.location.reload();
+  },
+  reportError: (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Course update is waiting for the application: ${message}`);
+  },
+});
 
 export function initialOfflineShellState(
   production: boolean,
@@ -55,6 +81,97 @@ export function virtualRunNeedsPreparation(
   isolated: boolean,
 ): boolean {
   return production && !isolated;
+}
+
+/**
+ * Runs before this tab adopts a newly saved course release. Return false while
+ * a program is running; resolve true only after any pending project write has
+ * finished. The release remains pending until the application retries it.
+ */
+export function registerOfflineShellBeforeReload(
+  handler: PrepareForOfflineShellReload,
+): () => void {
+  return reloadCoordinator.registerBeforeReload(handler);
+}
+
+/** Retry a deferred update after the program stops or a project save finishes. */
+export function retryPendingOfflineShellReload() {
+  reloadCoordinator.retry();
+}
+
+function requestOfflineShellReload(request: OfflineShellReloadRequest) {
+  reloadCoordinator.request(request);
+}
+
+function isReleaseSignal(value: unknown): value is OfflineShellReleaseSignal {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as Partial<OfflineShellReleaseSignal>).type === "release-ready" &&
+    typeof (value as Partial<OfflineShellReleaseSignal>).version === "string" &&
+    (value as Partial<OfflineShellReleaseSignal>).version !== ""
+  );
+}
+
+function dispatchReleaseReady(version: string, source: "local" | "peer") {
+  window.dispatchEvent(
+    new CustomEvent(OFFLINE_SHELL_RELEASE_EVENT, {
+      detail: { version, source },
+    }),
+  );
+}
+
+function peerReleaseNeedsReload(version: string): boolean {
+  return offlineShellUpdateNeedsReload(
+    loadedOfflineShellVersion,
+    version,
+    window.sessionStorage.getItem(offlineShellReloadKey),
+  );
+}
+
+function receiveReleaseReady(version: string) {
+  dispatchReleaseReady(version, "peer");
+  if (peerReleaseNeedsReload(version)) {
+    requestOfflineShellReload({ version, reason: "release-update" });
+  }
+}
+
+function startReleaseCoordination(basePath: string) {
+  loadedOfflineShellVersion = window.localStorage.getItem(
+    offlineShellVersionKey,
+  );
+  if (typeof BroadcastChannel !== "undefined") {
+    releaseChannel?.close();
+    releaseChannel = new BroadcastChannel(`ucsb-xrp-release-ready:${basePath}`);
+    releaseChannel.addEventListener(
+      "message",
+      (event: MessageEvent<unknown>) => {
+        if (isReleaseSignal(event.data)) {
+          receiveReleaseReady(event.data.version);
+        }
+      },
+    );
+  }
+
+  // A suspended tab can miss a channel message. The version already stored by
+  // the installing tab provides the same deterministic check when it returns.
+  const reconcileKnownRelease = () => {
+    const version = window.localStorage.getItem(offlineShellVersionKey);
+    if (version !== null && peerReleaseNeedsReload(version)) {
+      requestOfflineShellReload({ version, reason: "release-update" });
+    }
+  };
+  window.addEventListener("pageshow", reconcileKnownRelease);
+  window.addEventListener("focus", reconcileKnownRelease);
+}
+
+function announceReleaseReady(version: string) {
+  const signal: OfflineShellReleaseSignal = {
+    type: "release-ready",
+    version,
+  };
+  releaseChannel?.postMessage(signal);
+  dispatchReleaseReady(version, "local");
 }
 
 function publishState(
@@ -273,28 +390,27 @@ async function installOfflineShell(basePath: string) {
   }
   await navigator.serviceWorker.ready;
   const manifest = await verifyPrecache(manifestUrl);
-  const previousVersion = window.localStorage.getItem(offlineShellVersionKey);
   window.localStorage.setItem(offlineShellVersionKey, manifest.version);
   publishState("ready", { version: manifest.version });
+  announceReleaseReady(manifest.version);
 
   // A newly activated worker cannot replace JavaScript already executing in
-  // this tab. Reload once per build so a long-open classroom tab does not keep
-  // presenting an older interface after the offline shell has updated.
-  if (
-    offlineShellUpdateNeedsReload(
-      previousVersion,
-      manifest.version,
-      window.sessionStorage.getItem(offlineShellReloadKey),
-    ) ||
-    offlineShellIsolationNeedsReload(
-      globalThis.crossOriginIsolated,
-      manifest.version,
-      window.sessionStorage.getItem(isolationReloadKey),
-    )
-  ) {
-    window.sessionStorage.setItem(offlineShellReloadKey, manifest.version);
-    window.sessionStorage.setItem(isolationReloadKey, manifest.version);
-    window.location.reload();
+  // this tab. Coordinate one safe reload across every open course application.
+  const updateNeedsReload = offlineShellUpdateNeedsReload(
+    loadedOfflineShellVersion,
+    manifest.version,
+    window.sessionStorage.getItem(offlineShellReloadKey),
+  );
+  const isolationNeedsReload = offlineShellIsolationNeedsReload(
+    globalThis.crossOriginIsolated,
+    manifest.version,
+    window.sessionStorage.getItem(isolationReloadKey),
+  );
+  if (updateNeedsReload || isolationNeedsReload) {
+    requestOfflineShellReload({
+      version: manifest.version,
+      reason: updateNeedsReload ? "release-update" : "isolation",
+    });
   }
 }
 
@@ -308,6 +424,10 @@ export function registerOfflineShell() {
     supported,
   );
   publishState(initialState);
+
+  if (initialState !== "unsupported") {
+    startReleaseCoordination(import.meta.env.BASE_URL);
+  }
 
   if (initialState === "development") {
     offlinePreparation = removeProductionShellFromDevelopment(

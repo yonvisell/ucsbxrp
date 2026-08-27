@@ -1,4 +1,4 @@
-"""Calculate bounded motor commands from requested and measured wheel speeds."""
+"""Calculate limited motor commands from requested and measured wheel speeds."""
 
 from ucsb_xrp import DriveCommand
 from ucsb_xrp.student_api import WheelSpeedControllerBase

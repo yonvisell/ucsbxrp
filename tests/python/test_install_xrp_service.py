@@ -112,8 +112,8 @@ class InstallXrpServiceTest(unittest.TestCase):
     def test_runtime_manifest_is_canonical_and_complete(self):
         manifest = INSTALLER.runtime_manifest()
         data = INSTALLER.canonical_json_bytes(manifest)
-        self.assertEqual(manifest["releaseId"], "2026.08-dev.25")
-        self.assertEqual(manifest["releaseSequence"], 25)
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.26")
+        self.assertEqual(manifest["releaseSequence"], 26)
         self.assertEqual(manifest["compatibility"]["protocolVersion"], 1)
         self.assertTrue(data.endswith(b"\n"))
         self.assertNotIn(b" ", data)
@@ -188,7 +188,7 @@ class InstallXrpServiceTest(unittest.TestCase):
         activation = result["activation"]
         self.assertEqual(activation["generation"], 1)
         self.assertEqual(activation["slot"], "a")
-        self.assertEqual(activation["releaseSequence"], 25)
+        self.assertEqual(activation["releaseSequence"], 26)
         active_path = "/course_runtime/active.0.json"
         self.assertEqual(json.loads(transport.files[active_path]), activation)
         manifest_path = "/course_runtime/slots/a/runtime-manifest.json"
@@ -370,14 +370,14 @@ class InstallXrpServiceTest(unittest.TestCase):
         self.assertLess(address_index, reset_index)
 
     def test_installer_rejects_a_newer_valid_runtime_before_staging(self):
-        manifest_data = b'{"releaseId":"2026.08-dev.26"}\n'
+        manifest_data = b'{"releaseId":"2026.08-dev.27"}\n'
         digest = hashlib.sha256(manifest_data).hexdigest()
         record = {
             "schemaVersion": 1,
             "generation": 8,
             "slot": "a",
-            "releaseId": "2026.08-dev.26",
-            "releaseSequence": 26,
+            "releaseId": "2026.08-dev.27",
+            "releaseSequence": 27,
             "runtimeManifestSha256": digest,
         }
         transport = MemoryTransport(

@@ -151,6 +151,9 @@ export type TargetEvent =
       mode: "access_point" | "station";
       address: string;
       ssid?: string;
+      requestedMode?: "access_point" | "station";
+      fallback?: boolean;
+      robotId?: string;
     }
   | ({
       type: "console";

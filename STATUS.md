@@ -4,6 +4,41 @@ Last updated: 2026-08-26
 
 ## Current result
 
+Refinement 48 resolves the browser state-authority failures found by repeated
+first-use, cross-tab, and update testing. A versioned RobotProfile now retains
+one commissioned robot identity, separate station and hotspot routes, and the
+last verified network observation. A verified station connection refreshes a
+stale DHCP route; a hotspot fallback cannot overwrite it. Both direct and
+SharedWorker paths reject a different or identity-less XRP before publishing a
+ready state. The redundant SharedWorker command deadlines have been removed,
+so the direct target's bounded request and reset-recovery transitions are the
+only clocks around a physical operation.
+
+ProjectSession now gives each project a stable identity plus monotonic revision
+and saved-revision metadata. IDE startup resolves the remembered folder before
+displaying or staging a project, and an explicit cross-tab bootstrap signal
+keeps Monitor Run disabled until that reconciled revision reaches the shared
+target. Edits, file operations, project creation, manual save, autosave, folder
+switches, and a pending PWA update all use the same revision identity. An
+update waits for active target operations and an exact folder save rather than
+reloading through student work. The attached robot has not yet been changed;
+it remains on the physically qualified dev.25 runtime while the coherent source
+and commissioning bundle are now `2026.08-dev.26`.
+
+The adversarial setup pass also prevents invalid station credentials from
+entering installation, stops probing after identity/version rejection, and
+stores no RobotProfile until USB and Wi-Fi identify the same controller. Active
+course and API documents now match the public package, Challenge 4 accepts any
+valid connected free-cell route, and device stdout is bounded to 512-character
+records so a missing newline cannot consume RP2350 memory. Under Node 24, 200
+Python tests, the MicroPython 1.28 source/service and MPY checks, 272 TypeScript
+tests, the production/offline build, and all 70 non-hardware Stable Chrome
+workflows pass. The browser gate includes repeated Run/Stop and reload, delayed
+folder restoration, wrong-robot rejection, network cycles, commissioning
+repair/retry, offline reopen, all challenges/tutorials, recording/export, and
+narrow layouts. The next stage is the dev.26 USB install and repeated physical
+station-mode qualification.
+
 Refinement 47 makes installation atomic at the course-release boundary and
 removes the RP2350 flash/run conflict found by repeated physical use. Release
 `2026.08-dev.25` installs the complete course runtime into alternating `a` and

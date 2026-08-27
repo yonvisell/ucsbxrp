@@ -53,8 +53,9 @@ not the specification.
 - Reference control gains and navigation thresholds are examples. Physical
   floor calibration should revise `robot_config.py`, not hard-code one robot's
   measurements into the package API.
-- Planning requires a shortest valid four-neighbor route but does not prescribe
-  one frontier implementation or tie break.
+- Planning requires a valid connected route through free cells, with each step
+  moving horizontally or vertically to a cell that shares an edge. It does not
+  require a minimum-length route or prescribe one search algorithm.
 - Drive-command terminology is the preferred course surface. The older effort
   names are compatibility-only and should not be introduced in new examples.
 - Persistent/replay telemetry and more simulator environments should remain

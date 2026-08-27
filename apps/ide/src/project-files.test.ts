@@ -10,6 +10,7 @@ import {
   hasProjectFolderMetadata,
   isCourseRepositoryFolder,
   loadRecoveredProject,
+  loadRecoveredProjectState,
   normalizedProjectPath,
   projectPathError,
   projectFolderNameError,
@@ -380,6 +381,65 @@ describe("project recovery", () => {
     expect(loadRecoveredProject()).toEqual(project);
   });
 
+  it("stores and recovers optional project-session metadata", () => {
+    const project = {
+      name: "week-two",
+      entrypoint: "main.py",
+      files: { "main.py": "print('ready')\n" },
+      session: {
+        projectId: "7dc4e98e-d617-4e05-9628-399e754b9e48",
+        revision: 7,
+        savedRevision: 5,
+        updatedAt: 1_786_000_000_000,
+      },
+    };
+
+    storeRecoveredProject(project);
+
+    expect(loadRecoveredProject()).toEqual(project);
+  });
+
+  it("ignores malformed optional session metadata without losing user files", () => {
+    storage.setItem(
+      projectRecoveryKey,
+      JSON.stringify({
+        name: "week-two",
+        entrypoint: "main.py",
+        files: { "main.py": "print('keep me')\n" },
+        session: {
+          projectId: "broken",
+          revision: 2,
+          savedRevision: 3,
+          updatedAt: 1_786_000_000_000,
+        },
+      }),
+    );
+
+    expect(loadRecoveredProject()).toEqual({
+      name: "week-two",
+      entrypoint: "main.py",
+      files: { "main.py": "print('keep me')\n" },
+    });
+  });
+
+  it("retains one divergent browser draft in the existing recovery record", () => {
+    const project = {
+      name: "folder project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('folder')\n" },
+    };
+    const preservedDraft = {
+      name: "browser draft",
+      entrypoint: "main.py",
+      files: { "main.py": "print('unsaved')\n" },
+    };
+
+    storeRecoveredProject(project, preservedDraft);
+
+    expect(loadRecoveredProject()).toEqual(project);
+    expect(loadRecoveredProjectState()).toEqual({ project, preservedDraft });
+  });
+
   it("falls back to the spiral demo when recovery is malformed", () => {
     storage.setItem(
       projectRecoveryKey,
@@ -658,6 +718,95 @@ describe("working-folder reads", () => {
     const reopened = await readProjectFolder(root);
     expect(reopened.project).toEqual(project);
     expect(reopened.skipped).toBe(0);
+  });
+
+  it("writes session identity to project metadata and reopens it as saved", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("course-project", files);
+    const project = {
+      name: "course-project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('draft')\n" },
+      session: {
+        projectId: "15f3cd4d-9e86-44ad-945f-daf7995710f3",
+        revision: 9,
+        savedRevision: 7,
+        updatedAt: 1_786_000_000_500,
+      },
+    };
+
+    await writeProjectFolder(root, project);
+
+    expect(
+      JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}"),
+    ).toMatchObject({
+      session: {
+        projectId: "15f3cd4d-9e86-44ad-945f-daf7995710f3",
+        revision: 9,
+        savedRevision: 9,
+        updatedAt: 1_786_000_000_500,
+      },
+    });
+    await expect(readProjectFolder(root)).resolves.toMatchObject({
+      project: {
+        session: {
+          projectId: "15f3cd4d-9e86-44ad-945f-daf7995710f3",
+          revision: 9,
+          savedRevision: 9,
+          updatedAt: 1_786_000_000_500,
+        },
+      },
+    });
+  });
+
+  it("adds session metadata to an unchanged legacy folder without rotating source", async () => {
+    const files = new Map<string, string>([
+      ["main.py", "print('unchanged')\n"],
+      [
+        ".ucsb-xrp-project.json",
+        '{"name":"course-project","entrypoint":"main.py"}\n',
+      ],
+    ]);
+    const root = new WritableDirectoryHandle("course-project", files);
+
+    const result = await saveProjectFolderWithAutosave(root, {
+      name: "course-project",
+      entrypoint: "main.py",
+      files: { "main.py": "print('unchanged')\n" },
+      session: {
+        projectId: "legacy-project-adopted",
+        revision: 0,
+        savedRevision: 0,
+        updatedAt: 1_786_000_001_000,
+      },
+    });
+
+    expect(result).toEqual({ changed: true, removedFiles: 0 });
+    expect(
+      JSON.parse(files.get(".ucsb-xrp-project.json") ?? "{}"),
+    ).toMatchObject({
+      session: {
+        projectId: "legacy-project-adopted",
+        revision: 0,
+        savedRevision: 0,
+      },
+    });
+    expect(
+      [...files.keys()].some((path) => path.startsWith("UCSB_XRP_Autosaves/")),
+    ).toBe(false);
+    await expect(
+      saveProjectFolderWithAutosave(root, {
+        name: "course-project",
+        entrypoint: "main.py",
+        files: { "main.py": "print('unchanged')\n" },
+        session: {
+          projectId: "legacy-project-adopted",
+          revision: 0,
+          savedRevision: 0,
+          updatedAt: 1_786_000_001_000,
+        },
+      }),
+    ).resolves.toEqual({ changed: false, removedFiles: 0 });
   });
 
   it("creates a named project folder inside a workspace without overwriting", async () => {

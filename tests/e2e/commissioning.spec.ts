@@ -444,6 +444,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
               implementation: "micropython",
               version: [1, 28, 0],
               machine: "SparkFun XRP Controller with RP2350",
+              robotId: "4c91fae8f1775aa4",
               mpy: 774,
               modules: [
                 "XRPLib.board",
@@ -577,9 +578,16 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
     const originalFetch = window.fetch.bind(window);
     let serviceProbeCount = 0;
+    let serviceRobotId = "0000000000000000";
     Object.defineProperty(window, "__ucsbServiceProbeCount", {
       configurable: true,
       get: () => serviceProbeCount,
+    });
+    Object.defineProperty(window, "__setUcsbServiceRobotId", {
+      configurable: true,
+      value: (robotId: string) => {
+        serviceRobotId = robotId;
+      },
     });
     window.fetch = async (input, init) => {
       const url =
@@ -601,9 +609,9 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             protocol: 1,
             protocolRevision: 1,
             serviceVersion: "0.1.0",
-            courseRelease: "2026.08-dev.25",
-            runtimeRelease: "2026.08-dev.25",
-            runtimeReleaseSequence: 25,
+            courseRelease: "2026.08-dev.26",
+            runtimeRelease: "2026.08-dev.26",
+            runtimeReleaseSequence: 26,
             runtimeGeneration: 1,
             runtimeManifestSha256: runtimeManifest
               ? await sha256(runtimeManifest)
@@ -611,6 +619,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
             courseApiRevision: "0.4-draft",
             courseLibraryVersion: "0.4.0-dev",
             bootstrapVersion: 1,
+            robotId: serviceRobotId,
             robotName: "UCSB-XRP-4A21",
             address: "192.168.4.1",
             bootId: "test-boot",
@@ -659,6 +668,14 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(page.getByLabel("Robot hotspot", { exact: true })).toHaveCount(
     0,
   );
+  await page.getByLabel("Connect to a Wi-Fi network").check();
+  await page.getByLabel("Network name").fill("Course network");
+  await page.getByLabel("Wi-Fi password").fill("short");
+  await expect(
+    page.getByRole("button", { name: "Install or repair course software" }),
+  ).toBeDisabled();
+  await expect(page.getByText(/at least 8 characters/)).toBeVisible();
+  await page.getByLabel("Keep UCSB-XRP-4A21").check();
   const hotspotName = page.getByLabel(
     /Enter one team member's last name to give this robot a unique Wi-Fi hotspot name/,
   );
@@ -668,7 +685,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   ).toBeVisible();
   await hotspotName.fill("");
   await page
-    .getByRole("button", { name: "Check and repair course software" })
+    .getByRole("button", { name: "Install or repair course software" })
     .click();
 
   await expect(
@@ -683,7 +700,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Check and repair course software" })
+    .getByRole("button", { name: "Install or repair course software" })
     .click();
 
   await expect(
@@ -720,18 +737,41 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   const visibleSetupLog = await page.getByLabel("Setup log").textContent();
   expect(visibleSetupLog).toContain("Attempt 1");
   expect(visibleSetupLog).not.toContain("ucsb-xrp");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Robot service needs repair" }),
+  ).toContainText("not the controller selected over USB-C");
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem("ucsb-xrp-robot-profile-v2"),
+    ),
+  ).toBeNull();
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        __setUcsbServiceRobotId: (robotId: string) => void;
+      }
+    ).__setUcsbServiceRobotId("4c91fae8f1775aa4"),
+  );
+  await page.getByRole("button", { name: "Check XRP again" }).click();
+  await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
   await expect
     .poll(() =>
       page.evaluate(() =>
-        JSON.parse(localStorage.getItem("ucsb-xrp-target-v1") ?? "null"),
+        JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "null"),
       ),
     )
     .toMatchObject({
+      schemaVersion: 2,
       kind: "physical",
+      robotId: "4c91fae8f1775aa4",
       physicalConnection: "access_point",
-      physicalEndpoint: "http://192.168.4.1",
+      stationEndpoint: "http://ucsb-xrp.local",
+      accessPointEndpoint: "http://192.168.4.1",
+      lastObservedNetwork: {
+        mode: "access_point",
+        address: "http://192.168.4.1",
+      },
     });
-  await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
   await expect(page.getByTestId("project-folder")).toHaveText(
     "./Expanding-Spiral",
   );

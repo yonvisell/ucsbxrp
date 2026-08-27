@@ -17,15 +17,34 @@ import {
 
 export type { CourseDirectoryHandle } from "../../shared/course-folder";
 
+export interface ProjectSessionMetadata {
+  /** Stable identity for this project across browser and folder copies. */
+  projectId: string;
+  /** Monotonic number advanced for each project-content change. */
+  revision: number;
+  /** Latest revision known to have been written to the project folder. */
+  savedRevision: number;
+  /** Unix time in milliseconds of the latest project-content change. */
+  updatedAt: number;
+}
+
 export interface ProjectSnapshot extends CourseProject {
   name: string;
   /** Catalog identity used only for an explicit challenge progression. */
   templateId?: string;
+  /** Optional until a legacy project is opened as a revisioned session. */
+  session?: ProjectSessionMetadata;
 }
 
 interface FolderReadResult {
   project: ProjectSnapshot;
   skipped: number;
+}
+
+export interface ProjectRecoveryState {
+  project: ProjectSnapshot;
+  /** A divergent unsaved browser draft retained during folder reconciliation. */
+  preservedDraft?: ProjectSnapshot;
 }
 
 const projectRecoveryKey = "ucsb-xrp-course-project-v1";
@@ -143,6 +162,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function recoveredSessionMetadata(
+  value: unknown,
+): ProjectSessionMetadata | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.projectId !== "string" ||
+    value.projectId.length === 0 ||
+    value.projectId.length > 128 ||
+    value.projectId.trim() !== value.projectId ||
+    !Number.isSafeInteger(value.revision) ||
+    (value.revision as number) < 0 ||
+    !Number.isSafeInteger(value.savedRevision) ||
+    (value.savedRevision as number) < 0 ||
+    (value.savedRevision as number) > (value.revision as number) ||
+    !Number.isSafeInteger(value.updatedAt) ||
+    (value.updatedAt as number) < 0
+  ) {
+    return undefined;
+  }
+  return {
+    projectId: value.projectId,
+    revision: value.revision as number,
+    savedRevision: value.savedRevision as number,
+    updatedAt: value.updatedAt as number,
+  };
+}
+
 function recoveredProject(value: unknown): ProjectSnapshot | null {
   if (
     !isRecord(value) ||
@@ -165,6 +211,7 @@ function recoveredProject(value: unknown): ProjectSnapshot | null {
   if (isCourseRepositoryFileSet(files)) {
     return null;
   }
+  const session = recoveredSessionMetadata(value.session);
   return {
     name: value.name,
     entrypoint: value.entrypoint,
@@ -172,6 +219,7 @@ function recoveredProject(value: unknown): ProjectSnapshot | null {
     ...(typeof value.templateId === "string"
       ? { templateId: value.templateId }
       : {}),
+    ...(session ? { session } : {}),
   };
 }
 
@@ -261,34 +309,61 @@ function migratePreviousSpiralStarter(
   return current;
 }
 
-export function loadRecoveredProject(): ProjectSnapshot {
+function migrateRecoveredProject(project: ProjectSnapshot): ProjectSnapshot {
+  return migratePreviousSpiralStarter(migrateOriginalStageOneStarter(project));
+}
+
+export function loadRecoveredProjectState(): ProjectRecoveryState {
   try {
     const saved = localStorage.getItem(projectRecoveryKey);
     if (saved) {
-      const project = recoveredProject(JSON.parse(saved));
+      const value = JSON.parse(saved) as unknown;
+      if (isRecord(value) && "project" in value) {
+        const project = recoveredProject(value.project);
+        const preservedDraft = recoveredProject(value.preservedDraft);
+        if (project) {
+          return {
+            project: migrateRecoveredProject(project),
+            ...(preservedDraft
+              ? { preservedDraft: migrateRecoveredProject(preservedDraft) }
+              : {}),
+          };
+        }
+      }
+      const project = recoveredProject(value);
       if (project) {
-        return migratePreviousSpiralStarter(
-          migrateOriginalStageOneStarter(project),
-        );
+        return { project: migrateRecoveredProject(project) };
       }
     }
     const legacySource = localStorage.getItem(legacyRecoveryKey);
     if (legacySource !== null) {
-      return migrateOriginalStageOneStarter({
-        name: "Recovered project",
-        entrypoint: "main.py",
-        files: { "main.py": legacySource },
-      });
+      return {
+        project: migrateOriginalStageOneStarter({
+          name: "Recovered project",
+          entrypoint: "main.py",
+          files: { "main.py": legacySource },
+        }),
+      };
     }
   } catch {
-    return defaultProject();
+    return { project: defaultProject() };
   }
-  return defaultProject();
+  return { project: defaultProject() };
 }
 
-export function storeRecoveredProject(project: ProjectSnapshot): void {
+export function loadRecoveredProject(): ProjectSnapshot {
+  return loadRecoveredProjectState().project;
+}
+
+export function storeRecoveredProject(
+  project: ProjectSnapshot,
+  preservedDraft?: ProjectSnapshot,
+): void {
   try {
-    localStorage.setItem(projectRecoveryKey, JSON.stringify(project));
+    localStorage.setItem(
+      projectRecoveryKey,
+      JSON.stringify(preservedDraft ? { project, preservedDraft } : project),
+    );
   } catch {
     // The in-memory project remains usable if browser recovery is unavailable.
   }
@@ -503,6 +578,7 @@ export async function readProjectFolder(
   let preferredEntrypoint: string | undefined;
   let preferredName: string | undefined;
   let preferredTemplateId: string | undefined;
+  let session: ProjectSessionMetadata | undefined;
 
   const visit = async (
     directory: CourseDirectoryHandle,
@@ -537,6 +613,7 @@ export async function readProjectFolder(
             ) {
               preferredTemplateId = metadata.templateId;
             }
+            session = recoveredSessionMetadata(metadata.session);
           } else {
             skipped += 1;
           }
@@ -584,6 +661,9 @@ export async function readProjectFolder(
       ...(preferredTemplateId || inferredTemplateId
         ? { templateId: preferredTemplateId ?? inferredTemplateId }
         : {}),
+      ...(session
+        ? { session: { ...session, savedRevision: session.revision } }
+        : {}),
     },
     skipped,
   };
@@ -627,6 +707,14 @@ export async function writeProjectFolder(
         name: project.name,
         entrypoint: project.entrypoint,
         ...(project.templateId ? { templateId: project.templateId } : {}),
+        ...(project.session
+          ? {
+              session: {
+                ...project.session,
+                savedRevision: project.session.revision,
+              },
+            }
+          : {}),
       },
       null,
       2,
@@ -735,7 +823,7 @@ export async function removeProjectFolderFiles(
   return removed;
 }
 
-function sameProjectContents(
+export function sameProjectContents(
   first: ProjectSnapshot,
   second: ProjectSnapshot,
 ): boolean {
@@ -762,6 +850,20 @@ export interface ProjectFolderSaveResult {
   removedFiles: number;
 }
 
+function sameSavedSessionMetadata(
+  first: ProjectSessionMetadata | undefined,
+  second: ProjectSessionMetadata | undefined,
+): boolean {
+  if (!first || !second) {
+    return first === second;
+  }
+  return (
+    first.projectId === second.projectId &&
+    first.revision === second.revision &&
+    first.updatedAt === second.updatedAt
+  );
+}
+
 async function saveProjectFolderWithAutosaveUnlocked(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
@@ -779,11 +881,15 @@ async function saveProjectFolderWithAutosaveUnlocked(
     }
   }
 
-  const changed = previous === null || !sameProjectContents(previous, project);
-  if (!changed) {
+  const contentsChanged =
+    previous === null || !sameProjectContents(previous, project);
+  const metadataChanged =
+    previous !== null &&
+    !sameSavedSessionMetadata(previous.session, project.session);
+  if (!contentsChanged && !metadataChanged) {
     return { changed: false, removedFiles: 0 };
   }
-  if (previous) {
+  if (previous && contentsChanged) {
     await writeRotatingTextBundle(root, [
       {
         baseName: "project",
@@ -800,7 +906,9 @@ async function saveProjectFolderWithAutosaveUnlocked(
     ]);
   }
   await writeProjectFolder(root, project);
-  const removedFiles = await removeProjectFolderFiles(root, deletedPaths);
+  const removedFiles = contentsChanged
+    ? await removeProjectFolderFiles(root, deletedPaths)
+    : 0;
   return { changed: true, removedFiles };
 }
 

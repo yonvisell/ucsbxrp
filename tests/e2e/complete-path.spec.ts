@@ -488,9 +488,15 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   );
   expect(savedProjectState.deletedCopy).toBeUndefined();
   expect(savedProjectState.metadata).toBeDefined();
-  expect(JSON.parse(savedProjectState.metadata!)).toEqual({
+  expect(JSON.parse(savedProjectState.metadata!)).toMatchObject({
     name: "virtual-browser-check",
     entrypoint: "main.py",
+    session: {
+      projectId: expect.any(String),
+      revision: expect.any(Number),
+      savedRevision: expect.any(Number),
+      updatedAt: expect.any(Number),
+    },
   });
 
   const guide = await context.newPage();

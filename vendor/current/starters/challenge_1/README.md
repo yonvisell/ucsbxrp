@@ -88,7 +88,7 @@ exceptions for both classes.
 | `challenge.py` | Reads the initial pose and finish point from `world.json` and provides the named task values. |
 | `robot_config.py` | Holds robot dimensions, encoder signs, motor calibration, speed-estimation settings, and straight-run speed and tolerance fields. |
 | `course_setup.py` | Chooses the supplied or student version of each class. |
-| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
+| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
 | `StraightLineController` | Uses measured mean wheel travel to request cruise speed, approach speed, or stop. |
 | Supplied `DifferentialDrive` and `Odometry` | Complete the measured robot loop until students implement these classes in Challenge 2. |
 
@@ -119,8 +119,8 @@ WheelSpeedController* --------- left/right motor commands
 1. Run the unchanged project with both supplied components selected. In the
    Monitor, identify requested wheel speed, measured wheel speed, motor command,
    and wheel position.
-2. Implement `SensorModel`. Select **Test components** and resolve every
-   reported SensorModel error.
+2. Implement `SensorModel`. Select **Test components**, read the stated input
+   example, and resolve every SensorModel result that is not PASS.
 3. Select the student SensorModel in `course_setup.py`. Run the virtual XRP and
    confirm that forward wheel positions increase, increments remain measured
    travel, and speed estimates respond smoothly.

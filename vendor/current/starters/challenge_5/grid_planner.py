@@ -1,4 +1,4 @@
-"""Find a shortest route through free horizontal and vertical grid neighbors."""
+"""Find a connected route through free grid cells that share a side."""
 
 from ucsb_xrp.student_api import GridPlannerBase
 

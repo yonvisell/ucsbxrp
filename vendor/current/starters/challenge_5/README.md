@@ -1,9 +1,10 @@
 # Challenge 5: Delivery Mission
 
-Use stationary ultrasonic range measurements to determine whether the named
-gate is blocked, update the map, plan a route, and drive to the delivery point.
-Two outcomes are correct: complete the delivery when a route exists, or stop
-and report that no route exists.
+The XRP begins facing the opening between two fixed walls. Use stationary
+ultrasonic range measurements to determine whether that opening is blocked by
+the changeable gate. The supplied mission then updates the map, plans a route,
+and drives to the delivery point. Two outcomes are correct: complete the
+delivery when a route exists, or stop and report that no route exists.
 
 `challenge.py` constructs `DELIVERY_TASK`. Its named fields define the mission
 without requiring values to be repeated elsewhere. Distances and range
@@ -24,6 +25,13 @@ measurements use millimeters:
 
 Read these fields through `DELIVERY_TASK`. Do not copy their current numerical
 values into `sensor_model.py` or another component.
+
+`WORLD` is the virtual case selected in the Monitor. It supplies the virtual
+range reading and the displayed start and destination. `MISSION_MAP_WORLD_ID`
+selects the one dimensioned map that defines the changeable feature's name and
+location. `DeliveryMission` decides whether that feature is open or blocked
+from the range estimate. Selecting a virtual case therefore changes the
+measurement, not the decision inside the student program.
 
 ## Start this challenge
 
@@ -74,7 +82,7 @@ range estimate was available; it does not mean zero distance.
 | `main.py` | Constructs `DeliveryMission`, runs it, and prints the mission result and final pose. |
 | `robot_config.py` | Robot calibration and waypoint-controller settings. |
 | `course_setup.py` | Selects the supplied or student version of each class independently. |
-| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
+| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
 | `DeliveryMission` | Keeps the robot stopped while sampling, decides whether the gate is blocked, updates the map, plans and follows the route, and stops the robot before exit. |
 | `ArenaMap` and `OccupancyGrid` | Represent the observed arena and the cells available for planning. |
 | `GridPath.to_goals(...)` | Keeps cells where the path turns and at the destination, converts their centers to waypoint goals, and applies the requested final heading. |

@@ -98,14 +98,38 @@ course_setup.py
     provides the make_* factory functions.
 
 challenge.py
-    Contains the current experiment or task values, including initial pose,
-    travel distance, destinations, map, grid resolution, and range settings.
+    Loads world-owned task values and defines any non-geometric task settings,
+    such as a target time, grid resolution, or range threshold.
+
+world.json
+    Defines the project worlds used by Python, the simulator, and the Monitor:
+    bounds, initial pose, obstacles, changeable features, and named markers.
 
 Task values belong in challenge.py. Robot measurements and reusable controller
-settings belong in robot_config.py. Each algorithm belongs in its literally
+settings belong in robot_config.py. World geometry belongs in world.json and is
+loaded rather than copied into Python. Each algorithm belongs in its literally
 named component file. Use # for ordinary comments. Triple-quoted strings at
 the start of a module, class, or function are documentation strings, not a
 general commenting syntax.
+
+
+LOADING THE PROJECT WORLD
+
+load_world() reads world.json and returns the selected ProjectWorld. With no
+arguments, it loads the catalog's default_world:
+
+    from ucsb_xrp import load_world
+
+
+    WORLD = load_world()
+    INITIAL_POSE = WORLD.initial_pose
+    ROUTE = WORLD.waypoints()
+
+waypoint(name) returns one named NavigationGoal. waypoints() returns all
+waypoint markers in file order. arena_map(blocked_features=()) returns the
+dimensioned ArenaMap for planning. The project therefore has one source for
+geometry; the Python task, virtual XRP, and Monitor do not maintain separate
+coordinates.
 
 
 REFERENCE AND STUDENT IMPLEMENTATIONS
@@ -233,12 +257,12 @@ main.py
 
     from challenge import INITIAL_POSE, TRAVEL_DISTANCE_MM
     from course_setup import make_robot
-    from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+    from robot_config import ROBOT_CONFIG, STRAIGHT_CONFIG
     from ucsb_xrp import StraightLineController
 
 
     robot = make_robot(ROBOT_CONFIG)
-    straight = StraightLineController(NAVIGATION_CONFIG)
+    straight = StraightLineController(STRAIGHT_CONFIG)
 
     try:
         state = robot.start(INITIAL_POSE)
@@ -253,7 +277,7 @@ main.py
         robot.stop()
 
 TRAVEL_DISTANCE_MM comes from challenge.py. Cruise speed, approach speed,
-slowdown distance, and position tolerance come from NAVIGATION_CONFIG.
+slowdown distance, and position tolerance come from STRAIGHT_CONFIG.
 
 
 FOLLOWING WORLD-COORDINATE DESTINATIONS
@@ -332,13 +356,16 @@ cell_center(cell) returns the world coordinates at the center of a cell.
 
 is_blocked(cell) reports whether a cell is unavailable.
 
-neighbors(cell) returns the free four-neighbor cells used by GridPlanner.
+neighbors(cell) returns the free cells that share a horizontal or vertical
+edge with cell.
 
 
 CONVERTING A GRID PATH TO NAVIGATION GOALS
 
 GridPlanner.plan() returns GridPath or None. A GridPath begins with the start
-cell and ends with the destination cell.
+cell and ends with the destination cell. Every cell is free, and each step
+moves horizontally or vertically to a cell that shares an edge. The path does
+not need to use the fewest cells.
 
 GridPath.to_goals(grid, final_heading_rad) converts the path to
 world-coordinate NavigationGoal values. It retains the destination and the
@@ -437,7 +464,9 @@ declarations. Read the current value through CRUISE_SPEED.value,
 CONTROLLER_ENABLED.value, or TURN_DIRECTION.value. Robot.start() and
 Robot.step() apply valid queued changes together at a measured sample
 boundary. Programs that do not use Robot may call live.apply_updates() at
-their own explicit control-loop boundary.
+their own explicit control-loop boundary. A numeric range does not need to be
+an exact multiple of step; the applied value is represented by the nearest
+available slider step within the declared bounds.
 
 Stage a named value when it changes or once per measured sample:
 
@@ -449,10 +478,22 @@ Stage a named value when it changes or once per measured sample:
     )
 
 Robot publishes the staged values together at its next measured boundary, and
-they appear under Monitor > Live program. A watch is appropriate for current
-state, an error term, a selected mode, or another compact diagnostic.
-Use ordinary print statements for infrequent messages and exceptions; use
-telemetry recording for complete time histories. Live values are transient
+they appear under Live telemetry. A watch is appropriate for current state, an
+error term, a selected mode, or another compact diagnostic.
+
+Use live.plot() when a calculated numerical value should be available as an
+optional strip plot:
+
+    live.plot(
+        "wheel_speed_error_mm_s",
+        target_speed_mm_s - measured_speed_mm_s,
+        unit="mm/s",
+        label="Wheel-speed error",
+    )
+
+The first value for a new name adds an unchecked green choice under Plot
+signals. Use ordinary print statements for infrequent messages and exceptions;
+use telemetry recording for complete time histories. Live values are transient
 run data and do not replace robot_config.py or challenge.py as the source of
 saved experiment settings.
 
@@ -468,6 +509,7 @@ RobotConfig contains:
 - motor and encoder direction signs;
 - left and right starting drive command;
 - left and right speed-to-command calibration;
+- wheel-speed estimator response time;
 - wheel-speed feedback gain; and
 - maximum drive command.
 
@@ -496,9 +538,12 @@ Each component can be tested without running a complete mission:
 - NavigationController uses NavigationGoal and Pose sequences.
 - GridPlanner uses small OccupancyGrid instances.
 
-The API reference gives the exact construction and method signatures. The
-component tests can be run before setting the corresponding USE_STUDENT_* flag
-to True.
+The API reference gives the exact construction and method signatures. Select
+Test components before setting the corresponding USE_STUDENT_* flag to True.
+Program output states the concrete input example before each result: PASS means
+the returned result matched the example, NOT IMPLEMENTED names a method that
+still raises NotImplementedError, and FAIL states the differing behavior or
+value.
 
 
 WHERE TO LOOK

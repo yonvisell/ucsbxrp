@@ -8,6 +8,7 @@ SERVICE_VERSION = "2026.08-dev.22"
 MAX_PROJECT_FILES = 48
 MAX_PROJECT_BYTES = 256 * 1024
 MAX_FILE_BYTES = 96 * 1024
+MAX_LOG_LINE_CHARS = 512
 _SAFE_NAME_CHARACTERS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 )
@@ -32,9 +33,16 @@ class LineLogWriter:
     def write(self, value):
         text = str(value)
         self._buffer += text
-        while "\n" in self._buffer:
-            line, self._buffer = self._buffer.split("\n", 1)
-            self._emit(self.stream, line)
+        while self._buffer:
+            newline = self._buffer.find("\n")
+            if newline >= 0 and newline < MAX_LOG_LINE_CHARS:
+                self._emit(self.stream, self._buffer[:newline])
+                self._buffer = self._buffer[newline + 1 :]
+            elif len(self._buffer) >= MAX_LOG_LINE_CHARS:
+                self._emit(self.stream, self._buffer[:MAX_LOG_LINE_CHARS])
+                self._buffer = self._buffer[MAX_LOG_LINE_CHARS:]
+            else:
+                break
         return len(text)
 
     def flush(self):

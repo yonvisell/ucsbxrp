@@ -129,21 +129,20 @@ NavigationController completed in Challenge 3.
 New student code
 
 GridPlanner
-    Finds a path through free neighboring cells from a start cell to a
-    destination cell.
+    Finds a path through free cells from a start cell to a destination cell.
+    Each step moves horizontally or vertically to a cell that shares an edge.
 
 The implementation must account for:
 
-- conversion of the world start and destination to grid cells;
 - blocked or out-of-map endpoints;
-- a search frontier and a record of visited cells;
-- one predecessor for each discovered cell;
-- reconstruction of the path in start-to-destination order;
-- adjacent free cells in the returned path; and
+- the case in which start and destination are the same free cell;
+- a returned route that begins at the start and ends at the destination;
+- free cells that share a horizontal or vertical edge at every route step; and
 - the result when no path exists.
 
-Breadth-first search is sufficient for the core challenge. Dijkstra's algorithm
-or A* can use the same GridPlanner interface.
+Breadth-first search is one clear approach for the core challenge. Depth-first
+search, Dijkstra's algorithm, or A* can use the same GridPlanner interface. The
+required result is any valid route; the route need not use the fewest cells.
 
 
 CHALLENGE 5: DELIVERY MISSION
@@ -446,8 +445,9 @@ WEEK 8: PLAN A GRID PATH
 Tuesday
 
 - Grid cells as graph vertices.
-- Free neighboring cells, a search frontier, visited cells, and predecessor
-  records.
+- Free cells that share a horizontal or vertical edge.
+- Compare breadth-first and depth-first search on small maps, including the set
+  of cells waiting to be examined and the record used to reconstruct a route.
 - Begin GridPlanner with small software-only maps.
 
 Thursday
@@ -541,23 +541,23 @@ grid_planner.py
             if grid.is_blocked(start) or grid.is_blocked(goal):
                 return None
 
-            frontier = [start]
+            pending_cells = [start]
             next_index = 0
-            previous = {start: None}
+            previous_cell = {start: None}
 
-            while next_index < len(frontier):
-                current = frontier[next_index]
+            while next_index < len(pending_cells):
+                current = pending_cells[next_index]
                 next_index += 1
 
                 if current == goal:
                     break
 
                 for neighbor in grid.neighbors(current):
-                    if neighbor not in previous:
-                        previous[neighbor] = current
-                        frontier.append(neighbor)
+                    if neighbor not in previous_cell:
+                        previous_cell[neighbor] = current
+                        pending_cells.append(neighbor)
 
-            if goal not in previous:
+            if goal not in previous_cell:
                 return None
 
             cells = []
@@ -565,7 +565,7 @@ grid_planner.py
 
             while current is not None:
                 cells.append(current)
-                current = previous[current]
+                current = previous_cell[current]
 
             cells.reverse()
             return GridPath(tuple(cells))

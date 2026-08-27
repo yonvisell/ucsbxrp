@@ -72,6 +72,7 @@ export interface DeviceInspection {
   implementation: string;
   version: [number, number, number];
   machine: string;
+  robotId: string;
   mpy: number | null;
   modules: string[];
 }
@@ -287,14 +288,14 @@ export async function inspectDevice(
 ): Promise<DeviceInspection> {
   const modules = pythonLiteral(manifest.xrplib.requiredModules);
   const result = await session.execute(
-    `import json, os, sys\n` +
+    `import binascii, json, machine, os, sys\n` +
       `mods=[]\n` +
       `for name in ${modules}:\n` +
       ` try:\n  __import__(name)\n  mods.append(name)\n` +
       ` except Exception:\n  pass\n` +
       `v=sys.implementation.version\n` +
       `u=os.uname()\n` +
-      `info={'implementation':sys.implementation.name,'version':[v[0],v[1],v[2]],'machine':u.machine,'mpy':getattr(sys.implementation,'_mpy',None),'modules':mods}\n` +
+      `info={'implementation':sys.implementation.name,'version':[v[0],v[1],v[2]],'machine':u.machine,'robotId':binascii.hexlify(machine.unique_id()).decode(),'mpy':getattr(sys.implementation,'_mpy',None),'modules':mods}\n` +
       `print(${pythonLiteral(INSPECTION_MARKER)}+json.dumps(info))`,
   );
   const inspection = markedJson<DeviceInspection>(
@@ -308,6 +309,7 @@ export async function inspectDevice(
     (part, index) => inspection.version[index] === part,
   );
   const machine = inspection.machine.toLocaleLowerCase();
+  const robotId = inspection.robotId?.trim().toLocaleLowerCase();
   if (
     inspection.implementation !== "micropython" ||
     !machine.includes("sparkfun xrp controller") ||
@@ -318,6 +320,10 @@ export async function inspectDevice(
       `This XRP needs the course MicroPython ${manifest.micropython.version} firmware.`,
     );
   }
+  if (!robotId || !/^[0-9a-f]+$/.test(robotId)) {
+    throw new Error("The XRP controller did not report a stable identity.");
+  }
+  inspection.robotId = robotId;
   return inspection;
 }
 

@@ -3,10 +3,20 @@
 from ucsb_xrp import DeliveryTask, load_world
 
 
+# WORLD is the case selected in the Monitor. It determines the virtual range
+# measurement and the start and destination shown to the student.
 WORLD = load_world()
+
+# Both cases use one dimensioned mission map. The gate-blocked entry defines
+# the location and name of the changeable gate. DeliveryMission then marks that
+# gate open or blocked from the measured range; it does not assume the selected
+# virtual case is the answer.
+MISSION_MAP_WORLD_ID = "gate-blocked"
+MISSION_MAP_WORLD = load_world(world_id=MISSION_MAP_WORLD_ID)
+
 DELIVERY_TASK = DeliveryTask(
     initial_pose=WORLD.initial_pose,
-    arena=WORLD.arena_map(),
+    arena=MISSION_MAP_WORLD.arena_map(),
     grid_resolution_mm=100.0,
     clearance_mm=35.0,
     destination=WORLD.waypoint("destination"),

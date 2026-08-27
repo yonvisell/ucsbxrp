@@ -31,8 +31,8 @@ function manifest(): CommissioningManifest {
   const runtimeManifest = encoder.encode(
     `${JSON.stringify({
       schemaVersion: 1,
-      releaseId: "2026.08-dev.25",
-      releaseSequence: 25,
+      releaseId: "2026.08-dev.26",
+      releaseSequence: 26,
       compatibility: {
         serviceVersion: "0.1.0",
         protocolVersion: 1,
@@ -40,7 +40,7 @@ function manifest(): CommissioningManifest {
         bootstrapVersion: 1,
         courseApiRevision: "0.4-draft",
         courseLibraryVersion: "0.4.0-dev",
-        minimumRobotReleaseSequence: 25,
+        minimumRobotReleaseSequence: 26,
       },
       files: [
         {
@@ -53,8 +53,8 @@ function manifest(): CommissioningManifest {
   );
   return {
     schemaVersion: 2,
-    releaseId: "2026.08-dev.25",
-    releaseSequence: 25,
+    releaseId: "2026.08-dev.26",
+    releaseSequence: 26,
     compatibility: {
       serviceVersion: "0.1.0",
       protocolVersion: 1,
@@ -62,7 +62,7 @@ function manifest(): CommissioningManifest {
       bootstrapVersion: 1,
       courseApiRevision: "0.4-draft",
       courseLibraryVersion: "0.4.0-dev",
-      minimumRobotReleaseSequence: 25,
+      minimumRobotReleaseSequence: 26,
     },
     controller: {
       id: "sparkfun-xrp-controller-rp2350",
@@ -217,6 +217,7 @@ class FakeSession implements MicroPythonSession {
           implementation: "micropython",
           version: [1, 28, 0],
           machine: "SparkFun XRP Controller with RP2350",
+          robotId: "4c91fae8f1775aa4",
           mpy: 774,
           modules: this.requiredModules,
         })}\r\n`,
@@ -266,17 +267,23 @@ class FakeSession implements MicroPythonSession {
       const profileBytes = this.files.get("/xrp_wifi.json");
       const profile = profileBytes
         ? (JSON.parse(new TextDecoder().decode(profileBytes)) as {
+            mode?: "access_point" | "station";
             access_point?: { ssid?: string };
+            station?: { ssid?: string };
           })
         : undefined;
+      const mode = profile?.mode ?? "access_point";
       return result(
         `__UCSB_XRP_NETWORK__=${JSON.stringify({
           ready: true,
-          mode: "access_point",
-          requested_mode: "access_point",
+          mode,
+          requested_mode: mode,
           fallback: false,
-          ssid: profile?.access_point?.ssid ?? "UCSB-XRP-1234",
-          address: "192.168.4.1",
+          ssid:
+            mode === "station"
+              ? profile?.station?.ssid
+              : (profile?.access_point?.ssid ?? "UCSB-XRP-1234"),
+          address: mode === "station" ? "192.168.7.34" : "192.168.4.1",
           status: "ready",
           channel: 6,
         })}\r\n`,
@@ -333,12 +340,12 @@ class FakeSession implements MicroPythonSession {
 describe("browser XRP commissioning", () => {
   it("rejects mixed page and commissioning releases before USB work", () => {
     expect(() =>
-      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.26"),
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.27"),
     ).toThrow(
-      "Setup loaded robot files for 2026.08-dev.25, but this page is 2026.08-dev.26",
+      "Setup loaded robot files for 2026.08-dev.26, but this page is 2026.08-dev.27",
     );
     expect(() =>
-      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.25"),
+      requireMatchingCommissioningRelease(manifest(), "2026.08-dev.26"),
     ).not.toThrow();
   });
 
@@ -359,6 +366,7 @@ describe("browser XRP commissioning", () => {
       implementation: "micropython",
       version: [1, 28, 0],
       machine: "SparkFun XRP Controller with RP2350",
+      robotId: "4c91fae8f1775aa4",
     });
 
     const wrongVersion: MicroPythonSession = {
@@ -369,6 +377,7 @@ describe("browser XRP commissioning", () => {
             implementation: "micropython",
             version: [1, 27, 0],
             machine: "SparkFun XRP Controller with RP2350",
+            robotId: "4c91fae8f1775aa4",
             mpy: 774,
             modules: [],
           })}\r\n`,
@@ -395,7 +404,7 @@ describe("browser XRP commissioning", () => {
     });
 
     expect(completed).toMatchObject({
-      releaseSequence: 25,
+      releaseSequence: 26,
       activationGeneration: 1,
       installedFiles: 4,
       unchangedFiles: 0,
@@ -417,7 +426,7 @@ describe("browser XRP commissioning", () => {
     ).toMatchObject({
       generation: 1,
       slot: "a",
-      releaseSequence: 25,
+      releaseSequence: 26,
       runtimeManifestSha256: manifest().runtime.manifest.sha256,
     });
     expect(session.files.has("/xrp_wifi.json")).toBe(true);
@@ -436,7 +445,7 @@ describe("browser XRP commissioning", () => {
       runtimeVerification!.indexOf("import ucsb_xrp, ucsb_xrp_service"),
     );
     expect(progress).toContain("Verifying the new runtime…");
-    expect(progress).toContain("Course runtime 2026.08-dev.25 is ready.");
+    expect(progress).toContain("Course runtime 2026.08-dev.26 is ready.");
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);
   });
@@ -460,6 +469,42 @@ describe("browser XRP commissioning", () => {
         code.includes("/course_runtime/active.0.json.commissioning"),
       ),
     ).toHaveLength(0);
+  });
+
+  it("configures an existing Wi-Fi network without returning its password", async () => {
+    const session = new FakeSession();
+    const completed = await commissionDevice({
+      session,
+      manifest: manifest(),
+      manifestUrl,
+      network: {
+        mode: "station",
+        ssid: "Course network",
+        password: "course-passphrase",
+      },
+      fetch: fetchReleaseAsset,
+    });
+
+    const stored = JSON.parse(
+      new TextDecoder().decode(session.files.get("/xrp_wifi.json")!),
+    ) as {
+      mode: string;
+      station: { ssid: string; password: string };
+    };
+    expect(stored).toMatchObject({
+      mode: "station",
+      station: {
+        ssid: "Course network",
+        password: "course-passphrase",
+      },
+    });
+    expect(completed.network).toMatchObject({
+      mode: "station",
+      requested_mode: "station",
+      ssid: "Course network",
+      address: "192.168.7.34",
+    });
+    expect(JSON.stringify(completed)).not.toContain("course-passphrase");
   });
 
   it("repairs a damaged active runtime in the other slot and retains the confirmed fallback", async () => {
@@ -497,15 +542,15 @@ describe("browser XRP commissioning", () => {
 
   it("refuses an implicit downgrade before fetching or writing files", async () => {
     const newerManifest = encoder.encode(
-      `${JSON.stringify({ releaseId: "2026.08-dev.26", releaseSequence: 26, files: [] })}\n`,
+      `${JSON.stringify({ releaseId: "2026.08-dev.27", releaseSequence: 27, files: [] })}\n`,
     );
     const newerDigest = digest(newerManifest);
     const newerRecord = {
       schemaVersion: 1,
       generation: 4,
       slot: "a",
-      releaseId: "2026.08-dev.26",
-      releaseSequence: 26,
+      releaseId: "2026.08-dev.27",
+      releaseSequence: 27,
       runtimeManifestSha256: newerDigest,
     };
     const session = new FakeSession(
@@ -528,7 +573,7 @@ describe("browser XRP commissioning", () => {
           throw new Error("must not fetch");
         }) as typeof fetch,
       }),
-    ).rejects.toThrow("newer course runtime 2026.08-dev.26");
+    ).rejects.toThrow("newer course runtime 2026.08-dev.27");
     expect(fetched).toBe(false);
     expect(
       session.commands.some((code) => code.includes(".commissioning")),

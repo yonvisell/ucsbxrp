@@ -68,8 +68,8 @@ Use public names from `ucsb_xrp` in `main.py`, `challenge.py`, and
 
 | Quantity | Unit or convention |
 | --- | --- |
-| Distance, position, wheel travel, range | millimetres (`mm`) |
-| Linear and wheel speed | millimetres per second (`mm/s`) |
+| Distance, position, wheel travel, range | millimeters (`mm`) |
+| Linear and wheel speed | millimeters per second (`mm/s`) |
 | Device time | integer milliseconds (`ms`) |
 | Calculated elapsed time | seconds (`s`) |
 | Heading | radians (`rad`) |
@@ -103,8 +103,9 @@ constructing it directly.
 - `robot.state` -> latest `RobotState`
   Available after `start()`.
 - `robot.config` -> `RobotConfig`
-- `robot.last_overrun_ms` -> integer or number
-  Amount by which the latest loop calculation exceeded its sample deadline.
+- `robot.last_overrun_ms` -> integer
+  Milliseconds by which the latest loop calculation exceeded its sample
+  deadline, or zero when the deadline was met.
 
 Every `step()` returns:
 
@@ -180,6 +181,24 @@ Each challenge project initially selects the supplied component. After a student
 implementation passes its software tests, change only its corresponding
 `USE_STUDENT_*` flag in `course_setup.py`.
 
+The starter file already contains the appropriate base-class declaration. For
+example:
+
+```python
+from ucsb_xrp.student_api import SensorModelBase
+
+
+class SensorModel(SensorModelBase):
+    def reset(self, raw):
+        # Replace the starter exception with the implementation.
+        raise NotImplementedError
+```
+
+The base constructor validates and retains the class configuration as the
+read-only `self.config`. `Robot` or a supplied mission calls the documented
+methods; `main.py` does not call private component details. The supplied and
+student classes therefore remain interchangeable through `course_setup.py`.
+
 ### Component functions
 
 - `SensorModel` converts raw encoder, time, range, and button readings into
@@ -192,24 +211,25 @@ implementation passes its software tests, change only its corresponding
   wheel-distance increments. Simulator ground truth is not an input.
 - `NavigationController` returns body-motion commands for an ordered sequence
   of world-coordinate goals.
-- `GridPlanner` returns a shortest route through free horizontal and vertical
-  neighbors in an occupancy grid.
+- `GridPlanner` returns a connected route through free occupancy-grid cells.
+  Each step moves horizontally or vertically to a cell that shares an edge.
 
 The method descriptions below state each input, return value, retained state,
 and required behavior.
 
 ### `SensorModel(SensorModelBase)`
 
-- `reset(raw)` -> `Measurements`
+- `reset(raw: RawSensors)` -> `Measurements`
   Accepts a `RawSensors` value, establishes the encoder and time origins, and
   returns a zero-travel measurement that preserves the current timestamp,
   range, and USER-button state.
-- `update(raw)` -> `Measurements`
+- `update(raw: RawSensors)` -> `Measurements`
   Converts signed encoder-count changes and elapsed device time into total
   wheel positions, latest increments, and regularized wheel-speed estimates.
   Exact distance increments remain unfiltered. It must be called after
   `reset()`.
-- `estimate_range(samples, minimum_usable)` -> number or `None`
+- `estimate_range(samples: sequence[float | None], minimum_usable: int)` ->
+  `float | None`
   Rejects missing, nonfinite, and nonpositive readings. It returns the median
   of the usable ranges when at least `minimum_usable` remain; otherwise it
   returns `None`.
@@ -219,8 +239,8 @@ The inherited `.config` is the project `RobotConfig`.
 ### `WheelSpeedController(WheelSpeedControllerBase)`
 
 - `reset()` -> `None` prepares any controller state for a new run.
-- `update(target, measured)` -> `DriveCommand` accepts two `WheelSpeeds`
-  values: the requested and measured speeds.
+- `update(target: WheelSpeeds, measured: WheelSpeeds)` -> `DriveCommand`
+  accepts the requested and measured wheel speeds.
 
 The output is bounded by `config.max_drive_command`. A zero target for either
 wheel produces an exact zero command for that wheel. Calibration and feedback
@@ -228,22 +248,23 @@ may be implemented clearly without copying the supplied algorithm.
 
 ### `DifferentialDrive(DifferentialDriveBase)`
 
-- `wheel_speeds(command)` -> `WheelSpeeds` converts a `MotionCommand` for the
-  robot body into requested left and right wheel speeds using
+- `wheel_speeds(command: MotionCommand)` -> `WheelSpeeds` converts a motion
+  request for the robot body into requested left and right wheel speeds using
   `config.track_width_mm` and the course sign convention.
 
 ### `Odometry(OdometryBase)`
 
-- `reset(initial_pose)` -> `Pose` establishes the pose for a new run.
-- `update(left_increment_mm, right_increment_mm)` -> `Pose` integrates one
-  differential-drive motion increment, including curved motion.
+- `reset(initial_pose: Pose)` -> `Pose` establishes the pose for a new run.
+- `update(left_increment_mm: float, right_increment_mm: float)` -> `Pose`
+  integrates one measured differential-drive motion increment, including
+  curved motion.
 - `.pose` -> latest `Pose`; it is available after `reset()`.
 
 ### `NavigationController(NavigationControllerBase)`
 
-- `start(goals)` -> `None` accepts an ordered tuple or list of
-  `NavigationGoal` values.
-- `update(pose)` -> `MotionCommand` returns the next body-motion request.
+- `start(goals: sequence[NavigationGoal])` -> `None` accepts an ordered tuple
+  or list of goals.
+- `update(pose: Pose)` -> `MotionCommand` returns the next body-motion request.
 - `current_goal()` -> `NavigationGoal` or `None`.
 - `is_complete()` -> Boolean.
 
@@ -254,19 +275,24 @@ position only; a numerical final heading must also be reached. Once complete,
 
 ### `GridPlanner(GridPlannerBase)`
 
-- `plan(grid, start, goal)` -> `GridPath` or `None`.
+- `plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None)` ->
+  `GridPath | None`.
 
 `grid` is an `OccupancyGrid`; `start` and `goal` are `GridCell` values or
-`None`. Return a shortest valid four-neighbor path including both endpoints.
-Return `None` if either endpoint is unavailable or blocked, or if no path
-exists. The required behavior does not prescribe a frontier data structure or
-a tie-breaking rule.
+`None`. Return a valid route that includes both endpoints, uses only free
+cells, and moves horizontally or vertically between cells that share an edge.
+Return `None` if either endpoint is unavailable or blocked, or if no connected
+route exists. A minimum-length route is not required.
 
 ## Adjustable parameters and watch values
 
 `ucsb_xrp.live` exposes compact controls in the Monitor. Declare parameters
 once, usually near the top of `main.py`, and read their `.value` properties in
 the loop.
+
+`live.number`, `live.toggle`, and `live.choice` return a `LiveParameter`. Its
+read-only `.value` property contains the setting currently applied to the
+program.
 
 ```python
 from ucsb_xrp import live
@@ -310,6 +336,11 @@ live.plot("speed_error", 12.5, unit="mm/s", label="Speed error")
 boundary. Call it explicitly only in a program that does not use `Robot`.
 Parameter names are Python-style identifiers and must be unique. A project may
 declare up to 16 parameters, 16 watch values, and 16 plot values.
+
+For `live.number`, `maximum` must exceed `minimum`, `step` must be positive and
+no larger than the range, and `default` must lie within the inclusive bounds.
+The range need not contain an exact whole number of steps. The applied value is
+the nearest available slider value within the bounds.
 
 Use watch values for current modes, errors, and intermediate estimates. Use
 plot values for additional numerical time histories. Monitor telemetry and CSV
@@ -364,7 +395,8 @@ An `OccupancyGrid` provides:
 - `cell_center(cell)` -> `(x_mm, y_mm)`
 - `contains(cell)` -> Boolean
 - `is_blocked(cell)` -> Boolean; outside cells are blocked
-- `neighbors(cell)` -> tuple of free four-neighbor cells
+- `neighbors(cell)` -> tuple of free cells that share a horizontal or vertical
+  edge with `cell`
 
 `GridCell.column` increases with world `x`; `GridCell.row` increases with
 world `y`. `GridPath.to_goals(grid, final_heading_rad=None)` converts a cell

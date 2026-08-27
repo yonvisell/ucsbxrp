@@ -347,7 +347,7 @@ class GridCell(_ValueRecord):
 
 
 class GridPath(_ValueRecord):
-    """Ordered adjacent cells from a planning start through its goal."""
+    """Ordered cells joined by horizontal or vertical steps."""
 
     __slots__ = ("_cells",)
     _field_names = ("cells",)
@@ -365,7 +365,9 @@ class GridPath(_ValueRecord):
             if previous is not None:
                 step = abs(cell.column - previous.column) + abs(cell.row - previous.row)
                 if step != 1:
-                    raise ValueError("successive path cells must be four-neighbors")
+                    raise ValueError(
+                        "successive path cells must share a horizontal or vertical side"
+                    )
             previous = cell
         self._cells = cells
 

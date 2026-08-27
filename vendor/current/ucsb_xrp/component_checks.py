@@ -7,6 +7,7 @@ from .maps import OccupancyGrid
 from .records import (
     DriveCommand,
     GridCell,
+    GridPath,
     MotionCommand,
     NavigationGoal,
     Pose,
@@ -167,18 +168,30 @@ def _grid_planner(component_class):
         0.0,
         0.0,
         3,
-        1,
-        (False, False, False),
+        2,
+        (False, False, False, False, False, False),
     )
     direct_start = GridCell(0, 0)
     direct_goal = GridCell(2, 0)
     direct = planner.plan(open_grid, direct_start, direct_goal)
-    if direct is None or direct.cells != (
-        direct_start,
-        GridCell(1, 0),
-        direct_goal,
-    ):
-        raise AssertionError("planner should return the direct three-cell path")
+
+    def check_route(grid, start, goal, route):
+        if not isinstance(route, GridPath):
+            raise AssertionError("planner should return a GridPath")
+        if route.cells[0] != start or route.cells[-1] != goal:
+            raise AssertionError("route should begin at start and end at goal")
+        for cell in route.cells:
+            if grid.is_blocked(cell):
+                raise AssertionError("every route cell should be free")
+        for first, second in zip(route.cells, route.cells[1:]):
+            if second not in grid.neighbors(first):
+                raise AssertionError(
+                    "successive route cells should share a horizontal or vertical side"
+                )
+
+    if direct is None:
+        raise AssertionError("planner should connect the unobstructed endpoints")
+    check_route(open_grid, direct_start, direct_goal, direct)
 
     grid = OccupancyGrid(
         100.0,
@@ -191,13 +204,14 @@ def _grid_planner(component_class):
     start = GridCell(0, 0)
     goal = GridCell(2, 0)
     path = planner.plan(grid, start, goal)
-    if path is None or path.cells[0] != start or path.cells[-1] != goal:
+    if path is None:
         raise AssertionError("planner did not connect start to goal")
-    if len(path.cells) != 5:
-        raise AssertionError("planner did not return a shortest free path")
-    for first, second in zip(path.cells, path.cells[1:]):
-        if second not in grid.neighbors(first):
-            raise AssertionError("successive path cells must be free neighbors")
+    check_route(grid, start, goal, path)
+
+    if planner.plan(open_grid, None, direct_goal) is not None:
+        raise AssertionError("a missing start should return None")
+    if planner.plan(open_grid, direct_start, None) is not None:
+        raise AssertionError("a missing goal should return None")
 
     blocked_start = OccupancyGrid(
         100.0,
@@ -230,36 +244,43 @@ _CHECKS = (
     (
         "SensorModel · encoder distance and measured speed",
         "sensor_model",
+        "reset at encoder counts 10 and 20, then advance each wheel by one count over 20 ms",
         _sensor_model,
     ),
     (
-        "WheelSpeedController · signed and bounded motor command",
+        "WheelSpeedController · signed and limited motor command",
         "wheel_speed_controller",
+        "request left/right speeds of +100/-100 mm/s, then verify signs, limits, and an exact stop",
         _wheel_speed_controller,
     ),
     (
         "SensorModel · robust ultrasound estimate",
         "range_estimator",
+        "combine valid, missing, nonfinite, and negative range samples and calculate the median",
         _range_estimator,
     ),
     (
         "DifferentialDrive · body command to wheel targets",
         "differential_drive",
+        "check a straight command, a moving turn, and an in-place right turn",
         _differential_drive,
     ),
     (
         "Odometry · straight wheel increments to pose",
         "odometry",
+        "update pose after equal wheel travel and after equal-and-opposite wheel travel",
         _odometry,
     ),
     (
         "NavigationController · forward goal to motion command",
         "navigation_controller",
+        "check an empty route, a goal directly ahead, and a required final heading",
         _navigation_controller,
     ),
     (
-        "GridPlanner · shortest path around a blocked cell",
+        "GridPlanner · connected route through free cells",
         "grid_planner",
+        "check unobstructed and detour routes, missing or blocked endpoints, no-route cases, and start equal to goal",
         _grid_planner,
     ),
 )
@@ -314,15 +335,21 @@ def run_component_checks(*component_classes, **components):
     not_implemented = 0
     failed = 0
     print("Concrete component examples use MicroPython without starting either robot.")
-    for label, key, check_function in _CHECKS:
+    for label, key, example, check_function in _CHECKS:
         component_class = components.get(key)
         if component_class is None:
             continue
+        print("EXAMPLE · " + example)
         try:
             check_function(component_class)
-        except NotImplementedError:
+        except NotImplementedError as error:
             not_implemented += 1
-            print("NOT IMPLEMENTED · " + label)
+            detail = str(error)
+            print(
+                "NOT IMPLEMENTED · "
+                + label
+                + ((" · " + detail) if detail else "")
+            )
         except Exception as error:
             failed += 1
             print("FAIL · {} · {}".format(label, error))

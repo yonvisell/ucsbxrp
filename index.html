@@ -47,15 +47,22 @@
         </button>
       </nav>
       <p class="landing-install-help" hidden id="install-course-tools-help">
-        Adds a UCSBXRP launcher and app window. Course apps save automatically
-        in Chrome; project files remain in the course folder you choose.
+        Adds a UCSBXRP launcher and separate app window. Offline course files
+        are already saved automatically by Chrome; project files remain in the
+        course folder you choose.
       </p>
-      <p class="landing-browser-support" id="landing-browser-support">
+      <p
+        aria-live="polite"
+        class="landing-browser-support"
+        id="landing-browser-support"
+        role="status"
+      >
         Checking browser support…
       </p>
       <p class="landing-offline-summary">
-        Course apps save automatically in this browser after one complete online
-        load.
+        After one complete online load, this browser profile can reopen the
+        course apps without internet.
+        <a href="./guide/#offline-use">What is stored and what is not.</a>
       </p>
       <nav class="landing-setup-action" aria-label="XRP setup and repair">
         <a class="secondary-link" href="./commission/">
@@ -76,13 +83,25 @@
       const installButton = document.querySelector("#install-course-tools");
       const installHelp = document.querySelector("#install-course-tools-help");
       let installPrompt = null;
-      const fullCourseWorkflow =
+      const supportsCourseApps =
         window.isSecureContext &&
-        "serial" in navigator &&
-        "showDirectoryPicker" in window;
-      browserSupport.textContent = fullCourseWorkflow
-        ? "This browser supports project folders, USB setup, the virtual XRP, and the physical XRP."
-        : "The Guide and virtual XRP are available here. Project folders and USB setup require current desktop Chrome or Edge.";
+        "serviceWorker" in navigator &&
+        "caches" in window &&
+        "SharedWorker" in window &&
+        "WebAssembly" in window;
+      const supportsProjectFolders = "showDirectoryPicker" in window;
+      const supportsUsbSetup = "serial" in navigator;
+
+      if (supportsCourseApps && supportsProjectFolders && supportsUsbSetup) {
+        browserSupport.textContent =
+          "Ready in this browser: virtual XRP, project folders, USB setup, and physical XRP.";
+      } else if (supportsCourseApps) {
+        browserSupport.textContent =
+          "The Guide and virtual XRP are available. Project folders and USB setup require Google Chrome or Microsoft Edge on a Windows or macOS computer.";
+      } else {
+        browserSupport.textContent =
+          "This browser can show the documentation, but the complete course apps require Google Chrome or Microsoft Edge on a Windows or macOS computer.";
+      }
 
       window.addEventListener("beforeinstallprompt", (event) => {
         event.preventDefault();

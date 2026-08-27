@@ -20,7 +20,7 @@ describe("offline shell mode", () => {
     expect(initialOfflineShellState(true, true)).toBe("installing");
   });
 
-  it("reloads one existing tab once when a newer offline build activates", () => {
+  it("reloads each existing tab once when a newer release is signaled", () => {
     expect(offlineShellUpdateNeedsReload("old", "new", null)).toBe(true);
     expect(offlineShellUpdateNeedsReload("old", "new", "new")).toBe(false);
     expect(offlineShellUpdateNeedsReload("new", "new", null)).toBe(false);

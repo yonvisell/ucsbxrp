@@ -8,10 +8,11 @@ records, supplied services, functions, and constants are imported from
 ucsb_xrp. The live-program functions are accessed through ucsb_xrp.live.
 Factory functions are imported from course_setup.
 
-The six selectable components have reference and student implementations with
-the same public interface. Student templates inherit base classes from
-ucsb_xrp.student_api. Those base classes support implementation work but are
-not part of the user API described here.
+The six selectable components have supplied and student implementations with
+the same public interface. Student templates inherit the corresponding base
+class from ucsb_xrp.student_api. Programs obtain the selected implementation
+through course_setup.py; the concrete component classes are not imported from
+the top-level ucsb_xrp package.
 
 
 CONTENTS
@@ -31,6 +32,8 @@ Public records
 - NavigationGoal
 - GridCell
 - GridPath
+- Rectangle
+- ProjectWorld
 
 Supplied services
 
@@ -41,23 +44,28 @@ Supplied services
 - OccupancyGrid
 - DeliveryMission
 
-Live program module
+Live controls and values
 
 - LiveParameter
 - live.number
 - live.toggle
 - live.choice
 - live.watch
+- live.plot
 - live.apply_updates
 
 Selectable components
 
-- SensorModel
-- WheelSpeedController
-- DifferentialDrive
-- Odometry
-- NavigationController
-- GridPlanner
+- SensorModel, inheriting SensorModelBase
+- WheelSpeedController, inheriting WheelSpeedControllerBase
+- DifferentialDrive, inheriting DifferentialDriveBase
+- Odometry, inheriting OdometryBase
+- NavigationController, inheriting NavigationControllerBase
+- GridPlanner, inheriting GridPlannerBase
+
+Project world function
+
+- load_world
 
 Factory functions
 
@@ -111,7 +119,10 @@ NavigationGoal sequence + current Pose
 
 Planning supplies the destinations used by navigation:
 
-ArenaMap
+world.json
+    -> load_world()
+    -> ProjectWorld
+    -> ArenaMap
     -> OccupancyGrid.from_arena()
     -> GridPlanner.plan()
     -> GridPath
@@ -162,7 +173,8 @@ Grid coordinates
 - GridCell.row increases with world y.
 - OccupancyGrid.cell_center() gives the world coordinates represented by a
   cell.
-- GridPlanner uses four-neighbor motion: one row or one column per step.
+- A GridPath moves one cell horizontally or vertically at each step. Diagonal
+  steps are not part of this planning grid.
 
 
 PUBLIC RECORDS
@@ -177,20 +189,21 @@ Import
 Construction
 
     RobotConfig(
-        sample_period_ms: int,
-        wheel_diameter_mm: float,
-        encoder_counts_per_revolution: float,
-        track_width_mm: float,
-        left_motor_sign: int,
-        right_motor_sign: int,
-        left_encoder_sign: int,
-        right_encoder_sign: int,
-        left_start_command: float,
-        right_start_command: float,
-        left_speed_command_gain: float,
-        right_speed_command_gain: float,
-        wheel_speed_kp: float,
-        max_drive_command: float,
+        sample_period_ms: int = 20,
+        wheel_diameter_mm: float = 60.0,
+        encoder_counts_per_revolution: float = 585.0,
+        track_width_mm: float = 155.0,
+        left_motor_sign: int = 1,
+        right_motor_sign: int = 1,
+        left_encoder_sign: int = 1,
+        right_encoder_sign: int = 1,
+        left_start_command: float = 0.0,
+        right_start_command: float = 0.0,
+        left_speed_command_gain: float = 0.0,
+        right_speed_command_gain: float = 0.0,
+        wheel_speed_filter_time_constant_ms: float = 80.0,
+        wheel_speed_kp: float = 0.0,
+        max_drive_command: float = 1.0,
     ) -> RobotConfig
 
 Fields
@@ -222,6 +235,10 @@ left_start_command, right_start_command: float
 left_speed_command_gain, right_speed_command_gain: float
     Calibrated drive-command change per millimeter per second of requested
     wheel speed.
+
+wheel_speed_filter_time_constant_ms: float
+    Nonnegative response time used by SensorModel to regularize the
+    encoder-derived wheel-speed estimate. Zero disables this regularization.
 
 wheel_speed_kp: float
     Proportional correction applied to wheel-speed error.
@@ -624,6 +641,112 @@ final_heading_rad is applied only to the destination goal. When a path contains
 only the start cell, that cell is returned as the destination goal.
 
 
+PROJECT WORLD AND GEOMETRY
+
+
+Rectangle
+
+Purpose
+
+Represents one closed, axis-aligned rectangular region in world coordinates.
+It is used for arena bounds, fixed obstacles, and changeable map features.
+
+Import
+
+    from ucsb_xrp import Rectangle
+
+Construction
+
+    Rectangle(
+        minimum_x_mm: float,
+        minimum_y_mm: float,
+        maximum_x_mm: float,
+        maximum_y_mm: float,
+    ) -> Rectangle
+
+maximum_x_mm must be greater than minimum_x_mm, and maximum_y_mm must be
+greater than minimum_y_mm. All four arguments must be finite numbers.
+
+Properties
+
+    minimum_x_mm, minimum_y_mm: float
+    maximum_x_mm, maximum_y_mm: float
+    bounds_mm -> tuple[float, float, float, float]
+
+Method
+
+    contains(
+        x_mm: float,
+        y_mm: float,
+        margin_mm: float = 0.0,
+    ) -> bool
+
+Returns True when the point lies inside the rectangle expanded outward by the
+nonnegative margin. Points on an edge are inside.
+
+
+ProjectWorld
+
+Purpose
+
+Provides one named world from the project's world.json file. Project code uses
+it for the initial pose, named waypoints, and the arena map; the simulator and
+Monitor use the same file for the displayed and simulated world.
+
+Import
+
+    from ucsb_xrp import ProjectWorld, load_world
+
+Normal construction
+
+    load_world(
+        path: str = "world.json",
+        world_id: str | None = None,
+    ) -> ProjectWorld
+
+When world_id is None, load_world() returns the world named by default_world in
+the JSON catalog. Otherwise it returns the requested world. It raises OSError
+when the file cannot be opened and ValueError when the file is invalid or the
+requested world is absent. Programs normally call load_world() rather than
+constructing ProjectWorld from a decoded dictionary. The direct constructor
+`ProjectWorld(item: dict)` is available for tests and tools that already have
+one decoded world object; it applies the same field validation.
+
+Properties
+
+    id -> str
+        Stable world identifier.
+
+    label -> str
+        Student-facing world name.
+
+    bounds_mm -> tuple[float, float, float, float]
+        Arena bounds in millimeters.
+
+    initial_pose -> Pose
+        Starting pose defined by this world.
+
+    feature_names -> tuple[str, ...]
+        Sorted names of obstacles whose blocked state can be selected.
+
+Methods
+
+    arena_map(
+        blocked_features: Sequence[str] = (),
+    ) -> ArenaMap
+
+Returns the dimensioned arena with only the named changeable features blocked.
+
+    waypoint(name: str) -> NavigationGoal
+
+Returns the named waypoint marker. It raises ValueError if the world has no
+waypoint with that name.
+
+    waypoints() -> tuple[NavigationGoal, ...]
+
+Returns all waypoint markers in their file order.
+
+
 SUPPLIED SERVICES
 
 
@@ -641,6 +764,12 @@ Import
 Construction
 
     XRPBot(config: RobotConfig) -> XRPBot
+
+Property
+
+    config -> RobotConfig
+
+Returns the robot configuration supplied to the constructor.
 
 Methods
 
@@ -692,9 +821,11 @@ Methods
 
     start(initial_pose: Pose) -> RobotState
 
-Waits for a USER-button press and release, resets the hardware encoders,
-SensorModel, WheelSpeedController, and Odometry, and returns the initial
-RobotState. Odometry begins at initial_pose.
+Resets the hardware encoders, SensorModel, WheelSpeedController, and Odometry,
+and returns the initial RobotState. Odometry begins at initial_pose. A program
+started directly on the XRP first waits for a complete USER-button press and
+release. An IDE-managed Run begins immediately because the Run command itself
+is the user's start action.
 
     step(
         command: MotionCommand,
@@ -730,6 +861,10 @@ SensorModel.estimate_range() implementation.
 
 Property
 
+    config -> RobotConfig
+
+Returns the configuration used by the assembled robot.
+
     state -> RobotState
 
 Returns the most recent state produced by start() or step().
@@ -740,7 +875,7 @@ Returns how many milliseconds late the latest sample deadline was, or zero
 when the deadline was met.
 
 
-LIVE PROGRAM MODULE
+LIVE CONTROLS AND VALUES
 
 Purpose
 
@@ -776,9 +911,10 @@ Functions
     ) -> LiveParameter
 
 Declares a finite numeric value rendered as a slider. maximum must be greater
-than minimum. step must be positive, no larger than the range, and default
-must lie on the resulting steps within the inclusive range. The range contains
-a whole number of steps. The Monitor sends only representable values.
+than minimum. step must be positive and no larger than the range. default must
+be within the inclusive range. The value is represented by the nearest slider
+step and remains within the declared bounds; the range does not need to contain
+an exact whole number of steps.
 
     live.toggle(
         name: str,
@@ -805,11 +941,23 @@ to six distinct short strings, and default must be one of them.
         label: str | None = None,
     ) -> None
 
-Stages or updates one named value for Monitor > Live program. Robot publishes
+Stages or updates one named value for Live telemetry. Robot publishes
 all staged watches together at its next sample boundary. Numeric values must be
 finite; text is limited to 64 characters. Use watches for current modes,
 measured or calculated values, and error terms. Use telemetry recording when a
 complete time history is required.
+
+    live.plot(
+        name: str,
+        value: float,
+        unit: str = "",
+        label: str | None = None,
+    ) -> None
+
+Stages or updates one finite numeric value for an optional Monitor strip plot.
+The first value for a new name adds an unchecked green choice under Plot
+signals. Use plot() for a calculated time history that is not already part of
+the standard robot telemetry.
 
     live.apply_updates() -> bool
 
@@ -819,10 +967,10 @@ and Robot.step() call this automatically at measured sample boundaries. A
 custom loop that does not use Robot calls it at its own explicit boundary.
 
 Names contain only letters, digits, and underscores and begin with a letter or
-underscore. A run may declare at most 16 parameters and 16 watch values. A
-second declaration of the same parameter name is an error. Parameter updates
-are validated on both browser and physical-service boundaries; an invalid or
-unknown update does not change the applied value.
+underscore. A run may declare at most 16 parameters, 16 watch values, and 16
+plot values. A second declaration of the same parameter name is an error.
+Parameter updates are validated on both browser and physical-service
+boundaries; an invalid or unknown update does not change the applied value.
 
 
 StraightLineController
@@ -873,15 +1021,36 @@ Import
 
     from ucsb_xrp import ArenaMap
 
+Construction
+
+    ArenaMap(
+        bounds_mm: Rectangle | Sequence[float],
+        obstacles: Sequence[Rectangle | Sequence[float]] = (),
+        features: dict[str, Rectangle | Sequence[float]] | None = None,
+        blocked_features: Sequence[str] = (),
+    ) -> ArenaMap
+
+bounds_mm and every obstacle or feature use four values in the order
+(minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm). A named feature
+blocks space only when its name is present in blocked_features.
+
 Properties
 
     bounds_mm -> tuple[float, float, float, float]
 
 Returns (minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm).
 
+    obstacles -> tuple[Rectangle, ...]
+
+Returns the fixed obstacles.
+
     feature_names -> tuple[str, ...]
 
 Returns the names of map features whose state can be selected.
+
+    blocked_features -> tuple[str, ...]
+
+Returns the feature names currently treated as obstacles.
 
 Methods
 
@@ -891,6 +1060,11 @@ Methods
     ) -> bool
 
 Returns True when the position is within the mapped area.
+
+    feature_bounds(name: str) -> tuple[float, float, float, float]
+
+Returns the bounds of the named feature. It raises ValueError when the feature
+does not exist.
 
     is_free(
         x_mm: float,
@@ -972,8 +1146,8 @@ Returns True when cell is outside the grid or is not available for a path.
 
     neighbors(cell: GridCell) -> tuple[GridCell, ...]
 
-Returns the free four-neighbor cells of cell. Every returned cell is within the
-grid, unblocked, and one horizontal or vertical step from cell.
+Returns the free cells that share a horizontal or vertical edge with cell.
+Every returned cell is within the grid and unblocked.
 
 
 DeliveryMission
@@ -1028,6 +1202,16 @@ None before run(). After run(), the value is:
 
 SELECTABLE COMPONENTS
 
+Each student component is defined in the project file named below and inherits
+one base class from ucsb_xrp.student_api. The base class defines how Robot or a
+supplied mission calls the component. It validates and retains the constructor
+configuration; methods left unfinished raise NotImplementedError. The project
+template already contains the import, class declaration, and method stubs.
+
+course_setup.py selects either the supplied or student class. Ordinary project
+code obtains the selected class through a make_* function rather than importing
+a concrete component from ucsb_xrp.
+
 
 SensorModel
 
@@ -1038,11 +1222,18 @@ repeated range readings to one estimate.
 
 Import
 
-    from ucsb_xrp import SensorModel
+    from ucsb_xrp.student_api import SensorModelBase
 
-Construction
+Student class and construction
+
+    class SensorModel(SensorModelBase):
+        ...
 
     SensorModel(config: RobotConfig) -> SensorModel
+
+The inherited read-only config property is the RobotConfig passed to the
+constructor. Robot calls reset() once at the beginning of a run and update()
+once per sample.
 
 Methods
 
@@ -1058,8 +1249,8 @@ Returns measurements relative to the latest reset and the preceding update.
 Encoder direction and distance per count come from RobotConfig. dt_s is
 calculated with elapsed_time_s().
 
-When no positive time has elapsed, the wheel increments and positions are
-still updated, and both wheel speeds are zero.
+When no positive time has elapsed, report dt_s as zero without dividing by
+zero; positions and increments still reflect the new encoder counts.
 
     estimate_range(
         samples: Sequence[float | None],
@@ -1079,11 +1270,18 @@ Converts target and measured wheel speeds to a normalized drive command.
 
 Import
 
-    from ucsb_xrp import WheelSpeedController
+    from ucsb_xrp.student_api import WheelSpeedControllerBase
 
-Construction
+Student class and construction
+
+    class WheelSpeedController(WheelSpeedControllerBase):
+        ...
 
     WheelSpeedController(config: RobotConfig) -> WheelSpeedController
+
+The inherited read-only config property is the RobotConfig passed to the
+constructor. Robot calls reset() once at the beginning of a run and update()
+once per sample.
 
 Methods
 
@@ -1112,11 +1310,18 @@ Converts robot forward speed and turn rate to left and right wheel speeds.
 
 Import
 
-    from ucsb_xrp import DifferentialDrive
+    from ucsb_xrp.student_api import DifferentialDriveBase
 
-Construction
+Student class and construction
+
+    class DifferentialDrive(DifferentialDriveBase):
+        ...
 
     DifferentialDrive(config: RobotConfig) -> DifferentialDrive
+
+The inherited read-only config property is the RobotConfig passed to the
+constructor. Robot calls wheel_speeds() once per sample before applying the
+wheel-speed controller.
 
 Method
 
@@ -1136,11 +1341,18 @@ Updates the robot pose from measured left and right wheel travel.
 
 Import
 
-    from ucsb_xrp import Odometry
+    from ucsb_xrp.student_api import OdometryBase
 
-Construction
+Student class and construction
+
+    class Odometry(OdometryBase):
+        ...
 
     Odometry(config: RobotConfig) -> Odometry
+
+The inherited read-only config property is the RobotConfig passed to the
+constructor. Robot calls reset() once at the beginning of a run and update()
+once per measured sample.
 
 Methods
 
@@ -1173,8 +1385,17 @@ successive motion commands.
 
 Import
 
-    from ucsb_xrp import NavigationController
+    from ucsb_xrp.student_api import NavigationControllerBase
     from course_setup import make_navigation_controller
+
+Student class
+
+    class NavigationController(NavigationControllerBase):
+        ...
+
+The inherited read-only config property is the NavigationConfig passed to the
+constructor. Mission or main-program code calls start() for each route and
+update() with the newest odometry Pose.
 
 Preferred construction
 
@@ -1215,13 +1436,21 @@ GridPlanner
 
 Purpose
 
-Finds a shortest four-neighbor path through the free cells of an occupancy
-grid.
+Finds a connected route through the free cells of an occupancy grid. Each
+route step moves horizontally or vertically to a cell that shares an edge.
 
 Import
 
-    from ucsb_xrp import GridPlanner
+    from ucsb_xrp.student_api import GridPlannerBase
     from course_setup import make_grid_planner
+
+Student class
+
+    class GridPlanner(GridPlannerBase):
+        ...
+
+GridPlanner has no constructor configuration or retained run state requirement.
+Planning code calls plan() before robot motion begins.
 
 Preferred construction
 
@@ -1236,8 +1465,8 @@ Method
     ) -> GridPath | None
 
 Returns a GridPath whose first cell is start and whose last cell is goal.
-Successive cells are free four-neighbors. The core reference implementation
-returns a path with the minimum number of grid steps.
+Every path cell is free, and successive cells share a horizontal or vertical
+edge. A valid route is required; a minimum-length route is not required.
 
 Returns None when either endpoint is None, either endpoint is blocked, or no
 free path connects them. When start equals goal and the cell is free, returns

@@ -100,6 +100,8 @@ export interface PhysicalTargetOptions {
   requestTimeoutMs?: number;
   candidateEndpoints?: readonly string[];
   discoveryTimeoutMs?: number;
+  /** Stable hardware identity retained by commissioning. */
+  expectedRobotId?: string;
 }
 
 export class PhysicalTargetError extends Error {
@@ -159,8 +161,6 @@ function physicalConnectionRecovery(endpoint: string): string {
 
 const RUN_STARTUP_QUIET_MS = 500;
 const RESET_RECONNECT_TIMEOUT_MS = 8_000;
-const SHARED_COMMAND_TIMEOUT_MS = 3_000;
-const SHARED_RECOVERY_TIMEOUT_MS = RESET_RECONNECT_TIMEOUT_MS;
 const POLL_QUIESCE_WAIT_MS = 750;
 const POLL_ABORT_SETTLE_MS = 100;
 const POLL_FAILURES_BEFORE_ERROR = 2;
@@ -228,6 +228,32 @@ function assertCompatiblePhysicalInfo(info: PhysicalInfo): void {
   }
 }
 
+function normalizedRobotId(value: string | undefined): string | undefined {
+  const normalized = value?.trim().toLocaleLowerCase();
+  return normalized ? normalized : undefined;
+}
+
+function assertExpectedRobotIdentity(
+  info: PhysicalInfo,
+  expectedRobotId: string | undefined,
+): void {
+  const expected = normalizedRobotId(expectedRobotId);
+  if (!expected) return;
+  const actual = normalizedRobotId(info.robotId);
+  if (!actual) {
+    throw new PhysicalTargetError(
+      "robot_identity_missing",
+      "This XRP service cannot prove that it is the robot selected during setup. Open Set up or repair XRP, then reconnect.",
+    );
+  }
+  if (actual !== expected) {
+    throw new PhysicalTargetError(
+      "robot_identity_mismatch",
+      `The reachable XRP is ${actual}, but this browser is configured for ${expected}. Select the intended robot or run Set up or repair XRP.`,
+    );
+  }
+}
+
 export class DirectPhysicalTargetClient implements TargetClient {
   readonly kind = "physical" as const;
   readonly endpoint: string;
@@ -236,6 +262,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly pollIntervalMs: number;
   private readonly requestTimeoutMs: number;
   private readonly connectTimeoutMs: number;
+  private readonly expectedRobotId?: string;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollInFlight: Promise<void> | null = null;
@@ -274,6 +301,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       options.activePollIntervalMs ?? options.pollIntervalMs ?? 60;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.connectTimeoutMs = options.discoveryTimeoutMs ?? this.requestTimeoutMs;
+    this.expectedRobotId = normalizedRobotId(options.expectedRobotId);
   }
 
   async connect(): Promise<void> {
@@ -296,6 +324,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.connectTimeoutMs,
       );
       assertCompatiblePhysicalInfo(info);
+      assertExpectedRobotIdentity(info, this.expectedRobotId);
       const required = [
         "project.check",
         "project.sync",
@@ -357,6 +386,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
         mode: networkMode,
         address: normalizePhysicalEndpoint(networkAddress),
         ssid: info.network?.ssid,
+        ...(info.network?.requested_mode
+          ? { requestedMode: info.network.requested_mode }
+          : {}),
+        ...(typeof info.network?.fallback === "boolean"
+          ? { fallback: info.network.fallback }
+          : {}),
+        ...(info.robotId ? { robotId: info.robotId } : {}),
       });
     }
     this.consumeProjectManifest(info.project);
@@ -1057,6 +1093,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       try {
         const info = await this.getJson<PhysicalInfo>("/api/v1/info", 1_500);
         assertCompatiblePhysicalInfo(info);
+        assertExpectedRobotIdentity(info, this.expectedRobotId);
         this.info = info;
         this.bootId = info.bootId;
         this.lastLogSeq = 0;
@@ -1071,10 +1108,37 @@ export class DirectPhysicalTargetClient implements TargetClient {
           action: "connect",
           phase: "result",
         });
+        const networkMode = info.network?.mode;
+        const networkAddress = info.network?.address ?? info.address;
+        if (
+          (networkMode === "access_point" || networkMode === "station") &&
+          networkAddress
+        ) {
+          this.emit({
+            type: "physical-network",
+            mode: networkMode,
+            address: normalizePhysicalEndpoint(networkAddress),
+            ssid: info.network?.ssid,
+            ...(info.network?.requested_mode
+              ? { requestedMode: info.network.requested_mode }
+              : {}),
+            ...(typeof info.network?.fallback === "boolean"
+              ? { fallback: info.network.fallback }
+              : {}),
+            ...(info.robotId ? { robotId: info.robotId } : {}),
+          });
+        }
         this.consumeProjectManifest(info.project);
         this.consumeRuntimeState(info.runtimeJson);
         return;
       } catch (error) {
+        if (
+          error instanceof PhysicalTargetError &&
+          (error.code === "robot_identity_mismatch" ||
+            error.code === "robot_identity_missing")
+        ) {
+          throw error;
+        }
         lastError = error;
       }
     }
@@ -1286,7 +1350,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
 interface PendingWorkerRequest {
   resolve(value: unknown): void;
   reject(reason: Error): void;
-  timeout: ReturnType<typeof setTimeout>;
 }
 
 /**
@@ -1341,11 +1404,19 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v4" },
+          { type: "module", name: "ucsb-xrp-physical-target-v5" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
         ) => this.handleWorkerMessage(event.data);
+        this.worker.onerror = (event) => {
+          event.preventDefault();
+          this.releaseWorker(
+            event.message
+              ? `Physical target worker failed: ${event.message}`
+              : "Physical target worker failed",
+          );
+        };
         this.worker.port.start();
       } catch (error) {
         this.releaseWorker(errorDetail(error));
@@ -1372,6 +1443,7 @@ export class PhysicalTargetClient implements TargetClient {
             type: "connect",
             endpoints: reordered,
             discoveryTimeoutMs: this.discoveryTimeoutMs,
+            expectedRobotId: this.options.expectedRobotId,
           });
           return;
         }
@@ -1394,6 +1466,7 @@ export class PhysicalTargetClient implements TargetClient {
       type: "connect",
       endpoints: this.candidateEndpoints,
       discoveryTimeoutMs: this.discoveryTimeoutMs,
+      expectedRobotId: this.options.expectedRobotId,
     });
   }
 
@@ -1541,6 +1614,10 @@ export class PhysicalTargetClient implements TargetClient {
         );
         if (!response.ok)
           throw new Error(`XRP returned HTTP ${response.status}`);
+        if (this.options.expectedRobotId) {
+          const info = (await response.json()) as PhysicalInfo;
+          assertExpectedRobotIdentity(info, this.options.expectedRobotId);
+        }
         this.localNetworkPermissionPrimed = true;
         return endpoint;
       } catch (error) {
@@ -1548,6 +1625,13 @@ export class PhysicalTargetClient implements TargetClient {
       } finally {
         clearTimeout(timeout);
       }
+    }
+    if (
+      lastError instanceof PhysicalTargetError &&
+      (lastError.code === "robot_identity_mismatch" ||
+        lastError.code === "robot_identity_missing")
+    ) {
+      throw lastError;
     }
     const detail =
       lastError instanceof DOMException && lastError.name === "AbortError"
@@ -1565,6 +1649,7 @@ export class PhysicalTargetClient implements TargetClient {
           type: "connect";
           endpoints: readonly string[];
           discoveryTimeoutMs: number;
+          expectedRobotId?: string;
         }
       | { type: "check"; project: CourseProject }
       | { type: "sync"; project: CourseProject }
@@ -1585,18 +1670,10 @@ export class PhysicalTargetClient implements TargetClient {
     const requestId = `physical-${this.nextRequest}`;
     this.nextRequest += 1;
     return new Promise((resolve, reject) => {
-      // Ordinary commands should fail promptly. Stop and Reset are the only
-      // operations allowed a longer ceiling because their defined recovery
-      // path can reboot the controller and wait for Wi-Fi to return.
-      const timeoutMs =
-        command.type === "stop" || command.type === "reset"
-          ? SHARED_RECOVERY_TIMEOUT_MS
-          : SHARED_COMMAND_TIMEOUT_MS;
-      const timeout = setTimeout(() => {
-        this.pending.delete(requestId);
-        reject(new Error(`Physical target ${command.type} timed out`));
-      }, timeoutMs);
-      this.pending.set(requestId, { resolve, reject, timeout });
+      // The direct target owns the bounded network and recovery deadlines.
+      // Duplicating those clocks here can reject a valid reply at the boundary,
+      // especially when a worker serializes requests from two application tabs.
+      this.pending.set(requestId, { resolve, reject });
       this.worker?.port.postMessage({ ...command, requestId });
     });
   }
@@ -1610,7 +1687,6 @@ export class PhysicalTargetClient implements TargetClient {
     if (!pending) {
       return;
     }
-    clearTimeout(pending.timeout);
     this.pending.delete(message.requestId);
     if (message.ok) {
       pending.resolve(message.result);
@@ -1646,7 +1722,6 @@ export class PhysicalTargetClient implements TargetClient {
 
   private rejectPending(detail: string): void {
     for (const pending of this.pending.values()) {
-      clearTimeout(pending.timeout);
       pending.reject(new Error(detail));
     }
     this.pending.clear();

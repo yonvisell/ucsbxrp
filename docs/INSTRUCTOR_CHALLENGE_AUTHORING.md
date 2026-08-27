@@ -71,6 +71,13 @@ List every supplied file or service that students need to understand. Include
 should name the data exchanged between components, not only the component
 names.
 
+Refer to task settings by their Python names, such as `GRID_RESOLUTION_MM` or
+`DELIVERY_TASK.range_sample_count`. Do not repeat the current numerical value
+in the README unless that number is itself a fixed assignment requirement.
+Keeping adjustable values in `challenge.py`, `robot_config.py`, or `world.json`
+prevents the instructions from becoming inconsistent when an instructor tunes
+the task.
+
 `world.json` is the sole source for world bounds, initial pose, obstacles, and
 markers. Distances use millimeters and headings use radians. The simulator and
 Monitor read the same file that Python accesses through `load_world()`.

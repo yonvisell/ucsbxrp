@@ -2,9 +2,11 @@ import ast
 import contextlib
 import io
 import json
+import os
 import pathlib
 import runpy
 import sys
+import tempfile
 import unittest
 
 
@@ -214,6 +216,9 @@ class CourseStarterTests(unittest.TestCase):
                     ),
                     text,
                 )
+                self.assertEqual(text.count("EXAMPLE · "), component_count)
+                self.assertIn("input", source.lower())
+                self.assertIn("Complete SensorModel.reset", text)
                 self.assertNotIn("PENDING", text)
 
     def test_supplied_components_pass_every_concrete_component_example(self):
@@ -255,6 +260,64 @@ class CourseStarterTests(unittest.TestCase):
                     "ucsb_xrp_reference."
                 ):
                     sys.modules.pop(name, None)
+
+    def test_grid_planner_check_accepts_a_valid_nonminimum_route(self):
+        course_source = str(ROOT / "vendor" / "current")
+        sys.path.insert(0, course_source)
+        try:
+            from ucsb_xrp import GridCell, GridPath, OccupancyGrid
+            from ucsb_xrp.component_checks import run_component_checks
+
+            class DepthFirstGridPlanner:
+                def plan(self, grid, start, goal):
+                    if start is None or goal is None:
+                        return None
+                    if grid.is_blocked(start) or grid.is_blocked(goal):
+                        return None
+
+                    pending = [(start, (start,))]
+                    visited = set()
+                    while pending:
+                        current, route = pending.pop()
+                        if current in visited:
+                            continue
+                        visited.add(current)
+                        if current == goal:
+                            return GridPath(route)
+                        for adjacent in grid.neighbors(current):
+                            if adjacent not in visited:
+                                pending.append((adjacent, route + (adjacent,)))
+                    return None
+
+            open_grid = OccupancyGrid(
+                100.0,
+                0.0,
+                0.0,
+                3,
+                2,
+                (False, False, False, False, False, False),
+            )
+            nonminimum = DepthFirstGridPlanner().plan(
+                open_grid,
+                GridCell(0, 0),
+                GridCell(2, 0),
+            )
+            self.assertEqual(len(nonminimum.cells), 5)
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                run_component_checks(grid_planner=DepthFirstGridPlanner)
+
+            self.assertIn(
+                "PASS · GridPlanner · connected route through free cells",
+                output.getvalue(),
+            )
+            self.assertIn(
+                "1 passed · 0 not implemented · 0 failed",
+                output.getvalue(),
+            )
+        finally:
+            sys.path.remove(course_source)
 
     def test_partial_component_progress_reports_without_failing(self):
         course_source = str(ROOT / "vendor" / "current")
@@ -481,7 +544,18 @@ class CourseStarterTests(unittest.TestCase):
         self.assertNotIn("four-neighbor", readme.lower())
         self.assertIn("connected route through free grid cells", readme)
         self.assertIn("shares one horizontal or vertical side", readme)
-        self.assertIn("design choice", readme)
+        self.assertIn("accept any route", readme.lower())
+
+        catalog = json.loads(
+            (ROOT / "vendor/current/project_catalog.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        summary = next(
+            entry["summary"] for entry in catalog if entry["id"] == "challenge_4"
+        )
+        self.assertNotIn("shortest", summary.lower())
+        self.assertIn("connected route through free grid cells", summary)
 
     def test_navigation_settings_are_named_and_show_units(self):
         expected_names = {
@@ -530,6 +604,44 @@ class CourseStarterTests(unittest.TestCase):
             if marker.get("name") == "turn"
         )
         self.assertAlmostEqual(turn["heading_rad"], 3.141592653589793)
+
+    def test_delivery_task_has_the_changeable_feature_in_both_virtual_cases(self):
+        directory = STARTERS / "challenge_5"
+        catalog = json.loads((directory / "world.json").read_text(encoding="utf-8"))
+        course_source = str(ROOT / "vendor" / "current")
+        previous_directory = os.getcwd()
+        sys.path.insert(0, course_source)
+        try:
+            for world_id in ("gate-blocked", "gate-open"):
+                with self.subTest(world=world_id), tempfile.TemporaryDirectory() as temp:
+                    selected_catalog = dict(catalog)
+                    selected_catalog["default_world"] = world_id
+                    pathlib.Path(temp, "world.json").write_text(
+                        json.dumps(selected_catalog),
+                        encoding="utf-8",
+                    )
+                    os.chdir(temp)
+                    values = runpy.run_path(
+                        str(directory / "challenge.py"),
+                        run_name="__main__",
+                    )
+                    task = values["DELIVERY_TASK"]
+                    self.assertEqual(values["WORLD"].id, world_id)
+                    self.assertEqual(values["MISSION_MAP_WORLD"].id, "gate-blocked")
+                    self.assertIn(
+                        task.observed_feature_name,
+                        task.arena.feature_names,
+                    )
+                    self.assertEqual(
+                        task.arena.with_feature_blocked(
+                            task.observed_feature_name,
+                            True,
+                        ).blocked_features,
+                        (task.observed_feature_name,),
+                    )
+        finally:
+            os.chdir(previous_directory)
+            sys.path.remove(course_source)
 
 
 if __name__ == "__main__":

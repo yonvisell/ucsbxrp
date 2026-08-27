@@ -136,7 +136,7 @@ class NavigationControllerBase:
 
 
 class GridPlannerBase:
-    """Find a shortest route through free neighboring occupancy-grid cells.
+    """Find a connected route through free occupancy-grid cells.
 
     Search data may remain local to :meth:`plan`. Mission code converts the
     returned ``GridPath`` to navigation goals before the measured robot loop
@@ -146,5 +146,5 @@ class GridPlannerBase:
     __slots__ = ()
 
     def plan(self, grid, start, goal):
-        """Return a shortest GridPath, or None when no valid path exists."""
+        """Return a valid GridPath, or None when no connected route exists."""
         raise NotImplementedError

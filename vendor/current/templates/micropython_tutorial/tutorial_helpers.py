@@ -6,7 +6,7 @@ from ucsb_xrp import DriveCommand
 
 
 def drive_for(bot, left_command, right_command, duration_ms):
-    """Apply one bounded drive command for a positive number of milliseconds."""
+    """Apply one limited drive command for a positive number of milliseconds."""
     if duration_ms <= 0:
         raise ValueError("duration_ms must be positive")
     bot.set_drive(DriveCommand(left_command, right_command))

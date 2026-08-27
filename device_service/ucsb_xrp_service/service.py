@@ -21,7 +21,13 @@ import network
 from phew import logging as phew_logging
 from phew import server
 
-from .protocol import LineLogWriter, PROTOCOL_VERSION, SERVICE_VERSION, ProtocolError
+from .protocol import (
+    LineLogWriter,
+    MAX_LOG_LINE_CHARS,
+    PROTOCOL_VERSION,
+    SERVICE_VERSION,
+    ProtocolError,
+)
 from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
 from .networking import (
@@ -31,7 +37,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.25"
+COURSE_RELEASE = "2026.08-dev.26"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
@@ -172,13 +178,16 @@ def _error_response(request_id, code, detail, status=400):
 
 def _append_log(stream, line):
     global _log_seq
+    text = str(line)
+    if len(text) > MAX_LOG_LINE_CHARS:
+        text = text[:MAX_LOG_LINE_CHARS]
     _log_seq += 1
     _logs.append(
         {
             "seq": _log_seq,
             "tMs": time.ticks_diff(time.ticks_ms(), _boot_ms),
             "stream": stream,
-            "line": str(line),
+            "line": text,
         }
     )
     if len(_logs) > LOG_LIMIT:

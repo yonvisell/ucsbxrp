@@ -109,7 +109,7 @@
     "source": "starters/challenge_4",
     "label": "Challenge 4 · Mapped Route",
     "short_label": "4 · Mapped Route",
-    "summary": "Plan a shortest free grid path and execute it.",
+    "summary": "Plan a connected route through free grid cells and execute it.",
     "entrypoint": "main.py",
     "predecessor_id": "challenge_3",
     "components": [

@@ -16,6 +16,7 @@ export interface PhysicalWorkerPort {
 type PhysicalTargetFactory = (
   endpoint: string,
   requestTimeoutMs?: number,
+  expectedRobotId?: string,
 ) => TargetClient;
 type ConsoleEvent = Extract<TargetEvent, { type: "console" }>;
 
@@ -60,6 +61,7 @@ export class PhysicalTargetCoordinator {
   private readonly telemetryHistory = new TelemetryEventHistory();
   private target: TargetClient | null = null;
   private targetEndpoint: string | null = null;
+  private targetExpectedRobotId: string | null = null;
   private connection: Promise<void> | null = null;
   private commandQueue: Promise<void> = Promise.resolve();
   private workerEventSequence = 0;
@@ -108,6 +110,7 @@ export class PhysicalTargetCoordinator {
     this.target?.disconnect();
     this.target = null;
     this.targetEndpoint = null;
+    this.targetExpectedRobotId = null;
     this.connection = null;
     this.clearRetainedState();
   }
@@ -121,6 +124,7 @@ export class PhysicalTargetCoordinator {
         const replayRequired = await this.connectTarget(
           command.endpoints ?? (command.endpoint ? [command.endpoint] : []),
           command.discoveryTimeoutMs ?? 1_000,
+          command.expectedRobotId,
         );
         this.send(port, {
           type: "response",
@@ -193,11 +197,16 @@ export class PhysicalTargetCoordinator {
   private async connectTarget(
     endpoints: readonly string[],
     discoveryTimeoutMs: number,
+    expectedRobotId?: string,
   ): Promise<boolean> {
+    const normalizedExpectedRobotId =
+      expectedRobotId?.trim().toLocaleLowerCase() || null;
     if (
       this.target &&
       this.targetEndpoint &&
-      endpoints[0] === this.targetEndpoint
+      endpoints[0] === this.targetEndpoint &&
+      (!normalizedExpectedRobotId ||
+        normalizedExpectedRobotId === this.targetExpectedRobotId)
     ) {
       if (this.connection) {
         await this.connection;
@@ -209,10 +218,15 @@ export class PhysicalTargetCoordinator {
     this.target?.disconnect();
     this.target = null;
     this.targetEndpoint = null;
+    this.targetExpectedRobotId = null;
     this.clearRetainedState();
     let lastError: unknown = new Error("No XRP address is available");
     for (const endpoint of endpoints) {
-      const nextTarget = this.makeTarget(endpoint, discoveryTimeoutMs);
+      const nextTarget = this.makeTarget(
+        endpoint,
+        discoveryTimeoutMs,
+        normalizedExpectedRobotId ?? undefined,
+      );
       const buffered: TargetEvent[] = [];
       const unsubscribe = nextTarget.subscribe((event) => buffered.push(event));
       const pendingConnection = nextTarget.connect();
@@ -222,6 +236,7 @@ export class PhysicalTargetCoordinator {
         unsubscribe();
         this.target = nextTarget;
         this.targetEndpoint = endpoint;
+        this.targetExpectedRobotId = normalizedExpectedRobotId;
         nextTarget.subscribe((event) => this.broadcast(event));
         for (const event of buffered) this.broadcast(event);
         return false;

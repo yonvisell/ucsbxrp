@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { networkChoiceVisibility } from "./CommissionApp";
+import {
+  hasUsableNetworkProfile,
+  networkChoiceVisibility,
+} from "./CommissionApp";
 
 describe("commissioning network choices", () => {
   it("does not duplicate an installed hotspot with another hotspot choice", () => {
@@ -37,5 +40,32 @@ describe("commissioning network choices", () => {
       robotHotspot: true,
       existingWifi: true,
     });
+  });
+
+  it("does not preserve an incomplete station profile during repair", () => {
+    const incomplete = {
+      present: true,
+      mode: "station" as const,
+      stationSsid: "",
+    };
+    expect(hasUsableNetworkProfile(incomplete)).toBe(false);
+    expect(networkChoiceVisibility(incomplete)).toEqual({
+      keepCurrent: false,
+      robotHotspot: true,
+      existingWifi: true,
+    });
+  });
+
+  it("keeps complete hotspot and station profiles", () => {
+    expect(
+      hasUsableNetworkProfile({ present: true, mode: "access_point" }),
+    ).toBe(true);
+    expect(
+      hasUsableNetworkProfile({
+        present: true,
+        mode: "station",
+        stationSsid: "Course network",
+      }),
+    ).toBe(true);
   });
 });

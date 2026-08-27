@@ -31,6 +31,19 @@ class DeviceServiceProtocolTest(unittest.TestCase):
             ],
         )
 
+    def test_line_log_writer_bounds_partial_and_complete_lines(self):
+        events = []
+        writer = PROTOCOL.LineLogWriter(
+            "stdout", lambda stream, line: events.append((stream, line))
+        )
+        text = "x" * (PROTOCOL.MAX_LOG_LINE_CHARS * 2 + 7)
+
+        self.assertEqual(writer.write(text), len(text))
+        self.assertLess(len(writer._buffer), PROTOCOL.MAX_LOG_LINE_CHARS)
+        writer.write("\n")
+
+        self.assertEqual([len(line) for _, line in events], [512, 512, 7])
+
     def test_normalizes_complete_text_project(self):
         project = PROTOCOL.validate_project(
             {

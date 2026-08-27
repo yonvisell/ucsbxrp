@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AppNavigation } from "../../shared/AppNavigation";
+import { useHashTarget } from "../../shared/useHashTarget";
 
 type Parameter = {
   name: string;
@@ -189,16 +190,14 @@ const robotConfigFields: Parameter[] = [
 ];
 
 export function ReferenceApp() {
+  useHashTarget();
+
   return (
     <div className="reference-app">
       <header className="app-header reference-header">
-        <div className="brand" aria-label="UCSBXRP API Reference">
+        <div className="brand" aria-label="UCSBXRP">
           <span className="brand-mark">UCSB</span>
           <span className="brand-xrp">XRP</span>
-          <span aria-hidden="true" className="brand-separator">
-            |
-          </span>
-          <span className="brand-product">API</span>
         </div>
         <AppNavigation active="reference" />
       </header>
@@ -207,7 +206,7 @@ export function ReferenceApp() {
         <nav className="reference-toc" aria-label="API sections">
           <span>Program structure</span>
           <a href="#project-loop">Measured control loop</a>
-          <a href="#student-components">Student base classes</a>
+          <a href="#student-components">Student component interfaces</a>
           {components.map(([id, name]) => (
             <a className="toc-child" href={"#" + id} key={id}>
               {name}
@@ -229,18 +228,17 @@ export function ReferenceApp() {
 
         <main className="reference-content">
           <section className="reference-intro">
-            <p className="eyebrow">Python interface · ucsb_xrp 0.4.0-dev</p>
-            <h1>UCSB XRP Python API reference</h1>
+            <h1>API reference</h1>
             <p>
-              This page defines the public Python interface used by course
-              projects. Student classes inherit base classes from{" "}
-              <code>ucsb_xrp.student_api</code>; ordinary project code imports
-              records and supplied services from <code>ucsb_xrp</code>. Each
-              student component entry gives the constructor, retained state,
-              parameters, types, defaults, units, return value, exceptions,
-              required behavior, and an executable call example. Names beginning
-              with an underscore are internal. The <a href="../guide/">Guide</a>{" "}
-              covers application operation and project workflow.
+              This page defines the UCSBXRP Python interface for course projects
+              using <code>ucsb_xrp 0.4.0-dev</code>. Student classes inherit the
+              component interfaces in <code>ucsb_xrp.student_api</code>; project
+              programs import records, configuration classes, and supplied
+              services from <code>ucsb_xrp</code>. Each entry states its
+              purpose, arguments, types, units, return value, possible
+              exceptions, and an example. Names beginning with an underscore are
+              internal. The <a href="../guide/">Guide</a> explains the IDE,
+              Monitor, project storage, and robot setup.
             </p>
           </section>
 
@@ -248,9 +246,8 @@ export function ReferenceApp() {
             <p>
               <code>main.py</code> selects the task and calls the configured
               services. <code>course_setup.py</code> creates a{" "}
-              <code>Robot</code>
-              using either supplied or student components. One loop iteration
-              proceeds in this order:
+              <code>Robot</code> using either supplied or student components.
+              One loop iteration proceeds in this order:
             </p>
             <ol className="api-procedure">
               <li>
@@ -284,8 +281,14 @@ export function ReferenceApp() {
               milliseconds for device time, seconds for elapsed calculation
               time, radians for angles, and rad/s for turn rate. Positive
               heading and turn rate are counterclockwise.{" "}
-              <code>Robot.step()</code> maintains the configured sample period;
-              do not add a sleep call inside the measured loop.
+              <code>Robot.step()</code> maintains the configured sample period
+              from an absolute sequence of deadlines. It waits only for the time
+              remaining before the next deadline, then reads one sensor sample
+              and advances the deadline. Do not add <code>sleep_ms()</code>{" "}
+              inside this loop: the extra delay changes the actual interval
+              between sensor samples, which changes encoder-derived wheel-speed
+              estimates and controller behavior. Use a deliberate delay only
+              outside the measured control loop.
             </p>
             <CodeExample
               code={projectLoopExample}
@@ -295,14 +298,16 @@ export function ReferenceApp() {
 
           <ReferenceSection
             id="student-components"
-            title="Student component base classes"
+            title="Student-implemented component interfaces"
           >
             <p>
-              Each challenge identifies the components students implement. A
-              student class extends the matching base class below, passes the
-              project&apos;s component checks, and is selected in{" "}
-              <code>course_setup.py</code>. The base classes define the public
-              interface; they do not prescribe an internal algorithm.
+              Each challenge identifies the components to implement. A student
+              class inherits the matching base class below and is selected in{" "}
+              <code>course_setup.py</code>. The base class defines how{" "}
+              <code>Robot</code> or mission code calls the component. It fixes
+              the accepted inputs, returned values, and required externally
+              visible behavior while leaving the internal calculation to the
+              implementation.
             </p>
             <h3>Component check results</h3>
             <ul>
@@ -441,7 +446,7 @@ export function ReferenceApp() {
             name="WheelSpeedController"
             file="wheel_speed_controller.py"
             base="WheelSpeedControllerBase"
-            description="Converts requested and measured left/right wheel speeds into bounded motor commands. Robot calls it once per sample before writing to the motors."
+            description="Receives requested left and right wheel speeds from DifferentialDrive and measured wheel-speed estimates from SensorModel. For each wheel, it calculates a normalized motor command intended to reduce the difference between requested and measured speed. Robot calls update() once per sample before writing the command to the motors."
             state="An implementation may keep controller memory between samples. reset() must return that state to its initial condition before every run."
             constructor="WheelSpeedController(config: RobotConfig)"
             example={componentExamples.wheelController}
@@ -707,15 +712,15 @@ export function ReferenceApp() {
             name="GridPlanner"
             file="grid_planner.py"
             base="GridPlannerBase"
-            description="Finds a shortest route through free horizontal and vertical neighbors in an occupancy grid. Planning occurs before the robot follows the resulting route."
-            state="Search data such as the frontier, visited cells, and predecessors can be local variables inside plan(); no information need be retained after the method returns."
+            description="Finds a connected route through free occupancy-grid cells. Consecutive cells in the route share an edge, so each move is horizontal or vertical. Planning finishes before the robot follows the resulting route."
+            state="Search data may be local to plan(). A call does not rely on state created by an earlier planning request."
             constructor="GridPlanner()"
             example={componentExamples.planner}
           >
             <ApiMethod
               name="plan"
               signature="plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None"
-              summary="Find a shortest valid four-neighbor path from start to goal."
+              summary="Find a valid connected route from the start cell to the goal cell."
               parameters={[
                 {
                   name: "grid",
@@ -739,16 +744,16 @@ export function ReferenceApp() {
               returns={{
                 type: "GridPath | None",
                 description:
-                  "A shortest path including both endpoints, or None for missing, blocked, or unreachable endpoints.",
+                  "A valid connected route including both endpoints, or None for missing, blocked, or unreachable endpoints.",
               }}
               errors={[
                 "TypeError if grid is not an OccupancyGrid.",
                 "TypeError if a non-None endpoint is not a GridCell.",
               ]}
               requirements={[
-                "Use only free horizontal or vertical neighbors.",
+                "Every cell in the route must be free, and consecutive cells must share an edge.",
                 "Return a one-cell path when a free start equals goal.",
-                "The choice among equally short paths is not specified.",
+                "A minimum-length route is not required; the search algorithm is part of the student implementation.",
               ]}
             />
           </ComponentSection>
@@ -1020,9 +1025,10 @@ export function ReferenceApp() {
 
           <ReferenceSection id="robot" title="Robot service">
             <p>
-              Projects normally call <code>make_robot(ROBOT_CONFIG)</code> from
-              <code>course_setup.py</code>. Direct construction is reserved for
-              library assembly and tests.
+              Project code calls <code>make_robot(ROBOT_CONFIG)</code> from{" "}
+              <code>course_setup.py</code>. The course library constructs{" "}
+              <code>Robot</code> directly when assembling and testing the
+              selected components.
             </p>
             <FunctionReference
               signature="make_robot(config: RobotConfig) -> Robot"
@@ -1227,12 +1233,12 @@ export function ReferenceApp() {
             title="Live controls, watch values, and plots"
           >
             <p>
-              Declare controls once, normally near the top of{" "}
-              <code>main.py</code>, then read each returned parameter&apos;s{" "}
-              <code>.value</code> in the loop. The Monitor marks edits as
-              pending and <code>Robot.step()</code>
-              applies them together at the next sample boundary. A project may
-              declare at most 16 controls, 16 watch values, and 16 plot values.
+              Declare controls once near the top of <code>main.py</code>, then
+              read each returned parameter&apos;s <code>.value</code> in the
+              loop. The Monitor marks edits as pending and{" "}
+              <code>Robot.step()</code> applies them together at the next sample
+              boundary. A project may declare at most 16 controls, 16 watch
+              values, and 16 plot values.
             </p>
             <FunctionReference
               signature={
@@ -1482,7 +1488,7 @@ export function ReferenceApp() {
             <ClassReference
               name="ProjectWorld"
               signature="ProjectWorld(item: dict)"
-              description="One named world decoded from a world.json catalog. Projects normally obtain it through load_world()."
+              description="One named world decoded from a world.json catalog. load_world() returns this value to project code."
               constructorParameters={[
                 {
                   name: "item",
@@ -2015,19 +2021,20 @@ export function ReferenceApp() {
                   {
                     name: "cell",
                     type: "GridCell",
-                    description: "Cell from which to enumerate neighbors.",
+                    description:
+                      "Cell whose adjacent free cells are requested.",
                   },
                 ]}
                 returns={{
                   type: "tuple[GridCell, ...]",
                   description:
-                    "Free neighbors in right, up, left, down order; off-grid and blocked candidates are omitted.",
+                    "Free adjacent cells in right, up, left, down order; off-grid and blocked candidates are omitted.",
                 }}
                 errors={["TypeError if cell is not a GridCell."]}
               />
             </ClassReference>
             <CodeExample
-              title="Create a grid and inspect neighboring cells"
+              title="Create a grid and inspect adjacent cells"
               code={[
                 "from ucsb_xrp import ArenaMap, OccupancyGrid, Rectangle",
                 "",
@@ -2039,7 +2046,7 @@ export function ReferenceApp() {
                 "    arena, resolution_mm=100.0, clearance_mm=90.0",
                 ")",
                 "cell = grid.world_to_cell(100.0, 100.0)",
-                "neighbors = grid.neighbors(cell)",
+                "adjacent_cells = grid.neighbors(cell)",
               ].join("\n")}
             />
           </ReferenceSection>
@@ -2743,7 +2750,7 @@ function componentSummary(id: string) {
     case "navigation-controller":
       return "Ordered world goals to forward-speed and turn-rate commands";
     default:
-      return "Occupancy grid to a shortest free-cell route";
+      return "Occupancy grid to a connected route through free cells";
   }
 }
 
@@ -2805,19 +2812,18 @@ function ComponentSection({
       </p>
       <h3>Constructor</h3>
       <code className="class-signature">{constructor}</code>
-      <p className="exception-line">
-        <strong>Raises:</strong>{" "}
-        {name === "GridPlanner" ? (
-          "No constructor-specific exception; GridPlanner() has no argument."
-        ) : (
-          <>
-            <code>TypeError</code> if <code>config</code> is not the required
-            configuration type.
-          </>
-        )}
-      </p>
+      {name === "GridPlanner" ? (
+        <p>
+          <code>GridPlanner()</code> takes no arguments.
+        </p>
+      ) : (
+        <p className="exception-line">
+          <strong>Raises:</strong> <code>TypeError</code> if <code>config</code>{" "}
+          is not the required configuration type.
+        </p>
+      )}
       {children}
-      <CodeExample code={example} title={name + " call example"} />
+      <CodeExample code={example} title={name + " example"} />
     </ReferenceSection>
   );
 }
@@ -2899,19 +2905,19 @@ function ApiMethod({
       <p>
         <code>{returns.type}</code> — {returns.description}
       </p>
-      <DetailHeading>Exceptions</DetailHeading>
-      {errors.length > 0 ? (
-        <ul>
-          {errors.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      ) : (
-        <p>No method-specific exception is defined by this interface.</p>
+      {errors.length > 0 && (
+        <>
+          <DetailHeading>Exceptions</DetailHeading>
+          <ul>
+            {errors.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </>
       )}
       {requirements.length > 0 && (
         <>
-          <DetailHeading>Required behavior</DetailHeading>
+          <DetailHeading>Behavior</DetailHeading>
           <ul>
             {requirements.map((item) => (
               <li key={item}>{item}</li>
@@ -2950,12 +2956,11 @@ function FunctionReference({
         <strong>Returns:</strong> <code>{returns.type}</code> —{" "}
         {returns.description}
       </p>
-      <p className="exception-line">
-        <strong>Raises:</strong>{" "}
-        {errors.length > 0
-          ? errors.join(" ")
-          : "No function-specific exception is defined for valid argument types and values."}
-      </p>
+      {errors.length > 0 && (
+        <p className="exception-line">
+          <strong>Raises:</strong> {errors.join(" ")}
+        </p>
+      )}
     </article>
   );
 }

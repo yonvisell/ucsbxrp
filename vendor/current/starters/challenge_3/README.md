@@ -80,7 +80,7 @@ types.
 | `challenge.py` | Loads the ordered `ROUTE` and `INITIAL_POSE` from `world.json`. |
 | `robot_config.py` | Holds robot calibration and all navigation speeds, distances, and angular tolerances. |
 | `course_setup.py` | Selects supplied or student classes and constructs the robot and navigator. |
-| `component_checks.py` | Runs the provided component examples without starting the virtual or physical robot. Results appear in Program output as PASS, NOT IMPLEMENTED, or FAIL. |
+| `component_checks.py` | Runs small input/output examples without starting either robot. Program output describes each example, then reports PASS, NOT IMPLEMENTED, or FAIL. |
 | `Robot` | Executes each command through the measured wheel-control and odometry loop. |
 
 `world.json` is the single source for waypoint order, coordinates, and optional

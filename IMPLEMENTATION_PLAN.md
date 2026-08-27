@@ -86,10 +86,11 @@ Usable result: Challenge 3 completes without target-specific student code.
 Status: implemented and exercised in browser MicroPython.
 
 - Implement dimensioned arena maps, occupancy-grid conversion, clearance,
-  coordinate conversion, free-cell neighbors, and shortest four-neighbor path
-  planning.
-- Supply a focused starter and validate endpoint, adjacency, collision, and
-  minimum-length properties without fixing one arbitrary tie break.
+  coordinate conversion, free cells that share an edge, and connected route
+  planning with horizontal or vertical steps.
+- Supply a focused starter and validate endpoints, free cells, step
+  connectivity, collision, and no-route behavior without requiring a
+  minimum-length route or one particular search algorithm.
 
 Usable result: Challenge 4 plans and executes a mapped route.
 
