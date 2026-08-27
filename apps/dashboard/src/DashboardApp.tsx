@@ -30,7 +30,9 @@ import {
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
+import { isEmbeddedApplication } from "../../shared/embedded-application";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
+import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import { useTargetPreference } from "../../shared/use-target-preference";
 import {
@@ -453,6 +455,7 @@ function centeredWorldPreview(
 }
 
 export function DashboardApp() {
+  const embeddedApplication = isEmbeddedApplication();
   const projectBootstrapPending = useProjectBootstrapPending();
   const [targetPreference, updateTargetPreference] = useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
@@ -1448,7 +1451,7 @@ export function DashboardApp() {
       : null;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${embeddedApplication ? "embedded-app" : ""}`}>
       <header className="app-header">
         <div className="brand" aria-label="UCSBXRP">
           <span className="brand-mark">UCSB</span>
@@ -1502,6 +1505,7 @@ export function DashboardApp() {
             <ResetIcon />
             <span className="visually-hidden">Reset</span>
           </button>
+          <SplitWorkspaceLink />
         </div>
         <div className="header-statuses">
           <div

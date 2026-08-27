@@ -1,0 +1,146 @@
+.workspace-app {
+  display: grid;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 27px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.workspace-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid var(--pane-line);
+  padding: 1px 5px;
+  overflow: hidden;
+}
+
+.workspace-brand {
+  flex: 0 0 auto;
+  color: inherit;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.workspace-title {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.workspace-layout-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.workspace-layout-controls button {
+  height: 19px;
+  padding: 0 5px;
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+
+.workspace-layout-controls button[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.workspace-links {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.workspace-links a {
+  padding: 2px 4px;
+  color: var(--ink);
+  font-size: var(--font-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.workspace-links a:hover {
+  background: var(--panel-raised);
+}
+
+.workspace-panes {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-panes.mode-ide,
+.workspace-panes.mode-monitor {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.workspace-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.workspace-pane iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--panel);
+}
+
+.workspace-panes.mode-ide .monitor-pane,
+.workspace-panes.mode-monitor .ide-pane {
+  display: none;
+}
+
+.workspace-panes.wide .ide-pane {
+  border-right: 1px solid var(--pane-line);
+}
+
+.workspace-panes.narrow .ide-pane {
+  border-bottom: 1px solid var(--pane-line);
+}
+
+.workspace-panes .resize-separator {
+  position: relative;
+  z-index: 2;
+  background: var(--panel-raised);
+}
+
+@media (max-width: 560px) {
+  .workspace-title {
+    display: none;
+  }
+
+  .workspace-header {
+    gap: 3px;
+    padding-right: 2px;
+    padding-left: 3px;
+  }
+
+  .workspace-layout-controls button {
+    padding-right: 3px;
+    padding-left: 3px;
+  }
+
+  .workspace-links a {
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+}

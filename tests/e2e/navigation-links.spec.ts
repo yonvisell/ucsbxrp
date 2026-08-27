@@ -4,6 +4,7 @@ const entryPages = [
   "/",
   "/ide/",
   "/monitor/",
+  "/workspace/",
   "/guide/",
   "/reference/",
   "/commission/",

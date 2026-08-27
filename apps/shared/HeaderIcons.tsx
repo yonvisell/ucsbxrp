@@ -26,3 +26,16 @@ export function ResetIcon() {
     </svg>
   );
 }
+
+export function SplitWorkspaceIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="header-command-icon split-workspace-icon"
+      viewBox="0 0 16 16"
+    >
+      <rect height="10" rx="0.8" width="5" x="2.5" y="3" />
+      <rect height="10" rx="0.8" width="5" x="8.5" y="3" />
+    </svg>
+  );
+}

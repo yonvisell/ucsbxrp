@@ -132,6 +132,7 @@ function navigationFallback(pathname) {
   for (const application of [
     "ide",
     "monitor",
+    "workspace",
     "dashboard",
     "guide",
     "reference",

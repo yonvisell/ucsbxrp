@@ -599,55 +599,6 @@
   font-size: var(--font-xs);
 }
 
-.resize-separator {
-  position: relative;
-  z-index: 6;
-  border: 0;
-  padding: 0;
-  background: var(--panel);
-  touch-action: none;
-}
-
-.resize-separator::after {
-  position: absolute;
-  background: var(--pane-line);
-  content: "";
-}
-
-.resize-separator.vertical {
-  width: 5px;
-  cursor: col-resize;
-}
-
-.resize-separator.vertical::after {
-  top: 0;
-  bottom: 0;
-  left: 2px;
-  width: 1px;
-}
-
-.resize-separator.horizontal {
-  height: 5px;
-  cursor: row-resize;
-}
-
-.resize-separator.horizontal::after {
-  top: 2px;
-  right: 0;
-  left: 0;
-  height: 1px;
-}
-
-.resize-separator:hover::after,
-.resize-separator:focus-visible::after {
-  background: var(--ink);
-}
-
-.resize-separator:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: -1px;
-}
-
 .world-view,
 .signal-plot-shell,
 .signal-plot {

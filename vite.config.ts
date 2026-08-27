@@ -121,6 +121,7 @@ export default defineConfig({
         home: path.resolve(projectRoot, "index.html"),
         ide: path.resolve(projectRoot, "ide/index.html"),
         monitor: path.resolve(projectRoot, "monitor/index.html"),
+        workspace: path.resolve(projectRoot, "workspace/index.html"),
         dashboard: path.resolve(projectRoot, "dashboard/index.html"),
         guide: path.resolve(projectRoot, "guide/index.html"),
         reference: path.resolve(projectRoot, "reference/index.html"),

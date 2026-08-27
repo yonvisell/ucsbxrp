@@ -419,7 +419,7 @@
   align-self: center;
   margin-left: auto;
   padding: 0 0.55rem;
-  color: var(--cyan-deep);
+  color: var(--muted);
   font-size: var(--font-xs);
   text-decoration: none;
   white-space: nowrap;
@@ -1029,7 +1029,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .ide-workspace {
     grid-template-columns: 1fr;
   }

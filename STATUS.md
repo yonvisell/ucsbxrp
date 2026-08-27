@@ -4,6 +4,31 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 61 makes IDE and Monitor geometry adaptive in both directions and
+adds a permission-free combined workspace at `/workspace/`. The standalone apps
+now explicitly fill the browser viewport, the compact header wraps before its
+status can clip commands, and the Project rail becomes a temporary overlay at
+900 pixels so narrowing the window returns its width to the editor. The target
+selector retains enough native-select width to show `Physical XRP` in full.
+The contextual `Components API` text was removed from `course_setup.py`; direct
+class reference links remain available in a neutral style where they identify
+a specific API entry.
+
+IDE and Monitor can now run in two same-origin panes in one tab, with a
+keyboard- and pointer-adjustable divider, full-pane IDE and Monitor modes, and
+automatic vertical stacking below 901 pixels. The embedded applications retain
+the existing shared target and project authority, omit duplicated navigation,
+and preserve folder access and cross-origin isolation. The split range keeps
+both panes at least 320 pixels wide at the minimum side-by-side width. The new
+route is part of the offline navigation shell.
+
+Focused Stable Chrome validation passes 12 responsive, navigation, API, and
+cross-pane workflows, including live 1180-to-850 expansion/contraction,
+901-pixel separator extremes, Monitor-initiated Run and Stop, and narrow
+stacking. Nine additional Monitor recording/export and complete offline-shell
+workflows pass. No robot runtime or project file semantics changed in this
+slice.
+
 Refinement 60 simplifies the student project workflow without changing the
 runtime or the physical XRP. The Project rail now separates project actions,
 file actions, component checks, and challenge progression; reconnecting a

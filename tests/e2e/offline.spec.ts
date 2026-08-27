@@ -138,6 +138,26 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expect(monitor.locator(".monitor-controls-footer")).toHaveCount(0);
 
+  const workspace = await context.newPage();
+  recordErrors(workspace);
+  await workspace.goto(coursePath("workspace/"), {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    workspace.getByRole("button", { name: "Side by side" }),
+  ).toBeVisible();
+  await expect(
+    workspace
+      .frameLocator('iframe[title="UCSBXRP IDE"]')
+      .getByTestId("target-status"),
+  ).toContainText("Virtual XRP · ready");
+  await expect(
+    workspace
+      .frameLocator('iframe[title="UCSBXRP Monitor"]')
+      .getByTestId("target-status"),
+  ).toContainText("Virtual XRP · ready");
+  await expectOfflineShellReady(workspace);
+
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
     timeout: 20_000,

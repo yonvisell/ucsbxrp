@@ -31,7 +31,9 @@ import {
 
 import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
+import { isEmbeddedApplication } from "../../shared/embedded-application";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
+import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
 import { useTargetPreference } from "../../shared/use-target-preference";
 import {
   registerOfflineShellBeforeReload,
@@ -194,10 +196,6 @@ function editorLanguage(path: string): string {
 
 const apiReferenceByFilename: Record<string, { href: string; label: string }> =
   {
-    "course_setup.py": {
-      href: "../reference/#student-components",
-      label: "Components",
-    },
     "sensor_model.py": {
       href: "../reference/#sensor-model",
       label: "SensorModel",
@@ -256,7 +254,7 @@ function initiallyShowProjectPanel(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) {
     return true;
   }
-  return window.matchMedia("(min-width: 761px)").matches;
+  return window.matchMedia("(min-width: 901px)").matches;
 }
 
 interface IdeAppProps {
@@ -264,6 +262,7 @@ interface IdeAppProps {
 }
 
 export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
+  const embeddedApplication = isEmbeddedApplication();
   const initialRecovery = useMemo(() => loadRecoveredProjectState(), []);
   const initialProjectSession = useMemo(
     () =>
@@ -402,7 +401,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     if (!window.matchMedia) {
       return;
     }
-    const narrowLayout = window.matchMedia("(max-width: 760px)");
+    const narrowLayout = window.matchMedia("(max-width: 900px)");
     const collapseProjectPanel = (event: MediaQueryListEvent) => {
       if (event.matches) {
         setProjectPanelOpen(false);
@@ -2627,7 +2626,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
 
   if (!projectSessionReady) {
     return (
-      <div className="app-shell ide-app">
+      <div
+        className={`app-shell ide-app ${embeddedApplication ? "embedded-app" : ""}`}
+      >
         <header className="app-header">
           <div className="brand" aria-label="UCSBXRP">
             <span className="brand-mark">UCSB</span>
@@ -2643,7 +2644,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   }
 
   return (
-    <div className="app-shell ide-app">
+    <div
+      className={`app-shell ide-app ${embeddedApplication ? "embedded-app" : ""}`}
+    >
       <header className="app-header">
         <div className="brand" aria-label="UCSBXRP">
           <span className="brand-mark">UCSB</span>
@@ -2709,6 +2712,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             <ResetIcon />
             <span className="visually-hidden">Reset</span>
           </button>
+          <SplitWorkspaceLink />
         </div>
         <div className="header-statuses">
           <div
