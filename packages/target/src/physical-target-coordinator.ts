@@ -6,6 +6,7 @@ import {
   TelemetryEventHistory,
   type TelemetryEvent,
 } from "./telemetry-event-history";
+import { ProjectRunProviderBroker } from "./project-run-provider";
 import type { TargetClient, TargetEvent } from "./types";
 
 export interface PhysicalWorkerPort {
@@ -59,6 +60,10 @@ export class PhysicalTargetCoordinator {
   private readonly consoleHistory: ConsoleEvent[] = [];
   private readonly retainedConsoleIds = new Set<string>();
   private readonly telemetryHistory = new TelemetryEventHistory();
+  private readonly projectRunProvider =
+    new ProjectRunProviderBroker<PhysicalWorkerPort>((port, request) =>
+      this.send(port, request),
+    );
   private target: TargetClient | null = null;
   private targetEndpoint: string | null = null;
   private targetExpectedRobotId: string | null = null;
@@ -90,6 +95,26 @@ export class PhysicalTargetCoordinator {
       this.detach(port);
       return;
     }
+    if (command.type === "set-project-run-provider") {
+      if (command.providesProject) this.projectRunProvider.register(port);
+      else this.projectRunProvider.unregister(port);
+      return;
+    }
+    if (command.type === "project-run-snapshot") {
+      this.projectRunProvider.accept(port, command);
+      return;
+    }
+    if (command.type === "mark-project-changed") {
+      const operation = this.commandQueue.then(() => {
+        if (this.ports.has(port))
+          this.target?.markProjectChanged(command.project);
+      });
+      this.commandQueue = operation.catch(() => undefined);
+      return;
+    }
+    if (command.type === "connect" && command.providesProject) {
+      this.projectRunProvider.register(port);
+    }
     const operation = this.commandQueue.then(async () => {
       if (!this.ports.has(port)) {
         return;
@@ -100,6 +125,7 @@ export class PhysicalTargetCoordinator {
   }
 
   private detach(port: PhysicalWorkerPort): void {
+    this.projectRunProvider.unregister(port);
     this.ports.delete(port);
     this.deliveredConsoleIds.delete(port);
     this.deliveredTelemetry.delete(port);
@@ -117,7 +143,13 @@ export class PhysicalTargetCoordinator {
 
   private async execute(
     port: PhysicalWorkerPort,
-    command: Exclude<PhysicalWorkerCommand, { type: "disconnect" }>,
+    command: Exclude<
+      PhysicalWorkerCommand,
+      | { type: "disconnect" }
+      | { type: "set-project-run-provider" }
+      | { type: "project-run-snapshot" }
+      | { type: "mark-project-changed" }
+    >,
   ): Promise<void> {
     try {
       if (command.type === "connect") {
@@ -143,12 +175,14 @@ export class PhysicalTargetCoordinator {
       let result;
       if (command.type === "check") {
         result = await this.target.check(command.project);
-      } else if (command.type === "sync") {
+      } else if (command.type === "prepare") {
         await this.target.synchronize(command.project);
       } else if (command.type === "run") {
         await this.target.run(command.project);
       } else if (command.type === "run-current") {
-        await this.target.runCurrent();
+        const snapshot = await this.projectRunProvider.request();
+        if (snapshot) await this.target.run(snapshot.project);
+        else await this.target.runCurrent();
       } else if (command.type === "mark-project-stale") {
         await this.target.markProjectStale(command.project);
       } else if (command.type === "stop") {

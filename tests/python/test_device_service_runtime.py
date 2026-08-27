@@ -48,6 +48,34 @@ class FakeServer:
         pass
 
 
+class FakeVfsModule(types.ModuleType):
+    def __init__(self):
+        super().__init__("vfs")
+        self.formatted = []
+        self.filesystems = []
+        self.mounts = []
+        self.unmounts = []
+
+        module = self
+
+        class VfsFat:
+            def __init__(self, block_device):
+                self.block_device = block_device
+                module.filesystems.append(self)
+
+            @staticmethod
+            def mkfs(block_device):
+                module.formatted.append(block_device)
+
+        self.VfsFat = VfsFat
+
+    def mount(self, filesystem, path):
+        self.mounts.append((filesystem, path))
+
+    def umount(self, path):
+        self.unmounts.append(path)
+
+
 class DeviceServiceRuntimeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -62,12 +90,17 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         fake_thread.start_new_thread = lambda function, args: cls.thread_calls.append(
             (function, args)
         )
+        fake_thread.allocate_lock = lambda: types.SimpleNamespace(
+            acquire=lambda: True,
+            release=lambda: None,
+        )
         fake_machine = types.ModuleType("machine")
         fake_machine.reset = lambda: cls.reset_calls.append(True)
         fake_machine.WDT = lambda timeout: types.SimpleNamespace(feed=lambda: None)
         fake_network = types.ModuleType("network")
         fake_network.STA_IF = 0
         fake_network.WLAN = lambda _interface: None
+        fake_network.hostname = lambda: "ucsb-xrp-test"
         fake_phew = types.ModuleType("phew")
         fake_phew.server = cls.server
         fake_phew_logging = types.ModuleType("phew.logging")
@@ -182,6 +215,14 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._project_worker_started = True
         self.service._project_worker_ready = True
         self.service._project_worker_shutdown = False
+        self.service._project_wake_lock = types.SimpleNamespace(
+            acquire=lambda: True,
+            release=lambda: None,
+        )
+        self.service._project_execution_lock = types.SimpleNamespace(
+            acquire=lambda: True,
+            release=lambda: None,
+        )
         self.service._run_id = 0
         self.service._lease_deadline = None
         self.service._stop_acknowledged_run_id = None
@@ -191,9 +232,15 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._reply_order.clear()
         self.service._last_hardware = None
         self.service._last_sample = None
+        self.service._active_manifest = None
+        self.service._active_ram_slot = None
+        self.service._active_ram_manifest = None
+        self.service._ram_project_volumes = {"a": None, "b": None}
+        self.service._last_project_module_names = []
         self.service._sample_seq = 0
         self.service._sample_epoch_start_ms = 0
         self.service._reset_pending = False
+        self.service._network_state = None
 
     def test_run_reply_precedes_second_core_dispatch(self):
         with tempfile.TemporaryDirectory() as project_dir:
@@ -327,19 +374,25 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         class StopWorker(BaseException):
             pass
 
+        class WakeOnce:
+            def __init__(self):
+                self.calls = 0
+
+            def acquire(self):
+                self.calls += 1
+                if self.calls > 1:
+                    raise StopWorker()
+                return True
+
         self.service._project_job = ("slot", "main.py", None, [], 1)
         self.service._thread_active = True
+        self.service._project_wake_lock = WakeOnce()
         self.service._stop_motors = lambda: None
         with (
             patch.object(
                 self.service,
                 "_project_runner",
                 side_effect=RuntimeError("cleanup failed"),
-            ),
-            patch.object(
-                self.service.time,
-                "sleep_ms",
-                side_effect=StopWorker(),
             ),
         ):
             with self.assertRaises(StopWorker):
@@ -352,43 +405,381 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(self.service._state, "error")
         self.assertIn("cleanup failed", self.service._detail)
 
-    def test_flash_retires_worker_before_file_write(self):
+    def test_persistent_worker_holds_execution_lock_through_cleanup(self):
+        class StopWorker(BaseException):
+            pass
+
         events = []
-        manifest = {
-            "name": "Test project",
-            "entrypoint": "main.py",
-            "files": ["main.py"],
-            "revision": "revision",
-        }
+
+        class WakeOnce:
+            def __init__(self):
+                self.calls = 0
+
+            def acquire(self):
+                self.calls += 1
+                if self.calls > 1:
+                    raise StopWorker()
+
+        class RecordingLock:
+            def acquire(self):
+                events.append("execution acquire")
+
+            def release(self):
+                events.append("execution release")
+
+        self.service._project_wake_lock = WakeOnce()
+        self.service._project_execution_lock = RecordingLock()
+        with patch.object(
+            self.service,
+            "_project_worker_step",
+            side_effect=lambda: events.append("project and cleanup"),
+        ):
+            with self.assertRaises(StopWorker):
+                self.service._project_worker()
+
+        self.assertEqual(
+            events,
+            ["execution acquire", "project and cleanup", "execution release"],
+        )
+
+    def test_http_sync_requires_usb_without_compiling_or_writing(self):
         project = {
             "name": "Test project",
             "entrypoint": "main.py",
             "files": {"main.py": "print('ready')\n"},
         }
         with (
-            patch.object(
-                self.service,
-                "_retire_project_worker",
-                side_effect=lambda: events.append("retire"),
-            ),
-            patch.object(
-                self.service,
-                "_write_project",
-                side_effect=lambda _project: (
-                    events.append("write"),
-                    manifest,
-                )[1],
-            ),
+            patch.object(self.service, "validate_project") as validate,
+            patch.object(self.service, "_compile_project") as compile_project,
+            patch.object(self.service, "_write_project") as write_project,
         ):
             response = self.service.sync(
                 types.SimpleNamespace(
-                    data={"requestId": "flash-boundary", "project": project}
+                    data={"requestId": "flash-requires-usb", "project": project}
                 )
             )
 
         reply = json.loads(response.body.decode("utf-8"))
+        self.assertFalse(reply["ok"])
+        self.assertEqual(
+            reply["error"]["code"],
+            "persistent_project_requires_usb",
+        )
+        self.assertIn("USB setup/repair", reply["error"]["detail"])
+        validate.assert_not_called()
+        compile_project.assert_not_called()
+        write_project.assert_not_called()
+
+    def test_run_preparation_releases_execution_lock_before_dispatch(self):
+        events = []
+
+        class RecordingLock:
+            def acquire(self):
+                events.append("execution acquire")
+
+            def release(self):
+                events.append("execution release")
+
+        self.service._project_execution_lock = RecordingLock()
+        with tempfile.TemporaryDirectory() as project_dir:
+            Path(project_dir, "main.py").write_text("pass\n")
+            self.service._read_manifest = lambda: {
+                "name": "Test project",
+                "entrypoint": "main.py",
+                "files": ["main.py"],
+                "revision": "test-revision",
+            }
+            self.service._active_slot_path = lambda: project_dir
+            self.service._clear_project_modules = lambda _manifest: events.append(
+                "prepare"
+            )
+            self.service._stop_motors = lambda: None
+
+            response = self.service.run_project(
+                types.SimpleNamespace(data={"requestId": "run-boundary"})
+            )
+
+        reply = json.loads(response.body.decode("utf-8"))
         self.assertTrue(reply["ok"])
-        self.assertEqual(events, ["retire", "write"])
+        self.assertEqual(
+            events,
+            ["execution acquire", "prepare", "execution release"],
+        )
+        self.assertTrue(self.service._launch_pending)
+        self.assertEqual(len(self.server.loop.tasks), 1)
+        self.server.loop.tasks.pop().close()
+
+    def test_ram_block_device_and_capacity_are_bounded_and_dynamic(self):
+        block_device = self.service.RamProjectBlockDevice(4096)
+        self.assertEqual(block_device.ioctl(4, 0), 8)
+        self.assertEqual(block_device.ioctl(5, 0), 512)
+        self.assertEqual(block_device.writeblocks(0, b"abc", 7), 0)
+        result = bytearray(3)
+        self.assertEqual(block_device.readblocks(0, result, 7), 0)
+        self.assertEqual(result, b"abc")
+        self.assertEqual(block_device.readblocks(8, bytearray(1)), -5)
+
+        validate = self.service.validate_project
+        small = validate(
+            {
+                "name": "Small",
+                "entrypoint": "main.py",
+                "files": {"main.py": "pass\n"},
+            }
+        )
+        larger = validate(
+            {
+                "name": "Larger",
+                "entrypoint": "main.py",
+                "files": {
+                    "main.py": "pass\n" * 1200,
+                    "package/data/settings.txt": "x" * 20000,
+                },
+            }
+        )
+        small_capacity = self.service._ram_project_capacity(small)
+        larger_capacity = self.service._ram_project_capacity(larger)
+        self.assertGreater(larger_capacity, small_capacity)
+        self.assertEqual(small_capacity % 4096, 0)
+        self.assertLessEqual(
+            larger_capacity,
+            self.service.RAM_PROJECT_MAX_VOLUME_BYTES,
+        )
+
+    def test_ram_mountpoints_are_created_before_the_worker_starts(self):
+        events = []
+
+        class Watchdog:
+            def feed(self):
+                events.append("watchdog")
+
+        mounts = {"a": "/ram-a", "b": "/ram-b"}
+        with (
+            patch.object(self.service, "RAM_PROJECT_MOUNTS", mounts),
+            patch.object(
+                self.service,
+                "_ensure_dir",
+                side_effect=lambda path: events.append("mkdir " + path),
+            ),
+            patch.object(
+                self.service,
+                "_start_project_worker",
+                side_effect=lambda _watchdog: events.append("start worker"),
+            ),
+        ):
+            self.service._initialize_project_worker(Watchdog())
+
+        self.assertEqual(
+            events,
+            ["mkdir /ram-a", "mkdir /ram-b", "watchdog", "start worker"],
+        )
+
+    def test_prepare_builds_nested_ram_project_and_run_uses_active_path(self):
+        fake_vfs = FakeVfsModule()
+        project = {
+            "name": "Nested RAM project",
+            "entrypoint": "main.py",
+            "files": {
+                "main.py": "from package.helper import VALUE\nprint(VALUE)\n",
+                "package/__init__.py": "",
+                "package/helper.py": "VALUE = 7\n",
+                "data/settings.txt": "mode=test\n",
+            },
+        }
+        with tempfile.TemporaryDirectory() as project_root:
+            mount_a = str(Path(project_root, "course_ram_a"))
+            mount_b = str(Path(project_root, "course_ram_b"))
+            Path(mount_a).mkdir()
+            Path(mount_b).mkdir()
+            mounts = {"a": mount_a, "b": mount_b}
+            with (
+                patch.dict(sys.modules, {"vfs": fake_vfs}),
+                patch.object(self.service, "RAM_PROJECT_MOUNTS", mounts),
+            ):
+                response = self.service.prepare_project(
+                    types.SimpleNamespace(
+                        data={"requestId": "prepare-nested", "project": project}
+                    )
+                )
+                reply = json.loads(response.body.decode("utf-8"))
+
+                self.assertTrue(reply["ok"])
+                self.assertEqual(reply["result"]["checked"], 3)
+                self.assertEqual(reply["result"]["project"]["lifetime"], "boot")
+                self.assertEqual(self.service._active_project_path(), mount_a)
+                self.assertEqual(
+                    Path(mount_a, "package/helper.py").read_text(),
+                    "VALUE = 7\n",
+                )
+                self.assertEqual(
+                    Path(mount_a, "data/settings.txt").read_text(),
+                    "mode=test\n",
+                )
+                self.assertEqual(len(fake_vfs.formatted), 1)
+                self.assertEqual(len(fake_vfs.filesystems), 1)
+                self.assertEqual(fake_vfs.mounts[0][1], mount_a)
+                volume = self.service._ram_project_volumes["a"]
+                self.assertIs(
+                    fake_vfs.filesystems[0].block_device,
+                    fake_vfs.formatted[0],
+                )
+                self.assertIs(fake_vfs.mounts[0][0], volume["filesystem"])
+                self.assertIs(volume["blockDevice"], fake_vfs.formatted[0])
+
+                info = json.loads(
+                    self.service.info(types.SimpleNamespace()).body.decode("utf-8")
+                )
+                self.assertEqual(info["project"], reply["result"]["project"])
+                self.assertIn("project.prepare", info["capabilities"])
+                self.assertNotIn("project.sync", info["capabilities"])
+
+                with patch.object(self.service, "_stop_motors", return_value=None):
+                    run_response = self.service.run_project(
+                        types.SimpleNamespace(data={"requestId": "run-prepared"})
+                    )
+                run_reply = json.loads(run_response.body.decode("utf-8"))
+                self.assertTrue(run_reply["ok"])
+                asyncio.run(self.server.loop.tasks.pop())
+
+                self.assertEqual(self.service._project_job[0], mount_a)
+                self.assertEqual(
+                    self.service._project_job[3],
+                    ["package.helper"],
+                )
+
+    def test_failed_prepare_retains_previous_active_ram_project(self):
+        fake_vfs = FakeVfsModule()
+        first_project = {
+            "name": "First",
+            "entrypoint": "main.py",
+            "files": {"main.py": "print('first')\n"},
+        }
+        second_project = {
+            "name": "Second",
+            "entrypoint": "main.py",
+            "files": {"main.py": "print('second')\n"},
+        }
+        with tempfile.TemporaryDirectory() as project_root:
+            mount_a = str(Path(project_root, "course_ram_a"))
+            mount_b = str(Path(project_root, "course_ram_b"))
+            Path(mount_a).mkdir()
+            Path(mount_b).mkdir()
+            mounts = {"a": mount_a, "b": mount_b}
+            with (
+                patch.dict(sys.modules, {"vfs": fake_vfs}),
+                patch.object(self.service, "RAM_PROJECT_MOUNTS", mounts),
+            ):
+                first_response = self.service.prepare_project(
+                    types.SimpleNamespace(
+                        data={"requestId": "prepare-first", "project": first_project}
+                    )
+                )
+                first_manifest = json.loads(
+                    first_response.body.decode("utf-8")
+                )["result"]["project"]
+
+                with patch.object(
+                    self.service,
+                    "_write_ram_project_files",
+                    side_effect=OSError("simulated RAM write failure"),
+                ):
+                    failed_response = self.service.prepare_project(
+                        types.SimpleNamespace(
+                            data={
+                                "requestId": "prepare-second",
+                                "project": second_project,
+                            }
+                        )
+                    )
+
+                failed_reply = json.loads(failed_response.body.decode("utf-8"))
+                self.assertFalse(failed_reply["ok"])
+                self.assertEqual(failed_reply["error"]["code"], "internal_error")
+                self.assertEqual(self.service._active_ram_slot, "a")
+                self.assertEqual(self.service._active_project_path(), mount_a)
+                self.assertEqual(self.service._read_manifest(), first_manifest)
+                self.assertEqual(Path(mount_a, "main.py").read_text(), "print('first')\n")
+                self.assertIn(mount_b, fake_vfs.unmounts)
+                self.assertIsNone(self.service._ram_project_volumes["b"])
+
+    def test_prepare_holds_and_releases_execution_lock(self):
+        events = []
+
+        class RecordingLock:
+            def acquire(self):
+                events.append("acquire")
+
+            def release(self):
+                events.append("release")
+
+        project = {
+            "name": "Lock test",
+            "entrypoint": "main.py",
+            "files": {"main.py": "pass\n"},
+            "bytes": 5,
+        }
+        manifest = {
+            "name": "Lock test",
+            "entrypoint": "main.py",
+            "files": ["main.py"],
+            "bytes": 5,
+            "revision": "lock-revision",
+            "lifetime": "boot",
+        }
+        self.service._project_execution_lock = RecordingLock()
+        with (
+            patch.object(
+                self.service,
+                "validate_project",
+                side_effect=lambda _value: (events.append("validate"), project)[1],
+            ),
+            patch.object(
+                self.service,
+                "_compile_project",
+                side_effect=lambda _project: (events.append("compile"), 1)[1],
+            ),
+            patch.object(
+                self.service,
+                "_prepare_ram_project",
+                side_effect=lambda _project: (events.append("build and swap"), manifest)[1],
+            ),
+        ):
+            response = self.service.prepare_project(
+                types.SimpleNamespace(
+                    data={"requestId": "prepare-lock", "project": project}
+                )
+            )
+
+        self.assertTrue(json.loads(response.body.decode("utf-8"))["ok"])
+        self.assertEqual(
+            events,
+            ["acquire", "validate", "compile", "build and swap", "release"],
+        )
+
+        events.clear()
+
+        def fail_compile(_project):
+            events.append("compile failure")
+            raise RuntimeError("compile failed")
+
+        with (
+            patch.object(self.service, "validate_project", return_value=project),
+            patch.object(
+                self.service,
+                "_compile_project",
+                side_effect=fail_compile,
+            ),
+        ):
+            failed_response = self.service.prepare_project(
+                types.SimpleNamespace(
+                    data={"requestId": "prepare-lock-failure", "project": project}
+                )
+            )
+
+        self.assertFalse(
+            json.loads(failed_response.body.decode("utf-8"))["ok"]
+        )
+        self.assertEqual(events, ["acquire", "compile failure", "release"])
 
     def test_prepare_for_repl_requests_worker_shutdown(self):
         self.service._thread_active = True
@@ -542,6 +933,19 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         ]
         self.assertEqual(output, ["output from helper", "output from main"])
         self.assertIs(builtins.print, original_print)
+
+    def test_log_retains_complete_multiline_traceback_as_bounded_lines(self):
+        long_line = "x" * (self.service.MAX_LOG_LINE_CHARS + 7)
+        self.service._append_log(
+            "stderr", "Traceback (most recent call last):\n" + long_line
+        )
+
+        entries = [
+            entry for entry in self.service._logs if entry["stream"] == "stderr"
+        ]
+        self.assertEqual(entries[0]["line"], "Traceback (most recent call last):")
+        self.assertEqual(entries[1]["line"], "x" * self.service.MAX_LOG_LINE_CHARS)
+        self.assertEqual(entries[2]["line"], "x" * 7)
 
     def test_project_runner_does_not_require_cpython_stream_attributes(self):
         original_stdout = sys.stdout

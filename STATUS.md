@@ -4,6 +4,40 @@ Last updated: 2026-08-26
 
 ## Current result
 
+Refinement 50 removes internal-flash writes from the normal physical edit-run
+loop. Release `2026.08-dev.32` prepares the exact current project in one of two
+alternating RAM-backed FAT volumes, activates it only after validation,
+compilation, and complete file transfer, and reports the browser's content
+revision with a boot-lifetime descriptor. Run prepares changed files
+automatically. Reset clears the RAM copy, so the next Run loads the current
+browser project again. Persistent course-runtime installation remains an
+explicit USB setup/repair operation; the legacy HTTP sync endpoint rejects a
+persistent write instead of risking RP2350 flash/core contention.
+
+The attached XRP now runs dev.32 as runtime generation 13 at `192.168.7.25` on
+Pink. On one dev.31 boot, 100 project preparations containing nested modules,
+data, and `world.json` retained exact revisions without reboot, followed by 100
+Prepare/Run/telemetry/Stop cycles on that same boot. A subsequent physical
+browser test found that XRPLib's string-assembled PIO encoder reset could reach
+MicroPython's recursion limit after an extended session. `XRPBot` now records a
+wrap-safe software encoder zero instead of reprogramming active PIO state
+machines. On dev.32, the raised-wheel motor check actuated both motors, observed
+the expected encoder signs, and ended at zero drive. The complete Stable Chrome
+IDE/Monitor physical workflow then passed twice consecutively, including
+Monitor- and IDE-initiated Run, immediate project edits, retained output,
+cross-tab Stop, motor effort, wheel distance, encoder telemetry, and zero final
+drive. Multiline exceptions are now retained as complete bounded terminal
+lines rather than truncating the traceback at 512 characters.
+
+The local gate passes 212 Python tests, the MicroPython 1.28 source/service and
+MPY proofs, 295 TypeScript tests, formatting, type checking, the production
+build, and the 223-file offline verification. Sixteen focused Stable Chrome
+commissioning, project, network-recovery, and repeated-workflow tests pass in
+addition to the two attached-hardware passes. A full controller Reset was
+observed to rejoin Pink just beyond the old eight-second harness deadline; its
+browser recovery path and fresh post-reset project preparation remain in the
+next commissioning/recovery slice rather than being counted as qualified here.
+
 Refinement 49 closes the physical Flash-to-Run and project-folder failures
 found by repeated use, and qualifies release `2026.08-dev.28` on the attached
 RP2350. Flash, Run, and Stop now retry an interrupted HTTP reply with the same

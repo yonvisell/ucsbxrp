@@ -12,6 +12,7 @@ import {
 } from "@ucsb-xrp/simulator";
 
 import { RunOwnerLease } from "./run-owner-lease";
+import { ProjectRunProviderBroker } from "./project-run-provider";
 import { VirtualTargetEventHub } from "./virtual-target-event-hub";
 import { worldCatalogForProject } from "./project-world";
 import {
@@ -44,6 +45,9 @@ let simulatorState: XrpSimulatorState = simulator.reset(
 );
 const events = new VirtualTargetEventHub();
 const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
+const projectRunProvider = new ProjectRunProviderBroker<MessagePort>(
+  (port, request) => send(port, request),
+);
 let activeRunId = 0;
 let currentState: TargetRunState = "ready";
 let currentDetail = "Virtual target ready";
@@ -180,6 +184,31 @@ function stageProject(
     selectedWorldId: currentScenario,
   });
   broadcast(telemetryEvent());
+}
+
+function markProjectChanged(project: {
+  projectId: string;
+  revision: number;
+  name: string;
+  entrypoint: string;
+}): void {
+  const nextDescriptor: SynchronizedProject = {
+    name: project.name,
+    entrypoint: project.entrypoint,
+    revision:
+      currentProjectDescriptor?.revision ??
+      `ide:${project.projectId}:${project.revision}`,
+    stale: true,
+  };
+  if (
+    currentProjectDescriptor?.stale &&
+    currentProjectDescriptor.name === nextDescriptor.name &&
+    currentProjectDescriptor.entrypoint === nextDescriptor.entrypoint
+  ) {
+    return;
+  }
+  currentProjectDescriptor = nextDescriptor;
+  broadcast({ type: "project", project: nextDescriptor });
 }
 
 function prepareRuntime(
@@ -321,6 +350,7 @@ function handleRuntimeMessage(
 
 function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
   if (command.type === "disconnect") {
+    projectRunProvider.unregister(port);
     if (runOwnerLease.ownsPort(port)) {
       invalidateRun("Run owner disconnected; drive command set to zero");
     }
@@ -334,6 +364,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
   }
 
   if (command.type === "connect") {
+    if (command.providesProject) projectRunProvider.register(port);
     send(port, { type: "response", requestId: command.requestId, ok: true });
     send(port, {
       type: "event",
@@ -363,6 +394,13 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       send(port, { type: "event", event: telemetryEvent() });
     }
     events.replayConsole(port);
+  } else if (command.type === "set-project-run-provider") {
+    if (command.providesProject) projectRunProvider.register(port);
+    else projectRunProvider.unregister(port);
+  } else if (command.type === "project-run-snapshot") {
+    projectRunProvider.accept(port, command);
+  } else if (command.type === "mark-project-changed") {
+    markProjectChanged(command.project);
   } else if (command.type === "publish-console") {
     broadcast(command.event);
   } else if (command.type === "prepare-run") {
@@ -374,15 +412,27 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     stageProject(command.project, command.descriptor);
     send(port, { type: "response", requestId: command.requestId, ok: true });
   } else if (command.type === "get-project") {
-    send(port, {
-      type: "response",
-      requestId: command.requestId,
-      ok: true,
-      result: {
-        project: currentProject ?? undefined,
-        descriptor: currentProjectDescriptor ?? undefined,
-      },
-    });
+    void projectRunProvider
+      .request()
+      .then((snapshot) => {
+        send(port, {
+          type: "response",
+          requestId: command.requestId,
+          ok: true,
+          result: {
+            project: snapshot?.project ?? currentProject ?? undefined,
+            descriptor: currentProjectDescriptor ?? undefined,
+          },
+        });
+      })
+      .catch((error) => {
+        send(port, {
+          type: "response",
+          requestId: command.requestId,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   } else if (command.type === "set-scenario") {
     if (command.scenario === currentScenario) {
       send(port, {

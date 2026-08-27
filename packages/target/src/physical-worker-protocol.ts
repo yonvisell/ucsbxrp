@@ -1,9 +1,14 @@
 import type {
   CheckResult,
   CourseProject,
+  ProjectRevisionNotice,
   RuntimeParameterValue,
   TargetEvent,
 } from "./types";
+import type {
+  ProjectRunSnapshotRequest,
+  ProjectRunSnapshotResponse,
+} from "./project-run-provider";
 
 export type PhysicalWorkerCommand =
   | {
@@ -13,10 +18,14 @@ export type PhysicalWorkerCommand =
       endpoint?: string;
       discoveryTimeoutMs?: number;
       expectedRobotId?: string;
+      providesProject?: boolean;
     }
   | { type: "disconnect" }
+  | { type: "set-project-run-provider"; providesProject: boolean }
+  | { type: "mark-project-changed"; project: ProjectRevisionNotice }
+  | ProjectRunSnapshotResponse
   | { type: "check"; requestId: string; project: CourseProject }
-  | { type: "sync"; requestId: string; project: CourseProject }
+  | { type: "prepare"; requestId: string; project: CourseProject }
   | { type: "run"; requestId: string; project: CourseProject }
   | { type: "run-current"; requestId: string }
   | {
@@ -35,6 +44,7 @@ export type PhysicalWorkerCommand =
 
 export type PhysicalWorkerMessage =
   | { type: "event"; event: TargetEvent }
+  | ProjectRunSnapshotRequest
   | {
       type: "response";
       requestId: string;

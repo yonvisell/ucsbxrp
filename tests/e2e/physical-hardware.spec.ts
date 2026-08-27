@@ -7,7 +7,9 @@ import {
 import { readFileSync } from "node:fs";
 
 const xrpAddress = process.env.XRP_ADDRESS?.trim();
-const flashAllowed = process.env.XRP_E2E_ALLOW_FLASH === "1";
+const physicalAllowed =
+  process.env.XRP_E2E_PHYSICAL === "1" ||
+  process.env.XRP_E2E_ALLOW_FLASH === "1";
 const motionAllowed = process.env.XRP_E2E_MOTION === "raised_wheels";
 
 const noMotionSentinel = "PHYSICAL_E2E_PROBE_READY";
@@ -109,10 +111,27 @@ async function robotInfo(request: APIRequestContext, endpoint: string) {
   };
 }
 
+async function robotLogsAfter(
+  request: APIRequestContext,
+  endpoint: string,
+  afterLogSeq: number,
+): Promise<Array<{ seq: number; stream: string; line: string }>> {
+  const response = await request.get(
+    `${endpoint}/api/v1/state?afterLogSeq=${afterLogSeq}`,
+    { timeout: 3_000 },
+  );
+  expect(response.ok()).toBe(true);
+  return (
+    (await response.json()) as {
+      logs: Array<{ seq: number; stream: string; line: string }>;
+    }
+  ).logs;
+}
+
 async function robotCommand(
   request: APIRequestContext,
   endpoint: string,
-  command: "stop" | "sync",
+  command: "stop" | "prepare",
   value: Record<string, unknown> = {},
 ): Promise<void> {
   const requestId = `e2e-${command}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
@@ -167,14 +186,19 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
 }) => {
   test.skip(!xrpAddress, "Set XRP_ADDRESS to run the attached-hardware proof");
   test.skip(
-    !flashAllowed,
-    "Set XRP_E2E_ALLOW_FLASH=1 only for the designated course test XRP",
+    !physicalAllowed,
+    "Set XRP_E2E_PHYSICAL=1 for the attached course test XRP",
   );
   test.setTimeout(90_000);
 
   const endpoint = `http://${xrpAddress}`;
   const request = context.request;
   const initialInfo = await robotInfo(request, endpoint);
+  const retainedDeviceLogs = await robotLogsAfter(request, endpoint, 0);
+  const initialDeviceLogSeq = retainedDeviceLogs.reduce(
+    (maximum, entry) => Math.max(maximum, entry.seq),
+    0,
+  );
 
   await context.addInitScript(
     ({ address, project, robotId }) => {
@@ -219,18 +243,17 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       timeout: 5_000,
     });
     await expect(monitorStatus).toContainText("Physical XRP · ready");
+    await ide.getByRole("tab", { name: /System log/ }).click();
+    const systemLogBeforeWorkflow = await ide.getByRole("log").innerText();
 
     const monitorRun = monitor
       .locator(".app-header")
       .getByRole("button", { name: "Run", exact: true });
-    await ide.getByRole("button", { name: "Flash project" }).click();
-    await expect(
-      ide.getByText("The complete project is flashed and ready on the XRP."),
-    ).toBeVisible({ timeout: 5_000 });
     await expect(monitorRun).toBeEnabled();
 
-    // First run: start from Monitor, observe the project output in IDE, and
-    // stop from Monitor. This project never applies motor effort.
+    // First run: Monitor requests the exact current IDE project. Run validates
+    // and prepares it in XRP memory before starting; this project never applies
+    // motor effort.
     await monitorRun.click();
     await expect(ideStatus).toContainText("Physical XRP · running", {
       timeout: 5_000,
@@ -252,7 +275,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
 
     // A project edit is shared immediately. Monitor stays usable, but its Run
     // action now identifies that the edited project must be validated and
-    // flashed before it starts. Stop immediately after the running state to
+    // loaded before it starts. Stop immediately after the running state to
     // exercise the real Run/Stop ordering before main.py reaches its loop.
     await ide.getByRole("button", { name: "New file", exact: true }).click();
     await ide.getByLabel("Project-relative path").fill("notes.md");
@@ -315,11 +338,6 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       await expect(ideStatus).toContainText("Physical XRP · ready", {
         timeout: 5_000,
       });
-      await ide.getByRole("button", { name: "Flash project" }).click();
-      await expect(
-        ide.getByText("The complete project is flashed and ready on the XRP."),
-      ).toBeVisible({ timeout: 5_000 });
-
       await ide.getByRole("button", { name: "Run", exact: true }).click();
       await expect(monitorStatus).toContainText("Physical XRP · running", {
         timeout: 5_000,
@@ -376,9 +394,11 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
 
     await ide.getByRole("tab", { name: /System log/ }).click();
     const systemLog = await ide.getByRole("log").innerText();
-    expectOrdered(systemLog, [
-      "Flash requested",
-      "Flash · Project flashed",
+    expect(systemLog.startsWith(systemLogBeforeWorkflow)).toBe(true);
+    const workflowSystemLog = systemLog.slice(systemLogBeforeWorkflow.length);
+    expectOrdered(workflowSystemLog, [
+      "Prepare requested",
+      "Prepare · Project prepared",
       "Run requested",
       "Run · Starting main.py",
       "Running main.py",
@@ -386,7 +406,12 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       "Stop · Stopping program",
       "Program stopped",
     ]);
-    expect(systemLog).not.toMatch(
+    const newDeviceLogs = await robotLogsAfter(
+      request,
+      endpoint,
+      initialDeviceLogSeq,
+    );
+    expect(newDeviceLogs.map((entry) => entry.line).join("\n")).not.toMatch(
       /Traceback|Program stopped after an exception/,
     );
 
@@ -396,10 +421,10 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     expect(errors).toEqual([]);
   } finally {
     // Cleanup is independent of browser controls: stop first, wait for
-    // readiness, then restore the student-facing default project.
+    // readiness, then leave the student-facing default project ready in RAM.
     await robotCommand(request, endpoint, "stop").catch(() => undefined);
     await waitForRobotReady(request, endpoint).catch(() => undefined);
-    await robotCommand(request, endpoint, "sync", {
+    await robotCommand(request, endpoint, "prepare", {
       project: defaultSpiralProject,
     }).catch(() => undefined);
   }

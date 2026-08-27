@@ -327,7 +327,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   );
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
   const [syncDetail, setSyncDetail] = useState(
-    "Current files have not been flashed to the XRP.",
+    "Run will load the current project into XRP memory.",
   );
   const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
@@ -519,6 +519,14 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       setTargetDetail("Opening the saved project…");
       return;
     }
+    target.setProjectRunProvider(() => {
+      const session = projectSessionRef.current;
+      return {
+        projectId: session.projectId,
+        revision: session.revision,
+        project: session.project,
+      };
+    });
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "status") {
         targetStateRef.current = event.state;
@@ -569,6 +577,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     return () => {
       disposed = true;
       unsubscribe();
+      target.setProjectRunProvider(null);
       target.disconnect();
     };
   }, [
@@ -585,7 +594,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       setCheckOk(null);
       setCheckDetail("Files changed since the last code check.");
       setSyncOk(null);
-      setSyncDetail("Files changed since the last flash.");
+      setSyncDetail("Files changed; Run will load the updated project.");
     } else {
       initializedProjectEffect.current = true;
     }
@@ -600,22 +609,21 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
   }, [projectSession, projectSessionReady]);
 
   useEffect(() => {
-    if (
-      !projectSessionReady ||
-      targetState === "disconnected" ||
-      targetState === "connecting" ||
-      (target.kind === "physical" && targetState === "error")
-    ) {
-      return;
-    }
-    const snapshot = project;
-    const timer = window.setTimeout(() => {
-      void target.markProjectStale(snapshot).catch(() => {
-        // The editor remains usable if the target connection changes mid-edit.
-      });
-    }, 160);
-    return () => window.clearTimeout(timer);
-  }, [project, projectSessionReady, target, targetState]);
+    if (!projectSessionReady) return;
+    target.markProjectChanged({
+      projectId: projectSession.projectId,
+      revision: projectSession.revision,
+      name: projectSession.project.name,
+      entrypoint: projectSession.project.entrypoint,
+    });
+  }, [
+    projectSession.project.entrypoint,
+    projectSession.project.name,
+    projectSession.projectId,
+    projectSession.revision,
+    projectSessionReady,
+    target,
+  ]);
 
   useEffect(() => {
     if (!projectSessionReady) return;
@@ -996,45 +1004,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
     }
   }, [componentCheckRunning, project]);
 
-  const flashProject = useCallback(async () => {
-    if (!canCommand || isRunning) {
-      return;
-    }
-    beginTargetCommand();
-    setOutputPanelOpen(true);
-    setConsoleTab("status");
-    setSyncDetail("Flashing the complete project…");
-    try {
-      await target.synchronize(project);
-      // The physical service compiles every Python file before it commits the
-      // new project slot. A successful Flash therefore also validates this
-      // exact project revision; Run must not repeat the same transfer/check.
-      if (target.kind === "physical") {
-        setCheckOk(true);
-        setCheckDetail("Python files compiled while flashing the project.");
-      }
-      setSyncOk(true);
-      setSyncDetail(
-        target.kind === "physical"
-          ? "The complete project is flashed and ready on the XRP."
-          : "The project is ready for the virtual XRP.",
-      );
-    } catch (error) {
-      setSyncOk(false);
-      setSyncDetail(errorDetail(error));
-    } finally {
-      finishTargetCommand();
-      retryPendingOfflineShellReload();
-    }
-  }, [
-    beginTargetCommand,
-    canCommand,
-    finishTargetCommand,
-    isRunning,
-    project,
-    target,
-  ]);
-
   const runTarget = useCallback(async () => {
     if (!canCommand || isRunning || virtualRuntimePreparing) {
       return;
@@ -1058,7 +1027,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
       await target.run(project);
       if (target.kind === "physical") {
         setSyncOk(true);
-        setSyncDetail("The current project is flashed and ready on the XRP.");
+        setSyncDetail(
+          "The current project is loaded and ready for this XRP session.",
+        );
       }
     } catch (error) {
       const detail = errorDetail(error);
@@ -1333,7 +1304,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setCheckOk(null);
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
-        setSyncDetail("Current files have not been sent to the XRP.");
+        setSyncDetail("Run will load the current project into XRP memory.");
         setOperationDetail(
           `${snapshot.name} is stored temporarily in Chrome. Choose a working folder to create its project folder.`,
         );
@@ -1991,7 +1962,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
         setCheckOk(null);
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
-        setSyncDetail("Current files have not been sent to the XRP.");
+        setSyncDetail("Run will load the current project into XRP memory.");
         setNewProjectOpen(false);
         setPendingProject(null);
         setNewProjectDraft("");
@@ -2355,31 +2326,33 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           : "Temporary browser copy · choose a working folder";
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
-  const projectIsFlashed = Boolean(currentProject && !currentProject.stale);
+  const projectIsReadyOnTarget = Boolean(
+    currentProject && !currentProject.stale,
+  );
   const physicalConnectionActive =
     targetState !== "disconnected" &&
     targetState !== "connecting" &&
     targetState !== "error";
-  const flashState = !physicalConnectionActive
+  const projectLoadState = !physicalConnectionActive
     ? targetState === "connecting"
       ? "Checking connection"
       : "Connection required"
     : syncOk === false
-      ? "Flash failed"
-      : projectIsFlashed
-        ? "Flashed"
-        : "Flash needed";
+      ? "Load failed"
+      : projectIsReadyOnTarget
+        ? "Ready this session"
+        : "Loads on Run";
   const physicalStatus = !physicalConnectionActive
     ? targetState === "connecting"
       ? "checking connection"
       : "connection required"
-    : projectIsFlashed
-      ? "flashed"
-      : "flash needed";
+    : projectIsReadyOnTarget
+      ? "project ready"
+      : "loads on Run";
   const robotProjectDetail = !physicalConnectionActive
     ? targetState === "connecting"
       ? "Checking the configured XRP Wi-Fi connection."
-      : "Reconnect to the XRP before Flash or Run. USB-C is used by setup and repair; Run and telemetry use Wi-Fi."
+      : "Reconnect to the XRP before Run. USB-C is used by setup and repair; Run and telemetry use Wi-Fi."
     : syncDetail;
   const targetStatusTitle =
     target.kind === "physical"
@@ -2452,19 +2425,6 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
           >
             Validate
           </button>
-          {target.kind === "physical" ? (
-            <button
-              disabled={!canCommand || isRunning}
-              onClick={flashProject}
-              title={
-                targetState === "error"
-                  ? targetDetail
-                  : "Write the complete project to the physical XRP"
-              }
-            >
-              Flash project
-            </button>
-          ) : null}
           <button
             aria-label={isRunning ? "Stop" : "Run"}
             className={`command-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
@@ -3063,14 +3023,14 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                     <span>Robot project</span>
                     <strong
                       className={
-                        physicalConnectionActive && projectIsFlashed
+                        physicalConnectionActive && projectIsReadyOnTarget
                           ? "pass"
                           : physicalConnectionActive && syncOk === false
                             ? "fail"
                             : ""
                       }
                     >
-                      {flashState}
+                      {projectLoadState}
                     </strong>
                     <small aria-live="polite">{robotProjectDetail}</small>
                   </div>
@@ -3087,7 +3047,7 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
                   <span className="console-placeholder">
                     {consoleTab === "output"
                       ? "Program output appears here after Run."
-                      : "Validation, connection, flash, and target-service messages appear here."}
+                      : "Validation, connection, project-loading, and target-service messages appear here."}
                   </span>
                 ) : (
                   visibleConsoleEntries.map((entry) => (
@@ -3314,8 +3274,9 @@ export function IdeApp({ projectBootstrapOwner }: IdeAppProps) {
             <h3>Physical workflow</h3>
             <p>
               Virtual and physical targets use the same project. On a physical
-              XRP, Run performs any required validation and project transfer.
-              Validate and Flash project remain available as separate checks.
+              XRP, Run validates when needed, loads the current project into
+              robot memory, and starts it. Resetting the XRP clears that loaded
+              copy; the next Run loads it again from the IDE.
             </p>
           </section>
           <section className="settings-note shortcuts-note">

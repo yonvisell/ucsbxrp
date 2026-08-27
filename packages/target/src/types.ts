@@ -11,6 +11,21 @@ export interface SynchronizedProject {
   stale: boolean;
 }
 
+export interface ProjectRunSnapshot {
+  projectId: string;
+  revision: number;
+  project: CourseProject;
+}
+
+export type ProjectRunProvider = () => ProjectRunSnapshot;
+
+export interface ProjectRevisionNotice {
+  projectId: string;
+  revision: number;
+  name: string;
+  entrypoint: string;
+}
+
 export interface CheckResult {
   ok: boolean;
   detail: string;
@@ -69,6 +84,7 @@ export interface TargetConsoleMetadata {
   action?:
     | "connect"
     | "validate"
+    | "prepare"
     | "flash"
     | "run"
     | "stop"
@@ -169,6 +185,8 @@ export interface TargetClient {
   synchronize(project: CourseProject): Promise<void>;
   run(project: CourseProject): Promise<void>;
   runCurrent(): Promise<void>;
+  setProjectRunProvider(provider: ProjectRunProvider | null): void;
+  markProjectChanged(project: ProjectRevisionNotice): void;
   markProjectStale(project: CourseProject): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;

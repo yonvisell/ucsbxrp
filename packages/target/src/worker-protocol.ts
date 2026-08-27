@@ -6,11 +6,16 @@ import type {
 
 import type {
   CourseProject,
+  ProjectRevisionNotice,
   RuntimeParameterValue,
   RuntimeState,
   SynchronizedProject,
   TargetEvent,
 } from "./types";
+import type {
+  ProjectRunSnapshotRequest,
+  ProjectRunSnapshotResponse,
+} from "./project-run-provider";
 
 export interface CourseTelemetryState {
   estimatedXmm: number;
@@ -27,8 +32,11 @@ export interface CourseTelemetryState {
 }
 
 export type TargetWorkerCommand =
-  | { type: "connect"; requestId: string }
+  | { type: "connect"; requestId: string; providesProject?: boolean }
   | { type: "disconnect" }
+  | { type: "set-project-run-provider"; providesProject: boolean }
+  | { type: "mark-project-changed"; project: ProjectRevisionNotice }
+  | ProjectRunSnapshotResponse
   | {
       type: "publish-console";
       event: Extract<TargetEvent, { type: "console" }>;
@@ -74,6 +82,7 @@ export type TargetWorkerCommand =
 
 export type TargetWorkerMessage =
   | { type: "event"; event: TargetEvent }
+  | ProjectRunSnapshotRequest
   | { type: "terminate-runtime"; runId: number }
   | {
       type: "apply-runtime-parameter";

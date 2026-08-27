@@ -183,7 +183,7 @@ describe("physical target", () => {
             runtimeJson: initialRuntime,
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -244,7 +244,7 @@ describe("physical target", () => {
         },
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -296,7 +296,7 @@ describe("physical target", () => {
         },
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -345,7 +345,7 @@ describe("physical target", () => {
         },
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -396,7 +396,7 @@ describe("physical target", () => {
         },
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -459,7 +459,7 @@ describe("physical target", () => {
           address: "192.168.4.1",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -498,7 +498,7 @@ describe("physical target", () => {
         address: "192.168.7.30",
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -512,6 +512,37 @@ describe("physical target", () => {
     });
 
     await expect(target.connect()).resolves.toBeUndefined();
+    target.disconnect();
+  });
+
+  it("requires boot-lifetime project preparation capability", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-old-transfer",
+        robotName: "ucsb-xrp-test",
+        address: "192.168.7.30",
+        capabilities: [
+          "project.check",
+          "project.sync",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      }),
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+
+    await expect(target.connect()).rejects.toMatchObject({
+      code: "capability_mismatch",
+      message: expect.stringContaining("project.prepare"),
+    });
     target.disconnect();
   });
 
@@ -590,7 +621,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -630,7 +661,7 @@ describe("physical target", () => {
     target.disconnect();
   });
 
-  it("flashes the staged IDE revision before Monitor runs it", async () => {
+  it("prepares the staged IDE revision before Monitor runs it", async () => {
     const retained = {
       ...project,
       name: "Retained project",
@@ -639,6 +670,7 @@ describe("physical target", () => {
       ...retained,
       files: { "main.py": "print('changed')\n" },
     };
+    const changedRevision = (await describeProject(changed)).revision;
     const retainedRevision =
       "f8ecfeb351b02819619f5bd6fd842977da0a01e5ef682f2b58a3db6f0ae7df27";
     let postCount = 0;
@@ -659,7 +691,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -675,7 +707,16 @@ describe("physical target", () => {
           ok: true,
           result:
             postCount === 1
-              ? { detail: "Project synchronized" }
+              ? {
+                  detail: "Project prepared",
+                  checked: 1,
+                  project: {
+                    name: changed.name,
+                    entrypoint: changed.entrypoint,
+                    revision: changedRevision,
+                    lifetime: "boot",
+                  },
+                }
               : { detail: "Running main.py", runId: 3 },
         });
       },
@@ -737,7 +778,7 @@ describe("physical target", () => {
         address: "192.168.7.30",
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -948,7 +989,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -1010,7 +1051,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -1047,7 +1088,7 @@ describe("physical target", () => {
     vi.useRealTimers();
   });
 
-  it("polls running telemetry four times faster without raising the idle rate", async () => {
+  it("uses the buffered active cadence without raising the idle rate", async () => {
     vi.useFakeTimers();
     let telemetryRequests = 0;
     const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
@@ -1072,7 +1113,7 @@ describe("physical target", () => {
         project: null,
         capabilities: [
           "project.check",
-          "project.sync",
+          "project.prepare",
           "program.run",
           "program.stop",
           "target.reset",
@@ -1089,7 +1130,7 @@ describe("physical target", () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(telemetryRequests).toBe(1);
 
-      await vi.advanceTimersByTimeAsync(59);
+      await vi.advanceTimersByTimeAsync(124);
       expect(telemetryRequests).toBe(1);
       await vi.advanceTimersByTimeAsync(1);
       expect(telemetryRequests).toBe(2);
@@ -1145,7 +1186,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -1228,7 +1269,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -1295,7 +1336,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -1348,7 +1389,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -1389,8 +1430,9 @@ describe("physical target", () => {
     }
   });
 
-  it("discovers, checks, synchronizes, and runs with correlated replies", async () => {
+  it("discovers, checks, prepares, and runs with correlated replies", async () => {
     let requestCount = 0;
+    const projectRevision = (await describeProject(project)).revision;
     const fetchMock = vi.fn(
       async (_input: URL | RequestInfo, init?: RequestInit) => {
         if (!init || init.method === "GET") {
@@ -1402,7 +1444,7 @@ describe("physical target", () => {
             address: "192.168.7.30",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -1420,7 +1462,16 @@ describe("physical target", () => {
             requestCount === 1
               ? { detail: "1 Python files compiled" }
               : requestCount === 2
-                ? { detail: "Project synchronized" }
+                ? {
+                    detail: "Project prepared",
+                    checked: 1,
+                    project: {
+                      name: project.entrypoint,
+                      entrypoint: project.entrypoint,
+                      revision: projectRevision,
+                      lifetime: "boot",
+                    },
+                  }
                 : { detail: "Running main.py", runId: 4 },
         });
       },
@@ -1441,6 +1492,23 @@ describe("physical target", () => {
     await target.run(project);
 
     expect(requestCount).toBe(3);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/sync"),
+      expect.anything(),
+    );
+    expect(events).toContainEqual({
+      type: "status",
+      state: "ready",
+      detail: "Project prepared",
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "console",
+        line: "Prepare · Project prepared",
+        action: "prepare",
+        phase: "result",
+      }),
+    );
     expect(events).toContainEqual({
       type: "status",
       state: "loading",
@@ -1472,10 +1540,11 @@ describe("physical target", () => {
     target.disconnect();
   });
 
-  it("retries an interrupted Flash reply with the same request before Run", async () => {
+  it("retries an interrupted Prepare reply with the same request before Run", async () => {
     const paths: string[] = [];
-    const syncRequestIds: string[] = [];
-    let syncAttempts = 0;
+    const prepareRequestIds: string[] = [];
+    let prepareAttempts = 0;
+    const projectRevision = (await describeProject(project)).revision;
     const fetchMock = vi.fn(
       async (input: URL | RequestInfo, init?: RequestInit) => {
         const path = String(input);
@@ -1490,7 +1559,7 @@ describe("physical target", () => {
             address: "192.168.7.30",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -1499,17 +1568,26 @@ describe("physical target", () => {
           });
         }
         const body = JSON.parse(String(init.body)) as { requestId: string };
-        if (path.endsWith("/api/v1/sync")) {
-          syncRequestIds.push(body.requestId);
-          syncAttempts += 1;
-          if (syncAttempts === 1) {
-            throw new TypeError("Flash reply was interrupted");
+        if (path.endsWith("/api/v1/prepare")) {
+          prepareRequestIds.push(body.requestId);
+          prepareAttempts += 1;
+          if (prepareAttempts === 1) {
+            throw new TypeError("Prepare reply was interrupted");
           }
           return response({
             protocol: 1,
             requestId: body.requestId,
             ok: true,
-            result: { detail: "Project flashed" },
+            result: {
+              detail: "Project prepared",
+              checked: 1,
+              project: {
+                name: project.entrypoint,
+                entrypoint: project.entrypoint,
+                revision: projectRevision,
+                lifetime: "boot",
+              },
+            },
           });
         }
         return response({
@@ -1528,16 +1606,17 @@ describe("physical target", () => {
     await target.connect();
     await target.run(project);
 
-    expect(syncRequestIds).toHaveLength(2);
-    expect(syncRequestIds[0]).toBe(syncRequestIds[1]);
-    expect(paths.filter((path) => path.endsWith("/api/v1/sync"))).toHaveLength(
-      2,
-    );
+    expect(prepareRequestIds).toHaveLength(2);
+    expect(prepareRequestIds[0]).toBe(prepareRequestIds[1]);
+    expect(
+      paths.filter((path) => path.endsWith("/api/v1/prepare")),
+    ).toHaveLength(2);
+    expect(paths.some((path) => path.endsWith("/api/v1/sync"))).toBe(false);
     expect(paths.at(-1)).toBe("http://192.168.7.30/api/v1/run");
     target.disconnect();
   });
 
-  it("continues to Run when the XRP manifest proves an interrupted Flash completed", async () => {
+  it("continues to Run when /info proves an interrupted Prepare completed", async () => {
     const changed = {
       ...project,
       name: "Edited project",
@@ -1545,7 +1624,7 @@ describe("physical target", () => {
     };
     const changedRevision = (await describeProject(changed)).revision;
     let infoRequests = 0;
-    let syncAttempts = 0;
+    let prepareAttempts = 0;
     let runAttempts = 0;
     const fetchMock = vi.fn(
       async (input: URL | RequestInfo, init?: RequestInit) => {
@@ -1569,7 +1648,7 @@ describe("physical target", () => {
                   },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -1578,9 +1657,9 @@ describe("physical target", () => {
           });
         }
         const body = JSON.parse(String(init?.body)) as { requestId: string };
-        if (path.endsWith("/api/v1/sync")) {
-          syncAttempts += 1;
-          throw new TypeError("Flash reply was lost");
+        if (path.endsWith("/api/v1/prepare")) {
+          prepareAttempts += 1;
+          throw new TypeError("Prepare reply was lost");
         }
         runAttempts += 1;
         return response({
@@ -1601,19 +1680,20 @@ describe("physical target", () => {
     await target.connect();
     await target.run(changed);
 
-    expect(syncAttempts).toBe(2);
+    expect(prepareAttempts).toBe(2);
     expect(infoRequests).toBe(2);
     expect(runAttempts).toBe(1);
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "console",
-        line: `Flash verified · ${changed.name} is installed on the XRP`,
+        line: `Prepare verified · ${changed.name} is ready in XRP memory`,
+        action: "prepare",
       }),
     );
     target.disconnect();
   });
 
-  it("accepts a matching device manifest after both Flash replies are lost", async () => {
+  it("rejects stale /info after both Prepare replies, then accepts later telemetry", async () => {
     const changed = {
       ...project,
       name: "Edited project",
@@ -1621,8 +1701,9 @@ describe("physical target", () => {
     };
     const changedRevision = (await describeProject(changed)).revision;
     const oldRevision = "old-project-revision";
-    let syncAttempts = 0;
+    let prepareAttempts = 0;
     let runAttempts = 0;
+    let deviceShowsChangedProject = false;
     const fetchMock = vi.fn(
       async (input: URL | RequestInfo, init?: RequestInit) => {
         const path = String(input);
@@ -1641,7 +1722,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -1656,18 +1737,23 @@ describe("physical target", () => {
             detail: "Physical XRP ready",
             runId: 0,
             project: {
-              name: changed.name,
+              name: deviceShowsChangedProject ? changed.name : "Old project",
               entrypoint: changed.entrypoint,
-              revision: changedRevision,
+              revision: deviceShowsChangedProject
+                ? changedRevision
+                : oldRevision,
             },
             logs: [],
             samples: [],
           });
         }
         const body = JSON.parse(String(init?.body)) as { requestId: string };
-        if (path.endsWith("/api/v1/sync")) {
-          syncAttempts += 1;
-          throw new TypeError("Flash reply was lost");
+        if (path.endsWith("/api/v1/prepare")) {
+          prepareAttempts += 1;
+          if (prepareAttempts === 2) {
+            deviceShowsChangedProject = true;
+          }
+          throw new TypeError("Prepare reply was lost");
         }
         runAttempts += 1;
         return response({
@@ -1702,7 +1788,7 @@ describe("physical target", () => {
     );
     await target.runCurrent();
 
-    expect(syncAttempts).toBe(2);
+    expect(prepareAttempts).toBe(2);
     expect(runAttempts).toBe(1);
     target.disconnect();
   });
@@ -1746,7 +1832,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -1809,7 +1895,7 @@ describe("physical target", () => {
       address: "192.168.7.30",
       capabilities: [
         "project.check",
-        "project.sync",
+        "project.prepare",
         "program.run",
         "program.stop",
         "target.reset",
@@ -1893,7 +1979,7 @@ describe("physical target", () => {
             address: "192.168.4.1",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -1946,6 +2032,67 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("accepts an already-stopped reply without entering recovery", async () => {
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.4.1",
+            capabilities: [
+              "project.check",
+              "project.prepare",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          telemetryRequests += 1;
+          throw new Error("an acknowledged stopped state needs no poll");
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Program already stopped", reconnecting: false },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.4.1", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    events.length = 0;
+    await expect(target.stop()).resolves.toBeUndefined();
+
+    expect(telemetryRequests).toBe(0);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "status",
+        state: "ready",
+        detail: "Program already stopped",
+      }),
+    );
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: "status", state: "connecting" }),
+    );
+    target.disconnect();
+  });
+
   it("renews a running project through telemetry without a lease POST", async () => {
     let telemetryRequests = 0;
     const requestedUrls: string[] = [];
@@ -1962,7 +2109,7 @@ describe("physical target", () => {
           address: "192.168.4.1",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -2019,7 +2166,7 @@ describe("physical target", () => {
             address: "192.168.4.1",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -2089,7 +2236,7 @@ describe("physical target", () => {
             address: "192.168.4.1",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -2172,7 +2319,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -2256,7 +2403,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -2341,7 +2488,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -2431,7 +2578,7 @@ describe("physical target", () => {
           address: "192.168.7.30",
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -2490,7 +2637,7 @@ describe("physical target", () => {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -2559,7 +2706,7 @@ describe("physical target", () => {
             address: "192.168.7.30",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",

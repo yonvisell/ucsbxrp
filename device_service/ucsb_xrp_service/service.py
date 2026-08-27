@@ -37,11 +37,20 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.28"
+COURSE_RELEASE = "2026.08-dev.32"
 CONFIG_PATH = "/xrp_wifi.json"
 PROJECT_ROOT = "/course_projects"
 ACTIVE_POINTER = PROJECT_ROOT + "/active.txt"
 SLOTS = ("a", "b")
+RAM_PROJECT_MOUNTS = {
+    "a": "/course_ram_a",
+    "b": "/course_ram_b",
+}
+RAM_PROJECT_BLOCK_BYTES = 512
+RAM_PROJECT_MIN_VOLUME_BYTES = 32 * 1024
+RAM_PROJECT_MAX_VOLUME_BYTES = 384 * 1024
+RAM_PROJECT_BASE_OVERHEAD_BYTES = 16 * 1024
+RAM_PROJECT_ENTRY_OVERHEAD_BYTES = 1024
 LEASE_MS = 6000
 STARTUP_LEASE_MS = 10000
 LAUNCH_AFTER_RESPONSE_MS = 80
@@ -65,6 +74,8 @@ _project_job = None
 _project_worker_started = False
 _project_worker_ready = False
 _project_worker_shutdown = False
+_project_wake_lock = None
+_project_execution_lock = None
 _lease_deadline = None
 _stop_acknowledged_run_id = None
 _service_watchdog = None
@@ -75,6 +86,9 @@ _sample_epoch_start_ms = 0
 _last_sample = None
 _last_hardware = None
 _active_manifest = None
+_active_ram_slot = None
+_active_ram_manifest = None
+_ram_project_volumes = {"a": None, "b": None}
 _last_project_module_names = []
 _last_reply_by_id = {}
 _reply_order = []
@@ -179,15 +193,25 @@ def _error_response(request_id, code, detail, status=400):
 def _append_log(stream, line):
     global _log_seq
     text = str(line)
-    if len(text) > MAX_LOG_LINE_CHARS:
-        text = text[:MAX_LOG_LINE_CHARS]
+    lines = text.split("\n")
+    if text.endswith("\n"):
+        lines.pop()
+    for source_line in lines:
+        while len(source_line) > MAX_LOG_LINE_CHARS:
+            _append_log_record(stream, source_line[:MAX_LOG_LINE_CHARS])
+            source_line = source_line[MAX_LOG_LINE_CHARS:]
+        _append_log_record(stream, source_line)
+
+
+def _append_log_record(stream, line):
+    global _log_seq
     _log_seq += 1
     _logs.append(
         {
             "seq": _log_seq,
             "tMs": time.ticks_diff(time.ticks_ms(), _boot_ms),
             "stream": stream,
-            "line": text,
+            "line": line,
         }
     )
     if len(_logs) > LOG_LIMIT:
@@ -213,7 +237,7 @@ def _extend_run_lease(duration_ms):
 
 
 def _feed_watchdog_now():
-    """Feed the service watchdog during synchronous flash transactions."""
+    """Feed the service watchdog during synchronous project work."""
     if _service_watchdog is not None:
         _service_watchdog.feed()
 
@@ -280,6 +304,191 @@ def _make_parent_dirs(root, relative_path):
         _ensure_dir(current)
 
 
+class RamProjectBlockDevice:
+    """Bytearray storage implementing MicroPython's extended block protocol."""
+
+    def __init__(self, byte_count):
+        if byte_count <= 0 or byte_count % RAM_PROJECT_BLOCK_BYTES:
+            raise ValueError("RAM project volume size must use complete blocks")
+        self.block_size = RAM_PROJECT_BLOCK_BYTES
+        self.data = bytearray(byte_count)
+
+    def readblocks(self, block_num, buffer, offset=0):
+        address = block_num * self.block_size + offset
+        end = address + len(buffer)
+        if address < 0 or end > len(self.data):
+            return -5
+        buffer[:] = self.data[address:end]
+        return 0
+
+    def writeblocks(self, block_num, buffer, offset=None):
+        if offset is None:
+            offset = 0
+        address = block_num * self.block_size + offset
+        end = address + len(buffer)
+        if address < 0 or end > len(self.data):
+            return -5
+        self.data[address:end] = buffer
+        return 0
+
+    def ioctl(self, operation, argument):
+        if operation in (1, 2, 3):
+            return 0
+        if operation == 4:
+            return len(self.data) // self.block_size
+        if operation == 5:
+            return self.block_size
+        if operation == 6:
+            address = argument * self.block_size
+            end = address + self.block_size
+            if address < 0 or end > len(self.data):
+                return -5
+            self.data[address:end] = bytes(self.block_size)
+            return 0
+        return None
+
+
+def _ram_project_directory_count(project):
+    directories = set()
+    for path in project["files"]:
+        parts = path.split("/")[:-1]
+        current = ""
+        for part in parts:
+            current = part if not current else current + "/" + part
+            directories.add(current)
+    return len(directories)
+
+
+def _ram_project_capacity(project):
+    """Size one FAT volume for project text, entries, and filesystem metadata."""
+    entry_count = len(project["files"]) + _ram_project_directory_count(project)
+    required = (
+        project["bytes"]
+        + RAM_PROJECT_BASE_OVERHEAD_BYTES
+        + entry_count * RAM_PROJECT_ENTRY_OVERHEAD_BYTES
+    )
+    required = max(required, RAM_PROJECT_MIN_VOLUME_BYTES)
+    allocation_unit = 8 * RAM_PROJECT_BLOCK_BYTES
+    capacity = (
+        (required + allocation_unit - 1) // allocation_unit
+    ) * allocation_unit
+    if capacity > RAM_PROJECT_MAX_VOLUME_BYTES:
+        raise ProtocolError(
+            "project_too_large",
+            "project needs a RAM volume larger than {} bytes".format(
+                RAM_PROJECT_MAX_VOLUME_BYTES
+            ),
+        )
+    return capacity
+
+
+def _vfs_module():
+    """Load the MicroPython VFS module only when a RAM project is prepared."""
+    try:
+        import vfs
+
+        return vfs
+    except ImportError:
+        # Older MicroPython builds expose VfsFat and mount through ``os``.
+        return os
+
+
+def _ensure_ram_project_mounts():
+    """Create the two persistent mountpoint entries before core 1 starts."""
+    for slot in SLOTS:
+        _ensure_dir(RAM_PROJECT_MOUNTS[slot])
+
+
+def _initialize_project_worker(watchdog):
+    """Establish flash-backed mountpoint entries, then start persistent core 1."""
+    _ensure_ram_project_mounts()
+    watchdog.feed()
+    _start_project_worker(watchdog)
+
+
+def _discard_ram_project_volume(slot, vfs_module=None):
+    global _ram_project_volumes
+    volume = _ram_project_volumes.get(slot)
+    if volume is None:
+        return
+    if vfs_module is None:
+        vfs_module = _vfs_module()
+    try:
+        vfs_module.umount(RAM_PROJECT_MOUNTS[slot])
+    except OSError:
+        pass
+    _ram_project_volumes[slot] = None
+    gc.collect()
+
+
+def _write_ram_project_files(root, project):
+    for path, content in project["files"].items():
+        _feed_watchdog_now()
+        _make_parent_dirs(root, path)
+        with open(root + "/" + path, "w") as handle:
+            handle.write(content)
+        _feed_watchdog_now()
+
+
+def _ram_project_manifest(project):
+    manifest = {
+        "name": project["name"],
+        "entrypoint": project["entrypoint"],
+        "files": sorted(project["files"].keys()),
+        "bytes": project["bytes"],
+        "revision": project_revision(project),
+        "lifetime": "boot",
+    }
+    if "world.json" in project["files"]:
+        manifest["worldJson"] = project["files"]["world.json"]
+    return manifest
+
+
+def _prepare_ram_project(project):
+    """Build the inactive RAM volume, then publish it as one atomic project."""
+    global _active_ram_slot, _active_ram_manifest, _ram_project_volumes
+    inactive = "b" if _active_ram_slot == "a" else "a"
+    mount_path = RAM_PROJECT_MOUNTS[inactive]
+    capacity = _ram_project_capacity(project)
+    vfs_module = _vfs_module()
+    _discard_ram_project_volume(inactive, vfs_module=vfs_module)
+    try:
+        block_device = RamProjectBlockDevice(capacity)
+    except MemoryError:
+        raise ProtocolError(
+            "project_too_large",
+            "not enough controller RAM for the prepared project",
+        )
+
+    mounted = False
+    try:
+        _feed_watchdog_now()
+        vfs_module.VfsFat.mkfs(block_device)
+        filesystem = vfs_module.VfsFat(block_device)
+        vfs_module.mount(filesystem, mount_path)
+        mounted = True
+        _write_ram_project_files(mount_path, project)
+        manifest = _ram_project_manifest(project)
+        _feed_watchdog_now()
+    except Exception:
+        if mounted:
+            try:
+                vfs_module.umount(mount_path)
+            except OSError:
+                pass
+        gc.collect()
+        raise
+
+    _ram_project_volumes[inactive] = {
+        "blockDevice": block_device,
+        "filesystem": filesystem,
+        "capacityBytes": capacity,
+    }
+    _active_ram_slot = inactive
+    _active_ram_manifest = manifest
+    return manifest
+
+
 def _active_slot_name():
     try:
         value = open(ACTIVE_POINTER).read().strip()
@@ -294,8 +503,16 @@ def _active_slot_path():
     return PROJECT_ROOT + "/" + _active_slot_name()
 
 
+def _active_project_path():
+    if _active_ram_slot in SLOTS and _active_ram_manifest is not None:
+        return RAM_PROJECT_MOUNTS[_active_ram_slot]
+    return _active_slot_path()
+
+
 def _read_manifest():
     global _active_manifest
+    if _active_ram_manifest is not None:
+        return _active_ram_manifest
     if _active_manifest is not None:
         return _active_manifest
     try:
@@ -521,74 +738,65 @@ def _project_worker_step():
 
 
 def _project_worker():
-    """Keep core 1 alive so project completion has an exact idle boundary.
+    """Keep core 1 alive and blocked between project runs.
 
-    RP2 MicroPython does not provide a thread join operation. Previously each
-    run created a native thread and published ``ready`` just before that thread
-    returned, leaving a small interval in which the browser could begin a
-    flash transaction while the runtime was still retiring core 1. One worker
-    now remains alive for the service lifetime. When ``_project_runner`` has
-    completed its cleanup, the worker is immediately idle and flash-safe; no
-    guessed settling delay is required.
+    The execution lock gives the service a precise boundary around project
+    cleanup and the next RAM-project activation. Blocking on the wake lock also
+    prevents an idle Python loop from competing with the HTTP service.
     """
     global _project_worker_ready, _project_worker_started
     global _thread_active, _lease_deadline, _project_job
+    wake_lock = _project_wake_lock
+    execution_lock = _project_execution_lock
+    if wake_lock is None or execution_lock is None:
+        raise RuntimeError("Project worker locks are unavailable")
     _project_worker_ready = True
     try:
-        while not _project_worker_shutdown:
+        while True:
+            wake_lock.acquire()
+            if _project_worker_shutdown:
+                break
+            execution_lock.acquire()
             try:
-                worked = _project_worker_step()
-            except BaseException as exc:
-                # A cleanup failure must not destroy the only core-1 worker.
-                # Keep the HTTP service responsive, stop the motors, and make
-                # the failure visible before accepting another run.
-                _project_job = None
-                _thread_active = False
-                _lease_deadline = None
-                _stop_motors()
-                detail = "Project worker recovered from {}: {}".format(
-                    type(exc).__name__, str(exc)
-                )
-                _append_log("stderr", detail)
-                _set_state("error", detail)
-                worked = True
-            if not worked:
-                time.sleep_ms(PROJECT_WORKER_IDLE_MS)
+                try:
+                    _project_worker_step()
+                except BaseException as exc:
+                    # A cleanup failure must not destroy the only core-1
+                    # worker. Keep the service responsive, stop the motors,
+                    # and report the failure before accepting another run.
+                    _project_job = None
+                    _thread_active = False
+                    _lease_deadline = None
+                    _stop_motors()
+                    detail = "Project worker recovered from {}: {}".format(
+                        type(exc).__name__, str(exc)
+                    )
+                    _append_log("stderr", detail)
+                    _set_state("error", detail)
+            finally:
+                # _thread_active becomes false near the end of project
+                # cleanup. This lock remains held until the worker has fully
+                # returned, so the service core cannot activate a new project
+                # or start the next run during those final instructions.
+                execution_lock.release()
+            if _project_worker_shutdown:
+                break
     finally:
         _project_worker_ready = False
         _project_worker_started = False
 
 
-def _retire_project_worker(timeout_ms=500):
-    """Stop core 1 and wait for its Python worker to acknowledge exit.
-
-    RP2350 program flash and the MicroPython interpreter share internal flash.
-    Leaving core 1 in its idle Python loop while core 0 writes project files
-    can stall both cores. The ready flag is written by core 1 in its final
-    block; a subsequent start retries only while the native core is still
-    completing that acknowledged exit.
-    """
-    global _project_worker_started
-    if not _project_worker_started:
-        return
-    if _thread_active or _project_job is not None:
-        raise RuntimeError("Project worker is not idle")
-    _begin_project_worker_shutdown()
-    deadline = time.ticks_add(time.ticks_ms(), timeout_ms)
-    while _project_worker_ready:
-        _feed_watchdog_now()
-        if time.ticks_diff(deadline, time.ticks_ms()) <= 0:
-            raise RuntimeError("Project worker did not stop")
-        time.sleep_ms(PROJECT_WORKER_IDLE_MS)
-    _project_worker_started = False
-
-
 def _start_project_worker(watchdog):
     """Start core 1 once during service startup and verify that it is idle."""
     global _project_worker_started, _project_worker_shutdown
+    global _project_wake_lock, _project_execution_lock
     if _project_worker_started:
         return
     _project_worker_shutdown = False
+    wake_lock = _thread.allocate_lock()
+    wake_lock.acquire()
+    _project_wake_lock = wake_lock
+    _project_execution_lock = _thread.allocate_lock()
     deadline = time.ticks_add(time.ticks_ms(), PROJECT_WORKER_START_TIMEOUT_MS)
     while True:
         try:
@@ -624,6 +832,11 @@ def _begin_project_worker_shutdown():
 
             request_stop()
         except Exception:
+            pass
+    elif _project_worker_started and _project_worker_ready:
+        try:
+            _project_wake_lock.release()
+        except (AttributeError, RuntimeError):
             pass
 
 
@@ -689,6 +902,7 @@ async def _launch_project_after_response(
         startup_modules,
         run_id,
     )
+    _project_wake_lock.release()
 
 
 async def _reset_after_response(delay_ms):
@@ -1077,7 +1291,7 @@ def info(request):
             "runtimeJson": _runtime_snapshot_json(),
             "capabilities": [
                 "project.check",
-                "project.sync",
+                "project.prepare",
                 "project.current",
                 "program.run",
                 "program.stop",
@@ -1162,20 +1376,42 @@ def check(request):
 @server.route("/api/v1/sync", methods=["POST"])
 def sync(request):
     def operation(body):
-        if _thread_active or _launch_pending:
-            raise ProtocolError("target_busy", "stop the program before flashing")
-        _feed_watchdog_now()
-        project = validate_project(body.get("project"))
-        _feed_watchdog_now()
-        checked = _compile_project(project)
-        # Internal-flash writes require core 1 to be completely outside its
-        # Python worker. Retire it through an acknowledged flag and leave it
-        # stopped; Run starts it only after the HTTP reply has left core 0.
-        _retire_project_worker()
-        manifest = _write_project(project)
-        _feed_watchdog_now()
-        _set_state("ready", "Project flashed")
-        return {"detail": "Project flashed", "checked": checked, "project": manifest}
+        raise ProtocolError(
+            "persistent_project_requires_usb",
+            "persistent project installation requires USB setup/repair",
+        )
+
+    return _command(request, operation)
+
+
+@server.route("/api/v1/prepare", methods=["POST"])
+def prepare_project(request):
+    def operation(body):
+        if _thread_active or _launch_pending or _project_job is not None:
+            raise ProtocolError("target_busy", "stop the program before preparing")
+        execution_lock = _project_execution_lock
+        if execution_lock is not None:
+            execution_lock.acquire()
+        try:
+            # Core 1 may have been completing cleanup when the request arrived.
+            # Hold the same execution boundary used by Run through validation,
+            # compilation, inactive-volume construction, and final activation.
+            if _thread_active or _launch_pending or _project_job is not None:
+                raise ProtocolError(
+                    "target_busy", "stop the program before preparing"
+                )
+            project = validate_project(body.get("project"))
+            checked = _compile_project(project)
+            manifest = _prepare_ram_project(project)
+            _set_state("ready", "Project prepared in RAM")
+            return {
+                "detail": "Project prepared in RAM",
+                "checked": checked,
+                "project": manifest,
+            }
+        finally:
+            if execution_lock is not None:
+                execution_lock.release()
 
     return _command(request, operation)
 
@@ -1186,50 +1422,57 @@ def run_project(request):
         global _run_id, _launch_pending, _lease_deadline
         global _stop_acknowledged_run_id
         global _sample_seq, _sample_epoch_start_ms, _last_sample
-        if _thread_active or _launch_pending:
+        if _thread_active or _launch_pending or _project_job is not None:
             raise ProtocolError("target_busy", "a program is already running")
-        manifest = _read_manifest()
-        if manifest is None:
-            raise ProtocolError("no_project", "flash a project before running")
-        slot_path = _active_slot_path()
-        entrypoint = manifest["entrypoint"]
-        with open(slot_path + "/" + entrypoint) as handle:
-            source = handle.read()
-        # Compile before core 1 starts. This catches entrypoint syntax errors in
-        # the correlated run reply and avoids compiling while the service core
-        # allocates network objects.
-        entry_code = compile(source, entrypoint, "exec")
-        startup_modules = _entrypoint_project_imports(manifest, source)
-        _clear_project_modules(manifest)
-        _stop_motors()
-        from ucsb_xrp._telemetry import clear_state
-        from ucsb_xrp._run_control import clear_stop
-        from ucsb_xrp.live import clear as clear_runtime
+        execution_lock = _project_execution_lock
+        if execution_lock is not None:
+            execution_lock.acquire()
+        try:
+            if _thread_active or _launch_pending or _project_job is not None:
+                raise ProtocolError("target_busy", "a program is already running")
+            manifest = _read_manifest()
+            if manifest is None:
+                raise ProtocolError(
+                    "no_project", "prepare a project before running"
+                )
+            slot_path = _active_project_path()
+            entrypoint = manifest["entrypoint"]
+            with open(slot_path + "/" + entrypoint) as handle:
+                source = handle.read()
+            # Prepare the next run only after prior core-1 cleanup is complete.
+            # The lock is released before deferred dispatch wakes the worker.
+            entry_code = compile(source, entrypoint, "exec")
+            startup_modules = _entrypoint_project_imports(manifest, source)
+            _clear_project_modules(manifest)
+            _stop_motors()
+            from ucsb_xrp._telemetry import clear_state
+            from ucsb_xrp._run_control import clear_stop
+            from ucsb_xrp.live import clear as clear_runtime
 
-        clear_state()
-        clear_stop()
-        clear_runtime()
-        # The run ID and telemetry sequence together define one sample epoch.
-        # The browser resets its cursor when the run changes, so every project
-        # starts at sample 1 without colliding with prior idle telemetry.
-        _sample_seq = 0
-        _sample_epoch_start_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
-        _last_sample = None
-        # Collect on the service core before the student core starts. Running
-        # global collection from the student core while the HTTP loop allocates
-        # request objects can stall RP2350 MicroPython.
-        gc.collect()
-        _run_id += 1
-        _stop_acknowledged_run_id = None
-        _launch_pending = True
-        _lease_deadline = None
-        _set_state("loading", "Starting " + entrypoint)
-        server.loop.create_task(
-            _launch_project_after_response(
-                slot_path, entrypoint, entry_code, startup_modules, _run_id
+            clear_state()
+            clear_stop()
+            clear_runtime()
+            # The run ID and telemetry sequence together define one sample epoch.
+            # The browser resets its cursor when the run changes, so every project
+            # starts at sample 1 without colliding with prior idle telemetry.
+            _sample_seq = 0
+            _sample_epoch_start_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
+            _last_sample = None
+            gc.collect()
+            _run_id += 1
+            _stop_acknowledged_run_id = None
+            _launch_pending = True
+            _lease_deadline = None
+            _set_state("loading", "Starting " + entrypoint)
+            server.loop.create_task(
+                _launch_project_after_response(
+                    slot_path, entrypoint, entry_code, startup_modules, _run_id
+                )
             )
-        )
-        return {"detail": _detail, "runId": _run_id}
+            return {"detail": _detail, "runId": _run_id}
+        finally:
+            if execution_lock is not None:
+                execution_lock.release()
 
     return _command(request, operation)
 
@@ -1418,9 +1661,11 @@ def run(watchdog=None, network_activation=None):
     _append_log("system", "XRP hardware interfaces ready")
     watchdog.feed()
 
-    # Core 1 stays unused until Run. Starting its Python worker only after the
-    # Run reply avoids both HTTP-allocation contention and internal-flash
-    # conflicts during project flashing.
+    # Creating these root entries can touch internal flash on a new board. Do
+    # it once before core 1 starts; later VfsFat formatting and project writes
+    # are confined to bytearrays. The worker then remains blocked on its wake
+    # lock between runs for the service lifetime.
+    _initialize_project_worker(watchdog)
     _append_log("system", "Program runner ready")
     watchdog.feed()
 

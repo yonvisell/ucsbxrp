@@ -41,11 +41,15 @@ type RuntimeOutcome = "complete" | "error";
 class FakeRuntimeWorker {
   static nextOutcome: RuntimeOutcome = "complete";
   static completedRuns = 0;
+  static runProjects: CourseProject[] = [];
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   terminated = false;
 
-  postMessage(request: { mode: "check" | "test" | "run" }): void {
+  postMessage(request: {
+    mode: "check" | "test" | "run";
+    project?: CourseProject;
+  }): void {
     if (request.mode === "check") {
       this.emit({
         type: "check-complete",
@@ -62,6 +66,7 @@ class FakeRuntimeWorker {
     }
 
     const outcome = FakeRuntimeWorker.nextOutcome;
+    if (request.project) FakeRuntimeWorker.runProjects.push(request.project);
     FakeRuntimeWorker.nextOutcome = "complete";
     this.emit({ type: "runtime-ready", version: "1.28.0" });
     this.emit({
@@ -101,6 +106,7 @@ describe("virtual target shared session", () => {
     vi.resetModules();
     FakeRuntimeWorker.nextOutcome = "complete";
     FakeRuntimeWorker.completedRuns = 0;
+    FakeRuntimeWorker.runProjects = [];
 
     const scope: {
       onconnect?: (event: MessageEvent) => void;
@@ -200,6 +206,59 @@ describe("virtual target shared session", () => {
 
     lateTab.disconnect();
     ide.disconnect();
+    monitor.disconnect();
+  });
+
+  it("requests the IDE snapshot at run time and executes an immediate edit", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const monitor = new VirtualTargetClient();
+    const ide = new VirtualTargetClient();
+    const monitorEvents: TargetEvent[] = [];
+    monitor.subscribe((event) => monitorEvents.push(event));
+    let latestProject = project;
+    ide.setProjectRunProvider(() => ({
+      projectId: "project-1",
+      revision: 2,
+      project: latestProject,
+    }));
+
+    await monitor.connect();
+    await monitor.synchronize(project);
+    await ide.connect();
+    latestProject = {
+      ...project,
+      files: { "main.py": "print('latest editor source')\n" },
+    };
+    ide.markProjectChanged({
+      projectId: "project-1",
+      revision: 2,
+      name: latestProject.name!,
+      entrypoint: latestProject.entrypoint,
+    });
+    expect(
+      monitorEvents.filter((event) => event.type === "project").at(-1),
+    ).toMatchObject({ project: { stale: true } });
+
+    await monitor.runCurrent();
+
+    expect(FakeRuntimeWorker.runProjects.at(-1)?.files["main.py"]).toBe(
+      "print('latest editor source')\n",
+    );
+    ide.disconnect();
+    monitor.disconnect();
+  });
+
+  it("runs the retained project when no IDE provider is registered", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const monitor = new VirtualTargetClient();
+    await monitor.connect();
+    await monitor.synchronize(project);
+
+    await monitor.runCurrent();
+
+    expect(FakeRuntimeWorker.runProjects.at(-1)?.files["main.py"]).toBe(
+      "print('shared')\n",
+    );
     monitor.disconnect();
   });
 });

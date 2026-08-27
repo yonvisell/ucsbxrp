@@ -87,6 +87,67 @@ test("edits, validates, runs, and recovers main.py through Monaco", async ({
   ).toContainText("Edited source ran");
 });
 
+test("Monitor Run executes an IDE edit without waiting for stale publication", async ({
+  context,
+  page: ide,
+}) => {
+  await ide.addInitScript(
+    ({ key }) => {
+      localStorage.clear();
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          name: "Immediate Monitor run",
+          entrypoint: "main.py",
+          files: { "main.py": 'print("old source")\n' },
+        }),
+      );
+
+      // A former implementation published edits after 160 ms. Stretching that
+      // exact delay makes this test fail if Run correctness ever depends on it.
+      const originalSetTimeout = window.setTimeout.bind(window);
+      window.setTimeout = ((
+        handler: TimerHandler,
+        timeout: number = 0,
+        ...arguments_: any[]
+      ) =>
+        originalSetTimeout(
+          handler,
+          timeout === 160 ? 10_000 : timeout,
+          ...arguments_,
+        )) as typeof window.setTimeout;
+    },
+    { key: recoveryKey },
+  );
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await expect(monitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  const editor = ide.getByRole("textbox", { name: "main.py editor" });
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await ide.keyboard.insertText('print("exact current source")\n');
+  const monitorRun = monitor
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true });
+  await expect(monitorRun).toHaveAttribute(
+    "title",
+    /Validate and run the current IDE project/,
+  );
+  await monitorRun.click();
+
+  await ide.getByRole("tab", { name: "Program output" }).click();
+  await expect(ide.getByRole("log")).toContainText("exact current source");
+  await expect(ide.getByRole("log")).not.toContainText("old source");
+});
+
 test("opens an oversized folder but prevents validation and virtual execution", async ({
   page,
 }) => {

@@ -1,4 +1,23 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+const currentRelease = JSON.parse(
+  readFileSync(
+    new URL("../../vendor/current/release.json", import.meta.url),
+    "utf8",
+  ),
+) as {
+  release_id: string;
+  release_sequence: number;
+  course_api_revision: string;
+  service: {
+    version: string;
+    protocol_version: number;
+    protocol_revision: number;
+    bootstrap_version: number;
+  };
+  ucsb_xrp: { version: string };
+};
 
 test("keeps the compact landing actions clear at laptop-narrow width", async ({
   page,
@@ -279,7 +298,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     if (message.type() === "error") browserErrors.push(message.text());
   });
 
-  await page.addInitScript(() => {
+  await page.addInitScript((currentRelease) => {
     if (!sessionStorage.getItem("ucsb-commission-test-initialized")) {
       localStorage.clear();
       sessionStorage.setItem("ucsb-commission-test-initialized", "true");
@@ -606,26 +625,26 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         );
         return new Response(
           JSON.stringify({
-            protocol: 1,
-            protocolRevision: 1,
-            serviceVersion: "0.1.0",
-            courseRelease: "2026.08-dev.28",
-            runtimeRelease: "2026.08-dev.28",
-            runtimeReleaseSequence: 28,
+            protocol: currentRelease.service.protocol_version,
+            protocolRevision: currentRelease.service.protocol_revision,
+            serviceVersion: currentRelease.service.version,
+            courseRelease: currentRelease.release_id,
+            runtimeRelease: currentRelease.release_id,
+            runtimeReleaseSequence: currentRelease.release_sequence,
             runtimeGeneration: 1,
             runtimeManifestSha256: runtimeManifest
               ? await sha256(runtimeManifest)
               : null,
-            courseApiRevision: "0.4-draft",
-            courseLibraryVersion: "0.4.0-dev",
-            bootstrapVersion: 1,
+            courseApiRevision: currentRelease.course_api_revision,
+            courseLibraryVersion: currentRelease.ucsb_xrp.version,
+            bootstrapVersion: currentRelease.service.bootstrap_version,
             robotId: serviceRobotId,
             robotName: "UCSB-XRP-4A21",
             address: "192.168.4.1",
             bootId: "test-boot",
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",
@@ -637,7 +656,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       }
       return originalFetch(input, init);
     };
-  });
+  }, currentRelease);
 
   await page.goto("/commission/");
   await expect(

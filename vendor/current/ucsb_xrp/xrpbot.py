@@ -21,6 +21,16 @@ except ImportError:  # CPython tests
 
 
 _DIAGNOSTIC_PERIOD_MS = 250
+_ENCODER_COUNTER_MODULUS = 1 << 32
+_ENCODER_COUNTER_HALF_RANGE = 1 << 31
+
+
+def _relative_encoder_count(count, zero):
+    """Return a signed count relative to ``zero``, including 32-bit wrap."""
+    return (
+        (int(count) - int(zero) + _ENCODER_COUNTER_HALF_RANGE)
+        % _ENCODER_COUNTER_MODULUS
+    ) - _ENCODER_COUNTER_HALF_RANGE
 
 
 class _XRPLibDevices:
@@ -54,7 +64,14 @@ class XRPBot:
     interface tests. Student programs construct ``XRPBot(config)``.
     """
 
-    __slots__ = ("_config", "_devices", "_ticks_ms", "_last_diagnostics_ms")
+    __slots__ = (
+        "_config",
+        "_devices",
+        "_ticks_ms",
+        "_last_diagnostics_ms",
+        "_left_encoder_zero",
+        "_right_encoder_zero",
+    )
 
     def __init__(self, config, _devices=None, _ticks_ms=None):
         if not isinstance(config, RobotConfig):
@@ -63,6 +80,8 @@ class XRPBot:
         self._devices = _XRPLibDevices() if _devices is None else _devices
         self._ticks_ms = _default_ticks_ms if _ticks_ms is None else _ticks_ms
         self._last_diagnostics_ms = None
+        self._left_encoder_zero = 0
+        self._right_encoder_zero = 0
         self.stop()
 
     @property
@@ -89,11 +108,13 @@ class XRPBot:
         now_ms = int(self._ticks_ms())
         raw = RawSensors(
             time_ms=now_ms,
-            left_encoder_count=int(
-                self._devices.left_motor.get_position_counts()
+            left_encoder_count=_relative_encoder_count(
+                self._devices.left_motor.get_position_counts(),
+                self._left_encoder_zero,
             ),
-            right_encoder_count=int(
-                self._devices.right_motor.get_position_counts()
+            right_encoder_count=_relative_encoder_count(
+                self._devices.right_motor.get_position_counts(),
+                self._right_encoder_zero,
             ),
             range_mm=range_mm,
             button_pressed=bool(self._devices.board.is_button_pressed()),
@@ -110,19 +131,20 @@ class XRPBot:
         return raw
 
     def reset_encoders(self):
+        """Use the current hardware counts as zero for this robot session.
+
+        XRPLib's physical reset executes a dynamically assembled PIO
+        instruction. A software offset gives the course API the same relative
+        counts without disturbing encoder state machines that are already
+        running.
+        """
         check_stop()
-        first_error = None
-        try:
-            self._devices.left_motor.reset_encoder_position()
-        except Exception as error:
-            first_error = error
-        try:
-            self._devices.right_motor.reset_encoder_position()
-        except Exception as error:
-            if first_error is None:
-                first_error = error
-        if first_error is not None:
-            raise first_error
+        self._left_encoder_zero = int(
+            self._devices.left_motor.get_position_counts()
+        )
+        self._right_encoder_zero = int(
+            self._devices.right_motor.get_position_counts()
+        )
 
     def wait_for_button(self):
         check_stop()

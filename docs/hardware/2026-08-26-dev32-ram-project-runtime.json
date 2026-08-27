@@ -1,0 +1,91 @@
+{
+  "date": "2026-08-26",
+  "result": "pass_with_reset_recovery_followup",
+  "controller": {
+    "board": "SparkFun XRP Controller",
+    "processor": "RP2350",
+    "robotId": "4c91fae8f1775aa4",
+    "address": "192.168.7.25",
+    "network": "Pink",
+    "robotPlacement": "elevated with wheels clear"
+  },
+  "runtime": {
+    "release": "2026.08-dev.32",
+    "releaseSequence": 32,
+    "runtimeGeneration": 13,
+    "protocolRevision": 2,
+    "runtimeManifestSha256": "e2728b934e8494c6da165a76327a23b7c498e40e9e377113a14c0236a0139276",
+    "qualifiedBootId": "1e09de5a8202"
+  },
+  "architecture": {
+    "normalProjectTransfer": "transactional RAM-backed VfsFat prepare",
+    "projectLifetime": "current controller boot",
+    "persistentRuntimeInstall": "USB setup or repair",
+    "httpFlashWrite": "disabled"
+  },
+  "stress": {
+    "release": "2026.08-dev.31",
+    "bootId": "3902ccc9b8ce",
+    "prepareCycles": 100,
+    "lifecycleCycles": 100,
+    "lifecycle": "prepare, run, buffered telemetry poll, cooperative stop, immediate reuse",
+    "projectCoverage": [
+      "nested Python package import",
+      "text data file",
+      "world.json",
+      "exact content revision",
+      "boot-lifetime project descriptor"
+    ],
+    "unexpectedReboots": 0
+  },
+  "browser": {
+    "browser": "Stable Google Chrome through Playwright",
+    "workflowPasses": 2,
+    "covered": [
+      "IDE and Monitor shared physical target",
+      "Monitor Run obtains the current IDE project",
+      "edited project prepares automatically",
+      "IDE and Monitor can each initiate Run and Stop",
+      "program output remains visible",
+      "motor effort and wheel-distance telemetry",
+      "encoder movement",
+      "final zero drive",
+      "unchanged boot identity"
+    ]
+  },
+  "motorEncoderProof": {
+    "effort": 0.22,
+    "leftPulseCountDelta": [273, 0],
+    "rightPulseCountDelta": [16, 200],
+    "pairedPulseCountDelta": [301, 204],
+    "batteryV": 6.4136044,
+    "positiveEffortHasPositiveEncoderSign": true,
+    "finalDrive": [0.0, 0.0]
+  },
+  "defectsFoundAndCorrected": [
+    {
+      "symptom": "Internal-flash project writes could hang or watchdog-reset after repeated second-core runs.",
+      "correction": "Normal project work now uses alternating RAM filesystems; internal flash is reserved for USB setup and repair."
+    },
+    {
+      "symptom": "XRPLib encoder reset raised maximum recursion depth exceeded after a long running session.",
+      "correction": "XRPBot now establishes wrap-safe software encoder zero offsets without dynamically assembling a PIO instruction."
+    },
+    {
+      "symptom": "A long multiline traceback was cut after 512 characters.",
+      "correction": "The service now retains complete exceptions as bounded terminal lines."
+    }
+  ],
+  "softwareValidation": {
+    "pythonTests": 212,
+    "typescriptTests": 295,
+    "micropythonProof": "pass",
+    "formatAndTypecheck": "pass",
+    "productionBuild": "pass",
+    "offlinePayloadFiles": 223,
+    "focusedStableChromeTests": 16
+  },
+  "followup": {
+    "controllerReset": "The service rejoined Pink just beyond the prior eight-second probe deadline. Repeat the browser Reset/reconnect/project-reload path during the commissioning and recovery slice."
+  }
+}

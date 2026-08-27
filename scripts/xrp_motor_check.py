@@ -80,7 +80,7 @@ def differences(later, earlier):
 def run_check(address):
     base_url = "http://{}".format(address)
     info = wait_for_service(base_url)
-    command(base_url, "sync", 1, project=motor_project())
+    command(base_url, "prepare", 1, project=motor_project())
     run = command(base_url, "run", 2)
     deadline = time.monotonic() + 12.0
     after_log_seq = 0
@@ -131,7 +131,6 @@ def run_check(address):
     return {
         "result": "pass",
         "scope": "raised wheels; bounded motor and encoder response",
-        "safetyTier": "bounded-raised-wheel",
         "service": info,
         "harness": {
             "path": str(harness_path),

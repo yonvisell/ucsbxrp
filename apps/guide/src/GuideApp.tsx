@@ -88,8 +88,9 @@ export function GuideApp() {
                 the files have changed.
               </li>
               <li>
-                <strong>Flash project</strong> transfers and verifies a project
-                on a physical XRP without starting it.
+                On a physical XRP, <strong>Run</strong> loads the current
+                project into robot memory before starting it. Reset clears that
+                copy; the next Run loads the project again automatically.
               </li>
             </ul>
           </GuideSection>

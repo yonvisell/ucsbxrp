@@ -84,6 +84,9 @@ export type {
 export type {
   CheckResult,
   CourseProject,
+  ProjectRunProvider,
+  ProjectRunSnapshot,
+  ProjectRevisionNotice,
   RuntimeParameter,
   RuntimeParameterKind,
   RuntimeParameterValue,

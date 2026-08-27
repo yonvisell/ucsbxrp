@@ -7,6 +7,8 @@ import type { SimulationScenario, WorldDefinition } from "@ucsb-xrp/simulator";
 import type {
   CheckResult,
   CourseProject,
+  ProjectRunProvider,
+  ProjectRevisionNotice,
   SynchronizedProject,
   TargetClient,
   TargetConsoleMetadata,
@@ -95,6 +97,7 @@ export class VirtualTargetClient implements TargetClient {
   private nextAction = 1;
   private runHeartbeat: ReturnType<typeof setInterval> | null = null;
   private liveValues: Int32Array | null = null;
+  private projectRunProvider: ProjectRunProvider | null = null;
 
   async connect(): Promise<void> {
     if (this.worker) {
@@ -112,7 +115,10 @@ export class VirtualTargetClient implements TargetClient {
     this.worker.port.onmessage = (event: MessageEvent<TargetWorkerMessage>) =>
       this.handleMessage(event.data);
     this.worker.port.start();
-    await this.request({ type: "connect" });
+    await this.request({
+      type: "connect",
+      providesProject: this.projectRunProvider !== null,
+    });
   }
 
   disconnect(): void {
@@ -239,12 +245,17 @@ export class VirtualTargetClient implements TargetClient {
       throw new Error("No project is ready. Open a project in the IDE first.");
     }
     validatePortableProject(staged.project);
-    if (staged.descriptor.stale) {
+    const descriptor = await describeProject(staged.project);
+    const retainedProjectIsExact =
+      !staged.descriptor.stale &&
+      staged.descriptor.revision === descriptor.revision &&
+      staged.descriptor.name === descriptor.name &&
+      staged.descriptor.entrypoint === descriptor.entrypoint;
+    if (!retainedProjectIsExact) {
       const result = await this.check(staged.project);
       if (!result.ok) {
         throw new Error(result.detail);
       }
-      const descriptor = await describeProject(staged.project);
       await this.startRun({
         type: "prepare-run",
         project: staged.project,
@@ -253,6 +264,21 @@ export class VirtualTargetClient implements TargetClient {
       return;
     }
     await this.startRun({ type: "prepare-run" });
+  }
+
+  setProjectRunProvider(provider: ProjectRunProvider | null): void {
+    this.projectRunProvider = provider;
+    this.worker?.port.postMessage({
+      type: "set-project-run-provider",
+      providesProject: provider !== null,
+    } satisfies TargetWorkerCommand);
+  }
+
+  markProjectChanged(project: ProjectRevisionNotice): void {
+    this.worker?.port.postMessage({
+      type: "mark-project-changed",
+      project,
+    } satisfies TargetWorkerCommand);
   }
 
   private async startRun(
@@ -377,7 +403,7 @@ export class VirtualTargetClient implements TargetClient {
 
   private request(
     command:
-      | { type: "connect" }
+      | { type: "connect"; providesProject: boolean }
       | {
           type: "prepare-run";
           project?: CourseProject;
@@ -419,6 +445,28 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   private handleMessage(message: TargetWorkerMessage): void {
+    if (message.type === "project-run-snapshot-request") {
+      try {
+        const provider = this.projectRunProvider;
+        if (!provider) {
+          throw new Error(
+            "The IDE is not ready to provide its current project.",
+          );
+        }
+        this.worker?.port.postMessage({
+          type: "project-run-snapshot",
+          requestId: message.requestId,
+          snapshot: provider(),
+        } satisfies TargetWorkerCommand);
+      } catch (error) {
+        this.worker?.port.postMessage({
+          type: "project-run-snapshot",
+          requestId: message.requestId,
+          error: errorDetail(error),
+        } satisfies TargetWorkerCommand);
+      }
+      return;
+    }
     if (message.type === "event") {
       for (const listener of this.listeners) {
         listener(message.event);

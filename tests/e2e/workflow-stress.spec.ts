@@ -358,7 +358,7 @@ async function installMockPhysicalXrp(context: BrowserContext) {
             },
             capabilities: [
               "project.check",
-              "project.sync",
+              "project.prepare",
               "program.run",
               "program.stop",
               "target.reset",

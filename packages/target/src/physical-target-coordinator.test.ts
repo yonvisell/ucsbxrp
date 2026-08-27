@@ -8,6 +8,7 @@ import type {
 import type {
   CheckResult,
   CourseProject,
+  ProjectRevisionNotice,
   RuntimeParameterValue,
   TargetClient,
   TargetEvent,
@@ -40,6 +41,7 @@ class FakePhysicalTarget implements TargetClient {
   connectCalls = 0;
   disconnectCalls = 0;
   runCalls = 0;
+  readonly runProjects: CourseProject[] = [];
   stopCalls = 0;
   resetCalls = 0;
   running = false;
@@ -91,7 +93,8 @@ class FakePhysicalTarget implements TargetClient {
 
   async synchronize(): Promise<void> {}
 
-  async run(): Promise<void> {
+  async run(projectToRun: CourseProject): Promise<void> {
+    this.runProjects.push(projectToRun);
     await this.runCurrent();
   }
 
@@ -124,6 +127,20 @@ class FakePhysicalTarget implements TargetClient {
   }
 
   async markProjectStale(): Promise<void> {}
+
+  setProjectRunProvider(): void {}
+
+  markProjectChanged(projectRevision: ProjectRevisionNotice): void {
+    this.emit({
+      type: "project",
+      project: {
+        name: projectRevision.name,
+        entrypoint: projectRevision.entrypoint,
+        revision: `ide:${projectRevision.projectId}:${projectRevision.revision}`,
+        stale: true,
+      },
+    });
+  }
 
   async stop(): Promise<void> {
     this.stopCalls += 1;
@@ -413,6 +430,85 @@ describe("physical target coordinator", () => {
     expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
   });
 
+  it("runs the exact current IDE snapshot without waiting for stale publication", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "connect",
+        providesProject: true,
+      }),
+    );
+    await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+
+    const latestProject: CourseProject = {
+      ...project,
+      files: { "main.py": "print('latest editor source')\n" },
+    };
+    coordinator.handle(
+      ide,
+      command({
+        type: "mark-project-changed",
+        project: {
+          projectId: "project-1",
+          revision: 2,
+          name: latestProject.name!,
+          entrypoint: latestProject.entrypoint,
+        },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(events(monitor, "project").at(-1)).toMatchObject({
+        project: { name: latestProject.name, stale: true },
+      }),
+    );
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "monitor-run" }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        ide.messages.some(
+          (message) => message.type === "project-run-snapshot-request",
+        ),
+      ).toBe(true),
+    );
+    expect(target.runCalls).toBe(0);
+
+    const request = ide.messages.find(
+      (message) => message.type === "project-run-snapshot-request",
+    );
+    if (!request || request.type !== "project-run-snapshot-request") {
+      throw new Error("Expected a current-project request");
+    }
+    coordinator.handle(
+      ide,
+      command({
+        type: "project-run-snapshot",
+        requestId: request.requestId,
+        snapshot: {
+          projectId: "project-1",
+          revision: 2,
+          project: latestProject,
+        },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-run")).toHaveLength(1),
+    );
+    expect(target.runProjects).toEqual([latestProject]);
+  });
+
   it("changes the shared endpoint once for all attached tabs", async () => {
     const targets: FakePhysicalTarget[] = [];
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
@@ -516,7 +612,7 @@ describe("physical target coordinator", () => {
     );
     await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
 
-    target.nextRunError = new Error("project must be flashed");
+    target.nextRunError = new Error("project must be prepared");
     coordinator.handle(
       monitor,
       command({ type: "run-current", requestId: "failed-run" }),

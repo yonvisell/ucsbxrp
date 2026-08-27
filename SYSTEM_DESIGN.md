@@ -40,8 +40,8 @@ The IDE is the programming surface. It provides:
   MicroPython tutorial; a fresh browser opens the spiral demo while recovered
   student work remains authoritative;
 - local Monaco workers and MicroPython syntax validation;
-- explicit **Validate** and **Flash project** operations plus one stateful
-  Run/Stop control and Reset;
+- explicit **Validate**, one stateful Run/Stop control, and Reset; physical Run
+  loads the exact current project into controller RAM before starting it;
 - virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
   and an existing-Wi-Fi address setting;
 - a flat white layout with compact collapsible project, settings, and
@@ -61,8 +61,9 @@ walls, start lines or boxes, and waypoints. Validation parses this file before a
 run. The selected definition configures the simulator, Monitor, and replay
 export; `ucsb_xrp.load_world()` exposes the same geometry to project Python.
 This keeps the simulated environment, visible course figure, and challenge map
-from drifting into separate copies. The flashed-project manifest retains the
-world text so Monitor can recover it from a physical XRP after a page reload.
+from drifting into separate copies. The prepared-project manifest retains the
+world text for the current controller boot so Monitor can recover it from a
+physical XRP after a page reload.
 A virtual Run retains the selected world when `world.json` is unchanged;
 replacing that file selects its declared default world.
 Catalog entries are complete `CourseProject` values, not a persistent special
@@ -218,9 +219,8 @@ checks still require internet.
 All applications use the same high-contrast theme, compact controls, visible
 focus, semantic labels, and responsive layout. The IDE and Monitor use
 accessible play/stop and reset icon buttons in their 27 px headers, a compact
-target selector, and explicit names for less familiar commands such as
-**Validate** and **Flash project**. Icon controls retain semantic names and
-hover/focus help. The landing page presents IDE, Monitor, and Guide together,
+target selector, and an explicit name for **Validate**. Icon controls retain
+semantic names and hover/focus help. The landing page presents IDE, Monitor, and Guide together,
 then gives initial setup/repair its own clearly separated action.
 
 Current desktop Chrome and Edge on Windows and macOS are the supported student
@@ -242,10 +242,11 @@ runtime state, console, or telemetry; samples
 carry source, sequence/time, pose availability, motion,
 encoders, collision, range, button, IMU, temperature, battery, and sensor-error
 fields.
-`synchronize` is the internal transactional transfer operation; the interface
-calls it **Flash project** because it writes the complete project to persistent
-XRP storage. Connection state and current/stale project identity are shown
-separately, so a connected robot cannot be mistaken for a flashed one.
+`synchronize` is retained as the target-interface transfer operation. On the
+physical target it transactionally prepares a boot-lifetime RAM project; it
+does not write internal flash. Connection state and current/stale project
+identity are shown separately, so a connected robot cannot be mistaken for a
+robot that has the current project ready.
 
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
 descriptors, 16 watch values, and 16 numerical plot values. For the virtual
@@ -333,39 +334,43 @@ The versioned JSON API provides:
 - polled hardware telemetry and live-program state/parameter updates.
 
 Commands carry bounded request IDs and return correlated, cached replies so a
-retry does not repeat a state-changing operation. Flash, Run, and Stop repeat an
-interrupted request once with that same ID. If both Flash replies are lost, the
-browser treats the operation as complete only when the XRP's retained project
-manifest reports the exact requested revision. Inputs have explicit file, path,
+retry does not repeat a state-changing operation. Prepare, Run, and Stop repeat
+an interrupted request once with that same ID. If both Prepare replies are
+lost, the browser treats the operation as complete only when the XRP's active
+boot-lifetime manifest reports the exact requested revision. Inputs have explicit file, path,
 and byte limits. Browser CORS and Private Network Access preflights are answered
 by the device. Each boot has an identifier, so clients reset log cursors when
 sequence numbers restart. The client uses request deadlines, bounded polling,
 one shared connection, and short repeated discovery probes after an intentional
 reboot; an in-flight telemetry timeout cannot replace the reconnecting status.
-The shared client polls active-run telemetry every 60 ms and returns to 250 ms
-when idle. This improves live plots without multiplying idle sensor-bus reads.
+The shared client requests active-run telemetry every 125 ms and returns to
+250 ms when idle. The XRP still buffers the 50 Hz course samples, so this
+reduces HTTP and MicroPython interpreter contention without reducing the
+recorded sample rate or changing the on-robot control loop.
 
 The project transfer manifest includes the same content revision calculated by
-the browser. A transfer becomes active only after all files are present;
-discovery and telemetry repeat that descriptor after every
-boot, allowing either application to run the retained revision and allowing an
-IDE edit to mark it stale locally without changing the device until the next
-explicit run or synchronization.
+the browser. A transfer builds an inactive RAM-backed FAT volume and becomes
+active only after validation, compilation, and every file write succeed.
+Discovery and telemetry expose that descriptor for the current boot, allowing
+either application to run the prepared revision and allowing an IDE edit to
+mark it stale until the next Run. Reset clears the RAM project; Run loads the
+current browser project again without a separate student action.
 
-Student code runs on the second RP2350 core, but that interpreter is not kept
-alive while the service writes internal flash. Project synchronization first
-requests worker retirement and observes its completion, then performs the
-transactional write. Run starts a new worker only after the `loading` reply has
-left the HTTP service. The service resolves course packages and XRPLib
-singletons, compiles the entrypoint, evicts prior project modules, and collects
-garbage before launch. This explicit lifecycle avoids concurrent flash writes
-and a second-core Python interpreter without adding guessed delays to normal
-commands. The active project manifest remains in RAM. A browser Run marks the
-launch as managed, so `Robot.start()` begins immediately; a directly executed
-standalone program retains the explicit USER button wait. A 7 s hardware
-watchdog is fed by the service event loop, so a future shared-VM deadlock
-reboots the controller instead of requiring a physical reset. A renewable run
-lease is owned outside the student program; expiration also resets the target.
+Student code runs on the second RP2350 core. Once started, one project worker
+remains alive for the service lifetime and blocks on a lock between runs. Run
+queues one job and wakes that worker only after the `loading` reply has left the
+HTTP service. Normal project preparation writes only the RAM-backed project
+volume, so edit-run cycles never coordinate internal-flash changes with the
+second core. Persistent course-runtime installation remains a USB
+setup/repair operation performed while student code is not running. The
+service resolves course packages and XRPLib singletons, compiles the
+entrypoint, evicts prior project modules, and collects garbage before launch.
+The active project manifest remains in RAM. A browser Run marks the launch as
+managed, so `Robot.start()` begins immediately; a directly executed standalone
+program retains the explicit USER button wait. A 7 s hardware watchdog is fed
+by the service event loop, so a future shared-VM deadlock reboots the controller
+instead of requiring a physical reset. A renewable run lease is owned outside
+the student program; expiration also resets the target.
 Normal completion and exceptions stop on the program core, while stop, reset,
 and lease loss use the controller reset path. All converge to zero drive
 command. Program output is line-buffered into the same bounded log stream used

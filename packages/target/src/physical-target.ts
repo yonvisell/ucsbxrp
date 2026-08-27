@@ -1,6 +1,8 @@
 import type {
   CheckResult,
   CourseProject,
+  ProjectRunProvider,
+  ProjectRevisionNotice,
   SynchronizedProject,
   TargetClient,
   TargetConsoleMetadata,
@@ -41,6 +43,18 @@ interface PhysicalProjectManifest {
   files?: string[];
   bytes?: number;
   worldJson?: string;
+  lifetime?: "boot";
+}
+
+interface PreparedProjectManifest extends PhysicalProjectManifest {
+  revision: string;
+  lifetime: "boot";
+}
+
+interface PrepareResult {
+  detail: string;
+  checked: number;
+  project: PreparedProjectManifest;
 }
 
 interface PhysicalInfo {
@@ -292,6 +306,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private lastWorldJson = "";
   private currentState: TargetRunState = "disconnected";
   private currentDetail = "Physical XRP disconnected";
+  private projectRunProvider: ProjectRunProvider | null = null;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -299,7 +314,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       options.fetch ?? ((input, init) => globalThis.fetch(input, init));
     this.pollIntervalMs = options.pollIntervalMs ?? 250;
     this.activePollIntervalMs =
-      options.activePollIntervalMs ?? options.pollIntervalMs ?? 60;
+      options.activePollIntervalMs ?? options.pollIntervalMs ?? 125;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.connectTimeoutMs = options.discoveryTimeoutMs ?? this.requestTimeoutMs;
     this.expectedRobotId = normalizedRobotId(options.expectedRobotId);
@@ -328,7 +343,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       assertExpectedRobotIdentity(info, this.expectedRobotId);
       const required = [
         "project.check",
-        "project.sync",
+        "project.prepare",
         "program.run",
         "program.stop",
         "target.reset",
@@ -472,15 +487,19 @@ export class DirectPhysicalTargetClient implements TargetClient {
   async synchronize(project: CourseProject): Promise<void> {
     const portabilityError = portableProjectError(project);
     if (portabilityError) {
-      this.emitConsole("system", `Flash failed · ${portabilityError.message}`, {
-        action: "flash",
-        phase: "error",
-      });
+      this.emitConsole(
+        "system",
+        `Prepare failed · ${portabilityError.message}`,
+        {
+          action: "prepare",
+          phase: "error",
+        },
+      );
       throw portabilityError;
     }
     await this.pausePollingForCommand();
     try {
-      await this.synchronizeWhilePollingPaused(project);
+      await this.prepareWhilePollingPaused(project);
     } finally {
       this.resumePollingAfterCommand();
     }
@@ -498,7 +517,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.currentProject.stale ||
         descriptor.revision !== this.currentProject.revision
       ) {
-        await this.synchronizeWhilePollingPaused(project, descriptor);
+        await this.prepareWhilePollingPaused(project, descriptor);
       }
       started = await this.startCurrentProjectWhilePollingPaused();
     } finally {
@@ -507,6 +526,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   async runCurrent(): Promise<void> {
+    if (this.projectRunProvider) {
+      await this.run(this.projectRunProvider().project);
+      return;
+    }
     if (
       this.stagedProject &&
       (!this.currentProject || this.currentProject.stale)
@@ -517,7 +540,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (!this.currentProject) {
       const error = new PhysicalTargetError(
         "no_project",
-        "No project is ready. Run or flash a project in the IDE first.",
+        "No project is ready. Run or prepare a project in the IDE first.",
       );
       this.emitConsole("system", `Run failed · ${error.message}`, {
         action: "run",
@@ -528,7 +551,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (this.currentProject.stale) {
       const error = new PhysicalTargetError(
         "stale_project",
-        "The IDE project has changed. Run or flash it in the IDE first.",
+        "The IDE project has changed. Run or prepare it in the IDE first.",
       );
       this.emitConsole("system", `Run failed · ${error.message}`, {
         action: "run",
@@ -556,27 +579,30 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
   }
 
-  private async synchronizeWhilePollingPaused(
+  private async prepareWhilePollingPaused(
     project: CourseProject,
     knownDescriptor?: Awaited<ReturnType<typeof describeProject>>,
   ): Promise<void> {
     const descriptor = knownDescriptor ?? (await describeProject(project));
     const catalog = worldCatalogForProject(project);
-    let result: {
-      detail: string;
-      project?: PhysicalProjectManifest;
-    };
+    let result: Pick<PrepareResult, "detail" | "project">;
     try {
-      result = await this.command<{
-        detail: string;
-        project?: PhysicalProjectManifest;
-      }>(
-        "sync",
+      result = await this.command<PrepareResult>(
+        "prepare",
         { project },
-        { action: "flash", label: "Flash", detail: descriptor.name },
+        { action: "prepare", label: "Prepare", detail: descriptor.name },
         undefined,
         true,
       );
+      if (
+        result.project?.revision !== descriptor.revision ||
+        result.project.lifetime !== "boot"
+      ) {
+        throw new PhysicalTargetError(
+          "project_revision_mismatch",
+          "The XRP prepared a different project revision",
+        );
+      }
     } catch (error) {
       const interrupted =
         error instanceof PhysicalTargetError &&
@@ -584,9 +610,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
       if (!interrupted) {
         throw error;
       }
-      // Flash is transactional on the XRP: the files may be committed even
-      // when Chrome misses both correlated replies. Read the device's retained
-      // manifest before reporting failure or sending the project again.
+      // Prepare is transactional for the current boot: the RAM project may be
+      // ready even when Chrome misses both correlated replies. Read the device's
+      // retained manifest before reporting failure or sending the project again.
       const info = await this.getJson<PhysicalInfo>("/api/v1/info", 1_500);
       assertCompatiblePhysicalInfo(info);
       assertExpectedRobotIdentity(info, this.expectedRobotId);
@@ -594,25 +620,30 @@ export class DirectPhysicalTargetClient implements TargetClient {
         throw error;
       }
       result = {
-        detail: "Matching project verified on the XRP",
-        project: info.project,
+        detail: "Project prepared",
+        project: {
+          ...info.project,
+          revision: descriptor.revision,
+          lifetime: "boot",
+        },
       };
       this.emitConsole(
         "system",
-        `Flash verified · ${descriptor.name} is installed on the XRP`,
+        `Prepare verified · ${descriptor.name} is ready in XRP memory`,
         {
-          action: "flash",
+          action: "prepare",
           phase: "result",
         },
       );
     }
     this.setCurrentProject({
       ...descriptor,
-      revision: result.project?.revision ?? descriptor.revision,
-      name: result.project?.name ?? descriptor.name,
-      entrypoint: result.project?.entrypoint ?? descriptor.entrypoint,
+      revision: result.project.revision,
+      name: result.project.name ?? descriptor.name,
+      entrypoint: result.project.entrypoint ?? descriptor.entrypoint,
       stale: false,
     });
+    this.emitStatus("ready", result.detail);
     this.stagedProject = project;
     this.emit({
       type: "world",
@@ -628,13 +659,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (!this.currentProject) {
       throw new PhysicalTargetError(
         "no_project",
-        "No project is ready. Run or flash a project in the IDE first.",
+        "No project is ready. Run or prepare a project in the IDE first.",
       );
     }
     if (this.currentProject.stale) {
       throw new PhysicalTargetError(
         "stale_project",
-        "The IDE project has changed. Run or flash it in the IDE first.",
+        "The IDE project has changed. Run or prepare it in the IDE first.",
       );
     }
     if (this.currentState === "loading" || this.currentState === "running") {
@@ -647,7 +678,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
 
     // Leave the RP2350 service core quiet while its second core loads the
-    // project. A composite Flash-and-Run operation keeps polling paused across
+    // project. A composite Prepare-and-Run operation keeps polling paused across
     // both requests so telemetry cannot occupy the connection between them.
     const previousState = this.currentState;
     this.emitStatus("loading", `Starting ${this.currentProject.entrypoint}…`);
@@ -704,6 +735,21 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
   }
 
+  setProjectRunProvider(provider: ProjectRunProvider | null): void {
+    this.projectRunProvider = provider;
+  }
+
+  markProjectChanged(project: ProjectRevisionNotice): void {
+    this.setCurrentProject({
+      name: project.name,
+      entrypoint: project.entrypoint,
+      revision:
+        this.currentProject?.revision ??
+        `ide:${project.projectId}:${project.revision}`,
+      stale: true,
+    });
+  }
+
   async stop(): Promise<void> {
     this.reconnecting = true;
     await this.pausePollingForCommand();
@@ -715,6 +761,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
       if (result.reconnecting) {
         this.emitStatus("connecting", `${result.detail}; reconnecting…`);
         await this.reconnectAfterReset();
+      } else if (result.detail === "Program already stopped") {
+        this.emitStatus("ready", result.detail);
       } else {
         this.emitStatus("loading", result.detail);
         await this.waitForProgramStop();
@@ -1393,7 +1441,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       entrypoint: manifest.entrypoint,
       revision: manifest.revision,
       // A matching device manifest is authoritative evidence that an
-      // interrupted Flash reply still completed on the XRP.
+      // interrupted Prepare reply still completed on the XRP.
       stale: false,
     });
     if (
@@ -1483,6 +1531,7 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly candidateEndpoints: readonly string[];
   private readonly discoveryTimeoutMs: number;
   private readonly directMode: boolean;
+  private projectRunProvider: ProjectRunProvider | null = null;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -1512,7 +1561,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v6" },
+          { type: "module", name: "ucsb-xrp-physical-target-v8" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1552,6 +1601,7 @@ export class PhysicalTargetClient implements TargetClient {
             endpoints: reordered,
             discoveryTimeoutMs: this.discoveryTimeoutMs,
             expectedRobotId: this.options.expectedRobotId,
+            providesProject: this.projectRunProvider !== null,
           });
           return;
         }
@@ -1575,6 +1625,7 @@ export class PhysicalTargetClient implements TargetClient {
       endpoints: this.candidateEndpoints,
       discoveryTimeoutMs: this.discoveryTimeoutMs,
       expectedRobotId: this.options.expectedRobotId,
+      providesProject: this.projectRunProvider !== null,
     });
   }
 
@@ -1598,7 +1649,7 @@ export class PhysicalTargetClient implements TargetClient {
       await this.direct.synchronize(project);
       return;
     }
-    await this.request({ type: "sync", project });
+    await this.request({ type: "prepare", project });
   }
 
   async run(project: CourseProject): Promise<void> {
@@ -1623,6 +1674,26 @@ export class PhysicalTargetClient implements TargetClient {
       return;
     }
     await this.request({ type: "mark-project-stale", project });
+  }
+
+  setProjectRunProvider(provider: ProjectRunProvider | null): void {
+    this.projectRunProvider = provider;
+    this.direct?.setProjectRunProvider(provider);
+    this.worker?.port.postMessage({
+      type: "set-project-run-provider",
+      providesProject: provider !== null,
+    } satisfies PhysicalWorkerCommand);
+  }
+
+  markProjectChanged(project: ProjectRevisionNotice): void {
+    if (this.direct) {
+      this.direct.markProjectChanged(project);
+      return;
+    }
+    this.worker?.port.postMessage({
+      type: "mark-project-changed",
+      project,
+    } satisfies PhysicalWorkerCommand);
   }
 
   async stop(): Promise<void> {
@@ -1660,6 +1731,7 @@ export class PhysicalTargetClient implements TargetClient {
   private useDirectClient(): DirectPhysicalTargetClient {
     if (!this.direct) {
       this.direct = new DirectPhysicalTargetClient(this.endpoint, this.options);
+      this.direct.setProjectRunProvider(this.projectRunProvider);
       this.direct.subscribe((event) => this.emit(event));
     }
     return this.direct;
@@ -1673,6 +1745,7 @@ export class PhysicalTargetClient implements TargetClient {
         discoveryTimeoutMs: this.discoveryTimeoutMs,
         candidateEndpoints: undefined,
       });
+      candidate.setProjectRunProvider(this.projectRunProvider);
       const buffered: TargetEvent[] = [];
       const unsubscribe = candidate.subscribe((event) => buffered.push(event));
       try {
@@ -1758,9 +1831,10 @@ export class PhysicalTargetClient implements TargetClient {
           endpoints: readonly string[];
           discoveryTimeoutMs: number;
           expectedRobotId?: string;
+          providesProject: boolean;
         }
       | { type: "check"; project: CourseProject }
-      | { type: "sync"; project: CourseProject }
+      | { type: "prepare"; project: CourseProject }
       | { type: "run"; project: CourseProject }
       | { type: "run-current" }
       | { type: "mark-project-stale"; project: CourseProject }
@@ -1787,6 +1861,28 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   private handleWorkerMessage(message: PhysicalWorkerMessage): void {
+    if (message.type === "project-run-snapshot-request") {
+      try {
+        const provider = this.projectRunProvider;
+        if (!provider) {
+          throw new Error(
+            "The IDE is not ready to provide its current project.",
+          );
+        }
+        this.worker?.port.postMessage({
+          type: "project-run-snapshot",
+          requestId: message.requestId,
+          snapshot: provider(),
+        } satisfies PhysicalWorkerCommand);
+      } catch (error) {
+        this.worker?.port.postMessage({
+          type: "project-run-snapshot",
+          requestId: message.requestId,
+          error: errorDetail(error),
+        } satisfies PhysicalWorkerCommand);
+      }
+      return;
+    }
     if (message.type === "event") {
       this.emit(message.event);
       return;

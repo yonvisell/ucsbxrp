@@ -38,7 +38,6 @@ import {
   retryPendingOfflineShellReload,
   virtualRunNeedsPreparation,
 } from "../../shared/offline-shell";
-import { projectBootstrapIsPending } from "../../shared/project-bootstrap";
 import { useProjectBootstrapPending } from "../../shared/use-project-bootstrap";
 import {
   chooseProjectFolder,
@@ -924,12 +923,17 @@ export function DashboardApp() {
     }
   };
 
+  const canRunCurrent =
+    !virtualRuntimePreparing &&
+    !projectBootstrapPending &&
+    (targetState === "ready" ||
+      (target.kind === "virtual" && targetState === "error")) &&
+    (currentProject !== null ||
+      (target.kind === "virtual" && currentProject === null));
+
   const runOrStop = async () => {
     const stopping = targetState === "running" || targetState === "loading";
-    if (
-      runStarting ||
-      (!stopping && (virtualRuntimePreparing || projectBootstrapIsPending()))
-    ) {
+    if (runStarting || (!stopping && !canRunCurrent)) {
       return;
     }
     try {
@@ -1302,13 +1306,6 @@ export function DashboardApp() {
       retryPendingOfflineShellReload();
     }
   }, [exportState, isRunning, recordedSamples, recordingActive, runStarting]);
-  const canRunCurrent =
-    !virtualRuntimePreparing &&
-    !projectBootstrapPending &&
-    (targetState === "ready" ||
-      (target.kind === "virtual" && targetState === "error")) &&
-    (currentProject !== null ||
-      (target.kind === "virtual" && currentProject === null));
   const worldPreviewSample = useMemo(
     () => centeredWorldPreview(target.kind),
     [target.kind],
@@ -1382,7 +1379,7 @@ export function DashboardApp() {
                           ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
                           : target.kind === "virtual"
                             ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
-                            : "Run or flash a project in the IDE first."
+                            : "Open a project in the IDE before Run."
             }
           >
             <RunStopIcon running={isRunning} />

@@ -376,13 +376,29 @@ class XRPBotContractTests(unittest.TestCase):
         self.assertEqual(len(devices.right_motor.efforts), right_writes_before + 1)
         self.assertEqual(devices.right_motor.efforts[-1], 0.0)
 
-    def test_reset_and_button_wait_are_explicit_separate_operations(self):
+    def test_reset_uses_software_encoder_zero_and_button_wait_is_separate(self):
         bot, devices = self.make_bot()
         bot.reset_encoders()
+        devices.left_motor.count = 17
+        devices.right_motor.count = -3
         bot.wait_for_button()
-        self.assertEqual(devices.left_motor.reset_count, 1)
-        self.assertEqual(devices.right_motor.reset_count, 1)
+        raw = bot.read()
+        self.assertEqual(raw.left_encoder_count, 5)
+        self.assertEqual(raw.right_encoder_count, 6)
+        self.assertEqual(devices.left_motor.reset_count, 0)
+        self.assertEqual(devices.right_motor.reset_count, 0)
         self.assertEqual(devices.board.wait_count, 1)
+
+    def test_software_encoder_zero_handles_signed_32_bit_wrap(self):
+        bot, devices = self.make_bot()
+        devices.left_motor.count = (1 << 31) - 2
+        devices.right_motor.count = -(1 << 31) + 2
+        bot.reset_encoders()
+        devices.left_motor.count = -(1 << 31) + 1
+        devices.right_motor.count = (1 << 31) - 1
+        raw = bot.read()
+        self.assertEqual(raw.left_encoder_count, 3)
+        self.assertEqual(raw.right_encoder_count, -3)
 
     def test_managed_stop_interrupts_the_next_hardware_operation(self):
         bot, devices = self.make_bot()

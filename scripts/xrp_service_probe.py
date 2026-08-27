@@ -225,7 +225,7 @@ def run_probe(address, include_reset=False):
     evidence["service"] = info
 
     preflight = Request(
-        base_url + "/api/v1/sync",
+        base_url + "/api/v1/prepare",
         method="OPTIONS",
         headers={
             "Origin": "http://127.0.0.1:4174",
@@ -241,15 +241,17 @@ def run_probe(address, include_reset=False):
 
     project = zero_output_project()
     check = command(base_url, "check", 1, project=project)
-    sync = command(base_url, "sync", 2, project=project)
+    prepared = command(base_url, "prepare", 2, project=project)
     expected_revision = project_revision(project)
-    if sync.get("project", {}).get("revision") != expected_revision:
-        raise ProbeError("synchronized project revision did not match its source")
+    if prepared.get("project", {}).get("revision") != expected_revision:
+        raise ProbeError("prepared project revision did not match its source")
+    if prepared.get("project", {}).get("lifetime") != "boot":
+        raise ProbeError("prepared project did not report boot lifetime")
     retained_info, _ = request_json(base_url, "/api/v1/info")
     if retained_info.get("project", {}).get("revision") != expected_revision:
-        raise ProbeError("service discovery did not retain the synchronized project")
-    evidence["operations"].extend([check["detail"], sync["detail"]])
-    evidence["operations"].append("project revision retained")
+        raise ProbeError("service discovery did not retain the prepared project")
+    evidence["operations"].extend([check["detail"], prepared["detail"]])
+    evidence["operations"].append("RAM project revision retained")
     evidence["projectRevision"] = expected_revision
 
     run = command(base_url, "run", 3)
@@ -267,7 +269,7 @@ def run_probe(address, include_reset=False):
     evidence["operations"].append("stdout captured")
     evidence["telemetry"] = final_state["sample"]
 
-    command(base_url, "sync", 5, project=pose_telemetry_project())
+    command(base_url, "prepare", 5, project=pose_telemetry_project())
     pose_run = command(base_url, "run", 6)
     pose_state = wait_for_program(base_url, pose_run["runId"])
     sample = None if pose_state is None else pose_state.get("sample")
@@ -289,9 +291,9 @@ def run_probe(address, include_reset=False):
     # A normal Stop must preserve the current boot and return the worker to an
     # immediately reusable state. This is the ordinary student workflow.
     long_project = zero_output_project(wait_forever=True)
-    long_sync = command(base_url, "sync", 7, project=long_project)
+    long_prepared = command(base_url, "prepare", 7, project=long_project)
     long_revision = project_revision(long_project)
-    if long_sync.get("project", {}).get("revision") != long_revision:
+    if long_prepared.get("project", {}).get("revision") != long_revision:
         raise ProbeError("long-running project revision did not match its source")
     long_run = command(base_url, "run", 8)
     wait_for_program(base_url, long_run["runId"], until_running=True)
@@ -308,13 +310,13 @@ def run_probe(address, include_reset=False):
     evidence["serviceAfterStop"] = after_stop
     evidence["operations"].append("cooperative stop without reboot")
 
-    # Repeated immediate Flash/Run cycles exercise the boundary that previously
-    # allowed core-1 teardown to collide with a flash write.
+    # Repeated immediate Prepare/Run cycles prove that normal project work does
+    # not write internal flash or reboot the controller.
     repeated_boot_id = after_stop.get("bootId")
     for cycle in range(3):
         repeat_project = zero_output_project()
         repeat_project["files"]["cycle.txt"] = "cycle {}\n".format(cycle + 1)
-        command(base_url, "sync", 20 + cycle * 2, project=repeat_project)
+        command(base_url, "prepare", 20 + cycle * 2, project=repeat_project)
         repeat_run = command(base_url, "run", 21 + cycle * 2)
         repeat_state = wait_for_program(base_url, repeat_run["runId"])
         if repeat_state.get("state") != "ready":
@@ -322,16 +324,24 @@ def run_probe(address, include_reset=False):
         repeat_info, _ = request_json(base_url, "/api/v1/info")
         if repeat_info.get("bootId") != repeated_boot_id:
             raise ProbeError("repeat cycle {} rebooted the XRP".format(cycle + 1))
-    evidence["operations"].append("three immediate Flash/Run cycles on one boot")
+    evidence["operations"].append("three immediate Prepare/Run cycles on one boot")
 
     if include_reset:
         before_reset, _ = request_json(base_url, "/api/v1/info")
         command(base_url, "reset", 10)
         after_reset = wait_for_new_boot(base_url, before_reset)
-        if not after_reset.get("project", {}).get("revision"):
-            raise ProbeError("target reset did not retain the current project")
+        if after_reset.get("project", {}).get("revision") == repeat_info.get(
+            "project", {}
+        ).get("revision"):
+            raise ProbeError("target reset unexpectedly retained the RAM project")
+        restored = zero_output_project()
+        command(base_url, "prepare", 50, project=restored)
+        restored_run = command(base_url, "run", 51)
+        restored_state = wait_for_program(base_url, restored_run["runId"])
+        if restored_state.get("state") != "ready":
+            raise ProbeError("project did not prepare and run after reset")
         evidence["serviceAfterReset"] = after_reset
-        evidence["operations"].append("reset and reconnect")
+        evidence["operations"].append("reset cleared RAM project; prepare/run recovered")
     return evidence
 
 

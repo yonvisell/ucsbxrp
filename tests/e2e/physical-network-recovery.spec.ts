@@ -7,7 +7,17 @@ const release = JSON.parse(
     new URL("../../vendor/current/release.json", import.meta.url),
     "utf8",
   ),
-) as { release_id: string };
+) as {
+  release_id: string;
+  release_sequence: number;
+  course_api_revision: string;
+  service: {
+    version: string;
+    protocol_revision: number;
+    bootstrap_version: number;
+  };
+  ucsb_xrp: { version: string };
+};
 
 let mockXrp: Server;
 let mockXrpEndpoint = "";
@@ -36,7 +46,13 @@ test.beforeAll(async () => {
     const common = {
       bootId: "network-recovery-boot",
       courseRelease: release.release_id,
-      serviceVersion: release.release_id,
+      runtimeRelease: release.release_id,
+      runtimeReleaseSequence: release.release_sequence,
+      courseApiRevision: release.course_api_revision,
+      protocolRevision: release.service.protocol_revision,
+      bootstrapVersion: release.service.bootstrap_version,
+      courseLibraryVersion: release.ucsb_xrp.version,
+      serviceVersion: release.service.version,
       protocol: 1,
       runtimeJson: '{"revision":0,"parameters":[],"watches":[],"plots":[]}',
       project: null,
@@ -99,7 +115,7 @@ test.beforeAll(async () => {
           },
           capabilities: [
             "project.check",
-            "project.sync",
+            "project.prepare",
             "program.run",
             "program.stop",
             "target.reset",
@@ -165,9 +181,6 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   );
   await expect(ide.getByRole("button", { name: "Validate" })).toBeDisabled();
   await expect(
-    ide.getByRole("button", { name: "Flash project" }),
-  ).toBeDisabled();
-  await expect(
     ide.getByRole("button", { name: "Run", exact: true }),
   ).toBeDisabled();
   await expect(ide.getByRole("button", { name: "Reset" })).toBeDisabled();
@@ -195,9 +208,6 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
     "Physical XRP · ready",
   );
   await expect(ide.getByRole("button", { name: "Validate" })).toBeEnabled();
-  await expect(
-    ide.getByRole("button", { name: "Flash project" }),
-  ).toBeEnabled();
   await expect
     .poll(() =>
       ide.evaluate(() =>
