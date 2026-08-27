@@ -1,4 +1,4 @@
-"""Student implementation of ordered world-goal navigation."""
+"""Calculate robot motion for an ordered sequence of waypoint goals."""
 
 from ucsb_xrp.student_api import NavigationControllerBase
 

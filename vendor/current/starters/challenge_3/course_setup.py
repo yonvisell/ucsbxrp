@@ -15,6 +15,8 @@ from ucsb_xrp_reference import (
 import wheel_speed_controller as student_wheel_speed_controller
 
 
+# False selects the working supplied class. Change one flag to True only after
+# the matching student class passes the Test components examples.
 USE_STUDENT_SENSOR_MODEL = False
 USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
 USE_STUDENT_DIFFERENTIAL_DRIVE = False

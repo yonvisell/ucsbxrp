@@ -1,4 +1,4 @@
-"""Student implementation of left/right wheel-speed control."""
+"""Calculate bounded motor commands from requested and measured wheel speeds."""
 
 from ucsb_xrp import DriveCommand
 from ucsb_xrp.student_api import WheelSpeedControllerBase

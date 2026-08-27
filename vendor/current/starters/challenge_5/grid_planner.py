@@ -1,4 +1,4 @@
-"""Student implementation of shortest four-neighbor grid planning."""
+"""Find a shortest route through free horizontal and vertical grid neighbors."""
 
 from ucsb_xrp.student_api import GridPlannerBase
 

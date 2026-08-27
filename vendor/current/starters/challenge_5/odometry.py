@@ -1,4 +1,4 @@
-"""Student implementation of differential-drive odometry."""
+"""Estimate planar robot position and heading from measured wheel travel."""
 
 from ucsb_xrp.student_api import OdometryBase
 

@@ -1,8 +1,9 @@
-"""Run concrete, hardware-free examples for the Challenge 1 components.
+"""Run concrete, hardware-free examples of Challenge 1 student classes.
 
-Select Test components in the IDE. PASS means the example result is correct,
-PENDING means a method still raises NotImplementedError, and FAIL includes the
-specific behavior to inspect. These checks do not start the virtual or physical robot.
+Select Test components in the IDE. PASS means an example produced its expected
+result. An unfinished method is identified separately. FAIL names the behavior
+and received result to inspect.
+These checks do not start the virtual or physical robot.
 """
 
 from sensor_model import SensorModel

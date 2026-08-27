@@ -1,8 +1,8 @@
-"""Run concrete, hardware-free examples for the Challenge 5 components.
+"""Run concrete, hardware-free examples of Challenge 5 student classes.
 
-Select Test components in the IDE. PASS means the example result is correct,
-PENDING means a method still raises NotImplementedError, and FAIL includes the
-specific behavior to inspect. include_range adds the ultrasound examples.
+Select Test components in the IDE. PASS means an example produced its expected
+result. An unfinished method is identified separately. FAIL names the behavior
+and received result to inspect. The range option adds ultrasonic examples.
 These checks do not start the virtual or physical robot.
 """
 

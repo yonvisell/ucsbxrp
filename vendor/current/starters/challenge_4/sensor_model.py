@@ -1,4 +1,4 @@
-"""Student implementation of encoder and range measurement."""
+"""Convert encoder readings and device time into wheel measurements."""
 
 from ucsb_xrp.student_api import SensorModelBase
 

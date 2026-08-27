@@ -1,4 +1,4 @@
-"""Student implementation of left/right wheel-speed control."""
+"""Calculate bounded motor commands from requested and measured wheel speeds."""
 
 from ucsb_xrp import DriveCommand
 from ucsb_xrp.student_api import WheelSpeedControllerBase
@@ -10,5 +10,5 @@ class WheelSpeedController(WheelSpeedControllerBase):
         pass
 
     def update(self, target, measured):
-        # Week 3: calculate and return DriveCommand(left, right).
+        # Calculate the independent left and right terms, limit, and return them.
         raise NotImplementedError("Complete WheelSpeedController.update")

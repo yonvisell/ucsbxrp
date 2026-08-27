@@ -293,6 +293,53 @@ class CourseStarterTests(unittest.TestCase):
             ),
             "challenge_5": ("DELIVERY_TASK",),
         }
+        expected_configuration_names = {
+            "challenge_1": (
+                "wheel_diameter_mm",
+                "encoder_counts_per_revolution",
+                "left_encoder_sign",
+                "right_encoder_sign",
+                "left_start_command",
+                "right_start_command",
+                "left_speed_command_gain",
+                "right_speed_command_gain",
+                "sample_period_ms",
+                "wheel_speed_filter_time_constant_ms",
+                "wheel_speed_kp",
+                "max_drive_command",
+            ),
+            "challenge_2": (
+                "track_width_mm",
+                "cruise_speed_mm_s",
+                "approach_speed_mm_s",
+                "slowdown_distance_mm",
+                "position_tolerance_mm",
+                "turn_rate_rad_s",
+                "heading_tolerance_rad",
+            ),
+            "challenge_3": (
+                "cruise_speed_mm_s",
+                "approach_speed_mm_s",
+                "slowdown_distance_mm",
+                "turn_rate_rad_s",
+                "position_tolerance_mm",
+                "heading_tolerance_rad",
+                "realign_heading_rad",
+            ),
+            "challenge_4": (
+                "GRID_RESOLUTION_MM",
+                "CLEARANCE_MM",
+            ),
+            "challenge_5": (
+                "grid_resolution_mm",
+                "clearance_mm",
+                "observed_feature_name",
+                "range_sample_count",
+                "minimum_usable_range_count",
+                "blocked_range_threshold_mm",
+                "assume_blocked_without_range",
+            ),
+        }
         required_sections = (
             "## Objective",
             "## Student implementations",
@@ -314,6 +361,29 @@ class CourseStarterTests(unittest.TestCase):
                     self.assertIn("`%s`" % filename, text)
                 for parameter in expected_task_parameters[challenge]:
                     self.assertIn("`%s`" % parameter, text)
+                for name in expected_configuration_names[challenge]:
+                    self.assertIn(name, text)
+
+    def test_student_facing_challenge_text_uses_direct_task_language(self):
+        unclear_terms = (
+            "contract",
+            "frontier",
+            "inverse kinematics",
+            "pending",
+            "predecessor",
+            "recovery copy",
+            "recovery-copy",
+            "task instance",
+        )
+        for directory in sorted(path for path in STARTERS.iterdir() if path.is_dir()):
+            student_text = "\n".join(
+                path.read_text(encoding="utf-8")
+                for path in directory.iterdir()
+                if path.suffix in (".md", ".py")
+            ).lower()
+            for term in unclear_terms:
+                with self.subTest(challenge=directory.name, term=term):
+                    self.assertNotIn(term, student_text)
 
     def test_navigation_settings_are_named_and_show_units(self):
         expected_names = {
