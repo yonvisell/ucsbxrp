@@ -224,11 +224,41 @@
   {
     "id": "micropython_tutorial",
     "kind": "tutorial",
-    "source": "templates/micropython_tutorial",
-    "label": "Tutorial · MicroPython Foundations",
-    "short_label": "MicroPython foundations",
-    "summary": "Seven progressive lessons from Python fundamentals to sensor-driven finite-state behavior on the virtual XRP.",
-    "entrypoint": "1_values_and_functions.py",
+    "source": "templates/tutorial_1_python_essentials",
+    "label": "Tutorial 1 · Python Essentials",
+    "short_label": "Tutorial 1 · Python essentials",
+    "summary": "Practice functions, decisions, loops, collections, and errors with robot-related calculations.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_virtual_drawing",
+    "kind": "tutorial",
+    "source": "templates/tutorial_2_virtual_drawing",
+    "label": "Tutorial 2 · Draw with the Virtual XRP",
+    "short_label": "Tutorial 2 · Virtual drawing",
+    "summary": "Use classes, lists, and loops to describe a path for the virtual XRP.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_robot_programs",
+    "kind": "tutorial",
+    "source": "templates/tutorial_3_robot_programs",
+    "label": "Tutorial 3 · UCSBXRP Robot Programs",
+    "short_label": "Tutorial 3 · Robot programs",
+    "summary": "Write a bounded sampled program with Robot.start(), Robot.step(), and Robot.stop().",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_behavior_telemetry",
+    "kind": "tutorial",
+    "source": "templates/tutorial_4_behavior_telemetry",
+    "label": "Tutorial 4 · Behavior and Telemetry",
+    "short_label": "Tutorial 4 · Behavior and telemetry",
+    "summary": "Combine measured behavior, live controls, watch values, and plot signals.",
+    "entrypoint": "main.py",
     "published": true
   }
 ]

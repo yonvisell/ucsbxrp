@@ -41,7 +41,7 @@ describe("course starter catalog", () => {
     );
   });
 
-  it("groups challenges, two sensor-driven demos, and a staged tutorial", () => {
+  it("groups challenges, two sensor-driven demos, and four ordered tutorials", () => {
     expect(COURSE_PROJECT_TEMPLATES.map((template) => template.kind)).toEqual([
       "challenge",
       "challenge",
@@ -50,6 +50,9 @@ describe("course starter catalog", () => {
       "challenge",
       "demo",
       "demo",
+      "tutorial",
+      "tutorial",
+      "tutorial",
       "tutorial",
     ]);
     const demo = courseProjectTemplate("demo_obstacle_turn");
@@ -62,18 +65,35 @@ describe("course starter catalog", () => {
     );
     expect(spiral.project.files["main.py"]).toContain("OBSTACLE_STOP_MM");
     const tutorial = courseProjectTemplate("micropython_tutorial");
-    expect(tutorial.project.entrypoint).toBe("1_values_and_functions.py");
-    expect(tutorial.project.files["7_finite_state_machine.py"]).toContain(
-      "next_state",
-    );
-    expect(tutorial.project.files["6_virtual_robot.py"]).toContain(
-      "drive_until_close",
+    expect(tutorial.project.entrypoint).toBe("main.py");
+    expect(tutorial.project.files["student_work.py"]).toContain(
+      "average_speed_mm_s",
     );
     expect(tutorial.project.files["README.md"]).toContain(
-      "Lessons 3 through 7 move the virtual",
+      "Edit only `student_work.py`",
     );
-    expect(tutorial.project.files["world.json"]).toContain("Range target");
-    expect(Object.keys(tutorial.project.files)).toHaveLength(10);
+    expect(Object.keys(tutorial.project.files)).toHaveLength(5);
+
+    const drawing = courseProjectTemplate("tutorial_virtual_drawing");
+    expect(drawing.project.files["student_work.py"]).toContain(
+      "class DrawingSegment",
+    );
+    expect(drawing.project.files["main.py"]).toContain("robot.step");
+
+    const robotPrograms = courseProjectTemplate("tutorial_robot_programs");
+    expect(robotPrograms.project.files["student_work.py"]).toContain(
+      "run_robot_program",
+    );
+    expect(robotPrograms.project.files["README.md"]).toContain(
+      "Do not add another delay",
+    );
+
+    const telemetry = courseProjectTemplate("tutorial_behavior_telemetry");
+    expect(telemetry.project.files["student_work.py"]).toContain("live.number");
+    expect(telemetry.project.files["student_work.py"]).toContain(
+      "publish_telemetry",
+    );
+    expect(telemetry.project.files["world.json"]).toContain("Range target");
     for (const template of COURSE_PROJECT_TEMPLATES) {
       expect(template.project.files["world.json"]).toContain('"worlds"');
     }

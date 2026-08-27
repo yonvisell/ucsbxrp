@@ -1,0 +1,36 @@
+{
+  "default_world": "behavior-field",
+  "worlds": [
+    {
+      "id": "behavior-field",
+      "label": "Behavior field",
+      "bounds": {
+        "minimum_x_mm": -300,
+        "minimum_y_mm": -500,
+        "maximum_x_mm": 1000,
+        "maximum_y_mm": 800
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "label": "Range target",
+          "minimum_x_mm": 650,
+          "minimum_y_mm": -350,
+          "maximum_x_mm": 700,
+          "maximum_y_mm": 350
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -80,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": 80,
+          "maximum_y_mm": 80,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

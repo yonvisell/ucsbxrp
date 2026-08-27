@@ -21,7 +21,14 @@ class CourseStarterTests(unittest.TestCase):
         directories = sorted(path for path in TEMPLATES.iterdir() if path.is_dir())
         self.assertEqual(
             [path.name for path in directories],
-            ["demo_obstacle_turn", "demo_spiral", "micropython_tutorial"],
+            [
+                "demo_obstacle_turn",
+                "demo_spiral",
+                "tutorial_1_python_essentials",
+                "tutorial_2_virtual_drawing",
+                "tutorial_3_robot_programs",
+                "tutorial_4_behavior_telemetry",
+            ],
         )
         for directory in directories:
             self.assertTrue((directory / "README.md").is_file())
@@ -31,104 +38,80 @@ class CourseStarterTests(unittest.TestCase):
                 with self.subTest(template=directory.name, file=path.name):
                     compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
-        lessons = sorted((TEMPLATES / "micropython_tutorial").glob("[1-7]_*.py"))
-        self.assertEqual([path.name[0] for path in lessons], list("1234567"))
+    def test_tutorials_are_active_ordered_projects_with_one_student_file(self):
+        tutorials = [
+            TEMPLATES / "tutorial_1_python_essentials",
+            TEMPLATES / "tutorial_2_virtual_drawing",
+            TEMPLATES / "tutorial_3_robot_programs",
+            TEMPLATES / "tutorial_4_behavior_telemetry",
+        ]
+        for number, tutorial in enumerate(tutorials, start=1):
+            readme = (tutorial / "README.md").read_text(encoding="utf-8")
+            student_source = (tutorial / "student_work.py").read_text(encoding="utf-8")
+            with self.subTest(tutorial=number):
+                self.assertIn("Edit only `student_work.py`", readme)
+                self.assertIn("NOT COMPLETED", readme)
+                self.assertIn("INCORRECT", readme)
+                self.assertIn("NotImplementedError", student_source)
+                self.assertEqual(
+                    [path.name for path in tutorial.glob("student_*.py")],
+                    ["student_work.py"],
+                )
+                self.assertTrue((tutorial / "exercise_checks.py").is_file())
+                self.assertFalse((tutorial / "component_checks.py").exists())
 
-    def test_tutorial_is_progressive_and_student_facing(self):
-        tutorial = TEMPLATES / "micropython_tutorial"
-        readme = (tutorial / "README.md").read_text(encoding="utf-8")
-        normalized_readme = " ".join(readme.split())
-        for section in (
-            "## Read before Lesson 1",
-            "## Run a lesson",
-            "## Lesson sequence",
-            "## Python essentials used here",
-            "## Suggested exercises",
-            "## Debugging method",
-            "## MicroPython and standard Python",
-        ):
-            self.assertIn(section, readme)
-        for lesson_number in range(1, 8):
-            self.assertIn("`{}_".format(lesson_number), readme)
-        self.assertIn(
-            "Open the **File** menu and select **Make main**",
-            readme,
-        )
-        for concept in ("comment", "docstring", "assert", "tolerance"):
-            self.assertIn(concept, normalized_readme.lower())
+                world = json.loads((tutorial / "world.json").read_text(encoding="utf-8"))
+                self.assertIn(world["default_world"], [item["id"] for item in world["worlds"]])
+                self.assertEqual(world["worlds"][0]["initial_pose"]["heading_rad"], 0)
 
-        for lesson_number in (1, 2):
-            source = next(tutorial.glob("{}_*.py".format(lesson_number))).read_text(
-                encoding="utf-8"
-            )
-            tree = ast.parse(source)
-            self.assertFalse(
-                any(isinstance(node, ast.Raise) for node in ast.walk(tree)),
-                "exceptions are introduced in Lesson 4",
-            )
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Assert):
-                    continue
-                for comparison in ast.walk(node.test):
-                    if not isinstance(comparison, ast.Compare):
-                        continue
-                    compared_values = [comparison.left, *comparison.comparators]
-                    self.assertFalse(
-                        isinstance(comparison.ops[0], (ast.Eq, ast.NotEq))
-                        and any(
-                            isinstance(value, ast.Constant)
-                            and isinstance(value.value, float)
-                            for value in compared_values
-                        ),
-                        "tutorial float assertions must use a tolerance",
-                    )
+        python_readme = (tutorials[0] / "README.md").read_text(encoding="utf-8")
+        for concept in ("function", "list", "tuple", "loop", "ValueError", "None"):
+            self.assertIn(concept, python_readme)
 
-        lesson_seven = (tutorial / "7_finite_state_machine.py").read_text(
-            encoding="utf-8"
-        )
-        lesson_seven_tree = ast.parse(lesson_seven)
-        next_state = next(
-            node
-            for node in ast.walk(lesson_seven_tree)
-            if isinstance(node, ast.FunctionDef) and node.name == "next_state"
-        )
-        self.assertEqual(next_state.args.defaults, [])
-        self.assertIn("range_mm is None", lesson_seven)
+        drawing_readme = (tutorials[1] / "README.md").read_text(encoding="utf-8")
+        self.assertIn("class", drawing_readme)
+        self.assertIn("Monitor path acts like a pen", drawing_readme)
 
-        for lesson_number in range(3, 8):
-            source = next(tutorial.glob("{}_*.py".format(lesson_number))).read_text(
-                encoding="utf-8"
-            )
-            with self.subTest(lesson=lesson_number):
-                self.assertIn("XRPBot", source)
-                self.assertIn("finally:", source)
-                self.assertIn("bot.stop()", source)
-                self.assertNotIn("while True", source)
+        robot_readme = (tutorials[2] / "README.md").read_text(encoding="utf-8")
+        for operation in ("robot.start", "robot.step", "robot.stop"):
+            self.assertIn(operation, robot_readme)
+        self.assertIn("Do not add another delay", robot_readme)
+        self.assertNotIn("sleep_ms", (tutorials[2] / "student_work.py").read_text(encoding="utf-8"))
 
-        helper = (tutorial / "tutorial_helpers.py").read_text(encoding="utf-8")
-        self.assertIn("elapsed_ms < time_limit_ms", helper)
-        self.assertIn("finally:", helper)
-        self.assertNotIn("while True", helper)
+        telemetry_source = (tutorials[3] / "student_work.py").read_text(encoding="utf-8")
+        for operation in ("live.number", "live.choice", "live.toggle", "live.watch", "live.plot"):
+            if operation in ("live.watch", "live.plot"):
+                self.assertIn(operation, (tutorials[3] / "README.md").read_text(encoding="utf-8"))
+            else:
+                self.assertIn(operation, telemetry_source)
 
-        world = json.loads((tutorial / "world.json").read_text(encoding="utf-8"))
-        self.assertEqual(world["default_world"], "tutorial-field")
-        tutorial_world = world["worlds"][0]
-        self.assertEqual(tutorial_world["obstacles"][0]["label"], "Range target")
-        self.assertEqual(tutorial_world["initial_pose"]["heading_rad"], 0)
-
-    def test_first_two_tutorial_lessons_execute_with_expected_results(self):
-        tutorial = TEMPLATES / "micropython_tutorial"
-        expected_lines = {
-            "1_values_and_functions.py": "Lesson 1 complete: 150.0 mm/s",
-            "2_collections_and_loops.py": (
-                "Lesson 2 complete: 3 segments, 600.0 mm"
-            ),
-        }
-        for filename, expected in expected_lines.items():
+    def test_unfinished_tutorial_exercises_report_clear_outcomes(self):
+        tutorials = sorted(TEMPLATES.glob("tutorial_[1-4]_*"))
+        course_source = str(ROOT / "vendor" / "current")
+        for tutorial in tutorials:
             output = io.StringIO()
-            with self.subTest(file=filename), contextlib.redirect_stdout(output):
-                runpy.run_path(str(tutorial / filename), run_name="__main__")
-            self.assertIn(expected, output.getvalue())
+            saved_modules = {
+                name: sys.modules.pop(name)
+                for name in ("student_work", "exercise_checks")
+                if name in sys.modules
+            }
+            sys.path.insert(0, course_source)
+            sys.path.insert(0, str(tutorial))
+            try:
+                with self.subTest(tutorial=tutorial.name), contextlib.redirect_stdout(output):
+                    exercise_checks = runpy.run_path(
+                        str(tutorial / "exercise_checks.py"), run_name="exercise_checks"
+                    )
+                    exercise_checks["run_exercise_checks"]()
+                text = output.getvalue()
+                self.assertIn("NOT COMPLETED", text)
+                self.assertIn("0 incorrect", text)
+            finally:
+                sys.path.remove(str(tutorial))
+                sys.path.remove(course_source)
+                sys.modules.pop("student_work", None)
+                sys.modules.pop("exercise_checks", None)
+                sys.modules.update(saved_modules)
 
     def test_all_five_starters_are_complete_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())

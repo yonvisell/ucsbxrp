@@ -234,9 +234,12 @@ test("detaches Monitor autosaves when the IDE opens a browser-only template", as
   );
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(ide.getByRole("log")).toContainText("Lesson 1 complete", {
-    timeout: 20_000,
-  });
+  await expect(ide.getByRole("log")).toContainText(
+    "Complete the remaining functions in student_work.py",
+    {
+      timeout: 20_000,
+    },
+  );
   await expect(monitor.getByTestId("run-autosave-status")).toContainText(
     "Run finished; browser data remains visible, but no project folder is connected.",
     { timeout: 10_000 },

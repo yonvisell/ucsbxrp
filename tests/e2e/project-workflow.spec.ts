@@ -405,7 +405,7 @@ test("requires an explicit storage choice for a new project", async ({
   await page.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(
     page.getByRole("button", {
-      name: "Open 1_values_and_functions.py (main file)",
+      name: "Open main.py (main file)",
     }),
   ).toBeVisible();
   await expect(page.getByTestId("project-folder")).toHaveText("Browser draft");
@@ -848,7 +848,7 @@ test("Monitor validates and runs the project currently open in the IDE", async (
   await ide.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(
     ide.getByRole("button", {
-      name: "Open 1_values_and_functions.py (main file)",
+      name: "Open main.py (main file)",
     }),
   ).toBeVisible();
   await expect(monitor.getByRole("button", { name: "Run" })).toBeEnabled();
@@ -856,11 +856,11 @@ test("Monitor validates and runs the project currently open in the IDE", async (
   await monitor.getByRole("button", { name: "Run" }).click();
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText(
-    "Validating MicroPython foundations",
+    "Validating Tutorial 1 · Python essentials",
     { timeout: 15_000 },
   );
   await expect(ide.getByRole("log")).toContainText(
-    "Starting MicroPython foundations",
+    "Starting Tutorial 1 · Python essentials",
   );
   await expect(ide.getByRole("log")).not.toContainText(
     "Starting Expanding spiral",

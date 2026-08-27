@@ -1,0 +1,18 @@
+{
+  "default_world": "python-workbench",
+  "worlds": [
+    {
+      "id": "python-workbench",
+      "label": "Python workbench",
+      "bounds": {
+        "minimum_x_mm": -500,
+        "minimum_y_mm": -400,
+        "maximum_x_mm": 500,
+        "maximum_y_mm": 400
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": []
+    }
+  ]
+}

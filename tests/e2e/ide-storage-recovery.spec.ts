@@ -378,11 +378,7 @@ test("asks before opening a template as a browser-only project", async ({
   await expect(
     ide.getByRole("heading", { name: "Create a project" }),
   ).toBeVisible();
-  await expect(
-    ide.getByRole("button", {
-      name: "Open 1_values_and_functions.py (main file)",
-    }),
-  ).toHaveCount(0);
+  await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect
     .poll(() =>
       ide.evaluate(
@@ -402,7 +398,7 @@ test("asks before opening a template as a browser-only project", async ({
   await ide.getByRole("button", { name: "Continue without a folder" }).click();
   await expect(
     ide.getByRole("button", {
-      name: "Open 1_values_and_functions.py (main file)",
+      name: "Open main.py (main file)",
     }),
   ).toBeVisible();
   await expect

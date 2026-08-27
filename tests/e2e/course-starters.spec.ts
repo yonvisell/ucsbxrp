@@ -337,131 +337,69 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
 
   await openTemplateInBrowser(page, "micropython_tutorial");
   await expect(
-    page.getByRole("button", { name: "Open 7_finite_state_machine.py" }),
+    page.getByRole("button", { name: "Open student_work.py" }),
   ).toBeVisible();
   await expect(page.locator(".file-type-icon")).toHaveCount(0);
 });
 
-test("validates and runs every staged tutorial lesson on the virtual XRP", async ({
+test("validates all four active tutorials and reports unfinished exercises without motion", async ({
   context,
   page: ide,
 }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(90_000);
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await openTemplateInBrowser(ide, "micropython_tutorial");
-  await expect(
-    ide.getByRole("button", { name: /Open 1_values_and_functions\.py/ }),
-  ).toBeVisible();
-  await expect(
-    ide.getByRole("button", { name: /Open 7_finite_state_machine\.py/ }),
-  ).toBeVisible();
-  await ide.getByRole("button", { name: "Validate" }).click();
-  await expect(ide.getByTestId("check-result")).toContainText(
-    "8 Python files compiled with MicroPython",
-  );
-
-  const lessons = [
+  const tutorials = [
     {
-      file: "1_values_and_functions.py",
-      output: "Lesson 1 complete: 150.0 mm/s",
-      xRange: [-1, 1],
+      id: "micropython_tutorial",
+      title: "Tutorial 1: Python essentials",
+      compiled: 3,
+      summary: "Tutorial 1: 0 passed · 3 not completed · 0 incorrect",
     },
     {
-      file: "2_collections_and_loops.py",
-      output: "Lesson 2 complete: 3 segments, 600.0 mm",
-      xRange: [-1, 1],
+      id: "tutorial_virtual_drawing",
+      title: "Tutorial 2: draw with the Virtual XRP",
+      compiled: 5,
+      summary: "Tutorial 2: 0 passed · 2 not completed · 0 incorrect",
     },
     {
-      file: "3_classes.py",
-      output: "Lesson 3 complete: 3 motion segments",
-      xRange: [10, 100],
+      id: "tutorial_robot_programs",
+      title: "Tutorial 3: UCSBXRP robot programs",
+      compiled: 5,
+      summary: "Tutorial 3: 0 passed · 1 not completed · 0 incorrect",
     },
     {
-      file: "4_exceptions.py",
-      output: "Lesson 4 complete: 1 safe segment",
-      xRange: [1, 50],
-    },
-    {
-      file: "5_modules.py",
-      output: "Lesson 5 complete: imported helper ran 3 segments",
-      xRange: [10, 110],
-    },
-    {
-      file: "6_virtual_robot.py",
-      output: "Lesson 6 complete: obstacle detected at",
-      xRange: [150, 350],
-    },
-    {
-      file: "7_finite_state_machine.py",
-      output: "Lesson 7 complete: finite-state route finished",
-      xRange: [150, 450],
+      id: "tutorial_behavior_telemetry",
+      title: "Tutorial 4: behavior and telemetry",
+      compiled: 5,
+      summary: "Tutorial 4: 0 passed · 3 not completed · 0 incorrect",
     },
   ] as const;
 
-  for (const lesson of lessons) {
-    await ide
-      .getByRole("button", { name: new RegExp(`Open ${lesson.file}`) })
-      .click();
-    const fileMenu = ide.getByRole("button", {
-      name: new RegExp(`Actions for ${lesson.file}`),
-    });
-    await fileMenu.click();
-    const makeMain = ide.getByRole("button", { name: "Make main" });
-    if (await makeMain.isEnabled()) {
-      await makeMain.click();
-    } else {
-      await fileMenu.click();
-    }
-    await ide.getByRole("button", { name: "Reset", exact: true }).click();
-    await expect(ide.getByTestId("target-status")).toContainText(
-      "Virtual XRP · ready",
+  for (const tutorial of tutorials) {
+    await openTemplateInBrowser(ide, tutorial.id);
+    await ide.getByRole("button", { name: "Open README.md" }).click();
+    const preview = ide.getByLabel("Rendered Markdown preview");
+    await expect(
+      preview.getByRole("heading", { name: tutorial.title }),
+    ).toBeVisible();
+    await expect(
+      ide.getByRole("button", { name: "Open student_work.py" }),
+    ).toBeVisible();
+    await ide.getByRole("button", { name: "Validate" }).click();
+    await expect(ide.getByTestId("check-result")).toContainText(
+      `${tutorial.compiled} Python files compiled with MicroPython`,
     );
-    await ide.getByRole("button", { name: "Run", exact: true }).click();
-    await expect(ide.getByRole("log")).toContainText(lesson.output, {
+    await ide.getByRole("button", { name: "Check exercises" }).click();
+    await expect(ide.getByRole("log")).toContainText(tutorial.summary, {
       timeout: 15_000,
     });
-    await expect(ide.getByTestId("target-status")).toContainText(
-      "Virtual XRP · ready",
-      { timeout: 15_000 },
-    );
     await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
-    const finalX = Number.parseFloat(
-      (await monitor.getByTestId("x-mm").textContent()) ?? "NaN",
-    );
-    expect(finalX, lesson.file).toBeGreaterThanOrEqual(lesson.xRange[0]);
-    expect(finalX, lesson.file).toBeLessThanOrEqual(lesson.xRange[1]);
-
-    if (lesson.file === "6_virtual_robot.py") {
-      const finalRange = Number.parseFloat(
-        (await monitor.getByTestId("range-mm").textContent()) ?? "NaN",
-      );
-      expect(finalRange).toBeGreaterThan(250);
-      expect(finalRange).toBeLessThanOrEqual(325);
-    }
-
-    if (lesson.xRange[0] > 1) {
-      await ide.getByRole("button", { name: "Reset", exact: true }).click();
-      await ide.getByRole("button", { name: "Run", exact: true }).click();
-      await expect(ide.getByTestId("target-status")).toContainText(
-        "Virtual XRP · running",
-      );
-      await expect(ide.getByTestId("target-status")).toContainText(
-        "Virtual XRP · ready",
-        { timeout: 15_000 },
-      );
-      const repeatedX = Number.parseFloat(
-        (await monitor.getByTestId("x-mm").textContent()) ?? "NaN",
-      );
-      expect(Math.abs(repeatedX - finalX), lesson.file).toBeLessThanOrEqual(5);
-      await expect(monitor.getByTestId("motor-effort")).toHaveText(
-        "0.00 / 0.00",
-      );
-    }
+    await expect(monitor.getByTestId("x-mm")).toHaveText("0.0 mm");
   }
 });
 

@@ -1,0 +1,27 @@
+{
+  "default_world": "drawing-floor",
+  "worlds": [
+    {
+      "id": "drawing-floor",
+      "label": "Drawing floor",
+      "bounds": {
+        "minimum_x_mm": -350,
+        "minimum_y_mm": -350,
+        "maximum_x_mm": 650,
+        "maximum_y_mm": 650
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -70,
+          "minimum_y_mm": -70,
+          "maximum_x_mm": 70,
+          "maximum_y_mm": 70,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

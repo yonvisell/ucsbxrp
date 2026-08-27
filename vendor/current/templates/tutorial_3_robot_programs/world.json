@@ -1,0 +1,27 @@
+{
+  "default_world": "straight-practice",
+  "worlds": [
+    {
+      "id": "straight-practice",
+      "label": "Straight practice",
+      "bounds": {
+        "minimum_x_mm": -250,
+        "minimum_y_mm": -400,
+        "maximum_x_mm": 1000,
+        "maximum_y_mm": 400
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_line",
+          "x1_mm": 0,
+          "y1_mm": -180,
+          "x2_mm": 0,
+          "y2_mm": 180,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}
