@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  PROJECT_BOOTSTRAP_EVENT,
   PROJECT_BOOTSTRAP_KEY,
   projectBootstrapExpiresAt,
   projectBootstrapIsPending,
@@ -26,11 +25,9 @@ export function useProjectBootstrapPending(): boolean {
       if (event.key === PROJECT_BOOTSTRAP_KEY) refresh();
     };
     window.addEventListener("storage", handleStorage);
-    window.addEventListener(PROJECT_BOOTSTRAP_EVENT, refresh);
     refresh();
     return () => {
       window.removeEventListener("storage", handleStorage);
-      window.removeEventListener(PROJECT_BOOTSTRAP_EVENT, refresh);
       if (expiryTimer.current !== null) clearTimeout(expiryTimer.current);
     };
   }, [refresh]);

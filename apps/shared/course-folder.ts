@@ -38,7 +38,6 @@ export interface RotatingTextEntry {
 export const autosaveDirectoryName = "UCSB_XRP_Autosaves";
 export const autosaveGenerations = 4;
 export const courseFolderChangedKey = "ucsb-xrp-course-folder-changed-v1";
-export const workspaceFolderChangedKey = "ucsb-xrp-workspace-folder-changed-v1";
 export const courseFolderIdeHandoffKey =
   "ucsb-xrp-course-folder-ide-handoff-v1";
 
@@ -142,11 +141,6 @@ async function chooseFolder(id: string): Promise<CourseDirectoryHandle> {
   return picker({ id, mode: "readwrite" });
 }
 
-/** @deprecated Choose a workspace or project folder explicitly. */
-export async function chooseCourseFolder(): Promise<CourseDirectoryHandle> {
-  return chooseFolder("ucsb-xrp-course-project");
-}
-
 export async function chooseWorkspaceFolder(): Promise<CourseDirectoryHandle> {
   return chooseFolder("ucsb-xrp-workspace");
 }
@@ -177,7 +171,7 @@ export async function requestCourseFolderPermission(
 async function rememberFolder(
   handle: CourseDirectoryHandle,
   key: string,
-  changeKey: string,
+  changeKey?: string,
 ): Promise<boolean> {
   if (typeof indexedDB === "undefined") {
     return false;
@@ -189,10 +183,12 @@ async function rememberFolder(
     transaction.objectStore(handleStoreName).put(handle, key);
     await completed;
     database.close();
-    try {
-      localStorage.setItem(changeKey, String(Date.now()));
-    } catch {
-      // The handle remains available to this origin even without localStorage.
+    if (changeKey) {
+      try {
+        localStorage.setItem(changeKey, String(Date.now()));
+      } catch {
+        // The handle remains available to this origin even without localStorage.
+      }
     }
     return true;
   } catch {
@@ -200,7 +196,7 @@ async function rememberFolder(
   }
 }
 
-async function forgetFolder(key: string, changeKey: string): Promise<boolean> {
+async function forgetFolder(key: string, changeKey?: string): Promise<boolean> {
   if (typeof indexedDB === "undefined") {
     return false;
   }
@@ -211,10 +207,12 @@ async function forgetFolder(key: string, changeKey: string): Promise<boolean> {
     transaction.objectStore(handleStoreName).delete(key);
     await completed;
     database.close();
-    try {
-      localStorage.setItem(changeKey, String(Date.now()));
-    } catch {
-      // Deleting the retained handle does not depend on localStorage.
+    if (changeKey) {
+      try {
+        localStorage.setItem(changeKey, String(Date.now()));
+      } catch {
+        // Deleting the retained handle does not depend on localStorage.
+      }
     }
     return true;
   } catch {
@@ -222,17 +220,10 @@ async function forgetFolder(key: string, changeKey: string): Promise<boolean> {
   }
 }
 
-/** @deprecated Remember a workspace or project folder explicitly. */
-export async function rememberCourseFolder(
-  handle: CourseDirectoryHandle,
-): Promise<boolean> {
-  return rememberFolder(handle, workingFolderKey, courseFolderChangedKey);
-}
-
 export async function rememberWorkspaceFolder(
   handle: CourseDirectoryHandle,
 ): Promise<boolean> {
-  return rememberFolder(handle, workspaceFolderKey, workspaceFolderChangedKey);
+  return rememberFolder(handle, workspaceFolderKey);
 }
 
 async function sameDirectoryHandle(
@@ -306,12 +297,6 @@ export async function replaceRememberedWorkspaceFolder(
     store.put(handle, workspaceFolderKey);
     await completed;
     database.close();
-    try {
-      const changedAt = String(Date.now());
-      localStorage.setItem(workspaceFolderChangedKey, changedAt);
-    } catch {
-      // IndexedDB remains authoritative if localStorage is unavailable.
-    }
     return { changed, remembered: true };
   } catch {
     return { changed, remembered: false };
@@ -333,7 +318,6 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
     database.close();
     try {
       const changedAt = String(Date.now());
-      localStorage.setItem(workspaceFolderChangedKey, changedAt);
       localStorage.setItem(courseFolderChangedKey, changedAt);
     } catch {
       // IndexedDB remains authoritative if localStorage is unavailable.
@@ -345,7 +329,7 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
 }
 
 export async function forgetWorkspaceFolder(): Promise<boolean> {
-  return forgetFolder(workspaceFolderKey, workspaceFolderChangedKey);
+  return forgetFolder(workspaceFolderKey);
 }
 
 export async function rememberProjectFolder(
@@ -481,11 +465,6 @@ async function hasProjectMetadata(
     }
     throw error;
   }
-}
-
-/** @deprecated Load a workspace or project folder explicitly. */
-export async function loadRememberedCourseFolder(): Promise<CourseDirectoryHandle | null> {
-  return loadRememberedFolder(workingFolderKey);
 }
 
 export async function loadRememberedWorkspaceFolder(): Promise<CourseDirectoryHandle | null> {

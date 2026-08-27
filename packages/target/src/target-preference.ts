@@ -27,9 +27,6 @@ export interface RobotProfile {
   lastObservedNetwork?: PhysicalNetworkObservation;
 }
 
-/** Compatibility name retained while IDE and Monitor adopt RobotProfile. */
-export type TargetPreference = RobotProfile;
-
 export const TARGET_PREFERENCE_KEY = "ucsb-xrp-robot-profile-v2";
 export const LEGACY_TARGET_PREFERENCE_KEY = "ucsb-xrp-target-v1";
 export const XRP_ACCESS_POINT_ENDPOINT = "http://192.168.4.1";
@@ -135,12 +132,6 @@ function migrateLegacyPreference(value: unknown): RobotProfile | null {
     stationEndpoint,
     accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
   };
-}
-
-export function physicalEndpointForPreference(value: RobotProfile): string {
-  return value.physicalConnection === "access_point"
-    ? value.accessPointEndpoint
-    : value.stationEndpoint;
 }
 
 export function physicalEndpointCandidates(

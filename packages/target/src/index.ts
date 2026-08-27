@@ -68,7 +68,6 @@ export {
   XRP_ACCESS_POINT_ENDPOINT,
   loadTargetPreference,
   physicalEndpointCandidates,
-  physicalEndpointForPreference,
   storeTargetPreference,
   targetPreferenceForCommissionedRobot,
   targetPreferenceForConfiguredNetwork,
@@ -79,7 +78,6 @@ export type {
   PhysicalConnectionMode,
   RobotProfile,
   TargetKind,
-  TargetPreference,
 } from "./target-preference";
 export type {
   CheckResult,

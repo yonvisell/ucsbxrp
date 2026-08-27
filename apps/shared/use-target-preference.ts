@@ -4,10 +4,10 @@ import {
   loadTargetPreference,
   storeTargetPreference,
   TARGET_PREFERENCE_KEY,
-  type TargetPreference,
+  type RobotProfile,
 } from "@ucsb-xrp/target";
 
-type TargetPreferenceUpdate = (current: TargetPreference) => TargetPreference;
+type RobotProfileUpdate = (current: RobotProfile) => RobotProfile;
 
 /**
  * Keep IDE and Monitor on one explicitly selected robot connection.
@@ -18,7 +18,7 @@ type TargetPreferenceUpdate = (current: TargetPreference) => TargetPreference;
 export function useTargetPreference() {
   const [preference, setPreference] = useState(loadTargetPreference);
 
-  const updatePreference = useCallback((update: TargetPreferenceUpdate) => {
+  const updatePreference = useCallback((update: RobotProfileUpdate) => {
     const next = update(loadTargetPreference());
     storeTargetPreference(next);
     setPreference(next);

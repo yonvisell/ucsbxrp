@@ -4,6 +4,24 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 56 removes dormant state and persistence layers without changing the
+student workflow. The unused commissioning-era default-project writer, three
+deprecated folder wrappers, an unconsumed workspace-change notification, an
+unobservable same-document bootstrap event, the transitional
+`TargetPreference` type name, and an unused single-endpoint helper are gone.
+The active cross-tab bootstrap gate, legacy folder-handle migration reads,
+RobotProfile v1 migration, verified station/hotspot routes, project conflict
+detection, and SharedWorker ownership remain. The architecture audit now
+describes the bounded verified commissioning handoff and the single canonical
+project-folder writer rather than obsolete implementation paths.
+
+The unchanged functional gate passes 224 Python tests, the MicroPython source,
+service, and MPY proofs, 341 TypeScript tests, formatting, type checking, the
+production build, and the 225-file offline-shell check. Four focused state and
+target test files pass 80 cases. The removal reduces the affected code by 140
+net lines and slightly reduces the shared folder and target-preference chunks;
+no broad controller or event-hub refactor was attempted.
+
 Refinement 55 replaces prose-shaped challenge metadata with explicit catalog
 and specification data. The instructor authoring tool now carries each student
 component's file, class, selection flag, and carry-forward status into generated

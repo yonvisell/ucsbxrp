@@ -106,27 +106,20 @@ Centralize the keys, schemas, migrations, and reset behavior behind a typed
 browser-state module, but do not move robot credentials into project files or
 make application startup depend on folder permission.
 
-**Defect-prone handoff.** Commissioning writes the IDE handoff immediately after
-USB installation (`apps/commission/src/CommissionApp.tsx:778-814`). Wi-Fi
-runtime, compatibility, and robot identity are verified later; only then is the
-RobotProfile stored and the IDE opened (`CommissionApp.tsx:847-929`). The
-handoff itself is the permanent string `"pending"` with no owner, release, robot,
-or expiry (`apps/shared/course-folder.ts:357-378`). A cancelled or failed Wi-Fi
-stage can therefore leave a later IDE launch looking like a completed setup.
+**Bounded commissioning handoff.** Commissioning now creates the handoff only
+after Wi-Fi runtime compatibility and robot identity have been verified and the
+`RobotProfile` has been stored (`apps/commission/src/CommissionApp.tsx:923-960`).
+The handoff is a typed, two-minute record containing robot ID and release
+sequence (`apps/shared/course-folder.ts:366-436`), so an interrupted setup no
+longer leaves a permanent marker. The IDE currently reduces the record to a
+boolean used for one Projects-folder explanation; it does not consume the robot
+or release fields (`apps/ide/src/IdeApp.tsx:749-795`). Treat any later removal as
+a small UX cleanup, not as a project-persistence change.
 
-Move handoff creation to the verified branch immediately before navigation. Use
-a typed, expiring, owner-specific record like the existing project-bootstrap
-record (`apps/shared/project-bootstrap.ts:1-89`), and clear it on cancellation.
-Include robot ID, runtime sequence, and project-folder identity so the IDE can
-reject a stale or cross-robot handoff deterministically.
-
-**Duplicate folder format.** The commissioning helper creates the default
-project and writes only name and entrypoint metadata
-(`apps/shared/default-project-folder.ts:33-87`). The IDE's canonical writer adds
-session metadata and a content digest (`apps/ide/src/project-files.ts:801-810,
-1008-1085`). Extract a small shared `ProjectFolderRepository` and have both use
-the same create/read/commit format. This removes the commissioning-to-IDE
-"legacy project" conversion without coupling shared code to `IdeApp`.
+**One active project-folder format.** The unreferenced commissioning-era
+default-project writer has been deleted. Project creation now uses the IDE's
+canonical writer, which validates paths and writes content digest and session
+metadata last as the commit marker (`apps/ide/src/project-files.ts:940-1058`).
 
 **Classroom discovery.** Station profiles always configure the generic hostname
 `ucsb-xrp` (`apps/commission/src/commissioner.ts:663-693`), and discovery always
@@ -173,15 +166,23 @@ Low-risk cleanup after the controller extraction:
 - replace `Object.keys(files).length` inside every directory entry iteration
   with a counter (`project-files.ts:647-721`); the current form is quadratic but
   bounded to 250 files;
-- delete the unused deprecated `chooseCourseFolder`, `rememberCourseFolder`, and
-  `loadRememberedCourseFolder` wrappers (`course-folder.ts:136-139,216-220,
-  416-418`) after confirming no downstream package imports them;
 - move exact-source starter migrations
   (`project-files.ts:275-334`) into a versioned migration table and establish a
   removal release. Do not silently migrate anything except an exact unedited
   historical starter;
 - retain the legacy workspace-handle and RobotProfile migrations until the
   oldest course installation expected in the classroom has been recommissioned.
+
+The unused `chooseCourseFolder`, `rememberCourseFolder`, and
+`loadRememberedCourseFolder` exports have been removed. The legacy
+`working-folder` and `project-folder-v1` IndexedDB reads remain in the active
+workspace/project loaders, so this cleanup does not discard retained classroom
+folder handles (`apps/shared/course-folder.ts:461-494`). Robot settings now use
+the canonical `RobotProfile` name throughout the applications; the transitional
+`TargetPreference` type alias and the unused single-route
+`physicalEndpointForPreference` helper have also been removed. IDE and Monitor
+continue to use `physicalEndpointCandidates`, preserving verified station-route
+and same-network mDNS recovery.
 
 The digest implementation concatenates the complete project into one temporary
 byte array before SHA-256 (`project-files.ts:594-645`). Normal device projects

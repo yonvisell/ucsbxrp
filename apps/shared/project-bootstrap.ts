@@ -1,5 +1,4 @@
 export const PROJECT_BOOTSTRAP_KEY = "ucsb-xrp-project-bootstrap-v1";
-export const PROJECT_BOOTSTRAP_EVENT = "ucsb-xrp:project-bootstrap";
 
 const projectBootstrapLifetimeMs = 15_000;
 
@@ -32,12 +31,6 @@ function readRecord(storage: Storage): ProjectBootstrapRecord | null {
   }
 }
 
-function notifySameDocument() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event(PROJECT_BOOTSTRAP_EVENT));
-  }
-}
-
 function defaultOwnerId(): string {
   return globalThis.crypto.randomUUID();
 }
@@ -61,7 +54,6 @@ export function beginProjectBootstrap(
       expiresAtMs: nowMs + projectBootstrapLifetimeMs,
     } satisfies ProjectBootstrapRecord),
   );
-  notifySameDocument();
   return ownerId;
 }
 
@@ -73,7 +65,6 @@ export function finishProjectBootstrap(
   const selectedStorage = storageOrDefault(storage);
   if (readRecord(selectedStorage)?.ownerId !== ownerId) return;
   selectedStorage.removeItem(PROJECT_BOOTSTRAP_KEY);
-  notifySameDocument();
 }
 
 export function projectBootstrapExpiresAt(storage?: Storage): number | null {

@@ -8,7 +8,6 @@ import {
   XRP_LOCAL_ENDPOINT,
   loadTargetPreference,
   physicalEndpointCandidates,
-  physicalEndpointForPreference,
   storeTargetPreference,
   targetPreferenceForCommissionedRobot,
   targetPreferenceForConfiguredNetwork,
@@ -79,7 +78,6 @@ describe("shared robot profile", () => {
 
   it("uses only the route for the explicitly selected network", () => {
     const station = stationProfile();
-    expect(physicalEndpointForPreference(station)).toBe("http://192.168.7.30");
     expect(physicalEndpointCandidates(station)).toEqual([
       "http://192.168.7.30",
       XRP_LOCAL_ENDPOINT,
@@ -88,9 +86,6 @@ describe("shared robot profile", () => {
     const hotspot = targetPreferenceForConfiguredNetwork(station, {
       mode: "access_point",
     });
-    expect(physicalEndpointForPreference(hotspot)).toBe(
-      XRP_ACCESS_POINT_ENDPOINT,
-    );
     expect(physicalEndpointCandidates(hotspot)).toEqual([
       XRP_ACCESS_POINT_ENDPOINT,
     ]);
@@ -110,9 +105,7 @@ describe("shared robot profile", () => {
     const stationAgain = targetPreferenceForConfiguredNetwork(hotspot, {
       mode: "station",
     });
-    expect(physicalEndpointForPreference(stationAgain)).toBe(
-      "http://192.168.7.30",
-    );
+    expect(stationAgain.stationEndpoint).toBe("http://192.168.7.30");
   });
 
   it("records a station fallback without overwriting the configured station route", () => {
@@ -138,7 +131,10 @@ describe("shared robot profile", () => {
         address: XRP_ACCESS_POINT_ENDPOINT,
       },
     });
-    expect(physicalEndpointForPreference(observed)).toBe("http://192.168.7.30");
+    expect(physicalEndpointCandidates(observed)).toEqual([
+      "http://192.168.7.30",
+      XRP_LOCAL_ENDPOINT,
+    ]);
   });
 
   it("adopts a verified identity once and rejects a different robot", () => {
