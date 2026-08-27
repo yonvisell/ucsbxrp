@@ -1,0 +1,55 @@
+digraph ControlCycle {
+  graph [
+    bgcolor="transparent",
+    fontname="Arial",
+    nodesep=0.42,
+    pad=0.08,
+    rankdir=TB,
+    ranksep=0.82,
+    splines=polyline
+  ];
+  node [
+    color="#667984",
+    fillcolor="#ffffff",
+    fontcolor="#17343f",
+    fontname="Arial",
+    fontsize=11,
+    margin="0.12,0.08",
+    penwidth=1.1,
+    shape=box,
+    style="rounded,filled"
+  ];
+  edge [
+    arrowsize=0.65,
+    color="#4d616b",
+    fontcolor="#3f5058",
+    fontname="Arial",
+    fontsize=9,
+    penwidth=1.1
+  ];
+
+  main [label="main.py\nmission logic", color="#00588a", fillcolor="#eef4f7", group="left"];
+  drive [label="DifferentialDrive*\nwheel-speed targets", color="#39736f", fillcolor="#f3f8f7", group="center"];
+  controller [label="WheelSpeedController*\nmotor commands", color="#39736f", fillcolor="#f3f8f7", group="right"];
+  target [label="XRP target\nmotors and sensors", color="#8d7440", fillcolor="#f8f5ed", group="right"];
+  sensor [label="SensorModel*\nmeasurements", color="#39736f", fillcolor="#f3f8f7", group="center"];
+  odometry [label="Odometry*\nposition and heading", color="#39736f", fillcolor="#f3f8f7", group="left"];
+
+  { rank=same; main; drive; controller; }
+  { rank=same; odometry; sensor; target; }
+
+  main -> drive [label="MotionCommand"];
+  drive -> controller [label="target wheel speeds"];
+  controller -> target [label="DriveCommand"];
+  odometry -> sensor -> target [style=invis, weight=100];
+  target -> sensor [label="RawSensors", constraint=false];
+  sensor -> odometry [label="wheel travel", constraint=false];
+  odometry -> main [label="RobotState"];
+  sensor -> controller [
+    label="measured wheel speeds\n(next sample)",
+    color="#006c64",
+    fontcolor="#005f58",
+    style=dashed,
+    constraint=false
+  ];
+}

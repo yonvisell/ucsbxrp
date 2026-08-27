@@ -152,31 +152,58 @@ const robotConfigFields: Parameter[] = [
       "Lateral distance between the wheel contact lines; must be positive.",
   },
   {
-    name: "left_motor_sign, right_motor_sign",
+    name: "left_motor_sign",
     type: "int",
     default: "1",
     description:
-      "+1 or −1, selected so a positive drive command turns that wheel forward.",
+      "+1 or −1, selected so a positive left drive command turns the left wheel forward.",
   },
   {
-    name: "left_encoder_sign, right_encoder_sign",
+    name: "right_motor_sign",
     type: "int",
     default: "1",
     description:
-      "+1 or −1, selected so forward wheel motion produces positive travel.",
+      "+1 or −1, selected so a positive right drive command turns the right wheel forward.",
   },
   {
-    name: "left_start_command, right_start_command",
+    name: "left_encoder_sign",
+    type: "int",
+    default: "1",
+    description:
+      "+1 or −1, selected so forward left-wheel motion produces positive travel.",
+  },
+  {
+    name: "right_encoder_sign",
+    type: "int",
+    default: "1",
+    description:
+      "+1 or −1, selected so forward right-wheel motion produces positive travel.",
+  },
+  {
+    name: "left_start_command",
     type: "float",
     default: "None → 0.0",
-    description: "Nonnegative command used to overcome motor deadband.",
+    description: "Nonnegative command used to overcome left-motor deadband.",
   },
   {
-    name: "left_speed_command_gain, right_speed_command_gain",
+    name: "right_start_command",
+    type: "float",
+    default: "None → 0.0",
+    description: "Nonnegative command used to overcome right-motor deadband.",
+  },
+  {
+    name: "left_speed_command_gain",
     type: "float",
     default: "None → 0.0",
     units: "s/mm",
-    description: "Feedforward command per requested wheel speed.",
+    description: "Left feedforward command per requested wheel speed.",
+  },
+  {
+    name: "right_speed_command_gain",
+    type: "float",
+    default: "None → 0.0",
+    units: "s/mm",
+    description: "Right feedforward command per requested wheel speed.",
   },
   {
     name: "wheel_speed_filter_time_constant_ms",
@@ -242,15 +269,16 @@ export function ReferenceApp() {
           <section className="reference-intro">
             <h1>API reference</h1>
             <p>
-              This page defines the UCSBXRP Python interface for course projects
-              using <code>ucsb_xrp 0.4.0-dev</code>. Student classes inherit the
-              component interfaces in <code>ucsb_xrp.student_api</code>; project
-              programs import records, configuration classes, and supplied
-              services from <code>ucsb_xrp</code>. Each entry states its
-              purpose, arguments, types, units, return value, possible
-              exceptions, and an example. Names beginning with an underscore are
-              internal. The <a href="../guide/">Guide</a> explains the IDE,
-              Monitor, project storage, and robot setup.
+              This page documents the public UCSBXRP Python interface for course
+              projects using <code>ucsb_xrp 0.4.0-dev</code>. Project programs
+              import records, configuration classes, and supplied services from{" "}
+              <code>ucsb_xrp</code>. Student component classes inherit the
+              corresponding base class from <code>ucsb_xrp.student_api</code>.
+              Entries state purpose, arguments, types, units, return values, and
+              exceptions. Examples identify the project context they require.
+              Names beginning with an underscore are internal. The{" "}
+              <a href="../guide/">Guide</a> explains the IDE, Monitor, project
+              storage, and robot setup.
             </p>
           </section>
 
@@ -327,26 +355,6 @@ export function ReferenceApp() {
               types, units, and required behavior. A normalized motor command is
               dimensionless; grid cells use integer row and column indices.
             </p>
-            <h3>Component check results</h3>
-            <ul>
-              <li>
-                <strong>PASS</strong> means the example produced the required
-                result.
-              </li>
-              <li>
-                <strong>NOT IMPLEMENTED</strong> means the selected method still
-                raises <code>NotImplementedError</code>.
-              </li>
-              <li>
-                <strong>FAIL</strong> means the returned value or retained state
-                differs from the requirement.
-              </li>
-            </ul>
-            <p>
-              A run with failures is unsuccessful. A run in which every selected
-              example is NOT IMPLEMENTED is also unsuccessful; partial progress
-              may contain both PASS and NOT IMPLEMENTED results.
-            </p>
             <div className="component-summary">
               {components.map(([id, name]) => (
                 <a href={"#" + id} key={id}>
@@ -379,7 +387,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="reset"
-              signature="reset(raw: RawSensors) -> Measurements"
+              signature="SensorModel.reset(raw: RawSensors) -> Measurements"
               summary="Establish the reference counts and time for a new run."
               parameters={[
                 {
@@ -404,7 +412,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="update"
-              signature="update(raw: RawSensors) -> Measurements"
+              signature="SensorModel.update(raw: RawSensors) -> Measurements"
               summary="Convert the next raw sample into signed wheel motion and speed estimates."
               parameters={[
                 {
@@ -433,7 +441,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="estimate_range"
-              signature="estimate_range(samples, minimum_usable: int) -> float | None"
+              signature="SensorModel.estimate_range(samples, minimum_usable: int) -> float | None"
               summary="Combine repeated ultrasonic readings while rejecting unusable values."
               parameters={[
                 {
@@ -483,13 +491,13 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="reset"
-              signature="reset() -> None"
+              signature="WheelSpeedController.reset() -> None"
               summary="Prepare the controller for a new run."
               returns={{ type: "None", description: "No value is returned." }}
             />
             <ApiMethod
               name="update"
-              signature="update(target: WheelSpeeds, measured: WheelSpeeds) -> DriveCommand"
+              signature="WheelSpeedController.update(target: WheelSpeeds, measured: WheelSpeeds) -> DriveCommand"
               summary="Calculate the next normalized motor command for both wheels."
               parameters={[
                 {
@@ -543,7 +551,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="wheel_speeds"
-              signature="wheel_speeds(command: MotionCommand) -> WheelSpeeds"
+              signature="DifferentialDrive.wheel_speeds(command: MotionCommand) -> WheelSpeeds"
               summary="Calculate the two wheel speeds for the requested forward speed and turn rate."
               parameters={[
                 {
@@ -591,7 +599,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="reset"
-              signature="reset(initial_pose: Pose) -> Pose"
+              signature="Odometry.reset(initial_pose: Pose) -> Pose"
               summary="Set the pose estimate at the beginning of a run."
               parameters={[
                 {
@@ -610,7 +618,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="update"
-              signature="update(left_increment_mm: float, right_increment_mm: float) -> Pose"
+              signature="Odometry.update(left_increment_mm: float, right_increment_mm: float) -> Pose"
               summary="Integrate one measured differential-drive motion increment."
               parameters={[
                 {
@@ -666,7 +674,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="start"
-              signature="start(goals: sequence[NavigationGoal]) -> None"
+              signature="NavigationController.start(goals: sequence[NavigationGoal]) -> None"
               summary="Load an ordered goal sequence and select its first goal."
               parameters={[
                 {
@@ -685,7 +693,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="update"
-              signature="update(pose: Pose) -> MotionCommand"
+              signature="NavigationController.update(pose: Pose) -> MotionCommand"
               summary="Calculate the forward-speed and turn-rate request for the active goal."
               parameters={[
                 {
@@ -710,7 +718,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="current_goal"
-              signature="current_goal() -> NavigationGoal | None"
+              signature="NavigationController.current_goal() -> NavigationGoal | None"
               summary="Return the active goal."
               returns={{
                 type: "NavigationGoal | None",
@@ -720,7 +728,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="is_complete"
-              signature="is_complete() -> bool"
+              signature="NavigationController.is_complete() -> bool"
               summary="Report sequence completion."
               returns={{
                 type: "bool",
@@ -742,7 +750,7 @@ export function ReferenceApp() {
           >
             <ApiMethod
               name="plan"
-              signature="plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None"
+              signature="GridPlanner.plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None"
               summary="Find a valid connected route from the start cell to the goal cell."
               parameters={[
                 {
@@ -793,6 +801,7 @@ export function ReferenceApp() {
             <RecordReference
               name="RawSensors"
               signature="RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)"
+              purpose="Stores one direct hardware sample before SensorModel converts encoder data into measured wheel motion."
               fields={[
                 {
                   name: "time_ms",
@@ -801,10 +810,16 @@ export function ReferenceApp() {
                   description: "Nonnegative device time.",
                 },
                 {
-                  name: "left_encoder_count, right_encoder_count",
+                  name: "left_encoder_count",
                   type: "int",
                   units: "count",
-                  description: "Raw signed encoder counts.",
+                  description: "Raw signed count from the left encoder.",
+                },
+                {
+                  name: "right_encoder_count",
+                  type: "int",
+                  units: "count",
+                  description: "Raw signed count from the right encoder.",
                 },
                 {
                   name: "range_mm",
@@ -823,6 +838,7 @@ export function ReferenceApp() {
             <RecordReference
               name="Measurements"
               signature="Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)"
+              purpose="Stores the newest sensor measurements in course units for control, odometry, and telemetry."
               fields={[
                 {
                   name: "time_ms",
@@ -838,23 +854,46 @@ export function ReferenceApp() {
                     "Nonnegative elapsed time since the previous sample.",
                 },
                 {
-                  name: "left_position_mm, right_position_mm",
+                  name: "left_position_mm",
                   type: "float",
                   units: "mm",
-                  description: "Signed wheel travel since SensorModel.reset().",
+                  description:
+                    "Signed left-wheel travel since SensorModel.reset().",
                 },
                 {
-                  name: "left_increment_mm, right_increment_mm",
+                  name: "right_position_mm",
                   type: "float",
                   units: "mm",
-                  description: "Signed wheel travel since the previous sample.",
+                  description:
+                    "Signed right-wheel travel since SensorModel.reset().",
                 },
                 {
-                  name: "left_speed_mm_s, right_speed_mm_s",
+                  name: "left_increment_mm",
+                  type: "float",
+                  units: "mm",
+                  description:
+                    "Signed left-wheel travel since the previous sample.",
+                },
+                {
+                  name: "right_increment_mm",
+                  type: "float",
+                  units: "mm",
+                  description:
+                    "Signed right-wheel travel since the previous sample.",
+                },
+                {
+                  name: "left_speed_mm_s",
                   type: "float",
                   units: "mm/s",
                   description:
-                    "Wheel-speed estimates computed from recent encoder samples.",
+                    "Left-wheel speed estimated from recent encoder samples.",
+                },
+                {
+                  name: "right_speed_mm_s",
+                  type: "float",
+                  units: "mm/s",
+                  description:
+                    "Right-wheel speed estimated from recent encoder samples.",
                 },
                 {
                   name: "range_mm",
@@ -879,25 +918,37 @@ export function ReferenceApp() {
             <RecordReference
               name="WheelSpeeds"
               signature="WheelSpeeds(left_mm_s, right_mm_s)"
+              purpose="Carries requested or measured left and right wheel speeds as one value."
               fields={[
                 {
-                  name: "left_mm_s, right_mm_s",
+                  name: "left_mm_s",
                   type: "float",
                   units: "mm/s",
-                  description:
-                    "Signed left and right wheel speeds; positive is forward.",
+                  description: "Signed left-wheel speed; positive is forward.",
+                },
+                {
+                  name: "right_mm_s",
+                  type: "float",
+                  units: "mm/s",
+                  description: "Signed right-wheel speed; positive is forward.",
                 },
               ]}
             />
             <RecordReference
               name="DriveCommand"
               signature="DriveCommand(left, right)"
+              purpose="Specifies the normalized left and right motor commands accepted by XRPBot."
               exceptions="TypeError or ValueError if either command is not finite; ValueError if either magnitude exceeds 1.0."
               fields={[
                 {
-                  name: "left, right",
+                  name: "left",
                   type: "float",
-                  description: "Normalized motor commands in [−1.0, 1.0].",
+                  description: "Normalized left-motor command in [−1.0, 1.0].",
+                },
+                {
+                  name: "right",
+                  type: "float",
+                  description: "Normalized right-motor command in [−1.0, 1.0].",
                 },
               ]}
               note="MotorEfforts is a compatibility alias for older projects; new code uses DriveCommand."
@@ -905,6 +956,7 @@ export function ReferenceApp() {
             <RecordReference
               name="MotionCommand"
               signature="MotionCommand(forward_speed_mm_s, turn_rate_rad_s)"
+              purpose="Specifies the requested forward speed and turn rate of the robot body for one control sample."
               fields={[
                 {
                   name: "forward_speed_mm_s",
@@ -924,12 +976,19 @@ export function ReferenceApp() {
             <RecordReference
               name="Pose"
               signature="Pose(x_mm, y_mm, heading_rad)"
+              purpose="Stores a planar robot position and heading in world coordinates."
               fields={[
                 {
-                  name: "x_mm, y_mm",
+                  name: "x_mm",
                   type: "float",
                   units: "mm",
-                  description: "Position in world coordinates.",
+                  description: "Position along the world x-axis.",
+                },
+                {
+                  name: "y_mm",
+                  type: "float",
+                  units: "mm",
+                  description: "Position along the world y-axis.",
                 },
                 {
                   name: "heading_rad",
@@ -942,6 +1001,7 @@ export function ReferenceApp() {
             <RecordReference
               name="RobotState"
               signature="RobotState(measurements, pose)"
+              purpose="Pairs the newest physical measurements with the odometry pose calculated from them."
               exceptions="TypeError unless measurements is Measurements and pose is Pose."
               fields={[
                 {
@@ -959,12 +1019,19 @@ export function ReferenceApp() {
             <RecordReference
               name="NavigationGoal"
               signature="NavigationGoal(x_mm, y_mm, heading_rad=None)"
+              purpose="Specifies a world-coordinate destination and, optionally, the heading required there."
               fields={[
                 {
-                  name: "x_mm, y_mm",
+                  name: "x_mm",
                   type: "float",
                   units: "mm",
-                  description: "Required world position.",
+                  description: "Required world x-coordinate.",
+                },
+                {
+                  name: "y_mm",
+                  type: "float",
+                  units: "mm",
+                  description: "Required world y-coordinate.",
                 },
                 {
                   name: "heading_rad",
@@ -979,19 +1046,26 @@ export function ReferenceApp() {
             <RecordReference
               name="GridCell"
               signature="GridCell(column, row)"
+              purpose="Identifies one row and column in an OccupancyGrid."
               exceptions="TypeError unless column and row are integers."
               fields={[
                 {
-                  name: "column, row",
+                  name: "column",
                   type: "int",
                   description:
-                    "Immutable occupancy-grid coordinates. Column increases with world x; row increases with world y. GridCell values may be dictionary keys or set members.",
+                    "Horizontal grid index, increasing with world x. GridCell values may be dictionary keys or set members.",
+                },
+                {
+                  name: "row",
+                  type: "int",
+                  description: "Vertical grid index, increasing with world y.",
                 },
               ]}
             />
             <RecordReference
               name="GridPath"
               signature="GridPath(cells)"
+              purpose="Stores an ordered route of edge-adjacent occupancy-grid cells."
               exceptions="TypeError unless cells is a list or tuple containing only GridCell values; ValueError for an empty sequence or nonadjacent successive cells."
               fields={[
                 {
@@ -1005,7 +1079,7 @@ export function ReferenceApp() {
             />
             <ApiMethod
               name="GridPath.to_goals"
-              signature="to_goals(grid: OccupancyGrid, final_heading_rad: float | None = None) -> tuple[NavigationGoal, ...]"
+              signature="GridPath.to_goals(grid: OccupancyGrid, final_heading_rad: float | None = None) -> tuple[NavigationGoal, ...]"
               summary="Convert a cell path to navigation goals at direction changes and at the destination."
               parameters={[
                 {
@@ -1029,7 +1103,6 @@ export function ReferenceApp() {
                   "Ordered world-coordinate goals; a one-cell path returns that cell as the destination.",
               }}
               errors={[
-                "TypeError if grid is not OccupancyGrid.",
                 "TypeError or ValueError if final_heading_rad is not finite.",
                 "ValueError if a path cell is outside the grid.",
               ]}
@@ -1166,7 +1239,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="start"
-                signature="start(initial_pose: Pose) -> RobotState"
+                signature="Robot.start(initial_pose: Pose) -> RobotState"
                 summary="Reset the encoders and selected components, establish the initial pose, and publish the first state."
                 parameters={[
                   {
@@ -1191,7 +1264,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="step"
-                signature="step(command: MotionCommand, read_range: bool = False) -> RobotState"
+                signature="Robot.step(command: MotionCommand, read_range: bool = False) -> RobotState"
                 summary="Execute one timed control and measurement cycle."
                 parameters={[
                   {
@@ -1222,7 +1295,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="estimate_range"
-                signature="estimate_range(samples, minimum_usable: int) -> float | None"
+                signature="Robot.estimate_range(samples, minimum_usable: int) -> float | None"
                 summary="Apply the selected SensorModel range estimator."
                 parameters={[
                   {
@@ -1248,7 +1321,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="stop"
-                signature="stop() -> None"
+                signature="Robot.stop() -> None"
                 summary="Command zero drive and publish the stopped command."
                 returns={{ type: "None", description: "No value is returned." }}
                 errors={[
@@ -1270,6 +1343,73 @@ export function ReferenceApp() {
               boundary. A project may declare at most 16 controls, 16 watch
               values, and 16 plot values.
             </p>
+            <article className="class-reference" id="class-live-parameter">
+              <h3>LiveParameter</h3>
+              <p>
+                Represents one Monitor control declared by{" "}
+                <code>live.number()</code>, <code>live.toggle()</code>, or{" "}
+                <code>live.choice()</code>. Read <code>value</code> inside the
+                program; the remaining properties describe the control shown in
+                the Monitor.
+              </p>
+              <h4>Properties</h4>
+              <ParameterTable
+                rows={[
+                  {
+                    name: "value",
+                    type: "float | bool | str",
+                    description:
+                      "Value currently applied to the program. Read this property; do not assign to it directly.",
+                  },
+                  {
+                    name: "name",
+                    type: "str",
+                    description: "Stable Python identifier for this control.",
+                  },
+                  {
+                    name: "label",
+                    type: "str",
+                    description: "Student-facing label shown in the Monitor.",
+                  },
+                  {
+                    name: "kind",
+                    type: '"number" | "toggle" | "choice"',
+                    description:
+                      "Control type selected by the declaration function.",
+                  },
+                  {
+                    name: "unit",
+                    type: "str",
+                    description:
+                      "Displayed unit for a numerical control, or an empty string.",
+                  },
+                  {
+                    name: "minimum",
+                    type: "float | None",
+                    description:
+                      "Inclusive lower bound for a number control; otherwise None.",
+                  },
+                  {
+                    name: "maximum",
+                    type: "float | None",
+                    description:
+                      "Inclusive upper bound for a number control; otherwise None.",
+                  },
+                  {
+                    name: "step",
+                    type: "float | None",
+                    description:
+                      "Slider increment for a number control; otherwise None.",
+                  },
+                  {
+                    name: "options",
+                    type: "tuple[str, ...]",
+                    description:
+                      "Available strings for a choice control; empty for other controls.",
+                  },
+                ]}
+              />
+            </article>
             <FunctionReference
               signature={
                 'live.number(name, default, minimum, maximum, step, unit="", label=None) -> LiveParameter'
@@ -1282,10 +1422,26 @@ export function ReferenceApp() {
                   description: "Unique Python identifier used during the run.",
                 },
                 {
-                  name: "default, minimum, maximum, step",
+                  name: "default",
                   type: "float",
                   description:
-                    "Finite numerical settings; maximum must exceed minimum and step must be positive.",
+                    "Initial value; must be within the inclusive bounds.",
+                },
+                {
+                  name: "minimum",
+                  type: "float",
+                  description: "Inclusive lower bound.",
+                },
+                {
+                  name: "maximum",
+                  type: "float",
+                  description: "Inclusive upper bound; must exceed minimum.",
+                },
+                {
+                  name: "step",
+                  type: "float",
+                  description:
+                    "Positive slider increment no larger than maximum − minimum.",
                 },
                 {
                   name: "unit",
@@ -1469,9 +1625,11 @@ export function ReferenceApp() {
                 '    unit="mm/s", label="Cruise speed",',
                 ")",
                 "",
+                "target_speed_mm_s = 120.0",
+                "measured_speed_mm_s = 105.0",
                 "live.plot(",
                 '    "wheel_speed_error_mm_s",',
-                "    target_mm_s - measured_mm_s,",
+                "    target_speed_mm_s - measured_speed_mm_s,",
                 '    unit="mm/s",',
                 ")",
               ].join("\n")}
@@ -1564,7 +1722,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="arena_map"
-                signature="arena_map(blocked_features=()) -> ArenaMap"
+                signature="ProjectWorld.arena_map(blocked_features=()) -> ArenaMap"
                 summary="Build map geometry from the world, optionally marking named features as blocked."
                 parameters={[
                   {
@@ -1587,7 +1745,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="waypoint"
-                signature="waypoint(name: str) -> NavigationGoal"
+                signature="ProjectWorld.waypoint(name: str) -> NavigationGoal"
                 summary="Read one named waypoint marker."
                 parameters={[
                   {
@@ -1607,7 +1765,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="waypoints"
-                signature="waypoints() -> tuple[NavigationGoal, ...]"
+                signature="ProjectWorld.waypoints() -> tuple[NavigationGoal, ...]"
                 summary="Read every waypoint marker in file order."
                 returns={{
                   type: "tuple[NavigationGoal, ...]",
@@ -1619,14 +1777,14 @@ export function ReferenceApp() {
               />
             </ClassReference>
             <CodeExample
-              title="Load the project world and map"
+              title="Load the Challenge 5 world and map"
               code={[
                 "from ucsb_xrp import load_world",
                 "",
                 "world = load_world()",
                 "start_pose = world.initial_pose",
-                'arena = world.arena_map(blocked_features=("gate",))',
-                'destination = world.waypoint("delivery")',
+                'arena = world.arena_map(blocked_features=("center_gate",))',
+                'destination = world.waypoint("destination")',
               ].join("\n")}
             />
           </ReferenceSection>
@@ -1638,17 +1796,30 @@ export function ReferenceApp() {
               description="Closed axis-aligned bounds in millimeters. Maximum coordinates must exceed minimum coordinates."
               constructorParameters={[
                 {
-                  name: "minimum_x_mm, minimum_y_mm",
+                  name: "minimum_x_mm",
                   type: "float",
                   units: "mm",
-                  description: "Minimum world x and y coordinates.",
+                  description: "Minimum world x-coordinate.",
                 },
                 {
-                  name: "maximum_x_mm, maximum_y_mm",
+                  name: "minimum_y_mm",
+                  type: "float",
+                  units: "mm",
+                  description: "Minimum world y-coordinate.",
+                },
+                {
+                  name: "maximum_x_mm",
                   type: "float",
                   units: "mm",
                   description:
-                    "Maximum world x and y coordinates; each must exceed its corresponding minimum.",
+                    "Maximum world x-coordinate; must exceed minimum_x_mm.",
+                },
+                {
+                  name: "maximum_y_mm",
+                  type: "float",
+                  units: "mm",
+                  description:
+                    "Maximum world y-coordinate; must exceed minimum_y_mm.",
                 },
               ]}
               constructorErrors={[
@@ -1657,16 +1828,28 @@ export function ReferenceApp() {
               ]}
               properties={[
                 {
-                  name: "minimum_x_mm, minimum_y_mm",
+                  name: "minimum_x_mm",
                   type: "float",
                   units: "mm",
-                  description: "Read-only minimum coordinates.",
+                  description: "Read-only minimum world x-coordinate.",
                 },
                 {
-                  name: "maximum_x_mm, maximum_y_mm",
+                  name: "minimum_y_mm",
                   type: "float",
                   units: "mm",
-                  description: "Read-only maximum coordinates.",
+                  description: "Read-only minimum world y-coordinate.",
+                },
+                {
+                  name: "maximum_x_mm",
+                  type: "float",
+                  units: "mm",
+                  description: "Read-only maximum world x-coordinate.",
+                },
+                {
+                  name: "maximum_y_mm",
+                  type: "float",
+                  units: "mm",
+                  description: "Read-only maximum world y-coordinate.",
                 },
                 {
                   name: "bounds_mm",
@@ -1680,14 +1863,20 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="contains"
-                signature="contains(x_mm: float, y_mm: float, margin_mm: float = 0.0) -> bool"
+                signature="Rectangle.contains(x_mm: float, y_mm: float, margin_mm: float = 0.0) -> bool"
                 summary="Test whether a point lies in the closed rectangle expanded by an optional margin."
                 parameters={[
                   {
-                    name: "x_mm, y_mm",
+                    name: "x_mm",
                     type: "float",
                     units: "mm",
-                    description: "Point in world coordinates.",
+                    description: "Point x-coordinate in the world.",
+                  },
+                  {
+                    name: "y_mm",
+                    type: "float",
+                    units: "mm",
+                    description: "Point y-coordinate in the world.",
                   },
                   {
                     name: "margin_mm",
@@ -1775,7 +1964,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="feature_bounds"
-                signature="feature_bounds(name: str) -> tuple[float, float, float, float]"
+                signature="ArenaMap.feature_bounds(name: str) -> tuple[float, float, float, float]"
                 summary="Read the boundary of one named feature."
                 parameters={[
                   {
@@ -1794,14 +1983,20 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="contains"
-                signature="contains(x_mm: float, y_mm: float) -> bool"
+                signature="ArenaMap.contains(x_mm: float, y_mm: float) -> bool"
                 summary="Test whether a world point lies within the arena boundary."
                 parameters={[
                   {
-                    name: "x_mm, y_mm",
+                    name: "x_mm",
                     type: "float",
                     units: "mm",
-                    description: "Point in world coordinates.",
+                    description: "Point x-coordinate in the world.",
+                  },
+                  {
+                    name: "y_mm",
+                    type: "float",
+                    units: "mm",
+                    description: "Point y-coordinate in the world.",
                   },
                 ]}
                 returns={{
@@ -1816,14 +2011,20 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="is_free"
-                signature="is_free(x_mm: float, y_mm: float, clearance_mm: float = 0.0) -> bool"
+                signature="ArenaMap.is_free(x_mm: float, y_mm: float, clearance_mm: float = 0.0) -> bool"
                 summary="Test arena containment and obstacle clearance for one world point."
                 parameters={[
                   {
-                    name: "x_mm, y_mm",
+                    name: "x_mm",
                     type: "float",
                     units: "mm",
-                    description: "Point in world coordinates.",
+                    description: "Point x-coordinate in the world.",
+                  },
+                  {
+                    name: "y_mm",
+                    type: "float",
+                    units: "mm",
+                    description: "Point y-coordinate in the world.",
                   },
                   {
                     name: "clearance_mm",
@@ -1847,7 +2048,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="with_feature_blocked"
-                signature="with_feature_blocked(name: str, blocked: bool) -> ArenaMap"
+                signature="ArenaMap.with_feature_blocked(name: str, blocked: bool) -> ArenaMap"
                 summary="Create a map with one feature assigned a new blocked state."
                 parameters={[
                   {
@@ -1884,16 +2085,28 @@ export function ReferenceApp() {
                   description: "Positive square-cell size.",
                 },
                 {
-                  name: "origin_x_mm, origin_y_mm",
+                  name: "origin_x_mm",
                   type: "float",
                   units: "mm",
                   description:
-                    "World coordinates at the grid lower-left corner.",
+                    "World x-coordinate at the grid's lower-left corner.",
                 },
                 {
-                  name: "column_count, row_count",
+                  name: "origin_y_mm",
+                  type: "float",
+                  units: "mm",
+                  description:
+                    "World y-coordinate at the grid's lower-left corner.",
+                },
+                {
+                  name: "column_count",
                   type: "int",
-                  description: "Positive grid dimensions.",
+                  description: "Positive number of grid columns.",
+                },
+                {
+                  name: "row_count",
+                  type: "int",
+                  description: "Positive number of grid rows.",
                 },
                 {
                   name: "blocked",
@@ -1914,23 +2127,35 @@ export function ReferenceApp() {
                   description: "Square-cell size.",
                 },
                 {
-                  name: "origin_x_mm, origin_y_mm",
+                  name: "origin_x_mm",
                   type: "float",
                   units: "mm",
                   description:
-                    "World coordinates at the grid lower-left corner.",
+                    "World x-coordinate at the grid's lower-left corner.",
                 },
                 {
-                  name: "column_count, row_count",
+                  name: "origin_y_mm",
+                  type: "float",
+                  units: "mm",
+                  description:
+                    "World y-coordinate at the grid's lower-left corner.",
+                },
+                {
+                  name: "column_count",
                   type: "int",
-                  description: "Grid dimensions.",
+                  description: "Number of grid columns.",
+                },
+                {
+                  name: "row_count",
+                  type: "int",
+                  description: "Number of grid rows.",
                 },
               ]}
             >
               <ApiMethod
                 nested
                 name="OccupancyGrid.from_arena"
-                signature="from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid"
+                signature="OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid"
                 summary="Sample an arena at cell centers to construct a planning grid."
                 parameters={[
                   {
@@ -1965,14 +2190,20 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="world_to_cell"
-                signature="world_to_cell(x_mm: float, y_mm: float) -> GridCell | None"
+                signature="OccupancyGrid.world_to_cell(x_mm: float, y_mm: float) -> GridCell | None"
                 summary="Convert world coordinates to the containing grid cell."
                 parameters={[
                   {
-                    name: "x_mm, y_mm",
+                    name: "x_mm",
                     type: "float",
                     units: "mm",
-                    description: "Point in world coordinates.",
+                    description: "World x-coordinate.",
+                  },
+                  {
+                    name: "y_mm",
+                    type: "float",
+                    units: "mm",
+                    description: "World y-coordinate.",
                   },
                 ]}
                 returns={{
@@ -1987,7 +2218,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="cell_center"
-                signature="cell_center(cell: GridCell) -> tuple[float, float]"
+                signature="OccupancyGrid.cell_center(cell: GridCell) -> tuple[float, float]"
                 summary="Convert one grid cell to its world-coordinate center."
                 parameters={[
                   {
@@ -2008,7 +2239,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="contains"
-                signature="contains(cell: GridCell) -> bool"
+                signature="OccupancyGrid.contains(cell: GridCell) -> bool"
                 summary="Test whether a cell index is inside the grid."
                 parameters={[
                   {
@@ -2026,7 +2257,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="is_blocked"
-                signature="is_blocked(cell: GridCell) -> bool"
+                signature="OccupancyGrid.is_blocked(cell: GridCell) -> bool"
                 summary="Read the occupancy state of a cell."
                 parameters={[
                   {
@@ -2045,7 +2276,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="neighbors"
-                signature="neighbors(cell: GridCell) -> tuple[GridCell, ...]"
+                signature="OccupancyGrid.neighbors(cell: GridCell) -> tuple[GridCell, ...]"
                 summary="List free cells that share an edge with one cell."
                 parameters={[
                   {
@@ -2082,7 +2313,9 @@ export function ReferenceApp() {
           </ReferenceSection>
 
           <ReferenceSection id="configuration" title="Configuration">
-            <h3 className="api-class-title">RobotConfig</h3>
+            <h3 className="api-class-title" id="class-robot-config">
+              RobotConfig
+            </h3>
             <code className="class-signature">
               RobotConfig(sample_period_ms: int = 20, wheel_diameter_mm: float =
               60.0, encoder_counts_per_revolution: float = 585.0,
@@ -2122,12 +2355,20 @@ export function ReferenceApp() {
               compatibility properties. Do not supply both the current and old
               name for one value.
             </p>
-            <h3 className="api-class-title">NavigationConfig</h3>
+            <h3 className="api-class-title" id="class-navigation-config">
+              NavigationConfig
+            </h3>
             <code className="class-signature">
               NavigationConfig(cruise_speed_mm_s, approach_speed_mm_s,
               slowdown_distance_mm, turn_rate_rad_s, position_tolerance_mm,
               heading_tolerance_rad, realign_heading_rad)
             </code>
+            <p>
+              Stores the speeds, distance thresholds, and tolerances used by
+              straight-line and waypoint navigation controllers. Define one in{" "}
+              <code>robot_config.py</code> and pass it to the relevant
+              controller factory or supplied service.
+            </p>
             <ParameterTable
               rows={[
                 {
@@ -2235,7 +2476,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="start"
-                signature="start(measurements: Measurements, distance_mm: float) -> None"
+                signature="StraightLineController.start(measurements: Measurements, distance_mm: float) -> None"
                 summary="Set the current mean wheel position as the origin for one forward move."
                 parameters={[
                   {
@@ -2260,7 +2501,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="update"
-                signature="update(measurements: Measurements) -> MotionCommand"
+                signature="StraightLineController.update(measurements: Measurements) -> MotionCommand"
                 summary="Select cruise, approach, or stop speed from the newest mean wheel position."
                 parameters={[
                   {
@@ -2282,7 +2523,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="is_complete"
-                signature="is_complete() -> bool"
+                signature="StraightLineController.is_complete() -> bool"
                 summary="Report whether the requested distance is within position tolerance."
                 returns={{
                   type: "bool",
@@ -2384,10 +2625,17 @@ export function ReferenceApp() {
                   description: "Mission arena.",
                 },
                 {
-                  name: "grid_resolution_mm, clearance_mm",
+                  name: "grid_resolution_mm",
                   type: "float",
                   units: "mm",
-                  description: "Planning-grid dimensions.",
+                  description: "Occupancy-grid cell size.",
+                },
+                {
+                  name: "clearance_mm",
+                  type: "float",
+                  units: "mm",
+                  description:
+                    "Boundary and obstacle clearance used for planning.",
                 },
                 {
                   name: "destination",
@@ -2400,9 +2648,15 @@ export function ReferenceApp() {
                   description: "Feature classified from range measurements.",
                 },
                 {
-                  name: "range_sample_count, minimum_usable_range_count",
+                  name: "range_sample_count",
                   type: "int",
-                  description: "Sampling and acceptance counts.",
+                  description: "Number of stationary range samples requested.",
+                },
+                {
+                  name: "minimum_usable_range_count",
+                  type: "int",
+                  description:
+                    "Minimum usable readings required for an estimate.",
                 },
                 {
                   name: "blocked_range_threshold_mm",
@@ -2461,7 +2715,7 @@ export function ReferenceApp() {
               <ApiMethod
                 nested
                 name="run"
-                signature="run(robot: Robot) -> RobotState"
+                signature="DeliveryMission.run(robot: Robot) -> RobotState"
                 summary="Sample range, classify the observed feature, plan a grid path, and follow the resulting goals."
                 parameters={[
                   {
@@ -2542,7 +2796,7 @@ export function ReferenceApp() {
               ]}
             >
               <FunctionReference
-                signature="read(include_range: bool = False) -> RawSensors"
+                signature="XRPBot.read(include_range: bool = False) -> RawSensors"
                 description="Read encoders, device time, USER button, and optionally the ultrasonic sensor."
                 parameters={[
                   {
@@ -2563,7 +2817,7 @@ export function ReferenceApp() {
                 ]}
               />
               <FunctionReference
-                signature="reset_encoders() -> None"
+                signature="XRPBot.reset_encoders() -> None"
                 description="Set both hardware encoder positions to zero."
                 returns={{ type: "None", description: "No value is returned." }}
                 errors={[
@@ -2571,7 +2825,7 @@ export function ReferenceApp() {
                 ]}
               />
               <FunctionReference
-                signature="wait_for_button() -> None"
+                signature="XRPBot.wait_for_button() -> None"
                 description="Wait until the USER button is pressed and released."
                 returns={{
                   type: "None",
@@ -2580,7 +2834,7 @@ export function ReferenceApp() {
                 errors={["A hardware exception if the button cannot be read."]}
               />
               <FunctionReference
-                signature="set_drive(command: DriveCommand) -> None"
+                signature="XRPBot.set_drive(command: DriveCommand) -> None"
                 description="Apply bounded normalized left and right motor commands."
                 parameters={[
                   {
@@ -2598,7 +2852,7 @@ export function ReferenceApp() {
                 ]}
               />
               <FunctionReference
-                signature="set_efforts(efforts: MotorEfforts) -> None"
+                signature="XRPBot.set_efforts(efforts: MotorEfforts) -> None"
                 description="Compatibility alias for set_drive(); new projects use DriveCommand and set_drive()."
                 parameters={[
                   {
@@ -2611,7 +2865,7 @@ export function ReferenceApp() {
                 errors={["The same exceptions as set_drive()."]}
               />
               <FunctionReference
-                signature="stop() -> None"
+                signature="XRPBot.stop() -> None"
                 description="Command zero to both motors."
                 returns={{ type: "None", description: "No value is returned." }}
                 errors={[
@@ -2881,7 +3135,7 @@ function ClassReference({
   state?: string;
 }) {
   return (
-    <article className="class-reference">
+    <article className="class-reference" id={referenceAnchor("class", name)}>
       <h3>{name}</h3>
       <p>{description}</p>
       {state && (
@@ -2931,7 +3185,10 @@ function ApiMethod({
   const DetailHeading = nested ? "h5" : "h4";
 
   return (
-    <article className="method-reference">
+    <article
+      className="method-reference"
+      id={referenceAnchor("method", signature)}
+    >
       <MethodHeading>{name}()</MethodHeading>
       <code className="method-signature">{signature}</code>
       <p>{summary}</p>
@@ -2983,7 +3240,10 @@ function FunctionReference({
   signature: string;
 }) {
   return (
-    <article className="function-reference">
+    <article
+      className="function-reference"
+      id={referenceAnchor("function", signature)}
+    >
       <code className="method-signature">{signature}</code>
       <p>{description}</p>
       {parameters.length > 0 && (
@@ -3010,17 +3270,20 @@ function RecordReference({
   fields,
   name,
   note,
+  purpose,
   signature,
 }: {
   exceptions?: string;
   fields: Parameter[];
   name: string;
   note?: string;
+  purpose: string;
   signature: string;
 }) {
   return (
-    <article className="record-reference" id={"record-" + name.toLowerCase()}>
+    <article className="record-reference" id={referenceAnchor("record", name)}>
       <h3>{name}</h3>
+      <p>{purpose}</p>
       <code className="method-signature">{signature}</code>
       <ParameterTable rows={fields} />
       {note && <p>{note}</p>}
@@ -3029,6 +3292,18 @@ function RecordReference({
       </p>
     </article>
   );
+}
+
+function referenceAnchor(prefix: string, symbolOrSignature: string) {
+  const symbol = (
+    symbolOrSignature.split("(", 1)[0] ?? symbolOrSignature
+  ).trim();
+  const kebab = symbol
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  return prefix + "-" + kebab;
 }
 
 function ParameterTable({ rows }: { rows: Parameter[] }) {

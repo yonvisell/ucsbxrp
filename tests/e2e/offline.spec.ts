@@ -52,6 +52,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await ide.getByLabel("Project template").selectOption("challenge_1");
   await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await ide.getByRole("button", { name: "Use browser only" }).click();
   expect(
     await ide
       .getByRole("link", { name: /Guide/ })
@@ -59,11 +60,11 @@ test("reloads the complete production course shell without a network", async ({
   ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Course apps saved in Chrome",
+    "Course apps available offline",
   );
   await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
     "title",
-    /saved IDE and the other UCSBXRP course apps.*reopen them in this browser without internet.*Project files stay in the selected working folder.*temporary browser copy/s,
+    /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Projects folder.*temporary browser copy/s,
   );
   await expect(
     ide.locator(".app-header").getByTestId("offline-readiness"),
@@ -115,7 +116,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(ide);
   await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Course apps saved in Chrome",
+    "Course apps available offline",
   );
 
   await ide.getByRole("button", { name: "Validate" }).click();
@@ -133,7 +134,7 @@ test("reloads the complete production course shell without a network", async ({
   );
   await expectOfflineShellReady(monitor);
   await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Course apps saved in Chrome",
+    "Course apps available offline",
   );
   await expect(monitor.locator(".monitor-controls-footer")).toHaveCount(0);
 
@@ -151,7 +152,7 @@ test("reloads the complete production course shell without a network", async ({
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
     guide.getByRole("heading", {
-      name: "Physical XRP connection",
+      name: "Connect a physical XRP",
     }),
   ).toBeVisible();
   await expect(

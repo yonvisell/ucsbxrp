@@ -163,7 +163,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: "Project files, units, and data flow",
+      name: "Python project structure",
     }),
   ).toBeVisible();
   await expect(
@@ -177,33 +177,33 @@ test("Guide presents the course workflow in explicit objective sections", async 
   await expect(page.locator("#projects")).toContainText("Challenges");
   await expect(page.locator("#projects")).toContainText("Demos");
   await expect(page.locator("#projects")).toContainText("Tutorial");
-  await expect(page.locator("#project-structure .course-flow")).toContainText(
-    "Wheel-speed feedback",
-  );
+  await expect(
+    page.locator("#project-structure .course-diagram"),
+  ).toContainText("wheel-speed feedback");
+  await expect(
+    page.locator("#project-structure .course-diagram img"),
+  ).toHaveAttribute("src", "../diagrams/control-cycle.svg");
   await expect(page.locator("#project-structure svg")).toHaveCount(0);
   await expect(page.locator("#virtual-run")).toContainText(
-    "temporary controller RAM over Wi-Fi",
+    "sends the current project over the selected Wi-Fi connection",
   );
   await expect(page.locator("#virtual-run")).toContainText(
-    "Reset retains that RAM copy",
-  );
-  await expect(page.locator("#virtual-run")).not.toContainText(
-    "Reset clears that RAM copy",
+    "the Wi-Fi connection remains available for the next Run",
   );
   await expect(page.locator("#physical-xrp")).toContainText(
-    "install or repair the persistent course runtime",
+    "installs or repairs the UCSBXRP software",
   );
   await expect(page.locator("#technical-overview")).not.toContainText(
     "Project storage on the XRP",
   );
   await expect(page.locator("#offline-use")).toContainText(
-    "Chrome saves the IDE, Monitor, virtual XRP, Guide, API reference, and setup page in the current Chrome profile",
+    "Chrome can load the saved IDE, Monitor, virtual XRP, Guide, API reference, and setup page",
   );
   await expect(page.locator("#offline-use")).toContainText(
-    "The course application copy and your project files are separate",
+    "Project files are ordinary files in that folder; Chrome does not store the course app there",
   );
   await expect(page.locator("#github")).toContainText(
-    "Use the cloned repository as the UCSBXRP working folder",
+    "Use the cloned repository as the UCSBXRP Projects folder",
   );
   await expect(page.locator("#projects")).toContainText(
     "Create next challenge project",
@@ -320,6 +320,64 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
   await expect(
     page.getByRole("heading", { name: "Run the supplied delivery sequence" }),
   ).toBeVisible();
+});
+
+test("API symbols provide stable contextual anchors and current runnable examples", async ({
+  page,
+}) => {
+  await page.goto("/reference/#method-sensor-model-update");
+
+  await expect(page.locator("#method-sensor-model-update")).toContainText(
+    "SensorModel.update(raw: RawSensors) -> Measurements",
+  );
+  await expect(page.locator("#record-raw-sensors")).toContainText(
+    "Stores one direct hardware sample",
+  );
+  await expect(page.locator("#class-live-parameter")).toContainText(
+    "Value currently applied to the program",
+  );
+  await expect(page.locator("#class-live-parameter")).toContainText("options");
+  await expect(page.locator("#function-live-number")).toContainText(
+    "Inclusive lower bound",
+  );
+
+  const gridPathMethod = page.locator("#method-grid-path-to-goals");
+  await expect(gridPathMethod).toContainText("GridPath.to_goals");
+  await expect(gridPathMethod).not.toContainText(
+    "TypeError if grid is not OccupancyGrid",
+  );
+
+  const liveExample = page
+    .locator("#live .code-example")
+    .filter({ hasText: "wheel_speed_error_mm_s" });
+  await expect(liveExample).toContainText("target_speed_mm_s = 120.0");
+  await expect(liveExample).toContainText("measured_speed_mm_s = 105.0");
+
+  const worldExample = page
+    .locator("#worlds .code-example")
+    .filter({ hasText: "Challenge 5" });
+  await expect(worldExample).toContainText('blocked_features=("center_gate",)');
+  await expect(worldExample).toContainText('world.waypoint("destination")');
+
+  const combinedNames = await page
+    .locator(".parameter-row > code:first-child")
+    .evaluateAll((cells) =>
+      cells
+        .map((cell) => cell.textContent ?? "")
+        .filter((name) => name.includes(",")),
+    );
+  expect(combinedNames).toEqual([]);
+
+  const duplicateIds = await page.locator("[id]").evaluateAll((elements) => {
+    const counts = new Map<string, number>();
+    for (const element of elements) {
+      counts.set(element.id, (counts.get(element.id) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+  });
+  expect(duplicateIds).toEqual([]);
 });
 
 test("API sections remain readable without page clipping at phone width", async ({

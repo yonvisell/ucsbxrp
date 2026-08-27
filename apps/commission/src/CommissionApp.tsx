@@ -327,7 +327,7 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is the current working folder. Use it, choose a different folder, or continue without one.`,
+                `${rememberedFolder.name} is the current Projects folder. Use it, choose a different folder, or continue without one.`,
               );
               setStage("folder");
               return;
@@ -338,7 +338,7 @@ export function CommissionApp() {
                 "error",
               );
               setError(
-                "The remembered working folder could not be written and read. Choose it again or select another folder.",
+                "The remembered Projects folder could not be written and read. Choose it again or select another folder.",
               );
             }
           } else if (!disposed) {
@@ -346,7 +346,7 @@ export function CommissionApp() {
             setFolder(rememberedFolder);
             setFolderVerified(false);
             setDetail(
-              `${rememberedFolder.name} is the remembered working folder. Reconnect it, choose a different folder, or continue without one.`,
+              `${rememberedFolder.name} is the remembered Projects folder. Reconnect it, choose a different folder, or continue without one.`,
             );
             setStage("folder");
             return;
@@ -355,7 +355,7 @@ export function CommissionApp() {
         if (!disposed) {
           setStage("folder");
           setDetail(
-            "Choose one working folder that will contain your XRP project folders, or continue and choose it later in the IDE.",
+            "Choose one Projects folder that will contain your XRP project folders, or continue and choose it later in the IDE.",
           );
         }
       } catch (initializationError) {
@@ -394,7 +394,7 @@ export function CommissionApp() {
       const remembered = await replaceRememberedWorkspaceFolder(selected);
       if (!remembered.remembered) {
         throw new Error(
-          "Chrome could not remember this folder. Choose it again, or continue without a working folder.",
+          "Chrome could not remember this folder. Choose it again, or continue without a Projects folder.",
         );
       }
       folderRef.current = selected;
@@ -402,7 +402,7 @@ export function CommissionApp() {
       setFolderVerified(true);
       recordSetup(
         "Folder",
-        `Write and read verified in ${selected.name}; it is now the working folder.`,
+        `Write and read verified in ${selected.name}; it is now the Projects folder.`,
         "success",
       );
       setDetail(
@@ -412,7 +412,7 @@ export function CommissionApp() {
       if (!wasCancelled(folderError)) {
         const message = errorDetail(folderError);
         setError(
-          `The selected working folder could not be written and read. ${message}`,
+          `The selected Projects folder could not be written and read. ${message}`,
         );
         recordSetup("Folder", `Write check failed: ${message}`, "error");
       }
@@ -484,11 +484,11 @@ export function CommissionApp() {
       setFolder(null);
       setFolderVerified(false);
       setDetail(
-        "Connect the XRP by USB-C and keep it connected through setup. You can choose a working folder in the IDE later.",
+        "Connect the XRP by USB-C and keep it connected through setup. You can choose a Projects folder in the IDE later.",
       );
       recordSetup(
         "Folder",
-        "Continued without a working folder; the visible setup log remains available to copy.",
+        "Continued without a Projects folder; the visible setup log remains available to copy.",
       );
       setStage("usb");
     } finally {
@@ -1072,8 +1072,8 @@ export function CommissionApp() {
       setStage("folder");
       setDetail(
         folderRef.current
-          ? `${folderRef.current.name} is the current working folder. Use it or choose a different folder.`
-          : "Choose a working folder, or continue without one.",
+          ? `${folderRef.current.name} is the current Projects folder. Use it or choose a different folder.`
+          : "Choose a Projects folder, or continue without one.",
       );
       return;
     }
@@ -1202,7 +1202,7 @@ export function CommissionApp() {
       <main className="commission-layout">
         <aside aria-label="Setup progress" className="commission-steps">
           {[
-            [1, "Working folder"],
+            [1, "Projects folder"],
             [2, "XRP over USB"],
             [3, "Install and verify"],
             [4, "Verify robot connection"],
@@ -1223,14 +1223,14 @@ export function CommissionApp() {
           ))}
           <div className="commission-offline">
             <OfflineReadiness appName="Setup" />
-            {folder ? <small>Working folder: {folder.name}</small> : null}
+            {folder ? <small>Projects folder: {folder.name}</small> : null}
           </div>
         </aside>
 
         <section className="commission-panel" aria-live="polite">
           <p className="commission-kicker">ROBOT SETUP &amp; REPAIR</p>
           {stage === "loading" ? <h1>Preparing setup</h1> : null}
-          {stage === "folder" ? <h1>Choose a working folder</h1> : null}
+          {stage === "folder" ? <h1>Choose a Projects folder</h1> : null}
           {stage === "usb" ? <h1>Connect the XRP by USB-C</h1> : null}
           {stage === "network" ? <h1>Choose the robot network</h1> : null}
           {stage === "installing" ? <h1>Updating the XRP</h1> : null}
@@ -1289,7 +1289,9 @@ export function CommissionApp() {
                   className={folder ? undefined : "primary-button"}
                   onClick={chooseFolder}
                 >
-                  {folder ? "Choose different folder" : "Choose working folder"}
+                  {folder
+                    ? "Choose different folder"
+                    : "Choose Projects folder"}
                 </button>
                 <button onClick={skipFolder}>Continue without folder</button>
               </div>
@@ -1297,7 +1299,7 @@ export function CommissionApp() {
                 Choose one parent folder for your UCSBXRP projects. Each new
                 project gets its own named subfolder; source, run data, and
                 automatic copies stay with that project. Setup logs are saved
-                directly in the working folder. Chrome stores the course apps
+                directly in the Projects folder. Chrome stores the course apps
                 separately.
               </p>
             </div>

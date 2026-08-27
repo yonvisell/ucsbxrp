@@ -331,7 +331,7 @@ test("commissioning defers a course update until the folder picker and write che
         }),
     });
   });
-  await page.getByRole("button", { name: "Choose working folder" }).click();
+  await page.getByRole("button", { name: "Choose Projects folder" }).click();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -348,7 +348,7 @@ test("commissioning defers a course update until the folder picker and write che
 
   await announceCourseUpdate(page, "test-release-commission-folder");
   await expect(
-    page.getByRole("heading", { name: "Choose a working folder" }),
+    page.getByRole("heading", { name: "Choose a Projects folder" }),
   ).toBeVisible();
 
   const reloaded = page.waitForEvent("load");
@@ -426,6 +426,6 @@ test("commissioning defers a course update until the serial picker closes", asyn
   });
   await reloaded;
   await expect(
-    page.getByRole("heading", { name: "Choose a working folder" }),
+    page.getByRole("heading", { name: "Choose a Projects folder" }),
   ).toBeVisible();
 });

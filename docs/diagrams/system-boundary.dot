@@ -1,0 +1,57 @@
+digraph SystemBoundary {
+  graph [
+    bgcolor="transparent",
+    compound=true,
+    fontname="Arial",
+    nodesep=0.5,
+    pad=0.08,
+    rankdir=LR,
+    ranksep=0.72,
+    splines=polyline
+  ];
+  node [
+    color="#667984",
+    fillcolor="#ffffff",
+    fontcolor="#17343f",
+    fontname="Arial",
+    fontsize=12,
+    margin="0.14,0.09",
+    penwidth=1.1,
+    shape=box,
+    style="rounded,filled"
+  ];
+  edge [
+    arrowsize=0.65,
+    color="#4d616b",
+    fontcolor="#3f5058",
+    fontname="Arial",
+    fontsize=9.5,
+    penwidth=1.1
+  ];
+
+  ide [label="IDE\nedit and run", color="#00588a", fillcolor="#eef4f7"];
+  monitor [label="Monitor\ntelemetry and plots", color="#00588a", fillcolor="#eef4f7"];
+
+  subgraph cluster_target {
+    color="#adb5ba";
+    fontcolor="#4b5962";
+    fontsize=10;
+    label="Selected target";
+    margin=14;
+    penwidth=1;
+    style="rounded";
+
+    project [label="Project\nmain.py and modules"];
+    api [label="UCSB XRP API\nXRPBot device boundary", color="#39736f", fillcolor="#f3f8f7"];
+    virtual [label="Virtual XRP\nsimulated XRPLib", color="#8d7440", fillcolor="#f8f5ed"];
+    physical [label="Physical XRP\nRP2350 and XRPLib", color="#8d7440", fillcolor="#f8f5ed"];
+
+    project -> api [label="API calls"];
+    api -> virtual [label="device operations"];
+    api -> physical;
+  }
+
+  { rank=same; ide; monitor; }
+  ide -> project [label="project + Run / Stop / Reset", lhead=cluster_target];
+  project -> monitor [label="state, output, telemetry", ltail=cluster_target, constraint=false];
+}

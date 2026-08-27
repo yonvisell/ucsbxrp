@@ -23,13 +23,13 @@ export function GuideApp() {
         <nav className="guide-toc" aria-label="Guide sections">
           <span>Start</span>
           <a href="#virtual-run">01 First virtual run</a>
-          <a href="#projects">02 Project folders and storage</a>
+          <a href="#projects">02 Projects and files</a>
           <span className="toc-group">Develop</span>
-          <a href="#project-structure">03 Project files and data flow</a>
+          <a href="#project-structure">03 Python project structure</a>
           <a href="#components">04 Implement and test components</a>
           <span className="toc-group">Run and measure</span>
-          <a href="#physical-xrp">05 Physical XRP connection</a>
-          <a href="#monitor">06 Telemetry and export</a>
+          <a href="#physical-xrp">05 Connect a physical XRP</a>
+          <a href="#monitor">06 Record and export telemetry</a>
           <span className="toc-group">Store and troubleshoot</span>
           <a href="#offline-use">07 Using UCSBXRP without internet</a>
           <a href="#github">08 Team version control</a>
@@ -48,6 +48,12 @@ export function GuideApp() {
               also explains project storage, team version control, and common
               errors. Use the <a href="../reference/">API reference</a> for
               Python classes, functions, arguments, return values, and examples.
+            </p>
+            <p>
+              Use a current version of Google Chrome or Microsoft Edge on a
+              Windows or macOS computer for project folders and USB robot setup.
+              Other modern browsers can read the documentation and may run the
+              virtual XRP, but they cannot provide the complete course workflow.
             </p>
           </section>
 
@@ -70,8 +76,8 @@ export function GuideApp() {
             <h3>IDE controls</h3>
             <ul className="action-list">
               <li>
-                <strong>Run</strong> validates files that changed, prepares the
-                complete project on the selected target when necessary, and
+                <strong>Run</strong> validates files that changed, sends the
+                complete project to the selected target when necessary, and
                 starts the project&apos;s main Python file.
               </li>
               <li>
@@ -79,9 +85,10 @@ export function GuideApp() {
                 XRP, the course runtime also commands zero motor drive.
               </li>
               <li>
-                <strong>Reset</strong> stops the selected target and clears its
-                live course state. It also returns the virtual XRP to its
-                initial pose.
+                <strong>Reset</strong> stops the program and clears live values
+                from the selected target. It returns the virtual XRP to its
+                initial pose. On a physical XRP, the Wi-Fi connection remains
+                available for the next Run.
               </li>
               <li>
                 <strong>Validate</strong> checks every Python file without
@@ -89,42 +96,39 @@ export function GuideApp() {
                 the files have changed.
               </li>
               <li>
-                On a physical XRP, <strong>Run</strong> loads the current
-                project into temporary controller RAM over Wi-Fi before starting
-                it. Reset retains that RAM copy, boot state, and Wi-Fi
-                connection, so Run can start the same project revision again
-                immediately. Run does not install or repair the course runtime.
+                On a physical XRP, <strong>Run</strong> sends the current
+                project over the selected Wi-Fi connection. It does not install
+                the course software; use <strong>Set up or Repair</strong> for
+                that USB operation.
               </li>
             </ul>
           </GuideSection>
 
-          <GuideSection
-            id="projects"
-            number="02"
-            title="Project folders and storage"
-          >
+          <GuideSection id="projects" number="02" title="Projects and files">
             <p>
-              A <strong>working folder</strong> is the parent folder on your
-              computer that contains all of your UCSBXRP projects. Each project
-              is a named subfolder. The path above the IDE file list shows the
-              active project as <code>./ProjectName</code>.
+              The <strong>Projects folder</strong> is the parent folder on your
+              computer that contains your UCSBXRP projects. Each project has its
+              own named <strong>project folder</strong>. The path above the IDE
+              file list shows the open project as <code>./ProjectName</code>.
             </p>
-            <div className="folder-example" aria-label="Working folder example">
+            <div
+              className="folder-example"
+              aria-label="Projects folder example"
+            >
               <code>UCSBXRP/</code>
               <span>├─ SpiralLab/</span>
               <span>├─ Challenge1/</span>
               <span>└─ TeamDelivery/</span>
             </div>
             <p>
-              Under <strong>Create from template</strong>, choose a template and
-              select <strong>Create</strong>. If a working folder is connected,
-              the IDE asks for a project name, creates that project folder, and
-              opens it. Otherwise it opens a temporary browser copy and clearly
-              marks it as such. <strong>Open project</strong> opens an existing
-              project folder. After you grant the IDE access to that folder,
-              edits save automatically. The file menu below the file list
-              applies to the selected file: rename or duplicate it, delete it,
-              or choose which Python file Run executes first.
+              Select <strong>New project</strong>, choose a template, and enter
+              a project name. The IDE creates a named project folder inside the
+              Projects folder and opens it. If folder access is unavailable, the
+              IDE offers an explicit temporary browser copy instead. Select
+              <strong>Open project</strong> to open an existing project folder.
+              Edits to an open project save automatically. The selected-file
+              menu can rename, duplicate, or delete that file, or set a Python
+              file as the program entry point.
             </p>
             <p>
               When you are ready to continue,{" "}
@@ -190,16 +194,16 @@ export function GuideApp() {
               </section>
             </div>
             <div className="callout">
-              Without a working folder, the project is stored only in this
-              site&apos;s browser data. Choose a working folder so the project
-              is also saved as ordinary files on the computer.
+              A temporary browser copy can be lost if this site&apos;s browser
+              data is cleared. Choose a Projects folder so each project is
+              stored as ordinary files on the computer.
             </div>
           </GuideSection>
 
           <GuideSection
             id="project-structure"
             number="03"
-            title="Project files, units, and data flow"
+            title="Python project structure"
           >
             <p>
               <code>main.py</code> is the program entry point. It reads the task
@@ -279,14 +283,14 @@ export function GuideApp() {
             title="Implement and test components"
           >
             <p>
-              Challenge projects provide one focused file for each component you
-              implement. <strong>Validate</strong> checks Python syntax.{" "}
-              <strong>Test components</strong> runs{" "}
-              <code>component_checks.py</code> in MicroPython without running
-              the virtual or physical XRP. Each check gives one method known
-              inputs, then compares its returned value or stored class state
-              with the stated result. Do not edit the supplied{" "}
-              <code>component_checks.py</code>.
+              A challenge provides one named Python file for each component you
+              implement. The README explains what each component must do and
+              which earlier components are carried into the project.{" "}
+              <strong>Validate</strong> checks Python syntax.{" "}
+              <strong>Test components</strong> runs focused examples without
+              moving the virtual or physical XRP. Each example states its inputs
+              and expected result before showing PASS, NOT IMPLEMENTED, or FAIL.
+              Do not edit the supplied <code>component_checks.py</code>.
             </p>
             <div className="result-key" aria-label="Component check results">
               <div>
@@ -323,7 +327,8 @@ export function GuideApp() {
               isolate individual calculations; they do not test timing,
               interactions among components, or the full task. Run the complete
               challenge on the virtual XRP after the individual checks pass.
-              Component responsibilities and method requirements are in the{" "}
+              Component purposes, retained state, arguments, return values, and
+              method requirements are in the{" "}
               <a href={componentReference}>student component reference</a>.
             </p>
           </GuideSection>
@@ -331,20 +336,16 @@ export function GuideApp() {
           <GuideSection
             id="physical-xrp"
             number="05"
-            title="Physical XRP connection"
+            title="Connect a physical XRP"
           >
             <p>
-              Use <a href="../commission/">Set up or repair XRP</a> in desktop
-              Chrome or Edge on Windows or macOS. Connect the XRP by USB-C; the
-              setup page uses the browser&apos;s USB serial connection to
-              install or repair the persistent course runtime and configure
-              Wi-Fi. Safari and mobile browsers cannot perform USB setup. After
-              setup, Run prepares the current project in temporary controller
-              RAM over the selected Wi-Fi connection; Stop, program output, and
-              telemetry use the same connection. The same setup action is
-              available in IDE Settings. Ordinary Reset retains the prepared
-              project and Wi-Fi connection. A full controller reboot is only
-              needed during setup or exceptional recovery.
+              Open <a href="../commission/">Set up or Repair</a> in Chrome or
+              Edge on Windows or macOS. Connect the XRP by USB-C. The wizard
+              verifies the controller, installs or repairs the UCSBXRP software,
+              configures Wi-Fi, restarts the robot, and checks that the browser
+              can reach it. After setup, project transfer, Run, Stop, program
+              output, and telemetry use that Wi-Fi connection. USB-C is needed
+              again only for setup, repair, or a network change.
             </p>
             <ol className="procedure">
               <li>
@@ -359,9 +360,10 @@ export function GuideApp() {
                 <code>UCSB-XRP-NAME</code>.
               </li>
               <li>
-                If the setup page reports that firmware repair is required,
-                follow its displayed BOOT and RESET instructions. Select the
-                temporary <code>RP2350</code> drive when prompted.
+                If the wizard reports that controller firmware is missing,
+                follow its displayed BOOT and RESET instructions and select the
+                temporary <code>RP2350</code> drive when prompted. Otherwise, do
+                not press BOOT or RESET during setup.
               </li>
               <li>
                 Follow the final Wi-Fi instruction shown on the setup page. The
@@ -380,7 +382,7 @@ export function GuideApp() {
           <GuideSection
             id="monitor"
             number="06"
-            title="Telemetry, recording, and export"
+            title="Record and export telemetry"
           >
             <p>
               The Monitor shows the world view, live telemetry, program-defined
@@ -448,17 +450,30 @@ export function GuideApp() {
             number="07"
             title="Using UCSBXRP without internet"
           >
+            <h3>First online load</h3>
+            <ol className="procedure">
+              <li>
+                Open UCSBXRP while the computer has internet access and wait for{" "}
+                <strong>Course apps available offline</strong>.
+              </li>
+              <li>
+                Choose a Projects folder in the IDE. Project files are ordinary
+                files in that folder; Chrome does not store the course app
+                there.
+              </li>
+              <li>
+                If Chrome offers <strong>Install UCSBXRP app</strong>, install
+                it. This adds a launcher and separate app window, but it is not
+                required for offline use.
+              </li>
+            </ol>
+            <h3>Opening UCSBXRP without internet</h3>
             <p>
-              Open UCSBXRP once while the computer has internet access and wait
-              for <strong>Course apps saved in Chrome</strong>. Chrome saves the
-              IDE, Monitor, virtual XRP, Guide, API reference, and setup page in
-              the current Chrome profile. Another browser or Chrome profile must
-              complete its own first online load.
-            </p>
-            <p>
-              The course application copy and your project files are separate.
-              Project files are ordinary files in the working folder you choose;
-              the saved application is not copied into that folder.
+              Reopen the installed UCSBXRP app, or revisit the same UCSBXRP
+              address from the same Chrome profile. Chrome can load the saved
+              IDE, Monitor, virtual XRP, Guide, API reference, and setup page.
+              Another browser or Chrome profile must complete its own first
+              online load.
             </p>
             <div className="offline-capabilities">
               <section>
@@ -471,9 +486,9 @@ export function GuideApp() {
                   <li>Validate and run projects on the virtual XRP.</li>
                   <li>
                     Read and write project files after granting access to their
-                    working folder. If the IDE later reports that folder access
-                    is needed, select <strong>Reconnect</strong> and choose the
-                    same working folder.
+                    Projects folder. If the IDE later reports that folder access
+                    is needed, select <strong>Reconnect</strong> and choose that
+                    folder again.
                   </li>
                   <li>
                     Connect to a physical XRP over local Wi-Fi while the
@@ -492,34 +507,29 @@ export function GuideApp() {
                     GitHub pull, push, and web pages require internet access.
                   </li>
                   <li>
-                    Without a selected working folder, the project remains only
-                    in this site&apos;s browser data. Select a working folder to
-                    retain it as ordinary files independently of browser data.
+                    A temporary browser project exists only in this site&apos;s
+                    browser data. Save it in a Projects folder before relying on
+                    it offline.
                   </li>
                   <li>
                     Clearing this site&apos;s browser data removes the saved
                     course apps, settings, temporary browser copies, and
                     remembered folder access. It does not remove project files
-                    in the working folder; select that folder again to restore
+                    in the Projects folder; select that folder again to restore
                     access.
                   </li>
                 </ul>
               </section>
             </div>
+            <h3>Updates</h3>
             <p>
-              Installing the UCSBXRP app is strongly recommended when Chrome
-              offers that option in its address bar or menu. Installation adds
-              an application launcher and a separate UCSBXRP window; it is not
-              required for offline use and does not copy the application into
-              the working folder. Whenever UCSBXRP opens with internet access,
-              Chrome checks for a newer course release.{" "}
-              <strong>Course update ready</strong> means the complete update is
-              already saved; the current page will reopen after its run, file
-              save, setup action, or export finishes. In the Monitor, export
-              anything needed and then clear the retained recording and notes.
-              Project files in the working folder are not replaced. After the
-              page reopens, wait for the selected XRP to report ready before
-              running.
+              When UCSBXRP opens with internet access, Chrome checks for a newer
+              course release. <strong>Course update ready</strong> means the new
+              application files are already saved. The page waits for a run,
+              file save, setup action, or export to finish before reopening.
+              Application updates do not replace projects in the Projects
+              folder. After a page reopens, wait for the selected XRP to report
+              ready before running.
             </p>
           </GuideSection>
 
@@ -544,11 +554,11 @@ export function GuideApp() {
               </li>
               <li>
                 Clone the team repository to the computer. Use the cloned
-                repository as the UCSBXRP working folder so every named project
-                subfolder is included in version control.
+                repository as the UCSBXRP Projects folder so every named project
+                folder is included in version control.
               </li>
               <li>
-                In the IDE, choose or change the working folder and select the
+                In the IDE, choose or change the Projects folder and select the
                 cloned repository. Create a project from a template, or select
                 <strong>Open project</strong> and choose an existing project
                 subfolder inside it.
@@ -642,7 +652,7 @@ export function GuideApp() {
                 <a href="../commission/">Set up or repair XRP</a>.
               </li>
               <li>
-                <strong>The working folder is disconnected:</strong> select{" "}
+                <strong>The Projects folder is disconnected:</strong> select{" "}
                 <strong>Reconnect</strong> and choose the same folder again.
               </li>
               <li>
@@ -782,7 +792,7 @@ export function GuideApp() {
                 <tr>
                   <td>Project preparation</td>
                   <td>Prepared in the virtual-run worker</td>
-                  <td>Prepared in temporary controller RAM over Wi-Fi</td>
+                  <td>Sent to the controller over Wi-Fi before Run</td>
                 </tr>
                 <tr>
                   <td>Telemetry</td>

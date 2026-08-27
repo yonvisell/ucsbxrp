@@ -307,7 +307,7 @@ export function waitForOfflineShell(
     return Promise.reject(
       new Error(
         current.message ??
-          "Wait for Course apps saved in Chrome before changing Wi-Fi.",
+          "Wait for Course apps available offline before changing Wi-Fi.",
       ),
     );
   }
@@ -326,7 +326,7 @@ export function waitForOfflineShell(
         reject(
           new Error(
             status.message ??
-              "Wait for Course apps saved in Chrome before changing Wi-Fi.",
+              "Wait for Course apps available offline before changing Wi-Fi.",
           ),
         );
       }

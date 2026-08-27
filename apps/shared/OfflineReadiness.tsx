@@ -10,9 +10,9 @@ import {
 
 const stateText: Record<Exclude<OfflineShellState, "ready">, string> = {
   development: "Local development",
-  installing: "Saving course apps in Chrome",
-  unsupported: "Course apps not saved",
-  error: "Course apps not fully saved",
+  installing: "Preparing course apps for offline use",
+  unsupported: "Offline course apps unavailable",
+  error: "Offline course-app copy incomplete",
 };
 
 interface OfflineReadinessProps {
@@ -38,13 +38,13 @@ export function OfflineReadiness({
   const stateLabel = status.updateVersion
     ? "Course update ready"
     : status.state === "ready"
-      ? "Course apps saved in Chrome"
+      ? "Course apps available offline"
       : stateText[status.state];
   const detail = status.updateVersion
     ? (pendingUpdateDetail ??
       "A newer UCSBXRP course release is saved in Chrome. This page will reopen after its current run, save, setup step, or export is complete.")
     : status.state === "ready"
-      ? `Chrome saved ${appName} and the other UCSBXRP course apps for this site; reopen them in this browser without internet. Project files stay in the selected working folder; without one, only a temporary browser copy is available.`
+      ? `Chrome saved a local copy of ${appName} and the other UCSBXRP course apps for this site. Reopen them from this browser profile without internet. Project files are separate and stay in the selected Projects folder; without one, only a temporary browser copy is available.`
       : status.state === "development"
         ? `Course release ${courseRelease.release_id}; this local development page does not save the course apps in Chrome.`
         : (status.message ??

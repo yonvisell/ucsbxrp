@@ -291,8 +291,17 @@ once, usually near the top of `main.py`, and read their `.value` properties in
 the loop.
 
 `live.number`, `live.toggle`, and `live.choice` return a `LiveParameter`. Its
-read-only `.value` property contains the setting currently applied to the
-program.
+`.value` property contains the setting currently applied to the program. Read
+this property in the program; do not assign to it directly. The other readable
+properties describe the Monitor control:
+
+- `.name` and `.label` identify the control in code and in the Monitor.
+- `.kind` is `"number"`, `"toggle"`, or `"choice"`.
+- `.unit` is the displayed unit or an empty string.
+- `.minimum`, `.maximum`, and `.step` describe a numerical slider and are
+  `None` for other control types.
+- `.options` contains the available strings for a choice and is empty for
+  other control types.
 
 ```python
 from ucsb_xrp import live
