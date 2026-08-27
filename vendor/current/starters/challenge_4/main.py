@@ -12,16 +12,18 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import OccupancyGrid
 
 
-grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
-path = make_grid_planner().plan(
-    grid,
-    grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm),
-    grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm),
-)
+def run_challenge():
+    """Plan and follow the mapped route, or report that no route exists."""
+    grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
+    path = make_grid_planner().plan(
+        grid,
+        grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm),
+        grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm),
+    )
+    if path is None:
+        print("No route to the destination")
+        return None
 
-if path is None:
-    print("No route to the destination")
-else:
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
@@ -32,5 +34,9 @@ else:
         print("Challenge 4 complete")
         print("path_cells:", len(path.cells))
         print("final_pose:", state.pose)
+        return state
     finally:
         robot.stop()
+
+
+run_challenge()

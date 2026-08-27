@@ -49,12 +49,8 @@ TURN_TOLERANCE_RAD = 0.06
 MAX_FORWARD_TRAVEL_MM = 1100.0
 MAX_TURN_STEPS = 300
 
-robot = make_robot(ROBOT_CONFIG)
-state = None
-
-
-def drive_until_close():
-    global state
+def drive_until_close(robot, state):
+    """Drive until range or travel ends this phase; return the latest state."""
     start_pose = state.pose
     range_samples = []
     live.watch("phase", "driving")
@@ -68,7 +64,7 @@ def drive_until_close():
         range_mm = robot.estimate_range(range_samples, minimum_usable=3)
         live.watch("range_mm", range_mm if range_mm is not None else "—", unit="mm")
         if range_mm is not None and range_mm <= CLOSE_RANGE_MM.value:
-            return
+            return state
 
         dx_mm = state.pose.x_mm - start_pose.x_mm
         dy_mm = state.pose.y_mm - start_pose.y_mm
@@ -78,8 +74,8 @@ def drive_until_close():
             raise RuntimeError("No obstacle detected within the demo distance")
 
 
-def turn_quarter_turn():
-    global state
+def turn_quarter_turn(robot, state):
+    """Turn approximately 90 degrees and return the latest state."""
     direction = 1.0 if TURN_DIRECTION.value == "left" else -1.0
     target_heading = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
     live.watch("phase", "turning " + TURN_DIRECTION.value)
@@ -87,19 +83,26 @@ def turn_quarter_turn():
         error = wrap_angle_rad(target_heading - state.pose.heading_rad)
         live.watch("heading_error_rad", error, unit="rad")
         if abs(error) <= TURN_TOLERANCE_RAD:
-            return
+            return state
         state = robot.step(MotionCommand(0.0, direction * TURN_RATE_RAD_S.value))
     raise RuntimeError("The XRP did not complete the quarter turn")
 
 
-try:
-    state = robot.start(Pose(0.0, 0.0, 0.0))
-    drive_until_close()
-    turn_quarter_turn()
-    if SECOND_APPROACH.value:
-        drive_until_close()
-    live.watch("phase", "complete")
-    print("Obstacle-turn demo complete")
-    print("final_pose:", state.pose)
-finally:
-    robot.stop()
+def run_demo():
+    """Run both approaches and the intervening turn."""
+    robot = make_robot(ROBOT_CONFIG)
+    try:
+        state = robot.start(Pose(0.0, 0.0, 0.0))
+        state = drive_until_close(robot, state)
+        state = turn_quarter_turn(robot, state)
+        if SECOND_APPROACH.value:
+            state = drive_until_close(robot, state)
+        live.watch("phase", "complete")
+        print("Obstacle-turn demo complete")
+        print("final_pose:", state.pose)
+        return state
+    finally:
+        robot.stop()
+
+
+run_demo()

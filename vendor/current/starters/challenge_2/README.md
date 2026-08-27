@@ -21,10 +21,6 @@ Turn and Return…**. The new project carries forward `sensor_model.py`,
 `differential_drive.py` and `odometry.py` begin with their supplied
 implementations selected. The Challenge 1 project remains unchanged.
 
-If no default parent folder is available, configure project storage in IDE
-**Settings**. Use **Open project…** to reopen a saved project or **New
-project…** to create an unrelated project from a template.
-
 ## What you implement
 
 Implement these two new classes:

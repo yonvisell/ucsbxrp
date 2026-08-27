@@ -19,10 +19,6 @@ Waypoint Courier…**. The new project carries forward `sensor_model.py`,
 with their component selections. `navigation_controller.py` begins with its
 supplied implementation selected. The Challenge 2 project remains unchanged.
 
-Project storage for new projects is configured in IDE **Settings**. Use **Open
-project…** to reopen an existing project folder or **New project…** to create an
-unrelated project from a template.
-
 ## What you implement
 
 Implement `NavigationController` in `navigation_controller.py`. It retains the

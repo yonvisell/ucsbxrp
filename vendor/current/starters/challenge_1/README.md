@@ -109,12 +109,6 @@ the matching `USE_STUDENT_*` flag in `course_setup.py` to `True`.
    clear. On the marked lane, record final wheel travel, elapsed time, requested
    and measured speed, and drive command.
 
-## IDE project actions
-
-Use **Open project…** to reopen an existing project folder. Use **New project…**
-to create a separate project from a course template. The default parent folder
-for new projects is configured under project storage in IDE **Settings**.
-
 After completing this challenge, select **Continue to Challenge 2 · Turn and
 Return…**. The IDE creates a separate project and carries forward
 `sensor_model.py`, `wheel_speed_controller.py`, and their component selections.

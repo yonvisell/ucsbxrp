@@ -589,27 +589,27 @@ main.py
     from ucsb_xrp import OccupancyGrid
 
 
-    grid = OccupancyGrid.from_arena(
-        arena=ARENA_MAP,
-        resolution_mm=GRID_RESOLUTION_MM,
-        clearance_mm=CLEARANCE_MM,
-    )
+    def run_mapped_route():
+        grid = OccupancyGrid.from_arena(
+            arena=ARENA_MAP,
+            resolution_mm=GRID_RESOLUTION_MM,
+            clearance_mm=CLEARANCE_MM,
+        )
 
-    start = grid.world_to_cell(
-        INITIAL_POSE.x_mm,
-        INITIAL_POSE.y_mm,
-    )
-    goal = grid.world_to_cell(
-        DESTINATION.x_mm,
-        DESTINATION.y_mm,
-    )
+        start = grid.world_to_cell(
+            INITIAL_POSE.x_mm,
+            INITIAL_POSE.y_mm,
+        )
+        goal = grid.world_to_cell(
+            DESTINATION.x_mm,
+            DESTINATION.y_mm,
+        )
+        path = make_grid_planner().plan(grid, start, goal)
 
-    planner = make_grid_planner()
-    path = planner.plan(grid, start, goal)
+        if path is None:
+            print("No route to the destination")
+            return None
 
-    if path is None:
-        print("No route to the destination")
-    else:
         navigation = make_navigation_controller(NAVIGATION_CONFIG)
         navigation.start(
             path.to_goals(
@@ -619,15 +619,17 @@ main.py
         )
 
         robot = make_robot(ROBOT_CONFIG)
-
         try:
             state = robot.start(INITIAL_POSE)
-
             while not navigation.is_complete():
                 command = navigation.update(state.pose)
                 state = robot.step(command)
+            return state
         finally:
             robot.stop()
+
+
+    run_mapped_route()
 
 
 Changing GridPlanner from "reference" to "student" in course_setup.py changes

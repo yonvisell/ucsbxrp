@@ -117,6 +117,3 @@ example, repeat **Test components**, and then select the student
 5. Before physical motion, inspect stationary range values and sensor
    direction. Run the matched arena from its marked start and record the range
    values, driven route, mission result, and final pose.
-
-Use **Open project…** to return to this project later. Use **New project…** only
-when you intend to create a separate project from a course template.

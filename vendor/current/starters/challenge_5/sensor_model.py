@@ -1,27 +1,38 @@
-"""Convert encoder and ultrasonic readings into physical measurements."""
+"""Convert encoder, time, range, and button readings into Measurements."""
 
+from ucsb_xrp import Measurements
 from ucsb_xrp.student_api import SensorModelBase
 
 
 class SensorModel(SensorModelBase):
-    """Retain wheel-measurement history and reduce repeated range readings."""
+    """Retain measurement history for one run and return physical values."""
 
     def reset(self, raw):
-        """Return zero-travel Measurements from the first RawSensors sample."""
-        # Keep the encoder/time behavior completed in Challenge 1.
+        """Return zero-travel Measurements from the first RawSensors sample.
+
+        raw contains device time in ms, encoder counts, range in mm or None,
+        and the USER-button state. Save the count and time origins needed by
+        later update() calls. The returned position, increment, speed, and
+        elapsed-time fields are zero; range and button state match raw.
+        """
         raise NotImplementedError("Complete SensorModel.reset")
 
     def update(self, raw):
-        """Return Measurements for the next chronological RawSensors sample."""
-        # Keep the encoder/time behavior completed in Challenge 1.
+        """Return Measurements for the next chronological RawSensors sample.
+
+        Wheel positions and increments are in mm, wheel speeds are in mm/s,
+        and dt_s is in s. Use the encoder signs and geometry in self.config.
+        Wheel increments describe only the latest sample. Wheel-speed estimates
+        use recent encoder positions and times so a single encoder-count step
+        does not appear as an instantaneous speed change.
+        """
         raise NotImplementedError("Complete SensorModel.update")
 
     def estimate_range(self, samples, minimum_usable):
-        """Return median usable range in mm, or None when too few remain.
+        """Return a median usable range in mm, or None when too few remain.
 
-        samples contains numerical ranges in mm and possibly None values.
-        minimum_usable is the required positive integer count.
+        Challenge 5 introduces this method. samples may contain numerical
+        ranges and None. Ignore missing, nonfinite, Boolean, zero, and negative
+        values. minimum_usable is a positive integer.
         """
-        # Keep positive finite numbers. Return their median, or None if fewer
-        # than minimum_usable readings remain.
-        raise NotImplementedError("Complete SensorModel.estimate_range")
+        raise NotImplementedError("Complete SensorModel.estimate_range in Challenge 5")

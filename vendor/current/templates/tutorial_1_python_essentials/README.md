@@ -72,6 +72,18 @@ Python decimal calculations can have very small rounding differences. When a
 calculated decimal is checked, compare it within a stated tolerance rather than
 requiring exact equality.
 
+## What the following tutorials add
+
+- Tutorial 2 introduces a class, instance variables, lists of objects, and
+  nested loops while the supplied runner draws a path with the Virtual XRP.
+- Tutorial 3 introduces the measured `Robot.start()`, `Robot.step()`, and
+  `Robot.stop()` program structure.
+- Tutorial 4 introduces named behavior states, live parameters, watched values,
+  and plot signals driven by measured robot state.
+
+Each tutorial keeps the exercise code in `student_work.py` and checks it with
+explicit software inputs before a robot run.
+
 ## Debugging method
 
 Read the first reported file and line number. Inspect that line and the line

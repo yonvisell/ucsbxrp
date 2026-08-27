@@ -36,6 +36,9 @@ history; they are not parallel plans. Detailed validation belongs in
 - Five cumulative challenge projects carry prior student modules forward.
   Their README files identify the task, supplied code, student work, and
   measurable behavior; mutable task values remain in code rather than prose.
+  Every starter now copies its component stubs from one documented template
+  source, so direct entry at a later challenge does not lose the guidance given
+  in the earlier starter.
 - The Guide and API reference describe the current project, setup, execution,
   timing, component, and telemetry models. Graphviz generates the nontrivial
   diagrams, and the IDE links relevant project files to reference sections.
@@ -80,12 +83,12 @@ wrong robot.
 
 ### 3. Course-project clarity and consistency
 
-Generate repeated student component stubs from canonical documented templates
-so a student starting directly at a later challenge receives the same guidance
-as a student progressing sequentially. Remove module-global robot/state objects
-from student-visible examples; pass state explicitly and return the updated
-state. Review README repetition through a short novice observation rather than
-another wholesale prose rewrite.
+Student-visible challenge, demo, tutorial, and API examples now construct the
+robot inside a short run function; helper functions receive and return the
+current `RobotState` explicitly. Repeated component stubs come from one
+documented template source and are checked for exact parity across starters.
+Review the remaining README wording through a short novice observation rather
+than another wholesale prose rewrite.
 
 The existing visual world editor satisfies instructor world authoring. Reuse it
 inside the IDE for `world.json` only if students are expected to modify a world;

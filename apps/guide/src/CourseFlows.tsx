@@ -17,7 +17,7 @@ export function ControlCycleFlow() {
   return (
     <CourseDiagram
       alt="Control cycle: main.py or a supplied mission passes a MotionCommand to Robot.step. Robot calls DifferentialDrive, WheelSpeedController, and XRPBot to command the selected target, then calls SensorModel and Odometry to return one RobotState containing Measurements and Pose. The latest measured wheel speeds feed the next step."
-      caption="Robot.step() owns this measured cycle; main.py does not call the lower-level components itself. XRPBot is the device boundary for either target. The dashed arrow shows wheel-speed feedback used in the next step. An asterisk marks a component implemented during the course."
+      caption="Robot.step() runs this measured cycle; main.py does not call the lower-level components itself. XRPBot is the device boundary for either target. The dashed arrow shows wheel-speed feedback used in the next step. An asterisk marks a component implemented during the course."
       source="../diagrams/control-cycle.svg"
     />
   );

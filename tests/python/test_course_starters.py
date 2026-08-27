@@ -16,6 +16,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 STARTERS = ROOT / "vendor" / "current" / "starters"
 TEMPLATES = ROOT / "vendor" / "current" / "templates"
+COMPONENT_TEMPLATES = ROOT / "vendor" / "current" / "student_component_templates"
 
 
 class CourseStarterTests(unittest.TestCase):
@@ -230,6 +231,25 @@ class CourseStarterTests(unittest.TestCase):
             for name, path in paths.items():
                 with self.subTest(challenge=directory.name, file=name):
                     compile(path.read_text(encoding="utf-8"), str(path), "exec")
+
+    def test_later_starters_use_the_same_documented_component_templates(self):
+        introduced_by_challenge = {
+            "sensor_model.py": 1,
+            "wheel_speed_controller.py": 1,
+            "differential_drive.py": 2,
+            "odometry.py": 2,
+            "navigation_controller.py": 3,
+            "grid_planner.py": 4,
+        }
+        for filename, first_challenge in introduced_by_challenge.items():
+            canonical = (COMPONENT_TEMPLATES / filename).read_text(encoding="utf-8")
+            for challenge_number in range(first_challenge, 6):
+                starter = STARTERS / ("challenge_%d" % challenge_number) / filename
+                with self.subTest(
+                    component=filename,
+                    challenge=challenge_number,
+                ):
+                    self.assertEqual(starter.read_text(encoding="utf-8"), canonical)
 
     def test_each_starter_has_one_switch_per_component_introduced_so_far(self):
         expected_switches = {

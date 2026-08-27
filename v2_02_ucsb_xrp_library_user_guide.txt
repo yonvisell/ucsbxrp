@@ -186,20 +186,24 @@ motor_experiment.py
     from ucsb_xrp import XRPBot
 
 
-    bot = XRPBot(ROBOT_CONFIG)
-    bot.wait_for_button()
-    bot.reset_encoders()
-    start = bot.read()
+    def run_motor_experiment():
+        bot = XRPBot(ROBOT_CONFIG)
+        bot.wait_for_button()
+        bot.reset_encoders()
+        start = bot.read()
 
-    try:
-        bot.set_drive(EXPERIMENT_COMMAND)
-        sleep_ms(RUN_TIME_MS)
-        finish = bot.read()
-    finally:
-        bot.stop()
+        try:
+            bot.set_drive(EXPERIMENT_COMMAND)
+            sleep_ms(RUN_TIME_MS)
+            finish = bot.read()
+        finally:
+            bot.stop()
 
-    print(start)
-    print(finish)
+        print(start)
+        print(finish)
+
+
+    run_motor_experiment()
 
 EXPERIMENT_COMMAND is a DriveCommand value. The same program can be used with
 the wheels raised or with the robot on the floor. This is deliberately one
@@ -282,20 +286,25 @@ main.py
     from ucsb_xrp import StraightLineController
 
 
-    robot = make_robot(ROBOT_CONFIG)
-    straight = StraightLineController(STRAIGHT_CONFIG)
+    def run_straight_distance():
+        robot = make_robot(ROBOT_CONFIG)
+        straight = StraightLineController(STRAIGHT_CONFIG)
 
-    try:
-        state = robot.start(INITIAL_POSE)
-        straight.start(
-            measurements=state.measurements,
-            distance_mm=TRAVEL_DISTANCE_MM,
-        )
-        while not straight.is_complete():
-            command = straight.update(state.measurements)
-            state = robot.step(command)
-    finally:
-        robot.stop()
+        try:
+            state = robot.start(INITIAL_POSE)
+            straight.start(
+                measurements=state.measurements,
+                distance_mm=TRAVEL_DISTANCE_MM,
+            )
+            while not straight.is_complete():
+                command = straight.update(state.measurements)
+                state = robot.step(command)
+            return state
+        finally:
+            robot.stop()
+
+
+    final_state = run_straight_distance()
 
 TRAVEL_DISTANCE_MM comes from challenge.py. Cruise speed, approach speed,
 slowdown distance, and position tolerance come from STRAIGHT_CONFIG.
@@ -313,18 +322,23 @@ main.py
     from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 
 
-    robot = make_robot(ROBOT_CONFIG)
-    navigation = make_navigation_controller(NAVIGATION_CONFIG)
-    navigation.start(ROUTE)
+    def run_route():
+        robot = make_robot(ROBOT_CONFIG)
+        navigation = make_navigation_controller(NAVIGATION_CONFIG)
+        navigation.start(ROUTE)
 
-    try:
-        state = robot.start(INITIAL_POSE)
+        try:
+            state = robot.start(INITIAL_POSE)
 
-        while not navigation.is_complete():
-            command = navigation.update(state.pose)
-            state = robot.step(command)
-    finally:
-        robot.stop()
+            while not navigation.is_complete():
+                command = navigation.update(state.pose)
+                state = robot.step(command)
+            return state
+        finally:
+            robot.stop()
+
+
+    final_state = run_route()
 
 NavigationController.current_goal() returns the active goal.
 NavigationController.update(pose) returns the next MotionCommand.
@@ -418,18 +432,18 @@ main.py
     from ucsb_xrp import DeliveryMission
 
 
-    robot = make_robot(ROBOT_CONFIG)
-    navigation = make_navigation_controller(NAVIGATION_CONFIG)
-    planner = make_grid_planner()
+    def run_delivery():
+        mission = DeliveryMission(
+            task=DELIVERY_TASK,
+            navigation=make_navigation_controller(NAVIGATION_CONFIG),
+            planner=make_grid_planner(),
+        )
+        final_state = mission.run(make_robot(ROBOT_CONFIG))
+        print(mission.result, final_state.pose)
+        return final_state
 
-    mission = DeliveryMission(
-        task=DELIVERY_TASK,
-        navigation=navigation,
-        planner=planner,
-    )
 
-    final_state = mission.run(robot)
-    print(mission.result, final_state.pose)
+    run_delivery()
 
 DeliveryMission.result is "delivered" after successful navigation or "no_path"
 when the selected map has no route to the destination.

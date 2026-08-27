@@ -31,18 +31,22 @@ const projectLoopExample = [
   "from robot_config import ROBOT_CONFIG, STRAIGHT_CONFIG",
   "from ucsb_xrp import StraightLineController",
   "",
-  "robot = make_robot(ROBOT_CONFIG)",
-  "straight = StraightLineController(STRAIGHT_CONFIG)",
+  "def run_straight_distance():",
+  "    robot = make_robot(ROBOT_CONFIG)",
+  "    straight = StraightLineController(STRAIGHT_CONFIG)",
+  "    try:",
+  "        state = robot.start(INITIAL_POSE)",
+  "        straight.start(state.measurements, TRAVEL_DISTANCE_MM)",
   "",
-  "try:",
-  "    state = robot.start(INITIAL_POSE)",
-  "    straight.start(state.measurements, TRAVEL_DISTANCE_MM)",
+  "        while not straight.is_complete():",
+  "            command = straight.update(state.measurements)",
+  "            state = robot.step(command)",
+  "        return state",
+  "    finally:",
+  "        robot.stop()",
   "",
-  "    while not straight.is_complete():",
-  "        command = straight.update(state.measurements)",
-  "        state = robot.step(command)",
-  "finally:",
-  "    robot.stop()",
+  "",
+  "final_state = run_straight_distance()",
 ].join("\n");
 
 const componentExamples = {
@@ -261,7 +265,7 @@ export function ReferenceApp() {
 
         <main className="reference-content">
           <section className="reference-intro">
-            <h1>API reference</h1>
+            <h1>UCSB XRP API reference</h1>
             <p>
               This page documents the public UCSBXRP Python interface for course
               projects using <code>ucsb_xrp 0.4.0-dev</code>. Project programs
@@ -468,7 +472,7 @@ export function ReferenceApp() {
             name="WheelSpeedController"
             file="wheel_speed_controller.py"
             base="WheelSpeedControllerBase"
-            description="Receives requested left and right wheel speeds from DifferentialDrive and measured wheel-speed estimates from SensorModel. For each wheel, it calculates a normalized motor command intended to reduce the difference between requested and measured speed. Robot calls update() once per sample before writing the command to the motors."
+            description="At each Robot sample, DifferentialDrive supplies the requested left and right wheel speeds and SensorModel supplies estimates of the actual wheel speeds from encoder data. The controller compares each requested speed with its estimate and calculates a normalized motor command. Robot writes that command to the motors."
             state="An implementation may keep controller memory between samples. reset() must return that state to its initial condition before every run."
             constructor="WheelSpeedController(config: RobotConfig)"
             example={componentExamples.wheelController}

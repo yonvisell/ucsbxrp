@@ -24,10 +24,6 @@ Mapped Route…**. The new project carries forward the five earlier component
 files and their selections. `grid_planner.py` begins with the supplied planner
 selected. The Challenge 3 project remains unchanged.
 
-Project storage for new projects is configured in IDE **Settings**. Use **Open
-project…** to reopen an existing project folder or **New project…** to create an
-unrelated project from a template.
-
 ## What you implement
 
 Implement `GridPlanner` in `grid_planner.py`.

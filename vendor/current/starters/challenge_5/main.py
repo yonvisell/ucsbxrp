@@ -6,11 +6,17 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import DeliveryMission
 
 
-mission = DeliveryMission(
-    DELIVERY_TASK,
-    make_navigation_controller(NAVIGATION_CONFIG),
-    make_grid_planner(),
-)
-state = mission.run(make_robot(ROBOT_CONFIG))
-print("Challenge 5 result:", mission.result)
-print("final_pose:", state.pose)
+def run_challenge():
+    """Run the observed-map delivery and return its final RobotState."""
+    mission = DeliveryMission(
+        DELIVERY_TASK,
+        make_navigation_controller(NAVIGATION_CONFIG),
+        make_grid_planner(),
+    )
+    state = mission.run(make_robot(ROBOT_CONFIG))
+    print("Challenge 5 result:", mission.result)
+    print("final_pose:", state.pose)
+    return state
+
+
+run_challenge()

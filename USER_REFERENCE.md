@@ -18,18 +18,22 @@ from robot_config import ROBOT_CONFIG, STRAIGHT_CONFIG
 from ucsb_xrp import StraightLineController
 
 
-robot = make_robot(ROBOT_CONFIG)
-straight = StraightLineController(STRAIGHT_CONFIG)
+def run_straight_distance():
+    robot = make_robot(ROBOT_CONFIG)
+    straight = StraightLineController(STRAIGHT_CONFIG)
+    try:
+        state = robot.start(INITIAL_POSE)
+        straight.start(state.measurements, TRAVEL_DISTANCE_MM)
 
-try:
-    state = robot.start(INITIAL_POSE)
-    straight.start(state.measurements, TRAVEL_DISTANCE_MM)
+        while not straight.is_complete():
+            command = straight.update(state.measurements)
+            state = robot.step(command)
+        return state
+    finally:
+        robot.stop()
 
-    while not straight.is_complete():
-        command = straight.update(state.measurements)
-        state = robot.step(command)
-finally:
-    robot.stop()
+
+final_state = run_straight_distance()
 ```
 
 In an IDE-managed run, `robot.start()` begins immediately. A program launched

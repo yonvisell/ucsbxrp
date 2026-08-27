@@ -387,6 +387,24 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       timeout: 5_000,
     });
 
+    // The complete ordinary workflow must remain visible throughout this page
+    // session. The optional motion proof below deliberately reloads both pages
+    // to inject a test-owned project, so verify this history before that test
+    // harness transition rather than treating a page reload as a log archive.
+    await ide.getByRole("tab", { name: /System log/ }).click();
+    const ordinaryWorkflowLog = await ide.getByRole("log").innerText();
+    expect(ordinaryWorkflowLog.startsWith(systemLogBeforeWorkflow)).toBe(true);
+    expectOrdered(ordinaryWorkflowLog.slice(systemLogBeforeWorkflow.length), [
+      "Prepare requested",
+      "Prepare · Project prepared",
+      "Run requested",
+      "Run · Starting main.py",
+      "Running main.py",
+      "Stop requested",
+      "Stop · Stopping program",
+      "Program stopped",
+    ]);
+
     if (motionAllowed) {
       await ide.evaluate((project) => {
         localStorage.setItem(
@@ -524,18 +542,17 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
 
     await ide.getByRole("tab", { name: /System log/ }).click();
     const systemLog = await ide.getByRole("log").innerText();
-    expect(systemLog.startsWith(systemLogBeforeWorkflow)).toBe(true);
-    const workflowSystemLog = systemLog.slice(systemLogBeforeWorkflow.length);
-    expectOrdered(workflowSystemLog, [
-      "Prepare requested",
-      "Prepare · Project prepared",
-      "Run requested",
-      "Run · Starting main.py",
-      "Running main.py",
-      "Stop requested",
-      "Stop · Stopping program",
-      "Program stopped",
-    ]);
+    if (motionAllowed) {
+      expectOrdered(systemLog, [
+        "Prepare requested · Bounded physical motion proof",
+        "Prepare · Project prepared",
+        "Run requested · Bounded physical motion proof",
+        "Run · Starting main.py",
+        "Running main.py",
+      ]);
+      expect(systemLog).toContain("Stop requested");
+      expect(systemLog).toMatch(/Program (?:completed|stopped)/);
+    }
     const newDeviceLogs = await robotLogsAfter(
       request,
       endpoint,
