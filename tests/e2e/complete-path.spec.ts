@@ -402,6 +402,12 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   );
   expect(savedController).toBe("");
   await ide.getByRole("button", { name: "Open project…" }).click();
+  await ide
+    .getByRole("dialog", { name: "Open a project" })
+    .getByRole("button", {
+      name: "Open virtual-browser-check from virtual-browser-check",
+    })
+    .click();
   await expect(ide.locator(".project-operation-detail")).toHaveText(
     /Opened project folder virtual-browser-check: \d+ supported files?(?:; \d+ items? skipped)?\./,
   );

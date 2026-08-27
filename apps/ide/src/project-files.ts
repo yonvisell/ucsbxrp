@@ -54,6 +54,15 @@ export interface FolderReadResult {
   integrity: ProjectFolderIntegrity;
 }
 
+export interface ProjectFolderCandidate {
+  /** Direct child folder inside the selected Projects folder. */
+  folder: CourseDirectoryHandle;
+  folderName: string;
+  projectName: string;
+  entrypoint: string;
+  fileCount: number;
+}
+
 export interface ProjectRecoveryState {
   project: ProjectSnapshot;
   /** A divergent unsaved browser draft retained during folder reconciliation. */
@@ -740,6 +749,50 @@ async function likelyDirectProjectChildren(
     }
   }
   return names.sort((left, right) => left.localeCompare(right));
+}
+
+/**
+ * Return the valid UCSBXRP projects immediately inside a Projects folder.
+ * The full project reader is deliberately reused here so the chooser never
+ * advertises a malformed, nested, or otherwise unreadable project as safe to
+ * open. Files are only read; nothing is written until the student edits the
+ * opened project.
+ */
+export async function listDirectProjectFolders(
+  root: CourseDirectoryHandle,
+): Promise<ProjectFolderCandidate[]> {
+  const directories: Array<[string, CourseDirectoryHandle]> = [];
+  for await (const [name, handle] of root.entries()) {
+    if (
+      handle.kind === "directory" &&
+      !name.startsWith(".") &&
+      !ignoredDirectories.has(name)
+    ) {
+      directories.push([name, handle]);
+    }
+  }
+
+  const projects: ProjectFolderCandidate[] = [];
+  for (const [folderName, folder] of directories) {
+    try {
+      const opened = await readProjectFolder(folder);
+      projects.push({
+        folder,
+        folderName,
+        projectName: opened.project.name,
+        entrypoint: opened.project.entrypoint,
+        fileCount: Object.keys(opened.project.files).length,
+      });
+    } catch {
+      // A Projects folder may also contain notes, exports, or incomplete
+      // folders. They remain untouched and are not presented as projects.
+    }
+  }
+
+  return projects.sort((left, right) => {
+    const byName = left.projectName.localeCompare(right.projectName);
+    return byName || left.folderName.localeCompare(right.folderName);
+  });
 }
 
 function encodedDigestPart(value: string): Uint8Array {

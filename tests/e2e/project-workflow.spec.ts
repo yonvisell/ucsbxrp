@@ -51,6 +51,36 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("groups folder actions separately from file creation and import", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+
+  const projectActions = page.getByRole("group", { name: "Project actions" });
+  await expect(
+    projectActions.getByRole("button", { name: "Open project…" }),
+  ).toBeVisible();
+  await expect(
+    projectActions.getByRole("button", { name: "New project…" }),
+  ).toBeVisible();
+  await expect(
+    projectActions.getByRole("button", { name: "Save as project…" }),
+  ).toBeVisible();
+
+  const fileActions = page.getByRole("group", {
+    name: "Create or add project files",
+  });
+  await expect(
+    fileActions.getByRole("button", { name: "New file…" }),
+  ).toBeVisible();
+  await expect(
+    fileActions.getByRole("button", { name: "Add files…" }),
+  ).toBeVisible();
+  await expect(
+    fileActions.getByRole("button", { name: "Open project…" }),
+  ).toHaveCount(0);
+});
+
 test("Open project rejects a Projects folder without flattening its child projects", async ({
   page,
 }) => {
@@ -207,6 +237,17 @@ test("opens a valid project even when another Projects folder is remembered", as
   });
 
   await page.getByRole("button", { name: "Open project…" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Open a project" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "No valid UCSBXRP project folders were found directly inside this Projects folder.",
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Open project folder elsewhere…" })
+    .click();
 
   await expect(page.getByTestId("project-folder")).toHaveText(
     "./external-project",
@@ -221,6 +262,125 @@ test("opens a valid project even when another Projects folder is remembered", as
       }),
     )
     .toBe('print("outside remembered parent")\n');
+});
+
+test("lists direct projects in the remembered Projects folder and opens one without another picker", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.evaluate(
+    async ({ projectsLocationKey }) => {
+      const root = await navigator.storage.getDirectory();
+      const projects = await root.getDirectoryHandle("listed-projects", {
+        create: true,
+      });
+      const write = async (
+        folder: FileSystemDirectoryHandle,
+        name: string,
+        content: string,
+      ) => {
+        const file = await folder.getFileHandle(name, { create: true });
+        const writable = await file.createWritable();
+        await writable.write(content);
+        await writable.close();
+      };
+      for (const [folderName, projectName] of [
+        ["alpha-folder", "Alpha drive"],
+        ["beta-folder", "Beta turn"],
+      ] as const) {
+        const folder = await projects.getDirectoryHandle(folderName, {
+          create: true,
+        });
+        await write(
+          folder,
+          ".ucsb-xrp-project.json",
+          `${JSON.stringify({ name: projectName, entrypoint: "main.py" })}\n`,
+        );
+        await write(folder, "main.py", `print("${projectName}")\n`);
+      }
+      const notes = await projects.getDirectoryHandle("notes", {
+        create: true,
+      });
+      await write(notes, "README.md", "Not a UCSBXRP project\n");
+
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains("course-folders")) {
+            request.result.createObjectStore("course-folders");
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction("course-folders", "readwrite");
+        transaction
+          .objectStore("course-folders")
+          .put(projects, projectsLocationKey);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+      database.close();
+      (window as Window & { pickerCalls?: number }).pickerCalls = 0;
+      Object.defineProperty(window, "showDirectoryPicker", {
+        configurable: true,
+        value: async () => {
+          (window as Window & { pickerCalls?: number }).pickerCalls =
+            ((window as Window & { pickerCalls?: number }).pickerCalls ?? 0) +
+            1;
+          return projects;
+        },
+      });
+    },
+    { projectsLocationKey },
+  );
+  await page.reload();
+
+  await page.getByRole("button", { name: "Open project…" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Open a project" });
+  await expect(dialog).toContainText(
+    "The IDE opens it with read-write access and saves changes to its folder automatically.",
+  );
+  await expect(
+    dialog.getByRole("button", {
+      name: "Open Alpha drive from alpha-folder",
+    }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Open Beta turn from beta-folder" }),
+  ).toBeVisible();
+  await expect(dialog).not.toContainText("./notes");
+  expect(
+    await page.evaluate(
+      () => (window as Window & { pickerCalls?: number }).pickerCalls ?? 0,
+    ),
+  ).toBe(0);
+
+  await dialog
+    .getByRole("button", { name: "Open Beta turn from beta-folder" })
+    .click();
+  await expect(page.getByTestId("project-name")).toHaveText("Beta turn");
+  await expect(page.getByTestId("project-folder")).toHaveText("./beta-folder");
+
+  const updated = 'print("saved automatically")\n';
+  const editor = page.getByRole("textbox", { name: "main.py editor" });
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await page.keyboard.insertText(updated);
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const root = await navigator.storage.getDirectory();
+        const projects = await root.getDirectoryHandle("listed-projects");
+        const project = await projects.getDirectoryHandle("beta-folder");
+        return (
+          await (await project.getFileHandle("main.py")).getFile()
+        ).text();
+      }),
+    )
+    .toBe(updated);
 });
 
 test("requires an explicit storage choice for a new project", async ({

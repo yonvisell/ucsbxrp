@@ -73,11 +73,24 @@
   padding: 3px;
 }
 
-.project-actions button {
+.project-actions button,
+.file-create-actions button {
   min-width: 0;
   padding: 2px;
   font-size: var(--font-sm);
   white-space: nowrap;
+}
+
+.project-actions .project-storage-action {
+  grid-column: 1 / -1;
+}
+
+.file-create-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  border-top: 1px solid var(--line);
+  padding: 3px;
 }
 
 .component-check-button {
@@ -185,19 +198,6 @@
   color: var(--muted);
   font-size: var(--font-xs);
   line-height: 1.35;
-}
-
-.project-root-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 2px;
-}
-
-.project-root-actions button {
-  min-height: 18px;
-  padding: 1px 5px;
-  font-size: var(--font-xs);
 }
 
 .project-owner-state {
@@ -1017,6 +1017,75 @@
   justify-content: flex-end;
   gap: 0.4rem;
   margin-top: 0.45rem;
+}
+
+.project-chooser-dialog {
+  width: min(500px, 100%);
+  max-height: min(620px, calc(100dvh - 2rem));
+  overflow: hidden;
+}
+
+.project-choice-list {
+  display: grid;
+  min-height: 72px;
+  max-height: min(330px, 45dvh);
+  gap: 3px;
+  overflow: auto;
+  border-block: 1px solid var(--line);
+  padding: 4px 0;
+}
+
+.project-choice-list button {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.project-choice-list strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--font-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-choice-list small {
+  grid-column: 1;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-choice-list span {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.project-chooser-status {
+  min-height: 50px;
+  margin: 0;
+  padding: 12px 8px;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.project-chooser-error {
+  min-height: 0 !important;
+  line-height: 1.4;
+}
+
+.project-chooser-actions {
+  margin-top: 0;
 }
 
 @media (max-width: 1080px) {

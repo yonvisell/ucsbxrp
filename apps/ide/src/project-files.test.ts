@@ -9,6 +9,7 @@ import {
   ensureProjectFolder,
   hasProjectFolderMetadata,
   isCourseRepositoryFolder,
+  listDirectProjectFolders,
   loadRecoveredProject,
   loadRecoveredProjectState,
   normalizedProjectPath,
@@ -818,6 +819,60 @@ describe("project-folder reads", () => {
     await expect(readProjectFolder(workingFolder)).rejects.toThrow(
       "This folder contains multiple project folders (first-project, second-project). Choose one project folder rather than their parent folder.",
     );
+  });
+
+  it("lists only valid direct projects inside a Projects folder", async () => {
+    const project = (folderName: string, projectName: string) =>
+      new ReadonlyDirectoryHandle(folderName, [
+        [
+          ".ucsb-xrp-project.json",
+          new ReadonlyFileHandle(
+            ".ucsb-xrp-project.json",
+            `${JSON.stringify({ name: projectName, entrypoint: "main.py" })}\n`,
+          ),
+        ],
+        ["main.py", new ReadonlyFileHandle("main.py", "print('ready')\n")],
+      ]);
+    const malformed = new ReadonlyDirectoryHandle("malformed", [
+      [
+        ".ucsb-xrp-project.json",
+        new ReadonlyFileHandle(".ucsb-xrp-project.json", "not json"),
+      ],
+      ["main.py", new ReadonlyFileHandle("main.py", "print('bad')\n")],
+    ]);
+    const notes = new ReadonlyDirectoryHandle("notes", [
+      ["README.md", new ReadonlyFileHandle("README.md", "course notes\n")],
+    ]);
+    const projectsFolder = new ReadonlyDirectoryHandle("XRP Projects", [
+      ["zeta-folder", project("zeta-folder", "Zeta project")],
+      ["alpha-folder", project("alpha-folder", "Alpha project")],
+      ["malformed", malformed],
+      ["notes", notes],
+    ]);
+
+    const candidates = await listDirectProjectFolders(projectsFolder);
+
+    expect(
+      candidates.map(({ folderName, projectName, entrypoint, fileCount }) => ({
+        folderName,
+        projectName,
+        entrypoint,
+        fileCount,
+      })),
+    ).toEqual([
+      {
+        folderName: "alpha-folder",
+        projectName: "Alpha project",
+        entrypoint: "main.py",
+        fileCount: 1,
+      },
+      {
+        folderName: "zeta-folder",
+        projectName: "Zeta project",
+        entrypoint: "main.py",
+        fileCount: 1,
+      },
+    ]);
   });
 
   it("rejects a project folder that contains a second project folder", async () => {
