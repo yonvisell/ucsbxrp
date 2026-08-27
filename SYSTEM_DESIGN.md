@@ -366,9 +366,14 @@ sequence numbers restart. The client uses request deadlines, bounded polling,
 one shared connection, and short repeated discovery probes after an intentional
 reboot; an in-flight telemetry timeout cannot replace the reconnecting status.
 The shared client requests active-run telemetry every 125 ms and returns to
-250 ms when idle. The XRP still buffers the 50 Hz course samples, so this
-reduces HTTP and MicroPython interpreter contention without reducing the
-recorded sample rate or changing the on-robot control loop.
+250 ms when idle. The XRP buffers the 50 Hz course samples and retained output,
+then returns them in small cursor-ordered pages. A client requests the next
+page immediately while a backlog remains and publishes a terminal state only
+after that backlog is drained. This bounds the single HTTP response that a
+Run, Stop, Reset, or parameter command may have to wait behind. The ring is
+finite; if Wi-Fi throughput cannot carry every retained sample, the sequence
+gap remains explicit in the log and recording metadata. Neither HTTP polling
+nor such an observation gap changes the on-robot control loop.
 
 The project transfer manifest includes the same content revision calculated by
 the browser. A transfer builds an inactive RAM-backed FAT volume and becomes

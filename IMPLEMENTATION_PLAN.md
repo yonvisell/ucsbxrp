@@ -642,3 +642,23 @@ Usable result: publishing a course correction does not overwrite student files,
 interrupt setup or robot commands, discard retained observations, or combine
 commissioning files from different releases. An open page moves to the new
 release at its next safe boundary.
+
+### Refinement 24 — Shared physical authority and responsive commands
+
+Status: implemented and validated twice in Stable Chrome on the attached XRP.
+
+- Keep IDE project ownership in the browser coordinator; ignore the physical
+  backend's document-local provider event because that backend has no editor.
+- Return retained output and physical telemetry in bounded, ordered pages and
+  immediately drain subsequent pages through the existing cursors.
+- Defer final ready/error publication until retained output and samples have
+  reached both applications. Leave the uncapped state endpoint available for
+  explicit diagnostics.
+- Verify repeated IDE/Monitor Run and Stop, edited-project transfer, Reset,
+  post-Reset execution, motor effort, encoder distance, output ordering, and
+  default-project restoration on one station-network boot.
+
+Usable result: Monitor can run the active IDE project, both applications retain
+one coherent physical state, and control commands do not wait behind an
+unbounded diagnostic response. Hardware evidence moved commissioning/network
+recovery stress ahead of refactoring and performance work.

@@ -1244,6 +1244,97 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["samples"][-1]["xMm"], 8.0)
         read_hardware.assert_not_called()
 
+    def test_telemetry_pages_backlog_and_defers_the_final_stopped_sample(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        base = {
+            "xMm": 0.0,
+            "yMm": 0.0,
+            "headingRad": 0.0,
+            "leftWheelSpeedMmS": 80.0,
+            "rightWheelSpeedMmS": 80.0,
+            "leftWheelDistanceMm": 0.0,
+            "rightWheelDistanceMm": 0.0,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "leftEffort": 0.2,
+            "rightEffort": 0.2,
+            "requestedForwardSpeedMmS": 80.0,
+            "requestedTurnRateRadS": 0.0,
+            "targetLeftWheelSpeedMmS": 80.0,
+            "targetRightWheelSpeedMmS": 80.0,
+        }
+        retained = [
+            {
+                **base,
+                "sampleSeq": sequence,
+                "sampleTimeMs": (sequence - 1) * 20,
+            }
+            for sequence in range(1, 11)
+        ]
+        self.service._logs[:] = [
+            {"seq": sequence, "tMs": sequence, "stream": "stdout", "line": str(sequence)}
+            for sequence in range(1, 11)
+        ]
+        self.service._sample_seq = 10
+        hardware = {
+            "leftEncoderCount": 20,
+            "rightEncoderCount": 21,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": 25.0,
+            "batteryV": 6.0,
+            "sensorError": None,
+        }
+
+        with (
+            patch.object(
+                course_telemetry,
+                "buffered_state_snapshots",
+                side_effect=lambda after: tuple(
+                    item for item in retained if item["sampleSeq"] > after
+                ),
+                create=True,
+            ),
+            patch.object(course_telemetry, "state_snapshot", return_value=retained[-1], create=True),
+            patch.object(self.service, "_read_hardware", return_value=hardware),
+        ):
+            first = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    )
+                ).body.decode("utf-8")
+            )
+            second = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "8", "afterSampleSeq": "8"}
+                    )
+                ).body.decode("utf-8")
+            )
+
+        self.assertEqual([item["seq"] for item in first["logs"]], list(range(1, 9)))
+        self.assertEqual([item["seq"] for item in first["samples"]], list(range(1, 9)))
+        self.assertTrue(first["moreLogs"])
+        self.assertTrue(first["moreSamples"])
+        self.assertEqual(first["sample"]["seq"], 8)
+
+        self.assertEqual([item["seq"] for item in second["logs"]], [9, 10])
+        self.assertEqual([item["seq"] for item in second["samples"]], [9, 10, 11])
+        self.assertFalse(second["moreLogs"])
+        self.assertFalse(second["moreSamples"])
+        self.assertEqual(second["sample"]["seq"], 11)
+
+        full_state = json.loads(
+            self.service.state(
+                types.SimpleNamespace(query={"afterLogSeq": "0"})
+            ).body.decode("utf-8")
+        )
+        self.assertEqual(len(full_state["logs"]), 10)
+        self.assertNotIn("moreLogs", full_state)
+
     def test_active_telemetry_poll_renews_only_its_matching_run(self):
         self.service._thread_active = True
         self.service._run_id = 7

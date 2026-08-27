@@ -46,6 +46,7 @@ class FakePhysicalTarget implements TargetClient {
   resetCalls = 0;
   running = false;
   nextRunError: Error | null = null;
+  emitLocalProviderStateOnConnect = false;
 
   constructor(readonly endpoint: string) {}
 
@@ -81,6 +82,13 @@ class FakePhysicalTarget implements TargetClient {
       },
     });
     this.emit({ type: "status", state: "ready", detail: this.endpoint });
+    if (this.emitLocalProviderStateOnConnect) {
+      this.emit({
+        type: "project-provider",
+        active: false,
+        available: false,
+      });
+    }
   }
 
   disconnect(): void {
@@ -217,6 +225,55 @@ function telemetry(seq: number): TelemetrySample {
 }
 
 describe("physical target coordinator", () => {
+  it("keeps broker project authority when the shared backend reports no local provider", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      target.emitLocalProviderStateOnConnect = true;
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.7.25",
+        requestId: "connect-with-provider",
+        providesProject: true,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "connect-with-provider")).toHaveLength(1),
+    );
+
+    expect(events(ide, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: true,
+      available: true,
+    });
+    expect(events(monitor, "project-provider").at(-1)).toEqual({
+      type: "project-provider",
+      active: false,
+      available: true,
+    });
+
+    coordinator.handle(
+      monitor,
+      command({ type: "run-current", requestId: "monitor-run" }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        ide.messages.some(
+          (message) => message.type === "project-run-snapshot-request",
+        ),
+      ).toBe(true),
+    );
+  });
+
   it("carries the commissioned robot identity into shared discovery", async () => {
     const identities: Array<string | undefined> = [];
     const coordinator = new PhysicalTargetCoordinator(

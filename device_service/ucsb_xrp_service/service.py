@@ -37,7 +37,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.34"
+COURSE_RELEASE = "2026.08-dev.35"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -54,6 +54,8 @@ STARTUP_LEASE_MS = 10000
 LAUNCH_AFTER_RESPONSE_MS = 80
 SERVICE_WATCHDOG_MS = 7000
 LOG_LIMIT = 160
+TELEMETRY_LOG_BATCH_LIMIT = 8
+TELEMETRY_SAMPLE_BATCH_LIMIT = 8
 STOP_GRACE_MS = 2500
 PROJECT_WORKER_IDLE_MS = 5
 PROJECT_WORKER_START_TIMEOUT_MS = 500
@@ -1110,8 +1112,8 @@ def _hardware_sample():
     )
 
 
-def _buffered_course_samples(after_sample_seq):
-    """Read the bounded course-state ring and perform device I/O at most once."""
+def _buffered_course_samples(after_sample_seq, maximum=None):
+    """Read one ordered page from the bounded course-state ring."""
     try:
         from ucsb_xrp._telemetry import buffered_state_snapshots
 
@@ -1120,6 +1122,9 @@ def _buffered_course_samples(after_sample_seq):
         # A service installed beside an older course package still exposes the
         # legacy single-sample response instead of failing the endpoint.
         snapshots = ()
+    more = maximum is not None and len(snapshots) > maximum
+    if more:
+        snapshots = snapshots[:maximum]
     try:
         from ucsb_xrp._telemetry import hardware_snapshot
 
@@ -1127,13 +1132,13 @@ def _buffered_course_samples(after_sample_seq):
     except (ImportError, AttributeError):
         mirrored_hardware = None
     if not snapshots:
-        return []
+        return [], more
     hardware = (
         (mirrored_hardware or _last_hardware or _empty_hardware())
         if _thread_active
         else _read_hardware()
     )
-    return [_course_sample(snapshot, hardware) for snapshot in snapshots]
+    return [_course_sample(snapshot, hardware) for snapshot in snapshots], more
 
 
 def _runtime_snapshot_json():
@@ -1148,16 +1153,23 @@ def _runtime_snapshot_json():
         return '{"revision":0,"parameters":[],"watches":[],"plots":[]}'
 
 
-def _state_result(after_log_seq=0):
-    return {
+def _state_result(after_log_seq=0, maximum_logs=None):
+    logs = [item for item in _logs if item["seq"] > after_log_seq]
+    more_logs = maximum_logs is not None and len(logs) > maximum_logs
+    if more_logs:
+        logs = logs[:maximum_logs]
+    value = {
         "bootId": _boot_id,
         "state": _state,
         "detail": _detail,
         "runId": _run_id,
         "project": _read_manifest(),
         "runtimeJson": _runtime_snapshot_json(),
-        "logs": [item for item in _logs if item["seq"] > after_log_seq],
+        "logs": logs,
     }
+    if maximum_logs is not None:
+        value["moreLogs"] = more_logs
+    return value
 
 
 def _remember_reply(request_id, value):
@@ -1273,8 +1285,11 @@ def telemetry(request):
         # browser is present. Renew the run here instead of requiring a second
         # serialized HTTP request before the next poll or a Stop command.
         _extend_run_lease(LEASE_MS)
-    value = _state_result(after)
-    samples = _buffered_course_samples(after_sample)
+    value = _state_result(after, TELEMETRY_LOG_BATCH_LIMIT)
+    samples, more_samples = _buffered_course_samples(
+        after_sample, TELEMETRY_SAMPLE_BATCH_LIMIT
+    )
+    value["moreSamples"] = more_samples
     if _thread_active and samples:
         sample = samples[-1]
     elif _thread_active:
@@ -1291,6 +1306,11 @@ def telemetry(request):
             0.0,
             0.0,
         )
+    elif more_samples:
+        # Drain retained motion samples before publishing the final stopped
+        # sample. Otherwise its newer sequence would make the browser skip the
+        # remaining page and close a recording before all retained data arrives.
+        sample = samples[-1]
     else:
         # Preserve any final course-loop samples not yet collected, then end
         # the batch with a fresh stopped sample. A newly opened Monitor must

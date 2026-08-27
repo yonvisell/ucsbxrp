@@ -335,6 +335,14 @@ export class PhysicalTargetCoordinator {
   }
 
   private broadcast(rawEvent: TargetEvent): void {
+    if (rawEvent.type === "project-provider") {
+      // The shared backend has no document-local project provider and reports
+      // its own local state as unavailable during connect. Project authority
+      // belongs to this coordinator's broker, which knows which attached IDE
+      // owns Run. Never let the backend overwrite that per-port state.
+      this.publishProjectProviderState();
+      return;
+    }
     const event =
       rawEvent.type === "console"
         ? this.normalizeConsoleEvent(rawEvent)

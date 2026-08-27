@@ -97,6 +97,8 @@ interface PhysicalState {
   detail: string;
   runId: number;
   logs: PhysicalLog[];
+  moreLogs?: boolean;
+  moreSamples?: boolean;
   sample?: TelemetrySample;
   samples?: TelemetrySample[];
   project?: PhysicalProjectManifest | null;
@@ -1126,10 +1128,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
       }
       this.consecutivePollFailures = 0;
       this.consumeState(state);
+      const hasBacklog = state.moreLogs === true || state.moreSamples === true;
       this.schedulePoll(
-        state.state === "running"
-          ? this.activePollIntervalMs
-          : this.pollIntervalMs,
+        hasBacklog
+          ? 0
+          : state.state === "running"
+            ? this.activePollIntervalMs
+            : this.pollIntervalMs,
       );
     } catch (error) {
       if (
@@ -1250,7 +1255,12 @@ export class DirectPhysicalTargetClient implements TargetClient {
       state.detail.toLowerCase().includes("program stopped after an exception")
         ? "ready"
         : state.state;
-    this.emitStatus(nextState, state.detail);
+    const terminalBacklog =
+      (nextState === "ready" || nextState === "error") &&
+      (state.moreLogs === true || state.moreSamples === true);
+    if (!terminalBacklog) {
+      this.emitStatus(nextState, state.detail);
+    }
   }
 
   private emitTelemetry(sample: TelemetrySample): void {

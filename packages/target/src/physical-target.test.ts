@@ -1236,6 +1236,99 @@ describe("physical target", () => {
     }
   });
 
+  it("drains bounded telemetry pages before publishing the terminal state", async () => {
+    vi.useFakeTimers();
+    const requestedUrls: string[] = [];
+    const replies = [
+      {
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Program completed",
+        runId: 1,
+        logs: [{ seq: 1, stream: "stdout", line: "first page" }],
+        samples: [physicalSample(1)],
+        sample: physicalSample(1),
+        moreLogs: true,
+        moreSamples: true,
+      },
+      {
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Program completed",
+        runId: 1,
+        logs: [{ seq: 2, stream: "stdout", line: "final page" }],
+        samples: [physicalSample(2)],
+        sample: physicalSample(2),
+        moreLogs: false,
+        moreSamples: false,
+      },
+    ];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response(replies.shift());
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10_000,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      events.length = 0;
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0",
+      );
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=1&afterSampleSeq=1&runId=1",
+      );
+      expect(
+        events
+          .filter((event) => event.type === "console")
+          .map((event) => event.line),
+      ).toEqual(["first page", "final page"]);
+      expect(
+        events
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([1, 2]);
+      expect(
+        events.filter(
+          (event) => event.type === "status" && event.state === "ready",
+        ),
+      ).toEqual([
+        { type: "status", state: "ready", detail: "Program completed" },
+      ]);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("starts the sample cursor again when a new physical run begins", async () => {
     vi.useFakeTimers();
     const replies = [

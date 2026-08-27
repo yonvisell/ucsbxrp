@@ -4,6 +4,35 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 54 removes two physical cross-application failures exposed by a
+fresh raised-wheel stress run. The physical coordinator is now the sole
+authority for which attached IDE supplies a project: the shared HTTP backend
+can no longer overwrite that browser-local ownership state during connection.
+The XRP also returns retained logs and 50 Hz course samples in bounded,
+cursor-ordered telemetry pages. IDE or Monitor immediately drains another page
+when one remains, while Run, Stop, Reset, and parameter commands wait behind at
+most one bounded response rather than an entire retained backlog. Available
+records remain ordered and terminal ready/error state is published only after
+the final page; the uncapped `/api/v1/state` diagnostic response is unchanged.
+
+Release `2026.08-dev.35` is installed as runtime generation 16 on the attached
+RP2350 at `192.168.7.25` on Pink. Before the correction, retained telemetry took
+up to about three seconds and a physical Stop arrived after the four-second test
+program had already completed. With bounded pages, observed idle replies were
+0.25–0.46 seconds. The complete Stable Chrome physical IDE/Monitor workflow
+then passed twice consecutively (23.4 s and 24.9 s), including Monitor- and
+IDE-initiated Run, cross-window Stop, edit transfer, fast course Reset without a
+controller reboot, post-Reset Run, nonzero motor effort, encoder/wheel-distance
+change, final zero effort, complete output ordering, and restoration of the
+Expanding spiral project. Evidence is recorded in
+`docs/hardware/2026-08-27-dev35-bounded-telemetry-physical-workflow.json`.
+
+The hardware evidence changed the next dependency: commissioning and network
+recovery stress now follows this transport correction. Holistic refactoring
+and measured performance work remain after the full browser/robot suite is
+stable; telemetry optimization will preserve its role as observation rather
+than move control into the browser.
+
 Refinement 53 gives Run one explicit project owner across IDE tabs. The first
 connected IDE remains active; another IDE can edit and save independently but
 cannot change the project used by IDE or Monitor Run until the student chooses
