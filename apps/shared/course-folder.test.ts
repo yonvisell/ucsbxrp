@@ -2,12 +2,44 @@ import { describe, expect, it } from "vitest";
 
 import {
   autosaveDirectoryName,
+  courseFolderIdeHandoffKey,
+  courseFolderIsWaitingForIde,
   courseFolderPermission,
+  finishCourseFolderIdeHandoff,
+  handCourseFolderToIde,
   projectFolderIsInsideCourseFolder,
   writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
 } from "./course-folder";
+
+class MemoryStorage implements Storage {
+  private readonly values = new Map<string, string>();
+
+  get length() {
+    return this.values.size;
+  }
+
+  clear() {
+    this.values.clear();
+  }
+
+  getItem(key: string) {
+    return this.values.get(key) ?? null;
+  }
+
+  key(index: number) {
+    return [...this.values.keys()][index] ?? null;
+  }
+
+  removeItem(key: string) {
+    this.values.delete(key);
+  }
+
+  setItem(key: string, value: string) {
+    this.values.set(key, value);
+  }
+}
 
 class MemoryFileHandle {
   readonly kind = "file" as const;
@@ -208,5 +240,32 @@ describe("course-folder autosaves", () => {
     await expect(
       projectFolderIsInsideCourseFolder(course, course),
     ).resolves.toBe(false);
+  });
+});
+
+describe("commissioning folder handoff", () => {
+  it("expires instead of leaving a permanent pending marker", () => {
+    const storage = new MemoryStorage();
+    handCourseFolderToIde("robot-a", 33, storage, 1_000);
+
+    expect(courseFolderIsWaitingForIde(storage, 120_999)).toBe(true);
+    expect(courseFolderIsWaitingForIde(storage, 121_000)).toBe(false);
+    expect(storage.getItem(courseFolderIdeHandoffKey)).toBeNull();
+  });
+
+  it("ignores malformed legacy or interrupted handoff state", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(courseFolderIdeHandoffKey, "pending");
+
+    expect(courseFolderIsWaitingForIde(storage, 1_000)).toBe(false);
+    expect(storage.getItem(courseFolderIdeHandoffKey)).toBeNull();
+  });
+
+  it("can be finished explicitly after the IDE consumes it", () => {
+    const storage = new MemoryStorage();
+    handCourseFolderToIde("robot-a", 33, storage, 1_000);
+    finishCourseFolderIdeHandoff(storage);
+
+    expect(courseFolderIsWaitingForIde(storage, 1_001)).toBe(false);
   });
 });

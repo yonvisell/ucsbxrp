@@ -42,6 +42,14 @@ export const workspaceFolderChangedKey = "ucsb-xrp-workspace-folder-changed-v1";
 export const courseFolderIdeHandoffKey =
   "ucsb-xrp-course-folder-ide-handoff-v1";
 
+const courseFolderIdeHandoffLifetimeMs = 2 * 60_000;
+
+interface CourseFolderIdeHandoffRecord {
+  robotId: string;
+  releaseSequence: number;
+  expiresAtMs: number;
+}
+
 const databaseName = "ucsb-xrp-course-tools-v1";
 const databaseVersion = 1;
 const handleStoreName = "course-folders";
@@ -354,25 +362,73 @@ export async function forgetProjectFolder(): Promise<boolean> {
   return forgetFolder(projectFolderKey, courseFolderChangedKey);
 }
 
-export function handCourseFolderToIde(): void {
+function readCourseFolderIdeHandoff(
+  storage: Storage,
+): CourseFolderIdeHandoffRecord | null {
   try {
-    localStorage.setItem(courseFolderIdeHandoffKey, "pending");
+    const value = JSON.parse(
+      storage.getItem(courseFolderIdeHandoffKey) ?? "null",
+    ) as Partial<CourseFolderIdeHandoffRecord> | null;
+    if (
+      value === null ||
+      typeof value.robotId !== "string" ||
+      value.robotId.length === 0 ||
+      typeof value.releaseSequence !== "number" ||
+      !Number.isInteger(value.releaseSequence) ||
+      typeof value.expiresAtMs !== "number" ||
+      !Number.isFinite(value.expiresAtMs)
+    ) {
+      return null;
+    }
+    return {
+      robotId: value.robotId,
+      releaseSequence: value.releaseSequence,
+      expiresAtMs: value.expiresAtMs,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function handCourseFolderToIde(
+  robotId: string,
+  releaseSequence: number,
+  storage: Storage = localStorage,
+  nowMs: number = Date.now(),
+): void {
+  try {
+    storage.setItem(
+      courseFolderIdeHandoffKey,
+      JSON.stringify({
+        robotId,
+        releaseSequence,
+        expiresAtMs: nowMs + courseFolderIdeHandoffLifetimeMs,
+      } satisfies CourseFolderIdeHandoffRecord),
+    );
   } catch {
     // The remembered IndexedDB handle still remains useful to the IDE.
   }
 }
 
-export function courseFolderIsWaitingForIde(): boolean {
+export function courseFolderIsWaitingForIde(
+  storage: Storage = localStorage,
+  nowMs: number = Date.now(),
+): boolean {
   try {
-    return localStorage.getItem(courseFolderIdeHandoffKey) === "pending";
+    const record = readCourseFolderIdeHandoff(storage);
+    if (record !== null && record.expiresAtMs > nowMs) return true;
+    storage.removeItem(courseFolderIdeHandoffKey);
+    return false;
   } catch {
     return false;
   }
 }
 
-export function finishCourseFolderIdeHandoff(): void {
+export function finishCourseFolderIdeHandoff(
+  storage: Storage = localStorage,
+): void {
   try {
-    localStorage.removeItem(courseFolderIdeHandoffKey);
+    storage.removeItem(courseFolderIdeHandoffKey);
   } catch {
     // No persistent handoff state remains available to clear.
   }

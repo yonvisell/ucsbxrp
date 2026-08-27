@@ -793,7 +793,6 @@ export function CommissionApp() {
       });
       sessionRef.current = null;
       setStationPassword("");
-      if (folderRef.current) handCourseFolderToIde();
       setResult(completed);
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";
@@ -801,14 +800,20 @@ export function CommissionApp() {
       setWifiIssue("");
       setWifiNeedsRepair(false);
       setWifiProbeEnabled(false);
+      const stationFallback =
+        network.mode === "station" &&
+        completed.network.mode === "access_point" &&
+        completed.network.fallback;
       setDetail(
-        completed.network.mode === "station"
-          ? `The XRP joined ${completed.network.ssid}. Confirm that this computer is on the same network before checking the robot connection.`
-          : `USB setup is complete. Before checking the robot, join ${completed.network.ssid} from the computer's Wi-Fi menu and return to this page.`,
+        stationFallback
+          ? `The XRP could not join ${network.ssid} and started ${completed.network.ssid} instead. Join that robot hotspot from this computer's Wi-Fi menu, then check the connection.`
+          : completed.network.mode === "station"
+            ? `The XRP joined ${completed.network.ssid}. Confirm that this computer is on the same network before checking the robot connection.`
+            : `USB setup is complete. Before checking the robot, join ${completed.network.ssid} from the computer's Wi-Fi menu and return to this page.`,
       );
       recordSetup(
         "Install",
-        `Verified ${completed.installedFiles} changed and ${completed.unchangedFiles} unchanged files; XRP restarted on ${completed.network.ssid} at ${completed.network.address}.`,
+        `${stationFallback ? `Station connection to ${network.ssid} failed; using robot hotspot. ` : ""}Verified ${completed.installedFiles} changed and ${completed.unchangedFiles} unchanged files; XRP restarted on ${completed.network.ssid} at ${completed.network.address}.`,
         "success",
       );
       setStage("wifi");
@@ -915,6 +920,9 @@ export function CommissionApp() {
         },
       );
       storeTargetPreference(preference);
+      if (folderRef.current) {
+        handCourseFolderToIde(verifiedRobotId, manifest.releaseSequence);
+      }
       navigatingRef.current = true;
       setWifiIssue("");
       setWifiNeedsRepair(false);

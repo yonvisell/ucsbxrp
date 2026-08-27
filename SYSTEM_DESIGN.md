@@ -136,10 +136,14 @@ persisted nor returned to the page.
 The XRP remains connected by USB throughout inspection and installation. USB
 is the firmware, repair, and network-configuration path; the installed HTTP
 service uses either the XRP hotspot or existing Wi-Fi for physical Run,
-Monitor, and telemetry. After network activation and reset, the wizard reports every service-probe
-attempt and distinguishes an unreachable network from an incompatible service.
-An exact service/release reply stores the physical endpoint, hands any selected
-course folder to the IDE, and opens the IDE in physical mode. For a new browser,
+Monitor, and telemetry. After network activation and reset, the wizard reports
+every service-probe attempt and distinguishes an unreachable network from an
+incompatible service. An exact service/release and robot-identity reply stores
+the network mode and endpoint that were actually verified. Thus, a failed
+station join that fell back to a robot hotspot cannot hand the IDE the
+unreachable station route. Only after this check does the wizard create a
+short-lived folder handoff and open the IDE in physical mode; interrupted setup
+leaves no permanent pending state. For a new browser,
 the untouched spiral demo becomes `./Expanding-Spiral` inside that course folder.
 Recovered work is not moved automatically. The course folder itself is not imported
 as a project; an existing repository is loaded only through **Open project**. It

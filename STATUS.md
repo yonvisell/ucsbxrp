@@ -1209,3 +1209,14 @@ treated as a performance/repetition investigation rather than accepted as a
 pass. Physical commissioning and repeated project execution are the next stage.
 
 The production preview remains available at `http://127.0.0.1:4174/`.
+
+On 2026-08-27, the commissioned connection record was simplified so the
+network actually verified by the wizard is authoritative. If a requested
+station join falls back to the XRP hotspot, the next IDE now selects the
+hotspot and retains the previous station address only as an inactive route.
+The wizard also no longer creates a permanent folder-handoff marker before
+network verification: a robot-specific handoff is created only after service,
+release, and robot identity agree, expires after two minutes, and is consumed
+by the IDE. Focused target, commissioning, and handoff tests pass. Physical
+station operation remains verified on Pink; a deliberate failed-station
+fallback will be repeated during the later hotspot stress pass.

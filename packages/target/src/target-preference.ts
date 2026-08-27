@@ -274,7 +274,7 @@ export function targetPreferenceForCommissionedRobot(
         ? result.address
         : undefined,
   });
-  return targetPreferenceForPhysicalNetwork(configured, {
+  const observed = targetPreferenceForPhysicalNetwork(configured, {
     mode: result.mode,
     address: result.address,
     ssid: result.ssid,
@@ -283,6 +283,10 @@ export function targetPreferenceForCommissionedRobot(
     robotId,
     observedAtMs: result.observedAtMs,
   });
+  // Commissioning records the network that was actually verified. If a
+  // requested station join fell back to the robot hotspot, the next IDE must
+  // use that hotspot route instead of the unreachable requested station.
+  return { ...observed, physicalConnection: result.mode };
 }
 
 export function loadTargetPreference(): RobotProfile {

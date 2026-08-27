@@ -183,7 +183,7 @@ describe("shared robot profile", () => {
     });
   });
 
-  it("does not turn a commissioned station fallback into the configured route", () => {
+  it("uses the verified hotspot after a commissioned station fallback", () => {
     const commissioned = targetPreferenceForCommissionedRobot(
       stationProfile(),
       {
@@ -196,9 +196,12 @@ describe("shared robot profile", () => {
         observedAtMs: 201,
       },
     );
-    expect(commissioned.physicalConnection).toBe("station");
+    expect(commissioned.physicalConnection).toBe("access_point");
     expect(commissioned.stationEndpoint).toBe("http://192.168.7.30");
     expect(commissioned.lastObservedNetwork?.mode).toBe("access_point");
+    expect(physicalEndpointCandidates(commissioned)).toEqual([
+      XRP_ACCESS_POINT_ENDPOINT,
+    ]);
   });
 
   it("migrates a v1 station record without deleting or changing it", () => {

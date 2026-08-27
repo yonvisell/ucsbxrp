@@ -764,6 +764,11 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       localStorage.getItem("ucsb-xrp-robot-profile-v2"),
     ),
   ).toBeNull();
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem("ucsb-xrp-course-folder-ide-handoff-v1"),
+    ),
+  ).toBeNull();
   await page.evaluate(() =>
     (
       window as unknown as {
@@ -773,6 +778,13 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   );
   await page.getByRole("button", { name: "Check XRP again" }).click();
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage.getItem("ucsb-xrp-course-folder-ide-handoff-v1"),
+      ),
+    )
+    .toBeNull();
   await expect
     .poll(() =>
       page.evaluate(() =>
