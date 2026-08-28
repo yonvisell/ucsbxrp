@@ -136,6 +136,40 @@ def _access_point_identity(ap, profile):
     return ssid, channel
 
 
+def _station_power_management(wlan, network_module, apply=False):
+    """Apply or inspect the responsive station-radio setting."""
+    result = {
+        "requested": "disabled",
+        "verified": False,
+    }
+    pm_none = getattr(getattr(network_module, "WLAN", None), "PM_NONE", None)
+    if pm_none is None:
+        pm_none = getattr(network_module, "PM_NONE", None)
+    if pm_none is None:
+        result["status"] = "unsupported"
+        return result
+
+    if apply:
+        try:
+            wlan.config(pm=pm_none)
+        except Exception as exc:
+            result["status"] = "set_failed"
+            result["detail"] = type(exc).__name__ + ": " + str(exc)
+            return result
+
+    try:
+        observed = wlan.config("pm")
+    except Exception as exc:
+        result["status"] = "read_failed"
+        result["detail"] = type(exc).__name__ + ": " + str(exc)
+        return result
+
+    result["observed"] = observed
+    result["verified"] = observed == pm_none
+    result["status"] = "verified" if result["verified"] else "mismatch"
+    return result
+
+
 def _activate_access_point(config, network_module, watchdog):
     station = network_module.WLAN(
         _interface_id(network_module, "IF_STA", "STA_IF")
@@ -191,15 +225,11 @@ def _begin_station(config, network_module, watchdog):
     # RP2 Wi-Fi power saving can leave a station reporting "connected" while
     # incoming HTTP requests stall. The XRP is an interactive robot, so a
     # responsive link is more useful here than the small radio-power saving.
-    pm_none = getattr(getattr(network_module, "WLAN", None), "PM_NONE", None)
-    if pm_none is None:
-        pm_none = getattr(network_module, "PM_NONE", None)
-    if pm_none is not None:
-        try:
-            wlan.config(pm=pm_none)
-        except Exception:
-            # Older supported firmware may not expose this setting.
-            pass
+    power_management = _station_power_management(
+        wlan,
+        network_module,
+        apply=True,
+    )
     if wlan.isconnected():
         try:
             current_ssid = wlan.config("ssid")
@@ -214,11 +244,17 @@ def _begin_station(config, network_module, watchdog):
     if not wlan.isconnected():
         wlan.connect(profile["ssid"], profile["password"])
     _feed(watchdog)
-    return wlan
+    return wlan, power_management
 
 
 def _finish_station(
-    config, wlan, timeout_ms, network_module, time_module, watchdog
+    config,
+    wlan,
+    timeout_ms,
+    network_module,
+    time_module,
+    watchdog,
+    power_management,
 ):
     profile = config["station"]
 
@@ -251,6 +287,7 @@ def _finish_station(
         "ssid": profile["ssid"],
         "address": wlan.ifconfig()[0] if wlan.isconnected() else None,
         "address_mode": "static" if profile.get("ifconfig") else "dhcp",
+        "power_management": power_management,
     }
 
 
@@ -266,11 +303,17 @@ def begin_network_activation(
     network_module.hostname(config["hostname"])
     _feed(watchdog)
     station = None
+    power_management = None
     if config["mode"] == MODE_STATION:
-        station = _begin_station(config, network_module, watchdog)
+        station, power_management = _begin_station(
+            config,
+            network_module,
+            watchdog,
+        )
     return {
         "config": config,
         "station": station,
+        "power_management": power_management,
         "network_module": network_module,
     }
 
@@ -299,6 +342,7 @@ def finish_network_activation(
         network_module,
         time_module,
         watchdog,
+        activation.get("power_management"),
     )
     result["requested_mode"] = MODE_STATION
     result["fallback"] = False
@@ -310,6 +354,7 @@ def finish_network_activation(
     fallback["requested_mode"] = MODE_STATION
     fallback["fallback"] = True
     fallback["station_status"] = station_status
+    fallback["station_power_management"] = result.get("power_management")
     return fallback
 
 
@@ -342,6 +387,8 @@ def activate_network(
 def public_network_state(result):
     """Return the stable, credential-free subset exposed by the HTTP service."""
     keys = (
+        "ready",
+        "connected",
         "mode",
         "requested_mode",
         "fallback",
@@ -351,5 +398,49 @@ def public_network_state(result):
         "address",
         "address_mode",
         "channel",
+        "power_management",
+        "station_power_management",
     )
     return {key: result[key] for key in keys if key in result}
+
+
+def current_network_state(result, network_module=None):
+    """Refresh address and link status from the active WLAN interface."""
+    if network_module is None:
+        import network as network_module
+    current = dict(result) if isinstance(result, dict) else {}
+    mode = current.get("mode")
+    if mode not in (MODE_STATION, MODE_ACCESS_POINT):
+        return current
+
+    interface_name = "IF_STA" if mode == MODE_STATION else "IF_AP"
+    legacy_name = "STA_IF" if mode == MODE_STATION else "AP_IF"
+    try:
+        wlan = network_module.WLAN(
+            _interface_id(network_module, interface_name, legacy_name)
+        )
+        active = bool(wlan.active())
+        connected = bool(wlan.isconnected())
+        current["connected"] = connected
+        if mode == MODE_STATION:
+            status = _status_name(network_module, wlan.status())
+            current["ready"] = connected
+            current["status"] = status
+            current["address"] = wlan.ifconfig()[0] if connected else None
+            current["power_management"] = _station_power_management(
+                wlan,
+                network_module,
+            )
+        else:
+            current["ready"] = active
+            current["status"] = "ready" if active else "inactive"
+            current["address"] = wlan.ifconfig()[0] if active else None
+    except Exception as exc:
+        # Never publish a boot-time address after the interface can no longer
+        # be inspected; that would direct clients to a possibly stale host.
+        current["ready"] = False
+        current["connected"] = False
+        current["status"] = "unavailable"
+        current["address"] = None
+        current["interface_error"] = type(exc).__name__ + ": " + str(exc)
+    return current

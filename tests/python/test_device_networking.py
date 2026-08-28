@@ -44,6 +44,9 @@ class FakeWlan:
         self._ifconfig = ("0.0.0.0", "0.0.0.0", "0.0.0.0", "0.0.0.0")
         self.connected_with = None
         self.events = []
+        self.pm_set_error = None
+        self.pm_read_error = None
+        self.pm_read_override = None
 
     def active(self, value=None):
         if value is None:
@@ -75,9 +78,16 @@ class FakeWlan:
 
     def config(self, name=None, **settings):
         if settings:
+            if "pm" in settings and self.pm_set_error is not None:
+                raise self.pm_set_error
             self._settings.update(settings)
             self.events.append(("config", dict(settings)))
             return None
+        if name == "pm":
+            if self.pm_read_error is not None:
+                raise self.pm_read_error
+            if self.pm_read_override is not None:
+                return self.pm_read_override
         return self._settings[name]
 
     def ifconfig(self, value=None):
@@ -176,9 +186,101 @@ class DeviceNetworkingTest(unittest.TestCase):
         self.assertEqual(
             fake_network.interfaces[0].connected_with, ("Pink", "secret")
         )
-        self.assertIn(("config", {"pm": fake_network.PM_NONE}), fake_network.interfaces[0].events)
+        self.assertIn(
+            ("config", {"pm": fake_network.PM_NONE}),
+            fake_network.interfaces[0].events,
+        )
+        self.assertEqual(
+            result["power_management"],
+            {
+                "requested": "disabled",
+                "observed": fake_network.PM_NONE,
+                "verified": True,
+                "status": "verified",
+            },
+        )
         self.assertNotIn("password", result)
         self.assertGreater(watchdog.feeds, 0)
+
+    def test_station_power_management_failure_is_reported_but_not_fatal(self):
+        fake_network = FakeNetwork(station_connects=True)
+        fake_network.interfaces[0].pm_set_error = ValueError("pm unavailable")
+
+        result = NETWORKING.activate_network(
+            {
+                "version": 2,
+                "mode": "station",
+                "hostname": "ucsb-xrp",
+                "station": {"ssid": "Pink", "password": "secret"},
+                "access_point": {"password": "ucsb-xrp"},
+            },
+            network_module=fake_network,
+            time_module=FakeTime(),
+        )
+
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["power_management"]["status"], "set_failed")
+        self.assertFalse(result["power_management"]["verified"])
+        self.assertIn("ValueError", result["power_management"]["detail"])
+
+    def test_station_power_management_readback_mismatch_is_reported(self):
+        fake_network = FakeNetwork(station_connects=True)
+        fake_network.interfaces[0].pm_read_override = 0
+
+        result = NETWORKING.activate_network(
+            {
+                "version": 2,
+                "mode": "station",
+                "hostname": "ucsb-xrp",
+                "station": {"ssid": "Pink", "password": "secret"},
+                "access_point": {"password": "ucsb-xrp"},
+            },
+            network_module=fake_network,
+            time_module=FakeTime(),
+        )
+
+        self.assertEqual(result["power_management"]["status"], "mismatch")
+        self.assertEqual(result["power_management"]["observed"], 0)
+        self.assertFalse(result["power_management"]["verified"])
+
+    def test_older_firmware_without_power_control_remains_compatible(self):
+        interfaces = {
+            0: FakeWlan(0, station_connects=True),
+            1: FakeWlan(1, station_connects=True),
+        }
+
+        class LegacyNetwork:
+            STA_IF = 0
+            AP_IF = 1
+            STAT_GOT_IP = 3
+            STAT_NO_AP_FOUND = -2
+            STAT_WRONG_PASSWORD = -3
+            STAT_CONNECT_FAIL = -1
+
+            def hostname(self, _value=None):
+                return "ucsb-xrp"
+
+            def WLAN(self, interface):
+                return interfaces[interface]
+
+        result = NETWORKING.activate_network(
+            {
+                "version": 2,
+                "mode": "station",
+                "hostname": "ucsb-xrp",
+                "station": {"ssid": "Pink", "password": "secret"},
+                "access_point": {"password": "ucsb-xrp"},
+            },
+            network_module=LegacyNetwork(),
+            time_module=FakeTime(),
+        )
+
+        self.assertTrue(result["ready"])
+        self.assertEqual(
+            result["power_management"]["status"],
+            "unsupported",
+        )
+        self.assertFalse(result["power_management"]["verified"])
 
     def test_station_association_can_begin_before_other_boot_work(self):
         fake_network = FakeNetwork(station_connects=True)
@@ -281,6 +383,61 @@ class DeviceNetworkingTest(unittest.TestCase):
             }
         )
         self.assertNotIn("password", public)
+
+    def test_current_station_state_uses_the_live_dhcp_address(self):
+        fake_network = FakeNetwork(station_connects=True)
+        boot_state = NETWORKING.activate_network(
+            {
+                "version": 2,
+                "mode": "station",
+                "hostname": "ucsb-xrp",
+                "station": {"ssid": "Pink", "password": "secret"},
+                "access_point": {"password": "ucsb-xrp"},
+            },
+            network_module=fake_network,
+            time_module=FakeTime(),
+        )
+        station = fake_network.interfaces[0]
+        station._ifconfig = (
+            "192.168.7.91",
+            "255.255.255.0",
+            "192.168.7.1",
+            "192.168.7.1",
+        )
+
+        current = NETWORKING.current_network_state(
+            boot_state,
+            network_module=fake_network,
+        )
+
+        self.assertEqual(boot_state["address"], "192.168.7.34")
+        self.assertEqual(current["address"], "192.168.7.91")
+        self.assertEqual(current["status"], "connected")
+        self.assertTrue(current["power_management"]["verified"])
+
+    def test_current_station_state_does_not_publish_a_stale_address(self):
+        fake_network = FakeNetwork(station_connects=True)
+        station = fake_network.interfaces[0]
+        station._active = True
+        station._connected = False
+        boot_state = {
+            "ready": True,
+            "connected": True,
+            "mode": "station",
+            "status": "connected",
+            "ssid": "Pink",
+            "address": "192.168.7.34",
+        }
+
+        current = NETWORKING.current_network_state(
+            boot_state,
+            network_module=fake_network,
+        )
+
+        self.assertFalse(current["ready"])
+        self.assertFalse(current["connected"])
+        self.assertIsNone(current["address"])
+        self.assertEqual(current["status"], "network_not_found")
 
 
 if __name__ == "__main__":

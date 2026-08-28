@@ -99,7 +99,46 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         fake_machine.WDT = lambda timeout: types.SimpleNamespace(feed=lambda: None)
         fake_network = types.ModuleType("network")
         fake_network.STA_IF = 0
-        fake_network.WLAN = lambda _interface: None
+        fake_network.AP_IF = 1
+        fake_network.STAT_GOT_IP = 3
+        fake_network.STAT_NO_AP_FOUND = -2
+        fake_network.PM_NONE = 16
+
+        class FakeNetworkInterface:
+            def __init__(self, address):
+                self._active = True
+                self._connected = True
+                self._address = address
+                self._status = 3
+                self._settings = {"pm": 16}
+
+            def active(self):
+                return self._active
+
+            def isconnected(self):
+                return self._connected
+
+            def status(self):
+                return self._status
+
+            def ifconfig(self):
+                return (
+                    self._address,
+                    "255.255.255.0",
+                    "192.168.7.1",
+                    "192.168.7.1",
+                )
+
+            def config(self, name):
+                return self._settings[name]
+
+        cls.fake_station = FakeNetworkInterface("192.168.7.34")
+        cls.fake_access_point = FakeNetworkInterface("192.168.4.1")
+        fake_network.WLAN = lambda interface: (
+            cls.fake_station
+            if interface == fake_network.STA_IF
+            else cls.fake_access_point
+        )
         fake_network.hostname = lambda: "ucsb-xrp-test"
         fake_phew = types.ModuleType("phew")
         fake_phew.server = cls.server
@@ -248,10 +287,51 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._sample_epoch_start_ms = 0
         self.service._reset_pending = False
         self.service._network_state = None
+        self.fake_station._active = True
+        self.fake_station._connected = True
+        self.fake_station._address = "192.168.7.34"
+        self.fake_station._status = 3
+        self.fake_station._settings["pm"] = 16
         self.service._read_manifest = self.original_read_manifest
         self.service._active_project_path = self.original_active_project_path
         self.service._clear_project_modules = self.original_clear_project_modules
         self.service._stop_motors = self.original_stop_motors
+
+    def test_info_reports_live_network_address_and_status(self):
+        self.service._network_state = {
+            "ready": True,
+            "connected": True,
+            "mode": "station",
+            "requested_mode": "station",
+            "fallback": False,
+            "status": "connected",
+            "ssid": "Pink",
+            "address": "192.168.7.25",
+            "address_mode": "dhcp",
+        }
+        self.fake_station._address = "192.168.7.91"
+
+        response = self.service.info(types.SimpleNamespace())
+        value = json.loads(response.body.decode("utf-8"))
+
+        self.assertEqual(value["address"], "192.168.7.91")
+        self.assertEqual(value["network"]["address"], "192.168.7.91")
+        self.assertEqual(value["network"]["status"], "connected")
+        self.assertTrue(value["network"]["ready"])
+        self.assertTrue(value["network"]["power_management"]["verified"])
+
+        self.fake_station._connected = False
+        self.fake_station._status = -2
+        disconnected = json.loads(
+            self.service.info(types.SimpleNamespace()).body.decode("utf-8")
+        )
+        self.assertIsNone(disconnected["address"])
+        self.assertIsNone(disconnected["network"]["address"])
+        self.assertEqual(
+            disconnected["network"]["status"],
+            "network_not_found",
+        )
+        self.assertFalse(disconnected["network"]["ready"])
 
     def test_run_reply_precedes_second_core_dispatch(self):
         with tempfile.TemporaryDirectory() as project_dir:

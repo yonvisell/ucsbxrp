@@ -32,6 +32,7 @@ from .protocol import reply as protocol_reply
 from .protocol import project_revision, validate_project, validate_request_id
 from .networking import (
     begin_network_activation,
+    current_network_state,
     finish_network_activation,
     public_network_state,
 )
@@ -1219,6 +1220,7 @@ def _command(request, operation):
 @server.route("/api/v1/info")
 def info(request):
     identity = _runtime_identity()
+    network_state = current_network_state(_network_state or {}, network)
     return _json_response(
         {
             "protocol": PROTOCOL_VERSION,
@@ -1238,8 +1240,8 @@ def info(request):
             "recoveryWatchdogMs": SERVICE_WATCHDOG_MS,
             "bootId": _boot_id,
             "robotName": network.hostname(),
-            "address": _network_state["address"] if _network_state else None,
-            "network": public_network_state(_network_state or {}),
+            "address": network_state.get("address"),
+            "network": public_network_state(network_state),
             "project": _read_manifest(),
             "runtimeJson": _runtime_snapshot_json(),
             "capabilities": [
@@ -1608,6 +1610,18 @@ def _connect_wifi(timeout_ms=20000, watchdog=None, activation=None):
             "Wi-Fi setup failed with status {}".format(
                 _network_state.get("status", "unknown")
             )
+        )
+    power_management = _network_state.get("power_management")
+    if (
+        _network_state.get("mode") == "station"
+        and isinstance(power_management, dict)
+        and not power_management.get("verified")
+    ):
+        _append_log(
+            "system",
+            "Station Wi-Fi power management: {}".format(
+                power_management.get("status", "unknown")
+            ),
         )
     return _network_state["address"]
 
