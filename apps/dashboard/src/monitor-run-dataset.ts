@@ -4,6 +4,7 @@ import {
   type TargetRunState,
   type TelemetryRecordingSnapshot,
   type TelemetrySample,
+  type WorldDefinition,
 } from "@ucsb-xrp/target";
 
 import type { MonitorAnnotation } from "./monitor-export-core";
@@ -19,6 +20,7 @@ export interface MonitorRunDataset {
   target: TelemetrySample["source"];
   project: SynchronizedProject | null;
   worldId: string;
+  world: WorldDefinition;
   startedAt: string;
   finishedAt: string;
   finalState: TargetRunState;
@@ -33,6 +35,7 @@ interface ActiveRun {
   target: TelemetrySample["source"];
   project: SynchronizedProject | null;
   worldId: string;
+  world: WorldDefinition;
   startedAt: string;
 }
 
@@ -89,11 +92,13 @@ export class MonitorRunDatasetController {
     target: TelemetrySample["source"];
     project: SynchronizedProject | null;
     worldId: string;
+    world: WorldDefinition;
     startedAt: string;
   }): void {
     this.active = {
       ...options,
       project: options.project ? { ...options.project } : null,
+      world: structuredClone(options.world),
     };
     this.output = [];
     this.annotations = [];

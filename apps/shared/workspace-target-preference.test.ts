@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { XRP_ACCESS_POINT_ENDPOINT } from "@ucsb-xrp/target";
 
-import { targetPreferenceFromWorkspaceManifest } from "./workspace-target-preference";
+import {
+  targetPreferenceFromWorkspaceManifest,
+  workspaceManifestForTargetPreference,
+} from "./workspace-target-preference";
 
 describe("Working-folder target preference", () => {
   it("derives a commissioned station robot from .ucsbxrp.json", () => {
@@ -46,5 +49,50 @@ describe("Working-folder target preference", () => {
     expect(profile.physicalConnection).toBe("access_point");
     expect(profile.accessPointEndpoint).toBe(XRP_ACCESS_POINT_ENDPOINT);
     expect(profile.stationEndpoint).toBe("http://ucsb-xrp-visell.local");
+  });
+
+  it("retains the verified router route while the hotspot is selected", () => {
+    const manifest = workspaceManifestForTargetPreference(
+      {
+        schemaVersion: 1,
+        activeProject: "Expanding-Spiral",
+        settings: { target: "physical" },
+        robot: {
+          id: "robot-a",
+          name: "ucsb-xrp-visell",
+          networkMode: "station",
+          ssid: "Pink",
+          address: "192.168.7.25",
+        },
+      },
+      {
+        schemaVersion: 2,
+        kind: "physical",
+        robotId: "robot-a",
+        hostname: "ucsb-xrp-visell",
+        physicalConnection: "access_point",
+        stationEndpoint: "http://192.168.7.25",
+        accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
+        lastObservedNetwork: {
+          mode: "access_point",
+          address: XRP_ACCESS_POINT_ENDPOINT,
+          ssid: "UCSB-XRP-VISELL",
+          observedAtMs: 12,
+        },
+      },
+    );
+
+    expect(manifest.robot).toMatchObject({
+      networkMode: "access_point",
+      ssid: "UCSB-XRP-VISELL",
+      address: "192.168.4.1",
+      stationSsid: "Pink",
+      stationAddress: "192.168.7.25",
+    });
+    expect(targetPreferenceFromWorkspaceManifest(manifest)).toMatchObject({
+      physicalConnection: "access_point",
+      stationEndpoint: "http://192.168.7.25",
+      accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
+    });
   });
 });

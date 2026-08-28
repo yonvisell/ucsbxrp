@@ -46,16 +46,17 @@ export function targetPreferenceFromWorkspaceManifest(
     .toLocaleLowerCase()
     .replace(/\.local\.?$/, "");
   const verifiedEndpoint = endpoint(robot.address);
+  const verifiedStationEndpoint = endpoint(
+    robot.stationAddress ??
+      (robot.networkMode === "station" ? robot.address : ""),
+  );
   return {
     schemaVersion: 2,
     kind,
     robotId: robot.id.trim().toLocaleLowerCase(),
     hostname,
     physicalConnection: robot.networkMode,
-    stationEndpoint:
-      robot.networkMode === "station"
-        ? verifiedEndpoint
-        : `http://${hostname}.local`,
+    stationEndpoint: verifiedStationEndpoint || `http://${hostname}.local`,
     accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
     lastObservedNetwork: {
       mode: robot.networkMode,
@@ -77,6 +78,7 @@ function robotRecord(
     .replace(/\.local\.?$/, "");
   if (!id || !name) return previous;
 
+  const sameRobot = previous?.id.trim().toLocaleLowerCase() === id;
   const observation = profile.lastObservedNetwork;
   const observedOnSelectedNetwork =
     observation?.mode === profile.physicalConnection;
@@ -87,19 +89,42 @@ function robotRecord(
   const observedAddress = observedOnSelectedNetwork
     ? address(observation.address)
     : "";
+  const stationEndpoint = address(profile.stationEndpoint);
+  const identityHostname = `${name}.local`;
+  const hasVerifiedStationAddress =
+    stationEndpoint !== address(DEFAULT_TARGET_PREFERENCE.stationEndpoint) &&
+    stationEndpoint !== identityHostname;
+  const stationAddress = hasVerifiedStationAddress
+    ? stationEndpoint
+    : sameRobot
+      ? (previous?.stationAddress ??
+        (previous?.networkMode === "station" ? previous.address : ""))
+      : "";
+  const observedStationSsid =
+    observation?.mode === "station" && observation.fallback !== true
+      ? observation.ssid?.trim()
+      : undefined;
+  const stationSsid =
+    observedStationSsid ??
+    (sameRobot
+      ? (previous?.stationSsid ??
+        (previous?.networkMode === "station" ? previous.ssid : ""))
+      : "");
   return {
     id,
     name,
     networkMode: profile.physicalConnection,
     ssid:
       (observedOnSelectedNetwork ? observation.ssid?.trim() : undefined) ??
-      previous?.ssid ??
+      (sameRobot ? previous?.ssid : undefined) ??
       "",
     address: observedAddress || address(selectedEndpoint),
+    ...(stationAddress ? { stationAddress } : {}),
+    ...(stationSsid ? { stationSsid } : {}),
   };
 }
 
-function manifestForTargetPreference(
+export function workspaceManifestForTargetPreference(
   manifest: WorkspaceManifest,
   preference: RobotProfile,
 ): WorkspaceManifest {
@@ -137,7 +162,7 @@ export async function updateWorkspaceTargetPreference(
   let updated = DEFAULT_TARGET_PREFERENCE;
   const manifest = await mutateWorkspaceManifest(folder, (current) => {
     updated = update(targetPreferenceFromWorkspaceManifest(current));
-    return manifestForTargetPreference(current, updated);
+    return workspaceManifestForTargetPreference(current, updated);
   });
   if (!manifest) {
     throw new Error("The XRP setting could not be saved to .ucsbxrp.json");

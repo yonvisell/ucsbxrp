@@ -26,9 +26,10 @@ history; they are not parallel plans. Detailed validation belongs in
   automatically, and provides read-only built-in previews when no folder is
   available. IndexedDB retains only the Working-folder capability;
   `.ucsbxrp.json` owns its active Project and serializable robot/course state.
-- The IDE and Monitor share the exact current project, run state, program
-  output, telemetry history, runtime controls, and robot identity. A fresh
-  Monitor can run the default virtual project.
+- The IDE and Monitor share the exact saved Project, run state, program output,
+  telemetry history, runtime controls, and robot identity. Monitor can run that
+  Project without an open IDE; first use still requires a Working folder and a
+  saved Project.
 - Straight Run, Expanding Spiral, and the physical command path have current-release,
   raised-wheel evidence for Run, Stop, Reset, rerun, project edits, motor
   effort, encoders, wheel distance, sensor data, pose, plots, logs, and final
@@ -132,12 +133,12 @@ the default world for demos and challenges. Tutorials that do not use a physical
 XRP may use a purpose-specific world. Increase the challenge author's world
 canvas enough for practical editing at ordinary laptop sizes.
 
-The project command model is now one workflow: **Open project…** selects a valid
-Project folder, **New from template…** creates a named child project, **Save to
-folder…** gives an intentional browser draft a native folder, and autosave owns
-ordinary persistence after that. The student command is **Compile** because it
-compiles every Python source file without running the robot; the UI and Guide
-use that term consistently.
+The project command model is one workflow: **Open project…** selects a saved
+Project inside the Working folder, **New project…** creates a named Project from
+a demo, tutorial, or challenge, and **Save project…** gives a built-in preview
+its own Project folder. Autosave owns ordinary persistence after that. The
+student command is **Compile** because it compiles every Python source file
+without running the robot; the UI and Guide use that term consistently.
 
 ### 4. Update behavior and release identity
 
@@ -182,7 +183,8 @@ unauthenticated command.
   permission loss, project reopening, and network selection.
 - Separate **Implement components** from **Test components** in the Guide.
   Explain that Test components runs supplied input/output cases without moving
-  a robot and reports which student methods are incomplete or incorrect.
+  a robot and reports which required component methods are incomplete or
+  incorrect.
 - State desktop Chrome as the primary student browser on both Windows and
   macOS; describe Edge as a supported Chromium alternative, not the Windows
   default recommendation.

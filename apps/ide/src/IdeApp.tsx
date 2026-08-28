@@ -345,7 +345,8 @@ export function IdeApp({
   );
   const initialProject = initialProjectSession.project;
   const [settings, setSettings] = useState<IdeSettings>(loadSettings);
-  const [targetPreference, updateTargetPreference] = useTargetPreference();
+  const [targetPreference, updateTargetPreference, targetPreferenceReady] =
+    useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const target = useMemo<TargetClient>(() => {
     if (targetPreference.kind !== "physical") return new VirtualTargetClient();
@@ -625,6 +626,29 @@ export function IdeApp({
     projectFolderPersistence.cancelPendingWrites();
   }, [projectFolderPersistence]);
 
+  const saveCurrentProjectBeforeSwitch = useCallback(async () => {
+    const folder = workingFolderRef.current;
+    const session = projectSessionRef.current;
+    if (!folder || !projectSessionHasUnsavedChanges(session)) return;
+    setFolderSaveState("saving");
+    const outcome = await projectFolderPersistence.saveManually(
+      folder,
+      session,
+    );
+    if (outcome.status !== "saved") {
+      setFolderSaveState("error");
+      throw new Error(
+        outcome.status === "conflict"
+          ? "Resolve the Project file conflict before opening another project."
+          : "The current Project could not be saved, so it remains open.",
+      );
+    }
+    publishProjectSession(outcome.session);
+    folderDirtyRef.current = !outcome.exactRevision;
+    setFolderDirty(!outcome.exactRevision);
+    setFolderSaveState(outcome.exactRevision ? "current" : "pending");
+  }, [projectFolderPersistence, publishProjectSession]);
+
   const preserveBrowserDraft = useCallback((draft?: ProjectSnapshot) => {
     preservedBrowserDraftRef.current = draft;
     setPreservedBrowserDraft(draft ?? null);
@@ -699,10 +723,10 @@ export function IdeApp({
   );
 
   useEffect(() => {
-    if (!projectSessionReady) {
+    if (!projectSessionReady || !targetPreferenceReady) {
       targetStateRef.current = "disconnected";
       setTargetState("disconnected");
-      setTargetDetail("Opening the saved project…");
+      setTargetDetail("Opening the saved project and XRP settings…");
       return;
     }
     setProjectProviderActive(false);
@@ -775,6 +799,7 @@ export function IdeApp({
   }, [
     projectBootstrapOwner,
     projectSessionReady,
+    targetPreferenceReady,
     provideProjectRunSnapshot,
     target,
     updateTargetPreference,
@@ -795,9 +820,17 @@ export function IdeApp({
 
   useEffect(() => {
     if (!projectSessionReady || !workingFolder) return;
-    projectFolderHandleWriteRef.current = rememberProjectFolder(
-      workingFolder,
-    ).finally(retryPendingOfflineShellReload);
+    projectFolderHandleWriteRef.current = rememberProjectFolder(workingFolder)
+      .then((saved) => {
+        if (!saved) {
+          setFolderSaveState("error");
+          setOperationDetail(
+            `Chrome could not record ${workingFolder.name} as the active Project in .ucsbxrp.json. The Project remains open, but it may not reopen automatically.`,
+          );
+        }
+        return saved;
+      })
+      .finally(retryPendingOfflineShellReload);
   }, [projectSessionReady, workingFolder]);
 
   useEffect(() => {
@@ -1407,10 +1440,18 @@ export function IdeApp({
 
   const attachWorkingFolder = useCallback(
     async (folder: CourseDirectoryHandle) => {
+      if (workingFolderRef.current !== folder) {
+        await saveCurrentProjectBeforeSwitch();
+      }
       setOperationDetail(`Reading ${folder.name}…`);
       const result = await readProjectFolder(folder);
       const { folder: folderSession, result: reconciliation } =
         reconcileFolderSnapshot(result);
+      if (!(await rememberProjectFolder(folder))) {
+        throw new Error(
+          `Chrome could not record ${folder.name} as the active Project in .ucsbxrp.json.`,
+        );
+      }
       // Publish the complete project to the shared target before exposing it as
       // the active project. Monitor Run can otherwise observe the new IDE files
       // while the shared worker still owns the preceding project.
@@ -1445,6 +1486,7 @@ export function IdeApp({
       publishProjectSession,
       reconcileFolderSnapshot,
       replacePendingFolderDeletions,
+      saveCurrentProjectBeforeSwitch,
       stageOpenedProject,
       stopFolderWrites,
     ],
@@ -2322,6 +2364,9 @@ export function IdeApp({
       try {
         setNewProjectError("");
         setOperationDetail(`Creating ${newProjectDraft.trim()}…`);
+        if (projectCreationPurpose !== "save-current") {
+          await saveCurrentProjectBeforeSwitch();
+        }
         const previousSession = projectSessionRef.current;
         if (
           projectCreationPurpose !== "save-current" &&
@@ -2341,6 +2386,11 @@ export function IdeApp({
           newProjectDraft,
           snapshotForProjectSession(nextSession),
         );
+        if (!(await rememberProjectFolder(folder))) {
+          throw new Error(
+            `Created ${folder.name}, but Chrome could not record it as the active Project in .ucsbxrp.json.`,
+          );
+        }
         stopFolderWrites();
         await stageOpenedProject(nextSession.project);
         publishProjectSession(nextSession);
@@ -2414,6 +2464,7 @@ export function IdeApp({
       projectCreationPurpose,
       publishProjectSession,
       replacePendingFolderDeletions,
+      saveCurrentProjectBeforeSwitch,
       ensureWorkingFolderAccess,
       stageOpenedProject,
       stopFolderWrites,
@@ -2878,7 +2929,7 @@ export function IdeApp({
         .map((component) => component.file)
     : [];
 
-  if (!projectSessionReady) {
+  if (!projectSessionReady || !targetPreferenceReady) {
     return (
       <div
         className={`app-shell ide-app ${embeddedApplication ? "embedded-app" : ""}`}
@@ -2891,7 +2942,7 @@ export function IdeApp({
           <AppNavigation active="ide" />
         </header>
         <main data-testid="project-bootstrap" role="status">
-          Opening the saved project…
+          Opening the saved project and XRP settings…
         </main>
       </div>
     );

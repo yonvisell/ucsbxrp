@@ -13,6 +13,7 @@ type RobotProfileUpdate = (current: RobotProfile) => RobotProfile;
 /** Keep IDE and Monitor aligned with the Working-folder robot record. */
 export function useTargetPreference() {
   const [preference, setPreference] = useState(DEFAULT_TARGET_PREFERENCE);
+  const [ready, setReady] = useState(false);
   const revisionRef = useRef(0);
 
   const updatePreference = useCallback((update: RobotProfileUpdate) => {
@@ -32,7 +33,10 @@ export function useTargetPreference() {
     let disposed = false;
     const readSharedPreference = async () => {
       const loaded = await loadWorkspaceTargetPreference();
-      if (!disposed) setPreference(loaded);
+      if (!disposed) {
+        setPreference(loaded);
+        setReady(true);
+      }
     };
     void readSharedPreference();
     const unsubscribe = subscribeCourseFolderChanged(() => {
@@ -44,5 +48,5 @@ export function useTargetPreference() {
     };
   }, []);
 
-  return [preference, updatePreference] as const;
+  return [preference, updatePreference, ready] as const;
 }

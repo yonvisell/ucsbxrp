@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { TelemetrySample } from "@ucsb-xrp/target";
+import { DEFAULT_WORLD_CATALOG, type TelemetrySample } from "@ucsb-xrp/target";
 
 import { MonitorRunDatasetController } from "./monitor-run-dataset";
 
@@ -46,6 +46,7 @@ describe("Monitor run dataset", () => {
         stale: false,
       },
       worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
       startedAt: "2026-08-28T00:00:00.000Z",
     });
     controller.capture(sample("virtual", 1));
@@ -84,6 +85,7 @@ describe("Monitor run dataset", () => {
       target: "physical",
       project: null,
       worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
       startedAt: "start",
     });
 
@@ -98,6 +100,7 @@ describe("Monitor run dataset", () => {
       target: "virtual",
       project: null,
       worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
       startedAt: "next",
     });
     expect(controller.sampleCount).toBe(0);
@@ -111,6 +114,7 @@ describe("Monitor run dataset", () => {
       target: "virtual",
       project: null,
       worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
       startedAt: "start",
     });
     controller.capture(sample("virtual", 1));
@@ -139,6 +143,7 @@ describe("Monitor run dataset", () => {
       target: "virtual",
       project: null,
       worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
       startedAt: "start",
     });
     const project = {

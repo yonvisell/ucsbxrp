@@ -92,6 +92,7 @@ function completedRunMetadata(run: MonitorRunDataset) {
     finishedAt: run.finishedAt,
     target: run.target,
     worldId: run.worldId,
+    world: run.world,
     finalState: run.finalState,
     finalDetail: run.finalDetail,
     project: run.project,
@@ -491,7 +492,8 @@ function centeredWorldPreview(
 export function DashboardApp() {
   const embeddedApplication = isEmbeddedApplication();
   const projectBootstrapPending = useProjectBootstrapPending();
-  const [targetPreference, updateTargetPreference] = useTargetPreference();
+  const [targetPreference, updateTargetPreference, targetPreferenceReady] =
+    useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [worldCatalog, setWorldCatalog] = useState<WorldCatalog>(
     DEFAULT_WORLD_CATALOG,
@@ -896,6 +898,12 @@ export function DashboardApp() {
   }, []);
 
   useEffect(() => {
+    if (!targetPreferenceReady) {
+      targetStateRef.current = "disconnected";
+      setTargetState("disconnected");
+      setTargetDetail("Opening the saved XRP settings…");
+      return;
+    }
     setActiveRunId(null);
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
@@ -930,28 +938,7 @@ export function DashboardApp() {
       } else if (event.type === "status") {
         targetStateRef.current = event.state;
         const nextRunActive = isActiveRunState(event.state);
-        if (nextRunActive && !runDatasetController.isActive) {
-          const runId = `${target.kind}-${Date.now()}-${nextRunIdRef.current++}`;
-          runDatasetController.begin({
-            id: runId,
-            target: target.kind,
-            project: currentProjectRef.current,
-            worldId: selectedWorldIdRef.current,
-            startedAt: new Date().toISOString(),
-          });
-          activeRunFolderRef.current = autosaveFolderRef.current;
-          setActiveRunId(runId);
-          setLatestRun(null);
-          plotSampleHistory.clear();
-          annotationsRef.current = [];
-          setAnnotations([]);
-          setExportDetail("");
-          setRunAutosaveDetail(
-            autosaveFolderRef.current
-              ? `Will save automatically to ${autosaveFolderRef.current.name}.`
-              : "Run data will not be saved; reconnect the Project folder in the IDE.",
-          );
-        } else if (!nextRunActive && runDatasetController.isActive) {
+        if (!nextRunActive && runDatasetController.isActive) {
           finishActiveRun(event.state, event.detail);
         }
         setTargetState(event.state);
@@ -964,6 +951,13 @@ export function DashboardApp() {
         const projectChanged =
           currentProjectRef.current?.revision !== event.project?.revision;
         currentProjectRef.current = event.project;
+        if (projectChanged) {
+          setRuntimeState(emptyRuntimeState);
+          setAvailableProgramPlots([]);
+          setProgramPlotVisibility({});
+          setRuntimeDrafts({});
+          setRuntimeUpdateError("");
+        }
         if (projectChanged && runDatasetController.isActive) {
           // The executing run retains its start-time project snapshot. Edits
           // are saved for the next run and do not end telemetry collection.
@@ -1040,6 +1034,7 @@ export function DashboardApp() {
     plotSampleHistory,
     runDatasetController,
     target,
+    targetPreferenceReady,
   ]);
 
   const reset = async () => {
@@ -1058,6 +1053,7 @@ export function DashboardApp() {
   };
 
   const canRunCurrent =
+    targetPreferenceReady &&
     autosaveFolder !== null &&
     !virtualRuntimePreparing &&
     !projectBootstrapPending &&
@@ -1076,6 +1072,30 @@ export function DashboardApp() {
       } else {
         runStartingRef.current = true;
         setRunStarting(true);
+        const runId = `${target.kind}-${Date.now()}-${nextRunIdRef.current++}`;
+        const selectedWorld =
+          worldCatalog.worlds.find(
+            (world) => world.id === selectedWorldIdRef.current,
+          ) ?? worldCatalog.worlds[0]!;
+        runDatasetController.begin({
+          id: runId,
+          target: target.kind,
+          project: currentProjectRef.current,
+          worldId: selectedWorld.id,
+          world: selectedWorld,
+          startedAt: new Date().toISOString(),
+        });
+        activeRunFolderRef.current = autosaveFolderRef.current;
+        setActiveRunId(runId);
+        plotSampleHistory.clear();
+        annotationsRef.current = [];
+        setAnnotations([]);
+        setExportDetail("");
+        setRunAutosaveDetail(
+          autosaveFolderRef.current
+            ? `Will save automatically to ${autosaveFolderRef.current.name}.`
+            : "Run data will not be saved; reconnect the Project folder in the IDE.",
+        );
         if (projectProviderAvailable) {
           await target.runCurrent();
         } else {
@@ -1090,9 +1110,11 @@ export function DashboardApp() {
         }
       }
     } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
+      finishActiveRun("error", detail);
       targetStateRef.current = "error";
       setTargetState("error");
-      setTargetDetail(error instanceof Error ? error.message : String(error));
+      setTargetDetail(detail);
     } finally {
       runStartingRef.current = false;
       setRunStarting(false);
@@ -1165,7 +1187,7 @@ export function DashboardApp() {
     try {
       const fileName = timestampedName("xrp-telemetry", "csv");
       const destination = await prepareExportDestination(
-        autosaveFolder,
+        latestRunFolderRef.current,
         fileName,
         "text/csv",
       );
@@ -1261,7 +1283,9 @@ export function DashboardApp() {
     setAnnotationsVisible(true);
   };
 
-  const displayedRunSamples = latestRun?.recording.samples ?? plotSamples;
+  const displayedRunSamples = activeRunId
+    ? plotSamples
+    : (latestRun?.recording.samples ?? plotSamples);
 
   const exportPlots = async (format: "svg" | "png") => {
     if (visiblePlots.length === 0 || displayedRunSamples.length === 0) return;
@@ -1271,7 +1295,7 @@ export function DashboardApp() {
     try {
       const fileName = timestampedName("xrp-plots", format);
       const destination = await prepareExportDestination(
-        autosaveFolder,
+        latestRunFolderRef.current,
         fileName,
         format === "svg" ? "image/svg+xml" : "image/png",
       );
@@ -1308,7 +1332,7 @@ export function DashboardApp() {
     try {
       const fileName = timestampedName("xrp-world-animation", "webm");
       const destination = await prepareExportDestination(
-        autosaveFolder,
+        latestRunFolderRef.current,
         fileName,
         "video/webm",
       );
@@ -1319,9 +1343,7 @@ export function DashboardApp() {
       const blob = await createWorldReplayWebm({
         samples: latestRun.recording.samples,
         annotations: annotationsVisible ? latestRun.annotations : [],
-        world:
-          worldCatalog.worlds.find((world) => world.id === selectedWorldId) ??
-          worldCatalog.worlds[0]!,
+        world: latestRun.world,
         onProgress: (fraction) => {
           const progress = Math.floor(fraction * 100);
           if (progress !== shownProgress) {
@@ -1546,7 +1568,7 @@ export function DashboardApp() {
             <span aria-hidden="true" className={`status-dot ${targetState}`} />
             <span>
               {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} ·{" "}
-              {targetState}
+              {targetState} · {currentProject?.name ?? "No project"}
             </span>
           </div>
           {target.kind === "physical" && targetState === "error" ? (

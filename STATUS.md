@@ -1885,3 +1885,36 @@ browser suite. Fast source, MicroPython, unit, production-build, and offline
 artifact checks remain a deployment prerequisite; the complete Stable Chrome
 suite runs in parallel on the same commit. A newer push cancels an obsolete
 in-progress release instead of queuing behind it.
+
+## Refinement 71: one workspace authority and explicit run ownership
+
+The browser now retains only the opaque Working-folder capability. The active
+Project, selected target, robot identity, and known network route remain in the
+Working folder's `.ucsbxrp.json`; obsolete independent workspace and Project
+handles are deleted rather than imported. A missing configuration may be
+created, but an invalid or unreadable configuration is never replaced with an
+empty one. Switching or creating a Project first completes any pending Project
+write, and the switch is accepted only after the active Project name is written
+to the same configuration file.
+
+USB setup records the robot network reported after installation before the
+student changes the computer's Wi-Fi or leaves the wizard. Selecting the robot
+hotspot retains the last verified router address, so changing network modes no
+longer discards a known Pink route. IDE and Monitor wait for the saved target
+preference before connecting rather than briefly starting the Virtual XRP.
+
+Monitor datasets now begin only from an explicit Run request, not from a generic
+target `loading` state. Reset therefore cannot create an empty second run. Each
+completed run retains its Project, destination folder, and world definition;
+CSV, plot, and WebM exports continue to use that completed run even after a
+different Project or world is selected. Project changes clear obsolete live
+controls and program-published plot choices.
+
+Focused evidence includes 27 persistence/target/run unit tests; three current
+commissioning and network-mode browser journeys; seven IDE, tutorial, compile,
+component-check, Monitor-first, and spiral journeys; three repeated virtual and
+physical-profile stress journeys; and four Monitor record/export/reset/narrow-
+layout journeys. All pass in production Chrome. The sole development server
+remains the cache-free Vite instance at `http://127.0.0.1:4174/`. The next gate
+is the current-source physical browser journey on Pink, followed by a concise
+first-use visual pass and public Pages deployment.

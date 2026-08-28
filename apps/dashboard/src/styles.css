@@ -862,6 +862,10 @@
     box-shadow: 0 12px 28px rgb(23 35 43 / 16%);
   }
 
+  .monitor-controls {
+    overflow: visible;
+  }
+
   .monitor-controls-scroll {
     display: grid;
     grid-template-columns: 1fr 1fr;

@@ -465,9 +465,12 @@ test("does not enable Run before the remembered disk project finishes restoring"
 }) => {
   await installDelayedRememberedProject(ide);
   await ide.goto("/ide/");
-  await expect(ide.getByText("Opening the saved project…")).toBeVisible();
+  await expect(
+    ide.getByText("Opening the saved project and XRP settings…"),
+  ).toBeVisible();
 
   const monitor = await context.newPage();
+  await installDelayedRememberedProject(monitor);
   await monitor.goto("/monitor/");
   await expect(runButton(monitor)).toBeDisabled();
   await expect(runButton(monitor)).toHaveAttribute(
@@ -476,6 +479,11 @@ test("does not enable Run before the remembered disk project finishes restoring"
   );
 
   await ide.evaluate(() =>
+    (
+      window as unknown as { __releaseRememberedProject: () => void }
+    ).__releaseRememberedProject(),
+  );
+  await monitor.evaluate(() =>
     (
       window as unknown as { __releaseRememberedProject: () => void }
     ).__releaseRememberedProject(),

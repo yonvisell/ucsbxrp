@@ -38,6 +38,12 @@ async function listFiles(directory, prefix = "") {
   for (const entry of entries.sort((left, right) =>
     left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
   )) {
+    // Finder and other desktop tools may add metadata after a build. Hidden
+    // operating-system files are not application payload and must not change
+    // or invalidate the offline release.
+    if (entry.name.startsWith(".")) {
+      continue;
+    }
     const relativePath = path.posix.join(prefix, entry.name);
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) {

@@ -243,4 +243,16 @@ describe("course-folder autosaves", () => {
       },
     });
   });
+
+  it("does not replace a malformed Working-folder configuration", async () => {
+    const files = new Map<string, string | Blob>([
+      [".ucsbxrp.json", "{ incomplete"],
+    ]);
+    const workspace = new MemoryDirectoryHandle("XRP Work", files);
+
+    await expect(
+      updateWorkspaceManifest(workspace, { activeProject: "Spiral" }),
+    ).resolves.toBe(false);
+    expect(files.get(".ucsbxrp.json")).toBe("{ incomplete");
+  });
 });

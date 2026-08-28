@@ -72,6 +72,10 @@ const handleStoreName = "course-folders";
 // IndexedDB retains only the browser capability needed to reopen a directory.
 // Serializable project and robot state belongs in .ucsbxrp.json on disk.
 const workspaceFolderCapabilityKey = "workspace-folder-capability-v1";
+const obsoleteFolderCapabilityKeys = [
+  "workspace-folder-v1",
+  "active-project-folder-v2",
+] as const;
 export const workspaceManifestFile = ".ucsbxrp.json";
 
 export interface WorkspaceManifestRobot {
@@ -80,6 +84,9 @@ export interface WorkspaceManifestRobot {
   networkMode: "station" | "access_point";
   ssid: string;
   address: string;
+  /** Last verified router address, retained when the hotspot is selected. */
+  stationAddress?: string;
+  stationSsid?: string;
 }
 
 export type WorkspaceSettingValue =
@@ -282,6 +289,7 @@ export async function replaceRememberedWorkspaceFolder(
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     store.put(handle, workspaceFolderCapabilityKey);
+    for (const key of obsoleteFolderCapabilityKeys) store.delete(key);
     await completed;
     database.close();
     announceCourseFolderChanged();
@@ -300,6 +308,7 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     store.delete(workspaceFolderCapabilityKey);
+    for (const key of obsoleteFolderCapabilityKeys) store.delete(key);
     await completed;
     database.close();
     announceCourseFolderChanged();
@@ -356,6 +365,7 @@ async function loadWorkspaceCapability(): Promise<CourseDirectoryHandle | null> 
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     const handle = await requestResult(store.get(workspaceFolderCapabilityKey));
+    for (const key of obsoleteFolderCapabilityKeys) store.delete(key);
     await completed;
     database.close();
     return (handle as CourseDirectoryHandle | undefined) ?? null;
@@ -375,18 +385,96 @@ function validWorkspaceManifest(value: unknown): value is WorkspaceManifest {
   ) {
     return false;
   }
+  if ("robot" in value && value.robot !== undefined) {
+    const robot = value.robot;
+    if (
+      typeof robot !== "object" ||
+      robot === null ||
+      !("id" in robot) ||
+      typeof robot.id !== "string" ||
+      !("name" in robot) ||
+      typeof robot.name !== "string" ||
+      !("networkMode" in robot) ||
+      (robot.networkMode !== "station" &&
+        robot.networkMode !== "access_point") ||
+      !("ssid" in robot) ||
+      typeof robot.ssid !== "string" ||
+      !("address" in robot) ||
+      typeof robot.address !== "string" ||
+      ("stationAddress" in robot &&
+        robot.stationAddress !== undefined &&
+        typeof robot.stationAddress !== "string") ||
+      ("stationSsid" in robot &&
+        robot.stationSsid !== undefined &&
+        typeof robot.stationSsid !== "string")
+    ) {
+      return false;
+    }
+  }
+  if (
+    "settings" in value &&
+    value.settings !== undefined &&
+    (typeof value.settings !== "object" ||
+      value.settings === null ||
+      Array.isArray(value.settings))
+  ) {
+    return false;
+  }
   return true;
 }
 
 export async function loadWorkspaceManifest(
   workspace: CourseDirectoryHandle,
 ): Promise<WorkspaceManifest | null> {
+  const result = await readWorkspaceManifest(workspace);
+  return result.status === "valid" ? result.manifest : null;
+}
+
+type WorkspaceManifestReadResult =
+  | { status: "missing" }
+  | { status: "valid"; manifest: WorkspaceManifest }
+  | { status: "invalid"; detail: string }
+  | { status: "unreadable"; detail: string };
+
+async function readWorkspaceManifest(
+  workspace: CourseDirectoryHandle,
+): Promise<WorkspaceManifestReadResult> {
+  let file: CourseFileHandle;
   try {
-    const file = await workspace.getFileHandle(workspaceManifestFile);
-    const value = JSON.parse(await (await file.getFile()).text()) as unknown;
-    return validWorkspaceManifest(value) ? value : null;
-  } catch {
-    return null;
+    file = await workspace.getFileHandle(workspaceManifestFile);
+  } catch (error) {
+    return isNotFound(error)
+      ? { status: "missing" }
+      : {
+          status: "unreadable",
+          detail: error instanceof Error ? error.message : String(error),
+        };
+  }
+
+  let text: string;
+  try {
+    text = await (await file.getFile()).text();
+  } catch (error) {
+    return {
+      status: "unreadable",
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    const value = JSON.parse(text) as unknown;
+    return validWorkspaceManifest(value)
+      ? { status: "valid", manifest: value }
+      : {
+          status: "invalid",
+          detail:
+            "The file does not contain a supported UCSBXRP configuration.",
+        };
+  } catch (error) {
+    return {
+      status: "invalid",
+      detail: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -430,10 +518,21 @@ export async function mutateWorkspaceManifest(
 ): Promise<WorkspaceManifest | null> {
   try {
     return await withCourseFolderWriteLock("config", async () => {
-      const previous = (await loadWorkspaceManifest(workspace)) ?? {
-        schemaVersion: 1 as const,
-        activeProject: null,
-      };
+      const loaded = await readWorkspaceManifest(workspace);
+      if (loaded.status === "invalid") {
+        throw new Error(
+          `${workspaceManifestFile} is invalid and was not overwritten: ${loaded.detail}`,
+        );
+      }
+      if (loaded.status === "unreadable") {
+        throw new Error(
+          `${workspaceManifestFile} could not be read and was not overwritten: ${loaded.detail}`,
+        );
+      }
+      const previous =
+        loaded.status === "valid"
+          ? loaded.manifest
+          : { schemaVersion: 1 as const, activeProject: null };
       const next = transform(previous);
       const file = await workspace.getFileHandle(workspaceManifestFile, {
         create: true,
