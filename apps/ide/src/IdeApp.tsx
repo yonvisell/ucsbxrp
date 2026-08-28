@@ -34,6 +34,10 @@ import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
 import { useTargetPreference } from "../../shared/use-target-preference";
 import {
+  DiagnosticLogWriter,
+  diagnosticLogFileName,
+} from "../../shared/diagnostic-log";
+import {
   OFFLINE_SHELL_EVENT,
   readOfflineShellStatus,
   registerOfflineShellBeforeReload,
@@ -181,6 +185,45 @@ function loadSettings(): IdeSettings {
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function ideSessionSummary(): string {
+  const offline = readOfflineShellStatus();
+  const navigatorWithCapabilities = navigator as Navigator & {
+    userAgentData?: { platform?: string };
+    locks?: unknown;
+    serial?: unknown;
+    standalone?: boolean;
+  };
+  const displayMode = navigatorWithCapabilities.standalone
+    ? "standalone"
+    : ((["fullscreen", "standalone", "minimal-ui"] as const).find(
+        (mode) => window.matchMedia?.(`(display-mode: ${mode})`).matches,
+      ) ?? "browser");
+  return JSON.stringify({
+    appBuild:
+      offline.state === "development"
+        ? "local-development"
+        : (offline.version ?? courseRelease.application_version),
+    courseRelease: courseRelease.release_id,
+    route: window.location.pathname,
+    browser: navigator.userAgent,
+    operatingSystem:
+      navigatorWithCapabilities.userAgentData?.platform ?? navigator.platform,
+    language: navigator.language,
+    displayMode,
+    capabilities: {
+      fileSystemAccess: "showDirectoryPicker" in window,
+      secureContext: window.isSecureContext,
+      crossOriginIsolated: globalThis.crossOriginIsolated,
+      serviceWorker: {
+        available: "serviceWorker" in navigator,
+        controlled: Boolean(navigator.serviceWorker?.controller),
+      },
+      webLocks: Boolean(navigatorWithCapabilities.locks),
+      webSerial: Boolean(navigatorWithCapabilities.serial),
+    },
+  });
 }
 
 function wasCancelled(error: unknown): boolean {
@@ -460,6 +503,36 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const [fileActionsOpen, setFileActionsOpen] = useState(false);
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const nextConsoleId = useRef(1);
+  const diagnosticFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const diagnosticStartedFoldersRef = useRef(new WeakSet<object>());
+  const diagnosticWriteErrorShownRef = useRef(false);
+  const diagnosticLog = useMemo(
+    () =>
+      new DiagnosticLogWriter({
+        app: "IDE",
+        courseRelease: courseRelease.release_id,
+        onWriteError: (error) => {
+          if (diagnosticWriteErrorShownRef.current) return;
+          diagnosticWriteErrorShownRef.current = true;
+          setConsoleEntries((entries) => {
+            if (entries.some((entry) => entry.id === "ide-diagnostic-error")) {
+              return entries;
+            }
+            return [
+              ...entries.slice(-(maximumSessionLogEntries - 1)),
+              {
+                id: "ide-diagnostic-error",
+                category: "service",
+                stream: "stderr",
+                line: `Troubleshooting log could not be written · ${error.message}`,
+                timestampMs: Date.now(),
+              },
+            ];
+          });
+        },
+      }),
+    [],
+  );
   const initializedProjectEffect = useRef(false);
   const projectRef = useRef(project);
   const projectSessionRef = useRef(projectSession);
@@ -547,6 +620,108 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   targetStateRef.current = targetState;
   projectProviderActiveRef.current = projectProviderActive;
   folderSaveStateRef.current = folderSaveState;
+
+  useEffect(() => {
+    if (workspaceFolder === null || workingFolderAccessState !== "connected") {
+      diagnosticFolderRef.current = null;
+      diagnosticLog.detachWorkingFolder();
+      return;
+    }
+    if (diagnosticFolderRef.current === workspaceFolder) return;
+
+    diagnosticFolderRef.current = workspaceFolder;
+    diagnosticLog.attachWorkingFolder(workspaceFolder);
+    if (!diagnosticStartedFoldersRef.current.has(workspaceFolder)) {
+      diagnosticStartedFoldersRef.current.add(workspaceFolder);
+      diagnosticLog.record({
+        event: "session.start",
+        message: ideSessionSummary(),
+        terminal: true,
+      });
+    }
+    diagnosticLog.record({
+      event: "working-folder.connected",
+      message: `Working folder ${workspaceFolder.name} is writable.`,
+    });
+  }, [diagnosticLog, workingFolderAccessState, workspaceFolder]);
+
+  useEffect(() => {
+    const recordWindowError = (event: ErrorEvent) => {
+      diagnosticLog.record({
+        event: "window.error",
+        level: "error",
+        terminal: true,
+        message: JSON.stringify({
+          message:
+            event.error instanceof Error ? event.error.message : event.message,
+          stack:
+            event.error instanceof Error ? (event.error.stack ?? null) : null,
+          file: event.filename || null,
+          line: event.lineno || null,
+          column: event.colno || null,
+        }),
+      });
+    };
+    const recordUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      diagnosticLog.record({
+        event: "window.unhandled-rejection",
+        level: "error",
+        terminal: true,
+        message: JSON.stringify({
+          message: reason instanceof Error ? reason.message : String(reason),
+          stack: reason instanceof Error ? (reason.stack ?? null) : null,
+        }),
+      });
+    };
+    const flushBeforeLeaving = () => void diagnosticLog.flush();
+    window.addEventListener("error", recordWindowError);
+    window.addEventListener("unhandledrejection", recordUnhandledRejection);
+    window.addEventListener("pagehide", flushBeforeLeaving);
+    return () => {
+      window.removeEventListener("error", recordWindowError);
+      window.removeEventListener(
+        "unhandledrejection",
+        recordUnhandledRejection,
+      );
+      window.removeEventListener("pagehide", flushBeforeLeaving);
+    };
+  }, [diagnosticLog]);
+
+  const lastDiagnosticOperationRef = useRef("");
+  useEffect(() => {
+    const detail = operationDetail.trim();
+    if (
+      detail === "" ||
+      detail === "Saving changes…" ||
+      /^Saved changes in .+\.$/.test(detail)
+    ) {
+      return;
+    }
+    const isPermissionError =
+      folderSaveState === "permission" ||
+      workingFolderAccessState === "needs-permission";
+    const isSaveError = folderSaveState === "error";
+    const event = isSaveError
+      ? "project.save-failed"
+      : isPermissionError
+        ? "project.permission-required"
+        : "ide.operation";
+    const key = `${event}:${detail}`;
+    if (lastDiagnosticOperationRef.current === key) return;
+    lastDiagnosticOperationRef.current = key;
+    diagnosticLog.record({
+      event,
+      message: detail,
+      level: isSaveError ? "error" : isPermissionError ? "warning" : "info",
+      terminal: isSaveError || isPermissionError,
+    });
+  }, [
+    diagnosticLog,
+    folderSaveState,
+    operationDetail,
+    workingFolderAccessState,
+  ]);
 
   const provideProjectRunSnapshot = useCallback(() => {
     const session = projectSessionRef.current;
@@ -740,14 +915,63 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     target.setProjectRunProvider(provideProjectRunSnapshot);
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "status") {
+        diagnosticLog.record({
+          event: "target.status",
+          message: JSON.stringify({
+            target: target.kind,
+            state: event.state,
+            detail: event.detail,
+          }),
+          level: event.state === "error" ? "error" : "info",
+          terminal:
+            event.state === "ready" ||
+            event.state === "error" ||
+            event.state === "disconnected",
+        });
         targetStateRef.current = event.state;
         setTargetState(event.state);
         setTargetDetail(event.detail);
       } else if (event.type === "physical-network") {
+        diagnosticLog.record({
+          event: "target.network",
+          message: JSON.stringify({
+            mode: event.mode,
+            address: event.address,
+            ssid: event.ssid ?? null,
+            robotId: event.robotId ?? null,
+            hostname: event.hostname ?? null,
+            requestedMode: event.requestedMode ?? null,
+            fallback: event.fallback ?? false,
+          }),
+        });
         updateTargetPreference((current) =>
           targetPreferenceForPhysicalNetwork(current, event),
         );
       } else if (event.type === "console") {
+        if (
+          event.phase === "request" ||
+          event.phase === "result" ||
+          event.phase === "error" ||
+          event.stream === "stderr"
+        ) {
+          diagnosticLog.record({
+            event: "target.console",
+            eventId: event.eventId,
+            requestId: event.requestId,
+            replayed: event.replayed,
+            message: JSON.stringify({
+              action: event.action ?? null,
+              phase: event.phase ?? null,
+              stream: event.stream,
+              line: event.line,
+            }),
+            level:
+              event.stream === "stderr" || event.phase === "error"
+                ? "error"
+                : "info",
+            terminal: event.phase === "result" || event.phase === "error",
+          });
+        }
         if (event.action === "validate" && event.phase === "result") {
           setCheckOk(true);
           setCheckDetail(event.line.replace(/^Compilation passed ·\s*/, ""));
@@ -772,6 +996,17 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           ];
         });
       } else if (event.type === "project") {
+        diagnosticLog.record({
+          event: "target.project",
+          message: event.project
+            ? JSON.stringify({
+                name: event.project.name,
+                entrypoint: event.project.entrypoint,
+                revision: event.project.revision,
+                stale: event.project.stale,
+              })
+            : "No Project is loaded on the target.",
+        });
         setCurrentProject(event.project);
       } else if (event.type === "project-provider") {
         projectProviderActiveRef.current = event.active;
@@ -788,6 +1023,12 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         await target.connect();
       } catch (error: unknown) {
         if (disposed) return;
+        diagnosticLog.record({
+          event: "target.connect-failed",
+          level: "error",
+          terminal: true,
+          message: errorDetail(error),
+        });
         targetStateRef.current = "error";
         setTargetState("error");
         setTargetDetail(errorDetail(error));
@@ -804,6 +1045,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     projectSessionReady,
     targetPreferenceError,
     targetPreferenceReady,
+    diagnosticLog,
     provideProjectRunSnapshot,
     target,
     updateTargetPreference,
@@ -3692,6 +3934,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <div className="project-setting-state">
               <strong>{workingFolderName ?? "Not selected"}</strong>
               <small>{workingFolderAccessSummary}</small>
+              <small>Troubleshooting log: {diagnosticLogFileName}</small>
             </div>
             <div className="project-setting-actions">
               {workingFolderAccessState === "needs-permission" ? (

@@ -2,6 +2,24 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { seedWorkingFolder, type TestProject } from "./working-folder";
 
+async function readDiagnosticLog(page: Page, folderName: string) {
+  return page.evaluate(async (name) => {
+    const root = await navigator.storage.getDirectory();
+    const workingFolder = await root.getDirectoryHandle(name);
+    try {
+      const handle = await workingFolder.getFileHandle(
+        "UCSBXRP diagnostic log.txt",
+      );
+      return (await handle.getFile()).text();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError") {
+        return "";
+      }
+      throw error;
+    }
+  }, folderName);
+}
+
 async function replaceVisibleEditorSource(
   page: Page,
   source: string,
@@ -99,6 +117,74 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   await expect(
     page.getByTestId("python-editor").locator(".view-lines"),
   ).toContainText("Edited source ran");
+});
+
+test("writes IDE troubleshooting events only to the Working folder log", async ({
+  page,
+}) => {
+  const folderName = "IDE-Diagnostic-Log";
+  const projectFolderName = "Diagnostic-Project";
+  await seedWorkingFolder(page, {
+    folderName,
+    projectFolderName,
+    project: {
+      name: "Diagnostic project",
+      entrypoint: "main.py",
+      files: {
+        "main.py":
+          "# source-only-marker-must-not-appear-in-log\nprint('diagnostic run completed')\n",
+      },
+    },
+  });
+
+  await page.goto("/ide/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByTestId("settings-panel")).toContainText(
+    "Troubleshooting log: UCSBXRP diagnostic log.txt",
+  );
+  await page.getByRole("button", { name: "Close settings" }).click();
+
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("diagnostic run completed");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  await expect
+    .poll(() => readDiagnosticLog(page, folderName))
+    .toContain('event="target.console"');
+  const log = await readDiagnosticLog(page, folderName);
+  expect(log.match(/event="session\.start"/g)).toHaveLength(1);
+  expect(log).toContain('app="IDE"');
+  expect(log).toContain('event="target.status"');
+  expect(log).toContain('event="target.project"');
+  expect(log).toContain("event_id=");
+  expect(log).not.toContain("diagnostic run completed");
+  expect(log).not.toContain("source-only-marker-must-not-appear-in-log");
+  expect(log).not.toContain('event="telemetry.sample"');
+
+  const projectContainsDiagnosticLog = await page.evaluate(
+    async ({ folderName, projectFolderName }) => {
+      const root = await navigator.storage.getDirectory();
+      const workingFolder = await root.getDirectoryHandle(folderName);
+      const projectFolder =
+        await workingFolder.getDirectoryHandle(projectFolderName);
+      try {
+        await projectFolder.getFileHandle("UCSBXRP diagnostic log.txt");
+        return true;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "NotFoundError") {
+          return false;
+        }
+        throw error;
+      }
+    },
+    { folderName, projectFolderName },
+  );
+  expect(projectContainsDiagnosticLog).toBe(false);
 });
 
 test("Monitor Run executes an IDE edit without waiting for stale publication", async ({
