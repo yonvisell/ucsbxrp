@@ -5,7 +5,7 @@ digraph ControlCycle {
     nodesep=0.38,
     pad=0.08,
     rankdir=TB,
-    ranksep=0.62,
+    ranksep=0.72,
     splines=polyline
   ];
   node [
@@ -39,13 +39,14 @@ digraph ControlCycle {
   odometry [label="Odometry*\nPose", color="#39736f", fillcolor="#f3f8f7"];
   state [label="RobotState\nMeasurements + Pose", color="#667984", fillcolor="#ffffff"];
 
-  { rank=same; bot; target; }
+  { rank=same; main; robot; drive; controller; }
+  { rank=same; target; bot; sensor; odometry; state; }
 
   main -> robot [label="MotionCommand"];
-  robot -> drive [label="calls selected components"];
+  robot -> drive [label="calls component"];
   drive -> controller [label="target wheel speeds"];
   controller -> bot [label="motor command"];
-  bot -> target [label="DriveCommand /\nsensor values", dir=both];
+  target -> bot [label="motor output /\nsensor readings", dir=both];
   bot -> sensor [label="RawSensors"];
   sensor -> odometry [label="wheel increments"];
   sensor -> state [label="Measurements"];

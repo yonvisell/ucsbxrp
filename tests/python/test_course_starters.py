@@ -201,6 +201,58 @@ class CourseStarterTests(unittest.TestCase):
                 sys.modules.pop("exercise_checks", None)
                 sys.modules.update(saved_modules)
 
+    def test_tutorial_three_checks_that_finally_stops_after_a_step_error(self):
+        tutorial = TEMPLATES / "tutorial_3_robot_programs"
+        course_source = str(ROOT / "vendor" / "current")
+        saved_student_work = sys.modules.pop("student_work", None)
+        sys.path.insert(0, course_source)
+
+        def safe_program(robot):
+            from ucsb_xrp import MotionCommand, Pose
+
+            state = robot.start(Pose(0.0, 0.0, 0.0))
+            try:
+                for _ in range(20):
+                    state = robot.step(MotionCommand(80.0, 0.0))
+                return state
+            finally:
+                robot.stop()
+
+        def unsafe_program(robot):
+            from ucsb_xrp import MotionCommand, Pose
+
+            state = robot.start(Pose(0.0, 0.0, 0.0))
+            for _ in range(20):
+                state = robot.step(MotionCommand(80.0, 0.0))
+            robot.stop()
+            return state
+
+        try:
+            sys.modules["student_work"] = types.SimpleNamespace(
+                run_robot_program=safe_program
+            )
+            safe_checks = runpy.run_path(
+                str(tutorial / "exercise_checks.py"), run_name="exercise_checks_safe"
+            )
+            safe_checks["_check_robot_program"]()
+
+            sys.modules["student_work"] = types.SimpleNamespace(
+                run_robot_program=unsafe_program
+            )
+            unsafe_checks = runpy.run_path(
+                str(tutorial / "exercise_checks.py"), run_name="exercise_checks_unsafe"
+            )
+            with self.assertRaisesRegex(
+                AssertionError,
+                r"call robot.stop\(\) from finally if robot.step raises",
+            ):
+                unsafe_checks["_check_robot_program"]()
+        finally:
+            sys.path.remove(course_source)
+            sys.modules.pop("student_work", None)
+            if saved_student_work is not None:
+                sys.modules["student_work"] = saved_student_work
+
     def test_all_five_starters_are_complete_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())
         self.assertEqual(
@@ -413,10 +465,7 @@ class CourseStarterTests(unittest.TestCase):
                 sys.path.insert(0, course_source)
                 sys.path.insert(0, str(directory))
                 try:
-                    with self.assertRaisesRegex(
-                        AssertionError,
-                        "no component checks passed",
-                    ), contextlib.redirect_stdout(output):
+                    with contextlib.redirect_stdout(output):
                         runpy.run_path(str(path), run_name="__main__")
                 finally:
                     sys.path.remove(str(directory))

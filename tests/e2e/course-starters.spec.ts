@@ -239,9 +239,10 @@ test("runs hardware-free student component checks without changing the target", 
   await expect(page.getByRole("log")).toContainText(
     "0 passed · 2 not implemented · 0 failed",
   );
-  await expect(page.getByRole("log")).not.toContainText(
-    "Component checks completed with MicroPython",
+  await expect(page.getByRole("log")).toContainText(
+    "Component checks finished · implement the listed methods, then test again.",
   );
+  await expect(page.getByRole("log")).not.toContainText("Traceback");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );

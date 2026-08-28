@@ -6,9 +6,9 @@ challenges. Edit only `student_work.py`. Complete and test the program with the
 
 ## The program structure
 
-`main.py` constructs the robot from the supplied course components, then calls
-your `run_robot_program(robot)` function. Your function is responsible for one
-complete run:
+[`main.py`](main.py) constructs the robot from the supplied course components,
+then calls your `run_robot_program(robot)` function. Your function is
+responsible for one complete run:
 
 1. `robot.start(Pose(...))` initializes measurements, odometry, and the sample
    schedule and returns the first `RobotState`.
@@ -22,7 +22,8 @@ stop occurs after normal completion and after an unexpected error.
 
 ## Exercise: write one bounded sampled program
 
-Complete `run_robot_program(robot)` in `student_work.py`. It must:
+Complete `run_robot_program(robot)` in
+[`student_work.py`](student_work.py). It must:
 
 - call `robot.start(Pose(0.0, 0.0, 0.0))` exactly once;
 - call `robot.step(...)` between 20 and 150 times;
@@ -32,8 +33,9 @@ Complete `run_robot_program(robot)` in `student_work.py`. It must:
 - call `robot.stop()` from a `finally` block.
 
 Use a `for` loop because this exercise has a known maximum number of samples.
-The supplied check substitutes a small software robot that records the calls;
-it does not move the virtual or physical XRP.
+The supplied check substitutes a small software robot that records the calls
+and deliberately raises one `robot.step()` error to confirm that `finally`
+still calls `robot.stop()`. It does not move the virtual or physical XRP.
 
 The constructor `MotionCommand(forward_speed_mm_s, turn_rate_rad_s)` expresses
 robot motion rather than raw motor power. Positive forward speed is in

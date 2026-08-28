@@ -1,23 +1,26 @@
 # Tutorial 2: draw with the Virtual XRP
 
 This project uses a class, a list, and loops to describe a drawing. The
-supplied `main.py` converts that description into sampled virtual-robot motion.
-Edit only `student_work.py`; use the **Virtual XRP** target for this tutorial.
+supplied [`main.py`](main.py) converts that description into sampled
+virtual-robot motion. Edit only `student_work.py`; use the **Virtual XRP** target
+for this tutorial.
 
 The Monitor path acts like a pen that remains on the floor: every virtual
 motion is visible. Reset the Virtual XRP before comparing two drawings.
 
 ## Work through the exercises
 
-1. Open `student_work.py` and complete `DrawingSegment.__init__`.
+1. Open [`student_work.py`](student_work.py) and complete
+   `DrawingSegment.__init__`.
 2. Select **Check exercises** and resolve the first reported outcome.
 3. Complete `build_drawing()` and run the checks again.
 4. Select **Run**. If both exercises pass, the supplied runner executes the
    drawing in Monitor and stops the robot at the end.
 
 The exercise checks inspect results, not a particular implementation. Do not
-edit `exercise_checks.py` to make a result pass. Each check reports `PASS`,
-`NOT COMPLETED`, or `INCORRECT` and identifies the exercise involved.
+edit [`exercise_checks.py`](exercise_checks.py) to make a result pass. Each
+check reports `PASS`, `NOT COMPLETED`, or `INCORRECT` and identifies the
+exercise involved.
 
 ## Exercise 1: represent one segment with a class
 
@@ -58,9 +61,9 @@ updates.
 ## Inspect the result
 
 Open Monitor before running. The World view should show four straight sides
-and four curved corners. Real motors cannot change speed instantaneously, so
-the shape need not have mathematically sharp vertices. The final motor command
-must be zero.
+with four in-place left turns between them. Real motors cannot change speed
+instantaneously, so the shape need not have mathematically sharp vertices. The
+final motor command must be zero.
 
 The runner uses `Robot.step()` to maintain the sample schedule. Do not add
 `sleep_ms()` to `student_work.py`: an extra delay would change the sample

@@ -8,11 +8,12 @@ from student_work import run_robot_program
 class _RecordingRobot:
     """Record course-interface calls without constructing or moving a robot."""
 
-    def __init__(self):
+    def __init__(self, fail_at_step=None):
         self.start_poses = []
         self.step_calls = []
         self.stop_count = 0
         self.state = None
+        self.fail_at_step = fail_at_step
 
     def start(self, initial_pose):
         self.start_poses.append(initial_pose)
@@ -21,6 +22,8 @@ class _RecordingRobot:
 
     def step(self, command, read_range=False):
         self.step_calls.append((command, read_range))
+        if len(self.step_calls) == self.fail_at_step:
+            raise RuntimeError("injected robot.step failure")
         self.state = _state_for_step(len(self.step_calls))
         return self.state
 
@@ -68,6 +71,17 @@ def _check_robot_program():
         raise AssertionError("return the RobotState from the final robot.step call")
     if robot.stop_count != 1:
         raise AssertionError("call robot.stop() exactly once from finally")
+
+    failing_robot = _RecordingRobot(fail_at_step=3)
+    try:
+        run_robot_program(failing_robot)
+    except RuntimeError as error:
+        if str(error) != "injected robot.step failure":
+            raise
+    else:
+        raise AssertionError("do not suppress an unexpected robot.step error")
+    if failing_robot.stop_count != 1:
+        raise AssertionError("call robot.stop() from finally if robot.step raises")
 
 
 def run_exercise_checks():

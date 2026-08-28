@@ -2,27 +2,45 @@
 
 ## The challenge
 
-Use the known arena in `world.json` to plan a connected route from the initial
-pose to the destination through free grid cells, then follow that route. Route
-planning finishes before robot motion begins. If no valid route connects the
-endpoints, the program reports that result and does not construct or move a
-robot.
+Use the known arena in [`world.json`](world.json) to plan a connected route from
+the initial pose to the destination through free grid cells, then follow that
+route. Route planning finishes before robot motion begins. If no valid route
+connects the endpoints, the program reports that result and does not construct
+or move a robot.
 
-`challenge.py` loads `ARENA_MAP`, `INITIAL_POSE`, and `DESTINATION` from the
-project world and defines `GRID_RESOLUTION_MM` and `CLEARANCE_MM`. Use these
-named task values. Do not copy the current arena bounds, obstacle geometry,
-grid settings, start, or destination into the planner.
+[`challenge.py`](challenge.py) loads `ARENA_MAP`, `INITIAL_POSE`, and
+`DESTINATION` from the project world and defines `GRID_RESOLUTION_MM` and
+`CLEARANCE_MM`. Use these named task values. Do not copy the current arena
+bounds, obstacle geometry, grid settings, start, or destination into the
+planner.
 
 `CLEARANCE_MM` is the required distance from a candidate cell center to the
 arena boundary and blocked geometry. `OccupancyGrid` applies it while sampling
 the arena; it is not the grid spacing or the distance between navigation goals.
 
+## Project worlds
+
+The project contains three named cases. Select each case from the Monitor's
+**World** menu before a virtual run:
+
+- `mapped-route` has available start and destination cells connected by free
+  cells around the center block. A valid path allows the robot to follow the
+  resulting route.
+- `destination-blocked` places the destination inside the center block, so the
+  destination cell is unavailable for a path.
+- `no-connection` keeps both endpoint cells available, but a dividing wall
+  leaves no connected route between them.
+
+The last two cases must result in no motion. Whether the destination is
+unavailable or no route connects the endpoints, the program reports the result
+without constructing or moving a robot.
+
 ## Continue from Challenge 3
 
 Open the completed Challenge 3 project and select **Continue to Challenge 4 ·
 Mapped Route…**. The new project carries forward the five earlier component
-files and their selections. `grid_planner.py` begins with the supplied planner
-selected. The Challenge 3 project remains unchanged.
+files and their selections. [`grid_planner.py`](grid_planner.py) begins with the
+supplied planner selected. The Challenge 3 project remains unchanged.
 
 ## What you implement
 
@@ -46,19 +64,20 @@ The student-owned implementation files have separate responsibilities:
 
 | File | Responsibility |
 | --- | --- |
-| `sensor_model.py` | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
-| `wheel_speed_controller.py` | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
-| `differential_drive.py` | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
-| `odometry.py` | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
-| `navigation_controller.py` | Uses the current pose and active route goal to select the next `MotionCommand`. |
+| [`sensor_model.py`](sensor_model.py) | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
+| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
+| [`differential_drive.py`](differential_drive.py) | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
+| [`odometry.py`](odometry.py) | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
+| [`navigation_controller.py`](navigation_controller.py) | Uses the current pose and active route goal to select the next `MotionCommand`. |
 | `grid_planner.py` | Finds a connected sequence of free grid cells between the requested start and goal. |
-| `robot_config.py` | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+| [`robot_config.py`](robot_config.py) | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
 
 Continue to correct carried-forward files if a complete route exposes a
-problem. `course_setup.py` contains one `USE_STUDENT_*` flag for each component
-class. `False` runs the supplied implementation; `True` runs the class in the
-named student file. **Test components always checks the student files**,
-regardless of which implementations are selected for a complete robot run.
+problem. [`course_setup.py`](course_setup.py) contains one `USE_STUDENT_*` flag
+for each component class. `False` runs the supplied implementation; `True` runs
+the class in the named student file.
+**Test components always checks the student files**, regardless of which
+implementations are selected for a complete robot run.
 
 ## Provided files and tools
 
@@ -66,13 +85,14 @@ regardless of which implementations are selected for a complete robot run.
   destination.
 - `challenge.py` loads that world and defines the grid resolution and
   clearance for the current task.
-- `main.py` builds the occupancy grid, requests a path, converts a successful
-  path to goals, and only then constructs the robot.
+- [`main.py`](main.py) builds the occupancy grid, requests a path, converts a
+  successful path to goals, and only then constructs the robot.
 - `course_setup.py` constructs each selected component and assembles the
   `Robot`, navigator, and planner. Change only the named `USE_STUDENT_*` flags
   after the matching checks pass.
-- `component_checks.py` runs labeled direct, detour, one-cell, invalid, and
-  disconnected planning examples without moving either robot.
+- [`component_checks.py`](component_checks.py) runs labeled direct, detour,
+  one-cell, invalid, and disconnected planning examples without moving either
+  robot.
 - `OccupancyGrid` supplies `world_to_cell()`, `is_blocked()`, and
   `neighbors()`; `GridPath.to_goals()` converts a valid cell path to the
   world-coordinate goals used by navigation.

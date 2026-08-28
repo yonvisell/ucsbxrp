@@ -82,6 +82,12 @@ derived from stable robot identity; a classroom full of `ucsb-xrp.local`
 responders is ambiguous even though identity checks prevent commands to the
 wrong robot.
 
+Before release, restore the attached XRP to its SparkFun factory state and run
+the complete first-use path: USB selection, installation, station setup on
+Pink, IDE handoff, project load, motor command, encoder/telemetry observation,
+stop, reset, and recommissioning. This is the primary commissioning acceptance
+case; simulated browser tests remain supporting evidence.
+
 ### 3. Course-project clarity and consistency
 
 Student-visible challenge, demo, tutorial, and API examples now construct the
@@ -94,6 +100,26 @@ than another wholesale prose rewrite.
 The existing visual world editor satisfies instructor world authoring. Reuse it
 inside the IDE for `world.json` only if students are expected to modify a world;
 retain readable JSON as the advanced representation.
+
+Expand the tutorial sequence without turning it into a general Python course.
+Begin with syntax, values, functions, decisions, loops, and collections; then
+introduce records, classes, inheritance, error handling, sampled robot programs,
+telemetry, and physical deployment. Use the Virtual XRP as soon as the required
+Python concepts permit it, keep exercises relevant to later course work, and do
+not reveal challenge solutions. Add concise comments at the decisions students
+must understand; prefer ordinary `#` comments over triple-quoted commentary.
+
+Use the 10 ft by 4 ft arena (3048 mm by 1219.2 mm), centered at `(0, 0)`, as
+the default world for demos and challenges. Tutorials that do not use a physical
+XRP may use a purpose-specific world. Increase the challenge author's world
+canvas enough for practical editing at ordinary laptop sizes.
+
+Review the project command model as one workflow: Open Project selects a valid
+project inside the Working folder; New Project creates a named child folder;
+autosave owns ordinary persistence. Resolve the remaining redundant or unclear
+controls together rather than renaming them independently. Determine from the
+actual check path whether the student command should be called **Compile**;
+if so, change the UI, logs, Guide, and API consistently.
 
 ### 4. Update behavior and release identity
 

@@ -1135,6 +1135,12 @@ export function IdeApp({
       const completionDetail = checkingExercises
         ? result.detail.replace(/^Component checks/, "Exercise checks")
         : result.detail;
+      const incompleteComponents =
+        !checkingExercises &&
+        result.ok &&
+        (result.output ?? []).some((line) =>
+          /^0 passed · [1-9]\d* not implemented · 0 failed$/.test(line),
+        );
       const lines = [
         ...(result.output ?? []).map((line) => ({
           id: `ide-local-${nextConsoleId.current++}`,
@@ -1148,9 +1154,11 @@ export function IdeApp({
           id: `ide-local-${nextConsoleId.current++}`,
           category: "program" as const,
           stream: result.ok ? ("system" as const) : ("stderr" as const),
-          line: result.ok
-            ? completionDetail
-            : `${checkingExercises ? "Exercise" : "Component"} checks stopped: ${completionDetail}`,
+          line: incompleteComponents
+            ? "Component checks finished · implement the listed methods, then test again."
+            : result.ok
+              ? completionDetail
+              : `${checkingExercises ? "Exercise" : "Component"} checks stopped: ${completionDetail}`,
         },
       ];
       setConsoleEntries((entries) => [
@@ -1158,13 +1166,15 @@ export function IdeApp({
         ...lines,
       ]);
       setOperationDetail(
-        result.ok
-          ? checkingExercises
-            ? "Exercise checks finished; review the results below."
-            : "Component checks finished; review PASS and NOT IMPLEMENTED results below."
-          : checkingExercises
-            ? "One or more exercises are incomplete or incorrect; review Program output."
-            : "One or more component checks failed; review Program output.",
+        incompleteComponents
+          ? "Component checks finished; implement the listed methods, then test again."
+          : result.ok
+            ? checkingExercises
+              ? "Exercise checks finished; review the results below."
+              : "Component checks finished; review PASS and NOT IMPLEMENTED results below."
+            : checkingExercises
+              ? "One or more exercises are incomplete or incorrect; review Program output."
+              : "One or more component checks failed; review Program output.",
       );
     } catch (error) {
       const detail = errorDetail(error);
@@ -2681,6 +2691,11 @@ export function IdeApp({
         (template) => template.id === pendingProject.templateId,
       )
     : null;
+  const pendingTemplatePredecessor = pendingTemplate?.predecessorId
+    ? COURSE_PROJECT_TEMPLATES.find(
+        (template) => template.id === pendingTemplate.predecessorId,
+      )
+    : null;
   const progressingToNextChallenge =
     projectCreationPurpose === "next-challenge";
   const carriedFiles =
@@ -3841,6 +3856,22 @@ export function IdeApp({
                   ))}
                 </select>
               </label>
+            ) : null}
+            {projectCreationPurpose === "new-project" && pendingTemplate ? (
+              <div className="template-guidance">
+                <p className="dialog-context">
+                  <strong>{pendingTemplate.shortLabel}:</strong>{" "}
+                  {pendingTemplate.summary}
+                </p>
+                {pendingTemplatePredecessor ? (
+                  <p className="dialog-context">
+                    In the course sequence, continue from{" "}
+                    <strong>{pendingTemplatePredecessor.shortLabel}</strong> so
+                    your earlier component files carry forward. Creating this
+                    template here starts an independent project.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             <p className="dialog-context">
               {projectCreationPurpose === "save-current"

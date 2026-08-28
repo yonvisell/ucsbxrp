@@ -6,12 +6,13 @@ XRP** and open Monitor before running.
 
 The supplied runner approaches the wall, turns approximately 90 degrees, and
 stops. Your functions decide the state transitions and motion commands and
-publish selected intermediate values. The loop itself remains in `main.py` so
-the sample scheduling and stopping behavior are not duplicated.
+publish selected intermediate values. The loop itself remains in
+[`main.py`](main.py) so the sample scheduling and stopping behavior are not
+duplicated.
 
 ## Live controls already declared for you
 
-The first part of `student_work.py` declares five controls:
+The first part of [`student_work.py`](student_work.py) declares five controls:
 
 - **Forward speed**, **Stop distance**, and **Turn rate** use
   `live.number(...)`;

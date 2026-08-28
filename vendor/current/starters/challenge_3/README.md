@@ -2,22 +2,27 @@
 
 ## The challenge
 
-Visit the ordered waypoint markers in `world.json` and finish with the heading
-requested by the final marker. At each sample, navigation receives the current
-odometry `Pose` and returns one requested forward speed and turn rate.
+Visit the ordered waypoint markers in [`world.json`](world.json) and finish
+with the heading requested by the final marker. At each sample, navigation
+receives the current odometry `Pose` and returns one requested forward speed
+and turn rate.
 
-`challenge.py` loads `INITIAL_POSE` and `ROUTE` from `world.json`. Each
-`NavigationGoal` provides world `x_mm` and `y_mm` coordinates and may provide a
-final `heading_rad`. Keep waypoint order, coordinates, and headings in the
-world file rather than repeating their current values in Python.
+[`challenge.py`](challenge.py) loads `INITIAL_POSE` and `ROUTE` from
+`world.json`. Each `NavigationGoal` provides world `x_mm` and `y_mm` coordinates
+and may provide a final `heading_rad`. Keep waypoint order, coordinates, and
+headings in the world file rather than repeating their current values in
+Python.
 
 ## Continue from Challenge 2
 
 Open the completed Challenge 2 project and select **Continue to Challenge 3 ·
-Waypoint Courier…**. The new project carries forward `sensor_model.py`,
-`wheel_speed_controller.py`, `differential_drive.py`, and `odometry.py`, along
-with their component selections. `navigation_controller.py` begins with its
-supplied implementation selected. The Challenge 2 project remains unchanged.
+Waypoint Courier…**. The new project carries forward
+[`sensor_model.py`](sensor_model.py),
+[`wheel_speed_controller.py`](wheel_speed_controller.py),
+[`differential_drive.py`](differential_drive.py), and
+[`odometry.py`](odometry.py), along with their component selections.
+[`navigation_controller.py`](navigation_controller.py) begins with its supplied
+implementation selected. The Challenge 2 project remains unchanged.
 
 ## What you implement
 
@@ -52,23 +57,24 @@ The student-owned implementation files have separate responsibilities:
 | `differential_drive.py` | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
 | `odometry.py` | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
 | `navigation_controller.py` | Uses the current pose and active route goal to select the next `MotionCommand`. |
-| `robot_config.py` | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+| [`robot_config.py`](robot_config.py) | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
 
-`course_setup.py` contains one `USE_STUDENT_*` flag for each component class.
+[`course_setup.py`](course_setup.py) contains one `USE_STUDENT_*` flag for each
+component class.
 `False` runs the supplied implementation; `True` runs the class in the named
 student file. **Test components always checks the student files**, regardless
 of which implementations are selected for a complete robot run.
 
 ## Provided files and tools
 
-- `main.py` starts the route, passes each new pose to navigation, and stops the
-  motors in a `finally` block.
+- [`main.py`](main.py) starts the route, passes each new pose to navigation, and
+  stops the motors in a `finally` block.
 - `challenge.py` and `world.json` define the initial pose and ordered route.
 - `course_setup.py` constructs each selected component and assembles the
   `Robot`. Change only the named `USE_STUDENT_*` flags after the matching
   checks pass.
-- `component_checks.py` runs labeled route and motion examples without moving
-  either robot.
+- [`component_checks.py`](component_checks.py) runs labeled route and motion
+  examples without moving either robot.
 - `Robot` executes each requested `MotionCommand` through the carried-forward
   wheel, sensing, and odometry components.
 

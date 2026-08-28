@@ -575,9 +575,10 @@ def run_component_checks(*component_classes, **components):
     form remains accepted. Set ``include_range=True`` in Challenge 5 to check
     the range-estimation portion of ``SensorModel`` as well.
 
-    Each example reports PASS, NOT IMPLEMENTED, or FAIL. A run with failures,
-    or one in which every selected example is not implemented, raises
-    AssertionError after printing the summary.
+    Each example reports PASS, NOT IMPLEMENTED, or FAIL. A run with failures
+    raises AssertionError after printing the summary. NOT IMPLEMENTED is a
+    complete diagnostic result: it tells the student what remains to write,
+    rather than reporting that the checker itself failed.
     """
     include_range = components.pop("include_range", False)
     if not isinstance(include_range, bool):
@@ -642,8 +643,6 @@ def run_component_checks(*component_classes, **components):
     )
     if failed:
         raise AssertionError("{} component check(s) failed".format(failed))
-    if passed == 0 and not_implemented:
-        raise AssertionError("no component checks passed")
 
 
 __all__ = ("run_component_checks",)

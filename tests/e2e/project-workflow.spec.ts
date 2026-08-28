@@ -752,6 +752,12 @@ test("creates the next challenge project and carries forward only earlier studen
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption("challenge_2");
   await expect(page.getByLabel("Project template")).toHaveValue("challenge_2");
+  await expect(
+    page.getByText("Add differential-drive kinematics and planar odometry.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/continue from 1 · Straight Run/i)).toBeVisible();
   await expect(page.getByText(/It carries sensor_model\.py/)).toHaveCount(0);
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
 

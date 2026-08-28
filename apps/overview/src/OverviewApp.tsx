@@ -321,8 +321,9 @@ Pose -----------------------------> NavigationController ------+
                   <td>
                     Software checks that isolate student component behavior
                     without moving a robot. Results are PASS, NOT IMPLEMENTED,
-                    or FAIL. A run is unsuccessful if any check fails or if
-                    every selected check is not implemented.
+                    or FAIL. A run stops with an error only when a check reports
+                    FAIL; NOT IMPLEMENTED identifies required code that remains
+                    to be written.
                   </td>
                 </tr>
                 <tr>

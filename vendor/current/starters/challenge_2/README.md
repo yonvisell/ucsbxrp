@@ -7,19 +7,21 @@ return to the marked start region, and recover the initial heading. The robot
 must relate body motion to the motion of its two wheels and estimate its world
 pose from measured wheel travel.
 
-`world.json` defines the initial pose and turn marker. `challenge.py` derives
-`INITIAL_POSE`, `OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`,
-`RETURN_DISTANCE_MM`, and `FINAL_HEADING_RAD` from that world. Use these named
-values rather than copying the current distances or headings into another
-file.
+[`world.json`](world.json) defines the initial pose and turn marker.
+[`challenge.py`](challenge.py) derives `INITIAL_POSE`,
+`OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and
+`FINAL_HEADING_RAD` from that world. Use these named values rather than copying
+the current distances or headings into another file.
 
 ## Continue from Challenge 1
 
 Open the completed Challenge 1 project and select **Continue to Challenge 2 ·
-Turn and Return…**. The new project carries forward `sensor_model.py`,
-`wheel_speed_controller.py`, and their component selections. The new
-`differential_drive.py` and `odometry.py` begin with their supplied
-implementations selected. The Challenge 1 project remains unchanged.
+Turn and Return…**. The new project carries forward
+[`sensor_model.py`](sensor_model.py),
+[`wheel_speed_controller.py`](wheel_speed_controller.py), and their component
+selections. The new [`differential_drive.py`](differential_drive.py) and
+[`odometry.py`](odometry.py) begin with their supplied implementations
+selected. The Challenge 1 project remains unchanged.
 
 ## What you implement
 
@@ -37,7 +39,7 @@ The student-owned component files in this project are `sensor_model.py`,
 `wheel_speed_controller.py`, `differential_drive.py`, and `odometry.py`. The
 first two are carried forward from Challenge 1; continue to correct them if new
 evidence reveals a problem. Your pair also maintains the measured and tuned
-values in `robot_config.py`.
+values in [`robot_config.py`](robot_config.py).
 
 Both new classes use `ROBOT_CONFIG.track_width_mm`, the effective distance
 between the wheel paths. Equal wheel speeds produce straight motion. For a
@@ -49,14 +51,16 @@ in-place motion.
 
 ## Provided files and tools
 
-- `main.py` runs outward travel, the turn, return travel, and final heading
-  recovery.
+- [`main.py`](main.py) runs outward travel, the turn, return travel, and final
+  heading recovery.
 - `challenge.py` and `world.json` define the assigned distances and headings.
 - `robot_config.py` contains the effective track width, robot calibration,
   motion settings, and tolerances maintained for this robot.
-- `course_setup.py` selects all four components independently. Change only the
-  named `USE_STUDENT_*` flags as components pass their checks.
-- `component_checks.py` runs labeled examples without starting either robot.
+- [`course_setup.py`](course_setup.py) selects all four components
+  independently. Change only the named `USE_STUDENT_*` flags as components pass
+  their checks.
+- [`component_checks.py`](component_checks.py) runs labeled examples without
+  starting either robot.
 - `StraightLineController` supplies measured straight travel; `Robot` supplies
   the repeated control and measurement cycle.
 

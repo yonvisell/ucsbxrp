@@ -1011,6 +1011,17 @@
   line-height: 1.5;
 }
 
+.template-guidance {
+  display: grid;
+  gap: 0.15rem;
+  border-left: 2px solid var(--line-bright);
+  padding-left: 0.5rem;
+}
+
+.template-guidance strong {
+  color: var(--ink);
+}
+
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;

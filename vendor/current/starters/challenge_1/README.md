@@ -7,7 +7,8 @@ travel. First make the stopping distance repeatable. Then adjust the run so the
 robot finishes as close as possible to the assigned target time without
 finishing early.
 
-The current task is defined by `challenge.py` and `world.json`:
+The current task is defined by [`challenge.py`](challenge.py) and
+[`world.json`](world.json):
 
 - `world.json` defines the initial pose and finish marker used by the program,
   virtual XRP, and Monitor.
@@ -21,14 +22,16 @@ values into another file.
 
 Implement these two classes:
 
-- `SensorModel` in `sensor_model.py` converts encoder counts and device time
-  into wheel positions, wheel travel during the latest sample, and wheel-speed
-  estimates based on recent encoder samples. It retains the count and time
-  origin, the preceding sample, and the limited history needed by the speed
-  estimate.
-- `WheelSpeedController` in `wheel_speed_controller.py` compares requested and
-  measured wheel speeds and returns a bounded `DriveCommand` for each motor. A
-  zero wheel-speed request must produce an exact zero command for that wheel.
+- `SensorModel` in [`sensor_model.py`](sensor_model.py) converts encoder counts
+  and device time into wheel positions, wheel travel during the latest sample,
+  and wheel-speed estimates based on recent encoder samples. It retains the
+  count and time origin, the preceding sample, and the limited history needed
+  by the speed estimate.
+- `WheelSpeedController` in
+  [`wheel_speed_controller.py`](wheel_speed_controller.py) compares requested
+  and measured wheel speeds and returns a bounded `DriveCommand` for each
+  motor. A zero wheel-speed request must produce an exact zero command for that
+  wheel.
 
 For this challenge, implement `SensorModel.reset()` and `SensorModel.update()`.
 Leave `estimate_range()` unchanged; Challenge 5 introduces that method.
@@ -49,20 +52,22 @@ speed-to-command gains, feedback gain, and command limit in `self.config`.
 These values describe the current robot and may change after measurement; they
 are not constants of the controller class.
 
-Your pair also maintains the measured and tuned values in `robot_config.py`.
+Your pair also maintains the measured and tuned values in
+[`robot_config.py`](robot_config.py).
 
 ## Provided files and tools
 
-- `main.py` runs the measured straight-line task and stops the motors in a
-  `finally` block. At completion it reports mean measured wheel travel and
+- [`main.py`](main.py) runs the measured straight-line task and stops the motors
+  in a `finally` block. At completion it reports mean measured wheel travel and
   wrap-safe elapsed time so they can be compared with the assigned targets.
 - `StraightLineController` reduces the requested speed near the finish and
   stops at the assigned travel distance.
 - `challenge.py` and `world.json` define the task.
-- `course_setup.py` selects the supplied or student version of each component.
-  Change only the named `USE_STUDENT_*` flags as components pass their checks.
-- `component_checks.py` runs labeled software examples without starting the
-  virtual or physical robot.
+- [`course_setup.py`](course_setup.py) selects the supplied or student version
+  of each component. Change only the named `USE_STUDENT_*` flags as components
+  pass their checks.
+- [`component_checks.py`](component_checks.py) runs labeled software examples
+  without starting the virtual or physical robot.
 - Supplied `DifferentialDrive` and `Odometry` complete the robot loop until
   Challenge 2.
 

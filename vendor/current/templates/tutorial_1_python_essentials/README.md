@@ -6,18 +6,19 @@ Edit only `student_work.py`. The other files run and check your work.
 
 ## Work through the exercises
 
-1. Open `student_work.py`.
+1. Open [`student_work.py`](student_work.py).
 2. Complete one function at a time in the order shown.
 3. Select **Check exercises** after each change. The checks do not start either
    robot.
 4. Read **Program output**. Each exercise reports `PASS`, `NOT COMPLETED`, or
    `INCORRECT` and identifies the result that needs attention.
-5. Select **Run** after all three exercises pass. `main.py` repeats the same
-   software-only checks as one complete tutorial run.
+5. Select **Run** after all three exercises pass. [`main.py`](main.py) repeats
+   the same software-only checks as one complete tutorial run.
 
 The unfinished functions raise `NotImplementedError`. This is valid Python and
 makes incomplete work explicit. Replace each `raise` statement with your own
-implementation; do not change `exercise_checks.py` to make a result pass.
+implementation; do not change
+[`exercise_checks.py`](exercise_checks.py) to make a result pass.
 
 ## Exercise 1: calculate average speed
 
