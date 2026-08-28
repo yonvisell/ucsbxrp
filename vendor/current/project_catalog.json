@@ -227,7 +227,7 @@
     "source": "templates/tutorial_1_python_essentials",
     "label": "Tutorial 1 · Python Essentials",
     "short_label": "Tutorial 1 · Python essentials",
-    "summary": "Practice functions, decisions, loops, collections, and errors with robot-related calculations.",
+    "summary": "Practice Python syntax, values, functions, conditions, loops, collections, and errors.",
     "entrypoint": "main.py",
     "published": true
   },
@@ -237,7 +237,7 @@
     "source": "templates/tutorial_2_virtual_drawing",
     "label": "Tutorial 2 · Draw with the Virtual XRP",
     "short_label": "Tutorial 2 · Virtual drawing",
-    "summary": "Use classes, lists, and loops to describe a path for the virtual XRP.",
+    "summary": "Use records, a data-object class, simple inheritance, and loops to draw with the Virtual XRP.",
     "entrypoint": "main.py",
     "published": true
   },
@@ -247,7 +247,7 @@
     "source": "templates/tutorial_3_robot_programs",
     "label": "Tutorial 3 · UCSBXRP Robot Programs",
     "short_label": "Tutorial 3 · Robot programs",
-    "summary": "Write a bounded sampled program with Robot.start(), Robot.step(), and Robot.stop().",
+    "summary": "Learn the UCSBXRP project files and write a bounded sampled robot program without an added delay.",
     "entrypoint": "main.py",
     "published": true
   },
@@ -258,6 +258,16 @@
     "label": "Tutorial 4 · Behavior and Telemetry",
     "short_label": "Tutorial 4 · Behavior and telemetry",
     "summary": "Combine measured behavior, live controls, watch values, and plot signals.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_physical_preflight",
+    "kind": "tutorial",
+    "source": "templates/tutorial_5_physical_preflight",
+    "label": "Tutorial 5 · Physical XRP Preflight",
+    "short_label": "Tutorial 5 · Physical preflight",
+    "summary": "Rehearse virtually, then deploy a bounded zero-motion telemetry preflight to a physical XRP.",
     "entrypoint": "main.py",
     "published": true
   }

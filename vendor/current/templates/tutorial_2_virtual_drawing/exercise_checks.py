@@ -1,11 +1,12 @@
-"""Behavior checks for the Tutorial 2 drawing description."""
+# Behavior checks for the Tutorial 2 drawing description.
 
-from student_work import DrawingSegment, build_drawing
+from student_work import DrawingSegment, TurnSegment, build_drawing
+from ucsb_xrp import MotionCommand
 
 
-def _expect_value_error(*arguments):
+def _expect_value_error(constructor, *arguments):
     try:
-        DrawingSegment(*arguments)
+        constructor(*arguments)
     except ValueError:
         return
     raise AssertionError("invalid segment values should raise ValueError")
@@ -21,20 +22,63 @@ def _check_segment_class():
         getattr(segment, "steps", None),
     )
     if actual != expected:
-        raise AssertionError("expected stored values {}, received {}".format(expected, actual))
-    _expect_value_error("", 120.0, 0.0, 40)
-    _expect_value_error("no samples", 120.0, 0.0, 0)
-    _expect_value_error("stationary", 0.0, 0.0, 20)
+        raise AssertionError(
+            "expected stored values {}, received {}".format(expected, actual)
+        )
+    command = segment.command()
+    if not isinstance(command, MotionCommand):
+        raise AssertionError("DrawingSegment.command should return MotionCommand")
+    if (command.forward_speed_mm_s, command.turn_rate_rad_s) != (120.0, 0.0):
+        raise AssertionError("MotionCommand should retain the segment command values")
+    _expect_value_error(DrawingSegment, "", 120.0, 0.0, 40)
+    _expect_value_error(DrawingSegment, "no samples", 120.0, 0.0, 0)
+    _expect_value_error(DrawingSegment, "stationary", 0.0, 0.0, 20)
 
 
-def _check_drawing():
-    segments = build_drawing()
+def _check_turn_subclass():
+    if not issubclass(TurnSegment, DrawingSegment):
+        raise AssertionError("TurnSegment should inherit DrawingSegment")
+    turn = TurnSegment("corner", 0.8, 20)
+    actual = (
+        getattr(turn, "name", None),
+        getattr(turn, "forward_speed_mm_s", None),
+        getattr(turn, "turn_rate_rad_s", None),
+        getattr(turn, "steps", None),
+    )
+    expected = ("corner", 0.0, 0.8, 20)
+    if actual != expected:
+        raise AssertionError(
+            "expected stored values {}, received {}".format(expected, actual)
+        )
+    command = turn.command()
+    if not isinstance(command, MotionCommand):
+        raise AssertionError("inherited command should return MotionCommand")
+    if (command.forward_speed_mm_s, command.turn_rate_rad_s) != (0.0, 0.8):
+        raise AssertionError("TurnSegment should command an in-place left turn")
+    _expect_value_error(TurnSegment, "right", -0.8, 20)
+    _expect_value_error(TurnSegment, "stationary", 0.0, 20)
+
+
+def _check_square_with_values(
+    side_speed_mm_s,
+    side_steps,
+    turn_rate_rad_s,
+    turn_steps,
+):
+    segments = build_drawing(
+        side_speed_mm_s=side_speed_mm_s,
+        side_steps=side_steps,
+        turn_rate_rad_s=turn_rate_rad_s,
+        turn_steps=turn_steps,
+    )
     if segments is None:
         raise NotImplementedError("build_drawing returned no route")
     if not isinstance(segments, (list, tuple)):
         raise AssertionError("build_drawing should return a list or tuple")
     if len(segments) != 8:
-        raise AssertionError("expected 8 alternating segments, received {}".format(len(segments)))
+        raise AssertionError(
+            "expected 8 alternating segments, received {}".format(len(segments))
+        )
 
     total_steps = 0
     for index, segment in enumerate(segments):
@@ -46,19 +90,87 @@ def _check_drawing():
             raise AssertionError("segment {} steps must be positive".format(index + 1))
         total_steps += segment.steps
         if index % 2 == 0:
-            if segment.forward_speed_mm_s <= 0.0 or segment.turn_rate_rad_s != 0.0:
-                raise AssertionError("segment {} should be a straight side".format(index + 1))
-        elif segment.forward_speed_mm_s != 0.0 or segment.turn_rate_rad_s <= 0.0:
-            raise AssertionError("segment {} should be a left turn".format(index + 1))
+            if isinstance(segment, TurnSegment):
+                raise AssertionError("segment {} should be a side".format(index + 1))
+            if segment.forward_speed_mm_s != side_speed_mm_s:
+                raise AssertionError(
+                    "side {} should use side_speed_mm_s={}".format(
+                        index // 2 + 1, side_speed_mm_s
+                    )
+                )
+            if segment.turn_rate_rad_s != 0.0:
+                raise AssertionError("a side should have zero turn rate")
+            if segment.steps != side_steps:
+                raise AssertionError(
+                    "side {} should use side_steps={}".format(
+                        index // 2 + 1, side_steps
+                    )
+                )
+        else:
+            if not isinstance(segment, TurnSegment):
+                raise AssertionError("segment {} should be a TurnSegment".format(index + 1))
+            if segment.forward_speed_mm_s != 0.0:
+                raise AssertionError("a corner should have zero forward speed")
+            if segment.turn_rate_rad_s != turn_rate_rad_s:
+                raise AssertionError(
+                    "corner {} should use turn_rate_rad_s={}".format(
+                        index // 2 + 1, turn_rate_rad_s
+                    )
+                )
+            if segment.steps != turn_steps:
+                raise AssertionError(
+                    "corner {} should use turn_steps={}".format(
+                        index // 2 + 1, turn_steps
+                    )
+                )
+        command = segment.command()
+        if not isinstance(command, MotionCommand):
+            raise AssertionError(
+                "segment {} command should be a MotionCommand".format(index + 1)
+            )
+        if (
+            command.forward_speed_mm_s != segment.forward_speed_mm_s
+            or command.turn_rate_rad_s != segment.turn_rate_rad_s
+        ):
+            raise AssertionError(
+                "segment {} command does not match its data".format(index + 1)
+            )
     if total_steps > 500:
         raise AssertionError("the complete drawing may contain at most 500 samples")
 
 
+def _check_drawing():
+    _check_square_with_values(
+        side_speed_mm_s=90.0,
+        side_steps=35,
+        turn_rate_rad_s=0.7,
+        turn_steps=20,
+    )
+    _check_square_with_values(
+        side_speed_mm_s=125.0,
+        side_steps=18,
+        turn_rate_rad_s=1.0,
+        turn_steps=12,
+    )
+    try:
+        build_drawing(
+            side_speed_mm_s=90.0,
+            side_steps=100,
+            turn_rate_rad_s=0.7,
+            turn_steps=30,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("reject a square with more than 500 samples")
+
+
 def run_exercise_checks():
-    """Run the two drawing exercises and print a concise outcome."""
+    # Run the three drawing exercises and print a concise outcome.
     checks = (
-        ("1 · DrawingSegment", _check_segment_class),
-        ("2 · square route", _check_drawing),
+        ("1 · data object and record", _check_segment_class),
+        ("2 · TurnSegment inheritance", _check_turn_subclass),
+        ("3 · square drawing", _check_drawing),
     )
     passed = 0
     incomplete = 0

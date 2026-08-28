@@ -116,6 +116,7 @@ class CourseStarterTests(unittest.TestCase):
                 "tutorial_2_virtual_drawing",
                 "tutorial_3_robot_programs",
                 "tutorial_4_behavior_telemetry",
+                "tutorial_5_physical_preflight",
             ],
         )
         for directory in directories:
@@ -132,12 +133,14 @@ class CourseStarterTests(unittest.TestCase):
             TEMPLATES / "tutorial_2_virtual_drawing",
             TEMPLATES / "tutorial_3_robot_programs",
             TEMPLATES / "tutorial_4_behavior_telemetry",
+            TEMPLATES / "tutorial_5_physical_preflight",
         ]
         for number, tutorial in enumerate(tutorials, start=1):
             readme = (tutorial / "README.md").read_text(encoding="utf-8")
+            normalized_readme = " ".join(readme.split())
             student_source = (tutorial / "student_work.py").read_text(encoding="utf-8")
             with self.subTest(tutorial=number):
-                self.assertIn("Edit only `student_work.py`", readme)
+                self.assertIn("Edit only `student_work.py`", normalized_readme)
                 self.assertIn("NOT COMPLETED", readme)
                 self.assertIn("INCORRECT", readme)
                 self.assertIn("NotImplementedError", student_source)
@@ -153,16 +156,41 @@ class CourseStarterTests(unittest.TestCase):
                 self.assertEqual(world["worlds"][0]["initial_pose"]["heading_rad"], 0)
 
         python_readme = (tutorials[0] / "README.md").read_text(encoding="utf-8")
-        for concept in ("function", "list", "tuple", "loop", "ValueError", "None"):
+        for concept in (
+            "syntax",
+            "values",
+            "function",
+            "conditions",
+            "list",
+            "tuple",
+            "dictionary",
+            "loop",
+            "ValueError",
+            "None",
+        ):
             self.assertIn(concept, python_readme)
 
         drawing_readme = (tutorials[1] / "README.md").read_text(encoding="utf-8")
-        self.assertIn("class", drawing_readme)
-        self.assertIn("Monitor path acts like a pen", drawing_readme)
+        for concept in ("record", "data object", "class", "inheritance"):
+            self.assertIn(concept, drawing_readme)
+        drawing_source = (tutorials[1] / "student_work.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("class TurnSegment(DrawingSegment)", drawing_source)
+        self.assertIn("MotionCommand", drawing_source)
 
         robot_readme = (tutorials[2] / "README.md").read_text(encoding="utf-8")
         for operation in ("robot.start", "robot.step", "robot.stop"):
             self.assertIn(operation, robot_readme)
+        for project_file in (
+            "main.py",
+            "student_work.py",
+            "exercise_checks.py",
+            "robot_config.py",
+            "course_setup.py",
+            "world.json",
+        ):
+            self.assertIn(project_file, robot_readme)
         self.assertIn("Do not add another delay", robot_readme)
         self.assertNotIn("sleep_ms", (tutorials[2] / "student_work.py").read_text(encoding="utf-8"))
 
@@ -173,8 +201,23 @@ class CourseStarterTests(unittest.TestCase):
             else:
                 self.assertIn(operation, telemetry_source)
 
+        physical_readme = " ".join(
+            (tutorials[4] / "README.md").read_text(encoding="utf-8").split()
+        )
+        for concept in (
+            "Virtual XRP",
+            "Physical XRP",
+            "Setup and repair",
+            "STOP_COMMAND",
+            "Reset",
+        ):
+            self.assertIn(concept, physical_readme)
+        physical_main = (tutorials[4] / "main.py").read_text(encoding="utf-8")
+        self.assertIn("robot.step(STOP_COMMAND, read_range=True)", physical_main)
+        self.assertNotIn("sleep", physical_main.lower())
+
     def test_unfinished_tutorial_exercises_report_clear_outcomes(self):
-        tutorials = sorted(TEMPLATES.glob("tutorial_[1-4]_*"))
+        tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*"))
         course_source = str(ROOT / "vendor" / "current")
         for tutorial in tutorials:
             output = io.StringIO()
@@ -201,6 +244,29 @@ class CourseStarterTests(unittest.TestCase):
                 sys.modules.pop("exercise_checks", None)
                 sys.modules.update(saved_modules)
 
+    def test_tutorial_python_uses_comments_and_undecorated_course_examples(self):
+        tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*"))
+        for tutorial in tutorials:
+            for path in tutorial.glob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+                with self.subTest(tutorial=tutorial.name, file=path.name):
+                    self.assertIsNone(ast.get_docstring(tree, clean=False))
+                    string_expressions = [
+                        node
+                        for node in ast.walk(tree)
+                        if isinstance(node, ast.Expr)
+                        and isinstance(node.value, ast.Constant)
+                        and isinstance(node.value.value, str)
+                    ]
+                    self.assertEqual(string_expressions, [])
+                    decorated = [
+                        node.name
+                        for node in ast.walk(tree)
+                        if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+                        and node.decorator_list
+                    ]
+                    self.assertEqual(decorated, [])
+
     def test_tutorial_three_checks_that_finally_stops_after_a_step_error(self):
         tutorial = TEMPLATES / "tutorial_3_robot_programs"
         course_source = str(ROOT / "vendor" / "current")
@@ -210,8 +276,8 @@ class CourseStarterTests(unittest.TestCase):
         def safe_program(robot):
             from ucsb_xrp import MotionCommand, Pose
 
-            state = robot.start(Pose(0.0, 0.0, 0.0))
             try:
+                state = robot.start(Pose(0.0, 0.0, 0.0))
                 for _ in range(20):
                     state = robot.step(MotionCommand(80.0, 0.0))
                 return state
@@ -252,6 +318,82 @@ class CourseStarterTests(unittest.TestCase):
             sys.modules.pop("student_work", None)
             if saved_student_work is not None:
                 sys.modules["student_work"] = saved_student_work
+
+    def test_tutorial_five_samples_only_zero_command_and_stops_after_error(self):
+        tutorial = TEMPLATES / "tutorial_5_physical_preflight"
+        stop_command = object()
+
+        class RecordingRobot:
+            def __init__(self, fail_at_step=None):
+                self.step_calls = []
+                self.stop_count = 0
+                self.fail_at_step = fail_at_step
+
+            def start(self, initial_pose):
+                return ("state", 0, initial_pose)
+
+            def step(self, command, read_range=False):
+                self.step_calls.append((command, read_range))
+                if len(self.step_calls) == self.fail_at_step:
+                    raise RuntimeError("injected stationary sample failure")
+                return ("state", len(self.step_calls), None)
+
+            def stop(self):
+                self.stop_count += 1
+
+        robot = RecordingRobot()
+        report = {
+            "sample_count": 126,
+            "elapsed_time_s": 2.5,
+            "maximum_abs_wheel_position_mm": 0.0,
+            "usable_range_count": 125,
+            "nearest_range_mm": 500.0,
+            "button_was_pressed": False,
+        }
+        fake_modules = {
+            "course_setup": types.SimpleNamespace(make_robot=lambda _config: robot),
+            "exercise_checks": types.SimpleNamespace(run_exercise_checks=lambda: True),
+            "robot_config": types.SimpleNamespace(ROBOT_CONFIG=object()),
+            "student_work": types.SimpleNamespace(
+                preflight_report=lambda _states: report
+            ),
+            "ucsb_xrp": types.SimpleNamespace(
+                Pose=lambda x_mm, y_mm, heading_rad: (x_mm, y_mm, heading_rad),
+                STOP_COMMAND=stop_command,
+            ),
+        }
+        saved_modules = {
+            name: sys.modules.pop(name)
+            for name in fake_modules
+            if name in sys.modules
+        }
+        sys.modules.update(fake_modules)
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output):
+                namespace = runpy.run_path(
+                    str(tutorial / "main.py"), run_name="tutorial_5_main"
+                )
+            self.assertEqual(len(robot.step_calls), 125)
+            self.assertTrue(
+                all(
+                    command is stop_command and read_range is True
+                    for command, read_range in robot.step_calls
+                )
+            )
+            self.assertEqual(robot.stop_count, 1)
+            self.assertIn("Zero-motion preflight complete", output.getvalue())
+
+            failing_robot = RecordingRobot(fail_at_step=3)
+            with self.assertRaisesRegex(
+                RuntimeError, "injected stationary sample failure"
+            ):
+                namespace["collect_stationary_samples"](failing_robot)
+            self.assertEqual(failing_robot.stop_count, 1)
+        finally:
+            for name in fake_modules:
+                sys.modules.pop(name, None)
+            sys.modules.update(saved_modules)
 
     def test_all_five_starters_are_complete_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())
@@ -801,16 +943,16 @@ class CourseStarterTests(unittest.TestCase):
                 for section in required_sections:
                     self.assertIn(section, text)
                 self.assertNotIn("## Program flow", text)
-                self.assertRegex(
-                    " ".join(text.split()),
-                    r"student-owned (?:component|implementation) files",
-                    "README must identify the files maintained by students",
-                )
+                self.assertNotIn("student-owned", text.lower())
                 self.assertIn("component_checks.py", text)
                 self.assertIn("course_setup.py", text)
                 self.assertIn("`robot_config.py`", text)
                 for filename in student_files:
-                    self.assertIn("`%s`" % filename, text)
+                    self.assertIn(
+                        "[`%s`](%s)" % (filename, filename),
+                        text,
+                        "README must link every file maintained by students",
+                    )
                 for parameter in expected_task_parameters[challenge]:
                     self.assertIn("`%s`" % parameter, text)
                 if challenge in ("challenge_3", "challenge_4", "challenge_5"):

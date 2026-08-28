@@ -36,8 +36,8 @@ Implement these two classes:
 For this challenge, implement `SensorModel.reset()` and `SensorModel.update()`.
 Leave `estimate_range()` unchanged; Challenge 5 introduces that method.
 
-These two component files are the student-owned implementation files for
-Challenge 1.
+You edit these two component files in Challenge 1. The supplied versions remain
+available while you implement and check your own versions.
 
 `SensorModel.reset(raw)` establishes the origin for one run. Its result has
 zero wheel position, increment, speed, and elapsed time while retaining the
@@ -52,7 +52,7 @@ speed-to-command gains, feedback gain, and command limit in `self.config`.
 These values describe the current robot and may change after measurement; they
 are not constants of the controller class.
 
-Your pair also maintains the measured and tuned values in
+Record the measured and tuned values for your robot in
 [`robot_config.py`](robot_config.py).
 
 ## Provided files and tools
@@ -62,7 +62,7 @@ Your pair also maintains the measured and tuned values in
   wrap-safe elapsed time so they can be compared with the assigned targets.
 - `StraightLineController` reduces the requested speed near the finish and
   stops at the assigned travel distance.
-- `challenge.py` and `world.json` define the task.
+- [`challenge.py`](challenge.py) and [`world.json`](world.json) define the task.
 - [`course_setup.py`](course_setup.py) selects the supplied or student version
   of each component. Change only the named `USE_STUDENT_*` flags as components
   pass their checks.

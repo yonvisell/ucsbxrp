@@ -23,6 +23,32 @@ Each returned control has a `.value` property. The Monitor can update this
 value while the program runs. The identifier, default, limits, units, and label
 form the control's interface; leave them unchanged until the exercises pass.
 
+This complete example declares a different live setting and reports a measured
+wheel difference:
+
+```python
+ALERT_DIFFERENCE = live.number(
+    "alert_difference_mm",
+    10.0,
+    minimum=0.0,
+    maximum=30.0,
+    step=1.0,
+    unit="mm",
+    label="Alert difference",
+)
+
+
+def publish_difference(state):
+    measurements = state.measurements
+    difference_mm = abs(
+        measurements.left_position_mm - measurements.right_position_mm
+    )
+    live.watch("difference_alert", difference_mm > ALERT_DIFFERENCE.value)
+```
+
+The parameter is declared once. The function reads its current `.value` and
+publishes one named result each time the program calls it.
+
 ## Exercise 1: state transitions
 
 Complete `next_phase(phase, range_mm, stop_distance_mm, turn_complete)`.
@@ -79,10 +105,17 @@ Telemetry reports the program; it must not determine the control command.
    an engineering conclusion; Program output is intended for occasional
    milestones and errors, not one print per sample.
 
+`main.py` runs the exercise checks before constructing the robot. The supplied
+runner owns `robot.stop()` in a `finally` block, so your three functions only
+decide, command, and report.
+
 `Robot.step()` maintains the sample schedule and publishes the standard robot
 telemetry. Do not add `sleep_ms()` to this sampled loop. The additional delay
 would change encoder sample spacing, control response, odometry, and telemetry
 timing rather than merely slowing the display.
 
-After this tutorial, the course challenges apply the same cycle—measure,
-decide, command, and update—through student-implemented course components.
+After the behavior works in the Virtual XRP, create **Tutorial 5 · Physical
+XRP preflight**. It carries the same sampled and telemetry structure through
+the final deployment workflow while commanding zero motion. The course
+challenges then apply the same cycle—measure, decide, command, and update—through
+student-implemented course components.

@@ -1,4 +1,4 @@
-"""Call-sequence check for the Tutorial 3 sampled robot program."""
+# Call-sequence check for the Tutorial 3 sampled robot program.
 
 from ucsb_xrp import Measurements, MotionCommand, Pose, RobotState
 
@@ -6,17 +6,20 @@ from student_work import run_robot_program
 
 
 class _RecordingRobot:
-    """Record course-interface calls without constructing or moving a robot."""
+    # Record course-interface calls without constructing or moving a robot.
 
-    def __init__(self, fail_at_step=None):
+    def __init__(self, fail_at_step=None, fail_on_start=False):
         self.start_poses = []
         self.step_calls = []
         self.stop_count = 0
         self.state = None
         self.fail_at_step = fail_at_step
+        self.fail_on_start = fail_on_start
 
     def start(self, initial_pose):
         self.start_poses.append(initial_pose)
+        if self.fail_on_start:
+            raise RuntimeError("injected robot.start failure")
         self.state = _state_for_step(0)
         return self.state
 
@@ -83,9 +86,20 @@ def _check_robot_program():
     if failing_robot.stop_count != 1:
         raise AssertionError("call robot.stop() from finally if robot.step raises")
 
+    failing_start_robot = _RecordingRobot(fail_on_start=True)
+    try:
+        run_robot_program(failing_start_robot)
+    except RuntimeError as error:
+        if str(error) != "injected robot.start failure":
+            raise
+    else:
+        raise AssertionError("do not suppress an unexpected robot.start error")
+    if failing_start_robot.stop_count != 1:
+        raise AssertionError("call robot.stop() from finally if robot.start raises")
+
 
 def run_exercise_checks():
-    """Run the sampled-program exercise and print one clear outcome."""
+    # Run the sampled-program exercise and print one clear outcome.
     try:
         _check_robot_program()
     except NotImplementedError as error:

@@ -1,4 +1,4 @@
-"""Run all Tutorial 1 exercise checks without starting a robot."""
+# Run all Tutorial 1 exercise checks without starting a robot.
 
 from exercise_checks import run_exercise_checks
 

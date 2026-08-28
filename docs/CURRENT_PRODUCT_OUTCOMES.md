@@ -51,6 +51,26 @@ history; they are not parallel plans. Detailed validation belongs in
 
 ## Active outcomes, in priority order
 
+### Monitor telemetry presentation (queued after the current release baseline)
+
+Review Live telemetry, plotting, notes, recording, and export as one compact
+workflow. Show the measured telemetry sample rate near the end of Live
+telemetry, derived from received timestamps rather than adding robot traffic;
+show the configured robot-loop rate only where it helps interpret the data.
+Measure transport and RP2350 load before adding per-channel subscriptions.
+
+Evaluate replacing the separate Plot signals list with compact visibility and
+plot checkboxes beside each telemetry variable, moving the time window into
+the same section, and reserving the side panel primarily for recording and
+export. Remove the keyboard-only note hint, make note visibility explicit,
+and verify that visible notes appear in plot and animation exports. A note
+count must not look interactive unless it opens a useful note list.
+
+Render the SparkFun HC-SR04 field of view as an approximately 15-degree planar
+sector from the sensor board rather than a centerline. Use the same sector and
+an approximately 20–30 mm front inset in the Virtual XRP range model so the
+World view and simulated measurement use one geometry.
+
 ### 1. Ordinary student project and run workflow
 
 Complete one native-Chrome walkthrough from a fresh browser state: understand

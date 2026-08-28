@@ -27,19 +27,20 @@ selected. The Challenge 1 project remains unchanged.
 
 Implement these two new classes:
 
-- `DifferentialDrive` in `differential_drive.py` converts a requested forward
+- `DifferentialDrive` in
+  [`differential_drive.py`](differential_drive.py) converts a requested forward
   speed and counterclockwise turn rate into left and right `WheelSpeeds`. It
   does not need to retain history between samples.
-- `Odometry` in `odometry.py` retains the current `Pose`.
+- `Odometry` in [`odometry.py`](odometry.py) retains the current `Pose`.
   `reset(initial_pose)` establishes the starting world pose, and
   `update(left_increment_mm, right_increment_mm)` advances that pose using
   measured wheel travel.
 
-The student-owned component files in this project are `sensor_model.py`,
-`wheel_speed_controller.py`, `differential_drive.py`, and `odometry.py`. The
-first two are carried forward from Challenge 1; continue to correct them if new
-evidence reveals a problem. Your pair also maintains the measured and tuned
-values in [`robot_config.py`](robot_config.py).
+You continue to edit [`sensor_model.py`](sensor_model.py) and
+[`wheel_speed_controller.py`](wheel_speed_controller.py) from Challenge 1,
+together with the two new component files. Correct an earlier component if a
+turn or return run reveals a problem. Record measured and tuned values for your
+robot in [`robot_config.py`](robot_config.py).
 
 Both new classes use `ROBOT_CONFIG.track_width_mm`, the effective distance
 between the wheel paths. Equal wheel speeds produce straight motion. For a
@@ -53,8 +54,9 @@ in-place motion.
 
 - [`main.py`](main.py) runs outward travel, the turn, return travel, and final
   heading recovery.
-- `challenge.py` and `world.json` define the assigned distances and headings.
-- `robot_config.py` contains the effective track width, robot calibration,
+- [`challenge.py`](challenge.py) and [`world.json`](world.json) define the
+  assigned distances and headings.
+- [`robot_config.py`](robot_config.py) contains the effective track width, robot calibration,
   motion settings, and tolerances maintained for this robot.
 - [`course_setup.py`](course_setup.py) selects all four components
   independently. Change only the named `USE_STUDENT_*` flags as components pass

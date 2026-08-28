@@ -10,9 +10,9 @@ navigation or `"no_path"` when no route is available.
 [`world.json`](world.json) contains the virtual observation cases, their shared
 geometry, and the changeable feature. [`challenge.py`](challenge.py) loads the
 selected world and constructs `DELIVERY_TASK`, which contains all
-range-decision, map, grid, start, and destination values. Use the named fields
-in `DELIVERY_TASK`; do not copy their current numerical values or obstacle
-coordinates into another file.
+range-measurement settings, map geometry, grid settings, start, and destination
+values. Use the named fields in `DELIVERY_TASK`; do not copy their current
+numerical values or obstacle coordinates into another file.
 
 ## Continue from Challenge 4
 
@@ -22,9 +22,9 @@ and their selections. Your new work extends the existing `SensorModel` in
 [`sensor_model.py`](sensor_model.py); the Challenge 4 project remains
 unchanged.
 
-Project storage for new projects is configured in IDE **Settings**. Use **Open
-project…** to reopen an existing project folder or **New project…** to create an
-unrelated project from a template.
+IDE **Settings** identifies the Working folder that contains the team's
+project folders. Use **Open project…** to reopen an existing project or **New
+project…** to create an unrelated project from a template.
 
 ## What you implement
 
@@ -39,21 +39,21 @@ the wheel-measurement state:
 
 A `None` result means that no estimate was available; it does not mean a range
 of zero. The earlier methods in `sensor_model.py` remain part of the same
-student-owned implementation.
+file you maintain throughout the challenges.
 
 ## Project modules
 
-The student-owned implementation files have separate responsibilities:
+Each file has one responsibility:
 
-| File | Responsibility |
-| --- | --- |
-| `sensor_model.py` | Converts raw readings into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`; in this challenge, it also estimates forward range from repeated ultrasonic readings. |
-| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
-| [`differential_drive.py`](differential_drive.py) | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
-| [`odometry.py`](odometry.py) | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
-| [`navigation_controller.py`](navigation_controller.py) | Uses the current pose and active route goal to select the next `MotionCommand`. |
-| [`grid_planner.py`](grid_planner.py) | Finds a connected sequence of free grid cells between the requested start and goal. |
-| [`robot_config.py`](robot_config.py) | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+| File                                                     | Responsibility                                                                                                                                                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`sensor_model.py`](sensor_model.py)                     | Converts raw readings into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`; in this challenge, it also estimates forward range from repeated ultrasonic readings. |
+| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate bounded left and right motor commands.                                                                                                                       |
+| [`differential_drive.py`](differential_drive.py)         | Calculates left and right target wheel speeds from requested forward speed and yaw rate.                                                                                                                           |
+| [`odometry.py`](odometry.py)                             | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments.                                                                                                                     |
+| [`navigation_controller.py`](navigation_controller.py)   | Uses the current pose and active route goal to select the next `MotionCommand`.                                                                                                                                    |
+| [`grid_planner.py`](grid_planner.py)                     | Finds a connected sequence of free grid cells between the requested start and goal.                                                                                                                                |
+| [`robot_config.py`](robot_config.py)                     | Contains the measured and tuned values for your robot. The supplied/student switches do not replace this file.                                                                                                     |
 
 [`course_setup.py`](course_setup.py) contains one `USE_STUDENT_*` flag for each
 component class. `False` runs the supplied implementation; `True` runs the
@@ -65,13 +65,13 @@ implementations are selected for a complete robot run.
 
 - `DeliveryMission` coordinates stationary observation, selection of one map
   condition, planning, and navigation. It stops the robot on every exit.
-- `challenge.py` constructs `DELIVERY_TASK` from the selected project world and
+- [`challenge.py`](challenge.py) constructs `DELIVERY_TASK` from the selected project world and
   the current mission settings.
-- `world.json` defines the observable cases, destination, and named map
+- [`world.json`](world.json) defines the observable cases, destination, and named map
   feature.
 - [`main.py`](main.py) runs `DeliveryMission` and prints its result and final
   pose.
-- `course_setup.py` constructs each selected component and assembles the
+- [`course_setup.py`](course_setup.py) constructs each selected component and assembles the
   `Robot`, navigator, and planner. Change only the named `USE_STUDENT_*` flags
   after the matching checks pass.
 - [`component_checks.py`](component_checks.py) runs labeled component examples,

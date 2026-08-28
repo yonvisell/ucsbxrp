@@ -44,7 +44,7 @@ supplied planner selected. The Challenge 3 project remains unchanged.
 
 ## What you implement
 
-Implement `GridPlanner` in `grid_planner.py`.
+Implement `GridPlanner` in [`grid_planner.py`](grid_planner.py).
 `plan(grid, start, goal)` returns either:
 
 - a `GridPath` that begins at `start`, ends at `goal`, contains only free
@@ -60,17 +60,17 @@ class does not need to retain it between calls.
 
 ## Project modules
 
-The student-owned implementation files have separate responsibilities:
+Each file has one responsibility:
 
-| File | Responsibility |
-| --- | --- |
-| [`sensor_model.py`](sensor_model.py) | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
-| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate bounded left and right motor commands. |
-| [`differential_drive.py`](differential_drive.py) | Calculates left and right target wheel speeds from requested forward speed and yaw rate. |
-| [`odometry.py`](odometry.py) | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments. |
-| [`navigation_controller.py`](navigation_controller.py) | Uses the current pose and active route goal to select the next `MotionCommand`. |
-| `grid_planner.py` | Finds a connected sequence of free grid cells between the requested start and goal. |
-| [`robot_config.py`](robot_config.py) | Contains the measured and tuned robot values maintained by your pair. It is not replaced by a supplied/student selection. |
+| File                                                     | Responsibility                                                                                                                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`sensor_model.py`](sensor_model.py)                     | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
+| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate bounded left and right motor commands.                                                                             |
+| [`differential_drive.py`](differential_drive.py)         | Calculates left and right target wheel speeds from requested forward speed and yaw rate.                                                                                 |
+| [`odometry.py`](odometry.py)                             | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments.                                                                           |
+| [`navigation_controller.py`](navigation_controller.py)   | Uses the current pose and active route goal to select the next `MotionCommand`.                                                                                          |
+| [`grid_planner.py`](grid_planner.py)                     | Finds a connected sequence of free grid cells between the requested start and goal.                                                                                      |
+| [`robot_config.py`](robot_config.py)                     | Contains the measured and tuned values for your robot. The supplied/student switches do not replace this file.                                                           |
 
 Continue to correct carried-forward files if a complete route exposes a
 problem. [`course_setup.py`](course_setup.py) contains one `USE_STUDENT_*` flag
@@ -81,13 +81,13 @@ implementations are selected for a complete robot run.
 
 ## Provided files and tools
 
-- `world.json` defines the arena boundary, obstacles, initial pose, and
+- [`world.json`](world.json) defines the arena boundary, obstacles, initial pose, and
   destination.
-- `challenge.py` loads that world and defines the grid resolution and
+- [`challenge.py`](challenge.py) loads that world and defines the grid resolution and
   clearance for the current task.
 - [`main.py`](main.py) builds the occupancy grid, requests a path, converts a
   successful path to goals, and only then constructs the robot.
-- `course_setup.py` constructs each selected component and assembles the
+- [`course_setup.py`](course_setup.py) constructs each selected component and assembles the
   `Robot`, navigator, and planner. Change only the named `USE_STUDENT_*` flags
   after the matching checks pass.
 - [`component_checks.py`](component_checks.py) runs labeled direct, detour,

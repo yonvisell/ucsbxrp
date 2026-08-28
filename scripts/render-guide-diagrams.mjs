@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { instance } from "@viz-js/viz";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const diagrams = ["control-cycle", "system-boundary"];
+const diagrams = ["control-cycle", "project-structure", "system-boundary"];
 const outputDirectory = resolve(repositoryRoot, "public/diagrams");
 const viz = await instance();
 

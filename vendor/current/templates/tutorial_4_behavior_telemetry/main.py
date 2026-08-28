@@ -1,8 +1,9 @@
-"""Run the Tutorial 4 measured behavior with live telemetry."""
+# Run the Tutorial 4 measured behavior with live telemetry.
 
 from math import pi
 
 from course_setup import make_robot
+from exercise_checks import run_exercise_checks
 from robot_config import ROBOT_CONFIG
 from student_work import (
     APPROACH,
@@ -24,11 +25,15 @@ MAX_STEPS = 500
 
 
 def run_behavior():
+    if not run_exercise_checks():
+        print("Complete the remaining exercises in student_work.py")
+        return None
+
     robot = make_robot(ROBOT_CONFIG)
-    state = robot.start(Pose(0.0, 0.0, 0.0))
-    phase = APPROACH
-    turn_start_heading_rad = state.pose.heading_rad
     try:
+        state = robot.start(Pose(0.0, 0.0, 0.0))
+        phase = APPROACH
+        turn_start_heading_rad = state.pose.heading_rad
         for _ in range(MAX_STEPS):
             if not RUN_BEHAVIOR.value:
                 phase = DONE
@@ -64,7 +69,4 @@ def run_behavior():
     print("final_pose:", state.pose)
 
 
-try:
-    run_behavior()
-except NotImplementedError as error:
-    print("NOT COMPLETED ·", error)
+run_behavior()

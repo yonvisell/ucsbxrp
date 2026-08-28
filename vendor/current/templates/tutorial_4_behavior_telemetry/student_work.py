@@ -1,4 +1,4 @@
-"""Complete the behavior and telemetry functions for Tutorial 4."""
+# Complete the behavior and telemetry functions for Tutorial 4.
 
 from ucsb_xrp import MotionCommand, live
 
@@ -48,7 +48,7 @@ RUN_BEHAVIOR = live.toggle(
 
 
 def next_phase(phase, range_mm, stop_distance_mm, turn_complete):
-    """Return the next behavior phase from one measurement and turn status."""
+    # Return the next phase from one range measurement and the turn status.
     raise NotImplementedError("complete next_phase")
 
 
@@ -58,10 +58,10 @@ def command_for_phase(
     turn_rate_rad_s,
     turn_direction,
 ):
-    """Return the motion command associated with the current phase."""
+    # Return the motion command associated with the current phase.
     raise NotImplementedError("complete command_for_phase")
 
 
 def publish_telemetry(state, phase):
-    """Publish selected intermediate state for the Monitor."""
+    # Publish selected intermediate state for the Monitor.
     raise NotImplementedError("complete publish_telemetry")

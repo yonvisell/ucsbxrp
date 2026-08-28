@@ -272,6 +272,13 @@ function openingPathForNewProject(project: ProjectSnapshot): string {
     : project.entrypoint;
 }
 
+function newProjectPrefersVirtual(project: ProjectSnapshot): boolean {
+  return COURSE_PROJECT_TEMPLATES.some(
+    (template) =>
+      template.id === project.templateId && template.kind === "tutorial",
+  );
+}
+
 function checkFileForProject(project: ProjectSnapshot): string | null {
   if ("exercise_checks.py" in project.files) return "exercise_checks.py";
   if ("component_checks.py" in project.files) return "component_checks.py";
@@ -2092,6 +2099,9 @@ export function IdeApp({
       });
       await stageOpenedProject(nextSession.project);
       publishProjectSession(nextSession);
+      if (showChallengeBrief && newProjectPrefersVirtual(snapshot)) {
+        updateTargetPreference((current) => ({ ...current, kind: "virtual" }));
+      }
       const openingPath = showChallengeBrief
         ? openingPathForNewProject(snapshot)
         : nextSession.project.entrypoint;
@@ -2115,6 +2125,7 @@ export function IdeApp({
       replacePendingFolderDeletions,
       stageOpenedProject,
       stopFolderWrites,
+      updateTargetPreference,
     ],
   );
 
@@ -2201,6 +2212,12 @@ export function IdeApp({
         stopFolderWrites();
         await stageOpenedProject(nextSession.project);
         publishProjectSession(nextSession);
+        if (
+          projectCreationPurpose !== "save-current" &&
+          newProjectPrefersVirtual(pendingProject)
+        ) {
+          updateTargetPreference((current) => ({ ...current, kind: "virtual" }));
+        }
         const openingPath =
           projectCreationPurpose !== "save-current"
             ? openingPathForNewProject(pendingProject)
@@ -2266,6 +2283,7 @@ export function IdeApp({
       ensureWorkingFolderAccess,
       stageOpenedProject,
       stopFolderWrites,
+      updateTargetPreference,
       workspaceFolder,
     ],
   );
@@ -3870,6 +3888,12 @@ export function IdeApp({
                   <strong>{pendingTemplate.shortLabel}:</strong>{" "}
                   {pendingTemplate.summary}
                 </p>
+                {pendingTemplate.kind === "tutorial" ? (
+                  <p className="dialog-context">
+                    The tutorial opens with the Virtual XRP selected. Tutorial
+                    5 explains when to switch to a physical XRP.
+                  </p>
+                ) : null}
                 {pendingTemplatePredecessor ? (
                   <p className="dialog-context">
                     In the course sequence, continue from{" "}

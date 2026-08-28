@@ -242,8 +242,8 @@ export function ReferenceApp() {
       <div className="reference-layout">
         <nav className="reference-toc" aria-label="API sections">
           <span>Program structure</span>
-          <a href="#project-loop">Measured control loop</a>
-          <a href="#student-components">Student component interfaces</a>
+          <a href="#project-loop">Robot control cycle</a>
+          <a href="#student-components">Challenge component classes</a>
           {components.map(([id, name]) => (
             <a className="toc-child" href={"#" + id} key={id}>
               {name}
@@ -267,25 +267,27 @@ export function ReferenceApp() {
           <section className="reference-intro">
             <h1>UCSB XRP API reference</h1>
             <p>
-              This page documents the public UCSBXRP Python interface for course
-              projects using <code>ucsb_xrp 0.4.0-dev</code>. Project programs
-              import records, configuration classes, and supplied services from{" "}
-              <code>ucsb_xrp</code>. Student component classes inherit the
-              corresponding base class from <code>ucsb_xrp.student_api</code>.
-              Entries state purpose, arguments, types, units, return values, and
-              exceptions. Examples identify the project context they require.
-              Names beginning with an underscore are internal. The{" "}
-              <a href="../guide/">Guide</a> explains the IDE, Monitor, project
-              storage, and robot setup.
+              The UCSB XRP API is the set of Python classes, data types, and
+              functions available to a course project. Use this page to find
+              what each item does, the arguments and units it accepts, its
+              return value, and possible exceptions. Project programs import
+              records, configuration classes, and supplied services from{" "}
+              <code>ucsb_xrp</code>. Classes implemented during the challenges
+              inherit their corresponding base class from{" "}
+              <code>ucsb_xrp.student_api</code>. Examples identify any project
+              files they require. Names beginning with an underscore are
+              internal. The <a href="../guide/">Guide</a> explains the IDE,
+              Monitor, project storage, and robot setup.
             </p>
           </section>
 
-          <ReferenceSection id="project-loop" title="Measured control loop">
+          <ReferenceSection id="project-loop" title="Robot control cycle">
             <p>
-              <code>main.py</code> selects the task and calls the configured
-              services. <code>course_setup.py</code> creates a{" "}
-              <code>Robot</code> using either supplied or student components.
-              One loop iteration proceeds in this order:
+              <code>main.py</code> coordinates the task. It starts or calls the
+              configured services, then decides when the task is complete.{" "}
+              <code>course_setup.py</code> creates a <code>Robot</code> using
+              either supplied or student components. Each call to{" "}
+              <code>Robot.step()</code> proceeds in this order:
             </p>
             <ol className="api-procedure">
               <li>
@@ -298,7 +300,7 @@ export function ReferenceApp() {
               </li>
               <li>
                 <code>Robot</code> applies that command, waits until the next
-                absolute sample time, and reads the XRP sensors.
+                sample time, and reads the XRP sensors.
               </li>
               <li>
                 <code>SensorModel</code> converts encoder counts and time into
@@ -319,14 +321,14 @@ export function ReferenceApp() {
               milliseconds for device time, seconds for elapsed calculation
               time, radians for angles, and rad/s for turn rate. Positive
               heading and turn rate are counterclockwise.{" "}
-              <code>Robot.step()</code> maintains the configured sample period
-              from an absolute sequence of deadlines. It waits only for the time
-              remaining before the next deadline, then reads one sensor sample
-              and advances the deadline. Do not add <code>sleep_ms()</code>{" "}
-              inside this loop: the extra delay changes the actual interval
-              between sensor samples, which changes encoder-derived wheel-speed
-              estimates and controller behavior. Use a deliberate delay only
-              outside the measured control loop.
+              <code>Robot.step()</code> starts samples at the configured
+              interval. It waits only for the time remaining before the next
+              sample; if the preceding calculation took too long, it proceeds
+              immediately and records the timing overrun. Do not add{" "}
+              <code>sleep_ms()</code> inside this loop. That extra delay changes
+              the interval between sensor samples and therefore changes
+              encoder-derived wheel-speed estimates and controller behavior. Use
+              a deliberate delay only outside the robot control loop.
             </p>
             <CodeExample
               code={projectLoopExample}
@@ -336,7 +338,7 @@ export function ReferenceApp() {
 
           <ReferenceSection
             id="student-components"
-            title="Student-implemented component interfaces"
+            title="Challenge component classes"
           >
             <p>
               Each challenge identifies the components to implement. A student
@@ -3243,6 +3245,7 @@ function FunctionReference({
       className="function-reference"
       id={referenceAnchor("function", signature)}
     >
+      <h3>{referenceName(signature)}()</h3>
       <code className="method-signature">{signature}</code>
       <p>{description}</p>
       {parameters.length > 0 && (
@@ -3251,14 +3254,19 @@ function FunctionReference({
           <ParameterTable rows={parameters} />
         </>
       )}
+      <h4>Return value</h4>
       <p className="return-line">
-        <strong>Returns:</strong> <code>{returns.type}</code> —{" "}
-        {returns.description}
+        <code>{returns.type}</code> — {returns.description}
       </p>
       {errors.length > 0 && (
-        <p className="exception-line">
-          <strong>Raises:</strong> {errors.join(" ")}
-        </p>
+        <>
+          <h4>Exceptions</h4>
+          <ul className="exception-line">
+            {errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </>
       )}
     </article>
   );
@@ -3294,15 +3302,17 @@ function RecordReference({
 }
 
 function referenceAnchor(prefix: string, symbolOrSignature: string) {
-  const symbol = (
-    symbolOrSignature.split("(", 1)[0] ?? symbolOrSignature
-  ).trim();
+  const symbol = referenceName(symbolOrSignature);
   const kebab = symbol
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase();
   return prefix + "-" + kebab;
+}
+
+function referenceName(symbolOrSignature: string) {
+  return (symbolOrSignature.split("(", 1)[0] ?? symbolOrSignature).trim();
 }
 
 function ParameterTable({ rows }: { rows: Parameter[] }) {

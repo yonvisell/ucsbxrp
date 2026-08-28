@@ -1,6 +1,11 @@
-"""Behavior checks for Tutorial 1; this file does not start either robot."""
+# Behavior checks for Tutorial 1; this file does not start either robot.
 
-from student_work import average_speed_mm_s, range_state, route_distance_mm
+from student_work import (
+    average_speed_mm_s,
+    range_state,
+    route_distance_mm,
+    wheel_speed_summary,
+)
 
 
 def _close(actual, expected, tolerance=0.000001):
@@ -48,12 +53,43 @@ def _check_range_state():
     _expect_value_error(range_state, 200.0, 0.0)
 
 
+def _check_wheel_speed_summary():
+    result = wheel_speed_summary(
+        [100.0, 120.0, 140.0],
+        (90.0, 110.0, 130.0),
+    )
+    if result is None:
+        raise NotImplementedError("wheel_speed_summary returned no result")
+    if not isinstance(result, dict):
+        raise AssertionError("wheel_speed_summary should return a dictionary")
+    expected_keys = {
+        "sample_count",
+        "mean_left_mm_s",
+        "mean_right_mm_s",
+        "mean_difference_mm_s",
+    }
+    if set(result) != expected_keys:
+        raise AssertionError(
+            "expected dictionary keys {}, received {}".format(
+                sorted(expected_keys), sorted(result)
+            )
+        )
+    if result["sample_count"] != 3:
+        raise AssertionError("sample_count should be 3")
+    _close(result["mean_left_mm_s"], 120.0)
+    _close(result["mean_right_mm_s"], 110.0)
+    _close(result["mean_difference_mm_s"], 10.0)
+    _expect_value_error(wheel_speed_summary, (), ())
+    _expect_value_error(wheel_speed_summary, (100.0,), (90.0, 95.0))
+
+
 def run_exercise_checks():
-    """Run each independent exercise and print a concise outcome."""
+    # Run each independent exercise and print a concise outcome.
     checks = (
         ("1 · average speed", _check_average_speed),
         ("2 · route distance", _check_route_distance),
         ("3 · range decision", _check_range_state),
+        ("4 · wheel-speed summary", _check_wheel_speed_summary),
     )
     passed = 0
     incomplete = 0

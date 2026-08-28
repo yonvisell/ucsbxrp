@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 
 import { CourseHeader } from "../../shared/CourseHeader";
 import { useHashTarget } from "../../shared/useHashTarget";
-import { ControlCycleFlow, SystemBoundaryFlow } from "./CourseFlows";
+import {
+  ControlCycleFlow,
+  ProjectStructureFlow,
+  SystemBoundaryFlow,
+} from "./CourseFlows";
 
 const componentReference = "../reference/#student-components";
 
@@ -47,7 +51,7 @@ export function GuideApp() {
               Use a current version of Google Chrome or Microsoft Edge on a
               Windows or macOS computer for project folders and USB robot setup.
               Other modern browsers can read the documentation and may run the
-              virtual XRP, but they cannot provide the complete course workflow.
+              virtual XRP, but they do not support every course task.
             </p>
           </section>
 
@@ -69,9 +73,9 @@ export function GuideApp() {
             </ol>
             <h3>Prepare for Challenge 1</h3>
             <p>
-              After the demo, complete the four tutorials in order. Each
+              After the demo, complete the five tutorials in order. Each
               tutorial edits only <code>student_work.py</code> and introduces
-              one part of the challenge workflow:
+              one programming skill used in the challenges:
             </p>
             <ol className="tutorial-path">
               <li>
@@ -94,11 +98,17 @@ export function GuideApp() {
                 choose motion and publish live controls, watched values, and
                 plot signals in Monitor.
               </li>
+              <li>
+                <strong>Physical XRP preflight</strong> — rehearse with the
+                Virtual XRP, then collect a bounded zero-motion sensor record
+                from a commissioned physical XRP.
+              </li>
             </ol>
             <p>
-              Create Challenge 1 after Tutorial 4. Tutorial checks do not move
-              either robot; run Tutorials 2–4 on the Virtual XRP after their
-              checks pass.
+              Create Challenge 1 after Tutorial 5. Tutorial checks do not move
+              either robot. Run Tutorials 2–5 on the Virtual XRP after their
+              checks pass; Tutorial 5 then gives the exact steps for its
+              physical zero-motion run.
             </p>
             <h3>IDE controls</h3>
             <ul className="action-list">
@@ -247,43 +257,17 @@ export function GuideApp() {
           >
             <p>
               <code>main.py</code> is the program entry point. Depending on the
-              project, it runs a measured loop directly, calls a supplied runner
-              or mission, or runs software-only checks. In a measured robot
-              loop,
+              project, it runs a timed robot loop directly, calls a supplied
+              runner or mission, or runs software-only checks. In a robot loop,
               <code>main.py</code> or the supplied mission passes one{" "}
               <code>MotionCommand</code> at a time to <code>Robot.step()</code>.{" "}
-              <code>Robot</code> maintains sample timing, calls the selected
-              components, and returns both the newest measurements and odometry
-              pose in one <code>RobotState</code>.
+              <code>Robot</code> keeps samples at the configured interval, calls
+              the selected components, and returns the newest measurements and
+              odometry pose together in one <code>RobotState</code>.
             </p>
             <ControlCycleFlow />
             <h3>Where project values and implementations come from</h3>
-            <div
-              className="project-data-flow"
-              aria-label="Project file and runtime dependencies"
-            >
-              <div>
-                <code>world.json</code>
-                <span aria-hidden="true">→</span>
-                <code>load_world()</code>
-                <span aria-hidden="true">→</span>
-                <code>challenge.py</code>
-              </div>
-              <div>
-                <code>robot_config.py</code>
-                <span aria-hidden="true">→</span>
-                <code>course_setup.py</code>
-                <span aria-hidden="true">→</span>
-                <span>selected components and services</span>
-              </div>
-              <div>
-                <code>challenge.py</code>
-                <span aria-hidden="true">+</span>
-                <span>selected services</span>
-                <span aria-hidden="true">→</span>
-                <code>main.py</code> <span>or a supplied mission</span>
-              </div>
-            </div>
+            <ProjectStructureFlow />
             <div className="project-files-summary">
               <div>
                 <code>challenge.py</code>

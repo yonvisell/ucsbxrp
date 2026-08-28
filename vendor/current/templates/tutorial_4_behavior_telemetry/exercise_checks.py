@@ -1,4 +1,4 @@
-"""Behavior checks for the Tutorial 4 state, command, and telemetry functions."""
+# Behavior checks for the Tutorial 4 state, command, and telemetry functions.
 
 import student_work
 from ucsb_xrp import Measurements, MotionCommand, Pose, RobotState
@@ -133,7 +133,7 @@ def _check_telemetry():
 
 
 def run_exercise_checks():
-    """Run each independent exercise and print a concise outcome."""
+    # Run each independent exercise and print a concise outcome.
     checks = (
         ("1 · phase transitions", _check_phase_transitions),
         ("2 · motion commands", _check_motion_commands),

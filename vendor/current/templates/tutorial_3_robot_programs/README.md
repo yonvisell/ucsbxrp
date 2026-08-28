@@ -4,6 +4,23 @@ This project introduces the sampled program structure used by the course
 challenges. Edit only `student_work.py`. Complete and test the program with the
 **Virtual XRP** before considering a physical run.
 
+## The UCSBXRP project structure
+
+This tutorial is a complete project rather than one standalone Python file:
+
+- `README.md` states the task and checkable result;
+- `student_work.py` contains the one exercise you edit;
+- `exercise_checks.py` checks that exercise with a software robot;
+- `main.py` is the entrypoint that constructs and runs the project;
+- `robot_config.py` contains named robot settings and units;
+- `course_setup.py` assembles the supplied course components; and
+- `world.json` gives the Virtual XRP and Monitor one shared world.
+
+Python files are modules. `import` statements connect them by name. Keeping
+task flow, robot settings, checks, and world geometry in their stated files
+makes later projects readable without copying those responsibilities into one
+large script.
+
 ## The program structure
 
 [`main.py`](main.py) constructs the robot from the supplied course components,
@@ -17,8 +34,9 @@ responsible for one complete run:
    returns the next `RobotState`.
 3. `robot.stop()` sets the final motor command to zero.
 
-Place the sampled loop inside `try` and call `robot.stop()` in `finally` so the
-stop occurs after normal completion and after an unexpected error.
+Place `robot.start(...)` and the sampled loop inside `try`, then call
+`robot.stop()` in `finally` so the stop occurs after normal completion and
+after an unexpected start or step error.
 
 ## Exercise: write one bounded sampled program
 
@@ -42,6 +60,23 @@ robot motion rather than raw motor power. Positive forward speed is in
 millimeters per second. Positive turn rate is a left yaw rate in radians per
 second; this exercise requires zero turn rate.
 
+## Reading a returned robot state
+
+This complete example answers a different question from the exercise: whether
+the mean wheel position has reached a requested distance.
+
+```python
+def reached_distance(state, target_mm):
+    measurements = state.measurements
+    mean_position_mm = (
+        measurements.left_position_mm + measurements.right_position_mm
+    ) / 2.0
+    return mean_position_mm >= target_mm
+```
+
+`RobotState` groups the latest measurements and pose. Reading it does not take
+another sample; the next `robot.step(...)` call produces the next state.
+
 ## Do not add another delay
 
 **Do not call `sleep()`, `sleep_ms()`, or another delay inside the sampled
@@ -61,6 +96,10 @@ rule.
    motor command of zero.
 5. Reset the Virtual XRP and repeat the run. Comparable programs should produce
    comparable trajectories from the same initial pose.
+
+`main.py` runs the same exercise check before it constructs the robot. Your
+`run_robot_program()` function owns the final `robot.stop()` call, including
+when `robot.step()` raises an unexpected error.
 
 `RobotState.pose` is the current odometry estimate. `RobotState.measurements`
 contains the current sample time, wheel positions and speeds, wheel increments,

@@ -1,10 +1,16 @@
-"""Execute a checked Tutorial 2 drawing on the Virtual XRP."""
+# Execute a checked Tutorial 2 drawing on the Virtual XRP.
 
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks
 from robot_config import ROBOT_CONFIG
 from student_work import build_drawing
-from ucsb_xrp import MotionCommand, Pose
+from ucsb_xrp import Pose
+
+
+SIDE_SPEED_MM_S = 100.0
+SIDE_STEPS = 35
+TURN_RATE_RAD_S = 1.6
+TURN_STEPS = 49
 
 
 def run_drawing():
@@ -12,15 +18,17 @@ def run_drawing():
         print("Complete the remaining exercises in student_work.py")
         return
 
-    segments = build_drawing()
+    segments = build_drawing(
+        side_speed_mm_s=SIDE_SPEED_MM_S,
+        side_steps=SIDE_STEPS,
+        turn_rate_rad_s=TURN_RATE_RAD_S,
+        turn_steps=TURN_STEPS,
+    )
     robot = make_robot(ROBOT_CONFIG)
     state = robot.start(Pose(0.0, 0.0, 0.0))
     try:
         for segment in segments:
-            command = MotionCommand(
-                segment.forward_speed_mm_s,
-                segment.turn_rate_rad_s,
-            )
+            command = segment.command()
             for _ in range(segment.steps):
                 state = robot.step(command)
     finally:

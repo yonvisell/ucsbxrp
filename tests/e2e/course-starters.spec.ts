@@ -31,6 +31,30 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("opens a newly created tutorial on the Virtual XRP", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "ucsb-xrp-robot-profile-v2",
+      JSON.stringify({
+        schemaVersion: 2,
+        kind: "physical",
+        physicalConnection: "station",
+        stationEndpoint: "http://127.0.0.1:9",
+        accessPointEndpoint: "http://192.168.4.1",
+      }),
+    );
+  });
+  await page.goto("/ide/");
+  await expect(page.getByLabel("Run on")).toHaveValue("physical");
+
+  await openTemplateInBrowser(page, "micropython_tutorial");
+
+  await expect(page.getByLabel("Run on")).toHaveValue("virtual");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+});
+
 test("renders project README files and keeps their Markdown editable", async ({
   page,
 }) => {
@@ -189,7 +213,7 @@ test("runs with declared live defaults if isolation disappears", async ({
   );
 });
 
-test("Run reports a validation error before starting invalid code", async ({
+test("Run reports a compilation error before starting invalid code", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -205,7 +229,7 @@ test("Run reports a validation error before starting invalid code", async ({
   await page.goto("/ide/");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("Validation failed");
+  await expect(page.getByRole("log")).toContainText("Compilation failed");
   await expect(page.getByRole("log")).not.toContainText("<stdin>");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
@@ -249,7 +273,7 @@ test("runs hardware-free student component checks without changing the target", 
 });
 
 for (const starter of starters) {
-  test(`${starter.option} validates and completes on the virtual XRP`, async ({
+  test(`${starter.option} compiles and completes on the virtual XRP`, async ({
     page,
   }) => {
     test.setTimeout(50_000);
@@ -266,7 +290,7 @@ for (const starter of starters) {
       "Virtual XRP · ready",
     );
     await openTemplateInBrowser(page, starter.option);
-    await page.getByRole("button", { name: "Validate" }).click();
+    await page.getByRole("button", { name: "Compile" }).click();
     await expect(page.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
     );
@@ -345,7 +369,7 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   await expect(page.locator(".file-type-icon")).toHaveCount(0);
 });
 
-test("validates all four active tutorials and reports unfinished exercises without motion", async ({
+test("compiles all five active tutorials and reports unfinished exercises without motion", async ({
   context,
   page: ide,
 }) => {
@@ -361,13 +385,13 @@ test("validates all four active tutorials and reports unfinished exercises witho
       id: "micropython_tutorial",
       title: "Tutorial 1: Python essentials",
       compiled: 3,
-      summary: "Tutorial 1: 0 passed · 3 not completed · 0 incorrect",
+      summary: "Tutorial 1: 0 passed · 4 not completed · 0 incorrect",
     },
     {
       id: "tutorial_virtual_drawing",
       title: "Tutorial 2: draw with the Virtual XRP",
       compiled: 5,
-      summary: "Tutorial 2: 0 passed · 2 not completed · 0 incorrect",
+      summary: "Tutorial 2: 0 passed · 3 not completed · 0 incorrect",
     },
     {
       id: "tutorial_robot_programs",
@@ -381,6 +405,12 @@ test("validates all four active tutorials and reports unfinished exercises witho
       compiled: 5,
       summary: "Tutorial 4: 0 passed · 3 not completed · 0 incorrect",
     },
+    {
+      id: "tutorial_physical_preflight",
+      title: "Tutorial 5: physical XRP preflight",
+      compiled: 5,
+      summary: "Tutorial 5: 0 passed · 1 not completed · 0 incorrect",
+    },
   ] as const;
 
   for (const tutorial of tutorials) {
@@ -393,7 +423,7 @@ test("validates all four active tutorials and reports unfinished exercises witho
     await expect(
       ide.getByRole("button", { name: "Open student_work.py" }),
     ).toBeVisible();
-    await ide.getByRole("button", { name: "Validate" }).click();
+    await ide.getByRole("button", { name: "Compile" }).click();
     await expect(ide.getByTestId("check-result")).toContainText(
       `${tutorial.compiled} Python files compiled with MicroPython`,
     );
@@ -418,7 +448,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
     "Virtual XRP · ready",
   );
   await openTemplateInBrowser(ide, "demo_obstacle_turn");
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
   );
@@ -504,7 +534,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   );
 
   await openTemplateInBrowser(ide, "demo_spiral");
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
   );

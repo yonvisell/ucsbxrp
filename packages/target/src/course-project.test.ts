@@ -23,7 +23,7 @@ describe("course starter catalog", () => {
       expect(starter.project.files["main.py"]).toBeTruthy();
       expect(starter.project.files["README.md"]).toContain("Challenge");
       expect(starter.project.files["component_checks.py"]).toContain(
-        "without moving a robot",
+        "does not run either robot",
       );
       expect(starter.project.files["component_checks.py"]).toContain(
         "run_component_checks",
@@ -41,7 +41,7 @@ describe("course starter catalog", () => {
     );
   });
 
-  it("groups challenges, two sensor-driven demos, and four ordered tutorials", () => {
+  it("groups challenges, two sensor-driven demos, and five ordered tutorials", () => {
     expect(COURSE_PROJECT_TEMPLATES.map((template) => template.kind)).toEqual([
       "challenge",
       "challenge",
@@ -50,6 +50,7 @@ describe("course starter catalog", () => {
       "challenge",
       "demo",
       "demo",
+      "tutorial",
       "tutorial",
       "tutorial",
       "tutorial",
@@ -94,6 +95,19 @@ describe("course starter catalog", () => {
       "publish_telemetry",
     );
     expect(telemetry.project.files["world.json"]).toContain("Range target");
+
+    const physicalPreflight = courseProjectTemplate(
+      "tutorial_physical_preflight",
+    );
+    expect(physicalPreflight.project.files["main.py"]).toContain(
+      "robot.step(STOP_COMMAND, read_range=True)",
+    );
+    expect(physicalPreflight.project.files["main.py"]).not.toContain(
+      "sleep_ms",
+    );
+    expect(
+      physicalPreflight.project.files["README.md"]!.replace(/\s+/g, " "),
+    ).toContain("Setup and repair");
     for (const template of COURSE_PROJECT_TEMPLATES) {
       expect(template.project.files["world.json"]).toContain('"worlds"');
     }
