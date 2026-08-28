@@ -169,7 +169,10 @@ class TutorialPositivePathTests(unittest.TestCase):
             self.assertGreater(len(robot.step_calls), 0)
             self.assertLessEqual(len(robot.step_calls), 500)
             self.assertLess(robot.path_length_mm, 1000.0)
-            self.assertEqual(robot.stop_count, 1)
+            expected_stop_count = (
+                2 if directory_name == "tutorial_5_physical_preflight" else 1
+            )
+            self.assertEqual(robot.stop_count, expected_stop_count)
             self.assertEqual(robot.last_command.forward_speed_mm_s, 0.0)
             self.assertEqual(robot.last_command.turn_rate_rad_s, 0.0)
             if directory_name == "tutorial_2_virtual_drawing":

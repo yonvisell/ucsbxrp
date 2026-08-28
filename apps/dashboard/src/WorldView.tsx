@@ -722,6 +722,15 @@ export function WorldView({
       viewRef.current.dataset.pathSegmentCount = String(
         trailSegments.length / 2,
       );
+      let maximumSegmentMm = 0;
+      for (let index = 0; index < trailSegments.length; index += 2) {
+        maximumSegmentMm = Math.max(
+          maximumSegmentMm,
+          trailSegments[index]!.distanceTo(trailSegments[index + 1]!),
+        );
+      }
+      viewRef.current.dataset.pathMaximumSegmentMm =
+        maximumSegmentMm.toFixed(3);
     }
 
     robot.position.set(sample.xMm, sample.yMm, 0);

@@ -50,7 +50,7 @@ RUN_BEHAVIOR = live.toggle(
 
 def next_phase(
     phase: str,
-    range_mm: "float | None",
+    range_mm: object,
     stop_distance_mm: float,
     turn_complete: bool,
 ) -> str:

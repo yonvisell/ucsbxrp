@@ -1,4 +1,4 @@
-# Behavior check for the Tutorial 5 stationary preflight report.
+# Check each field of the Tutorial 5 report without starting a robot.
 
 from student_work import preflight_report
 from ucsb_xrp import Measurements, Pose, RobotState
@@ -32,75 +32,96 @@ def _state(
     return RobotState(measurements, Pose(0.0, 0.0, 0.0))
 
 
-def _check_preflight_report():
-    states = (
-        _state(0, 0.0, 0.0, 0.0, None, False),
-        _state(20, 0.02, 0.1, -0.2, 420.0, False),
-        _state(40, 0.02, 0.2, -0.4, 380.0, True),
-    )
-    report = preflight_report(states)
+SAMPLE_STATES = (
+    _state(0, 0.0, 0.0, 0.0, None, False),
+    _state(20, 0.02, 0.1, -0.2, 420.0, False),
+    _state(40, 0.02, 0.2, -0.4, 380.0, True),
+)
+
+
+def _read_report():
+    report = preflight_report(SAMPLE_STATES)
     if report is None:
         raise NotImplementedError("preflight_report returned no result")
     if not isinstance(report, dict):
-        raise AssertionError("preflight_report should return a dictionary")
-    expected_keys = {
-        "sample_count",
-        "elapsed_time_s",
-        "maximum_abs_wheel_position_mm",
-        "usable_range_count",
-        "nearest_range_mm",
-        "button_was_pressed",
-    }
-    if set(report) != expected_keys:
-        raise AssertionError(
-            "expected dictionary keys {}, received {}".format(
-                sorted(expected_keys), sorted(report)
-            )
-        )
-    if report["sample_count"] != 3:
-        raise AssertionError("sample_count should be 3")
-    _close(report["elapsed_time_s"], 0.04)
-    _close(report["maximum_abs_wheel_position_mm"], 0.4)
-    if report["usable_range_count"] != 2:
-        raise AssertionError("usable_range_count should be 2")
-    _close(report["nearest_range_mm"], 380.0)
-    if report["button_was_pressed"] is not True:
-        raise AssertionError("button_was_pressed should be True")
+        raise AssertionError("return a dictionary")
+    return report
 
-    unavailable = preflight_report(
+
+def _check_sample_count(report):
+    if report.get("sample_count") != 3:
+        raise AssertionError("sample_count: expected 3, received {}".format(report.get("sample_count")))
+    try:
+        preflight_report(())
+    except ValueError:
+        return
+    raise AssertionError("raise ValueError for an empty collection")
+
+
+def _check_elapsed_time(report):
+    _close(report.get("elapsed_time_s"), 0.04)
+
+
+def _check_wheel_position(report):
+    _close(report.get("maximum_abs_wheel_position_mm"), 0.4)
+
+
+def _check_range_count(report):
+    if report.get("usable_range_count") != 2:
+        raise AssertionError("expected 2, received {}".format(report.get("usable_range_count")))
+
+
+def _check_nearest_range(report):
+    _close(report.get("nearest_range_mm"), 380.0)
+    no_range = preflight_report(
         (
             _state(0, 0.0, 0.0, 0.0, None, False),
             _state(20, 0.02, 0.0, 0.0, None, False),
         )
     )
-    if unavailable["usable_range_count"] != 0:
-        raise AssertionError("usable_range_count should be zero without range")
-    if unavailable["nearest_range_mm"] is not None:
-        raise AssertionError("nearest_range_mm should be None without range")
+    if no_range.get("nearest_range_mm") is not None:
+        raise AssertionError("nearest_range_mm should be None without a measurement")
 
-    try:
-        preflight_report(())
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("an empty state collection should raise ValueError")
+
+def _check_button(report):
+    if report.get("button_was_pressed") is not True:
+        raise AssertionError("button_was_pressed should be True")
 
 
 def run_exercise_checks():
-    # Run the report exercise and print one clear outcome.
     try:
-        _check_preflight_report()
+        report = _read_report()
     except NotImplementedError as error:
-        print("NOT COMPLETED · stationary preflight report · " + str(error))
+        print("NOT COMPLETED · preflight report · " + str(error))
+        print("  Next: initialize the six result values, update them in one loop, and return a dictionary.")
         print("Tutorial 5: 0 passed · 1 not completed · 0 incorrect")
         return False
     except Exception as error:
-        print("INCORRECT · stationary preflight report · " + str(error))
+        print("INCORRECT · preflight report · " + str(error))
         print("Tutorial 5: 0 passed · 0 not completed · 1 incorrect")
         return False
-    print("PASS · stationary preflight report")
-    print("Tutorial 5: 1 passed · 0 not completed · 0 incorrect")
-    return True
+
+    checks = (
+        ("sample count", _check_sample_count),
+        ("elapsed time", _check_elapsed_time),
+        ("maximum wheel position", _check_wheel_position),
+        ("usable range count", _check_range_count),
+        ("nearest range", _check_nearest_range),
+        ("USER button", _check_button),
+    )
+    passed = 0
+    incorrect = 0
+    for label, check in checks:
+        try:
+            check(report)
+        except Exception as error:
+            incorrect += 1
+            print("INCORRECT · {} · {}".format(label, error))
+        else:
+            passed += 1
+            print("PASS · " + label)
+    print("Tutorial 5: {} passed · 0 not completed · {} incorrect".format(passed, incorrect))
+    return incorrect == 0
 
 
 if __name__ == "__main__":

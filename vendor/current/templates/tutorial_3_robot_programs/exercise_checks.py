@@ -103,7 +103,7 @@ def _check_robot_program():
     if robot.stop_count != 1:
         raise AssertionError("call robot.stop() exactly once from finally")
 
-    for speed_mm_s, count in ((0.0, 30), (-1.0, 30), (80.0, 19), (80.0, 151), (80.0, True)):
+    for speed_mm_s, count in ((0.0, 30), (-1.0, 30), (80.0, 0), (80.0, -1)):
         invalid_robot = _RecordingRobot()
         _expect_value_error(run_robot_program, invalid_robot, speed_mm_s, count)
         if invalid_robot.start_poses or invalid_robot.stop_count:

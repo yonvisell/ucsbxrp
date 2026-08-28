@@ -5,9 +5,8 @@ Write one finite Virtual XRP program using the same `Robot.start()`,
 program requests straight motion for a fixed number of samples; it does not
 solve a distance-control challenge.
 
-Use the **Virtual XRP**. Edit only `student_work.py`. The function comments in
-that file contain the sequence to implement, so this README can remain closed
-while you code.
+Use the **Virtual XRP**. Edit only `student_work.py`; the supplied files assemble
+the robot, check the exercises, and run your completed program.
 
 ## Project modules
 
@@ -54,8 +53,7 @@ def run_robot_program(
 Before starting the robot:
 
 - raise `ValueError` when `forward_speed_mm_s` is not positive; and
-- raise `ValueError` unless `sample_count` is a non-Boolean integer from 20 to
-  150, inclusive.
+- raise `ValueError` unless `sample_count` is a positive integer.
 
 Then implement this sequence:
 
@@ -75,11 +73,10 @@ their messages are needed for diagnosis.
 ## Robot.step controls the sample time
 
 **Do not call `sleep()`, `sleep_ms()`, or another delay inside a sampled robot
-loop.** `Robot.step()` waits for the next absolute sample time, applies the
-motion request, reads the XRP, updates wheel measurements and pose, and
-publishes telemetry. An added delay changes the measurement interval,
-wheel-speed estimate, controller response, odometry, telemetry rate, and total
-motion.
+loop.** `Robot.step()` already waits for the next scheduled sample. It then
+applies the command, reads the XRP, updates measurements and pose, and publishes
+telemetry. An added delay makes the sample interval wrong and changes both the
+measured response and total motion.
 
 ## Check and run
 

@@ -179,11 +179,10 @@ function errorDetail(error: unknown): string {
 
 function physicalConnectionRecovery(endpoint: string): string {
   return (
-    "Run and telemetry use Wi-Fi, not USB. Connect this computer to the " +
-    "same Wi-Fi as the XRP, or join its UCSB-XRP hotspot and select Robot " +
-    "hotspot in Settings. The course app remains available without " +
-    `internet. If already connected, verify ${endpoint} and allow Chrome ` +
-    "to access devices on the local network."
+    "Run and telemetry use Wi-Fi. The computer and XRP must use the network " +
+    "selected during Set up or Repair. If they are already on that network, " +
+    `select Reconnect. Browser detail: ${endpoint} was not reachable; Chrome ` +
+    "must be allowed to access devices on the local network."
   );
 }
 

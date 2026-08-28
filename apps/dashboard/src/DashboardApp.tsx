@@ -11,6 +11,7 @@ import {
   DEFAULT_WORLD_CATALOG,
   PhysicalTargetClient,
   VirtualTargetClient,
+  describeProject,
   physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
@@ -610,7 +611,8 @@ export function DashboardApp() {
   const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
   const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
-  const autosaveFolderEpoch = useRef(0);
+  const activeRunFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const latestRunFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const autosaveFolderRemembered = useRef(false);
   const currentProjectRef = useRef<SynchronizedProject | null>(null);
   const annotationsRef = useRef<MonitorAnnotation[]>([]);
@@ -713,7 +715,9 @@ export function DashboardApp() {
           autosaveFolderRef.current = null;
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
-          setRunAutosaveDetail("Choose a Working folder and project in the IDE.");
+          setRunAutosaveDetail(
+            "Choose a Working folder and project in the IDE.",
+          );
           return;
         }
         autosaveFolderRemembered.current = true;
@@ -723,8 +727,17 @@ export function DashboardApp() {
           return;
         }
         if (permission === "granted") {
+          const opened = await readProjectFolder(folder);
+          if (disposed || revision !== refreshRevision) {
+            return;
+          }
+          const descriptor = await describeProject(opened.project);
           autosaveFolderRef.current = folder;
           setAutosaveFolder(folder);
+          if (currentProjectRef.current === null) {
+            currentProjectRef.current = descriptor;
+            setCurrentProject(descriptor);
+          }
           setRunAutosaveDetail(`Runs save automatically to ${folder.name}.`);
         } else {
           autosaveFolderRef.current = null;
@@ -741,7 +754,6 @@ export function DashboardApp() {
       const sharedFolderCanChange = autosaveFolderRemembered.current;
       if (sharedFolderCanChange) {
         // Stop writes immediately; loading the replacement handle is asynchronous.
-        autosaveFolderEpoch.current += 1;
         autosaveFolderRef.current = null;
         setAutosaveFolder(null);
       }
@@ -755,96 +767,91 @@ export function DashboardApp() {
     };
   }, [beginFolderInteraction, finishFolderInteraction]);
 
-  const archiveCompletedRun = useCallback((run: MonitorRunDataset) => {
-    const recording = run.recording;
-    const folder = autosaveFolderRef.current;
-    const folderEpoch = autosaveFolderEpoch.current;
-    if (!folder) {
-      setRunAutosaveDetail(
-        "Run data was not saved; reconnect the Project folder in the IDE.",
-      );
-      return;
-    }
-
-    const firstSample = recording.samples[0];
-    const lastSample = recording.samples.at(-1);
-    const fingerprint = JSON.stringify({
-      id: run.id,
-      source: run.target,
-      revision: run.project?.revision ?? null,
-      first: firstSample ? [firstSample.seq, firstSample.tMs] : null,
-      last: lastSample ? [lastSample.seq, lastSample.tMs] : null,
-      outputCount: run.output.length,
-      firstOutput: run.output[0]?.line ?? null,
-      lastOutput: run.output.at(-1)?.line ?? null,
-    });
-    const metadata = completedRunMetadata(run);
-    const outputText = completedRunOutput(run);
-
-    const writeArchive = async (): Promise<boolean> => {
-      if (
-        autosaveFolderRef.current === null ||
-        autosaveFolderEpoch.current !== folderEpoch
-      ) {
-        return false;
-      }
-      try {
-        if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
-          return true;
-        }
-      } catch {
-        // The folder write remains useful when localStorage is unavailable.
-      }
-      await writeRotatingTextBundle(folder, [
-        { baseName: "run", extension: "txt", content: outputText },
-        {
-          baseName: "telemetry",
-          extension: "csv",
-          content: monitorRunToCsv(recording, run.annotations),
-        },
-        {
-          baseName: "run",
-          extension: "json",
-          content: `${JSON.stringify(metadata, null, 2)}\n`,
-        },
-      ]);
-      try {
-        localStorage.setItem(lastArchivedRunKey, fingerprint);
-      } catch {
-        // The files are already complete.
-      }
-      return true;
-    };
-
-    const queued = runArchiveQueue.current.then(async () => {
-      return withCourseFolderWriteLock("run", writeArchive);
-    });
-    runArchiveCountRef.current += 1;
-    runArchiveQueue.current = queued.then(
-      () => undefined,
-      () => undefined,
-    );
-    void queued
-      .then((saved) => {
+  const archiveCompletedRun = useCallback(
+    (run: MonitorRunDataset, folder: CourseDirectoryHandle | null) => {
+      const recording = run.recording;
+      if (!folder) {
         setRunAutosaveDetail(
-          saved
-            ? `Saved automatically to ${folder.name}.`
-            : "Not saved because the project folder changed.",
+          "Run data was not saved; reconnect the Project folder in the IDE.",
         );
-      })
-      .catch((error: unknown) => {
-        setRunAutosaveDetail(
-          `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      })
-      .finally(() => {
-        runArchiveCountRef.current = Math.max(
-          0,
-          runArchiveCountRef.current - 1,
-        );
-        retryPendingOfflineShellReload();
+        return;
+      }
+
+      const firstSample = recording.samples[0];
+      const lastSample = recording.samples.at(-1);
+      const fingerprint = JSON.stringify({
+        id: run.id,
+        source: run.target,
+        revision: run.project?.revision ?? null,
+        first: firstSample ? [firstSample.seq, firstSample.tMs] : null,
+        last: lastSample ? [lastSample.seq, lastSample.tMs] : null,
+        outputCount: run.output.length,
+        firstOutput: run.output[0]?.line ?? null,
+        lastOutput: run.output.at(-1)?.line ?? null,
       });
-  }, []);
+      const metadata = completedRunMetadata(run);
+      const outputText = completedRunOutput(run);
+
+      const writeArchive = async (): Promise<boolean> => {
+        try {
+          if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
+            return true;
+          }
+        } catch {
+          // The folder write remains useful when localStorage is unavailable.
+        }
+        await writeRotatingTextBundle(folder, [
+          { baseName: "run", extension: "txt", content: outputText },
+          {
+            baseName: "telemetry",
+            extension: "csv",
+            content: monitorRunToCsv(recording, run.annotations),
+          },
+          {
+            baseName: "run",
+            extension: "json",
+            content: `${JSON.stringify(metadata, null, 2)}\n`,
+          },
+        ]);
+        try {
+          localStorage.setItem(lastArchivedRunKey, fingerprint);
+        } catch {
+          // The files are already complete.
+        }
+        return true;
+      };
+
+      const queued = runArchiveQueue.current.then(async () => {
+        return withCourseFolderWriteLock("run", writeArchive);
+      });
+      runArchiveCountRef.current += 1;
+      runArchiveQueue.current = queued.then(
+        () => undefined,
+        () => undefined,
+      );
+      void queued
+        .then((saved) => {
+          setRunAutosaveDetail(
+            saved
+              ? `Saved automatically to ${folder.name}.`
+              : "Not saved because the project folder changed.",
+          );
+        })
+        .catch((error: unknown) => {
+          setRunAutosaveDetail(
+            `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        })
+        .finally(() => {
+          runArchiveCountRef.current = Math.max(
+            0,
+            runArchiveCountRef.current - 1,
+          );
+          retryPendingOfflineShellReload();
+        });
+    },
+    [],
+  );
 
   const finishActiveRun = useCallback(
     (finalState: TargetRunState, finalDetail: string) => {
@@ -854,28 +861,24 @@ export function DashboardApp() {
         new Date().toISOString(),
       );
       if (!run) return null;
+      const runFolder = activeRunFolderRef.current;
+      activeRunFolderRef.current = null;
+      latestRunFolderRef.current = runFolder;
       setActiveRunId(null);
       setLatestRun(run);
       annotationsRef.current = [...run.annotations];
       setAnnotations([...run.annotations]);
       setPlotSamples(run.recording.samples);
-      archiveCompletedRun(run);
+      archiveCompletedRun(run, runFolder);
       return run;
     },
     [archiveCompletedRun, runDatasetController],
   );
 
   const updateSavedRunAnnotations = useCallback((run: MonitorRunDataset) => {
-    const folder = autosaveFolderRef.current;
-    const folderEpoch = autosaveFolderEpoch.current;
+    const folder = latestRunFolderRef.current;
     if (!folder) return;
     const update = runArchiveQueue.current.then(async () => {
-      if (
-        autosaveFolderRef.current === null ||
-        autosaveFolderEpoch.current !== folderEpoch
-      ) {
-        return;
-      }
       await withCourseFolderWriteLock("run", async () => {
         await writeCourseTextFile(
           folder,
@@ -893,9 +896,7 @@ export function DashboardApp() {
   }, []);
 
   useEffect(() => {
-    runDatasetController.clear();
     setActiveRunId(null);
-    setLatestRun(null);
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
     setAvailableProgramPlots([]);
@@ -938,6 +939,7 @@ export function DashboardApp() {
             worldId: selectedWorldIdRef.current,
             startedAt: new Date().toISOString(),
           });
+          activeRunFolderRef.current = autosaveFolderRef.current;
           setActiveRunId(runId);
           setLatestRun(null);
           plotSampleHistory.clear();
@@ -962,22 +964,10 @@ export function DashboardApp() {
         const projectChanged =
           currentProjectRef.current?.revision !== event.project?.revision;
         currentProjectRef.current = event.project;
-        if (
-          projectChanged &&
-          runDatasetController.isActive &&
-          !runDatasetController.acceptProject(event.project)
-        ) {
-          finishActiveRun(
-            "ready",
-            "Run data ended because the project changed",
-          );
-        }
-        if (projectChanged && !runDatasetController.isActive) {
-          runDatasetController.clear();
-          setLatestRun(null);
-          plotSampleHistory.clear();
-          annotationsRef.current = [];
-          setAnnotations([]);
+        if (projectChanged && runDatasetController.isActive) {
+          // The executing run retains its start-time project snapshot. Edits
+          // are saved for the next run and do not end telemetry collection.
+          runDatasetController.acceptProject(event.project);
         }
         setCurrentProject(event.project);
       } else if (event.type === "project-provider") {
@@ -1013,8 +1003,6 @@ export function DashboardApp() {
     setSample(null);
     telemetryRateSamplesRef.current = [];
     plotSampleHistory.clear();
-    annotationsRef.current = [];
-    setAnnotations([]);
     currentProjectRef.current = null;
     setProjectProviderAvailable(false);
     let disposed = false;
@@ -1056,12 +1044,6 @@ export function DashboardApp() {
 
   const reset = async () => {
     finishActiveRun("ready", "Run ended by Reset");
-    runDatasetController.clear();
-    setActiveRunId(null);
-    setLatestRun(null);
-    plotSampleHistory.clear();
-    annotationsRef.current = [];
-    setAnnotations([]);
     setExportDetail("");
     beginTargetCommand();
     try {
@@ -1168,6 +1150,7 @@ export function DashboardApp() {
     runDatasetController.clear();
     setActiveRunId(null);
     setLatestRun(null);
+    latestRunFolderRef.current = null;
     plotSampleHistory.clear();
     annotationsRef.current = [];
     setAnnotations([]);
@@ -1522,13 +1505,13 @@ export function DashboardApp() {
                         ? rememberedAutosaveFolder
                           ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
                           : "Choose a Working folder and create or open a project in the IDE before running."
-                      : currentProject?.stale
-                            ? `Compile and run the current IDE project: ${currentProject.name}.`
-                            : currentProject
-                              ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                              : autosaveFolder
-                                ? `Compile and run ${autosaveFolder.name}.`
-                                : "Open a project in the IDE before Run."
+                        : currentProject?.stale
+                          ? `Compile and run the current IDE project: ${currentProject.name}.`
+                          : currentProject
+                            ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                            : autosaveFolder
+                              ? `Compile and run ${autosaveFolder.name}.`
+                              : "Open a project in the IDE before Run."
             }
           >
             <RunStopIcon running={isRunning} />
@@ -1607,8 +1590,8 @@ export function DashboardApp() {
                     <strong>XRP not reachable</strong>
                     <p>
                       {targetPreference.physicalConnection === "access_point"
-                        ? "Run and telemetry use Wi-Fi, not USB. Join the UCSB-XRP hotspot. The Monitor remains available while this computer is connected to the robot hotspot."
-                        : "Run and telemetry use Wi-Fi, not USB. Connect this computer to the same local Wi-Fi as the XRP."}
+                        ? `Connect this computer to ${targetPreference.lastObservedNetwork?.ssid ?? "the XRP hotspot"}, then select Reconnect.`
+                        : `Connect this computer and the XRP to ${targetPreference.lastObservedNetwork?.ssid ?? "the same Wi-Fi network"}, then select Reconnect.`}
                     </p>
                     <a
                       href="../commission/"
@@ -1709,7 +1692,7 @@ export function DashboardApp() {
                       {activeRunId
                         ? `Current run · ${runDatasetController.sampleCount.toLocaleString()} samples`
                         : latestRun
-                          ? `Last run · ${latestRun.recording.samples.length.toLocaleString()} samples · ${completedRunDurationS.toFixed(1)} s`
+                          ? `${latestRun.project?.name ?? "Last run"} · ${latestRun.recording.samples.length.toLocaleString()} samples · ${completedRunDurationS.toFixed(1)} s`
                           : "Run a program to collect data."}
                     </span>
                     <span data-testid="run-autosave-status">

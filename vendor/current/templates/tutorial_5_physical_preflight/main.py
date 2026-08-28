@@ -1,13 +1,15 @@
-# Collect and report a fixed-duration zero-motion XRP deployment check.
+# Check stationary sensors, then request one short straight motion.
 
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks
 from robot_config import ROBOT_CONFIG
 from student_work import preflight_report
-from ucsb_xrp import Pose, STOP_COMMAND
+from ucsb_xrp import MotionCommand, Pose, STOP_COMMAND
 
 
-SAMPLE_COUNT = 125
+STATIONARY_SAMPLE_COUNT = 50
+MOTION_SAMPLE_COUNT = 25
+MOTION_SPEED_MM_S = 60.0
 
 
 def collect_stationary_samples(robot):
@@ -16,7 +18,7 @@ def collect_stationary_samples(robot):
     try:
         state = robot.start(Pose(0.0, 0.0, 0.0))
         states.append(state)
-        for _ in range(SAMPLE_COUNT):
+        for _ in range(STATIONARY_SAMPLE_COUNT):
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
         return tuple(states)
@@ -24,23 +26,52 @@ def collect_stationary_samples(robot):
         robot.stop()
 
 
+def run_short_motion(robot):
+    # This fixed-time motion verifies motors and encoders; it is not distance control.
+    try:
+        initial_state = robot.start(Pose(0.0, 0.0, 0.0))
+        state = initial_state
+        command = MotionCommand(MOTION_SPEED_MM_S, 0.0)
+        for _ in range(MOTION_SAMPLE_COUNT):
+            state = robot.step(command)
+        return initial_state, state
+    finally:
+        robot.stop()
+
+
+def mean_wheel_position_mm(state):
+    measurements = state.measurements
+    return (
+        measurements.left_position_mm + measurements.right_position_mm
+    ) / 2.0
+
+
 def run_preflight():
     if not run_exercise_checks():
-        print("Complete preflight_report before running the preflight")
+        print("Complete preflight_report before running the XRP")
         return None
 
-    states = collect_stationary_samples(make_robot(ROBOT_CONFIG))
+    robot = make_robot(ROBOT_CONFIG)
+    states = collect_stationary_samples(robot)
     report = preflight_report(states)
     print("Stationary preflight complete")
-    print("sample_count:", report["sample_count"])
-    print("elapsed_time_s:", report["elapsed_time_s"])
-    print(
-        "maximum_abs_wheel_position_mm:",
-        report["maximum_abs_wheel_position_mm"],
+    for name in (
+        "sample_count",
+        "elapsed_time_s",
+        "maximum_abs_wheel_position_mm",
+        "usable_range_count",
+        "nearest_range_mm",
+        "button_was_pressed",
+    ):
+        print(name + ":", report[name])
+
+    initial_state, final_state = run_short_motion(robot)
+    wheel_travel_mm = mean_wheel_position_mm(final_state) - mean_wheel_position_mm(
+        initial_state
     )
-    print("usable_range_count:", report["usable_range_count"])
-    print("nearest_range_mm:", report["nearest_range_mm"])
-    print("button_was_pressed:", report["button_was_pressed"])
+    print("Short motion check complete")
+    print("motion_wheel_travel_mm:", wheel_travel_mm)
+    print("final_pose:", final_state.pose)
     return report
 
 

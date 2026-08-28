@@ -351,6 +351,8 @@
   display: grid;
   min-height: 0;
   grid-template-rows: 25px minmax(0, 1fr);
+  container-name: editor-panel;
+  container-type: inline-size;
   border: 0;
   border-bottom: var(--pane-divider-width) solid var(--pane-line);
   border-radius: 0;
@@ -512,7 +514,7 @@
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: 25px minmax(0, 1fr);
+  grid-template-rows: 25px auto minmax(0, 1fr);
   overflow: hidden;
   border-left: 1px solid var(--pane-line);
   background: #fff;
@@ -536,12 +538,30 @@
   background: transparent;
 }
 
+.tutorial-exercise-nav {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  padding: 3px 5px;
+}
+
+.tutorial-exercise-nav button {
+  min-width: 22px;
+  height: 20px;
+  border-color: var(--line);
+  padding: 0 5px;
+  background: #f1f3f3;
+  color: var(--ink);
+  font-size: var(--font-xs);
+}
+
 .tutorial-instructions .markdown-preview {
   padding: 12px 15px 24px;
   font-size: 11px;
 }
 
-@media (max-width: 760px) {
+@container editor-panel (max-width: 760px) {
   .editor-frame.tutorial-split {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 3fr) minmax(150px, 2fr);

@@ -25,8 +25,8 @@ def run_drawing():
         turn_steps=TURN_STEPS,
     )
     robot = make_robot(ROBOT_CONFIG)
-    state = robot.start(Pose(0.0, 0.0, 0.0))
     try:
+        state = robot.start(Pose(0.0, 0.0, 0.0))
         for segment in segments:
             command = segment.command()
             for _ in range(segment.steps):

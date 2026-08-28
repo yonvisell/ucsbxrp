@@ -1,86 +1,74 @@
 # Tutorial 5: Physical XRP deployment
 
-Run one checked project first on the Virtual XRP and then on a physical XRP.
-The project collects sensor records while repeatedly requesting `STOP_COMMAND`;
-it never requests motion. This isolates project transfer, program execution,
-telemetry, range, encoders, and USER-button input before a moving program is
-deployed.
+Run one project first on the Virtual XRP and then on a physical XRP. The first
+part collects stationary sensor records. The second part requests a short,
+low-speed straight motion and confirms that wheel position changes. This tests
+project transfer, execution, telemetry, sensors, motors, encoders, and stopping
+without solving a course challenge.
 
 Edit only `student_work.py`.
 
-## Exercise: summarize one stationary run
+## Exercise: summarize a sequence of robot states
 
 Complete:
 
 ```python
-def preflight_report(states: list | tuple) -> dict:
+def preflight_report(states: object) -> dict:
 ```
 
-`states` is a nonempty ordered collection of `RobotState` records. Raise
-`ValueError` when it is empty. Otherwise use one loop to return a dictionary
-with exactly these values:
+`states` is a nonempty list or tuple of `RobotState` records. Use one loop to
+return a dictionary containing:
 
 - `"sample_count"`: number of states;
 - `"elapsed_time_s"`: sum of `state.measurements.dt_s`;
 - `"maximum_abs_wheel_position_mm"`: largest absolute left or right wheel
   position;
 - `"usable_range_count"`: number of range values other than `None`;
-- `"nearest_range_mm"`: smallest available range, or `None` when no range is
-  available;
-- `"button_was_pressed"`: `True` if any sample reports a pressed USER button.
+- `"nearest_range_mm"`: smallest available range, or `None` if no range is
+  available; and
+- `"button_was_pressed"`: `True` if any state reports a pressed USER button.
 
-Use named accumulators initialized before the loop. Check range with `is not
-None` before comparing it. An unavailable range is not zero.
+Raise `ValueError` for an empty collection. Initialize named accumulators before
+the loop. Check `range_mm is not None` before comparing distances.
 
-Select **Check exercises**. The checker supplies explicit `RobotState` values
-and does not start either robot. `PASS` confirms all fields; `NOT COMPLETED`
-means the placeholder remains; `INCORRECT` identifies the first differing
-value.
+Select **Check exercises**. Program output checks each report field separately,
+so one incorrect calculation does not hide the others. `NOT COMPLETED` means
+the placeholder remains; `INCORRECT` identifies a result that differs.
 
 ## Rehearse on the Virtual XRP
 
 1. Select **Virtual XRP**, open Monitor, and select **Compile**.
-2. Select **Run**. The supplied `main.py` takes one initial state and 125
-   scheduled samples, for approximately 2.5 seconds.
-3. Press and release the virtual USER button during the run.
-4. Confirm in Program output:
-   - `sample_count: 126`;
-   - `button_was_pressed: True`;
-   - a small stationary wheel-position result.
-5. Confirm in Monitor that the path remains stationary and the final left and
-   right drive commands are zero.
-6. Reset and run once more from the same world.
+2. Select **Run**. The program first collects samples with `STOP_COMMAND`, then requests
+   60 mm/s for 25 samples (approximately 0.5 seconds), and finally stops.
+3. Press and release the virtual USER button during the stopped portion if you
+   want to verify that field.
+4. Confirm the stationary report and `motion_wheel_travel_mm` in **Program
+   output**. Confirm a short straight path and final zero command in Monitor.
+5. Reset and repeat once.
 
-The virtual wall provides a predictable range target. A physical range can
-differ or be unavailable because it depends on the actual surface in front of
-the ultrasonic sensor.
+## Run on a physical XRP
 
-## Run the same project on a physical XRP
-
-1. If the robot has not been prepared for the current course release, open
-   **Set up or Repair**, connect it by USB-C, and complete setup for the selected
-   Wi-Fi network.
-2. Keep this Tutorial 5 project open. Select **Physical XRP**. Join the robot
-   hotspot first if setup chose hotspot mode; otherwise keep the computer on
-   the same local network as the XRP.
+1. If needed, open **Set up or Repair**, attach the XRP by USB-C, and prepare it
+   for the selected Wi-Fi network.
+2. Keep this project open and select **Physical XRP**. The computer and XRP must
+   use the network selected during setup.
 3. Open Monitor and confirm that the physical XRP is connected.
-4. Select **Compile**, then **Run**. Press and release the physical USER button
-   during the approximately 2.5-second run.
-5. Confirm `Stationary preflight complete` in Program output, physical data in
-   Monitor, changing sensor fields, and final drive commands of zero.
-6. Select **Reset**, then **Run** again. The same project should start without
-   repeating setup.
+4. Place the robot where a short straight motion is possible, then select
+   **Compile** and **Run**.
+5. Confirm changing encoder and wheel-position values, positive
+   `motion_wheel_travel_mm`, telemetry in Monitor, and a final zero command.
+6. Select **Reset**, then **Run** again. Repeating a project should not require
+   another setup operation.
 
-If connection fails, follow the current System log message rather than changing
-project code. A Virtual XRP pass checks the Python project; it does not verify
-the physical network, course runtime, or sensor hardware.
+If connection fails, use the current System log message. A Virtual XRP pass
+checks the Python project; it does not verify the physical network or hardware.
 
 ## Why the loop contains no delay
 
-`Robot.step(STOP_COMMAND, read_range=True)` maintains the sample schedule,
-requests one sensor update, advances the course records, and publishes
-telemetry. Do not add `sleep()` or `sleep_ms()`. An extra delay changes the
-sample interval rather than merely slowing the display.
+`Robot.step(...)` already waits for the next scheduled sample, applies the
+command, reads sensors, updates state, and publishes telemetry. **Do not add
+`sleep()` or `sleep_ms()` inside the loop.** An extra delay makes the measured
+sample interval incorrect and changes the controller and odometry results.
 
-After virtual and physical runs both complete, the same project structure is
-ready for the course challenges that request motion.
+After both runs complete, you have used the same program structure required by
+the course challenges.

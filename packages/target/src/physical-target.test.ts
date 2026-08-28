@@ -218,10 +218,7 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.4.1");
     try {
       await expect(target.connect()).rejects.toThrow(
-        /Run and telemetry use Wi-Fi, not USB/,
-      );
-      await expect(target.connect()).rejects.toThrow(
-        /course app remains available without internet/,
+        /Run and telemetry use Wi-Fi.*selected during Set up or Repair/,
       );
     } finally {
       target.disconnect();

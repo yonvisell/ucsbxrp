@@ -1,9 +1,9 @@
 # Tutorial 2: Virtual XRP drawing
 
-Describe a square as a sequence of motion segments, then run that sequence on
-the Virtual XRP. The path in Monitor is the drawing. This tutorial introduces
-UCSBXRP records, modules, classes, and the small form of inheritance used by
-course components.
+Describe a square as a sequence of motion segments, then run it on the Virtual
+XRP. The path in Monitor is the drawing. This tutorial introduces Python
+modules and classes, then shows the small form of inheritance used by course
+components.
 
 Use the **Virtual XRP**. Edit only `student_work.py`. Its comments contain the
 required values and one concrete example beside each exercise.
@@ -17,14 +17,34 @@ required values and one concrete example beside each exercise.
 - `robot_config.py` contains named robot settings.
 - `world.json` defines the space shown in Monitor.
 
-Each `.py` file is a Python module. For example, this statement in `main.py`
-loads the function defined in `student_work.py`:
+Each `.py` file is a Python module. This statement in `main.py` loads a function
+from `student_work.py`:
 
 ```python
 from student_work import build_drawing
 ```
 
-## Exercise 1: one motion-segment class
+## How a class stores related data and behavior
+
+A function performs one calculation. A class describes objects that retain
+data and provide related operations. This complete example stores a name and a
+distance, then reports whether that distance has been reached:
+
+```python
+class DistanceGoal:
+    def __init__(self, name: str, target_mm: float) -> None:
+        self.name = name
+        self.target_mm = target_mm
+
+    def is_reached(self, measured_mm: float) -> bool:
+        return measured_mm >= self.target_mm
+```
+
+`__init__` runs when an object is created. `self` refers to that particular
+object. Values stored as `self.name` and `self.target_mm` remain available to
+its other methods.
+
+## Exercise 1: define a motion-segment class
 
 Complete `DrawingSegment.__init__` and `DrawingSegment.command`.
 
@@ -41,14 +61,12 @@ The initializer receives and stores:
 - `steps: int`, a positive number of control samples.
 
 Raise `ValueError` for an empty name, a nonpositive sample count, or a segment
-whose forward speed and turn rate are both zero. Reject Boolean values for
-`steps`; although `bool` is related to `int` in Python, it is not a sample
-count.
+whose forward speed and turn rate are both zero.
 
 `command()` returns `MotionCommand(self.forward_speed_mm_s,
-self.turn_rate_rad_s)`. `MotionCommand` is a UCSBXRP record: one value with
-named, read-only fields. A record carries data between parts of the program. A
-`DrawingSegment` object also retains how many samples should use that command.
+self.turn_rate_rad_s)`. `MotionCommand` is a UCSBXRP record with named fields. A
+record carries data between parts of the program. A `DrawingSegment` also
+retains how many samples should use that command.
 
 ## Exercise 2: inheritance used for a specialized segment
 
@@ -78,14 +96,8 @@ Complete `build_drawing(...)`. Return a list or tuple containing eight segments:
 four straight sides alternating with four left turns. Use a `for` loop that
 adds one side and one corner during each of four iterations.
 
-Use the values passed through the function parameters. The checks call the
-function with more than one set of values, so fixed numerical replacements are
-not correct. Raise `ValueError` when the complete drawing would exceed 500
-samples:
-
-```python
-total_steps = 4 * (side_steps + turn_steps)
-```
+Use the values passed through the function parameters. The checks use more than
+one square size, so fixed numerical replacements are not correct.
 
 ## Check and run
 
@@ -99,8 +111,7 @@ total_steps = 4 * (side_steps + turn_steps)
 `main.py` uses a nested loop: the outer loop visits each segment, and the inner
 loop calls `Robot.step(...)` for `segment.steps` samples. `Robot.step()` already
 maintains the sample schedule. Do not add `sleep()` or `sleep_ms()`; an extra
-delay would change encoder timing, wheel-speed estimation, control, odometry,
-and total motion.
+delay changes the measurement interval and robot motion.
 
 The virtual motors respond gradually, so corners need not be mathematically
 sharp. Reset before comparing two drawings so both begin from the same pose.

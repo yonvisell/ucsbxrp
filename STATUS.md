@@ -1,8 +1,37 @@
 # Project status
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 ## Current result
+
+Refinement 70 removes another set of competing browser authorities. The
+Working-folder manifest and its active Project folder now determine startup,
+Monitor Run, and changes of Working folder. Monitor can compile and run that
+saved project without an IDE tab, while an open IDE may still publish a newer
+saved revision. A run retains its start-time project and Project-folder handle,
+so edits cannot end its telemetry or redirect its run archive. Reset retains
+the completed run for inspection and the next Run starts a new trail without a
+connector. Physical connection errors now describe the selected network and
+Reconnect action instead of referring to a removed hotspot setting.
+
+The editor now gives each project file a distinct Monaco model identity. A
+Chrome journey exposed that a bare `main.py` model could receive the README of
+a newly created tutorial even though the folder copy was correct; this
+cross-project overwrite is fixed. Five revised tutorials now compile in one
+browser session and keep instructions beside only `student_work.py`. Tutorial
+checks give concrete input, observed result, expected result, and a direct next
+step. Challenge briefs and checks and the student API reference were revised in
+separate committed slices.
+
+Validation for this boundary includes 56 focused TypeScript tests, 39 focused
+Python starter/tutorial/API tests, a production/offline build, four first-use
+and tutorial Chrome journeys, and nine Monitor recording/export/responsive
+journeys. One telemetry-path assertion was corrected to account for repeated
+state publications at one simulator sequence number; the geometry unit test
+continues to verify that resets and target changes never create a path
+connector. The next slice is the complete browser workspace/commissioning
+journey followed by the attached physical XRP path, then the bounded
+refactor/pruning and documentation integration.
 
 Refinement 69 integrates the student-workflow, documentation, authoring, and
 browser-performance work on the dev.40 physical baseline. The IDE now has one

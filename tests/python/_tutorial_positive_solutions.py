@@ -50,20 +50,10 @@ def tutorial_one_solution():
             "mean_difference_mm_s": left_mean - right_mean,
         }
 
-    def parse_stop_distance_mm(text_value, fallback_mm):
-        try:
-            distance_mm = float(text_value)
-        except (TypeError, ValueError):
-            return fallback_mm
-        if distance_mm <= 0.0:
-            return fallback_mm
-        return distance_mm
-
     module.average_speed_mm_s = average_speed_mm_s
     module.route_distance_mm = route_distance_mm
     module.range_state = range_state
     module.wheel_speed_summary = wheel_speed_summary
-    module.parse_stop_distance_mm = parse_stop_distance_mm
     return module
 
 
@@ -76,7 +66,7 @@ def tutorial_two_solution():
         def __init__(self, name, forward_speed_mm_s, turn_rate_rad_s, steps):
             if not name:
                 raise ValueError("name must not be empty")
-            if not isinstance(steps, int) or isinstance(steps, bool) or steps <= 0:
+            if not isinstance(steps, int) or steps <= 0:
                 raise ValueError("steps must be a positive integer")
             if forward_speed_mm_s == 0.0 and turn_rate_rad_s == 0.0:
                 raise ValueError("segment command must not be stationary")
@@ -100,8 +90,6 @@ def tutorial_two_solution():
         turn_rate_rad_s,
         turn_steps,
     ):
-        if 4 * (side_steps + turn_steps) > 500:
-            raise ValueError("drawing may contain at most 500 samples")
         segments = []
         for index in range(4):
             segments.append(
@@ -141,13 +129,8 @@ def tutorial_three_solution():
     def run_robot_program(robot, forward_speed_mm_s, sample_count):
         if forward_speed_mm_s <= 0.0:
             raise ValueError("forward speed must be positive")
-        if (
-            not isinstance(sample_count, int)
-            or isinstance(sample_count, bool)
-            or sample_count < 20
-            or sample_count > 150
-        ):
-            raise ValueError("sample count must be an integer from 20 to 150")
+        if not isinstance(sample_count, int) or sample_count <= 0:
+            raise ValueError("sample count must be a positive integer")
         try:
             state = robot.start(Pose(0.0, 0.0, 0.0))
             command = MotionCommand(forward_speed_mm_s, 0.0)

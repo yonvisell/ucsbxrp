@@ -1,76 +1,74 @@
 # Tutorial 1: Python essentials
 
-Complete five short calculations in `student_work.py`. This tutorial does not
-start the Virtual XRP or a physical XRP. Its purpose is to establish the Python
-syntax used in every later robot project.
+Complete four short functions in `student_work.py`. This project does not start
+either robot. It introduces the Python syntax used in the remaining tutorials:
+values, functions, decisions, loops, and collections.
 
-Edit only `student_work.py`. The examples and instructions are repeated as
-short comments beside the functions so you can work without keeping this file
-open. `exercise_checks.py` supplies known inputs and reports a separate result
-for each exercise. `main.py` only runs those checks; it does not contain a robot
-demo.
+Edit only `student_work.py`. Keep the instructions beside the code while you
+work. Select **Check exercises** after each change; the result appears in
+**Program output** with one example and a suggested next step.
 
-## Type annotations
-
-The function headers state the expected input and result types:
+## Reading a function
 
 ```python
 def average_speed_mm_s(distance_mm: float, duration_s: float) -> float:
-    return distance_mm / duration_s
+    speed_mm_s = distance_mm / duration_s
+    return speed_mm_s
 ```
 
-The annotations after `:` describe the inputs. The annotation after `->`
-describes the returned value. They improve code completion and make units and
-data flow easier to inspect, but Python does not automatically reject a wrong
-value. A function still checks invalid inputs explicitly when required.
+- `def` begins a function.
+- The values inside parentheses are its inputs.
+- `return` sends one result back to the caller.
+- The annotations after `:` and `->` document expected types. MicroPython does
+  not enforce them, so your code must still handle invalid values deliberately.
+- A name ending in `_mm`, `_s`, or `_mm_s` states its physical unit.
 
-Use the same style in later course code. Include units in names such as
-`distance_mm`, `duration_s`, and `speed_mm_s`.
+Indentation defines which statements belong to the function or to an `if` or
+`for` block. Use four spaces for each indentation level.
 
-## Exercise 1: expressions, decisions, and functions
+## Exercise 1: calculate average speed
 
 Complete `average_speed_mm_s(distance_mm, duration_s)`.
 
 ```python
-speed_mm_s = average_speed_mm_s(600.0, 4.0)  # 150.0
+average_speed_mm_s(600.0, 4.0)  # returns 150.0
 ```
 
-Return distance divided by duration. Raise `ValueError` when distance is
-negative or duration is zero or negative. A function receives values through
-its parameters and sends one result back with `return`.
+Return distance divided by duration. Reject a negative distance or a duration
+that is zero or negative with `raise ValueError(...)`. A visible error is more
+useful than a physically meaningless result.
 
-## Exercise 2: lists, tuples, and loops
-
-Complete `route_distance_mm(segment_distances_mm)`.
-
-```python
-total_mm = route_distance_mm([120.0, 80.0, 50.0])  # 250.0
-```
-
-A list (`[...]`) and a tuple (`(...)`) are ordered collections. Use a `for`
-loop to visit every segment and add it to an accumulator that begins at `0.0`.
-Raise `ValueError` if any segment distance is negative. An empty route has a
-total distance of `0.0`.
-
-## Exercise 3: optional measurements
+## Exercise 2: choose from measured conditions
 
 Complete `range_state(range_mm, stop_distance_mm)`.
 
 ```python
-state = range_state(180.0, 250.0)  # "stop"
-state = range_state(None, 250.0)   # "unavailable"
+range_state(180.0, 250.0)  # returns "stop"
+range_state(None, 250.0)   # returns "unavailable"
 ```
 
-Return exactly:
+Use `if`, `elif`, and `else` to return:
 
 - `"unavailable"` when `range_mm is None`;
-- `"stop"` when the range is less than or equal to the stop distance; and
+- `"stop"` when range is at or below the stop distance; and
 - `"clear"` otherwise.
 
-Raise `ValueError` when the stop distance is not positive. `None` means that no
-usable measurement is available; it is not a distance of zero.
+`None` means that no usable measurement is available. Check it before making a
+numerical comparison. Reject a stop distance that is zero or negative.
 
-## Exercise 4: dictionaries and paired data
+## Exercise 3: total a route with a loop
+
+Complete `route_distance_mm(segment_distances_mm)`.
+
+```python
+route_distance_mm([120.0, 80.0, 50.0])  # returns 250.0
+```
+
+A list (`[...]`) and tuple (`(...)`) are ordered collections. Start a total at
+`0.0`, use a `for` loop to visit each distance, and add it to the total. Reject
+a negative segment. An empty route has a total distance of `0.0`.
+
+## Exercise 4: return named results
 
 Complete `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`.
 
@@ -79,48 +77,29 @@ summary = wheel_speed_summary([100.0, 120.0], [90.0, 110.0])
 print(summary["mean_difference_mm_s"])  # 10.0
 ```
 
-Reject empty inputs or inputs with different lengths by raising `ValueError`.
-Otherwise return a dictionary with exactly these keys:
+Reject empty inputs or inputs with different lengths. Otherwise return a
+dictionary with these four named results:
 
 - `"sample_count"`;
 - `"mean_left_mm_s"`;
 - `"mean_right_mm_s"`; and
 - `"mean_difference_mm_s"`, calculated as left mean minus right mean.
 
-Use accumulators inside a loop. A dictionary groups values by descriptive keys;
-square brackets retrieve a value from one key.
+A dictionary groups related values under descriptive keys. This pattern is
+used later for telemetry summaries.
 
-## Exercise 5: expected exceptions
-
-Complete `parse_stop_distance_mm(text_value, fallback_mm)`.
-
-```python
-distance_mm = parse_stop_distance_mm("275.5", 240.0)  # 275.5
-distance_mm = parse_stop_distance_mm("unknown", 240.0)  # 240.0
-```
-
-Convert the input with `float(text_value)`. If that conversion raises
-`TypeError` or `ValueError`, return the positive fallback. Also return the
-fallback when the converted value is zero or negative. Otherwise return the
-converted positive distance.
-
-Place only the conversion inside `try`. Catch only the two expected exception
-types. An unrelated error should remain visible so it can be diagnosed.
-
-## Check your work
+## Check and run
 
 1. Complete one function in `student_work.py`.
 2. Select **Check exercises**.
-3. Read **Program output**:
-   - `PASS` means the examples for that function produced the required result;
-   - `NOT COMPLETED` means its placeholder still remains; and
-   - `INCORRECT` describes the first result or exception that differed.
-4. Repeat until all five functions pass, then select **Run** once to run the
-   complete software-only tutorial.
+3. Read its example in **Program output**. `NOT COMPLETED` identifies a
+   placeholder; `INCORRECT` shows the first mismatch.
+4. Repeat until all four exercises pass.
+5. Select **Run** to print example results from your completed functions.
 
-If Python reports a syntax error, inspect the stated line and the line directly
-above it. Check indentation, parentheses, commas, colons, and spelling. Use a
-temporary `print(...)` when one intermediate value is unclear; remove repeated
-debug prints after the function works.
+If Python reports a syntax error, inspect the stated line and the line above
+it. Check indentation, parentheses, commas, colons, and spelling. A temporary
+`print(...)` can reveal an intermediate value; remove repeated debug prints
+after the function works.
 
-Continue with **Tutorial 2: Virtual XRP drawing** after all five exercises pass.
+Continue with **Tutorial 2: Virtual XRP drawing**.

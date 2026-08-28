@@ -36,6 +36,6 @@ def build_drawing(
     side_steps: int,
     turn_rate_rad_s: float,
     turn_steps: int,
-) -> "list | tuple":
-    # Use a four-iteration loop. Reject a drawing longer than 500 samples.
+) -> list:
+    # Use a four-iteration loop to append one side and one turn each time.
     raise NotImplementedError("complete build_drawing")

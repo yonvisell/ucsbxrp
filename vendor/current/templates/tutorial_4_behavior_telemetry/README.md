@@ -26,11 +26,15 @@ Complete:
 ```python
 def next_phase(
     phase: str,
-    range_mm: float | None,
+    range_mm: object,
     stop_distance_mm: float,
     turn_complete: bool,
 ) -> str:
 ```
+
+`range_mm` is either a distance in millimeters or `None` when no valid range is
+available. The broad `object` annotation and the adjacent explanation are used
+because the XRP MicroPython runtime does not use Python's newer union syntax.
 
 Required results:
 

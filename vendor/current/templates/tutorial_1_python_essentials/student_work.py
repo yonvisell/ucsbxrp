@@ -1,37 +1,28 @@
-# Complete the five Python functions used in Tutorial 1.
-# Run Check exercises after each function. This file never starts a robot.
+# Complete the four functions below. This tutorial does not start a robot.
 
 
 # Example: average_speed_mm_s(600.0, 4.0) returns 150.0.
 def average_speed_mm_s(distance_mm: float, duration_s: float) -> float:
-    # Reject negative distance and nonpositive duration, then return d / t.
+    # Reject invalid inputs, then return distance_mm / duration_s.
     raise NotImplementedError("complete average_speed_mm_s")
 
 
-# Example: route_distance_mm([120.0, 80.0, 50.0]) returns 250.0.
-def route_distance_mm(segment_distances_mm: "list | tuple") -> float:
-    # Add each nonnegative segment to a total that begins at 0.0.
-    raise NotImplementedError("complete route_distance_mm")
-
-
-# Example: range_state(None, 250.0) returns "unavailable".
-# Example: range_state(200.0, 250.0) returns "stop".
-def range_state(range_mm: "float | None", stop_distance_mm: float) -> str:
-    # Check None before comparing the range with a distance.
+# A missing range is represented by None rather than by zero millimeters.
+def range_state(range_mm: object, stop_distance_mm: float) -> str:
+    # Return "unavailable", "stop", or "clear" from the measured conditions.
     raise NotImplementedError("complete range_state")
 
 
-# Return count, left mean, right mean, and left-minus-right mean in a dictionary.
+# The input may be a list or tuple of nonnegative distances in millimeters.
+def route_distance_mm(segment_distances_mm: object) -> float:
+    # Add each segment to a total that begins at 0.0.
+    raise NotImplementedError("complete route_distance_mm")
+
+
+# Return count and mean wheel speeds in a dictionary with descriptive keys.
 def wheel_speed_summary(
-    left_samples_mm_s: "list | tuple",
-    right_samples_mm_s: "list | tuple",
+    left_samples_mm_s: object,
+    right_samples_mm_s: object,
 ) -> dict:
-    # Reject empty or unequal-length inputs, then total paired samples in a loop.
+    # Reject empty or unequal inputs, then total the paired samples in a loop.
     raise NotImplementedError("complete wheel_speed_summary")
-
-
-# Example: parse_stop_distance_mm("275.5", 240.0) returns 275.5.
-# Invalid, zero, or negative input returns fallback_mm.
-def parse_stop_distance_mm(text_value: object, fallback_mm: float) -> float:
-    # Catch only TypeError and ValueError raised by float(text_value).
-    raise NotImplementedError("complete parse_stop_distance_mm")

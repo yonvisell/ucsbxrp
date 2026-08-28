@@ -408,8 +408,6 @@ export function IdeApp({
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
   const [projectProviderActive, setProjectProviderActive] = useState(false);
-  const [projectProviderAvailable, setProjectProviderAvailable] =
-    useState(false);
   const [checkDetail, setCheckDetail] = useState(
     "The current project has not been compiled.",
   );
@@ -708,7 +706,6 @@ export function IdeApp({
       return;
     }
     setProjectProviderActive(false);
-    setProjectProviderAvailable(false);
     projectProviderActiveRef.current = false;
     target.setProjectRunProvider(provideProjectRunSnapshot);
     const unsubscribe = target.subscribe((event: TargetEvent) => {
@@ -749,7 +746,6 @@ export function IdeApp({
       } else if (event.type === "project-provider") {
         projectProviderActiveRef.current = event.active;
         setProjectProviderActive(event.active);
-        setProjectProviderAvailable(event.available);
       }
     });
     targetStateRef.current = "connecting";
@@ -1065,7 +1061,7 @@ export function IdeApp({
   const canCommand =
     targetState === "ready" ||
     (target.kind === "virtual" && targetState === "error");
-  const canRunProject = canCommand && projectProviderActive;
+  const canRunProject = canCommand;
   const projectCheckFile = checkFileForProject(project);
   const checkingExercises = projectCheckFile === "exercise_checks.py";
   const projectFiles = useMemo(
@@ -1082,10 +1078,7 @@ export function IdeApp({
     () => consoleEntries.filter((entry) => entry.category === "program"),
     [consoleEntries],
   );
-  const serviceDetails = useMemo(
-    () => consoleEntries.filter((entry) => entry.category === "service"),
-    [consoleEntries],
-  );
+  const serviceDetails = useMemo(() => consoleEntries, [consoleEntries]);
   const canDeleteActiveFile =
     projectFiles.length > 1 && activePath !== project.entrypoint;
 
@@ -1122,13 +1115,6 @@ export function IdeApp({
     projectSessionReady,
     stageOpenedProject,
   ]);
-
-  const useThisProjectForRun = useCallback(() => {
-    target.setProjectRunProvider(provideProjectRunSnapshot, { takeover: true });
-    setOperationDetail(
-      `Selecting ${projectSessionRef.current.project.name} as the active project for Run and Monitor.`,
-    );
-  }, [provideProjectRunSnapshot, target]);
 
   const closeFile = useCallback(
     (path: string) => {
@@ -1176,7 +1162,7 @@ export function IdeApp({
       "Checking project structure and compiling Python files with MicroPython…",
     );
     try {
-      const result = await target.check(project);
+      const result = await target.check(projectRef.current);
       setCheckOk(result.ok);
       setCheckDetail(result.detail);
     } catch (error) {
@@ -1191,7 +1177,6 @@ export function IdeApp({
     canCommand,
     finishTargetCommand,
     isRunning,
-    project,
     target,
     workingFolder,
   ]);
@@ -1211,7 +1196,7 @@ export function IdeApp({
     );
     try {
       const result = await testCourseProjectComponents({
-        ...project,
+        ...projectRef.current,
         entrypoint: projectCheckFile,
       });
       const completionDetail = checkingExercises
@@ -1281,7 +1266,6 @@ export function IdeApp({
   }, [
     checkingExercises,
     componentCheckRunning,
-    project,
     projectCheckFile,
     workingFolder,
   ]);
@@ -1295,7 +1279,8 @@ export function IdeApp({
     ) {
       return;
     }
-    const projectError = portableProjectError(project);
+    const projectToRun = projectRef.current;
+    const projectError = portableProjectError(projectToRun);
     if (projectError) {
       setOutputPanelOpen(true);
       setConsoleTab("details");
@@ -1323,7 +1308,7 @@ export function IdeApp({
           "Run is checking the project and compiling its Python files…",
         );
       }
-      await target.run(project);
+      await target.run(projectToRun);
       if (target.kind === "physical") {
         setCheckOk(true);
         setCheckDetail(
@@ -1357,7 +1342,6 @@ export function IdeApp({
     checkOk,
     finishTargetCommand,
     isRunning,
-    project,
     target,
     virtualRuntimePreparing,
     workingFolder,
@@ -1477,40 +1461,70 @@ export function IdeApp({
       if (!selection.remembered) {
         throw new Error(`Chrome could not remember ${folder.name}.`);
       }
-      if (selection.changed && workspaceFolder) {
-        const previous = projectSessionRef.current;
-        if (
-          (folderDirtyRef.current ||
-            projectSessionHasUnsavedChanges(previous)) &&
-          !isDefaultProject(previous.project)
-        ) {
-          preserveBrowserDraft(snapshotForProjectSession(previous));
-        }
-        stopFolderWrites();
-        const preview = createProjectSession(defaultProject(), {
-          source: "browser-draft",
-        });
-        publishProjectSession(preview);
-        setWorkingFolder(null);
-        setRememberedFolder(null);
-        setRememberedFolderCanAttach(false);
-        setFolderDirty(false);
-        setFolderSaveState("browser");
-        setActivePath(preview.project.entrypoint);
-        setOpenPaths([preview.project.entrypoint]);
-      }
       setWorkspaceFolder(folder);
       setRememberedWorkspaceFolder(folder);
       setWorkingFolderAccessState("connected");
-      setOperationDetail(
-        selection.changed
-          ? `${folder.name} is the Working folder. Choose a project or create one here.`
-          : `${folder.name} is the Working folder.`,
-      );
+
+      if (selection.changed || !workspaceFolder) {
+        const choices = await listDirectProjectFolders(folder);
+        const manifest = await loadWorkspaceManifest(folder);
+        const selected = manifest?.activeProject
+          ? choices.find(
+              (choice) => choice.folderName === manifest.activeProject,
+            )
+          : choices.length === 1
+            ? choices[0]
+            : undefined;
+        if (selected) {
+          await attachWorkingFolder(selected.folder);
+          setOperationDetail(
+            `${folder.name} is the Working folder. Opened ${selected.projectName}.`,
+          );
+        } else if (choices.length === 0) {
+          const initial = createProjectSession(defaultProject(), {
+            source: "browser-draft",
+          });
+          const saved = markProjectSessionSaved(
+            initial,
+            await projectContentDigest(initial.project),
+          );
+          const created = await ensureProjectFolder(
+            folder,
+            defaultProjectFolderName,
+            snapshotForProjectSession(saved),
+          );
+          await attachWorkingFolder(created.folder);
+          setOperationDetail(
+            `${folder.name} is the Working folder. Expanding spiral is ready in ${created.folder.name}.`,
+          );
+        } else {
+          stopFolderWrites();
+          const preview = createProjectSession(defaultProject(), {
+            source: "browser-draft",
+          });
+          publishProjectSession(preview);
+          setWorkingFolder(null);
+          setRememberedFolder(null);
+          setRememberedFolderCanAttach(false);
+          setFolderDirty(false);
+          setFolderSaveState("browser");
+          setActivePath(preview.project.entrypoint);
+          setOpenPaths([preview.project.entrypoint]);
+          setProjectChoices(choices);
+          setProjectChooserError("");
+          setProjectChooserLoading(false);
+          setProjectChooserOpen(true);
+          setOperationDetail(
+            `${folder.name} is the Working folder. Choose a project.`,
+          );
+        }
+      } else {
+        setOperationDetail(`${folder.name} is the Working folder.`);
+      }
       return folder;
     },
     [
-      preserveBrowserDraft,
+      attachWorkingFolder,
       publishProjectSession,
       stopFolderWrites,
       workspaceFolder,
@@ -2823,18 +2837,23 @@ export function IdeApp({
     target.kind === "physical"
       ? `${targetDetail}${targetDetail.endsWith(".") ? "" : "."} Project ${physicalStatus}.`
       : targetDetail;
-  const nextRunProjectName = projectProviderActive
-    ? project.name
-    : projectProviderAvailable && currentProject
-      ? currentProject.name
-      : target.kind === "virtual"
-        ? DEFAULT_COURSE_PROJECT.name
-        : "No project selected";
+  const nextRunProjectName = project.name;
   const activeHelp = contextHelpForPath(activePath, project.templateId);
   const tutorialInstructionsAvailable =
     isTutorialProject(project) &&
-    activePath !== "README.md" &&
+    activePath === "student_work.py" &&
     typeof project.files["README.md"] === "string";
+  const tutorialExerciseSections = useMemo(
+    () =>
+      (project.files["README.md"] ?? "")
+        .split("\n")
+        .filter((line) => /^## Exercise\b/.test(line))
+        .map((line) => line.replace(/^##\s+/, "").trim()),
+    [project.files],
+  );
+  const activeFileReadOnly =
+    !workingFolder ||
+    (isTutorialProject(project) && activePath !== "student_work.py");
   const pendingTemplate = pendingProject?.templateId
     ? COURSE_PROJECT_TEMPLATES.find(
         (template) => template.id === pendingProject.templateId,
@@ -2892,13 +2911,18 @@ export function IdeApp({
           <select
             aria-label="Run on"
             className="target-select"
+            disabled={isRunning || targetState === "connecting"}
             onChange={(event) =>
               updateTargetPreference((current) => ({
                 ...current,
                 kind: event.target.value as TargetKind,
               }))
             }
-            title="Choose whether Run uses the simulator or the configured physical XRP."
+            title={
+              isRunning
+                ? "Stop the current program before changing XRP."
+                : "Choose whether Run uses the simulator or the configured physical XRP."
+            }
             value={targetPreference.kind}
           >
             <option value="virtual">Virtual XRP</option>
@@ -2934,11 +2958,9 @@ export function IdeApp({
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
                   : !workingFolder
                     ? "Choose a Working folder and create or open a project before running."
-                    : !projectProviderActive
-                      ? "Another IDE tab controls Run. Choose Use for Run + Monitor in the Project panel to switch."
-                      : target.kind === "physical" && targetState === "error"
-                        ? targetDetail
-                        : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+                    : target.kind === "physical" && targetState === "error"
+                      ? targetDetail
+                      : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
             <RunStopIcon running={isRunning} />
@@ -3017,7 +3039,7 @@ export function IdeApp({
               <div className="project-root" title={projectStorageDetail}>
                 <strong data-testid="project-name">{project.name}</strong>
                 <div className="project-location">
-                  <span>Folder</span>
+                  <span>{workingFolderName ?? "Working folder"} ›</span>
                   <strong data-testid="project-folder">
                     {workingFolder ? workingFolder.name : "Not selected"}
                   </strong>
@@ -3029,26 +3051,6 @@ export function IdeApp({
                   {projectStorageSummary}
                 </small>
               </div>
-              {!projectProviderActive ? (
-                <div
-                  className="project-owner-state standby"
-                  data-testid="project-owner-state"
-                  role="status"
-                >
-                  <span>
-                    {projectProviderAvailable
-                      ? "Another IDE tab currently controls Run"
-                      : "Select this project for Run"}
-                  </span>
-                  <button
-                    disabled={!isConnected}
-                    onClick={useThisProjectForRun}
-                    title="Use this tab's current project for the next IDE or Monitor Run."
-                  >
-                    Use this tab
-                  </button>
-                </div>
-              ) : null}
               <div className="file-list">
                 {projectFiles.map((path) => (
                   <button
@@ -3391,6 +3393,7 @@ export function IdeApp({
                   />
                 ) : (
                   <Editor
+                    key={`${projectSession.projectId}:${activePath}`}
                     language={editorLanguage(activePath)}
                     onChange={(value) => updateActiveFile(value ?? "")}
                     options={{
@@ -3403,7 +3406,7 @@ export function IdeApp({
                       lineHeight: Math.round(settings.editorFontSize * 1.65),
                       minimap: { enabled: settings.minimap },
                       padding: { top: 5 },
-                      readOnly: !workingFolder,
+                      readOnly: activeFileReadOnly,
                       renderLineHighlight: "gutter",
                       scrollBeyondLastLine: false,
                       stickyScroll: { enabled: false },
@@ -3411,7 +3414,7 @@ export function IdeApp({
                       tabSize: settings.tabSize,
                       wordWrap: settings.wordWrap,
                     }}
-                    path={activePath}
+                    path={`${projectSession.projectId}/${activePath}`}
                     theme="vs"
                     value={project.files[activePath] ?? ""}
                   />
@@ -3432,6 +3435,32 @@ export function IdeApp({
                       ×
                     </button>
                   </div>
+                  {tutorialExerciseSections.length > 1 ? (
+                    <nav
+                      aria-label="Tutorial exercises"
+                      className="tutorial-exercise-nav"
+                    >
+                      {tutorialExerciseSections.map((title, index) => (
+                        <button
+                          key={title}
+                          onClick={(event) => {
+                            const aside = event.currentTarget.closest(
+                              ".tutorial-instructions",
+                            );
+                            const heading = Array.from(
+                              aside?.querySelectorAll("h2") ?? [],
+                            ).find(
+                              (candidate) => candidate.textContent === title,
+                            );
+                            heading?.scrollIntoView({ block: "start" });
+                          }}
+                          title={`Show ${title}.`}
+                        >
+                          {index + 1}
+                        </button>
+                      ))}
+                    </nav>
+                  ) : null}
                   <MarkdownPreview
                     onOpenProjectFile={openFile}
                     projectPaths={projectPathSet}
@@ -3500,11 +3529,11 @@ export function IdeApp({
                     disabled={visibleConsoleEntries.length === 0}
                     onClick={() =>
                       setConsoleEntries((entries) =>
-                        entries.filter((entry) =>
-                          consoleTab === "output"
-                            ? entry.category !== "program"
-                            : entry.category !== "service",
-                        ),
+                        consoleTab === "output"
+                          ? entries.filter(
+                              (entry) => entry.category !== "program",
+                            )
+                          : [],
                       )
                     }
                     title={`Clear ${consoleTab === "output" ? "program output" : "system log"}.`}

@@ -34,7 +34,7 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect(page.getByTestId("project-folder")).toHaveText("Not selected");
   await expect(page.getByTestId("project-save-state")).toHaveText(
-    "Read-only preview",
+    "Working folder required",
   );
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
@@ -90,7 +90,7 @@ test("renders project README files and keeps their Markdown editable", async ({
   await expect(
     preview.getByRole("heading", { name: "The challenge", exact: true }),
   ).toBeVisible();
-  await expect(preview.locator("pre")).toHaveCount(0);
+  await expect(preview.locator("pre")).toHaveCount(1);
   await expect(preview.getByText(/Implement GridPlanner/)).toBeVisible();
   const typography = await preview.evaluate((element) => {
     const inlineCode = element.querySelector("code");
@@ -412,7 +412,7 @@ test("compiles all five active tutorials and reports unfinished exercises withou
       id: "micropython_tutorial",
       title: "Tutorial 1: Python essentials",
       compiled: 3,
-      summary: "Tutorial 1: 0 passed · 5 not completed · 0 incorrect",
+      summary: "Tutorial 1: 0 passed · 4 not completed · 0 incorrect",
       helpLabel: "Tutorial path",
       helpHref: "../guide/#virtual-run",
     },

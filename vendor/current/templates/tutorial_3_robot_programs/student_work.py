@@ -15,7 +15,7 @@ def run_robot_program(
     forward_speed_mm_s: float,
     sample_count: int,
 ) -> RobotState:
-    # Validate the speed and sample count before starting the robot.
+    # Require a positive speed and positive integer sample count before starting.
     # In try: start once, step sample_count times, and return the latest state.
     # In finally: call robot.stop(). Do not add a separate delay.
     raise NotImplementedError("complete run_robot_program")

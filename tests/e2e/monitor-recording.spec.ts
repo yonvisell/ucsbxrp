@@ -80,7 +80,7 @@ test("keeps one completed run ready for notes and every export", async ({
     .getByRole("button", { name: "Stop", exact: true });
   if (await stop.isVisible()) await stop.click();
   await expect(monitor.getByTestId("recording-count")).toContainText(
-    "Last run ·",
+    "Expanding spiral ·",
   );
 
   await monitor.getByRole("button", { name: "Export run data as CSV" }).click();
@@ -232,7 +232,9 @@ test("collects a run automatically and explains animation availability", async (
     .locator(".app-header")
     .getByRole("button", { name: "Stop", exact: true })
     .click();
-  await expect(page.getByTestId("recording-count")).toContainText("Last run");
+  await expect(page.getByTestId("recording-count")).toContainText(
+    "Expanding spiral ·",
+  );
   await expect(animation).toBeEnabled();
 });
 
@@ -253,16 +255,13 @@ test("reset and rerun begin a new world path without a connector", async ({
     .locator(".app-header")
     .getByRole("button", { name: "Stop", exact: true })
     .click();
-  await expect(page.getByTestId("recording-count")).toContainText("Last run");
+  await expect(page.getByTestId("recording-count")).toContainText(
+    "Expanding spiral ·",
+  );
   await page
     .locator(".app-header")
     .getByRole("button", { name: "Reset", exact: true })
     .click();
-  await expect(page.getByTestId("world-view")).toHaveAttribute(
-    "data-path-point-count",
-    "0",
-  );
-
   await page
     .locator(".app-header")
     .getByRole("button", { name: "Run", exact: true })
@@ -272,15 +271,20 @@ test("reset and rerun begin a new world path without a connector", async ({
       Number(
         await page
           .getByTestId("world-view")
-          .getAttribute("data-path-point-count"),
+          .getAttribute("data-path-segment-count"),
       ),
     )
-    .toBeGreaterThan(3);
+    .toBeGreaterThan(0);
   const path = await page.getByTestId("world-view").evaluate((element) => ({
     points: Number((element as HTMLElement).dataset.pathPointCount),
     segments: Number((element as HTMLElement).dataset.pathSegmentCount),
+    maximumSegmentMm: Number(
+      (element as HTMLElement).dataset.pathMaximumSegmentMm,
+    ),
   }));
-  expect(path.segments).toBe(path.points - 1);
+  expect(path.segments).toBeGreaterThan(0);
+  expect(path.segments).toBeLessThan(path.points);
+  expect(path.maximumSegmentMm).toBeLessThan(50);
 });
 
 test("selects plotted signals from the Monitor controls", async ({

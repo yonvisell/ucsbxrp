@@ -158,7 +158,7 @@ class CourseStarterTests(unittest.TestCase):
         python_readme = (tutorials[0] / "README.md").read_text(encoding="utf-8")
         for concept in (
             "syntax",
-            "Type annotations",
+            "annotations",
             "function",
             "list",
             "tuple",
@@ -166,7 +166,6 @@ class CourseStarterTests(unittest.TestCase):
             "loop",
             "ValueError",
             "None",
-            "TypeError",
         ):
             self.assertIn(concept, python_readme)
 
@@ -316,11 +315,9 @@ class CourseStarterTests(unittest.TestCase):
                 raise ValueError("forward speed must be positive")
             if (
                 not isinstance(sample_count, int)
-                or isinstance(sample_count, bool)
-                or sample_count < 20
-                or sample_count > 150
+                or sample_count <= 0
             ):
-                raise ValueError("sample count must be an integer from 20 to 150")
+                raise ValueError("sample count must be a positive integer")
             try:
                 state = robot.start(Pose(0.0, 0.0, 0.0))
                 for _ in range(sample_count):
@@ -336,11 +333,9 @@ class CourseStarterTests(unittest.TestCase):
                 raise ValueError("forward speed must be positive")
             if (
                 not isinstance(sample_count, int)
-                or isinstance(sample_count, bool)
-                or sample_count < 20
-                or sample_count > 150
+                or sample_count <= 0
             ):
-                raise ValueError("sample count must be an integer from 20 to 150")
+                raise ValueError("sample count must be a positive integer")
             state = robot.start(Pose(0.0, 0.0, 0.0))
             for _ in range(sample_count):
                 state = robot.step(MotionCommand(forward_speed_mm_s, 0.0))
@@ -375,7 +370,7 @@ class CourseStarterTests(unittest.TestCase):
             if saved_student_work is not None:
                 sys.modules["student_work"] = saved_student_work
 
-    def test_tutorial_five_samples_only_zero_command_and_stops_after_error(self):
+    def test_tutorial_five_runs_stationary_and_short_motion_then_stops(self):
         tutorial = TEMPLATES / "tutorial_5_physical_preflight"
         stop_command = object()
 
@@ -386,21 +381,35 @@ class CourseStarterTests(unittest.TestCase):
                 self.fail_at_step = fail_at_step
 
             def start(self, initial_pose):
-                return ("state", 0, initial_pose)
+                return types.SimpleNamespace(
+                    measurements=types.SimpleNamespace(
+                        left_position_mm=0.0,
+                        right_position_mm=0.0,
+                    ),
+                    pose=initial_pose,
+                )
 
             def step(self, command, read_range=False):
                 self.step_calls.append((command, read_range))
                 if len(self.step_calls) == self.fail_at_step:
                     raise RuntimeError("injected stationary sample failure")
-                return ("state", len(self.step_calls), None)
+                moving = command is not stop_command
+                position_mm = float(sum(call[0] is not stop_command for call in self.step_calls))
+                return types.SimpleNamespace(
+                    measurements=types.SimpleNamespace(
+                        left_position_mm=position_mm if moving else 0.0,
+                        right_position_mm=position_mm if moving else 0.0,
+                    ),
+                    pose=(position_mm, 0.0, 0.0),
+                )
 
             def stop(self):
                 self.stop_count += 1
 
         robot = RecordingRobot()
         report = {
-            "sample_count": 126,
-            "elapsed_time_s": 2.5,
+            "sample_count": 51,
+            "elapsed_time_s": 1.0,
             "maximum_abs_wheel_position_mm": 0.0,
             "usable_range_count": 125,
             "nearest_range_mm": 500.0,
@@ -414,6 +423,10 @@ class CourseStarterTests(unittest.TestCase):
                 preflight_report=lambda _states: report
             ),
             "ucsb_xrp": types.SimpleNamespace(
+                MotionCommand=lambda forward_speed_mm_s, turn_rate_rad_s: types.SimpleNamespace(
+                    forward_speed_mm_s=forward_speed_mm_s,
+                    turn_rate_rad_s=turn_rate_rad_s,
+                ),
                 Pose=lambda x_mm, y_mm, heading_rad: (x_mm, y_mm, heading_rad),
                 STOP_COMMAND=stop_command,
             ),
@@ -430,14 +443,20 @@ class CourseStarterTests(unittest.TestCase):
                 namespace = runpy.run_path(
                     str(tutorial / "main.py"), run_name="tutorial_5_main"
                 )
-            self.assertEqual(len(robot.step_calls), 125)
+            self.assertEqual(len(robot.step_calls), 75)
             self.assertTrue(
                 all(
                     command is stop_command and read_range is True
-                    for command, read_range in robot.step_calls
+                    for command, read_range in robot.step_calls[:50]
                 )
             )
-            self.assertEqual(robot.stop_count, 1)
+            self.assertTrue(
+                all(
+                    command is not stop_command and read_range is False
+                    for command, read_range in robot.step_calls[50:]
+                )
+            )
+            self.assertEqual(robot.stop_count, 2)
             self.assertIn("Stationary preflight complete", output.getvalue())
 
             failing_robot = RecordingRobot(fail_at_step=3)
@@ -631,9 +650,11 @@ class CourseStarterTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             with self.subTest(challenge=challenge):
                 self.assertLessEqual(len(source.splitlines()), 40)
-                self.assertIn("student-owned component classes", source)
+                self.assertIn(
+                    "component classes without starting either robot", source
+                )
+                self.assertIn("component's use", source)
                 self.assertIn("PASS means", source)
-                self.assertIn("The imports below are the classes", source)
                 self.assertIn("run_component_checks(", source)
                 self.assertNotIn("def check_", source)
                 self.assertNotIn("RawSensors", source)
@@ -674,7 +695,7 @@ class CourseStarterTests(unittest.TestCase):
 
                 text = output.getvalue()
                 self.assertIn(
-                    "Concrete component examples use MicroPython without starting either robot.",
+                    "Test components calls your project classes with small examples; it does not start either robot.",
                     text,
                 )
                 self.assertIn(
@@ -684,6 +705,7 @@ class CourseStarterTests(unittest.TestCase):
                     text,
                 )
                 self.assertEqual(text.count("CHECK · "), component_count)
+                self.assertEqual(text.count("USE · "), component_count)
                 self.assertEqual(text.count("INPUT · "), component_count)
                 self.assertEqual(text.count("EXPECT · "), component_count)
                 self.assertIn("input", source.lower())
@@ -1114,6 +1136,9 @@ class CourseStarterTests(unittest.TestCase):
         )
         self.assertNotIn("shortest", readme.lower())
         self.assertNotIn("four-neighbor", readme.lower())
+        self.assertNotIn("tie-break", readme.lower())
+        self.assertNotIn("tie break", readme.lower())
+        self.assertNotIn("search algorithm", readme.lower())
 
         catalog = json.loads(
             (ROOT / "vendor/current/project_catalog.json").read_text(
@@ -1124,7 +1149,7 @@ class CourseStarterTests(unittest.TestCase):
             entry["summary"] for entry in catalog if entry["id"] == "challenge_4"
         )
         self.assertNotIn("shortest", summary.lower())
-        self.assertIn("connected route through free grid cells", summary)
+        self.assertEqual(summary, "Plan and follow a route around known obstacles.")
 
     def test_navigation_settings_are_named_and_show_units(self):
         expected_names = {
