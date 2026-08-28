@@ -1,14 +1,19 @@
 import { LineChart } from "echarts/charts";
 import {
   GridComponent,
-  LegendComponent,
   MarkLineComponent,
   TitleComponent,
   TooltipComponent,
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import {
   millidegreesPerSecondToRadiansPerSecond,
@@ -22,7 +27,6 @@ import type { MonitorAnnotation } from "./monitor-export";
 echarts.use([
   LineChart,
   GridComponent,
-  LegendComponent,
   MarkLineComponent,
   TitleComponent,
   TooltipComponent,
@@ -416,17 +420,7 @@ export function SignalPlot({
           bottom: 21,
         },
         legend: {
-          top: compactLayout ? 14 : 1,
-          right: 6,
-          itemGap: 7,
-          textStyle: {
-            color: "#3f4d55",
-            fontFamily: "system-ui, sans-serif",
-            fontSize: 9,
-          },
-          icon: "roundRect",
-          itemHeight: 4,
-          itemWidth: 8,
+          show: false,
         },
         tooltip: {
           trigger: "axis",
@@ -571,6 +565,24 @@ export function SignalPlot({
         ref={elementRef}
         role="img"
       />
+      <div
+        aria-hidden="true"
+        className={`signal-series-legend ${compactLayout ? "compact" : ""}`}
+      >
+        {definition.series.map((series) => (
+          <span key={series.label}>
+            <i
+              style={
+                {
+                  "--series-color": series.color,
+                  "--series-stroke": series.dash ?? "solid",
+                } as CSSProperties
+              }
+            />
+            {series.label}
+          </span>
+        ))}
+      </div>
       {noteLocation ? (
         <form
           aria-label={`Add note to ${definition.label}`}

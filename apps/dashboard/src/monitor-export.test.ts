@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { TelemetrySample } from "@ucsb-xrp/target";
+import { DEFAULT_WORLD_CATALOG, type TelemetrySample } from "@ucsb-xrp/target";
 
 import {
   createMonitorAnnotation,
   createSignalPlotsSvg,
   monitorAnnotationsToCsv,
+  monitorRunToCsv,
+  worldCanvasTransform,
   worldReplayPlan,
   type MonitorAnnotation,
 } from "./monitor-export";
@@ -97,6 +99,18 @@ describe("monitor exports", () => {
     expect(csv).toContain('virtual,5000,8,"stop, then ""inspect""",1,80,40');
   });
 
+  it("places run notes on their matching telemetry rows", () => {
+    const csv = monitorRunToCsv(
+      { schemaVersion: 3, samples, droppedSamples: 0 },
+      [annotation],
+    );
+    const rows = csv.trimEnd().split("\n");
+
+    expect(rows[0]).toMatch(/,note$/);
+    expect(rows[1]).toMatch(/,$/);
+    expect(rows[2]).toMatch(/,turn & inspect$/);
+  });
+
   it("bounds long world replays and preserves real time for short ones", () => {
     const short = worldReplayPlan(samples, 20, 30);
     expect(short.playbackRate).toBe(1);
@@ -123,5 +137,21 @@ describe("monitor exports", () => {
         })),
       ),
     ).toThrow("no published robot pose");
+  });
+
+  it("uses one physical scale for both axes in world animations", () => {
+    const world = DEFAULT_WORLD_CATALOG.worlds[0]!;
+    const transform = worldCanvasTransform(world, 960, 720);
+    const widthMm = world.bounds.maximumXmm - world.bounds.minimumXmm;
+    const heightMm = world.bounds.maximumYmm - world.bounds.minimumYmm;
+
+    expect(transform.worldWidthPx / widthMm).toBeCloseTo(
+      transform.scalePxPerMm,
+    );
+    expect(transform.worldHeightPx / heightMm).toBeCloseTo(
+      transform.scalePxPerMm,
+    );
+    expect(transform.worldWidthPx).toBeLessThanOrEqual(960 - 56);
+    expect(transform.worldHeightPx).toBeLessThanOrEqual(720 - 56);
   });
 });

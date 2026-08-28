@@ -368,8 +368,7 @@
 }
 
 .recording-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 3px;
 }
 
@@ -378,25 +377,6 @@
   min-height: 19px;
   padding: 1px 3px;
   font-size: var(--font-xs);
-}
-
-.replay-after-stop {
-  display: flex;
-  min-height: 19px;
-  align-items: center;
-  gap: 4px;
-  color: var(--ink);
-  cursor: pointer;
-  font-size: var(--font-xs);
-  line-height: 1.25;
-}
-
-.replay-after-stop input {
-  width: 11px;
-  height: 11px;
-  flex: 0 0 auto;
-  margin: 0;
-  accent-color: var(--ink);
 }
 
 .annotation-tools {
@@ -461,45 +441,6 @@
   color: var(--muted);
   font-size: var(--font-xs);
   line-height: 1.3;
-}
-
-.run-autosave-summary {
-  display: grid;
-  gap: 3px;
-  border-top: 1px solid var(--line);
-  padding-top: 4px;
-}
-
-.run-autosave-summary span {
-  color: var(--muted);
-  font-size: var(--font-xs);
-  line-height: 1.35;
-}
-
-.run-autosave-summary button {
-  justify-self: start;
-  min-height: 19px;
-  padding: 1px 5px;
-  font-size: var(--font-xs);
-}
-
-.run-autosave-summary .offline-readiness {
-  min-width: 0;
-  gap: 3px;
-  padding: 2px 0 0;
-  overflow: hidden;
-  font-size: var(--font-xs);
-}
-
-.run-autosave-summary .offline-readiness-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-}
-
-.run-autosave-summary .offline-readiness-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .header-nav {
@@ -623,6 +564,40 @@
   outline-offset: -2px;
 }
 
+.signal-series-legend {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  right: 6px;
+  display: flex;
+  max-width: calc(100% - 150px);
+  align-items: center;
+  gap: 7px;
+  color: #3f4d55;
+  font-size: 9px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+
+.signal-series-legend.compact {
+  top: 15px;
+  right: auto;
+  left: 36px;
+  max-width: calc(100% - 42px);
+}
+
+.signal-series-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.signal-series-legend i {
+  width: 13px;
+  height: 0;
+  border-top: 2px var(--series-stroke) var(--series-color);
+}
+
 .plot-note-editor {
   position: absolute;
   z-index: 5;
@@ -716,10 +691,16 @@
   font-weight: 650;
 }
 
-.world-view-toggle {
+.world-view-controls {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.world-view-controls button {
   min-height: 17px;
   height: 17px;
-  padding: 0 5px;
+  min-width: 20px;
+  padding: 0 4px;
   background: #eef0f2;
   font-size: var(--font-xs);
 }

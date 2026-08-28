@@ -80,7 +80,7 @@ describe("physical target", () => {
     ).toEqual({ method: "GET" });
   });
 
-  it("primes local-network permission in the document before starting the shared worker", async () => {
+  it("assigns the tab role before the document local-network probe", async () => {
     const operations: string[] = [];
     const fetchMock = vi.fn(async () => {
       operations.push("fetch");
@@ -93,6 +93,10 @@ describe("physical target", () => {
       start(): void {}
 
       postMessage(command: { requestId?: string; type: string }): void {
+        if (command.type === "set-role") {
+          operations.push("role");
+          return;
+        }
         if (command.type !== "connect" || command.requestId === undefined) {
           return;
         }
@@ -123,7 +127,7 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.7.30");
     try {
       await target.connect();
-      expect(operations).toEqual(["fetch", "worker"]);
+      expect(operations).toEqual(["role", "fetch", "worker"]);
       expect(fetchMock).toHaveBeenCalledWith(
         "http://192.168.7.30/api/v1/info",
         expect.objectContaining({

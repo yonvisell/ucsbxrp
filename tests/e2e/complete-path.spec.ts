@@ -269,10 +269,8 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
       telemetryLabels.indexOf("yaw rate ωz"),
     );
   }
-  await dashboard.getByRole("button", { name: "Zoom XRP" }).click();
-  await expect(
-    dashboard.getByRole("button", { name: "Fit world" }),
-  ).toBeVisible();
+  await dashboard.getByRole("button", { name: "Zoom in" }).click();
+  await dashboard.getByRole("button", { name: "Center XRP" }).click();
   await dashboard.getByRole("button", { name: "Fit world" }).click();
 
   await ide.getByRole("button", { name: "Settings", exact: true }).click();

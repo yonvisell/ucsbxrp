@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 
 import {
   XRP_CHASSIS_LENGTH_MM,
@@ -47,6 +48,50 @@ interface RangeSectorVisual {
   fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   group: THREE.Group;
   outline: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+}
+
+export interface WorldViewSpans {
+  horizontalMm: number;
+  verticalMm: number;
+}
+
+/** Fit the complete world at any viewport aspect ratio without distortion. */
+export function fittedWorldViewSpans(
+  bounds: WorldDefinition["bounds"],
+  viewportWidth: number,
+  viewportHeight: number,
+  marginMm = 90,
+): WorldViewSpans {
+  const aspect = Math.max(viewportWidth, 1) / Math.max(viewportHeight, 1);
+  const requiredWidth = bounds.maximumXmm - bounds.minimumXmm + marginMm * 2;
+  const requiredHeight = bounds.maximumYmm - bounds.minimumYmm + marginMm * 2;
+  const verticalMm = Math.max(requiredHeight, requiredWidth / aspect);
+  return { horizontalMm: verticalMm * aspect, verticalMm };
+}
+
+/** Build independent path segments so a reset or source change cannot join poses. */
+export function worldTrailSegmentPoints(
+  samples: readonly TelemetrySample[],
+): THREE.Vector3[] {
+  const points: THREE.Vector3[] = [];
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1]!;
+    const current = samples[index]!;
+    if (
+      !previous.poseAvailable ||
+      !current.poseAvailable ||
+      previous.source !== current.source ||
+      current.seq <= previous.seq ||
+      current.tMs < previous.tMs
+    ) {
+      continue;
+    }
+    points.push(
+      new THREE.Vector3(previous.xMm, previous.yMm, 1),
+      new THREE.Vector3(current.xMm, current.yMm, 1),
+    );
+  }
+  return points;
 }
 
 function rangeSectorGeometry(rangeMm: number): {
@@ -174,16 +219,26 @@ function addBoundedGrid(
   }
   addSegments(scene, axes, "#687a84", -7);
 
-  const border = new THREE.LineLoop(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(bounds.minimumXmm, bounds.minimumYmm, -6),
-      new THREE.Vector3(bounds.maximumXmm, bounds.minimumYmm, -6),
-      new THREE.Vector3(bounds.maximumXmm, bounds.maximumYmm, -6),
-      new THREE.Vector3(bounds.minimumXmm, bounds.maximumYmm, -6),
-    ]),
-    new THREE.LineBasicMaterial({ color: "#596a73" }),
-  );
-  scene.add(border);
+  const borderMaterial = new THREE.MeshBasicMaterial({ color: "#46545b" });
+  const worldWidth = bounds.maximumXmm - bounds.minimumXmm;
+  const worldHeight = bounds.maximumYmm - bounds.minimumYmm;
+  const borderThickness = 8;
+  for (const y of [bounds.minimumYmm, bounds.maximumYmm]) {
+    const border = new THREE.Mesh(
+      new THREE.PlaneGeometry(worldWidth + borderThickness, borderThickness),
+      borderMaterial,
+    );
+    border.position.set((bounds.minimumXmm + bounds.maximumXmm) / 2, y, -6);
+    scene.add(border);
+  }
+  for (const x of [bounds.minimumXmm, bounds.maximumXmm]) {
+    const border = new THREE.Mesh(
+      new THREE.PlaneGeometry(borderThickness, worldHeight + borderThickness),
+      borderMaterial,
+    );
+    border.position.set(x, (bounds.minimumYmm + bounds.maximumYmm) / 2, -6);
+    scene.add(border);
+  }
 
   const labelInset = Math.min(
     42,
@@ -370,15 +425,13 @@ export function WorldView({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const robotRef = useRef<THREE.Group | null>(null);
-  const trailRef = useRef<THREE.Line | null>(null);
+  const trailRef = useRef<THREE.LineSegments | null>(null);
   const rangeRef = useRef<RangeSectorVisual | null>(null);
   const annotationGroupRef = useRef<THREE.Group | null>(null);
+  const controlsRef = useRef<MapControls | null>(null);
   const resizeRef = useRef<(() => void) | null>(null);
-  const trailPoints = useRef<THREE.Vector3[]>([]);
-  const lastSequence = useRef(-1);
-  const [viewZoom, setViewZoom] = useState<1 | 3>(1);
-  const viewZoomRef = useRef<1 | 3>(viewZoom);
-  viewZoomRef.current = viewZoom;
+  const renderRef = useRef<(() => void) | null>(null);
+  const fitWorldRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -509,7 +562,7 @@ export function WorldView({
     }
 
     robotRef.current = addRobotModel(scene);
-    const trail = new THREE.Line(
+    const trail = new THREE.LineSegments(
       new THREE.BufferGeometry(),
       new THREE.LineBasicMaterial({ color: "#006c64" }),
     );
@@ -552,12 +605,23 @@ export function WorldView({
     scene.add(annotationGroup);
     annotationGroupRef.current = annotationGroup;
 
-    const resize = () => {
-      const width = Math.max(host.clientWidth, 1);
-      const height = Math.max(host.clientHeight, 1);
-      const vertical = (worldHeightMm + 150) / viewZoomRef.current;
-      const horizontal = vertical * (width / height);
-      const minimumLabelHeightMm = (vertical / height) * 12;
+    const controls = new MapControls(camera, renderer.domElement);
+    controls.enableDamping = false;
+    controls.enableRotate = false;
+    controls.screenSpacePanning = true;
+    controls.zoomToCursor = true;
+    controls.minZoom = 0.35;
+    controls.maxZoom = 12;
+    controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+    controls.target.set(worldCenterX, worldCenterY, 0);
+    controlsRef.current = controls;
+
+    const render = () => {
+      const visibleVerticalMm =
+        (camera.top - camera.bottom) / Math.max(camera.zoom, 0.001);
+      const minimumLabelHeightMm =
+        (visibleVerticalMm / Math.max(host.clientHeight, 1)) * 9;
       scene.traverse((object) => {
         if (!(object instanceof THREE.Sprite)) return;
         const baseWidth = Number(object.userData.labelWidthMm);
@@ -571,23 +635,48 @@ export function WorldView({
         );
       });
       if (viewRef.current) {
-        viewRef.current.dataset.minimumLabelPixels = "12";
+        viewRef.current.dataset.minimumLabelPixels = "9";
       }
-      camera.left = -horizontal / 2;
-      camera.right = horizontal / 2;
-      camera.top = vertical / 2;
-      camera.bottom = -vertical / 2;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height, false);
       renderer.render(scene, camera);
     };
+    renderRef.current = render;
+    controls.addEventListener("change", render);
+
+    const resize = () => {
+      const width = Math.max(host.clientWidth, 1);
+      const height = Math.max(host.clientHeight, 1);
+      const spans = fittedWorldViewSpans(world.bounds, width, height);
+      camera.left = -spans.horizontalMm / 2;
+      camera.right = spans.horizontalMm / 2;
+      camera.top = spans.verticalMm / 2;
+      camera.bottom = -spans.verticalMm / 2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+      if (viewRef.current) {
+        viewRef.current.dataset.horizontalSpanMm =
+          spans.horizontalMm.toFixed(1);
+        viewRef.current.dataset.verticalSpanMm = spans.verticalMm.toFixed(1);
+      }
+      render();
+    };
     resizeRef.current = resize;
+    fitWorldRef.current = () => {
+      camera.zoom = 1;
+      camera.position.x = worldCenterX;
+      camera.position.y = worldCenterY;
+      controls.target.set(worldCenterX, worldCenterY, 0);
+      camera.updateProjectionMatrix();
+      controls.update();
+      resize();
+    };
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
     resize();
 
     return () => {
       resizeObserver.disconnect();
+      controls.removeEventListener("change", render);
+      controls.dispose();
       scene.traverse((object) => {
         const disposable = object as THREE.Mesh | THREE.Line;
         disposable.geometry?.dispose();
@@ -607,78 +696,36 @@ export function WorldView({
       trailRef.current = null;
       rangeRef.current = null;
       annotationGroupRef.current = null;
+      controlsRef.current = null;
       resizeRef.current = null;
-      trailPoints.current = [];
-      lastSequence.current = -1;
+      renderRef.current = null;
+      fitWorldRef.current = null;
     };
   }, [world, worldCenterX, worldCenterY, worldHeightMm, worldWidthMm]);
 
   useEffect(() => {
     const robot = robotRef.current;
-    const camera = cameraRef.current;
     const trail = trailRef.current;
     const range = rangeRef.current;
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
-    if (!robot || !trail || !range || !camera || !renderer || !scene) {
+    if (!robot || !trail || !range || !renderer || !scene) {
       return;
     }
-    const retainedTrailLength = Math.min(samples.length, 1_200);
-    const latestHistoricalSample = samples.at(-1);
-    const retainedHistoryEndsAtCurrentSample =
-      latestHistoricalSample?.source === sample.source &&
-      latestHistoricalSample.seq === sample.seq;
-    const retainedHistoryHasMissingTrailPoints =
-      retainedHistoryEndsAtCurrentSample &&
-      trailPoints.current.length < retainedTrailLength;
-    if (
-      sample.seq !== lastSequence.current ||
-      retainedHistoryHasMissingTrailPoints
-    ) {
-      const missedRenderedSamples =
-        samples.length > 1 &&
-        (lastSequence.current < 0 ||
-          sample.seq !== lastSequence.current + 1 ||
-          retainedHistoryHasMissingTrailPoints);
-      if (missedRenderedSamples) {
-        trailPoints.current = samples
-          .slice(-1_200)
-          .map(
-            (historicalSample) =>
-              new THREE.Vector3(historicalSample.xMm, historicalSample.yMm, 1),
-          );
-      } else if (sample.seq === 0 && lastSequence.current > 0) {
-        trailPoints.current = [];
-        trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
-      } else {
-        trailPoints.current.push(new THREE.Vector3(sample.xMm, sample.yMm, 1));
-      }
-      lastSequence.current = sample.seq;
-      if (trailPoints.current.length > 1_200) {
-        trailPoints.current.shift();
-      }
-      trail.geometry.dispose();
-      trail.geometry = new THREE.BufferGeometry().setFromPoints(
-        trailPoints.current,
+    const trailSegments = worldTrailSegmentPoints(samples);
+    trail.geometry.dispose();
+    trail.geometry = new THREE.BufferGeometry().setFromPoints(trailSegments);
+    if (viewRef.current) {
+      viewRef.current.dataset.pathPointCount = String(
+        samples.filter((historical) => historical.poseAvailable).length,
       );
-      if (viewRef.current) {
-        viewRef.current.dataset.pathPointCount = String(
-          trailPoints.current.length,
-        );
-      }
+      viewRef.current.dataset.pathSegmentCount = String(
+        trailSegments.length / 2,
+      );
     }
 
     robot.position.set(sample.xMm, sample.yMm, 0);
     robot.rotation.z = sample.headingRad;
-    if (viewZoom > 1) {
-      camera.position.x = sample.xMm;
-      camera.position.y = sample.yMm - 40;
-      camera.lookAt(sample.xMm, sample.yMm, 0);
-    } else {
-      camera.position.x = worldCenterX;
-      camera.position.y = worldCenterY;
-      camera.lookAt(worldCenterX, worldCenterY, 0);
-    }
 
     range.fill.geometry.dispose();
     range.outline.geometry.dispose();
@@ -700,9 +747,8 @@ export function WorldView({
       range.fill.geometry = geometry.fill;
       range.outline.geometry = geometry.outline;
     }
-    resizeRef.current?.();
-    renderer.render(scene, camera);
-  }, [sample, samples, viewZoom, worldCenterX, worldCenterY]);
+    renderRef.current?.();
+  }, [sample, samples]);
 
   useEffect(() => {
     const group = annotationGroupRef.current;
@@ -768,15 +814,65 @@ export function WorldView({
             ))}
           </select>
         ) : null}
-        <button
-          aria-pressed={viewZoom > 1}
-          className="world-view-toggle"
-          onClick={() => setViewZoom((current) => (current === 1 ? 3 : 1))}
-          title="Switch between the full arena and a closer robot view."
-          type="button"
-        >
-          {viewZoom === 1 ? "Zoom XRP" : "Fit world"}
-        </button>
+        <div className="world-view-controls" aria-label="World view controls">
+          <button
+            aria-label="Zoom out"
+            onClick={() => {
+              const camera = cameraRef.current;
+              const controls = controlsRef.current;
+              if (!camera || !controls) return;
+              camera.zoom = Math.max(controls.minZoom, camera.zoom / 1.35);
+              camera.updateProjectionMatrix();
+              controls.update();
+              renderRef.current?.();
+            }}
+            title="Zoom out. You can also use the mouse wheel or trackpad."
+            type="button"
+          >
+            −
+          </button>
+          <button
+            aria-label="Zoom in"
+            onClick={() => {
+              const camera = cameraRef.current;
+              const controls = controlsRef.current;
+              if (!camera || !controls) return;
+              camera.zoom = Math.min(controls.maxZoom, camera.zoom * 1.35);
+              camera.updateProjectionMatrix();
+              controls.update();
+              renderRef.current?.();
+            }}
+            title="Zoom in. Drag the world to pan."
+            type="button"
+          >
+            +
+          </button>
+          <button
+            aria-label="Fit world"
+            onClick={() => fitWorldRef.current?.()}
+            title="Fit the complete arena in the view."
+            type="button"
+          >
+            Fit
+          </button>
+          <button
+            aria-label="Center XRP"
+            onClick={() => {
+              const camera = cameraRef.current;
+              const controls = controlsRef.current;
+              if (!camera || !controls) return;
+              camera.position.x = sample.xMm;
+              camera.position.y = sample.yMm;
+              controls.target.set(sample.xMm, sample.yMm, 0);
+              controls.update();
+              renderRef.current?.();
+            }}
+            title="Center the view on the XRP without changing the zoom."
+            type="button"
+          >
+            XRP
+          </button>
+        </div>
         {!sample.poseAvailable ? (
           <span>Preview · no published pose</span>
         ) : null}

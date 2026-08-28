@@ -496,9 +496,6 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
   ).toBeVisible();
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
-  await monitor
-    .getByRole("button", { name: "Start recording", exact: true })
-    .click();
 
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
@@ -521,11 +518,8 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
     )
     .toBeGreaterThan(900);
 
-  await monitor
-    .getByRole("button", { name: "Stop recording", exact: true })
-    .click();
   const downloadEvent = monitor.waitForEvent("download");
-  await monitor.getByRole("button", { name: "Export telemetry CSV" }).click();
+  await monitor.getByRole("button", { name: "Export run data as CSV" }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/^xrp-telemetry-.*\.csv$/);
   const downloadPath = await download.path();

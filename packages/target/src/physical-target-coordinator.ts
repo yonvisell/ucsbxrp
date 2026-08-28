@@ -93,6 +93,11 @@ export class PhysicalTargetCoordinator {
   }
 
   handle(port: PhysicalWorkerPort, command: PhysicalWorkerCommand): void {
+    if (command.type === "set-role") {
+      this.roles.set(port, command.role);
+      if (command.role === "monitor") this.replayTelemetry(port);
+      return;
+    }
     if (command.type === "disconnect") {
       this.detach(port);
       return;
@@ -161,6 +166,7 @@ export class PhysicalTargetCoordinator {
     port: PhysicalWorkerPort,
     command: Exclude<
       PhysicalWorkerCommand,
+      | { type: "set-role" }
       | { type: "disconnect" }
       | { type: "set-project-run-provider" }
       | { type: "project-run-snapshot" }

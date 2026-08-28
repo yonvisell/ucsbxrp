@@ -11,13 +11,11 @@ import {
   DEFAULT_COURSE_PROJECT,
   DEFAULT_WORLD_CATALOG,
   PhysicalTargetClient,
-  TelemetryRecorder,
   VirtualTargetClient,
   physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
   targetPreferenceForPhysicalNetwork,
-  telemetryRecordingToCsv,
   type TargetClient,
   type TargetEvent,
   type TargetRunState,
@@ -44,10 +42,12 @@ import { useProjectBootstrapPending } from "../../shared/use-project-bootstrap";
 import {
   courseFolderChangedKey,
   courseFolderPermission,
+  autosaveDirectoryName,
   loadRememberedProjectFolder,
   requestCourseFolderPermission,
   withCourseFolderWriteLock,
   writeCourseFile,
+  writeCourseTextFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
   type CourseFileHandle,
@@ -63,11 +63,15 @@ import { WorldView } from "./WorldView";
 import {
   createMonitorAnnotation,
   downloadBlob,
-  monitorAnnotationsToCsv,
+  monitorRunToCsv,
   timestampedName,
   webmExportSupported,
   type MonitorAnnotation,
 } from "./monitor-export-core";
+import {
+  MonitorRunDatasetController,
+  type MonitorRunDataset,
+} from "./monitor-run-dataset";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
 import {
   PlotSampleHistory,
@@ -78,6 +82,37 @@ interface ConsoleEntry {
   id: string;
   stream: "stdout" | "stderr" | "system";
   line: string;
+}
+
+function completedRunMetadata(run: MonitorRunDataset) {
+  return {
+    schemaVersion: 2,
+    runId: run.id,
+    startedAt: run.startedAt,
+    finishedAt: run.finishedAt,
+    target: run.target,
+    worldId: run.worldId,
+    finalState: run.finalState,
+    finalDetail: run.finalDetail,
+    project: run.project,
+    telemetrySamples: run.recording.samples.length,
+    droppedTelemetrySamples: run.recording.droppedSamples,
+    annotations: run.annotations,
+  };
+}
+
+function completedRunOutput(run: MonitorRunDataset): string {
+  return [
+    "UCSB XRP run",
+    `Started: ${run.startedAt}`,
+    `Finished: ${run.finishedAt}`,
+    `Target: ${run.target}`,
+    `Project: ${run.project?.name ?? "unavailable"}`,
+    `Result: ${run.finalState} · ${run.finalDetail}`,
+    "",
+    ...run.output.map((entry) => `[${entry.stream}] ${entry.line}`),
+    "",
+  ].join("\n");
 }
 
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
@@ -267,11 +302,6 @@ function vector(
   return values
     ? values.map((item) => value(convert(item), digits)).join(" / ")
     : "—";
-}
-
-function compactDuration(seconds: number): string {
-  if (seconds < 120) return `${Math.max(1, Math.round(seconds))} s`;
-  return `${Math.round(seconds / 60)} min`;
 }
 
 interface RuntimeControlsProps {
@@ -469,6 +499,8 @@ export function DashboardApp() {
   const [selectedWorldId, setSelectedWorldId] = useState(
     DEFAULT_WORLD_CATALOG.defaultWorldId,
   );
+  const selectedWorldIdRef = useRef(selectedWorldId);
+  selectedWorldIdRef.current = selectedWorldId;
   const [monitorSettings, setMonitorSettings] =
     useState<MonitorSettings>(loadMonitorSettings);
   const [controlsOpen, setControlsOpen] = useState(
@@ -517,14 +549,16 @@ export function DashboardApp() {
     targetPreference.robotId,
     connectionAttempt,
   ]);
-  const recorder = useMemo(() => new TelemetryRecorder(), []);
   const virtualRuntimePreparing =
     target.kind === "virtual" &&
     virtualRunNeedsPreparation(
       import.meta.env.PROD,
       globalThis.crossOriginIsolated,
     );
-  const automaticRecorder = useMemo(() => new TelemetryRecorder(), []);
+  const runDatasetController = useMemo(
+    () => new MonitorRunDatasetController(30_000),
+    [],
+  );
   const [sample, setSample] = useState<TelemetrySample | null>(null);
   const [plotSamples, setPlotSamples] = useState<readonly TelemetrySample[]>(
     [],
@@ -547,7 +581,8 @@ export function DashboardApp() {
   const [projectProviderAvailable, setProjectProviderAvailable] =
     useState(false);
   const [runStarting, setRunStarting] = useState(false);
-  const [recordingActive, setRecordingActive] = useState(false);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [latestRun, setLatestRun] = useState<MonitorRunDataset | null>(null);
   const [runtimeState, setRuntimeState] =
     useState<RuntimeState>(emptyRuntimeState);
   const [availableProgramPlots, setAvailableProgramPlots] = useState(
@@ -560,10 +595,6 @@ export function DashboardApp() {
     Record<string, RuntimeParameterValue>
   >({});
   const [runtimeUpdateError, setRuntimeUpdateError] = useState("");
-  const [recordedSamples, setRecordedSamples] = useState(0);
-  const [recordedPoseSamples, setRecordedPoseSamples] = useState(0);
-  const [droppedSamples, setDroppedSamples] = useState(0);
-  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
   const [autosaveFolder, setAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [folderInteractionRevision, setFolderInteractionRevision] = useState(0);
@@ -574,14 +605,8 @@ export function DashboardApp() {
   );
   const [annotations, setAnnotations] = useState<MonitorAnnotation[]>([]);
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
-  const [exportReplayAfterStop, setExportReplayAfterStop] = useState(false);
   const [exportState, setExportState] = useState<
-    | "idle"
-    | "telemetry-csv"
-    | "notes-csv"
-    | "plots-svg"
-    | "plots-png"
-    | "world-webm"
+    "idle" | "telemetry-csv" | "plots-svg" | "plots-png" | "world-webm"
   >("idle");
   const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
@@ -589,10 +614,6 @@ export function DashboardApp() {
   const autosaveFolderEpoch = useRef(0);
   const autosaveFolderRemembered = useRef(false);
   const currentProjectRef = useRef<SynchronizedProject | null>(null);
-  const automaticRunActive = useRef(false);
-  const automaticRunStartedAt = useRef("");
-  const automaticRunProject = useRef<SynchronizedProject | null>(null);
-  const automaticRunOutput = useRef<ConsoleEntry[]>([]);
   const annotationsRef = useRef<MonitorAnnotation[]>([]);
   const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
   const targetStateRef = useRef<TargetRunState>("disconnected");
@@ -601,13 +622,13 @@ export function DashboardApp() {
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
-  const recordingStartedAt = useRef<number | null>(null);
   const projectBootstrapPendingRef = useRef(projectBootstrapPending);
   const folderInteractionCountRef = useRef(0);
   const runArchiveCountRef = useRef(0);
   const targetCommandCountRef = useRef(0);
   const annotationDraftIdsRef = useRef(new Set<string>());
   const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
+  const nextRunIdRef = useRef(1);
 
   projectBootstrapPendingRef.current = projectBootstrapPending;
 
@@ -694,7 +715,7 @@ export function DashboardApp() {
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
           setRunAutosaveDetail(
-            "No project folder is connected. Runs remain visible in the Monitor but are not saved to the previous folder.",
+            "Not saved to disk · connect a project folder in the IDE.",
           );
           return;
         }
@@ -707,7 +728,7 @@ export function DashboardApp() {
         if (permission === "granted") {
           autosaveFolderRef.current = folder;
           setAutosaveFolder(folder);
-          setRunAutosaveDetail(`Runs save to ./${folder.name}.`);
+          setRunAutosaveDetail(`Runs save automatically to ${folder.name}.`);
         } else {
           autosaveFolderRef.current = null;
           setAutosaveFolder(null);
@@ -739,130 +760,147 @@ export function DashboardApp() {
     };
   }, [beginFolderInteraction, finishFolderInteraction]);
 
-  const archiveAutomaticRun = useCallback(
-    (finalState: TargetRunState, finalDetail: string) => {
-      if (!automaticRunActive.current) {
-        return;
-      }
-      automaticRunActive.current = false;
-      const recording = automaticRecorder.stop();
-      const folder = autosaveFolderRef.current;
-      const folderEpoch = autosaveFolderEpoch.current;
-      const startedAt = automaticRunStartedAt.current;
-      const finishedAt = new Date().toISOString();
-      const projectAtStart = automaticRunProject.current;
-      const output = automaticRunOutput.current;
-      automaticRunOutput.current = [];
-      if (!folder) {
-        setRunAutosaveDetail(
-          "Run finished; browser data remains visible, but no project folder is connected.",
-        );
-        return;
-      }
+  const archiveCompletedRun = useCallback((run: MonitorRunDataset) => {
+    const recording = run.recording;
+    const folder = autosaveFolderRef.current;
+    const folderEpoch = autosaveFolderEpoch.current;
+    if (!folder) {
+      setRunAutosaveDetail(
+        "Not saved to disk · connect a project folder in the IDE.",
+      );
+      return;
+    }
 
-      const firstSample = recording.samples[0];
-      const lastSample = recording.samples.at(-1);
-      const fingerprint = JSON.stringify({
-        source: target.kind,
-        revision: projectAtStart?.revision ?? null,
-        first: firstSample ? [firstSample.seq, firstSample.tMs] : null,
-        last: lastSample ? [lastSample.seq, lastSample.tMs] : null,
-        outputCount: output.length,
-        firstOutput: output[0]?.line ?? null,
-        lastOutput: output.at(-1)?.line ?? null,
+    const firstSample = recording.samples[0];
+    const lastSample = recording.samples.at(-1);
+    const fingerprint = JSON.stringify({
+      id: run.id,
+      source: run.target,
+      revision: run.project?.revision ?? null,
+      first: firstSample ? [firstSample.seq, firstSample.tMs] : null,
+      last: lastSample ? [lastSample.seq, lastSample.tMs] : null,
+      outputCount: run.output.length,
+      firstOutput: run.output[0]?.line ?? null,
+      lastOutput: run.output.at(-1)?.line ?? null,
+    });
+    const metadata = completedRunMetadata(run);
+    const outputText = completedRunOutput(run);
+
+    const writeArchive = async (): Promise<boolean> => {
+      if (
+        autosaveFolderRef.current === null ||
+        autosaveFolderEpoch.current !== folderEpoch
+      ) {
+        return false;
+      }
+      try {
+        if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
+          return true;
+        }
+      } catch {
+        // The folder write remains useful when localStorage is unavailable.
+      }
+      await writeRotatingTextBundle(folder, [
+        { baseName: "run", extension: "txt", content: outputText },
+        {
+          baseName: "telemetry",
+          extension: "csv",
+          content: monitorRunToCsv(recording, run.annotations),
+        },
+        {
+          baseName: "run",
+          extension: "json",
+          content: `${JSON.stringify(metadata, null, 2)}\n`,
+        },
+      ]);
+      try {
+        localStorage.setItem(lastArchivedRunKey, fingerprint);
+      } catch {
+        // The files are already complete.
+      }
+      return true;
+    };
+
+    const queued = runArchiveQueue.current.then(async () => {
+      return withCourseFolderWriteLock("run", writeArchive);
+    });
+    runArchiveCountRef.current += 1;
+    runArchiveQueue.current = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    void queued
+      .then((saved) => {
+        setRunAutosaveDetail(
+          saved
+            ? `Saved automatically to ${folder.name}.`
+            : "Not saved because the project folder changed.",
+        );
+      })
+      .catch((error: unknown) => {
+        setRunAutosaveDetail(
+          `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      })
+      .finally(() => {
+        runArchiveCountRef.current = Math.max(
+          0,
+          runArchiveCountRef.current - 1,
+        );
+        retryPendingOfflineShellReload();
       });
-      const metadata = {
-        schemaVersion: 1,
-        startedAt,
-        finishedAt,
-        target: target.kind,
+  }, []);
+
+  const finishActiveRun = useCallback(
+    (finalState: TargetRunState, finalDetail: string) => {
+      const run = runDatasetController.complete(
         finalState,
         finalDetail,
-        project: projectAtStart,
-        telemetrySamples: recording.samples.length,
-        droppedTelemetrySamples: recording.droppedSamples,
-        annotations: annotationsRef.current,
-      };
-      const outputText = [
-        "UCSB XRP monitored run",
-        `Started: ${startedAt}`,
-        `Finished: ${finishedAt}`,
-        `Target: ${target.kind}`,
-        `Project: ${projectAtStart?.name ?? "unavailable"}`,
-        `Result: ${finalState} · ${finalDetail}`,
-        "",
-        ...output.map((entry) => `[${entry.stream}] ${entry.line}`),
-        "",
-      ].join("\n");
-
-      const writeArchive = async (): Promise<boolean> => {
-        if (
-          autosaveFolderRef.current === null ||
-          autosaveFolderEpoch.current !== folderEpoch
-        ) {
-          return false;
-        }
-        try {
-          if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
-            return true;
-          }
-        } catch {
-          // The folder write remains useful when localStorage is unavailable.
-        }
-        await writeRotatingTextBundle(folder, [
-          { baseName: "run", extension: "txt", content: outputText },
-          {
-            baseName: "telemetry",
-            extension: "csv",
-            content: telemetryRecordingToCsv(recording),
-          },
-          {
-            baseName: "run",
-            extension: "json",
-            content: `${JSON.stringify(metadata, null, 2)}\n`,
-          },
-        ]);
-        try {
-          localStorage.setItem(lastArchivedRunKey, fingerprint);
-        } catch {
-          // The files are already complete.
-        }
-        return true;
-      };
-
-      const queued = runArchiveQueue.current.then(async () => {
-        return withCourseFolderWriteLock("run", writeArchive);
-      });
-      runArchiveCountRef.current += 1;
-      runArchiveQueue.current = queued.then(
-        () => undefined,
-        () => undefined,
+        new Date().toISOString(),
       );
-      void queued
-        .then((saved) => {
-          setRunAutosaveDetail(
-            saved
-              ? `Saved ${recording.samples.length} telemetry samples and program output to ${folder.name}.`
-              : "Run finished; browser data remains visible, but no project folder is connected.",
-          );
-        })
-        .catch((error: unknown) => {
-          setRunAutosaveDetail(
-            `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        })
-        .finally(() => {
-          runArchiveCountRef.current = Math.max(
-            0,
-            runArchiveCountRef.current - 1,
-          );
-          retryPendingOfflineShellReload();
-        });
+      if (!run) return null;
+      setActiveRunId(null);
+      setLatestRun(run);
+      annotationsRef.current = [...run.annotations];
+      setAnnotations([...run.annotations]);
+      setPlotSamples(run.recording.samples);
+      archiveCompletedRun(run);
+      return run;
     },
-    [automaticRecorder, target.kind],
+    [archiveCompletedRun, runDatasetController],
   );
 
+  const updateSavedRunAnnotations = useCallback((run: MonitorRunDataset) => {
+    const folder = autosaveFolderRef.current;
+    const folderEpoch = autosaveFolderEpoch.current;
+    if (!folder) return;
+    const update = runArchiveQueue.current.then(async () => {
+      if (
+        autosaveFolderRef.current === null ||
+        autosaveFolderEpoch.current !== folderEpoch
+      ) {
+        return;
+      }
+      await withCourseFolderWriteLock("run", async () => {
+        await writeCourseTextFile(
+          folder,
+          `${autosaveDirectoryName}/telemetry-1.csv`,
+          monitorRunToCsv(run.recording, run.annotations),
+        );
+        await writeCourseTextFile(
+          folder,
+          `${autosaveDirectoryName}/run-1.json`,
+          `${JSON.stringify(completedRunMetadata(run), null, 2)}\n`,
+        );
+      });
+    });
+    runArchiveQueue.current = update.catch(() => undefined);
+  }, []);
+
   useEffect(() => {
+    runDatasetController.clear();
+    setActiveRunId(null);
+    setLatestRun(null);
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
     setAvailableProgramPlots([]);
@@ -885,45 +923,39 @@ export function DashboardApp() {
         rateSamples.push(event.sample);
         if (rateSamples.length > 41) rateSamples.shift();
 
-        const followStripPlots =
-          event.replayed === true ||
-          runStartingRef.current ||
-          isActiveRunState(targetStateRef.current) ||
-          recorder.isRecording;
-        if (followStripPlots) {
+        const capturedByRun = runDatasetController.capture(event.sample);
+        if (capturedByRun) {
           const telemetryRestarted = plotSampleHistory.append(event.sample);
-          if (telemetryRestarted) {
+          if (telemetryRestarted && !runDatasetController.isActive) {
             annotationsRef.current = [];
             setAnnotations([]);
-          }
-        }
-        recorder.capture(event.sample);
-        automaticRecorder.capture(event.sample);
-        if (recorder.isRecording) {
-          setRecordedSamples(recorder.sampleCount);
-          setDroppedSamples(recorder.droppedSampleCount);
-          if (recordingStartedAt.current !== null) {
-            setRecordingElapsedMs(
-              performance.now() - recordingStartedAt.current,
-            );
           }
         }
       } else if (event.type === "status") {
         targetStateRef.current = event.state;
         const nextRunActive = isActiveRunState(event.state);
-        if (nextRunActive && !automaticRunActive.current) {
-          automaticRunActive.current = true;
-          automaticRunStartedAt.current = new Date().toISOString();
-          automaticRunProject.current = currentProjectRef.current;
-          automaticRunOutput.current = [];
-          automaticRecorder.start();
+        if (nextRunActive && !runDatasetController.isActive) {
+          const runId = `${target.kind}-${Date.now()}-${nextRunIdRef.current++}`;
+          runDatasetController.begin({
+            id: runId,
+            target: target.kind,
+            project: currentProjectRef.current,
+            worldId: selectedWorldIdRef.current,
+            startedAt: new Date().toISOString(),
+          });
+          setActiveRunId(runId);
+          setLatestRun(null);
+          plotSampleHistory.clear();
+          annotationsRef.current = [];
+          setAnnotations([]);
+          setExportDetail("");
           setRunAutosaveDetail(
             autosaveFolderRef.current
-              ? `Capturing this run for ${autosaveFolderRef.current.name}…`
-              : "Capturing this run in the Monitor; no project folder is connected.",
+              ? `Will save automatically to ${autosaveFolderRef.current.name}.`
+              : "Not saved to disk · connect a project folder in the IDE.",
           );
-        } else if (!nextRunActive && automaticRunActive.current) {
-          archiveAutomaticRun(event.state, event.detail);
+        } else if (!nextRunActive && runDatasetController.isActive) {
+          finishActiveRun(event.state, event.detail);
         }
         setTargetState(event.state);
         setTargetDetail(event.detail);
@@ -932,12 +964,25 @@ export function DashboardApp() {
           targetPreferenceForPhysicalNetwork(current, event),
         );
       } else if (event.type === "project") {
+        const projectChanged =
+          currentProjectRef.current?.revision !== event.project?.revision;
         currentProjectRef.current = event.project;
         if (
-          automaticRunActive.current &&
-          automaticRunProject.current === null
+          projectChanged &&
+          runDatasetController.isActive &&
+          !runDatasetController.acceptProject(event.project)
         ) {
-          automaticRunProject.current = event.project;
+          finishActiveRun(
+            "ready",
+            "Run data ended because the project changed",
+          );
+        }
+        if (projectChanged && !runDatasetController.isActive) {
+          runDatasetController.clear();
+          setLatestRun(null);
+          plotSampleHistory.clear();
+          annotationsRef.current = [];
+          setAnnotations([]);
         }
         setCurrentProject(event.project);
       } else if (event.type === "project-provider") {
@@ -964,18 +1009,7 @@ export function DashboardApp() {
           stream: event.stream,
           line: event.line,
         };
-        if (automaticRunActive.current) {
-          if (
-            !automaticRunOutput.current.some(
-              (existing) => existing.id === entry.id,
-            )
-          ) {
-            automaticRunOutput.current = [
-              ...automaticRunOutput.current.slice(-1_999),
-              entry,
-            ];
-          }
-        }
+        runDatasetController.addOutput(entry);
       }
     });
     beginTargetCommand();
@@ -1007,9 +1041,7 @@ export function DashboardApp() {
     void connect();
     return () => {
       disposed = true;
-      if (automaticRunActive.current) {
-        archiveAutomaticRun("disconnected", "Target connection changed");
-      }
+      finishActiveRun("disconnected", "Target connection changed");
       unsubscribe();
       for (const timer of runtimeUpdateTimers.current.values()) {
         clearTimeout(timer);
@@ -1019,16 +1051,23 @@ export function DashboardApp() {
       target.disconnect();
     };
   }, [
-    archiveAutomaticRun,
-    automaticRecorder,
     beginTargetCommand,
+    finishActiveRun,
     finishTargetCommand,
     plotSampleHistory,
-    recorder,
+    runDatasetController,
     target,
   ]);
 
   const reset = async () => {
+    finishActiveRun("ready", "Run ended by Reset");
+    runDatasetController.clear();
+    setActiveRunId(null);
+    setLatestRun(null);
+    plotSampleHistory.clear();
+    annotationsRef.current = [];
+    setAnnotations([]);
+    setExportDetail("");
     beginTargetCommand();
     try {
       await target.reset();
@@ -1089,6 +1128,8 @@ export function DashboardApp() {
   };
 
   const changeWorld = async (nextWorldId: string) => {
+    finishActiveRun("ready", "Run ended because the world changed");
+    clearDisplayedRun();
     setSelectedWorldId(nextWorldId);
     beginTargetCommand();
     try {
@@ -1118,7 +1159,9 @@ export function DashboardApp() {
         return;
       }
       setAutosaveFolder(rememberedAutosaveFolder);
-      setRunAutosaveDetail(`Runs save to ./${rememberedAutosaveFolder.name}.`);
+      setRunAutosaveDetail(
+        `Runs save automatically to ${rememberedAutosaveFolder.name}.`,
+      );
     } catch (error: unknown) {
       if (!wasCancelled(error)) {
         setRunAutosaveDetail(
@@ -1130,45 +1173,19 @@ export function DashboardApp() {
     }
   };
 
-  const startRecording = () => {
-    recorder.start();
-    recordingStartedAt.current = performance.now();
-    setRecordingActive(true);
-    setRecordedSamples(0);
-    setRecordedPoseSamples(0);
-    setDroppedSamples(0);
-    setRecordingElapsedMs(0);
-  };
-
-  const finishRecording = () => {
-    const recording = recorder.stop();
-    if (recordingStartedAt.current !== null) {
-      setRecordingElapsedMs(performance.now() - recordingStartedAt.current);
-    }
-    recordingStartedAt.current = null;
-    setRecordingActive(false);
-    setRecordedSamples(recording.samples.length);
-    setRecordedPoseSamples(
-      recording.samples.filter((recorded) => recorded.poseAvailable).length,
-    );
-    setDroppedSamples(recording.droppedSamples);
-    return recording;
-  };
-
-  const clearRecording = () => {
-    recorder.clear();
-    recordingStartedAt.current = null;
-    setRecordingActive(false);
-    setRecordedSamples(0);
-    setRecordedPoseSamples(0);
-    setDroppedSamples(0);
-    setRecordingElapsedMs(0);
+  const clearDisplayedRun = () => {
+    runDatasetController.clear();
+    setActiveRunId(null);
+    setLatestRun(null);
+    plotSampleHistory.clear();
     annotationsRef.current = [];
     setAnnotations([]);
+    setExportDetail("");
     retryPendingOfflineShellReload();
   };
 
   const exportRecording = async () => {
+    if (!latestRun) return;
     exportActiveRef.current = true;
     setExportState("telemetry-csv");
     try {
@@ -1179,34 +1196,8 @@ export function DashboardApp() {
         "text/csv",
       );
       if (!destination) return;
-      const csv = telemetryRecordingToCsv(recorder.snapshot());
+      const csv = monitorRunToCsv(latestRun.recording, latestRun.annotations);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      await destination.save(blob);
-      setExportDetail(`Saved ${destination.description}`);
-    } catch (error) {
-      setExportDetail(error instanceof Error ? error.message : String(error));
-    } finally {
-      exportActiveRef.current = false;
-      setExportState("idle");
-      retryPendingOfflineShellReload();
-    }
-  };
-
-  const exportNotes = async () => {
-    if (annotations.length === 0) return;
-    exportActiveRef.current = true;
-    setExportState("notes-csv");
-    try {
-      const fileName = timestampedName("xrp-notes", "csv");
-      const destination = await prepareExportDestination(
-        autosaveFolder,
-        fileName,
-        "text/csv",
-      );
-      if (!destination) return;
-      const blob = new Blob([monitorAnnotationsToCsv(annotations)], {
-        type: "text/csv;charset=utf-8",
-      });
       await destination.save(blob);
       setExportDetail(`Saved ${destination.description}`);
     } catch (error) {
@@ -1286,13 +1277,20 @@ export function DashboardApp() {
       label,
     );
     if (!annotation) return;
-    annotationsRef.current = [...annotationsRef.current, annotation].slice(-24);
+    const updatedRun = runDatasetController.addAnnotation(annotation);
+    annotationsRef.current = [...runDatasetController.currentAnnotations()];
     setAnnotations(annotationsRef.current);
+    if (updatedRun) {
+      setLatestRun(updatedRun);
+      updateSavedRunAnnotations(updatedRun);
+    }
     setAnnotationsVisible(true);
   };
 
+  const displayedRunSamples = latestRun?.recording.samples ?? plotSamples;
+
   const exportPlots = async (format: "svg" | "png") => {
-    if (visiblePlots.length === 0 || plotSamples.length === 0) return;
+    if (visiblePlots.length === 0 || displayedRunSamples.length === 0) return;
     const nextState = format === "svg" ? "plots-svg" : "plots-png";
     exportActiveRef.current = true;
     setExportState(nextState);
@@ -1307,7 +1305,7 @@ export function DashboardApp() {
       setExportDetail(`Preparing ${format.toUpperCase()}…`);
       const { createSignalPlotsSvg, svgToPng } = await loadMonitorExport();
       const svg = createSignalPlotsSvg(
-        plotSamples,
+        displayedRunSamples,
         visiblePlots,
         monitorSettings.timeWindowS,
         annotationsVisible ? annotations : [],
@@ -1329,25 +1327,24 @@ export function DashboardApp() {
     }
   };
 
-  const exportWorldReplay = async (
-    samples: readonly TelemetrySample[] = recorder.snapshot().samples,
-  ) => {
+  const exportWorldReplay = async () => {
+    if (!latestRun) return;
     exportActiveRef.current = true;
     setExportState("world-webm");
     try {
-      const fileName = timestampedName("xrp-world-replay", "webm");
+      const fileName = timestampedName("xrp-world-animation", "webm");
       const destination = await prepareExportDestination(
         autosaveFolder,
         fileName,
         "video/webm",
       );
       if (!destination) return;
-      setExportDetail("Preparing world replay…");
+      setExportDetail("Preparing world animation…");
       const { createWorldReplayWebm } = await loadMonitorExport();
       let shownProgress = -1;
       const blob = await createWorldReplayWebm({
-        samples,
-        annotations: annotationsVisible ? annotations : [],
+        samples: latestRun.recording.samples,
+        annotations: annotationsVisible ? latestRun.annotations : [],
         world:
           worldCatalog.worlds.find((world) => world.id === selectedWorldId) ??
           worldCatalog.worlds[0]!,
@@ -1355,7 +1352,7 @@ export function DashboardApp() {
           const progress = Math.floor(fraction * 100);
           if (progress !== shownProgress) {
             shownProgress = progress;
-            setExportDetail(`Rendering replay · ${progress}%`);
+            setExportDetail(`Creating world animation · ${progress}%`);
           }
         },
       });
@@ -1367,16 +1364,6 @@ export function DashboardApp() {
       exportActiveRef.current = false;
       setExportState("idle");
       retryPendingOfflineShellReload();
-    }
-  };
-
-  const stopRecording = async () => {
-    const recording = finishRecording();
-    const poseSamples = recording.samples.filter(
-      (recorded) => recorded.poseAvailable,
-    ).length;
-    if (exportReplayAfterStop && poseSamples >= 2 && webmExportSupported()) {
-      await exportWorldReplay(recording.samples);
     }
   };
 
@@ -1421,11 +1408,11 @@ export function DashboardApp() {
             runtimeUpdateTimers.current.size > 0,
           runActive:
             runStartingRef.current ||
-            automaticRunActive.current ||
+            runDatasetController.isActive ||
             isActiveRunState(targetStateRef.current),
           exportActive: exportActiveRef.current,
-          recordingActive: recorder.isRecording,
-          retainedRecording: recorder.sampleCount > 0,
+          recordingActive: runDatasetController.isActive,
+          retainedRecording: runDatasetController.latest !== null,
           retainedAnnotations: annotationsRef.current.length > 0,
           annotationDraftActive: annotationDraftIdsRef.current.size > 0,
           folderInteractionActive: folderInteractionCountRef.current > 0,
@@ -1435,7 +1422,7 @@ export function DashboardApp() {
         await runArchiveQueue.current;
         return monitorReloadIsSafe(activity());
       }),
-    [recorder],
+    [runDatasetController],
   );
 
   useEffect(() => {
@@ -1447,8 +1434,8 @@ export function DashboardApp() {
           runtimeUpdateTimers.current.size > 0,
         runActive: runStarting || isRunning,
         exportActive: exportState !== "idle",
-        recordingActive,
-        retainedRecording: recordedSamples > 0,
+        recordingActive: activeRunId !== null,
+        retainedRecording: latestRun !== null,
         retainedAnnotations: annotations.length > 0,
         annotationDraftActive: annotationDraftIdsRef.current.size > 0,
         folderInteractionActive: folderInteractionCountRef.current > 0,
@@ -1463,8 +1450,8 @@ export function DashboardApp() {
     isRunning,
     annotations.length,
     projectBootstrapPending,
-    recordedSamples,
-    recordingActive,
+    activeRunId,
+    latestRun,
     runStarting,
   ]);
   const worldPreviewSample = useMemo(
@@ -1475,23 +1462,26 @@ export function DashboardApp() {
   const telemetryRateHz = recentTelemetryRateHz(
     telemetryRateSamplesRef.current,
   );
-  const capturedSampleCount = recordedSamples + droppedSamples;
-  const observedRecordingRateHz =
-    recordingElapsedMs >= 500 && capturedSampleCount > 1
-      ? (capturedSampleCount - 1) / (recordingElapsedMs / 1_000)
-      : null;
-  const recordingCapacity = observedRecordingRateHz
-    ? compactDuration(recorder.maximumSamples / observedRecordingRateHz)
-    : "10 min at 50 Hz";
+  const completedRunDurationS = latestRun?.recording.samples.length
+    ? Math.max(
+        0,
+        (latestRun.recording.samples.at(-1)!.tMs -
+          latestRun.recording.samples[0]!.tMs) /
+          1_000,
+      )
+    : 0;
+  const completedPoseSamples =
+    latestRun?.recording.samples.filter((recorded) => recorded.poseAvailable)
+      .length ?? 0;
   const replayExportUnavailable =
     exportState !== "idle"
-      ? "Another export is in progress."
-      : recordingActive
-        ? "Stop recording before exporting a replay."
-        : recordedPoseSamples < 2
-          ? "Record at least two pose samples before exporting a replay."
+      ? "The current export is still being created."
+      : activeRunId
+        ? "Wait for the current run to finish before exporting its animation."
+        : completedPoseSamples < 2
+          ? "Run a program to create an animation."
           : !webmExportSupported()
-            ? "WebM replay export is unavailable in this browser."
+            ? "WebM animation export is unavailable in this browser."
             : "";
   const groundTruthPose =
     sample &&
@@ -1595,6 +1585,10 @@ export function DashboardApp() {
               Reconnect
             </button>
           ) : null}
+          <OfflineReadiness
+            appName="Monitor"
+            pendingUpdateDetail="A newer UCSBXRP release is ready. Finish the current run or export, then clear the displayed run; Monitor will reopen on the new release."
+          />
         </div>
       </header>
 
@@ -1615,7 +1609,7 @@ export function DashboardApp() {
                   aria-label="Collapse monitor controls"
                   className="monitor-controls-collapse"
                   onClick={() => setControlsOpen(false)}
-                  title="Collapse display and recording controls."
+                  title="Collapse plot, run-data, and export controls."
                 >
                   ‹
                 </button>
@@ -1641,11 +1635,11 @@ export function DashboardApp() {
                   <div className="signal-controls-heading">
                     <h2 id="signal-controls-title">Plot signals</h2>
                     <button
-                      disabled={plotSamples.length === 0}
-                      onClick={() => plotSampleHistory.clear()}
-                      title="Clear the visible signal history. New samples continue plotting."
+                      disabled={activeRunId !== null || latestRun === null}
+                      onClick={clearDisplayedRun}
+                      title="Clear the completed run, plots, and notes. Saved files are not deleted."
                     >
-                      Clear plots
+                      Clear run
                     </button>
                   </div>
                   <label className="monitor-field time-window-field">
@@ -1714,73 +1708,36 @@ export function DashboardApp() {
                   aria-labelledby="recording-controls-title"
                   className="monitor-control-group recording-control-group"
                 >
-                  <h2 id="recording-controls-title">Recording</h2>
+                  <h2 id="recording-controls-title">Run data</h2>
                   <div
                     className="recording-summary"
                     role="status"
-                    title="A rolling 30,000-sample buffer keeps recent telemetry in memory. Complete monitored runs also save to the selected folder."
+                    title="Run collects telemetry automatically and keeps the most recently completed run ready to inspect or export."
                   >
                     <span data-testid="recording-count">
-                      {recordingActive
-                        ? "Recording · "
-                        : recordedSamples > 0
-                          ? "Stopped · "
-                          : ""}
-                      {recordedSamples.toLocaleString()} samples
-                      {observedRecordingRateHz
-                        ? ` · ${observedRecordingRateHz.toFixed(1)} Hz`
-                        : ""}
-                      {` · ${recordingCapacity} capacity`}
-                      {droppedSamples > 0
-                        ? ` · ${droppedSamples.toLocaleString()} older dropped`
-                        : ""}
+                      {activeRunId
+                        ? `Current run · ${runDatasetController.sampleCount.toLocaleString()} samples`
+                        : latestRun
+                          ? `Last run · ${latestRun.recording.samples.length.toLocaleString()} samples · ${completedRunDurationS.toFixed(1)} s`
+                          : "Run a program to collect data."}
+                    </span>
+                    <span data-testid="run-autosave-status">
+                      {runAutosaveDetail}
                     </span>
                   </div>
-                  <div className="recording-actions">
-                    <button
-                      disabled={!recordingActive && sample === null}
-                      onClick={
-                        recordingActive
-                          ? () => void stopRecording()
-                          : startRecording
-                      }
-                      title={
-                        recordingActive
-                          ? "Stop adding telemetry to this recording."
-                          : "Begin keeping incoming telemetry in this browser session."
-                      }
-                    >
-                      {recordingActive ? "Stop recording" : "Start recording"}
-                    </button>
-                    <button
-                      disabled={
-                        recordedSamples === 0 &&
-                        !recordingActive &&
-                        annotations.length === 0
-                      }
-                      onClick={clearRecording}
-                      title="Discard the current in-browser recording and its notes."
-                    >
-                      Clear recording and notes
-                    </button>
-                  </div>
-                  <label
-                    className="replay-after-stop"
-                    title="After Stop recording, render the retained telemetry into a WebM world replay and save it. This does not screen-record or rerun the simulator."
-                  >
-                    <input
-                      checked={exportReplayAfterStop}
-                      disabled={!webmExportSupported()}
-                      onChange={(event) =>
-                        setExportReplayAfterStop(event.target.checked)
-                      }
-                      type="checkbox"
-                    />
-                    <span>Export world replay after Stop</span>
-                  </label>
+                  {!autosaveFolder && rememberedAutosaveFolder ? (
+                    <div className="recording-actions">
+                      <button
+                        onClick={reconnectRunAutosaveFolder}
+                        title={`Restore write access to ${rememberedAutosaveFolder.name}.`}
+                      >
+                        Reconnect project
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="annotation-tools">
                     <span className="annotation-hint">
-                      Right-click a plot to add a note at that time.
+                      Right-click a plot to add a note to this run.
                     </span>
                     {annotations.length > 0 ? (
                       <button
@@ -1802,27 +1759,16 @@ export function DashboardApp() {
                       aria-label="Export data and views"
                     >
                       <button
-                        disabled={
-                          exportState !== "idle" || recordedSamples === 0
-                        }
+                        disabled={exportState !== "idle" || latestRun === null}
                         onClick={() => void exportRecording()}
-                        title="Save the recorded telemetry as a unit-labeled CSV file."
+                        title="Save telemetry and any notes from the completed run as one unit-labeled CSV file."
                       >
-                        Export telemetry CSV
-                      </button>
-                      <button
-                        disabled={
-                          exportState !== "idle" || annotations.length === 0
-                        }
-                        onClick={() => void exportNotes()}
-                        title="Save plot and world notes as a compact CSV file."
-                      >
-                        Export notes CSV
+                        Export run data as CSV
                       </button>
                       <button
                         disabled={
                           exportState !== "idle" ||
-                          plotSamples.length === 0 ||
+                          displayedRunSamples.length === 0 ||
                           visiblePlots.length === 0
                         }
                         onClick={() => void exportPlots("svg")}
@@ -1833,7 +1779,7 @@ export function DashboardApp() {
                       <button
                         disabled={
                           exportState !== "idle" ||
-                          plotSamples.length === 0 ||
+                          displayedRunSamples.length === 0 ||
                           visiblePlots.length === 0
                         }
                         onClick={() => void exportPlots("png")}
@@ -1845,14 +1791,14 @@ export function DashboardApp() {
                         aria-describedby="world-replay-export-hint"
                         disabled={Boolean(replayExportUnavailable)}
                         onClick={() => void exportWorldReplay()}
-                        title="Render the stopped telemetry recording into a WebM world replay. Long recordings are accelerated to at most 20 seconds."
+                        title="Create a WebM animation from the completed run. Long runs are accelerated to at most 20 seconds."
                       >
-                        Export world replay as WebM
+                        Export world animation as WebM
                       </button>
                     </div>
                     <span className="export-hint" id="world-replay-export-hint">
                       {replayExportUnavailable ||
-                        "Replay uses the stopped telemetry recording; it does not rerun the robot."}
+                        "Creates a video from the completed run; it does not rerun the robot."}
                     </span>
                   </div>
                   {exportDetail ? (
@@ -1860,23 +1806,6 @@ export function DashboardApp() {
                       {exportDetail}
                     </span>
                   ) : null}
-                  <div className="run-autosave-summary">
-                    <span data-testid="run-autosave-status" role="status">
-                      {runAutosaveDetail}
-                    </span>
-                    {!autosaveFolder && rememberedAutosaveFolder ? (
-                      <button
-                        onClick={reconnectRunAutosaveFolder}
-                        title={`Restore write access to ${rememberedAutosaveFolder.name}.`}
-                      >
-                        Reconnect project
-                      </button>
-                    ) : null}
-                    <OfflineReadiness
-                      appName="Monitor"
-                      pendingUpdateDetail="A newer UCSBXRP course release is saved in Chrome. Finish the current operation, then export anything needed and clear the retained recording and notes; Monitor will reopen on the new release."
-                    />
-                  </div>
                 </section>
               </div>
             </div>
@@ -1885,7 +1814,7 @@ export function DashboardApp() {
               aria-label="Open monitor controls"
               className="monitor-controls-restore"
               onClick={() => setControlsOpen(true)}
-              title="Open signal display and recording controls."
+              title="Open plot, run-data, and export controls."
             >
               <span>controls</span>
               <b aria-hidden="true">›</b>
@@ -1905,7 +1834,7 @@ export function DashboardApp() {
                     : undefined
                 }
                 sample={worldSample}
-                samples={plotSamples}
+                samples={displayedRunSamples}
                 selectedWorldId={selectedWorldId}
                 worldSelectionDisabled={
                   targetState === "loading" || targetState === "running"
@@ -2142,9 +2071,11 @@ export function DashboardApp() {
                       <SignalPlot
                         annotations={annotations}
                         definition={plot}
-                        onAddAnnotation={addAnnotation}
+                        onAddAnnotation={
+                          activeRunId || latestRun ? addAnnotation : undefined
+                        }
                         onAnnotationDraftChange={setAnnotationDraftActive}
-                        samples={plotSamples}
+                        samples={displayedRunSamples}
                         showAnnotations={annotationsVisible}
                         timeWindowS={monitorSettings.timeWindowS}
                       />

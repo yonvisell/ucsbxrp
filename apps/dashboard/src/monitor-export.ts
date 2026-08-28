@@ -1,3 +1,8 @@
+import {
+  XRP_ULTRASONIC_FIELD_OF_VIEW_RAD,
+  XRP_ULTRASONIC_SENSOR_OFFSET_MM,
+  ultrasonicSensorOrigin,
+} from "@ucsb-xrp/simulator";
 import { type TelemetrySample, type WorldDefinition } from "@ucsb-xrp/target";
 
 import {
@@ -16,6 +21,7 @@ export {
   createMonitorAnnotation,
   downloadBlob,
   monitorAnnotationsToCsv,
+  monitorRunToCsv,
   timestampedName,
   webmExportSupported,
 } from "./monitor-export-core";
@@ -246,12 +252,45 @@ function latestPoseSegment(
   for (let index = 1; index < poses.length; index += 1) {
     if (
       poses[index]!.source !== poses[index - 1]!.source ||
+      poses[index]!.seq <= poses[index - 1]!.seq ||
       poses[index]!.tMs < poses[index - 1]!.tMs
     ) {
       start = index;
     }
   }
   return poses.slice(start);
+}
+
+export interface WorldCanvasTransform {
+  readonly scalePxPerMm: number;
+  readonly worldLeftPx: number;
+  readonly worldTopPx: number;
+  readonly worldWidthPx: number;
+  readonly worldHeightPx: number;
+}
+
+/** Preserve world geometry while centering it in the fixed video canvas. */
+export function worldCanvasTransform(
+  world: WorldDefinition,
+  canvasWidth: number,
+  canvasHeight: number,
+  marginPx = 28,
+): WorldCanvasTransform {
+  const worldWidthMm = world.bounds.maximumXmm - world.bounds.minimumXmm;
+  const worldHeightMm = world.bounds.maximumYmm - world.bounds.minimumYmm;
+  const scalePxPerMm = Math.min(
+    Math.max(1, canvasWidth - marginPx * 2) / worldWidthMm,
+    Math.max(1, canvasHeight - marginPx * 2) / worldHeightMm,
+  );
+  const worldWidthPx = worldWidthMm * scalePxPerMm;
+  const worldHeightPx = worldHeightMm * scalePxPerMm;
+  return {
+    scalePxPerMm,
+    worldLeftPx: (canvasWidth - worldWidthPx) / 2,
+    worldTopPx: (canvasHeight - worldHeightPx) / 2,
+    worldWidthPx,
+    worldHeightPx,
+  };
 }
 
 export function worldReplayPlan(
@@ -295,14 +334,14 @@ function drawWorldFrame(
   const canvas = context.canvas;
   const width = canvas.width;
   const height = canvas.height;
-  const worldWidth = world.bounds.maximumXmm - world.bounds.minimumXmm;
-  const worldHeight = world.bounds.maximumYmm - world.bounds.minimumYmm;
+  const transform = worldCanvasTransform(world, width, height);
+  const scale = transform.scalePxPerMm;
   const x = (worldX: number) =>
-    ((worldX - world.bounds.minimumXmm) / worldWidth) * width;
+    transform.worldLeftPx + (worldX - world.bounds.minimumXmm) * scale;
   const y = (worldY: number) =>
-    height - ((worldY - world.bounds.minimumYmm) / worldHeight) * height;
-  const xScale = width / worldWidth;
-  const yScale = height / worldHeight;
+    transform.worldTopPx +
+    transform.worldHeightPx -
+    (worldY - world.bounds.minimumYmm) * scale;
   const sample = samples[currentIndex]!;
   const drawLabel = (
     label: string,
@@ -323,8 +362,15 @@ function drawWorldFrame(
     context.restore();
   };
 
-  context.fillStyle = "#eef1f2";
+  context.fillStyle = "#f7f8f8";
   context.fillRect(0, 0, width, height);
+  context.fillStyle = "#eef1f2";
+  context.fillRect(
+    transform.worldLeftPx,
+    transform.worldTopPx,
+    transform.worldWidthPx,
+    transform.worldHeightPx,
+  );
   context.lineWidth = 1;
   for (
     let value = Math.ceil(world.bounds.minimumXmm / 100) * 100;
@@ -333,8 +379,8 @@ function drawWorldFrame(
   ) {
     context.strokeStyle = value % 500 === 0 ? "#aeb8bd" : "#d5dadd";
     context.beginPath();
-    context.moveTo(x(value), 0);
-    context.lineTo(x(value), height);
+    context.moveTo(x(value), transform.worldTopPx);
+    context.lineTo(x(value), transform.worldTopPx + transform.worldHeightPx);
     context.stroke();
   }
   for (
@@ -344,21 +390,26 @@ function drawWorldFrame(
   ) {
     context.strokeStyle = value % 500 === 0 ? "#aeb8bd" : "#d5dadd";
     context.beginPath();
-    context.moveTo(0, y(value));
-    context.lineTo(width, y(value));
+    context.moveTo(transform.worldLeftPx, y(value));
+    context.lineTo(transform.worldLeftPx + transform.worldWidthPx, y(value));
     context.stroke();
   }
   context.strokeStyle = "#596a73";
   context.lineWidth = 2;
-  context.strokeRect(1, 1, width - 2, height - 2);
+  context.strokeRect(
+    transform.worldLeftPx,
+    transform.worldTopPx,
+    transform.worldWidthPx,
+    transform.worldHeightPx,
+  );
 
   for (const obstacle of world.obstacles) {
     context.fillStyle = "#a7423c";
     context.fillRect(
       x(obstacle.minimumXmm),
       y(obstacle.maximumYmm),
-      (obstacle.maximumXmm - obstacle.minimumXmm) * xScale,
-      (obstacle.maximumYmm - obstacle.minimumYmm) * yScale,
+      (obstacle.maximumXmm - obstacle.minimumXmm) * scale,
+      (obstacle.maximumYmm - obstacle.minimumYmm) * scale,
     );
     if (obstacle.label) {
       drawLabel(
@@ -385,8 +436,8 @@ function drawWorldFrame(
       context.strokeRect(
         x(marker.minimumXmm),
         y(marker.maximumYmm),
-        (marker.maximumXmm - marker.minimumXmm) * xScale,
-        (marker.maximumYmm - marker.minimumYmm) * yScale,
+        (marker.maximumXmm - marker.minimumXmm) * scale,
+        (marker.maximumYmm - marker.minimumYmm) * scale,
       );
     } else if (marker.type === "waypoint") {
       context.beginPath();
@@ -424,18 +475,32 @@ function drawWorldFrame(
   context.stroke();
 
   if (sample.rangeMm !== null) {
-    const sensorX =
-      sample.xMm + (XRP_LENGTH_MM / 2) * Math.cos(sample.headingRad);
-    const sensorY =
-      sample.yMm + (XRP_LENGTH_MM / 2) * Math.sin(sample.headingRad);
+    const sensor = ultrasonicSensorOrigin(
+      {
+        xMm: sample.xMm,
+        yMm: sample.yMm,
+        headingRad: sample.headingRad,
+      },
+      XRP_ULTRASONIC_SENSOR_OFFSET_MM,
+    );
+    const halfAngle = XRP_ULTRASONIC_FIELD_OF_VIEW_RAD / 2;
+    context.fillStyle = "rgba(185, 138, 41, 0.11)";
     context.strokeStyle = "#765000";
     context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(x(sensorX), y(sensorY));
-    context.lineTo(
-      x(sensorX + sample.rangeMm * Math.cos(sample.headingRad)),
-      y(sensorY + sample.rangeMm * Math.sin(sample.headingRad)),
-    );
+    context.moveTo(x(sensor.xMm), y(sensor.yMm));
+    for (let index = 0; index <= 16; index += 1) {
+      const angle =
+        sample.headingRad -
+        halfAngle +
+        (index / 16) * XRP_ULTRASONIC_FIELD_OF_VIEW_RAD;
+      context.lineTo(
+        x(sensor.xMm + sample.rangeMm * Math.cos(angle)),
+        y(sensor.yMm + sample.rangeMm * Math.sin(angle)),
+      );
+    }
+    context.closePath();
+    context.fill();
     context.stroke();
   }
 
@@ -444,21 +509,21 @@ function drawWorldFrame(
   context.rotate(-sample.headingRad);
   context.fillStyle = "#68747b";
   context.fillRect(
-    (-XRP_LENGTH_MM / 2) * xScale,
-    (-XRP_WIDTH_MM / 2) * yScale,
-    XRP_LENGTH_MM * xScale,
-    XRP_WIDTH_MM * yScale,
+    (-XRP_LENGTH_MM / 2) * scale,
+    (-XRP_WIDTH_MM / 2) * scale,
+    XRP_LENGTH_MM * scale,
+    XRP_WIDTH_MM * scale,
   );
   context.fillStyle = "#20262a";
-  context.fillRect(-48 * xScale, -103 * yScale, 60 * xScale, 18 * yScale);
-  context.fillRect(-48 * xScale, 85 * yScale, 60 * xScale, 18 * yScale);
+  context.fillRect(-48 * scale, -103 * scale, 60 * scale, 18 * scale);
+  context.fillRect(-48 * scale, 85 * scale, 60 * scale, 18 * scale);
   context.fillStyle = "#b83b35";
-  context.fillRect(-20 * xScale, -27 * yScale, 64 * xScale, 54 * yScale);
+  context.fillRect(-20 * scale, -27 * scale, 64 * scale, 54 * scale);
   context.fillStyle = "#003660";
   context.beginPath();
-  context.moveTo(110 * xScale, 0);
-  context.lineTo(88 * xScale, -10 * yScale);
-  context.lineTo(88 * xScale, 10 * yScale);
+  context.moveTo(110 * scale, 0);
+  context.lineTo(88 * scale, -10 * scale);
+  context.lineTo(88 * scale, 10 * scale);
   context.closePath();
   context.fill();
   context.restore();
@@ -492,7 +557,7 @@ function drawWorldFrame(
   context.fillRect(8, 8, 205, 44);
   context.fillStyle = "#17232b";
   context.font = "650 16px system-ui, sans-serif";
-  context.fillText("UCSBXRP world replay", 14, 27);
+  context.fillText("UCSBXRP world animation", 14, 27);
   context.font = "12px system-ui, sans-serif";
   context.fillStyle = "#56636c";
   context.fillText(

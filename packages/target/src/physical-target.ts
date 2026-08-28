@@ -1734,7 +1734,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v9" },
+          { type: "module", name: "ucsb-xrp-physical-target-v10" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1748,6 +1748,10 @@ export class PhysicalTargetClient implements TargetClient {
           );
         };
         this.worker.port.start();
+        this.worker.port.postMessage({
+          type: "set-role",
+          role: this.projectRunProvider !== null ? "ide" : "monitor",
+        } satisfies PhysicalWorkerCommand);
       } catch (error) {
         this.releaseWorker(errorDetail(error));
         await this.useDirectClient().connect();
@@ -1858,6 +1862,10 @@ export class PhysicalTargetClient implements TargetClient {
   ): void {
     this.projectRunProvider = provider;
     this.direct?.setProjectRunProvider(provider, options);
+    this.worker?.port.postMessage({
+      type: "set-role",
+      role: provider !== null ? "ide" : "monitor",
+    } satisfies PhysicalWorkerCommand);
     this.worker?.port.postMessage({
       type: "set-project-run-provider",
       providesProject: provider !== null,

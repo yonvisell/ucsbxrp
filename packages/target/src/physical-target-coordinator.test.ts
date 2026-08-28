@@ -1000,6 +1000,13 @@ describe("physical target coordinator", () => {
     ).toEqual([]);
     target.emit({ type: "telemetry", sample: telemetry(4) });
 
+    coordinator.handle(monitor, command({ type: "set-role", role: "monitor" }));
+    expect(
+      events(monitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1, 2, 3, 4]);
+
     coordinator.handle(
       monitor,
       command({

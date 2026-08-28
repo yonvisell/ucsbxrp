@@ -1,4 +1,8 @@
-import type { TelemetrySample } from "@ucsb-xrp/target";
+import {
+  telemetryRecordingToCsv,
+  type TelemetryRecordingSnapshot,
+  type TelemetrySample,
+} from "@ucsb-xrp/target";
 
 export interface MonitorAnnotation {
   id: string;
@@ -14,6 +18,32 @@ export interface MonitorAnnotation {
 function csvCell(value: string | number | boolean): string {
   const text = typeof value === "boolean" ? (value ? "1" : "0") : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+/** Add run notes to the matching telemetry rows in the ordinary data export. */
+export function monitorRunToCsv(
+  recording: TelemetryRecordingSnapshot,
+  annotations: readonly MonitorAnnotation[],
+): string {
+  const source = telemetryRecordingToCsv(recording).trimEnd().split("\n");
+  const notesBySample = new Map<string, string[]>();
+  for (const annotation of annotations) {
+    const key = `${annotation.source}:${annotation.seq}`;
+    notesBySample.set(key, [
+      ...(notesBySample.get(key) ?? []),
+      annotation.label,
+    ]);
+  }
+  const header = source.shift();
+  if (!header) return "note\n";
+  const rows = source.map((row, index) => {
+    const sample = recording.samples[index];
+    const notes = sample
+      ? (notesBySample.get(`${sample.source}:${sample.seq}`) ?? []).join(" | ")
+      : "";
+    return `${row},${csvCell(notes)}`;
+  });
+  return `${header},note\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
 }
 
 /** Export plot and world notes as one small, analysis-ready table. */

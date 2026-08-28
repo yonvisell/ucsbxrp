@@ -12,6 +12,7 @@ import type {
 import type { TargetWorkerRole, WorkerTelemetryEvent } from "./worker-protocol";
 
 export type PhysicalWorkerCommand =
+  | { type: "set-role"; role: TargetWorkerRole }
   | {
       type: "connect";
       requestId: string;

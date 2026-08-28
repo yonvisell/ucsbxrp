@@ -415,7 +415,7 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
   }
 });
 
-test("keeps an A-to-B update pending for a stopped Monitor recording and note", async ({
+test("keeps an A-to-B update pending for a completed Monitor run and note", async ({
   context,
 }) => {
   test.setTimeout(120_000);
@@ -430,9 +430,6 @@ test("keeps an A-to-B update pending for a stopped Monitor recording and note", 
     );
     await expectShellVersion(monitor, harness.releaseA.version);
 
-    await monitor
-      .getByRole("button", { name: "Start recording", exact: true })
-      .click();
     await monitor
       .locator(".app-header")
       .getByRole("button", { name: "Run", exact: true })
@@ -458,11 +455,8 @@ test("keeps an A-to-B update pending for a stopped Monitor recording and note", 
       .locator(".app-header")
       .getByRole("button", { name: "Stop", exact: true })
       .click();
-    await monitor
-      .getByRole("button", { name: "Stop recording", exact: true })
-      .click();
     await expect(monitor.getByTestId("recording-count")).toContainText(
-      "Stopped ·",
+      "Last run ·",
     );
 
     const pagehideBaseline = await monitor.evaluate(
@@ -493,9 +487,7 @@ test("keeps an A-to-B update pending for a stopped Monitor recording and note", 
       .toBe(pagehideBaseline);
 
     const reloaded = monitor.waitForEvent("load");
-    await monitor
-      .getByRole("button", { name: "Clear recording and notes" })
-      .click();
+    await monitor.getByRole("button", { name: "Clear run" }).click();
     await reloaded;
     await expectShellVersion(monitor, harness.releaseB.version);
     expect(
