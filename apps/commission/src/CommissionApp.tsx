@@ -11,8 +11,11 @@ import {
   chooseWorkspaceFolder,
   courseFolderPermission,
   loadRememberedWorkspaceFolder,
+  loadWorkspaceManifest,
   replaceRememberedWorkspaceFolder,
+  requireWorkingFolderParent,
   requestCourseFolderPermission,
+  WorkspaceManifestError,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
 import { updateWorkspaceTargetPreference } from "../../shared/workspace-target-preference";
@@ -318,6 +321,8 @@ export function CommissionApp() {
           const permission = await courseFolderPermission(rememberedFolder);
           if (!disposed && permission === "granted") {
             try {
+              await requireWorkingFolderParent(rememberedFolder);
+              await loadWorkspaceManifest(rememberedFolder);
               recordSetup(
                 "Folder",
                 `Checking write access to ${rememberedFolder.name}.`,
@@ -347,9 +352,7 @@ export function CommissionApp() {
                 `Remembered folder failed its write check: ${errorDetail(folderError)}`,
                 "error",
               );
-              setError(
-                "The remembered Working folder could not be written and read. Choose it again or select another folder.",
-              );
+              setError(errorDetail(folderError));
             }
           } else if (!disposed) {
             folderRef.current = rememberedFolder;
@@ -395,6 +398,8 @@ export function CommissionApp() {
     beginFolderInteraction();
     try {
       const selected = await chooseWorkspaceFolder();
+      await requireWorkingFolderParent(selected);
+      await loadWorkspaceManifest(selected);
       recordSetup("Folder", `Checking write access to ${selected.name}.`);
       await verifySetupLogFolder(
         selected,
@@ -423,9 +428,17 @@ export function CommissionApp() {
       if (!wasCancelled(folderError)) {
         const message = errorDetail(folderError);
         setError(
-          `The selected Working folder could not be written and read. ${message}`,
+          folderError instanceof WorkspaceManifestError
+            ? message
+            : `The selected Working folder could not be written and read. ${message}`,
         );
-        recordSetup("Folder", `Write check failed: ${message}`, "error");
+        recordSetup(
+          "Folder",
+          folderError instanceof WorkspaceManifestError
+            ? message
+            : `Write check failed: ${message}`,
+          "error",
+        );
       }
     } finally {
       finishFolderInteraction();
@@ -438,6 +451,8 @@ export function CommissionApp() {
     setError("");
     beginFolderInteraction();
     try {
+      await requireWorkingFolderParent(selected);
+      await loadWorkspaceManifest(selected);
       if (!folderVerified) {
         const permission = await requestCourseFolderPermission(selected);
         if (permission !== "granted") {
@@ -1013,6 +1028,14 @@ export function CommissionApp() {
       setStage("complete");
       await setupLogWriteRef.current.catch(() => undefined);
     } catch (probeError) {
+      if (probeError instanceof WorkspaceManifestError) {
+        const issue = probeError.message;
+        setError(issue);
+        setWifiIssue(issue);
+        setWifiProbeEnabled(false);
+        recordSetup("XRP settings", issue, "error");
+        return;
+      }
       const serviceFailure = probeError instanceof XrpServiceProbeError;
       const issue = wasCancelled(probeError)
         ? "No response within one second."

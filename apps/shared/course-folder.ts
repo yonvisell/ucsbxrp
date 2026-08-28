@@ -77,6 +77,11 @@ const obsoleteFolderCapabilityKeys = [
   "active-project-folder-v2",
 ] as const;
 export const workspaceManifestFile = ".ucsbxrp.json";
+const projectManifestFile = ".ucsb-xrp-project.json";
+
+export class WorkspaceManifestError extends Error {
+  readonly name = "WorkspaceManifestError";
+}
 
 export interface WorkspaceManifestRobot {
   id: string;
@@ -193,6 +198,27 @@ export async function chooseWorkspaceFolder(): Promise<CourseDirectoryHandle> {
 
 export async function chooseProjectFolder(): Promise<CourseDirectoryHandle> {
   return chooseFolder("ucsb-xrp-project");
+}
+
+/**
+ * A Working folder contains Project folders; it is not itself a Project.
+ * Rejecting this at the picker boundary prevents setup logs and shared settings
+ * from being written among a project's source files.
+ */
+export async function requireWorkingFolderParent(
+  handle: CourseDirectoryHandle,
+): Promise<void> {
+  try {
+    await handle.getFileHandle(projectManifestFile);
+  } catch (error) {
+    if (isNotFound(error)) return;
+    throw new Error(
+      `Chrome could not inspect ${handle.name} before using it as the Working folder: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  throw new Error(
+    `${handle.name} is a Project folder, not a Working folder. Choose its parent folder—the folder that contains this and your other Project folders.`,
+  );
 }
 
 export async function courseFolderPermission(
@@ -330,29 +356,19 @@ export async function rememberProjectFolder(
   if ((await projectFolderIsInsideCourseFolder(workspace, handle)) !== true) {
     return false;
   }
-  try {
-    const updated = await updateWorkspaceManifest(workspace, {
-      activeProject: handle.name,
-    });
-    if (!updated) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  await updateWorkspaceManifest(workspace, {
+    activeProject: handle.name,
+  });
+  return true;
 }
 
 export async function forgetProjectFolder(): Promise<boolean> {
-  try {
-    const workspace = await loadRememberedWorkspaceFolder();
-    if (!workspace) return true;
-    const updated = await updateWorkspaceManifest(workspace, {
-      activeProject: null,
-    });
-    if (!updated) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  const workspace = await loadRememberedWorkspaceFolder();
+  if (!workspace) return true;
+  await updateWorkspaceManifest(workspace, {
+    activeProject: null,
+  });
+  return true;
 }
 
 async function loadWorkspaceCapability(): Promise<CourseDirectoryHandle | null> {
@@ -427,7 +443,13 @@ export async function loadWorkspaceManifest(
   workspace: CourseDirectoryHandle,
 ): Promise<WorkspaceManifest | null> {
   const result = await readWorkspaceManifest(workspace);
-  return result.status === "valid" ? result.manifest : null;
+  if (result.status === "missing") return null;
+  if (result.status === "valid") return result.manifest;
+  throw new WorkspaceManifestError(
+    result.status === "invalid"
+      ? `${workspaceManifestFile} in Working folder ${workspace.name} is invalid: ${result.detail}`
+      : `${workspaceManifestFile} in Working folder ${workspace.name} could not be read: ${result.detail}`,
+  );
 }
 
 type WorkspaceManifestReadResult =
@@ -486,26 +508,25 @@ export async function updateWorkspaceManifest(
     settings?: Record<string, WorkspaceSettingValue>;
   },
 ): Promise<boolean> {
-  return (
-    (await mutateWorkspaceManifest(workspace, (previous) => ({
-      ...previous,
-      activeProject:
-        update.activeProject !== undefined
-          ? update.activeProject
-          : previous.activeProject,
-      ...((update.robot ?? previous.robot)
-        ? { robot: update.robot ?? previous.robot }
-        : {}),
-      ...((update.settings ?? previous.settings)
-        ? {
-            settings: {
-              ...(previous.settings ?? {}),
-              ...(update.settings ?? {}),
-            },
-          }
-        : {}),
-    }))) !== null
-  );
+  await mutateWorkspaceManifest(workspace, (previous) => ({
+    ...previous,
+    activeProject:
+      update.activeProject !== undefined
+        ? update.activeProject
+        : previous.activeProject,
+    ...((update.robot ?? previous.robot)
+      ? { robot: update.robot ?? previous.robot }
+      : {}),
+    ...((update.settings ?? previous.settings)
+      ? {
+          settings: {
+            ...(previous.settings ?? {}),
+            ...(update.settings ?? {}),
+          },
+        }
+      : {}),
+  }));
+  return true;
 }
 
 /**
@@ -515,37 +536,39 @@ export async function updateWorkspaceManifest(
 export async function mutateWorkspaceManifest(
   workspace: CourseDirectoryHandle,
   transform: (current: WorkspaceManifest) => WorkspaceManifest,
-): Promise<WorkspaceManifest | null> {
-  try {
-    return await withCourseFolderWriteLock("config", async () => {
-      const loaded = await readWorkspaceManifest(workspace);
-      if (loaded.status === "invalid") {
-        throw new Error(
-          `${workspaceManifestFile} is invalid and was not overwritten: ${loaded.detail}`,
-        );
-      }
-      if (loaded.status === "unreadable") {
-        throw new Error(
-          `${workspaceManifestFile} could not be read and was not overwritten: ${loaded.detail}`,
-        );
-      }
-      const previous =
-        loaded.status === "valid"
-          ? loaded.manifest
-          : { schemaVersion: 1 as const, activeProject: null };
-      const next = transform(previous);
+): Promise<WorkspaceManifest> {
+  return withCourseFolderWriteLock("config", async () => {
+    const loaded = await readWorkspaceManifest(workspace);
+    if (loaded.status === "invalid") {
+      throw new WorkspaceManifestError(
+        `${workspaceManifestFile} in Working folder ${workspace.name} is invalid and was not overwritten: ${loaded.detail}`,
+      );
+    }
+    if (loaded.status === "unreadable") {
+      throw new WorkspaceManifestError(
+        `${workspaceManifestFile} in Working folder ${workspace.name} could not be read and was not overwritten: ${loaded.detail}`,
+      );
+    }
+    const previous =
+      loaded.status === "valid"
+        ? loaded.manifest
+        : { schemaVersion: 1 as const, activeProject: null };
+    const next = transform(previous);
+    try {
       const file = await workspace.getFileHandle(workspaceManifestFile, {
         create: true,
       });
       const writable = await file.createWritable();
       await writable.write(`${JSON.stringify(next, null, 2)}\n`);
       await writable.close();
-      announceCourseFolderChanged();
-      return next;
-    });
-  } catch {
-    return null;
-  }
+    } catch (error) {
+      throw new WorkspaceManifestError(
+        `${workspaceManifestFile} in Working folder ${workspace.name} could not be written: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    announceCourseFolderChanged();
+    return next;
+  });
 }
 
 export async function loadRememberedWorkspaceFolder(): Promise<CourseDirectoryHandle | null> {

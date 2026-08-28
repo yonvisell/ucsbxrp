@@ -160,12 +160,9 @@ export async function updateWorkspaceTargetPreference(
   }
 
   let updated = DEFAULT_TARGET_PREFERENCE;
-  const manifest = await mutateWorkspaceManifest(folder, (current) => {
+  await mutateWorkspaceManifest(folder, (current) => {
     updated = update(targetPreferenceFromWorkspaceManifest(current));
     return workspaceManifestForTargetPreference(current, updated);
   });
-  if (!manifest) {
-    throw new Error("The XRP setting could not be saved to .ucsbxrp.json");
-  }
   return updated;
 }

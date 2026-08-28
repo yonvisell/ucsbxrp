@@ -492,8 +492,12 @@ function centeredWorldPreview(
 export function DashboardApp() {
   const embeddedApplication = isEmbeddedApplication();
   const projectBootstrapPending = useProjectBootstrapPending();
-  const [targetPreference, updateTargetPreference, targetPreferenceReady] =
-    useTargetPreference();
+  const [
+    targetPreference,
+    updateTargetPreference,
+    targetPreferenceReady,
+    targetPreferenceError,
+  ] = useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [worldCatalog, setWorldCatalog] = useState<WorldCatalog>(
     DEFAULT_WORLD_CATALOG,
@@ -942,6 +946,12 @@ export function DashboardApp() {
       setTargetDetail("Opening the saved XRP settings…");
       return;
     }
+    if (targetPreferenceError) {
+      targetStateRef.current = "error";
+      setTargetState("error");
+      setTargetDetail(targetPreferenceError);
+      return;
+    }
     setActiveRunId(null);
     setCurrentProject(null);
     setRuntimeState(emptyRuntimeState);
@@ -1096,6 +1106,7 @@ export function DashboardApp() {
     plotSampleHistory,
     runDatasetController,
     target,
+    targetPreferenceError,
     targetPreferenceReady,
   ]);
 

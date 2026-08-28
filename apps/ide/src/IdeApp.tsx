@@ -55,6 +55,7 @@ import {
   loadWorkspaceManifest,
   rememberProjectFolder,
   replaceRememberedWorkspaceFolder,
+  requireWorkingFolderParent,
   requestCourseFolderPermission,
 } from "../../shared/course-folder";
 import {
@@ -345,8 +346,12 @@ export function IdeApp({
   );
   const initialProject = initialProjectSession.project;
   const [settings, setSettings] = useState<IdeSettings>(loadSettings);
-  const [targetPreference, updateTargetPreference, targetPreferenceReady] =
-    useTargetPreference();
+  const [
+    targetPreference,
+    updateTargetPreference,
+    targetPreferenceReady,
+    targetPreferenceError,
+  ] = useTargetPreference();
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const target = useMemo<TargetClient>(() => {
     if (targetPreference.kind !== "physical") return new VirtualTargetClient();
@@ -729,6 +734,12 @@ export function IdeApp({
       setTargetDetail("Opening the saved project and XRP settings…");
       return;
     }
+    if (targetPreferenceError) {
+      targetStateRef.current = "error";
+      setTargetState("error");
+      setTargetDetail(targetPreferenceError);
+      return;
+    }
     setProjectProviderActive(false);
     projectProviderActiveRef.current = false;
     target.setProjectRunProvider(provideProjectRunSnapshot);
@@ -799,6 +810,7 @@ export function IdeApp({
   }, [
     projectBootstrapOwner,
     projectSessionReady,
+    targetPreferenceError,
     targetPreferenceReady,
     provideProjectRunSnapshot,
     target,
@@ -829,6 +841,11 @@ export function IdeApp({
           );
         }
         return saved;
+      })
+      .catch((error: unknown) => {
+        setFolderSaveState("error");
+        setOperationDetail(errorDetail(error));
+        return false;
       })
       .finally(retryPendingOfflineShellReload);
   }, [projectSessionReady, workingFolder]);
@@ -941,6 +958,7 @@ export function IdeApp({
         const permission = await courseFolderPermission(workspace);
         if (disposed) return;
         if (permission === "granted") {
+          await requireWorkingFolderParent(workspace);
           if (await isCourseRepositoryFolder(workspace)) {
             await forgetWorkspaceFolder();
             workspace = null;
@@ -1494,11 +1512,13 @@ export function IdeApp({
 
   const connectWorkingFolder = useCallback(
     async (folder: CourseDirectoryHandle, selectProjectFromFolder = true) => {
+      await requireWorkingFolderParent(folder);
       if (await isCourseRepositoryFolder(folder)) {
         throw new Error(
           "Choose a Working folder for student projects, not the UCSBXRP course software repository.",
         );
       }
+      const selectedWorkspaceManifest = await loadWorkspaceManifest(folder);
       const selection = await replaceRememberedWorkspaceFolder(folder);
       if (!selection.remembered) {
         throw new Error(`Chrome could not remember ${folder.name}.`);
@@ -1517,10 +1537,10 @@ export function IdeApp({
 
       if (selection.changed || !workspaceFolder) {
         const choices = await listDirectProjectFolders(folder);
-        const manifest = await loadWorkspaceManifest(folder);
-        const selected = manifest?.activeProject
+        const selected = selectedWorkspaceManifest?.activeProject
           ? choices.find(
-              (choice) => choice.folderName === manifest.activeProject,
+              (choice) =>
+                choice.folderName === selectedWorkspaceManifest.activeProject,
             )
           : choices.length === 1
             ? choices[0]

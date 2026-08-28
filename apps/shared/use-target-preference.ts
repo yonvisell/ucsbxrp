@@ -14,28 +14,46 @@ type RobotProfileUpdate = (current: RobotProfile) => RobotProfile;
 export function useTargetPreference() {
   const [preference, setPreference] = useState(DEFAULT_TARGET_PREFERENCE);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const revisionRef = useRef(0);
+  const preferenceRef = useRef(preference);
+  preferenceRef.current = preference;
 
   const updatePreference = useCallback((update: RobotProfileUpdate) => {
-    setPreference((current) => update(current));
+    const previous = preferenceRef.current;
+    setPreference(update(previous));
+    setError(null);
     const revision = ++revisionRef.current;
     void updateWorkspaceTargetPreference(update)
       .then((saved) => {
-        if (revision === revisionRef.current) setPreference(saved);
-      })
-      .catch(() => {
         if (revision !== revisionRef.current) return;
-        void loadWorkspaceTargetPreference().then(setPreference);
+        setPreference(saved);
+        setError(null);
+      })
+      .catch((failure: unknown) => {
+        if (revision !== revisionRef.current) return;
+        setPreference(previous);
+        setError(failure instanceof Error ? failure.message : String(failure));
       });
   }, []);
 
   useEffect(() => {
     let disposed = false;
     const readSharedPreference = async () => {
-      const loaded = await loadWorkspaceTargetPreference();
-      if (!disposed) {
-        setPreference(loaded);
-        setReady(true);
+      try {
+        const loaded = await loadWorkspaceTargetPreference();
+        if (!disposed) {
+          setPreference(loaded);
+          setError(null);
+        }
+      } catch (failure) {
+        if (!disposed) {
+          setError(
+            failure instanceof Error ? failure.message : String(failure),
+          );
+        }
+      } finally {
+        if (!disposed) setReady(true);
       }
     };
     void readSharedPreference();
@@ -48,5 +66,5 @@ export function useTargetPreference() {
     };
   }, []);
 
-  return [preference, updatePreference, ready] as const;
+  return [preference, updatePreference, ready, error] as const;
 }

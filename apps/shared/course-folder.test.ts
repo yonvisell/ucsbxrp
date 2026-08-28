@@ -5,10 +5,12 @@ import {
   courseFolderPermission,
   loadWorkspaceManifest,
   projectFolderIsInsideCourseFolder,
+  requireWorkingFolderParent,
   updateWorkspaceManifest,
   writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
+  type CourseFileHandle,
 } from "./course-folder";
 
 class MemoryFileHandle {
@@ -88,7 +90,10 @@ class MemoryDirectoryHandle implements CourseDirectoryHandle {
     return new MemoryDirectoryHandle(name, this.files, prefix);
   }
 
-  async getFileHandle(name: string, options?: { create?: boolean }) {
+  async getFileHandle(
+    name: string,
+    options?: { create?: boolean },
+  ): Promise<CourseFileHandle> {
     const path = `${this.prefix}${name}`;
     if (!options?.create && !this.files.has(path)) {
       throw new DOMException("File not found", "NotFoundError");
@@ -125,6 +130,40 @@ class MemoryDirectoryHandle implements CourseDirectoryHandle {
       this.prefix.length,
     );
     return relative.split("/").filter(Boolean);
+  }
+}
+
+class ManifestWriteFailureDirectory extends MemoryDirectoryHandle {
+  override async getFileHandle(
+    name: string,
+    options?: { create?: boolean },
+  ): Promise<CourseFileHandle> {
+    const handle = await super.getFileHandle(name, options);
+    if (name !== ".ucsbxrp.json") return handle;
+    return {
+      ...handle,
+      getFile: () => handle.getFile(),
+      createWritable: async () => {
+        throw new Error("The disk is full");
+      },
+    };
+  }
+}
+
+class ManifestReadFailureDirectory extends MemoryDirectoryHandle {
+  override async getFileHandle(
+    name: string,
+    options?: { create?: boolean },
+  ): Promise<CourseFileHandle> {
+    const handle = await super.getFileHandle(name, options);
+    if (name !== ".ucsbxrp.json") return handle;
+    return {
+      ...handle,
+      getFile: async () => {
+        throw new Error("Access was denied");
+      },
+      createWritable: () => handle.createWritable(),
+    };
   }
 }
 
@@ -212,6 +251,27 @@ describe("course-folder autosaves", () => {
     ).resolves.toBe(false);
   });
 
+  it("rejects a Project folder when a Working folder is required", async () => {
+    const project = new MemoryDirectoryHandle(
+      "Expanding-Spiral",
+      new Map([
+        [
+          ".ucsb-xrp-project.json",
+          '{"name":"Expanding spiral","entrypoint":"main.py"}\n',
+        ],
+      ]),
+    );
+    const working = new MemoryDirectoryHandle(
+      "XRP Work",
+      new Map([["Expanding-Spiral/main.py", "print('ready')\n"]]),
+    );
+
+    await expect(requireWorkingFolderParent(working)).resolves.toBeUndefined();
+    await expect(requireWorkingFolderParent(project)).rejects.toThrow(
+      "Expanding-Spiral is a Project folder, not a Working folder. Choose its parent folder",
+    );
+  });
+
   it("keeps active Project and robot settings in one Working-folder file", async () => {
     const files = new Map<string, string | Blob>();
     const workspace = new MemoryDirectoryHandle("XRP Work", files);
@@ -250,9 +310,40 @@ describe("course-folder autosaves", () => {
     ]);
     const workspace = new MemoryDirectoryHandle("XRP Work", files);
 
+    await expect(loadWorkspaceManifest(workspace)).rejects.toThrow(
+      ".ucsbxrp.json in Working folder XRP Work is invalid",
+    );
     await expect(
       updateWorkspaceManifest(workspace, { activeProject: "Spiral" }),
-    ).resolves.toBe(false);
+    ).rejects.toThrow(
+      ".ucsbxrp.json in Working folder XRP Work is invalid and was not overwritten",
+    );
     expect(files.get(".ucsbxrp.json")).toBe("{ incomplete");
+  });
+
+  it("reports a manifest write failure instead of returning a false result", async () => {
+    const workspace = new ManifestWriteFailureDirectory("XRP Work", new Map());
+
+    await expect(
+      updateWorkspaceManifest(workspace, { activeProject: "Spiral" }),
+    ).rejects.toThrow(
+      ".ucsbxrp.json in Working folder XRP Work could not be written: The disk is full",
+    );
+  });
+
+  it("reports an unreadable manifest instead of treating it as missing", async () => {
+    const workspace = new ManifestReadFailureDirectory(
+      "XRP Work",
+      new Map([[".ucsbxrp.json", '{"schemaVersion":1}']]),
+    );
+
+    await expect(loadWorkspaceManifest(workspace)).rejects.toThrow(
+      ".ucsbxrp.json in Working folder XRP Work could not be read: Access was denied",
+    );
+    await expect(
+      updateWorkspaceManifest(workspace, { activeProject: "Spiral" }),
+    ).rejects.toThrow(
+      ".ucsbxrp.json in Working folder XRP Work could not be read and was not overwritten: Access was denied",
+    );
   });
 });
