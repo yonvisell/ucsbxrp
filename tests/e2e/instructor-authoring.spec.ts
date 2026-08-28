@@ -36,7 +36,7 @@ test("specification editor validates and downloads the complete curriculum examp
   await expect(page.getByText("Program flow", { exact: true })).toHaveCount(0);
   await expect(
     page.getByText(
-      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
+      "Specification checks pass. Open the unpublished project in the IDE to compile and run the actual files.",
     ),
   ).toBeVisible();
   await expect(
@@ -63,7 +63,7 @@ test("specification editor validates and downloads the complete curriculum examp
   ).toBeVisible();
   await expect(
     page.getByText(
-      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
+      "Specification checks pass. Open the unpublished project in the IDE to compile and run the actual files.",
     ),
   ).toBeVisible();
 
@@ -98,7 +98,7 @@ test("specification editor validates and downloads the complete curriculum examp
   await overrideEditor.fill(JSON.stringify(overrides, null, 2));
   await expect(
     page.getByText(
-      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
+      "Specification checks pass. Open the unpublished project in the IDE to compile and run the actual files.",
     ),
   ).toBeVisible();
   await expect(
@@ -132,7 +132,7 @@ test("specification editor validates and downloads the complete curriculum examp
     .click();
   await expect(
     page.getByText(
-      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
+      "Specification checks pass. Open the unpublished project in the IDE to compile and run the actual files.",
     ),
   ).toBeVisible();
   await expect(
@@ -462,7 +462,7 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
   await author.getByLabel("Project file overrides as JSON").fill("{}");
   await expect(
     author.getByText(
-      "Specification checks pass. Open the unpublished project in the IDE to validate and run the actual files.",
+      "Specification checks pass. Open the unpublished project in the IDE to compile and run the actual files.",
     ),
   ).toBeVisible();
 
@@ -492,7 +492,7 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
     .getByRole("button", { name: "Start recording", exact: true })
     .click();
 
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "compiled with MicroPython",
   );

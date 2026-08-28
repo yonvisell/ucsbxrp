@@ -428,7 +428,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
   // Changing projects marks the retained target stale. Monitor Run owns the
-  // required validation and must start the newly opened project, not the old one.
+  // required compilation and must start the newly opened project, not the old one.
   await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
   await ide.getByRole("button", { name: "Continue without a folder" }).click();
@@ -440,7 +440,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await expectVirtualState(ide, monitor, "running");
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText(
-    "Validating Obstacle, left, obstacle",
+    "Compile requested · Obstacle, left, obstacle",
   );
   await stopButton(monitor).click();
   await expectVirtualState(ide, monitor, "ready");
@@ -461,7 +461,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await ide.getByRole("button", { name: "Create file" }).click();
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
-    /Validate and run the current IDE project/,
+    /Compile and run the current IDE project/,
   );
   await runButton(monitor).click();
   await expectVirtualState(ide, monitor, "running");

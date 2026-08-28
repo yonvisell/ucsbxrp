@@ -498,14 +498,14 @@ export class DirectPhysicalTargetClient implements TargetClient {
     const portabilityError = portableProjectError(project);
     if (portabilityError) {
       const requestId = `web-${Date.now()}-${this.nextRequest++}`;
-      this.emitConsole("system", `Validate requested · ${projectName}`, {
+      this.emitConsole("system", `Compile requested · ${projectName}`, {
         action: "validate",
         phase: "request",
         requestId,
       });
       this.emitConsole(
         "system",
-        `Validate failed · ${portabilityError.message}`,
+        `Compilation failed · ${portabilityError.message}`,
         {
           action: "validate",
           phase: "error",
@@ -521,7 +521,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         { project },
         {
           action: "validate",
-          label: "Validate",
+          label: "Compile",
           detail: projectName,
         },
       );

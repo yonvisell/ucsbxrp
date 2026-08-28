@@ -2,7 +2,7 @@
 
 The [challenge creation wizard](../author/) produces a complete unpublished
 project from a checked JSON specification. Select **Open draft in IDE** to
-inspect, validate, run, and revise that project immediately. The project is a
+inspect, compile, run, and revise that project immediately. The project is a
 browser draft until you save it to a Project folder in the IDE.
 
 The same downloaded specification is the source for repository integration.
@@ -153,8 +153,8 @@ The wizard checks required teaching fields, component descriptions, unique
 world and geometry names, arena containment, the default world, and
 file-override paths. Select **Open draft in IDE** after these checks pass. The
 IDE receives the complete copied project, generated README, edited world, and
-file overrides; it can therefore perform the ordinary Python validation and
-virtual run before any repository files are changed.
+file overrides; it can therefore check the project structure, compile every
+Python file, and run virtually before any repository files are changed.
 
 The repository command additionally verifies that every
 declared student file exists, defines the class named in the catalog metadata,
@@ -174,7 +174,7 @@ replacing a remembered project folder. The draft contains:
 - the exact `world.json` shown in the visual editor; and
 - every complete file override in the specification.
 
-Select **Validate**, then **Run** with the Virtual XRP. Use the Monitor to check
+Select **Compile**, then **Run** with the Virtual XRP. Use the Monitor to check
 the world, robot behavior, telemetry, program output, and requested evidence.
 If you want to retain the project outside the browser, select **Save to
 folder…** in the IDE and give the project a new folder name inside the Working

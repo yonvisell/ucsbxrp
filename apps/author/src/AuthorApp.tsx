@@ -772,7 +772,7 @@ export function AuthorApp() {
               {currentSpec.errors.length === 0 ? (
                 <p>
                   Specification checks pass. Open the unpublished project in the
-                  IDE to validate and run the actual files.
+                  IDE to compile and run the actual files.
                 </p>
               ) : (
                 <>

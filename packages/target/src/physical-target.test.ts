@@ -878,15 +878,17 @@ describe("physical target", () => {
       });
       await vi.advanceTimersByTimeAsync(20);
 
-      expect(events.filter((event) => event.type === "project").at(-1)).toEqual({
-        type: "project",
-        project: {
-          name: "Edited project",
-          entrypoint: "main.py",
-          revision: "ide:project-1:2",
-          stale: true,
+      expect(events.filter((event) => event.type === "project").at(-1)).toEqual(
+        {
+          type: "project",
+          project: {
+            name: "Edited project",
+            entrypoint: "main.py",
+            revision: "ide:project-1:2",
+            stale: true,
+          },
         },
-      });
+      );
     } finally {
       target.disconnect();
       vi.useRealTimers();
@@ -1753,7 +1755,7 @@ describe("physical target", () => {
       expect.objectContaining({
         type: "console",
         stream: "system",
-        line: "Validate requested · main.py",
+        line: "Compile requested · main.py",
         action: "validate",
         phase: "request",
       }),
@@ -1762,7 +1764,7 @@ describe("physical target", () => {
       expect.objectContaining({
         type: "console",
         stream: "system",
-        line: "Validate · 1 Python files compiled",
+        line: "Compile · 1 Python files compiled",
         action: "validate",
         phase: "result",
       }),

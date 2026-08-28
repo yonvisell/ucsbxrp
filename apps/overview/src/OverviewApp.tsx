@@ -350,9 +350,10 @@ Pose -----------------------------> NavigationController ------+
             <dl>
               <dt>IDE</dt>
               <dd>
-                Edits project files, validates MicroPython, runs component
-                checks, transfers projects, starts and stops either target, and
-                records detailed execution state.
+                Edits project files, checks project structure, compiles Python
+                with MicroPython, runs component checks, transfers projects,
+                starts and stops either target, and records detailed execution
+                state.
               </dd>
               <dt>Monitor</dt>
               <dd>
@@ -375,11 +376,11 @@ Pose -----------------------------> NavigationController ------+
             </dl>
             <p>
               The IDE and Monitor coordinate through a shared browser worker. A
-              Run request validates when needed; either application can start or
-              stop the current project. The worker retains validation, transfer,
-              connection, run, stop, error, and program-output events; the IDE
-              terminal presents that shared history without replacing earlier
-              entries.
+              Run request compiles when needed; either application can start or
+              stop the current project. The worker retains compilation,
+              transfer, connection, run, stop, error, and program-output events;
+              the IDE terminal presents that shared history without replacing
+              earlier entries.
             </p>
           </section>
 

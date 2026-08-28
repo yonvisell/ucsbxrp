@@ -39,14 +39,14 @@ The IDE is the programming surface. It provides:
   sensor-driven obstacle-turn and expanding-spiral demos, and a staged
   MicroPython tutorial; a fresh browser opens the spiral demo while recovered
   student work remains authoritative;
-- local Monaco workers and MicroPython syntax validation;
-- explicit **Validate**, one stateful Run/Stop control, and Reset; physical Run
+- local Monaco workers and MicroPython compilation;
+- explicit **Compile**, one stateful Run/Stop control, and Reset; physical Run
   loads the exact current project into controller RAM before starting it;
 - virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
   and an existing-Wi-Fi address setting;
 - a flat white layout with compact collapsible project, settings, and
   output regions, literal file names, and concise hover/focus help; and
-- separate concise Status, Program output, and validation/service System log.
+- separate concise Status, Program output, and compilation/service System log.
 
 Project state is represented as `{name, entrypoint, files}` at every execution
 boundary. The entrypoint, file paths, and file contents produce one SHA-256
@@ -58,7 +58,7 @@ compiled before synchronization or execution.
 Each runnable project may contain `world.json`. It is a bounded declarative
 catalog of named worlds: millimeter bounds, initial pose, rectangular blocks or
 walls, start/finish lines or boxes, general visual markers, and waypoints.
-Validation parses this file before a run. Start, finish, and general markers are
+Compile parses this file before a run. Start, finish, and general markers are
 display-only; only `waypoint` entries enter the ordered navigation goals returned
 by `ProjectWorld`. The selected definition configures the simulator, Monitor,
 and replay export; `ucsb_xrp.load_world()` exposes the same geometry to project
@@ -239,7 +239,7 @@ checks still require internet.
 All applications use the same high-contrast theme, compact controls, visible
 focus, semantic labels, and responsive layout. The IDE and Monitor use
 accessible play/stop and reset icon buttons in their 27 px headers, a compact
-target selector, and an explicit name for **Validate**. Icon controls retain
+target selector, and an explicit name for **Compile**. Icon controls retain
 semantic names and hover/focus help. The landing page presents IDE, Monitor, and Guide together,
 then gives initial setup/repair its own clearly separated action.
 
@@ -324,10 +324,10 @@ compiles every project file, runs the selected entrypoint, and forwards output
 and authoritative simulator state. Terminating the worker stops non-yielding
 student code without freezing either application.
 
-Run in the IDE validates changed or previously unchecked files before launch.
+Run in the IDE compiles changed or previously unchecked files before launch.
 When an IDE is active, Monitor Run obtains that IDE's exact current snapshot,
 including an edit made immediately before Run. With no active IDE, the virtual
-Monitor has one intentional fallback: it validates and starts the immutable
+Monitor has one intentional fallback: it compiles and starts the immutable
 default Expanding spiral project. The physical Monitor instead asks the user to
 open or select an IDE project. Bounded console history is retained across runs
 and cleared only by an explicit UI action or target replacement.
@@ -553,8 +553,9 @@ the target protocol or student workflow.
 
 ## 9. Student checks and explicit telemetry evidence
 
-IDE **Validate** compiles every Python file; it does not claim algorithmic
-correctness. Challenge projects separately include `component_checks.py` and a
+IDE **Compile** checks project structure and compiles every Python file without
+running either robot; it does not claim algorithmic correctness. Challenge
+projects separately include `component_checks.py` and a
 **Test components** action. These small repeatable checks execute in an
 isolated MicroPython worker without commanding either target. PASS, NOT
 IMPLEMENTED, and FAIL remain visible in Program output, and NOT IMPLEMENTED is

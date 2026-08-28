@@ -202,10 +202,10 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await ide.getByRole("tab", { name: "Status" }).click();
   const conciseStatus = ide.locator(".status-grid");
   await expect(
-    conciseStatus.getByText("Validation", { exact: true }),
+    conciseStatus.getByText("Compilation", { exact: true }),
   ).toBeVisible();
   await expect(
-    conciseStatus.getByText("Not checked", { exact: true }),
+    conciseStatus.getByText("Not run", { exact: true }),
   ).toBeVisible();
   await expect(
     conciseStatus.getByText("Next run", { exact: true }),
@@ -294,7 +294,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   ).toBeVisible();
   await ide.getByRole("button", { name: "Open main.py (main file)" }).click();
 
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "Python files compiled with MicroPython",
   );
@@ -339,7 +339,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(monitorRun).toBeEnabled();
   await expect(monitorRun).toHaveAttribute(
     "title",
-    /Validate and run the current IDE project/,
+    /Compile and run the current IDE project/,
   );
 
   await ide.getByRole("button", { name: "Run", exact: true }).click();
@@ -567,7 +567,7 @@ while True:
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "1 Python file compiled with MicroPython",
   );
@@ -634,7 +634,7 @@ test("keeps project and output controls usable on a narrow screen", async ({
   ).toBeVisible();
   await expect(ide.getByTestId("check-result")).toHaveCount(0);
 
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(
     ide.getByRole("button", { name: "Collapse output" }),
   ).toBeVisible();

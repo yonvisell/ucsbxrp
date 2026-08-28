@@ -189,7 +189,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
     "title",
     /Run and telemetry use Wi-Fi, not USB/,
   );
-  await expect(ide.getByRole("button", { name: "Validate" })).toBeDisabled();
+  await expect(ide.getByRole("button", { name: "Compile" })).toBeDisabled();
   await expect(
     ide.getByRole("button", { name: "Run", exact: true }),
   ).toBeDisabled();
@@ -233,7 +233,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );
-  await expect(ide.getByRole("button", { name: "Validate" })).toBeEnabled();
+  await expect(ide.getByRole("button", { name: "Compile" })).toBeEnabled();
   await expect
     .poll(() =>
       ide.evaluate(() =>

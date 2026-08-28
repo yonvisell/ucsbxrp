@@ -268,12 +268,12 @@ function prepareRuntime(
   broadcast({
     type: "console",
     stream: "system",
-    line: `Starting ${currentProjectDescriptor.name} (${currentProjectDescriptor.entrypoint}) on the virtual XRP`,
-    action: "run",
+    line: `Compile requested · ${currentProjectDescriptor.name}`,
+    action: "validate",
     phase: "request",
-    requestId: `virtual-run-${activeRunId}`,
+    requestId: `virtual-compile-${activeRunId}`,
   });
-  status("loading", "Loading MicroPython 1.28");
+  status("loading", "Loading MicroPython 1.28 and compiling the project");
   send(port, {
     type: "response",
     requestId: command.requestId,
@@ -297,15 +297,25 @@ function handleRuntimeMessage(
     return;
   }
   if (message.type === "runtime-ready") {
-    status("running", `MicroPython ${message.version} · virtual XRP`);
+    status("loading", `MicroPython ${message.version} · compiling the project`);
+  } else if (message.type === "compile-complete") {
     broadcast({
       type: "console",
       stream: "system",
-      line: `MicroPython ${message.version} ready; program running`,
+      line: `Compilation passed · ${message.detail}`,
+      action: "validate",
+      phase: "result",
+      requestId: `virtual-compile-${runId}`,
+    });
+    broadcast({
+      type: "console",
+      stream: "system",
+      line: `Starting ${currentProjectDescriptor?.name ?? "project"} (${currentProjectDescriptor?.entrypoint ?? "main.py"}) on the virtual XRP`,
       action: "run",
-      phase: "output",
+      phase: "request",
       requestId: `virtual-run-${runId}`,
     });
+    status("running", "Program running on the virtual XRP");
   } else if (message.type === "effort") {
     // The runtime-owned simulator sends the authoritative state immediately
     // after each effort change.
@@ -343,23 +353,35 @@ function handleRuntimeMessage(
   } else if (message.type === "error") {
     runOwnerLease.clear();
     stopRuntime();
+    const compiling = message.stage === "compile";
     broadcast({
       type: "console",
       stream: "stderr",
-      line: message.detail,
-      action: "run",
+      line: compiling
+        ? `Compilation failed · ${message.detail}`
+        : message.detail,
+      action: compiling ? "validate" : "run",
       phase: "error",
-      requestId: `virtual-run-${runId}`,
+      requestId: compiling
+        ? `virtual-compile-${runId}`
+        : `virtual-run-${runId}`,
     });
-    broadcast({
-      type: "console",
-      stream: "system",
-      line: "Program stopped after a MicroPython exception",
-      action: "run",
-      phase: "error",
-      requestId: `virtual-run-${runId}`,
-    });
-    status("error", "Program stopped after a MicroPython exception");
+    if (!compiling) {
+      broadcast({
+        type: "console",
+        stream: "system",
+        line: "Program stopped after a MicroPython exception",
+        action: "run",
+        phase: "error",
+        requestId: `virtual-run-${runId}`,
+      });
+    }
+    status(
+      compiling ? "ready" : "error",
+      compiling
+        ? "Compilation failed; the program did not start"
+        : "Program stopped after a MicroPython exception",
+    );
     broadcastMessage({ type: "terminate-runtime", runId });
   }
 }

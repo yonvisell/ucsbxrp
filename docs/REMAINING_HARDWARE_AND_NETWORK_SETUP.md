@@ -17,10 +17,11 @@ Open **Set up or Repair** in current desktop Chrome or Edge.
    The wizard opens the IDE in Physical XRP mode after the service replies.
 
 USB-C is used for initial setup, firmware repair, and course-software repair.
-After setup, **Run**, **Stop**, Reset, and telemetry use Wi-Fi. Run validates
-the project when needed and loads the exact current project into the XRP's
-temporary run slot before starting it. The computer must therefore be joined to
-the robot hotspot or the same local Wi-Fi as the robot.
+After setup, **Run**, **Stop**, Reset, and telemetry use Wi-Fi. Run checks the
+project structure, compiles every Python file when needed, and loads the exact
+current project into the XRP's temporary run slot before starting it. The
+computer must therefore be joined to the robot hotspot or the same local Wi-Fi
+as the robot.
 
 The robot-hotspot password is `ucsb-xrp`; its service address is
 `192.168.4.1`. Reopen **Set up or Repair** to rename the hotspot, select a

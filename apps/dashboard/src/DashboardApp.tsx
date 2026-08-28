@@ -1040,7 +1040,7 @@ export function DashboardApp() {
             throw error;
           }
           setTargetDetail(
-            `Validating ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}…`,
+            `Compiling ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}…`,
           );
           await target.run(DEFAULT_COURSE_PROJECT);
         }
@@ -1473,17 +1473,17 @@ export function DashboardApp() {
                   : projectBootstrapPending
                     ? "Opening the saved IDE project before Run."
                     : runStarting
-                      ? "Validating the default project before Run."
+                      ? "Compiling the default project before Run."
                       : !projectProviderAvailable && target.kind === "physical"
                         ? "Open the IDE to choose the project for the physical XRP."
                         : !projectProviderAvailable
-                          ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                          ? `Compile and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
                           : currentProject?.stale
-                            ? `Validate and run the current IDE project: ${currentProject.name}.`
+                            ? `Compile and run the current IDE project: ${currentProject.name}.`
                             : currentProject
                               ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
                               : target.kind === "virtual"
-                                ? `Validate and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                                ? `Compile and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
                                 : "Open a project in the IDE before Run."
             }
           >

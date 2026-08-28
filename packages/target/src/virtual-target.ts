@@ -186,7 +186,7 @@ export class VirtualTargetClient implements TargetClient {
     this.publishConsole({
       type: "console",
       stream: "system",
-      line: `Validating ${projectName}`,
+      line: `Compile requested · ${projectName}`,
       action: "validate",
       phase: "request",
       requestId,
@@ -197,7 +197,7 @@ export class VirtualTargetClient implements TargetClient {
       this.publishConsole({
         type: "console",
         stream: "system",
-        line: `Validation failed · ${result.detail}`,
+        line: `Compilation failed · ${result.detail}`,
         action: "validate",
         phase: "error",
         requestId,
@@ -244,7 +244,7 @@ export class VirtualTargetClient implements TargetClient {
       this.publishConsole({
         type: "console",
         stream: "system",
-        line: `${result.ok ? "Validation passed" : "Validation failed"} · ${result.detail}`,
+        line: `${result.ok ? "Compilation passed" : "Compilation failed"} · ${result.detail}`,
         action: "validate",
         phase: result.ok ? "result" : "error",
         requestId,
@@ -254,7 +254,7 @@ export class VirtualTargetClient implements TargetClient {
       this.publishConsole({
         type: "console",
         stream: "system",
-        line: `Validation could not finish · ${errorDetail(error)}`,
+        line: `Compilation could not finish · ${errorDetail(error)}`,
         action: "validate",
         phase: "error",
         requestId,
@@ -285,10 +285,6 @@ export class VirtualTargetClient implements TargetClient {
       staged.descriptor.name === descriptor.name &&
       staged.descriptor.entrypoint === descriptor.entrypoint;
     if (!retainedProjectIsExact) {
-      const result = await this.check(staged.project);
-      if (!result.ok) {
-        throw new Error(result.detail);
-      }
       await this.startRun({
         type: "prepare-run",
         project: staged.project,

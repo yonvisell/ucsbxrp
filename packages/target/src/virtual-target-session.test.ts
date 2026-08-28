@@ -70,6 +70,10 @@ class FakeRuntimeWorker {
     FakeRuntimeWorker.nextOutcome = "complete";
     this.emit({ type: "runtime-ready", version: "1.28.0" });
     this.emit({
+      type: "compile-complete",
+      detail: "1 Python file compiled with MicroPython 1.28.0",
+    });
+    this.emit({
       type: "console",
       stream: outcome === "error" ? "stderr" : "stdout",
       line:

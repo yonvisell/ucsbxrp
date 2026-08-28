@@ -276,9 +276,9 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
       { reloadKey: reloadVersionKey, isolationKey: isolationVersionKey },
     );
 
-    // Validate supplies the sticky user activation Chrome requires before it
+    // Compile supplies the sticky user activation Chrome requires before it
     // will display a beforeunload confirmation dialog.
-    await ide.getByRole("button", { name: "Validate" }).click();
+    await ide.getByRole("button", { name: "Compile" }).click();
     await expect(ide.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
     );
@@ -354,10 +354,10 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
       }
     });
 
-    // Validate is a normal bounded IDE operation. Its completion retries the
+    // Compile is a normal bounded IDE operation. Its completion retries the
     // pending update, which should now produce one genuine pagehide and reload.
     const reloaded = ide.waitForEvent("load");
-    await ide.getByRole("button", { name: "Validate" }).click();
+    await ide.getByRole("button", { name: "Compile" }).click();
     await reloaded;
     await expect(ide.getByTestId("target-status")).toContainText(
       "Virtual XRP · ready",

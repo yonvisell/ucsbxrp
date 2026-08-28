@@ -942,7 +942,7 @@ test("closes the active-file menu when the student clicks elsewhere", async ({
   );
 });
 
-test("Monitor validates and runs the project currently open in the IDE", async ({
+test("Monitor compiles and runs the project currently open in the IDE", async ({
   context,
   page: ide,
 }) => {
@@ -969,7 +969,7 @@ test("Monitor validates and runs the project currently open in the IDE", async (
   await monitor.getByRole("button", { name: "Run" }).click();
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText(
-    "Validating Tutorial 1 · Python essentials",
+    "Compile requested · Tutorial 1 · Python essentials",
     { timeout: 15_000 },
   );
   await expect(ide.getByRole("log")).toContainText(

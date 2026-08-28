@@ -60,10 +60,10 @@ action. With no Working folder selected, project changes remain only in that
 browser until the student chooses a Working folder and names the Project
 folder.
 
-- **Validate** compiles every Python file with MicroPython without running
-  it.
-- The play button validates first and starts the selected main file if
-  validation passes. For a physical XRP, it atomically prepares the complete
+- **Compile** checks the project structure and compiles every Python file with
+  MicroPython without running the virtual or physical XRP.
+- The play button compiles first and starts the selected main file if
+  compilation passes. For a physical XRP, it atomically prepares the complete
   current project in temporary controller RAM over Wi-Fi before starting it.
   The button becomes a stop button while the project is active; stopping
   commands zero drive input.
@@ -75,12 +75,12 @@ folder.
 Settings are collapsible and include editor/output font size (9 px default,
 8 px minimum), indentation, word wrap, code overview, target selection, and
 the XRP Wi-Fi mode and existing-Wi-Fi address. Status, Program output, and
-the connection/validation System log are separate tabs.
+the connection/compilation System log are separate tabs.
 
 | Action | macOS | Windows/Linux |
 | --- | --- | --- |
 | Save | `Command-S` | `Ctrl-S` |
-| Validate | `Command-Shift-Enter` | `Ctrl-Shift-Enter` |
+| Compile | `Command-Shift-Enter` | `Ctrl-Shift-Enter` |
 | Run | `Command-Enter` | `Ctrl-Enter` |
 | Open settings | `Command-,` | `Ctrl-,` |
 
@@ -103,7 +103,7 @@ signals are added or removed; additional charts scroll instead of shrinking.
 One unlabeled grid line divides each pair of labeled time lines. When no pose
 has been published, the world remains visible with a clearly labeled XRP
 preview centered at the origin.
-In a fresh virtual session, Monitor Run validates and starts the default
+In a fresh virtual session, Monitor Run compiles and starts the default
 expanding-spiral project without requiring the IDE to run first. Once another
 project is prepared by the IDE, both applications control that same revision.
 

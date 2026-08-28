@@ -23,7 +23,7 @@ async function replaceVisibleEditorSource(page: Page, source: string) {
     .toBe(source);
 }
 
-test("edits, validates, runs, and recovers main.py through Monaco", async ({
+test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   page,
 }) => {
   await page.addInitScript(
@@ -55,7 +55,7 @@ test("edits, validates, runs, and recovers main.py through Monaco", async ({
   await replaceVisibleEditorSource(page, invalidSource);
   await page.getByRole("button", { name: "Run", exact: true }).click();
 
-  await expect(page.getByRole("log")).toContainText("Validation failed");
+  await expect(page.getByRole("log")).toContainText("Compilation failed");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
   await expect(page.getByTestId("check-result")).toContainText(
@@ -139,7 +139,7 @@ test("Monitor Run executes an IDE edit without waiting for stale publication", a
     .getByRole("button", { name: "Run", exact: true });
   await expect(monitorRun).toHaveAttribute(
     "title",
-    /Validate and run the current IDE project/,
+    /Compile and run the current IDE project/,
   );
   await monitorRun.click();
 
@@ -148,7 +148,7 @@ test("Monitor Run executes an IDE edit without waiting for stale publication", a
   await expect(ide.getByRole("log")).not.toContainText("old source");
 });
 
-test("opens an oversized folder but prevents validation and virtual execution", async ({
+test("opens an oversized folder but prevents compilation and virtual execution", async ({
   page,
 }) => {
   await page.addInitScript((key) => {
@@ -171,14 +171,14 @@ test("opens an oversized folder but prevents validation and virtual execution", 
     page.getByRole("button", { name: "Open notes_47.txt" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Validate" }).click();
+  await page.getByRole("button", { name: "Compile" }).click();
   await expect(page.getByTestId("check-result")).toContainText(
     "This project has 49 files",
   );
   await expect(page.getByTestId("check-result")).toContainText("at most 48");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("Validation failed");
+  await expect(page.getByRole("log")).toContainText("Compilation failed");
   await expect(page.getByRole("log")).not.toContainText("not run");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",

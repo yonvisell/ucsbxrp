@@ -59,7 +59,7 @@ export function GuideApp() {
                 ready to run.
               </li>
               <li>
-                Select <strong>Run</strong>. Run validates the project when
+                Select <strong>Run</strong>. Run compiles the project when
                 needed, then starts it.
               </li>
               <li>
@@ -103,9 +103,10 @@ export function GuideApp() {
             <h3>IDE controls</h3>
             <ul className="action-list">
               <li>
-                <strong>Run</strong> validates files that changed, sends the
-                complete project to the selected target when necessary, and
-                starts the project&apos;s main Python file.
+                <strong>Run</strong> checks the project structure, compiles
+                changed Python files, sends the complete project to the selected
+                target when necessary, and starts the project&apos;s main Python
+                file.
               </li>
               <li>
                 <strong>Stop</strong> ends the running program. On a physical
@@ -118,8 +119,9 @@ export function GuideApp() {
                 available for the next Run.
               </li>
               <li>
-                <strong>Validate</strong> checks every Python file without
-                running the project. Run performs this check automatically when
+                <strong>Compile</strong> checks the project structure and
+                compiles every Python file with MicroPython without running the
+                virtual or physical XRP. Run performs this automatically when
                 the files have changed.
               </li>
               <li>
@@ -387,7 +389,8 @@ export function GuideApp() {
               A challenge provides one named Python file for each component you
               implement. The README explains what each component must do and
               which earlier components are carried into the project.{" "}
-              <strong>Validate</strong> checks Python syntax.{" "}
+              <strong>Compile</strong> checks the project structure and compiles
+              every Python file without running the robot.{" "}
               <strong>Test components</strong> runs focused examples without
               moving the virtual or physical XRP. Each example states its inputs
               and expected result before showing PASS, NOT IMPLEMENTED, or FAIL.
@@ -497,7 +500,7 @@ export function GuideApp() {
                 <dt>IDE output panel</dt>
                 <dd>
                   Program output and Python exceptions appear under Program
-                  output. Validation, project preparation, connection, Run,
+                  output. Compilation, project preparation, connection, Run,
                   Stop, and reset events appear under System log.
                 </dd>
               </div>
@@ -584,7 +587,7 @@ export function GuideApp() {
                     Close and reopen the IDE, Monitor, Guide, and API reference
                     from the same Chrome profile on that computer.
                   </li>
-                  <li>Validate and run projects on the virtual XRP.</li>
+                  <li>Compile and run projects on the virtual XRP.</li>
                   <li>
                     Read and write project files after granting access to their
                     Working folder. If the IDE later reports that folder access
@@ -703,7 +706,7 @@ export function GuideApp() {
                   </td>
                 </tr>
                 <tr>
-                  <td>Validate</td>
+                  <td>Compile</td>
                   <td>
                     <kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>
                   </td>
@@ -745,7 +748,7 @@ export function GuideApp() {
               <li>
                 <strong>Code does not run:</strong> in the IDE terminal, read
                 Program output for a Python exception and System log for
-                validation, transfer, connection, and target events.
+                compilation, transfer, connection, and target events.
               </li>
               <li>
                 <strong>The physical XRP is unreachable:</strong> confirm that

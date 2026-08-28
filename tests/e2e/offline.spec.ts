@@ -124,7 +124,7 @@ test("reloads the complete production course shell without a network", async ({
     "Course apps available offline",
   );
 
-  await ide.getByRole("button", { name: "Validate" }).click();
+  await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "compiled with MicroPython",
   );

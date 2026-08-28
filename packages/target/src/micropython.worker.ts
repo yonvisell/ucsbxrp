@@ -78,6 +78,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   const readLiveValue = (slot: number) =>
     liveValuesAreShared ? Atomics.load(liveValues, slot) : liveValues[slot]!;
   const liveSlots = new Map<string, number>();
+  let programStarted = false;
   const postSimulatorState = () =>
     post({ type: "simulator-state", state: simulator.state });
   const advanceSimulator = (requestedElapsedMs?: number) => {
@@ -327,6 +328,11 @@ exec(
       return;
     }
 
+    post({
+      type: "compile-complete",
+      detail: `${projectPaths.length} Python file${projectPaths.length === 1 ? "" : "s"} compiled with MicroPython ${runtimeVersion}`,
+    });
+
     postSimulatorState();
     // Program time begins here. Loading MicroPython and copying project files
     // must not move the virtual robot before the student's code starts.
@@ -334,6 +340,7 @@ exec(
     pendingSimulationMs = 0;
     explicitSimulationClock = false;
     const entrypoint = project.entrypoint;
+    programStarted = true;
     runtime.runPython(`
 import sys
 import os
@@ -373,7 +380,11 @@ exec(
   } catch (error) {
     simulator.stop();
     postSimulatorState();
-    post({ type: "error", detail: errorDetail(error) });
+    post({
+      type: "error",
+      detail: errorDetail(error),
+      stage: programStarted ? "run" : "compile",
+    });
   }
 };
 

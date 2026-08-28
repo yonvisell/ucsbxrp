@@ -378,7 +378,7 @@ export function IdeApp({
   const [projectProviderAvailable, setProjectProviderAvailable] =
     useState(false);
   const [checkDetail, setCheckDetail] = useState(
-    "Current files have not been checked.",
+    "The current project has not been compiled.",
   );
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
   const [syncDetail, setSyncDetail] = useState(
@@ -706,6 +706,13 @@ export function IdeApp({
           targetPreferenceForPhysicalNetwork(current, event),
         );
       } else if (event.type === "console") {
+        if (event.action === "validate" && event.phase === "result") {
+          setCheckOk(true);
+          setCheckDetail(event.line.replace(/^Compilation passed ·\s*/, ""));
+        } else if (event.action === "validate" && event.phase === "error") {
+          setCheckOk(false);
+          setCheckDetail(event.line.replace(/^Compilation failed ·\s*/, ""));
+        }
         const id = event.eventId ?? `ide-target-${nextConsoleId.current++}`;
         setConsoleEntries((entries) => {
           if (entries.some((entry) => entry.id === id)) {
@@ -942,7 +949,7 @@ export function IdeApp({
       if (authorDraftProject) {
         setFolderSaveState("browser");
         setOperationDetail(
-          "Opened an unpublished challenge draft. Validate and run it, then save it to a new Project folder if you want to retain it.",
+          "Opened an unpublished challenge draft. Compile and run it, then save it to a new Project folder if you want to retain it.",
         );
       }
       publishProjectSession(resolvedSession);
@@ -1093,7 +1100,9 @@ export function IdeApp({
     beginTargetCommand();
     setOutputPanelOpen(true);
     setConsoleTab("status");
-    setCheckDetail("Compiling Python project files with MicroPython…");
+    setCheckDetail(
+      "Checking project structure and compiling Python files with MicroPython…",
+    );
     try {
       const result = await target.check(project);
       setCheckOk(result.ok);
@@ -1205,21 +1214,19 @@ export function IdeApp({
     beginTargetCommand();
     setOutputPanelOpen(true);
     setConsoleTab("output");
-    let validationPassed = checkOk === true;
     try {
-      if (!validationPassed) {
-        setCheckDetail("Compiling Python project files with MicroPython…");
-        const result = await target.check(project);
-        setCheckOk(result.ok);
-        setCheckDetail(result.detail);
-        validationPassed = result.ok;
-      }
-      if (!validationPassed) {
-        setConsoleTab("details");
-        return;
+      if (checkOk !== true) {
+        setCheckOk(null);
+        setCheckDetail(
+          "Run is checking the project and compiling its Python files…",
+        );
       }
       await target.run(project);
       if (target.kind === "physical") {
+        setCheckOk(true);
+        setCheckDetail(
+          "The project structure is valid and every Python file compiled on the XRP.",
+        );
         setSyncOk(true);
         setSyncDetail(
           "The current project is loaded and ready for this XRP session.",
@@ -2761,10 +2768,10 @@ export function IdeApp({
             title={
               target.kind === "physical" && targetState === "error"
                 ? targetDetail
-                : "Compile all Python files with MicroPython (⌘/Ctrl+Shift+Enter)"
+                : "Check project structure and compile all Python files without running the robot (⌘/Ctrl+Shift+Enter)"
             }
           >
-            Validate
+            Compile
           </button>
           <button
             aria-label={isRunning ? "Stop" : "Run"}
@@ -3279,7 +3286,7 @@ export function IdeApp({
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
-                  title="Show concise target, validation, project, and file status."
+                  title="Show concise target, compilation, project, and file status."
                 >
                   Status
                 </button>
@@ -3304,7 +3311,7 @@ export function IdeApp({
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
-                  title="Show validation, connection, flash, and target-service messages."
+                  title="Show compilation, connection, flash, and target-service messages."
                 >
                   System log
                   {serviceDetails.length > 0
@@ -3355,7 +3362,7 @@ export function IdeApp({
                   </strong>
                 </div>
                 <div>
-                  <span>Validation</span>
+                  <span>Compilation</span>
                   <strong
                     className={
                       checkOk === true
@@ -3369,7 +3376,7 @@ export function IdeApp({
                       ? "Passed"
                       : checkOk === false
                         ? "Failed"
-                        : "Not checked"}
+                        : "Not run"}
                   </strong>
                   <small aria-live="polite" data-testid="check-result">
                     {checkDetail}
@@ -3404,7 +3411,7 @@ export function IdeApp({
                   <span className="console-placeholder">
                     {consoleTab === "output"
                       ? "Program output appears here after Run."
-                      : "Validation, connection, project-loading, and target-service messages appear here."}
+                      : "Compilation, connection, project-loading, and target-service messages appear here."}
                   </span>
                 ) : (
                   visibleConsoleEntries.map((entry) => (
@@ -3657,7 +3664,7 @@ export function IdeApp({
             <h3>Physical workflow</h3>
             <p>
               Virtual and physical targets use the same project. On a physical
-              XRP, Run validates when needed, loads the current project into
+              XRP, Run compiles when needed, loads the current project into
               robot memory, and starts it. Resetting the XRP clears that loaded
               copy; the next Run loads it again from the IDE.
             </p>
@@ -3674,7 +3681,7 @@ export function IdeApp({
                 <dd>⌘/Ctrl+S</dd>
               </div>
               <div>
-                <dt>Validate</dt>
+                <dt>Compile</dt>
                 <dd>⌘/Ctrl+Shift+Enter</dd>
               </div>
               <div>

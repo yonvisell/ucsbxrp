@@ -532,10 +532,10 @@ bound, and attempts to stop both motors after a failed write.
 
 These are application actions, not Python functions:
 
-- **Validate** compiles every project Python file with MicroPython without
-  running it.
+- **Compile** checks the project structure and compiles every project Python
+  file with MicroPython without running the virtual or physical XRP.
 - **Run** starts the selected main file on the virtual or physical XRP and
-  becomes **Stop** while it is active. For a physical target, Run validates and
+  becomes **Stop** while it is active. For a physical target, Run compiles and
   prepares the complete current project in temporary controller RAM over Wi-Fi
   before starting it. Reset cooperatively stops the program and clears live
   course state while retaining the prepared RAM project, boot state, and Wi-Fi

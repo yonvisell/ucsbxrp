@@ -48,7 +48,7 @@ describe("portable project target boundary", () => {
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "console",
-        line: expect.stringContaining("Validation failed"),
+        line: expect.stringContaining("Compilation failed"),
       }),
     );
   });

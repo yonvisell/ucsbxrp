@@ -123,6 +123,7 @@ export interface RuntimeWorkerRequest {
 
 export type RuntimeWorkerMessage =
   | { type: "runtime-ready"; version: string }
+  | { type: "compile-complete"; detail: string }
   | { type: "effort"; side: "left" | "right"; effort: number }
   | { type: "simulator-state"; state: XrpSimulatorState }
   | { type: "course-state"; state: CourseTelemetryState }
@@ -135,4 +136,4 @@ export type RuntimeWorkerMessage =
       state: RuntimeState;
       slots: Record<string, number>;
     }
-  | { type: "error"; detail: string };
+  | { type: "error"; detail: string; stage?: "compile" | "run" };

@@ -268,7 +268,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
       .getByRole("button", { name: "Run", exact: true });
     await expect(monitorRun).toBeEnabled();
 
-    // First run: Monitor requests the exact current IDE project. Run validates
+    // First run: Monitor requests the exact current IDE project. Run compiles
     // and prepares it in XRP memory before starting; this project never applies
     // motor effort.
     await monitorRun.click();
@@ -291,7 +291,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
     // A project edit is shared immediately. Monitor stays usable, but its Run
-    // action now identifies that the edited project must be validated and
+    // action now identifies that the edited project must be compiled and
     // loaded before it starts. Stop immediately after the running state to
     // exercise the real Run/Stop ordering before main.py reaches its loop.
     await ide.getByRole("button", { name: "New file…", exact: true }).click();
@@ -300,7 +300,7 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     await expect(monitorRun).toBeEnabled();
     await expect(monitorRun).toHaveAttribute(
       "title",
-      /Validate and run the current IDE project/,
+      /Compile and run the current IDE project/,
     );
     await monitorRun.click();
     await expect(ideStatus).toContainText("Physical XRP · running", {
