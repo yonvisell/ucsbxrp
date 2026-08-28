@@ -11,7 +11,7 @@ history; they are not parallel plans. Detailed validation belongs in
 - Browser source: current repository `HEAD` plus the active integrated stage.
 - Attached XRP: physically qualified on `2026.08-dev.37`, generation 18, from
   source commit `073d888`.
-- Current course bundle: `2026.08-dev.37`; it accepts compatible robot runtimes
+- Current course bundle: `2026.08-dev.38`; it accepts compatible robot runtimes
   from generation 36 onward, so application and course-material revisions do
   not force an unnecessary robot repair.
 - Development origin: the only supported local development instance is the
@@ -31,9 +31,10 @@ history; they are not parallel plans. Detailed validation belongs in
   raised-wheel evidence for Run, Stop, Reset, rerun, project edits, motor
   effort, encoders, wheel distance, sensor data, pose, plots, logs, and final
   zero drive on dev.37.
-- The four active tutorial projects cover Python fundamentals, Virtual XRP
-  drawing, the sampled robot program, and behavior with telemetry. Each has
-  student tasks and immediate checks rather than a shipped solution.
+- The five active tutorial projects progress from Python fundamentals through
+  Virtual XRP drawing, the sampled robot program, telemetry, and a physical-XRP
+  preflight. Each has student tasks and immediate checks rather than a shipped
+  solution.
 - Five cumulative challenge projects carry prior student modules forward.
   Their README files identify the task, supplied code, student work, and
   measurable behavior; mutable task values remain in code rather than prose.
@@ -75,7 +76,7 @@ World view and simulated measurement use one geometry.
 
 Complete one native-Chrome walkthrough from a fresh browser state: understand
 the Working-folder prompt, create a named project, edit and autosave, reopen it,
-switch projects twice, use Validate/Run/Stop/Reset/rerun, and inspect persistent
+switch projects twice, use Compile/Run/Stop/Reset/rerun, and inspect persistent
 Program output and System log. Cancellation or denied folder permission must
 leave the current project unchanged and explain the next action. The interface
 must not expose repository files, recurse through the Working folder, or ask
@@ -88,7 +89,7 @@ application build and course release without another visible status badge.
 
 ### 2. Current-release setup, repair, and robot operation
 
-Current dev.37 native Web Serial setup and idempotent repair pass on Pink,
+Current dev.38 native Web Serial setup and idempotent repair pass on Pink,
 including zero changed files, explicit network verification, robot-identity
 verification, atomic IDE handoff, two projects, Run/Stop/Reset/rerun, shared
 IDE/Monitor state, telemetry, and complete logs. Repeat one current-release
