@@ -149,6 +149,62 @@ test("keeps one completed run ready for notes and every export", async ({
   ).toBeDisabled();
 });
 
+test("records and labels a run started from the IDE", async ({
+  context,
+  page: ide,
+}) => {
+  test.setTimeout(45_000);
+  await ide.goto("/ide/");
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await expect(monitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  // Leave one completed dataset in Monitor, then start a different Project
+  // from IDE. The new target Run event must replace the previous dataset.
+  await monitor
+    .locator(".app-header")
+    .getByRole("button", { name: "Run", exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      recordedCount(await monitor.getByTestId("recording-count").textContent()),
+    )
+    .toBeGreaterThan(3);
+  await monitor
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    "Expanding spiral ·",
+  );
+
+  await ide.getByRole("button", { name: "New project…" }).click();
+  await ide.getByLabel("Project template").selectOption("challenge_1");
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(monitor.getByTestId("target-status")).toContainText(
+    "1 · Straight Run",
+  );
+
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(monitor.getByTestId("target-status")).toContainText("running", {
+    timeout: 15_000,
+  });
+  await expect
+    .poll(async () =>
+      recordedCount(await monitor.getByTestId("recording-count").textContent()),
+    )
+    .toBeGreaterThan(2);
+  await monitor
+    .locator(".app-header")
+    .getByRole("button", { name: "Stop", exact: true })
+    .click();
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    "1 · Straight Run ·",
+  );
+});
+
 test("clears an old note when the telemetry sequence restarts", async ({
   context,
   page: ide,

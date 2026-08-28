@@ -501,6 +501,8 @@ export function DashboardApp() {
   const [selectedWorldId, setSelectedWorldId] = useState(
     DEFAULT_WORLD_CATALOG.defaultWorldId,
   );
+  const worldCatalogRef = useRef(worldCatalog);
+  worldCatalogRef.current = worldCatalog;
   const selectedWorldIdRef = useRef(selectedWorldId);
   selectedWorldIdRef.current = selectedWorldId;
   const [monitorSettings, setMonitorSettings] =
@@ -632,6 +634,7 @@ export function DashboardApp() {
   const annotationDraftIdsRef = useRef(new Set<string>());
   const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
   const nextRunIdRef = useRef(1);
+  const observedRunRequestIdsRef = useRef(new Set<string>());
 
   projectBootstrapPendingRef.current = projectBootstrapPending;
 
@@ -877,6 +880,41 @@ export function DashboardApp() {
     [archiveCompletedRun, runDatasetController],
   );
 
+  const beginRunDataset = useCallback(
+    (source: TelemetrySample["source"]): string => {
+      if (runDatasetController.activeId) {
+        return runDatasetController.activeId;
+      }
+      const runId = `${source}-${Date.now()}-${nextRunIdRef.current++}`;
+      const catalog = worldCatalogRef.current;
+      const selectedWorld =
+        catalog.worlds.find(
+          (world) => world.id === selectedWorldIdRef.current,
+        ) ?? catalog.worlds[0]!;
+      runDatasetController.begin({
+        id: runId,
+        target: source,
+        project: currentProjectRef.current,
+        worldId: selectedWorld.id,
+        world: selectedWorld,
+        startedAt: new Date().toISOString(),
+      });
+      activeRunFolderRef.current = autosaveFolderRef.current;
+      setActiveRunId(runId);
+      plotSampleHistory.clear();
+      annotationsRef.current = [];
+      setAnnotations([]);
+      setExportDetail("");
+      setRunAutosaveDetail(
+        autosaveFolderRef.current
+          ? `Will save automatically to ${autosaveFolderRef.current.name}.`
+          : "Run data will not be saved; reconnect the Project folder in the IDE.",
+      );
+      return runId;
+    },
+    [plotSampleHistory, runDatasetController],
+  );
+
   const updateSavedRunAnnotations = useCallback((run: MonitorRunDataset) => {
     const folder = latestRunFolderRef.current;
     if (!folder) return;
@@ -938,6 +976,12 @@ export function DashboardApp() {
       } else if (event.type === "status") {
         targetStateRef.current = event.state;
         const nextRunActive = isActiveRunState(event.state);
+        if (event.state === "running" && !runDatasetController.isActive) {
+          // A Monitor can attach after another tab requested Run. Entering the
+          // target's running state is an unambiguous fallback boundary; Reset
+          // and connection work never enter this state.
+          beginRunDataset(target.kind);
+        }
         if (!nextRunActive && runDatasetController.isActive) {
           finishActiveRun(event.state, event.detail);
         }
@@ -983,6 +1027,23 @@ export function DashboardApp() {
         setWorldCatalog(event.catalog);
         setSelectedWorldId(event.selectedWorldId);
       } else if (event.type === "console") {
+        if (event.action === "run" && event.phase === "request") {
+          const requestIdentity = event.requestId ?? event.eventId;
+          const observed = observedRunRequestIdsRef.current;
+          if (!requestIdentity || !observed.has(requestIdentity)) {
+            if (requestIdentity) {
+              observed.add(requestIdentity);
+              while (observed.size > 32) {
+                observed.delete(observed.values().next().value!);
+              }
+            }
+            // Run may be pressed in either IDE or Monitor. The target's
+            // structured Run event is the shared start boundary; Reset and
+            // connection transitions do not emit it and therefore cannot
+            // create an empty or mislabeled run.
+            beginRunDataset(target.kind);
+          }
+        }
         const entry = {
           id: event.eventId ?? `monitor-target-${nextConsoleId.current++}`,
           stream: event.stream,
@@ -1029,6 +1090,7 @@ export function DashboardApp() {
     };
   }, [
     beginTargetCommand,
+    beginRunDataset,
     finishActiveRun,
     finishTargetCommand,
     plotSampleHistory,
@@ -1072,30 +1134,7 @@ export function DashboardApp() {
       } else {
         runStartingRef.current = true;
         setRunStarting(true);
-        const runId = `${target.kind}-${Date.now()}-${nextRunIdRef.current++}`;
-        const selectedWorld =
-          worldCatalog.worlds.find(
-            (world) => world.id === selectedWorldIdRef.current,
-          ) ?? worldCatalog.worlds[0]!;
-        runDatasetController.begin({
-          id: runId,
-          target: target.kind,
-          project: currentProjectRef.current,
-          worldId: selectedWorld.id,
-          world: selectedWorld,
-          startedAt: new Date().toISOString(),
-        });
-        activeRunFolderRef.current = autosaveFolderRef.current;
-        setActiveRunId(runId);
-        plotSampleHistory.clear();
-        annotationsRef.current = [];
-        setAnnotations([]);
-        setExportDetail("");
-        setRunAutosaveDetail(
-          autosaveFolderRef.current
-            ? `Will save automatically to ${autosaveFolderRef.current.name}.`
-            : "Run data will not be saved; reconnect the Project folder in the IDE.",
-        );
+        beginRunDataset(target.kind);
         if (projectProviderAvailable) {
           await target.runCurrent();
         } else {

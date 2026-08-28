@@ -1918,3 +1918,31 @@ layout journeys. All pass in production Chrome. The sole development server
 remains the cache-free Vite instance at `http://127.0.0.1:4174/`. The next gate
 is the current-source physical browser journey on Pink, followed by a concise
 first-use visual pass and public Pages deployment.
+
+## Refinement 72: physical repeatability and shared Run records
+
+The current setup flow has been exercised again from a newly selected Working
+folder with the attached RP2350 XRP on Pink. Same-release repair retained the
+station profile, restarted the XRP, verified `192.168.7.25`, and handed the
+saved robot and active Project to both IDE and Monitor through the one
+`.ucsbxrp.json` file. Reopening setup retained the Working folder and reopening
+the IDE restored `1 · Straight Run` rather than an unrelated browser Project.
+
+The physical XRP completed Expanding spiral, repeated straight-line Projects,
+Reset followed by Run, and a bounded left/right/paired motor and encoder check.
+The browser observed about 45 Hz telemetry while the Project ran and about
+2.4 Hz idle telemetry. Completed runs produced rotating program-output and
+telemetry files in the active Project folder. One initial straight-line attempt
+caused the device watchdog to restart; the same unmodified 20 ms Project then
+completed repeatedly after service recovery, so no timing parameter was changed
+without reproducible evidence.
+
+A real two-tab run exposed one remaining ownership defect: when Run was pressed
+in IDE, Monitor received the new Project and telemetry but retained the previous
+Project's completed dataset. Monitor now begins a dataset from the target's
+structured Run request, with the target's `running` transition as the attach-
+after-request boundary. Reset and connection transitions cannot create a run.
+The focused production-browser regression passed, and a subsequent physical
+IDE-started run was stored and labeled as `1 · Straight Run`; Reset created no
+empty run, and a Monitor-started repeat produced 112 samples and saved them to
+the correct Project folder.
