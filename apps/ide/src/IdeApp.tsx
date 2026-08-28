@@ -42,7 +42,6 @@ import {
   type OfflineShellStatus,
 } from "../../shared/offline-shell";
 import courseRelease from "../../../vendor/current/release.json";
-import { finishProjectBootstrap } from "../../shared/project-bootstrap";
 import type { AuthorDraftProject } from "../../shared/author-draft-handoff";
 import { MarkdownPreview } from "./MarkdownPreview";
 import {
@@ -325,13 +324,9 @@ function initiallyShowProjectPanel(): boolean {
 
 interface IdeAppProps {
   authorDraftProject?: AuthorDraftProject | null;
-  projectBootstrapOwner: string;
 }
 
-export function IdeApp({
-  authorDraftProject,
-  projectBootstrapOwner,
-}: IdeAppProps) {
+export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const embeddedApplication = isEmbeddedApplication();
   const initialProjectSnapshot = useMemo<ProjectSnapshot>(
     () => authorDraftProject ?? defaultProject(),
@@ -796,8 +791,6 @@ export function IdeApp({
         targetStateRef.current = "error";
         setTargetState("error");
         setTargetDetail(errorDetail(error));
-      } finally {
-        if (!disposed) finishProjectBootstrap(projectBootstrapOwner);
       }
     };
     void connect();
@@ -808,7 +801,6 @@ export function IdeApp({
       target.disconnect();
     };
   }, [
-    projectBootstrapOwner,
     projectSessionReady,
     targetPreferenceError,
     targetPreferenceReady,
@@ -1007,7 +999,7 @@ export function IdeApp({
                 opened.skipped
                   ? ` Skipped ${opened.skipped} unsupported item${opened.skipped === 1 ? "" : "s"}.`
                   : ""
-              }${reconciliation.preserveBrowserDraft ? " Unsaved work is available under Recovery in the Project panel." : ""}`,
+              }${reconciliation.preserveBrowserDraft ? " The previous unsaved version is available as Unsaved copy in Settings." : ""}`,
             );
           }
         } else {
@@ -1497,7 +1489,7 @@ export function IdeApp({
           Object.keys(reconciliation.session.project.files).length === 1
             ? ""
             : "s"
-        }${result.skipped ? `; ${result.skipped} item${result.skipped === 1 ? "" : "s"} skipped` : ""}.${reconciliation.preserveBrowserDraft ? " Unsaved work is available under Recovery." : ""}`,
+        }${result.skipped ? `; ${result.skipped} item${result.skipped === 1 ? "" : "s"} skipped` : ""}.${reconciliation.preserveBrowserDraft ? " The previous unsaved version is available as Unsaved copy in Settings." : ""}`,
       );
     },
     [
@@ -1830,7 +1822,7 @@ export function IdeApp({
       setFolderDirty(folderNeedsWrite);
       setFolderSaveState(folderNeedsWrite ? "pending" : "current");
       setOperationDetail(
-        `Reconnected ${rememberedFolder.name}.${folderNeedsWrite ? " Recovered edits will save automatically." : " Files are current."}${reconciliation.preserveBrowserDraft ? " Unsaved work is available under Recovery in the Project panel." : ""}`,
+        `Reconnected ${rememberedFolder.name}.${folderNeedsWrite ? " Recovered edits will save automatically." : " Files are current."}${reconciliation.preserveBrowserDraft ? " The previous unsaved version is available as Unsaved copy in Settings." : ""}`,
       );
     } catch (error) {
       if (!wasCancelled(error)) {
@@ -1924,7 +1916,7 @@ export function IdeApp({
           folderDirtyRef.current = false;
           setFolderDirty(false);
           setFolderSaveState("current");
-          setOperationDetail(`Saved changes to ./${folder.name}.`);
+          setOperationDetail(`Saved changes in ${folder.name}.`);
           retryPendingOfflineShellReload();
         })
         .catch((error: unknown) => {
@@ -1967,7 +1959,7 @@ export function IdeApp({
       setProjectFolderConflict(null);
       setFolderSaveState("current");
       setOperationDetail(
-        `Opened the files currently in ${workingFolder.name}. Unsaved work is available under Recovery.`,
+        `Opened the files currently in ${workingFolder.name}. The previous unsaved version is available as Unsaved copy in Settings.`,
       );
     } catch (error) {
       setFolderSaveState("error");
@@ -1989,7 +1981,7 @@ export function IdeApp({
     const folder = workingFolder;
     const sessionToSave = projectSessionRef.current;
     setFolderSaveState("saving");
-    setOperationDetail(`Saving the IDE files to ./${folder.name}…`);
+    setOperationDetail(`Saving the IDE files in ${folder.name}…`);
     try {
       const outcome = await projectFolderPersistence.keepIdeFiles(
         folder,
@@ -2005,7 +1997,7 @@ export function IdeApp({
       setFolderDirty(stillDirty);
       setFolderSaveState(stillDirty ? "pending" : "current");
       setOperationDetail(
-        `Kept the IDE files in ./${folder.name}. The previous folder files were retained in project autosaves.`,
+        `Kept the IDE files in ${folder.name}. The previous folder files were retained in project autosaves.`,
       );
     } catch (error) {
       setFolderSaveState("error");
@@ -2024,7 +2016,7 @@ export function IdeApp({
     if (!snapshot) return;
     if (folderDirty || folderSaveState === "saving" || projectFolderConflict) {
       setOperationDetail(
-        "Wait for the current project to finish saving before opening Recovery.",
+        "Wait for the current project to finish saving before opening the unsaved copy.",
       );
       return;
     }
@@ -2296,84 +2288,6 @@ export function IdeApp({
     workspaceFolder,
   ]);
 
-  const activateBrowserOnlyProject = useCallback(
-    async (snapshot: ProjectSnapshot, showChallengeBrief: boolean) => {
-      stopFolderWrites();
-      const currentSession = projectSessionRef.current;
-      if (projectSessionHasUnsavedChanges(currentSession)) {
-        preserveBrowserDraft(snapshotForProjectSession(currentSession));
-      }
-      const nextSession = createProjectSession(snapshot, {
-        source: "browser-draft",
-      });
-      await stageOpenedProject(nextSession.project);
-      publishProjectSession(nextSession);
-      if (showChallengeBrief && newProjectPrefersVirtual(snapshot)) {
-        updateTargetPreference((current) => ({ ...current, kind: "virtual" }));
-      }
-      const openingPath = showChallengeBrief
-        ? openingPathForNewProject(snapshot)
-        : nextSession.project.entrypoint;
-      setActivePath(openingPath);
-      setOpenPaths([openingPath]);
-      setWorkingFolder(null);
-      setRememberedFolder(null);
-      setRememberedFolderCanAttach(false);
-      replacePendingFolderDeletions(() => new Set());
-      setFolderDirty(false);
-      setFolderSaveState("browser");
-      setCheckOk(null);
-      setCheckDetail("Create or open a project before compiling.");
-      setSyncOk(null);
-      setSyncDetail("Create or open a project before running.");
-      setOperationDetail(
-        `Previewing ${snapshot.name}. Create a project to edit or run it.`,
-      );
-    },
-    [
-      preserveBrowserDraft,
-      publishProjectSession,
-      replacePendingFolderDeletions,
-      stageOpenedProject,
-      stopFolderWrites,
-      updateTargetPreference,
-    ],
-  );
-
-  const createTemporaryPendingProject = useCallback(async () => {
-    if (!pendingProject) return;
-    if (
-      projectCreationPurpose === "save-current" &&
-      continueToNextChallengeAfterSave
-    ) {
-      setContinueToNextChallengeAfterSave(false);
-      try {
-        const nextTemplate = await prepareNextChallengeCreation(pendingProject);
-        setOperationDetail(
-          `Kept ${pendingProject.name} in this browser. Name the ${nextTemplate.label} project to continue.`,
-        );
-      } catch (error) {
-        cancelProjectCreation();
-        setOperationDetail(
-          `The next challenge could not be prepared: ${errorDetail(error)}`,
-        );
-      }
-      return;
-    }
-    await activateBrowserOnlyProject(
-      pendingProject,
-      projectCreationPurpose !== "save-current",
-    );
-    cancelProjectCreation();
-  }, [
-    activateBrowserOnlyProject,
-    cancelProjectCreation,
-    continueToNextChallengeAfterSave,
-    pendingProject,
-    prepareNextChallengeCreation,
-    projectCreationPurpose,
-  ]);
-
   const createNamedProject = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -2472,12 +2386,12 @@ export function IdeApp({
               nextSession.project,
             );
             setOperationDetail(
-              `Saved ${nextSession.project.name} in ./${folder.name}. Name the ${nextTemplate.label} project to continue.`,
+              `Saved ${nextSession.project.name} in ${folder.name}. Name the ${nextTemplate.label} project to continue.`,
             );
           } catch (error) {
             cancelProjectCreation();
             setOperationDetail(
-              `Saved ${nextSession.project.name} in ./${folder.name}, but the next challenge could not be prepared: ${errorDetail(error)}`,
+              `Saved ${nextSession.project.name} in ${folder.name}, but the next challenge could not be prepared: ${errorDetail(error)}`,
             );
           }
         } else {
@@ -2893,10 +2807,10 @@ export function IdeApp({
     workspaceFolder?.name ?? rememberedWorkspaceFolder?.name ?? null;
   const workingFolderAccessSummary =
     workingFolderAccessState === "connected"
-      ? "Parent folder for Open project and new Project folders"
+      ? "Contains each named Project folder."
       : workingFolderAccessState === "needs-permission"
-        ? "Reconnect to open existing projects or create Project folders"
-        : "Parent folder for your named Project folders";
+        ? "Reconnect once to open and save Projects."
+        : "Choose a folder that will contain your Projects.";
   const visibleConsoleEntries =
     consoleTab === "output" ? programOutput : serviceDetails;
   const projectIsReadyOnTarget = Boolean(
@@ -3360,7 +3274,7 @@ export function IdeApp({
                       <div>
                         <button
                           onClick={useFolderConflictFiles}
-                          title="Open the files currently in the project folder. The current IDE files will remain available for recovery."
+                          title="Open the files currently in the Project folder. The current IDE files remain available as an unsaved copy."
                         >
                           Use folder files
                         </button>
@@ -3774,9 +3688,8 @@ export function IdeApp({
             </button>
           </div>
           <section className="settings-note project-settings">
-            <h3>Project storage</h3>
+            <h3>Working folder</h3>
             <div className="project-setting-state">
-              <span>Working folder</span>
               <strong>{workingFolderName ?? "Not selected"}</strong>
               <small>{workingFolderAccessSummary}</small>
             </div>
@@ -3807,9 +3720,9 @@ export function IdeApp({
                     projectFolderConflict !== null
                   }
                   onClick={() => void reopenPreviousBrowserDraft()}
-                  title={`Open recovered unsaved work from ${preservedBrowserDraft.name}. The current project remains on disk.`}
+                  title={`Open the unsaved copy of ${preservedBrowserDraft.name}. The current Project remains unchanged.`}
                 >
-                  Recover unsaved work · {preservedBrowserDraft.name}
+                  Unsaved copy · {preservedBrowserDraft.name}
                 </button>
               ) : null}
             </div>

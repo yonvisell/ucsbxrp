@@ -837,22 +837,6 @@ export function CommissionApp() {
           "The Working folder or XRP identity was lost during setup. Select the XRP again.",
         );
       }
-      // USB setup has already changed the robot's network at this point. Save
-      // that route before asking the user to change the computer's Wi-Fi, so
-      // leaving or reloading this page cannot restore an obsolete address.
-      await updateWorkspaceTargetPreference(
-        (current) =>
-          targetPreferenceForCommissionedRobot(current, {
-            robotId: inspectedRobotId,
-            hostname: robotHostnameForId(inspectedRobotId),
-            requestedMode: completed.network.requested_mode,
-            mode: completed.network.mode,
-            address: `http://${completed.network.address}`,
-            ssid: completed.network.ssid,
-            fallback: completed.network.fallback,
-          }),
-        workspace,
-      );
       setResult(completed);
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";

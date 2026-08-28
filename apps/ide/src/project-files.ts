@@ -62,18 +62,6 @@ export interface ProjectFolderCandidate {
   fileCount: number;
 }
 
-export interface ProjectRecoveryState {
-  project: ProjectSnapshot;
-  /** A divergent unsaved browser draft retained during folder reconciliation. */
-  preservedDraft?: ProjectSnapshot;
-}
-
-export const projectRecoveryKey = "ucsb-xrp-unsaved-project-v3";
-const obsoleteRecoveryKeys = [
-  "ucsb-xrp-course-project-v2",
-  "ucsb-xrp-course-project-v1",
-  "ucsb-xrp-stage-one-main-py",
-] as const;
 const projectMetadataFile = ".ucsb-xrp-project.json";
 const sha256Pattern = /^[0-9a-f]{64}$/;
 const windowsReservedName = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
@@ -290,40 +278,6 @@ export async function hasProjectFolderMetadata(
   }
 }
 
-function recoveredProject(value: unknown): ProjectSnapshot | null {
-  if (
-    !isRecord(value) ||
-    typeof value.name !== "string" ||
-    typeof value.entrypoint !== "string" ||
-    !isRecord(value.files)
-  ) {
-    return null;
-  }
-  const files: Record<string, string> = {};
-  for (const [path, content] of Object.entries(value.files)) {
-    if (typeof content !== "string" || projectPathError(path)) {
-      return null;
-    }
-    files[path] = content;
-  }
-  if (Object.keys(files).length === 0 || !(value.entrypoint in files)) {
-    return null;
-  }
-  if (isCourseRepositoryFileSet(files)) {
-    return null;
-  }
-  const session = recoveredSessionMetadata(value.session);
-  return {
-    name: value.name,
-    entrypoint: value.entrypoint,
-    files,
-    ...(typeof value.templateId === "string"
-      ? { templateId: value.templateId }
-      : {}),
-    ...(session ? { session } : {}),
-  };
-}
-
 function isCourseRepositoryFileSet(files: Record<string, string>): boolean {
   let markerCount = 0;
   for (const path of Object.keys(files)) {
@@ -350,61 +304,6 @@ export async function isCourseRepositoryFolder(
     }
   }
   return false;
-}
-
-export function loadRecoveredProjectState(): ProjectRecoveryState {
-  try {
-    for (const key of obsoleteRecoveryKeys) localStorage.removeItem(key);
-    const saved = localStorage.getItem(projectRecoveryKey);
-    if (saved) {
-      const value = JSON.parse(saved) as unknown;
-      if (isRecord(value) && "project" in value) {
-        const project = recoveredProject(value.project);
-        const preservedDraft = recoveredProject(value.preservedDraft);
-        if (project) {
-          return {
-            project,
-            ...(preservedDraft ? { preservedDraft } : {}),
-          };
-        }
-      }
-      const project = recoveredProject(value);
-      if (project) {
-        return { project };
-      }
-    }
-  } catch {
-    return { project: defaultProject() };
-  }
-  return { project: defaultProject() };
-}
-
-export function loadRecoveredProject(): ProjectSnapshot {
-  return loadRecoveredProjectState().project;
-}
-
-export function storeRecoveredProject(
-  project: ProjectSnapshot,
-  preservedDraft?: ProjectSnapshot,
-): boolean {
-  try {
-    localStorage.setItem(
-      projectRecoveryKey,
-      JSON.stringify(preservedDraft ? { project, preservedDraft } : project),
-    );
-    return true;
-  } catch {
-    // The in-memory project remains usable if browser recovery is unavailable.
-    return false;
-  }
-}
-
-export function clearRecoveredProject(): void {
-  try {
-    localStorage.removeItem(projectRecoveryKey);
-  } catch {
-    // Recovery is best-effort and never replaces files in a Working folder.
-  }
 }
 
 export function projectPathError(path: string): string | null {

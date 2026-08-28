@@ -372,11 +372,17 @@
   gap: 3px;
 }
 
-.recording-actions button {
+.recording-actions :is(button, a) {
   min-width: 0;
   min-height: 19px;
   padding: 1px 3px;
   font-size: var(--font-xs);
+}
+
+.monitor-project-link {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .annotation-tools {

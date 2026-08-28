@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { courseProjectTemplate } from "@ucsb-xrp/target";
 
@@ -10,8 +10,6 @@ import {
   hasProjectFolderMetadata,
   isCourseRepositoryFolder,
   listDirectProjectFolders,
-  loadRecoveredProject,
-  loadRecoveredProjectState,
   normalizedProjectPath,
   projectContentDigest,
   projectPathError,
@@ -21,42 +19,12 @@ import {
   renameProjectFile,
   saveProjectFolderWithAutosave,
   setProjectEntrypoint,
-  storeRecoveredProject,
   suggestedDuplicatePath,
   suggestedProjectFolderName,
   writeProjectFolder,
   ProjectFolderConflictError,
-  projectRecoveryKey,
   type CourseDirectoryHandle,
 } from "./project-files";
-
-class MemoryStorage implements Storage {
-  private readonly values = new Map<string, string>();
-
-  get length(): number {
-    return this.values.size;
-  }
-
-  clear(): void {
-    this.values.clear();
-  }
-
-  getItem(key: string): string | null {
-    return this.values.get(key) ?? null;
-  }
-
-  key(index: number): string | null {
-    return [...this.values.keys()][index] ?? null;
-  }
-
-  removeItem(key: string): void {
-    this.values.delete(key);
-  }
-
-  setItem(key: string, value: string): void {
-    this.values.set(key, String(value));
-  }
-}
 
 class ReadonlyFileHandle {
   readonly kind = "file" as const;
@@ -223,172 +191,6 @@ class WritableDirectoryHandle implements CourseDirectoryHandle {
     }
   }
 }
-
-describe("project recovery", () => {
-  let storage: MemoryStorage;
-
-  beforeEach(() => {
-    storage = new MemoryStorage();
-    vi.stubGlobal("localStorage", storage);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("opens the spiral demo for a new browser", () => {
-    const recovered = loadRecoveredProject();
-    const spiral = courseProjectTemplate("demo_spiral").project;
-
-    expect(recovered.name).toBe(spiral.name);
-    expect(recovered.entrypoint).toBe(spiral.entrypoint);
-    expect(recovered.files).toEqual(spiral.files);
-  });
-
-  it("ignores browser project records from earlier releases", () => {
-    storage.setItem(
-      "ucsb-xrp-course-project-v2",
-      JSON.stringify({
-        name: "stale project",
-        entrypoint: "main.py",
-        files: { "main.py": "print('stale')\n" },
-      }),
-    );
-    storage.setItem("ucsb-xrp-stage-one-main-py", "print('older')\n");
-
-    expect(loadRecoveredProject().name).toBe("Expanding spiral");
-    expect(storage.getItem(projectRecoveryKey)).toBeNull();
-    expect(storage.getItem("ucsb-xrp-course-project-v2")).toBeNull();
-    expect(storage.getItem("ucsb-xrp-stage-one-main-py")).toBeNull();
-  });
-
-  it("stores and recovers a valid project without changing user files", () => {
-    const project = {
-      name: "week-two",
-      entrypoint: "run.py",
-      files: {
-        "run.py": "print('ready')\n",
-        "config/robot.json": '{"wheel_mm": 60}\n',
-      },
-    };
-
-    expect(storeRecoveredProject(project)).toBe(true);
-
-    expect(loadRecoveredProject()).toEqual(project);
-  });
-
-  it("reports when browser recovery storage rejects a project", () => {
-    vi.spyOn(storage, "setItem").mockImplementation(() => {
-      throw new DOMException("Storage full", "QuotaExceededError");
-    });
-
-    expect(
-      storeRecoveredProject({
-        name: "unsaved",
-        entrypoint: "main.py",
-        files: { "main.py": "print('keep me')\n" },
-      }),
-    ).toBe(false);
-  });
-
-  it("stores and recovers optional project-session metadata", () => {
-    const project = {
-      name: "week-two",
-      entrypoint: "main.py",
-      files: { "main.py": "print('ready')\n" },
-      session: {
-        projectId: "7dc4e98e-d617-4e05-9628-399e754b9e48",
-        revision: 7,
-        savedRevision: 5,
-        updatedAt: 1_786_000_000_000,
-      },
-    };
-
-    storeRecoveredProject(project);
-
-    expect(loadRecoveredProject()).toEqual(project);
-  });
-
-  it("ignores malformed optional session metadata without losing user files", () => {
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: "week-two",
-        entrypoint: "main.py",
-        files: { "main.py": "print('keep me')\n" },
-        session: {
-          projectId: "broken",
-          revision: 2,
-          savedRevision: 3,
-          updatedAt: 1_786_000_000_000,
-        },
-      }),
-    );
-
-    expect(loadRecoveredProject()).toEqual({
-      name: "week-two",
-      entrypoint: "main.py",
-      files: { "main.py": "print('keep me')\n" },
-    });
-  });
-
-  it("retains one divergent browser draft in the existing recovery record", () => {
-    const project = {
-      name: "folder project",
-      entrypoint: "main.py",
-      files: { "main.py": "print('folder')\n" },
-    };
-    const preservedDraft = {
-      name: "browser draft",
-      entrypoint: "main.py",
-      files: { "main.py": "print('unsaved')\n" },
-    };
-
-    storeRecoveredProject(project, preservedDraft);
-
-    expect(loadRecoveredProject()).toEqual(project);
-    expect(loadRecoveredProjectState()).toEqual({ project, preservedDraft });
-  });
-
-  it("falls back to the spiral demo when recovery is malformed", () => {
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: "broken",
-        entrypoint: "missing.py",
-        files: { "main.py": "print('orphan')" },
-      }),
-    );
-
-    const recovered = loadRecoveredProject();
-    const spiral = courseProjectTemplate("demo_spiral").project;
-
-    expect(recovered.entrypoint).toBe(spiral.entrypoint);
-    expect(recovered.files).toEqual(spiral.files);
-  });
-
-  it("does not recover the UCSBXRP development repository as a student project", () => {
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: "Coursemobilerobotics",
-        entrypoint: "device_service.py",
-        files: {
-          "AGENTS.md": "project instructions\n",
-          "CODEX_IMPLEMENTATION_PROMPT.md": "implementation prompt\n",
-          "PROJECT_CONTEXT.md": "course repository\n",
-          "device_service.py": "print('service')\n",
-        },
-      }),
-    );
-
-    const recovered = loadRecoveredProject();
-    const spiral = courseProjectTemplate("demo_spiral").project;
-
-    expect(recovered.name).toBe(spiral.name);
-    expect(recovered.files).toEqual(spiral.files);
-  });
-});
 
 describe("project paths", () => {
   it.each([

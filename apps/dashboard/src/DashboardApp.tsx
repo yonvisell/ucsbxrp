@@ -37,7 +37,6 @@ import {
   retryPendingOfflineShellReload,
   virtualRunNeedsPreparation,
 } from "../../shared/offline-shell";
-import { useProjectBootstrapPending } from "../../shared/use-project-bootstrap";
 import {
   courseFolderPermission,
   autosaveDirectoryName,
@@ -491,7 +490,6 @@ function centeredWorldPreview(
 
 export function DashboardApp() {
   const embeddedApplication = isEmbeddedApplication();
-  const projectBootstrapPending = useProjectBootstrapPending();
   const [
     targetPreference,
     updateTargetPreference,
@@ -631,7 +629,6 @@ export function DashboardApp() {
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
-  const projectBootstrapPendingRef = useRef(projectBootstrapPending);
   const folderInteractionCountRef = useRef(0);
   const runArchiveCountRef = useRef(0);
   const targetCommandCountRef = useRef(0);
@@ -639,8 +636,6 @@ export function DashboardApp() {
   const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
   const nextRunIdRef = useRef(1);
   const observedRunRequestIdsRef = useRef(new Set<string>());
-
-  projectBootstrapPendingRef.current = projectBootstrapPending;
 
   const beginTargetCommand = useCallback(() => {
     targetCommandCountRef.current += 1;
@@ -1129,7 +1124,6 @@ export function DashboardApp() {
     targetPreferenceReady &&
     autosaveFolder !== null &&
     !virtualRuntimePreparing &&
-    !projectBootstrapPending &&
     (targetState === "ready" ||
       (target.kind === "virtual" && targetState === "error"));
 
@@ -1448,7 +1442,6 @@ export function DashboardApp() {
     () =>
       registerOfflineShellBeforeReload(async () => {
         const activity = () => ({
-          projectBootstrapPending: projectBootstrapPendingRef.current,
           targetCommandActive:
             targetCommandCountRef.current > 0 ||
             runtimeUpdateTimers.current.size > 0,
@@ -1474,7 +1467,6 @@ export function DashboardApp() {
   useEffect(() => {
     if (
       monitorReloadIsSafe({
-        projectBootstrapPending,
         targetCommandActive:
           targetCommandCountRef.current > 0 ||
           runtimeUpdateTimers.current.size > 0,
@@ -1495,7 +1487,6 @@ export function DashboardApp() {
     folderInteractionRevision,
     isRunning,
     annotations.length,
-    projectBootstrapPending,
     activeRunId,
     latestRun,
     runStarting,
@@ -1569,21 +1560,19 @@ export function DashboardApp() {
                 ? "Stop the running program."
                 : virtualRuntimePreparing
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                  : projectBootstrapPending
-                    ? "Opening the saved IDE project before Run."
-                    : runStarting
-                      ? "Compiling the default project before Run."
-                      : !autosaveFolder
-                        ? rememberedAutosaveFolder
-                          ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
-                          : "Choose a Working folder and create or open a project in the IDE before running."
-                        : currentProject?.stale
-                          ? `Compile and run the current IDE project: ${currentProject.name}.`
-                          : currentProject
-                            ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                            : autosaveFolder
-                              ? `Compile and run ${autosaveFolder.name}.`
-                              : "Open a project in the IDE before Run."
+                  : runStarting
+                    ? "Compiling the default project before Run."
+                    : !autosaveFolder
+                      ? rememberedAutosaveFolder
+                        ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
+                        : "Choose a Working folder and create or open a project in the IDE before running."
+                      : currentProject?.stale
+                        ? `Compile and run the current IDE project: ${currentProject.name}.`
+                        : currentProject
+                          ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                          : autosaveFolder
+                            ? `Compile and run ${autosaveFolder.name}.`
+                            : "Open a project in the IDE before Run."
             }
           >
             <RunStopIcon running={isRunning} />
@@ -1779,6 +1768,16 @@ export function DashboardApp() {
                       >
                         Reconnect project
                       </button>
+                    </div>
+                  ) : !autosaveFolder ? (
+                    <div className="recording-actions">
+                      <a
+                        className="monitor-project-link"
+                        href="../ide/"
+                        title="Open the IDE to choose a Working folder and create or open a Project."
+                      >
+                        Open a Project in the IDE
+                      </a>
                     </div>
                   ) : null}
                   <div className="annotation-tools">

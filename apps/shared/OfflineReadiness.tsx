@@ -44,7 +44,7 @@ export function OfflineReadiness({
     ? (pendingUpdateDetail ??
       "A newer UCSBXRP course release is saved in Chrome. This page will reopen after its current run, save, setup step, or export is complete.")
     : status.state === "ready"
-      ? `Chrome saved a local copy of ${appName} and the other UCSBXRP course apps for this site. Reopen them from this browser profile without internet. Project files are separate and stay in the selected Working folder. If no Working folder is selected, project changes remain in this browser only.`
+      ? `Chrome saved a local copy of ${appName} and the other UCSBXRP course apps for this site. Reopen them from this browser profile without internet. Project files stay in the selected Working folder; without one, the built-in project is a read-only preview.`
       : status.state === "development"
         ? `Course release ${courseRelease.release_id}; this local development page does not save the course apps in Chrome.`
         : (status.message ??

@@ -2040,3 +2040,27 @@ the MicroPython filesystem retained earlier course files and the selected
 Working folder retained an earlier Project. A final public first-use rehearsal
 must therefore erase the XRP flash and use an empty Working folder before this
 case is described as a factory-new student workflow.
+
+## Refinement 77: direct Project state and immediate Monitor runs
+
+The IDE and Monitor no longer coordinate through a temporary browser
+`project-bootstrap` record. That record could disable Monitor Run for 15
+seconds after an IDE tab opened or closed, even when the Working folder already
+contained a complete Project. Monitor now reads the active Project directly
+from the Working folder and its `.ucsbxrp.json` file. With every IDE tab closed,
+the attached XRP completed Straight Run from Monitor alone: 112 telemetry
+samples over 4.2 seconds were saved to the active Project and Run returned to
+ready.
+
+Commissioning now writes the selected physical target to `.ucsbxrp.json` only
+after the XRP answers at the configured Wi-Fi address. A failed network check
+therefore cannot replace a working target with an unverified route. Obsolete
+browser-persisted Project and recovery records have been removed; a built-in
+Project without a Working folder is a read-only preview, while an in-memory
+unsaved copy is retained only when the user explicitly resolves a file
+conflict. Monitor links to the IDE when no saved Project exists instead of
+presenting a disabled control without a next action.
+
+The focused commissioning, folder, target-preference, Monitor-reload, and
+Project-file checks pass (84 tests), and the production build passes. The next
+physical gate remains a genuinely erased XRP plus an empty Working folder.

@@ -1,5 +1,4 @@
 export interface MonitorReloadActivity {
-  projectBootstrapPending: boolean;
   targetCommandActive: boolean;
   runActive: boolean;
   exportActive: boolean;
@@ -14,7 +13,6 @@ export interface MonitorReloadActivity {
 /** A Monitor reload is safe only when it cannot interrupt or discard work. */
 export function monitorReloadIsSafe(activity: MonitorReloadActivity): boolean {
   return !(
-    activity.projectBootstrapPending ||
     activity.targetCommandActive ||
     activity.runActive ||
     activity.exportActive ||

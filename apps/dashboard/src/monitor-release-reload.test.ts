@@ -7,7 +7,6 @@ import {
 } from "./monitor-release-reload";
 
 const idle: MonitorReloadActivity = {
-  projectBootstrapPending: false,
   targetCommandActive: false,
   runActive: false,
   exportActive: false,
@@ -26,7 +25,6 @@ async function finishAttempt() {
 
 describe("Monitor course-update reload", () => {
   it.each([
-    "projectBootstrapPending",
     "targetCommandActive",
     "runActive",
     "exportActive",
