@@ -1,9 +1,8 @@
-# Check the Challenge 4 student-owned component classes without moving the robot.
-# In the IDE, select Test components. PASS means the example returned the
-# expected result. NOT IMPLEMENTED identifies a method you still need to write.
-# FAIL prints the expected and observed values for you to compare.
-# The imports below are the classes from this project that will be checked.
-# The checker supplies labeled input examples; it does not run either robot.
+# Test the Challenge 4 component classes without starting either robot.
+# In the IDE, select Test components. Each check states the component's use,
+# example input, required result, and observed result.
+# PASS means the example matched. NOT IMPLEMENTED means a named method still
+# needs code. FAIL means the method ran but its result was incorrect.
 
 from differential_drive import DifferentialDrive
 from grid_planner import GridPlanner

@@ -478,6 +478,10 @@ _CHECKS = (
         "SensorModel · encoder distance and measured speed",
         "sensor_model",
         (
+            "Provides wheel travel to Odometry and measured wheel speed to "
+            "WheelSpeedController"
+        ),
+        (
             "reset at counts 10/20; move forward with a reversed left encoder "
             "over unequal 25/40 ms samples"
         ),
@@ -490,6 +494,7 @@ _CHECKS = (
     (
         "WheelSpeedController · signed and limited motor command",
         "wheel_speed_controller",
+        "Turns requested wheel speeds into the motor commands used by Robot",
         (
             "request +100/-100 mm/s at two measured speeds, then verify "
             "direction, response to speed error, limits, and stop"
@@ -503,6 +508,10 @@ _CHECKS = (
     (
         "SensorModel · robust ultrasound estimate",
         "range_estimator",
+        (
+            "Combines stationary range readings before DeliveryMission selects "
+            "the map condition"
+        ),
         "combine valid, missing, nonfinite, and negative range samples and calculate the median",
         (
             "invalid readings are ignored; enough usable readings produce the "
@@ -513,6 +522,10 @@ _CHECKS = (
     (
         "DifferentialDrive · body command to wheel targets",
         "differential_drive",
+        (
+            "Converts one robot-motion request into the two targets used by "
+            "wheel control"
+        ),
         "check a straight command, a moving turn, and an in-place right turn",
         (
             "straight motion gives equal wheel targets; turning gives the "
@@ -523,6 +536,7 @@ _CHECKS = (
     (
         "Odometry · measured wheel increments to pose",
         "odometry",
+        "Provides the estimated pose used to end turns and navigate",
         "update pose after equal, equal-and-opposite, and unequal wheel travel",
         (
             "equal travel advances straight; opposite travel turns in place; "
@@ -533,6 +547,10 @@ _CHECKS = (
     (
         "NavigationController · goals to motion commands",
         "navigation_controller",
+        (
+            "Converts route goals and the estimated pose into requests that "
+            "Robot can execute"
+        ),
         (
             "check empty/ordered routes, forward/left/right goals, angle wrap, "
             "realignment, and a required final heading"
@@ -546,6 +564,10 @@ _CHECKS = (
     (
         "GridPlanner · connected route through free cells",
         "grid_planner",
+        (
+            "Provides the cell route converted to navigation goals before "
+            "motion begins"
+        ),
         (
             "check unobstructed and detour routes, missing or blocked endpoints, "
             "no-route cases, and start equal to goal"
@@ -608,12 +630,27 @@ def run_component_checks(*component_classes, **components):
     passed = 0
     not_implemented = 0
     failed = 0
-    print("Concrete component examples use MicroPython without starting either robot.")
-    for label, key, input_description, expected, check_function in _CHECKS:
+    print(
+        "Test components calls your project classes with small examples; "
+        "it does not start either robot."
+    )
+    print(
+        "PASS = implemented behavior matched this example; NOT IMPLEMENTED = "
+        "method still needs code; FAIL = method ran but this result was incorrect."
+    )
+    for (
+        label,
+        key,
+        use_description,
+        input_description,
+        expected,
+        check_function,
+    ) in _CHECKS:
         component_class = components.get(key)
         if component_class is None:
             continue
         print("CHECK · " + label)
+        print("USE · " + use_description)
         print("INPUT · " + input_description)
         print("EXPECT · " + expected)
         try:

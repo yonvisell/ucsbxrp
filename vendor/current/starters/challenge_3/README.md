@@ -2,16 +2,13 @@
 
 ## The challenge
 
-Visit the ordered waypoint markers in [`world.json`](world.json) and finish
-with the heading requested by the final marker. At each sample, navigation
-receives the current odometry `Pose` and returns one requested forward speed
-and turn rate.
+Visit the waypoint markers in their assigned order and finish with the heading
+requested by the final marker. Navigation receives the newest odometry `Pose`
+at each sample and returns one requested forward speed and turn rate.
 
-[`challenge.py`](challenge.py) loads `INITIAL_POSE` and `ROUTE` from
-`world.json`. Each `NavigationGoal` provides world `x_mm` and `y_mm` coordinates
-and may provide a final `heading_rad`. Keep waypoint order, coordinates, and
-headings in the world file rather than repeating their current values in
-Python.
+[`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)
+loads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than
+copying the current coordinates, order, or headings into another file.
 
 ## Continue from Challenge 2
 
@@ -20,108 +17,86 @@ Waypoint Courier…**. The new project carries forward
 [`sensor_model.py`](sensor_model.py),
 [`wheel_speed_controller.py`](wheel_speed_controller.py),
 [`differential_drive.py`](differential_drive.py), and
-[`odometry.py`](odometry.py), along with their component selections.
+[`odometry.py`](odometry.py), along with their selections.
 [`navigation_controller.py`](navigation_controller.py) begins with its supplied
 implementation selected. The Challenge 2 project remains unchanged.
 
 ## What you implement
 
 Implement `NavigationController` in
-[`navigation_controller.py`](navigation_controller.py). It retains the ordered
-route, the active goal, and the progress needed to distinguish travel from
-final-heading alignment:
+[`navigation_controller.py`](navigation_controller.py):
 
-- `start(goals)` starts a new route. An empty route is immediately complete.
+- `start(goals)` stores a new ordered route; an empty route is complete.
 - `current_goal()` returns the active goal or `None` after completion.
-- `is_complete()` reports whether all positions and requested headings have
-  been reached.
-- `update(pose)` returns the next `MotionCommand` from the newest odometry
-  estimate.
+- `is_complete()` reports whether all required positions and headings are
+  complete.
+- `update(pose)` returns the next `MotionCommand` from the latest odometry pose.
 
-The controller completes goals in order. It turns toward a destination before
-driving, reduces speed near the destination, returns to turning if its heading
-error becomes too large, and aligns to a requested final heading. It returns a
-zero-motion command after the last goal.
-
-Use the named values in `NAVIGATION_CONFIG`. The supplied
-`distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions
-apply the course coordinate and angle conventions.
+Visit goals in order. Turn toward a destination before driving, use the
+configured approach speed near it, return to turning when the heading error is
+too large, and align to a requested final heading. Return `STOP_COMMAND` after
+the route is complete. Use `NAVIGATION_CONFIG` and the supplied
+`distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions.
 
 ## Project modules
 
-Each file has one responsibility:
+| File | Role |
+| --- | --- |
+| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |
+| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |
+| [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |
+| [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |
+| [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
+| [`robot_config.py`](robot_config.py) | Stores robot calibration and `NAVIGATION_CONFIG`. |
+| [`course_setup.py`](course_setup.py) | Selects each supplied or student component. |
 
-| File                                                     | Responsibility                                                                                                                                                           |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`sensor_model.py`](sensor_model.py)                     | Converts raw sample time, encoder counts, range, and button state into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`. |
-| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate left and right motor commands within the configured limits.                                                        |
-| [`differential_drive.py`](differential_drive.py)         | Calculates left and right target wheel speeds from requested forward speed and yaw rate.                                                                                 |
-| [`odometry.py`](odometry.py)                             | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments.                                                                           |
-| [`navigation_controller.py`](navigation_controller.py)   | Uses the current pose and active route goal to select the next `MotionCommand`.                                                                                          |
-| [`robot_config.py`](robot_config.py)                     | Contains the measured and tuned values for your robot. The supplied/student switches do not replace this file.                                                           |
-
-[`course_setup.py`](course_setup.py) contains one `USE_STUDENT_*` flag for each
-component class.
-`False` runs the supplied implementation; `True` runs the class in the named
-student file. **Test components always checks the student files**, regardless
-of which implementations are selected for a complete robot run.
+**Test components always checks the student files**, regardless of which
+versions are selected for a complete robot run.
 
 ## Provided files and tools
 
 - [`main.py`](main.py) starts the route, passes each new pose to navigation, and
-  stops the motors in a `finally` block.
-- [`challenge.py`](challenge.py) and [`world.json`](world.json) define the
-  initial pose and ordered route.
-- [`course_setup.py`](course_setup.py) constructs each selected component and assembles the
-  `Robot`. Change only the named `USE_STUDENT_*` flags after the matching
-  checks pass.
-- [`component_checks.py`](component_checks.py) runs labeled route and motion
-  examples without moving either robot.
-- `Robot` executes each requested `MotionCommand` through the carried-forward
-  wheel, sensing, and odometry components.
+  stops the robot on completion or error.
+- [`component_checks.py`](component_checks.py) checks route progress and motion
+  requests without starting a robot.
+- `Robot` executes each `MotionCommand` through the carried-forward wheel,
+  sensing, and odometry components.
 
 ## How the program runs
 
-1. `main.py` starts `Robot` at `INITIAL_POSE` and starts navigation with
-   `ROUTE`.
-2. `NavigationController` compares the active goal with the latest estimated
-   pose and requests the next motion.
-3. `Robot` carries that request through differential drive, wheel control,
-   motor output, sensing, and odometry.
-4. The next navigation update uses the new odometry pose.
-5. Navigation advances to the next goal only after the current position and
-   any requested heading are within tolerance.
-6. The program stops after the final goal is complete.
+```text
+ROUTE + estimated Pose -> NavigationController -> MotionCommand
+MotionCommand          -> Robot                -> new estimated Pose
+```
+
+The cycle repeats until navigation completes the final position and any
+requested final heading.
 
 ## Check the component
 
-Select **Test components**. The checks use your component classes without
-starting the virtual or physical robot. Read the labeled input, expected
-observation, and observed result for every example.
+Select **Test components**. Read `USE`, `INPUT`, and `EXPECT` before each
+result. The navigation checks cover an empty route, goals ahead and to either
+side, ordered goals, approach speed, realignment, angle wrap, and a required
+final heading.
 
-- `PASS` means the example matched.
-- `NOT IMPLEMENTED` identifies an unfinished method.
-- `FAIL` identifies a differing value, command, or progress state.
+- `PASS` means the implemented behavior matched the examples.
+- `NOT IMPLEMENTED` means the named method still needs to be written.
+- `FAIL` means the method ran but returned an incorrect command or route state.
 
-The navigation examples cover an empty route, a goal ahead, a goal to the
-side, ordered goals, approach behavior, realignment, and final-heading
-completion. Fix every unfinished or failing example, repeat **Test
-components**, and then set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in
-`course_setup.py`.
+Fix every unfinished or failing result, repeat **Test components**, and then
+set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.
 
 ## Complete the challenge
 
-1. Run the supplied navigator on the virtual XRP. In the world view and
-   telemetry, identify each waypoint approach, the reduced approach speed, and
-   the final heading adjustment.
-2. Select your navigator and confirm that the robot visits the markers in file
-   order and returns zero requested motion after completion.
+1. Run the supplied navigator on the virtual XRP. Identify each waypoint
+   approach, the reduced approach speed, and the final heading adjustment.
+2. Select your navigator. Verify waypoint order and zero requested motion after
+   completion.
 3. Repeat with all carried-forward student components. Compare odometry with
-   virtual ground truth to distinguish pose-estimation error from navigation
+   virtual ground truth to separate pose-estimation error from navigation
    behavior.
-4. Record estimated pose, requested forward speed and turn rate, and the driven
-   path during the run. Use the known waypoint positions in `world.json` when
-   calculating distance or heading error for your analysis.
+4. Record estimated pose, requested forward speed, turn rate, and the driven
+   path. Use the assigned values in `ROUTE` for your analysis.
 5. On the physical course, record the same program evidence and measure the
    final position and heading independently.
 

@@ -2,122 +2,102 @@
 
 ## The challenge
 
-Begin at the observation pose, collect repeated forward-range measurements,
-decide whether the named map feature is blocked, and plan a delivery route for
-the observed condition. The program reports `"delivered"` after successful
-navigation or `"no_path"` when no route is available.
+Begin at the observation pose, collect repeated forward-range readings, decide
+whether the named map feature is blocked, and deliver by an available route.
+The program reports `"delivered"` after successful navigation or `"no_path"`
+when no route is available.
 
-[`world.json`](world.json) contains the virtual observation cases, their shared
-geometry, and the changeable feature. [`challenge.py`](challenge.py) loads the
-selected world and constructs `DELIVERY_TASK`, which contains all
-range-measurement settings, map geometry, grid settings, start, and destination
-values. Use the named fields in `DELIVERY_TASK`; do not copy their current
-numerical values or obstacle coordinates into another file.
+[`world.json`](world.json) defines the virtual observation cases, common map,
+start, destination, and changeable feature. [`challenge.py`](challenge.py)
+constructs `DELIVERY_TASK`, which supplies the range-sample requirements,
+decision threshold, missing-range behavior, grid settings, geometry, initial
+pose, and destination. Use `DELIVERY_TASK`; do not repeat its current numerical
+values or obstacle coordinates elsewhere.
 
 ## Continue from Challenge 4
 
 Open the completed Challenge 4 project and select **Continue to Challenge 5 ·
 Delivery Mission…**. The new project carries forward all six component files
-and their selections. Your new work extends the existing `SensorModel` in
-[`sensor_model.py`](sensor_model.py); the Challenge 4 project remains
-unchanged.
-
-IDE **Settings** identifies the Working folder that contains the team's
-project folders. Use **Open project…** to reopen an existing project or **New
-project…** to create an unrelated project from a template.
+and their selections. Your new work extends the existing
+[`sensor_model.py`](sensor_model.py). The Challenge 4 project remains unchanged.
 
 ## What you implement
 
 Implement `SensorModel.estimate_range(samples, minimum_usable)` in
-`sensor_model.py`. The method examines one supplied sequence without changing
-the wheel-measurement state:
+[`sensor_model.py`](sensor_model.py). For the supplied sequence:
 
-- discard missing values, Boolean values, and numeric values that are not finite
-  and positive;
-- return `None` if fewer than `minimum_usable` readings remain; and
-- otherwise return the median of the usable distances in millimeters.
+- ignore missing values, Booleans, and numeric values that are not finite and
+  positive;
+- return `None` when fewer than `minimum_usable` readings remain; and
+- otherwise return the median usable distance in millimeters.
 
-A `None` result means that no estimate was available; it does not mean a range
-of zero. The earlier methods in `sensor_model.py` remain part of the same
-file you maintain throughout the challenges.
+This method must not change the wheel-measurement state. `None` means that no
+estimate was available; it does not represent zero distance.
 
 ## Project modules
 
-Each file has one responsibility:
+| File | Role |
+| --- | --- |
+| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples; now also combines range readings. |
+| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |
+| [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |
+| [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |
+| [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
+| [`grid_planner.py`](grid_planner.py) | Connects the requested start and goal through free grid cells. |
+| [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
+| [`course_setup.py`](course_setup.py) | Selects each supplied or student component. |
 
-| File                                                     | Responsibility                                                                                                                                                                                                     |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`sensor_model.py`](sensor_model.py)                     | Converts raw readings into wheel distances, wheel-speed estimates based on recent encoder samples, and other `Measurements`; in this challenge, it also estimates forward range from repeated ultrasonic readings. |
-| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Uses requested and measured wheel speeds to calculate left and right motor commands within the configured limits.                                                                                                  |
-| [`differential_drive.py`](differential_drive.py)         | Calculates left and right target wheel speeds from requested forward speed and yaw rate.                                                                                                                           |
-| [`odometry.py`](odometry.py)                             | Updates the robot's estimated `Pose` from the latest left and right wheel-distance increments.                                                                                                                     |
-| [`navigation_controller.py`](navigation_controller.py)   | Uses the current pose and active route goal to select the next `MotionCommand`.                                                                                                                                    |
-| [`grid_planner.py`](grid_planner.py)                     | Finds a connected sequence of free grid cells between the requested start and goal.                                                                                                                                |
-| [`robot_config.py`](robot_config.py)                     | Contains the measured and tuned values for your robot. The supplied/student switches do not replace this file.                                                                                                     |
-
-[`course_setup.py`](course_setup.py) contains one `USE_STUDENT_*` flag for each
-component class. `False` runs the supplied implementation; `True` runs the
-class in the named student file.
 **Test components always checks the student files**, regardless of which
-implementations are selected for a complete robot run.
+versions are selected for a complete robot run.
 
 ## Provided files and tools
 
-- `DeliveryMission` coordinates stationary observation, selection of one map
-  condition, planning, and navigation. It stops the robot on every exit.
-- [`challenge.py`](challenge.py) constructs `DELIVERY_TASK` from the selected project world and
-  the current mission settings.
-- [`world.json`](world.json) defines the observable cases, destination, and named map
-  feature.
-- [`main.py`](main.py) runs `DeliveryMission` and prints its result and final
-  pose.
-- [`course_setup.py`](course_setup.py) constructs each selected component and assembles the
-  `Robot`, navigator, and planner. Change only the named `USE_STUDENT_*` flags
-  after the matching checks pass.
-- [`component_checks.py`](component_checks.py) runs labeled component examples,
-  including range estimation, without moving either robot.
+- `DeliveryMission` keeps the robot stopped during observation, evaluates the
+  named feature, builds the selected grid, plans, navigates, and stops on every
+  exit.
+- [`main.py`](main.py) constructs the mission services, runs the mission, and
+  prints its result and final pose.
+- [`component_checks.py`](component_checks.py) checks range estimation and all
+  carried-forward components without starting a robot.
 - `ArenaMap`, `OccupancyGrid`, and `GridPath.to_goals()` connect the observed
   map condition to planning and navigation.
 
 ## How the program runs
 
-1. `DeliveryMission` starts the robot at the task's initial pose and commands
-   zero motion while requesting the assigned number of range samples.
-2. `SensorModel.estimate_range()` reduces the sample sequence to a distance or
-   `None`.
-3. The mission uses that result and the task's decision settings to change only
-   the named map feature.
-4. It builds the occupancy grid and requests a path to the destination.
-5. If no path exists, the mission reports `"no_path"` and remains stopped.
-6. Otherwise, the carried-forward navigator and robot loop follow the route
-   and the mission reports `"delivered"`.
-7. The mission stops the motors after completion or error.
+```text
+stationary range samples -> SensorModel.estimate_range()
+                         -> open/blocked named feature
+                         -> OccupancyGrid -> GridPlanner -> route or no_path
+route                    -> NavigationController -> delivery motion
+```
+
+The observed distance, not the virtual case label, determines the selected map
+condition.
 
 ## Check the component
 
-Select **Test components**. The checks use your component files without
-starting the virtual or physical robot. Each range example describes its input,
-the expected estimate or error, and the observed result.
+Select **Test components**. The checks do not start either robot. Read `USE`,
+`INPUT`, and `EXPECT` before each result. Range checks include odd and even
+medians, mixed unusable readings, too few usable readings, and invalid
+`minimum_usable` input.
 
-- `PASS` means the result matched the example.
-- `NOT IMPLEMENTED` identifies an unfinished method.
-- `FAIL` identifies a differing estimate or behavior.
+- `PASS` means the implemented behavior matched the examples.
+- `NOT IMPLEMENTED` means the named method still needs to be written.
+- `FAIL` means the method ran but returned an incorrect estimate or error.
 
-Inspect odd and even medians, mixed unusable readings, insufficient usable
-readings, and invalid `minimum_usable` input. Fix every unfinished or failing
-example, repeat **Test components**, and then select the student
-`SensorModel` in `course_setup.py`.
+Fix every unfinished or failing result, repeat **Test components**, and then
+select the student `SensorModel` in `course_setup.py`.
 
 ## Complete the challenge
 
 1. Run each virtual observation case with the supplied estimator. Record the
-   stationary range values, driven route, mission result, and final pose.
-2. Calculate the expected median of the usable readings and compare it with
-   your `SensorModel` result.
-3. Select your estimator and repeat every case. Confirm that the selected map
-   condition follows the measured range rather than the virtual world's label.
-4. Repeat with the other student components selected to distinguish sensing,
+   stationary range readings, selected route, mission result, and final pose.
+2. Calculate the median of the usable readings and compare it with the reported
+   estimate.
+3. Select your estimator and repeat every case. Verify that range determines
+   the map condition.
+4. Repeat with all carried-forward student components to distinguish sensing,
    planning, navigation, odometry, and wheel-control results.
 5. Before physical motion, inspect stationary range values and sensor
-   direction. Run the matched arena from its marked start and record the range
-   values, driven route, mission result, and final pose.
+   direction. Then run the matched arena from its marked start and record the
+   readings, selected route, result, and final pose.
