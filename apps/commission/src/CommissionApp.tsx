@@ -1871,7 +1871,7 @@ export function CommissionApp() {
                 <button
                   className="primary-button"
                   disabled={Boolean(navigationDestination)}
-                  onClick={() => void exitSetup("../ide/")}
+                  onClick={() => void exitSetup("../workspace/?mode=ide")}
                   type="button"
                 >
                   Open IDE

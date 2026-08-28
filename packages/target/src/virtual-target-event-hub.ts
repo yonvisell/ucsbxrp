@@ -169,36 +169,16 @@ export class VirtualTargetEventHub {
     status: Extract<TargetEvent, { type: "status" }>,
     fallbackTelemetry: TelemetryEvent,
   ): number {
-    let latestRunStart = -1;
-    for (let index = this.consoleHistory.length - 1; index >= 0; index -= 1) {
-      const event = this.consoleHistory[index];
-      if (event?.action === "run" && event.phase === "request") {
-        latestRunStart = index;
-        break;
-      }
+    const retainedRun = this.retainedRun(status);
+    if (retainedRun) {
+      this.send(port, {
+        type: "event",
+        event: { ...retainedRun, phase: "begin" },
+      });
     }
-
-    if (latestRunStart >= 0) {
-      for (const event of this.consoleHistory.slice(0, latestRunStart)) {
-        this.send(port, {
-          type: "event",
-          event: { ...event, replayed: true },
-        });
-      }
-      for (const event of this.consoleHistory.slice(latestRunStart)) {
-        this.send(port, { type: "event", event });
-      }
-      const replayed = this.replayTelemetry(port);
-      if (this.roles.get(port) === "monitor" && replayed === 0) {
-        this.send(port, {
-          type: "telemetry-batch",
-          events: [fallbackTelemetry],
-        });
-      }
-      this.send(port, { type: "event", event: status });
-      return replayed;
-    }
-
+    // Current status is the only live lifecycle boundary for a newly attached
+    // app. The explicit history envelope lets a Monitor display a completed
+    // run without treating it as a new run or saving it again.
     this.send(port, { type: "event", event: status });
     const replayed = this.replayTelemetry(port);
     if (this.roles.get(port) === "monitor" && replayed === 0) {
@@ -213,7 +193,38 @@ export class VirtualTargetEventHub {
         event: { ...event, replayed: true },
       });
     }
+    if (retainedRun) {
+      this.send(port, {
+        type: "event",
+        event: { ...retainedRun, phase: "end" },
+      });
+    }
     return replayed;
+  }
+
+  private retainedRun(
+    status: Extract<TargetEvent, { type: "status" }>,
+  ): Omit<Extract<TargetEvent, { type: "run-history" }>, "phase"> | null {
+    const request = this.consoleHistory.findLast(
+      (event) => event.action === "run" && event.phase === "request",
+    );
+    const runId = request?.requestId ?? request?.eventId;
+    if (!request || !runId) return null;
+    const terminal = this.consoleHistory.findLast(
+      (event) =>
+        event.requestId === runId &&
+        (event.phase === "result" || event.phase === "error"),
+    );
+    return {
+      type: "run-history",
+      runId,
+      startedAtMs: request.timestampMs ?? Date.now(),
+      ...(terminal?.timestampMs === undefined
+        ? {}
+        : { finishedAtMs: terminal.timestampMs }),
+      state: status.state,
+      detail: status.detail,
+    };
   }
 
   replayTelemetry(port: VirtualWorkerPort): number {

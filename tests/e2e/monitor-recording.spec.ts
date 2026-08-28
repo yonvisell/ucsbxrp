@@ -95,7 +95,7 @@ test("keeps one completed run ready for notes and every export", async ({
       async () =>
         readWorkspaceTextFile(
           monitor,
-          "UCSBXRP diagnostic log.txt",
+          "UCSBXRP_diagnostic.log",
           monitorWorkspace,
         ).catch(() => ""),
       { message: "Monitor should append its completed-run summary" },
@@ -103,7 +103,7 @@ test("keeps one completed run ready for notes and every export", async ({
     .toContain('event="run.finished"');
   const diagnosticLog = await readWorkspaceTextFile(
     monitor,
-    "UCSBXRP diagnostic log.txt",
+    "UCSBXRP_diagnostic.log",
     monitorWorkspace,
   );
   expect(diagnosticLog).toContain('app="Monitor"');
@@ -449,7 +449,7 @@ test("selects plotted signals from the Monitor controls", async ({
   const appNavigation = page.locator(".app-navigation");
   await expect(
     appNavigation.getByRole("link", { name: "IDE", exact: true }),
-  ).toHaveAttribute("href", "../ide/");
+  ).toHaveAttribute("href", "../workspace/?mode=ide");
   await expect(
     appNavigation.getByRole("link", { name: "Monitor", exact: true }),
   ).toHaveAttribute("aria-current", "page");

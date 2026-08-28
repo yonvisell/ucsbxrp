@@ -9,8 +9,8 @@ export function SplitWorkspaceLink() {
     <a
       aria-label="Open IDE and Monitor together"
       className="header-icon-button split-workspace-link"
-      href="../workspace/"
-      title="Open the IDE and Monitor together in this tab."
+      href="../workspace/?mode=split"
+      title="Show the IDE and Monitor together."
     >
       <SplitWorkspaceIcon />
       <span className="visually-hidden">IDE and Monitor together</span>

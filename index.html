@@ -20,8 +20,10 @@
       </a>
       <nav aria-label="Course applications" class="app-navigation">
         <a aria-current="page" class="app-navigation-link" href="./">Home</a>
-        <a class="app-navigation-link" href="./ide/">IDE</a>
-        <a class="app-navigation-link" href="./monitor/">Monitor</a>
+        <a class="app-navigation-link" href="./workspace/?mode=ide">IDE</a>
+        <a class="app-navigation-link" href="./workspace/?mode=monitor"
+          >Monitor</a
+        >
         <a class="app-navigation-link" href="./guide/">Guide</a>
         <a class="app-navigation-link" href="./commission/">Set up or Repair</a>
         <a class="app-navigation-link" href="./reference/">API</a>
@@ -31,26 +33,13 @@
       <p class="eyebrow">UCSB Wheeled Robotics</p>
       <h1>Program, Simulate, and Run Live Telemetry for the XRP robot</h1>
       <nav class="landing-actions" aria-label="Course tools">
-        <a class="primary-link" href="./ide/">Open IDE</a>
-        <a class="secondary-link" href="./monitor/">Open Monitor</a>
+        <a class="primary-link" href="./workspace/?mode=ide">Open IDE</a>
+        <a class="secondary-link" href="./workspace/?mode=monitor"
+          >Open Monitor</a
+        >
         <a class="secondary-link" href="./guide/">Guide and overview</a>
         <a class="secondary-link" href="./reference/">UCSB XRP API</a>
-        <button
-          aria-describedby="install-course-tools-help"
-          class="secondary-link"
-          data-testid="install-course-tools"
-          hidden
-          id="install-course-tools"
-          type="button"
-        >
-          Install UCSBXRP app — strongly recommended
-        </button>
       </nav>
-      <p class="landing-install-help" hidden id="install-course-tools-help">
-        Adds a UCSBXRP launcher and separate app window. Chrome saves the course
-        apps separately for offline use; project files remain in Project folders
-        inside the Working folder you choose.
-      </p>
       <p
         aria-live="polite"
         class="landing-browser-support"
@@ -75,20 +64,11 @@
       </nav>
     </main>
     <script type="module">
-      import {
-        registerOfflineShell,
-        registerOfflineShellBeforeReload,
-        retryPendingOfflineShellReload,
-      } from "/apps/shared/offline-shell.ts";
+      import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
 
       registerOfflineShell();
 
       const browserSupport = document.querySelector("#landing-browser-support");
-      const installButton = document.querySelector("#install-course-tools");
-      const installHelp = document.querySelector("#install-course-tools-help");
-      let installPrompt = null;
-      let installPromptActive = false;
-      registerOfflineShellBeforeReload(() => !installPromptActive);
       const supportsCourseApps =
         window.isSecureContext &&
         "serviceWorker" in navigator &&
@@ -108,36 +88,6 @@
         browserSupport.textContent =
           "This browser can show the documentation, but the complete course apps require Google Chrome or Microsoft Edge on a Windows or macOS computer.";
       }
-
-      window.addEventListener("beforeinstallprompt", (event) => {
-        event.preventDefault();
-        installPrompt = event;
-        installButton.hidden = false;
-        installHelp.hidden = false;
-      });
-
-      installButton.addEventListener("click", async () => {
-        if (!installPrompt) return;
-        installPromptActive = true;
-        installButton.disabled = true;
-        try {
-          await installPrompt.prompt();
-          await installPrompt.userChoice;
-          installPrompt = null;
-          installButton.hidden = true;
-          installHelp.hidden = true;
-        } finally {
-          installPromptActive = false;
-          installButton.disabled = false;
-          retryPendingOfflineShellReload();
-        }
-      });
-
-      window.addEventListener("appinstalled", () => {
-        installPrompt = null;
-        installButton.hidden = true;
-        installHelp.hidden = true;
-      });
     </script>
   </body>
 </html>

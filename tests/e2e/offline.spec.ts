@@ -150,7 +150,8 @@ test("creates a folder-backed project and reopens the course apps without intern
   expect(problems.externalRequests).toEqual([]);
 });
 
-test("offers the installed-app launcher when Chrome makes installation available", async ({
+test("uses ordinary browser tabs and caches every student page", async ({
+  context,
   page,
 }) => {
   await page.goto(coursePath());
@@ -160,39 +161,24 @@ test("offers the installed-app launcher when Chrome makes installation available
     }),
   ).toBeVisible();
   await expectOfflineShellReady(page);
+  await expect(page.getByTestId("install-course-tools")).toHaveCount(0);
 
-  const installButton = page.getByTestId("install-course-tools");
-  await expect(installButton).toBeHidden();
-  await page.evaluate(() => {
-    const testWindow = window as typeof window & {
-      __installPromptCalls?: number;
-    };
-    testWindow.__installPromptCalls = 0;
-    const promptEvent = new Event("beforeinstallprompt", { cancelable: true });
-    Object.defineProperties(promptEvent, {
-      prompt: {
-        value: () => {
-          testWindow.__installPromptCalls =
-            (testWindow.__installPromptCalls ?? 0) + 1;
-        },
-      },
-      userChoice: {
-        value: Promise.resolve({ outcome: "accepted", platform: "web" }),
-      },
-    });
-    window.dispatchEvent(promptEvent);
+  await page.close();
+  await context.setOffline(true);
+
+  const guide = await context.newPage();
+  await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
+  await expect(
+    guide.getByRole("heading", { name: "Guide", exact: true }),
+  ).toBeVisible();
+  await expectOfflineShellReady(guide);
+
+  const workspace = await context.newPage();
+  await workspace.goto(coursePath("workspace/?mode=ide"), {
+    waitUntil: "domcontentloaded",
   });
-  await expect(installButton).toBeVisible();
-  await expect(installButton).toHaveText(
-    "Install UCSBXRP app — strongly recommended",
-  );
-  await installButton.click();
-  await expect(installButton).toBeHidden();
-  expect(
-    await page.evaluate(
-      () =>
-        (window as typeof window & { __installPromptCalls?: number })
-          .__installPromptCalls,
-    ),
-  ).toBe(1);
+  await expect(
+    workspace.getByRole("button", { name: "IDE", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expectOfflineShellReady(workspace);
 });

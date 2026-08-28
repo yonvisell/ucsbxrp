@@ -8,7 +8,7 @@ async function readDiagnosticLog(page: Page, folderName: string) {
     const workingFolder = await root.getDirectoryHandle(name);
     try {
       const handle = await workingFolder.getFileHandle(
-        "UCSBXRP diagnostic log.txt",
+        "UCSBXRP_diagnostic.log",
       );
       return (await handle.getFile()).text();
     } catch (error) {
@@ -143,7 +143,7 @@ test("writes IDE troubleshooting events only to the Working folder log", async (
   );
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByTestId("settings-panel")).toContainText(
-    "Troubleshooting log: UCSBXRP diagnostic log.txt",
+    "Troubleshooting log: UCSBXRP_diagnostic.log",
   );
   await page.getByRole("button", { name: "Close settings" }).click();
 
@@ -173,7 +173,7 @@ test("writes IDE troubleshooting events only to the Working folder log", async (
       const projectFolder =
         await workingFolder.getDirectoryHandle(projectFolderName);
       try {
-        await projectFolder.getFileHandle("UCSBXRP diagnostic log.txt");
+        await projectFolder.getFileHandle("UCSBXRP_diagnostic.log");
         return true;
       } catch (error) {
         if (error instanceof DOMException && error.name === "NotFoundError") {

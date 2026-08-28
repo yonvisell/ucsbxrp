@@ -54,7 +54,9 @@ history; they are not parallel plans. Detailed validation belongs in
   walls, blocks, start/finish regions, waypoints, and display markers.
 - The production package is static and local-first: browser assets are cached
   by the browser; student source, logs, recordings, and exports remain ordinary
-  files in the selected Project folder.
+  files in the selected Project folder. The ordinary bookmarked browser URL
+  reopens without internet; choosing a Working folder also creates
+  `Open UCSBXRP.html` as a transparent local launcher.
 
 ## Active outcomes, in priority order
 
@@ -78,7 +80,9 @@ IDE and Monitor now retain one completed run with the same boundary in both
 virtual and physical modes. A Monitor opened after completion reconstructs the
 Run request, only that run's samples, and its terminal state; a later run
 replaces rather than appends to the dataset. Physical stopped telemetry remains
-visible live but is not included in the completed run. The attached XRP
+visible live but is not included in the completed run. Two simultaneous
+Monitors share one target run identity and create only one archive and one
+terminal diagnostic event. The attached XRP
 reproduces a 2.65 s Straight Run as 111 samples over 2.7 s whether Run begins in
 IDE or Monitor, with all export controls available afterward.
 
@@ -108,7 +112,7 @@ IDE/Monitor state, 50 Hz course telemetry without retained-sample gaps, and
 complete logs. The current release also passes a public custom-hotspot cycle,
 explicit computer-Wi-Fi instruction, physical Run, and return to Pink. A cold
 reopen while the computer has no internet remains useful independent evidence
-for the installed-app path. Retain cancellation and retry coverage in the
+for the saved ordinary-browser path. Retain cancellation and retry coverage in the
 simulated commissioning suite.
 
 The official SparkFun/WPILib `v2.1.0` firmware-to-course-firmware path now
@@ -159,7 +163,7 @@ The offline manifest already provides content-derived application identity;
 do not add another build-ID mechanism. Treat `release_sequence` as robot runtime
 identity and raise `minimum_robot_release_sequence` only for an incompatible
 service, protocol, API, or installed-library change. Verify update adoption from
-an old installed PWA while a project picker, edit, and run are active. Explain
+an older saved browser release while a project picker, edit, and run are active. Explain
 the available/current release in student language without exposing cache
 machinery.
 

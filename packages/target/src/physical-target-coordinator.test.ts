@@ -437,7 +437,7 @@ describe("physical target coordinator", () => {
     expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
   });
 
-  it("replays only the latest completed run in causal order to a late Monitor", async () => {
+  it("does not reopen a completed run when a late Monitor connects", async () => {
     let target!: FakePhysicalTarget;
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
       target = new FakePhysicalTarget(endpoint);
@@ -524,18 +524,16 @@ describe("physical target coordinator", () => {
     const latestRunRequestIndex = replay.findIndex(
       (event) => event.type === "console" && event.requestId === "run-2",
     );
+    expect(replay[latestRunRequestIndex]).toMatchObject({ replayed: true });
     const firstTelemetryIndex = replay.findIndex(
       (event) => event.type === "telemetry",
     );
     const terminalStatusIndex = replay.findIndex(
-      (event, index) =>
-        index > firstTelemetryIndex &&
-        event.type === "status" &&
-        event.state === "ready",
+      (event) => event.type === "status" && event.state === "ready",
     );
     expect(latestRunRequestIndex).toBeGreaterThanOrEqual(0);
-    expect(firstTelemetryIndex).toBeGreaterThan(latestRunRequestIndex);
-    expect(terminalStatusIndex).toBeGreaterThan(firstTelemetryIndex);
+    expect(terminalStatusIndex).toBeGreaterThanOrEqual(0);
+    expect(firstTelemetryIndex).toBeGreaterThan(terminalStatusIndex);
     expect(
       replay
         .filter(

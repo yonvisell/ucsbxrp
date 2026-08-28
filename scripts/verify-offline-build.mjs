@@ -84,8 +84,8 @@ assert.equal(
 );
 assert.equal(
   webAppManifest.start_url,
-  "./ide/",
-  "installed app must open the IDE",
+  "./workspace/?mode=ide",
+  "installed app must open the single IDE and Monitor workspace",
 );
 assert.equal(
   webAppManifest.scope,
@@ -94,8 +94,8 @@ assert.equal(
 );
 assert.equal(
   webAppManifest.display,
-  "standalone",
-  "installed app must open without browser chrome",
+  "browser",
+  "course pages must reopen in an ordinary browser tab",
 );
 assert.deepEqual(
   webAppManifest.icons?.map(({ sizes, src, type }) => ({ sizes, src, type })),

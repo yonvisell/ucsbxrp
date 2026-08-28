@@ -1,76 +1,152 @@
-# Current release recovery handoff
+# Current recovery handoff
 
-Updated: 2026-08-28, immediately before restarting the ChatGPT/Codex desktop app.
+Updated: 2026-08-28 after the first runtime/offline recovery checkpoint.
 
-## Objective
+## Governing objective
 
-Produce a dependable public UCSBXRP release that a colleague or TA can use independently: choose a Working folder, commission a new XRP, create or open a Project, compile and run it on virtual or physical hardware, use Monitor and saved run data, and diagnose ordinary failures without hidden state or unexplained windows. Functionality and first-use comprehension take priority over secondary polish.
+Continue from the new prompt at the head of
+`docs/USER_NEW_PROMPT_GUIDANCE.md`. Produce a public UCSBXRP release that a
+colleague or TA can use independently with a new computer and XRP: choose one
+Working folder, set up or repair the robot, create or open a Project, compile
+and run on virtual or physical XRP, use Monitor and saved run data, and recover
+from ordinary failures without hidden state or unexplained windows.
+Functionality and first-use comprehension take priority over secondary polish.
 
-## Repository and local runtime
+The older prompts in that file and `docs/open-user-issues-now.md` are evidence
+for remaining gaps; they are not competing plans. `docs/CURRENT_PRODUCT_OUTCOMES.md`
+is the live product backlog and `STATUS.md` is the validation ledger.
 
-- Repository HEAD: `ebba6e9`.
-- No tracked source changes were made during this interrupted recovery pass.
-- Preserve the existing untracked user material: `arena_cam/`, `docs/USER_NEW_PROMPT_GUIDANCE.md`, `docs/open-user-issues-now.md`, `docs/hardware/2026-08-28-dev40-station-and-motion.json`, and `outputs/`.
-- Before restart, the only Node listener was Vite on `127.0.0.1:4174` (PID 68647, parent 68626). Restarting ChatGPT will probably stop it; restart exactly one server on port 4174 afterward.
-- Obsolete preview servers on ports 5173 and 5174, seven orphaned Codex UI kernels, and a 20-hour runaway Coursemobilerobotics worker were stopped. The persistent launch job `codex.current-driven-oscillator` was unloaded.
+## Failure evidence that must remain in scope
 
-## Direct evidence from the failed public-release session
+The failed public session used Working folder
+`/Users/yon/Documents/New_XRP_0828` and its 130-line diagnostic log. Three
+GitHub-served surfaces were simultaneously present on the secondary display:
+an installed-PWA Monitor, an installed-PWA combined workspace, and a normal
+Chrome IDE. Together they produced multiple IDE authorities, duplicate target
+records, a completed run replayed as a new millisecond run, a virtual run
+stopped by navigation, state-dependent workspace controls, and unpredictable
+window creation. These were one architecture failure involving surface
+ownership, runtime lifetime, history replay, and persistence—not an isolated
+Run-button error.
 
-The Working folder is `/Users/yon/Documents/New_XRP_0828`. Its diagnostic file is `/Users/yon/Documents/New_XRP_0828/UCSBXRP diagnostic log.txt` (130 lines). The three relevant UCSBXRP windows were inspected on the secondary physical display:
+The current checkpoint addresses that entire constellation:
 
-1. an installed-PWA Monitor window;
-2. an installed-PWA `/workspace/` window with embedded IDE and Monitor;
-3. a normal Chrome IDE window.
+- IDE, Monitor, and Side by side now use one ordinary browser workspace and do
+  not open new app windows.
+- The workspace keeps both embedded clients mounted while changing layout, so
+  the IDE authority is not unloaded by switching to Monitor.
+- Duplicate IDEs expose one active provider and a visible **Use this IDE**
+  takeover instead of silently competing.
+- Retained run history is explicitly delimited and never treated as a new run.
+- Active and completed late-Monitor attachment preserve one stable target run
+  identity.
+- Two Monitors write one archive and one terminal diagnostic event.
+- The cumulative log is now `UCSBXRP_diagnostic.log`.
+- Installed-app promotion is removed. The complete site is cached
+  automatically, reopens from a bookmark in an ordinary tab, and a selected
+  Working folder receives `Open UCSBXRP.html` as a transparent launcher.
 
-The log establishes the central state failure:
+## Evidence at this checkpoint
 
-- two IDE instances were attached simultaneously to one virtual target;
-- one action was received and logged by both IDEs with the same event and request identifiers;
-- a newly opened Monitor replayed an already completed run as a new run lasting only milliseconds;
-- at 18:35:07 an IDE navigation/disconnect stopped the active virtual run (`request_id="disconnect-6"`), followed immediately by a replacement IDE session;
-- the replacement surface replayed prior Run and Stop records as though they were current.
+- `npm run build`: passed; offline manifest contains 322 files.
+- `npm run test:offline`: passed.
+- 50 focused target, folder, diagnostic, and run-dataset tests: passed.
+- Eight production-Chrome scenarios passed together:
+  - late Monitor after a completed run;
+  - two simultaneous Monitors with one saved archive/log event;
+  - two IDE tabs and provider continuation;
+  - live IDE resizing;
+  - split/narrow workspace resizing and collapse;
+  - default IDE workspace mode;
+  - project-backed offline Run;
+  - close all pages, go offline, then open Guide and IDE by URL.
 
-This is an architecture defect involving redundant controllers, page-owned runtime lifetime, and history replay. It is not a defective Run button and should not be handled by another stored flag or state fallback.
+No physical XRP test and no public deployment were performed for this
+checkpoint. The attached robot and Pink station path remain the next critical
+empirical boundary.
 
-## Confirmed code causes
+## Immediate remaining work
 
-1. `packages/target/src/virtual-target-event-hub.ts::replayCurrentState()` deliberately marks console events before the latest Run as replayed but sends the latest Run and later events as live. A late Monitor therefore creates a false new run.
-2. `packages/target/src/virtual-target.ts` owns the MicroPython runtime worker in the IDE page. `pagehide`/`beforeunload` calls `disconnect()`, and disconnecting the run owner terminates the active virtual run.
-3. `apps/shared/AppNavigation.tsx` opens IDE-to-Monitor and Monitor-to-IDE links with `_blank`; inside the installed app this creates additional PWA windows.
-4. `apps/shared/SplitWorkspaceLink.tsx` replaces the current tab with `/workspace/`, unloading the run-owning IDE.
-5. `public/manifest.webmanifest` scopes the installed standalone app to the entire UCSBXRP site. The landing page strongly recommends installation even though the service worker already supplies offline assets independently of installation.
-6. `apps/workspace/src/WorkspaceApp.tsx` and `styles.css` add a redundant `IDE + Monitor` title, a five-pixel split gap, non-collapsible 36--64 percent limits, and another IDE instance.
-7. The collapsed Monitor controls rail is 28 px wide; the user found it much too wide.
+1. **Connection and setup reliability.** Exercise a clean/repaired XRP on Pink
+   from the current browser surface. Confirm `.ucsbxrp.json` is the only
+   serializable workspace/robot authority, station identity survives the setup
+   handoff, Reconnect uses the verified address and SSID, IDE and Monitor agree,
+   and Run/Stop/Reset/rerun produce motors, encoders, telemetry, output, and a
+   useful cumulative log. Then regression-test hotspot without stranding the
+   development session.
+2. **Project workflow.** Replace the remaining confusing Project-panel action
+   distribution and vocabulary with one visible workflow: open an existing
+   Project inside the Working folder, create a named Project from a clearly
+   categorized template, or save the built-in preview as a Project. A fresh or
+   newly commissioned Working folder must open Expanding Spiral, never a stale
+   challenge. Picker cancellation or invalid folders must leave the current
+   Project unchanged and explain the next action.
+3. **Monitor semantics and presentation.** Reassess recording versus automatic
+   run capture, export wording/state, notes, sample counts/rates, World zoom and
+   axes, arena walls/legend, controls width, path reset, and run replacement as
+   one workflow. Do not restore separate IDE/Monitor program-output surfaces.
+4. **Guide/API/challenge/tutorial clarity.** Apply the current user guidance:
+   consistent objective language, real API parameter/return/exception
+   documentation and class purposes, usable diagrams, legible typography,
+   rendered README files, clear component responsibilities, and a more gradual
+   Python-to-UCSBXRP tutorial sequence. This follows the connection/project
+   runtime boundary.
+5. **First-use adversarial pass.** Start from a fresh browser profile/Working
+   folder and factory-like robot state; perform setup, default virtual run,
+   physical run, second Project, Monitor, refresh/reopen/offline, and ordinary
+   recovery using only visible UI. Inspect every resulting screen and log, not
+   only assertions.
+6. **Consolidation.** Refactor only after these workflows pass. Remove obsolete
+   state/recovery paths, stale docs, dead routes, and unnecessary package files;
+   then measure the obvious bundle/runtime low-hanging fruit.
+7. Commit final stages locally, remove internal/user harness files from the
+   public Git tree while retaining them locally, push, and verify the exact
+   GitHub Pages build from a clean browser session.
 
-## Recovery strategy already agreed
+## Directives and backlog sources
 
-Use one browser surface and one runtime authority. Do not add another persistence location or migration layer. The Working-folder `.ucsbxrp.json` remains the serialized user configuration authority; a browser directory handle is only the browser capability needed to access that folder.
+Read these in this order, without restarting broad audits:
 
-Implementation order:
+1. This handoff.
+2. The **NEW PROMPT FROM USER** at the head of
+   `docs/USER_NEW_PROMPT_GUIDANCE.md`.
+3. `docs/CURRENT_PRODUCT_OUTCOMES.md`, especially active outcomes and later
+   usability refinements.
+4. `docs/open-user-issues-now.md` for eclectic UI/feature observations that
+   must be interpreted rather than treated as literal requirements.
+5. `STATUS.md` for completed evidence and hardware baseline.
+6. `SYSTEM_DESIGN.md` only where an implementation decision needs current
+   architectural context.
 
-1. Simplify PWA/browser navigation and the IDE--Monitor workspace so opening Monitor or the combined view does not create redundant controllers or silently replace a running owner.
-2. Make every retained console event explicitly historical. A late Monitor may reconstruct an actually active run from the current target status and retained telemetry, but must never synthesize a completed run or save it again.
-3. Remove page-lifetime ownership from the virtual runtime if practical; otherwise make the UI keep the actual owner alive and prohibit owner-replacing navigation during a run. Prefer moving runtime authority into the shared target over more ownership leases or recovery flags.
-4. Standardize the cumulative diagnostic filename as `UCSBXRP_diagnostic.log`, deduplicate shared event identifiers across surfaces, and do not log telemetry values.
-5. Exercise realistic sequences: fresh load; folder/setup handoff; Expanding Spiral default; Compile/Run/Stop/Reset; open Monitor before, during, and after a run; refresh/reopen; side-by-side; second tab; then Project creation/opening and error recovery.
-6. Verify station-mode setup, physical run, telemetry, and Monitor on Pink before deployment. Hotspot remains a regression path, but station mode is the immediate development path.
-7. Only after these workflows pass, consolidate harness documents, refactor/prune obsolete state paths, address the remaining high-value Project/Guide/API/Monitor usability issues, commit, publish, and verify the exact public build.
+The older `USER_REQUIREMENTS_*` and audit documents are source history. Extract
+unique unresolved user outcomes, but do not recreate another checklist or
+repeat audits already merged into `CURRENT_PRODUCT_OUTCOMES.md`.
 
-## Harness consolidation result
+## Repository and local-only material
 
-`docs/CURRENT_PRODUCT_OUTCOMES.md` should be the sole live product backlog; `STATUS.md` the evidence/resume ledger; `docs/VALIDATION_PLAN.md` the validation strategy; `SYSTEM_DESIGN.md` the current architecture. The top of `STATUS.md`, `IMPLEMENTATION_PLAN.md`, and portions of `SYSTEM_DESIGN.md` are stale and contradict dev.41 evidence. Do not rewrite all documents before fixing the runtime; record this recovery at the top, then archive superseded audits after extracting any unique product principles.
+Preserve these untracked paths: `arena_cam/`,
+`docs/USER_NEW_PROMPT_GUIDANCE.md`, `docs/open-user-issues-now.md`,
+`docs/hardware/2026-08-28-dev40-station-and-motion.json`, and `outputs/`.
+Before any public push, untrack and ignore the Codex/user harness identified by
+the repository audit: root `AGENTS.md`, `CODEX_IMPLEMENTATION_PROMPT.md`,
+`IMPLEMENTATION_PLAN.md`, `PROJECT_CONTEXT.md`, `STATUS.md`; the current
+recovery/product/requirements/audit documents; local hardware evidence; and
+generated outputs. Keep public course-facing Guide/API/reference, instructor
+authoring, system-design, legal, template, and README material.
 
-The completed documentation agent proposed moving historical audits to `docs/archive/` rather than deleting them. Its detailed path list remains in the conversation record; no files were moved.
+Do not rewrite public history unless explicitly requested. Removing internal
+files from the current Git tree is sufficient for this release; preserve local
+copies under ignored paths.
 
-## Agents and work state
+## Resume commands
 
-- `guide_api_consistency` completed a read-only authority/archive audit; no files changed.
-- `first_use_adversary` and `remaining_gap_audit` were interrupted for the app restart before delivering final reports; no shared-file changes were reported.
-- Resume with a clean context from this file and the current user guidance; do not repeat the initial diagnosis or restart broad audits.
+1. `git status --short` and preserve the local-only paths above.
+2. Confirm exactly one cache-free Vite server on `127.0.0.1:4174`; do not start
+   another port.
+3. Inspect current target settings from `.ucsbxrp.json`, browser UI, and the
+   attached XRP before changing connection code.
+4. Continue with the Pink physical first-use slice, then Project workflow.
 
-## First commands after restart
-
-1. Confirm `git status --short` and preserve the untracked paths listed above.
-2. Confirm no stale servers; start exactly one Vite server on `127.0.0.1:4174` if needed.
-3. Re-read this file, then inspect the complete runtime lifecycle in `virtual-target.shared-worker.ts`, `virtual-target.ts`, `virtual-target-event-hub.ts`, and the Monitor run-dataset event handler.
-4. Implement the single-authority/navigation and replay correction as the first vertical slice, add scenario-level regression tests, update `STATUS.md`, and commit the slice locally.
+The prior task was compacting unusually often because of its exceptional
+length. Resume from this file and the checkpoint commit without repeating the
+completed architecture diagnosis.

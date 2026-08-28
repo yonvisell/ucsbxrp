@@ -231,4 +231,55 @@ describe("virtual target event hub", () => {
       ),
     );
   });
+
+  it("envelopes retained Run history and marks its console records historical", () => {
+    const hub = new VirtualTargetEventHub();
+    hub.broadcast({
+      type: "console",
+      stream: "system",
+      line: "Starting project",
+      action: "run",
+      phase: "request",
+      requestId: "run-1",
+    });
+    hub.broadcast({ type: "telemetry", sample: sample(1) });
+    hub.broadcast({
+      type: "console",
+      stream: "system",
+      line: "Program completed",
+      action: "run",
+      phase: "result",
+      requestId: "run-1",
+    });
+
+    const monitor = new FakePort();
+    hub.attach(monitor);
+    hub.setRole(monitor, "monitor");
+    hub.replayCurrentState(
+      monitor,
+      { type: "status", state: "ready", detail: "Program completed" },
+      { type: "telemetry", sample: sample(2) },
+    );
+
+    const replay = targetEvents(monitor);
+    expect(replay[0]).toMatchObject({
+      type: "run-history",
+      phase: "begin",
+      runId: "run-1",
+      state: "ready",
+    });
+    expect(replay[1]).toMatchObject({ type: "status", state: "ready" });
+    expect(replay.at(-1)).toMatchObject({
+      type: "run-history",
+      phase: "end",
+      runId: "run-1",
+    });
+    expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
+      1,
+    ]);
+    expect(consoleEvents(monitor)).toEqual([
+      expect.objectContaining({ requestId: "run-1", replayed: true }),
+      expect.objectContaining({ requestId: "run-1", replayed: true }),
+    ]);
+  });
 });

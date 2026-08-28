@@ -172,7 +172,7 @@ available in the wizard and later from IDE Settings; credentials pass directly
 to the XRP over USB and are not stored by the web application.
 
 Selecting a Working folder performs a real write-and-read check and creates
-`UCSBXRP diagnostic log.txt` in that folder. Setup, IDE, and Monitor append
+`UCSBXRP_diagnostic.log` in that folder. Setup, IDE, and Monitor append
 environment details, operations, connection state, program/service errors, and
 run summaries to this one bounded troubleshooting file. It does not contain
 Wi-Fi passwords, credentials, project source, or telemetry measurements. The
@@ -286,10 +286,7 @@ not saved or exported last only for the current browser session. The course
 apps are not copied into the Working folder. Clearing the site's Chrome data
 removes the saved course apps, settings, browser-held project changes, and
 remembered folder access, but does not remove files in a selected Working
-folder. Select the folder again to restore access. The optional **Install
-UCSBXRP app** button on the landing page
-adds a launcher and standalone app window when Chrome offers it; the installed
-app uses the same browser storage and update process. Browser storage is not a
+folder. Select the folder again to restore access. Browser storage is not a
 permanent project backup and can also be removed under storage pressure;
 working-folder files are unaffected.
 

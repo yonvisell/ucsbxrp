@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  readWorkspaceTextFile,
   replaceWorkspaceProject,
   seedWorkingFolder,
   type TestProject,
@@ -111,4 +112,59 @@ test("a late Monitor restores one completed run and replaces it on direct Run", 
   );
   expect(secondRunCount).toBeGreaterThan(4);
   expect(secondRunCount).toBeLessThan(firstRunCount);
+});
+
+test("two open Monitors save one copy of the same run", async ({
+  context,
+  page: ide,
+}) => {
+  test.setTimeout(45_000);
+  const folderName = "Shared-Monitor-Run";
+  await seedWorkingFolder(ide, { folderName });
+  await ide.goto("/ide/");
+
+  const firstMonitor = await context.newPage();
+  const secondMonitor = await context.newPage();
+  await firstMonitor.goto("/monitor/");
+  await secondMonitor.goto("/monitor/");
+  await expect(firstMonitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(secondMonitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(firstMonitor.getByTestId("recording-count")).toContainText(
+    "Current run",
+  );
+  await expect(secondMonitor.getByTestId("recording-count")).toContainText(
+    "Current run",
+  );
+  await firstMonitor.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(firstMonitor.getByTestId("recording-count")).toContainText(
+    "Expanding spiral ·",
+  );
+  await expect(secondMonitor.getByTestId("recording-count")).toContainText(
+    "Expanding spiral ·",
+  );
+
+  const autosaveNames = await firstMonitor.evaluate(async (selectedFolder) => {
+    const root = await navigator.storage.getDirectory();
+    const workspace = await root.getDirectoryHandle(selectedFolder);
+    const project = await workspace.getDirectoryHandle("Expanding-Spiral");
+    const autosaves = await project.getDirectoryHandle("UCSB_XRP_Autosaves");
+    const names: string[] = [];
+    for await (const [name] of autosaves.entries()) names.push(name);
+    return names.sort();
+  }, folderName);
+  expect(autosaveNames).toContain("telemetry-1.csv");
+  expect(autosaveNames).not.toContain("telemetry-2.csv");
+
+  const diagnostic = await readWorkspaceTextFile(
+    firstMonitor,
+    "UCSBXRP_diagnostic.log",
+    folderName,
+  );
+  expect(diagnostic.match(/event="run\.finished"/g)).toHaveLength(1);
 });

@@ -73,6 +73,7 @@ import {
 import {
   MonitorRunDatasetController,
   type MonitorRunDataset,
+  type MonitorRunOutput,
 } from "./monitor-run-dataset";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
 import {
@@ -85,6 +86,12 @@ interface ConsoleEntry {
   id: string;
   stream: "stdout" | "stderr" | "system";
   line: string;
+}
+
+interface ReplayedRunBuffer {
+  boundary: Extract<TargetEvent, { type: "run-history" }>;
+  samples: TelemetrySample[];
+  output: MonitorRunOutput[];
 }
 
 function completedRunMetadata(run: MonitorRunDataset) {
@@ -673,6 +680,7 @@ export function DashboardApp() {
   const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
   const nextRunIdRef = useRef(1);
   const observedRunRequestIdsRef = useRef(new Set<string>());
+  const replayedRunRef = useRef<ReplayedRunBuffer | null>(null);
   const diagnosticWriteErrorShownRef = useRef(false);
   const diagnosticLog = useMemo(
     () =>
@@ -1062,11 +1070,15 @@ export function DashboardApp() {
   );
 
   const beginRunDataset = useCallback(
-    (source: TelemetrySample["source"]): string => {
+    (
+      source: TelemetrySample["source"],
+      identity?: { id: string; startedAtMs?: number; replayed?: boolean },
+    ): string => {
       if (runDatasetController.activeId) {
         return runDatasetController.activeId;
       }
-      const runId = `${source}-${Date.now()}-${nextRunIdRef.current++}`;
+      const runId =
+        identity?.id ?? `${source}-${Date.now()}-${nextRunIdRef.current++}`;
       const catalog = worldCatalogRef.current;
       const selectedWorld =
         catalog.worlds.find(
@@ -1078,7 +1090,7 @@ export function DashboardApp() {
         project: currentProjectRef.current,
         worldId: selectedWorld.id,
         world: selectedWorld,
-        startedAt: new Date().toISOString(),
+        startedAt: new Date(identity?.startedAtMs ?? Date.now()).toISOString(),
       });
       activeRunFolderRef.current = autosaveFolderRef.current;
       setActiveRunId(runId);
@@ -1091,16 +1103,18 @@ export function DashboardApp() {
           ? `Will save automatically to ${autosaveFolderRef.current.name}.`
           : "Run data will not be saved; reconnect the Project folder in the IDE.",
       );
-      diagnosticLog.record({
-        event: "run.started",
-        eventId: `run-started:${runId}`,
-        message: JSON.stringify({
-          runId,
-          target: source,
-          project: currentProjectRef.current?.name ?? null,
-          world: selectedWorld.id,
-        }),
-      });
+      if (!identity?.replayed) {
+        diagnosticLog.record({
+          event: "run.started",
+          eventId: `run-started:${runId}`,
+          message: JSON.stringify({
+            runId,
+            target: source,
+            project: currentProjectRef.current?.name ?? null,
+            world: selectedWorld.id,
+          }),
+        });
+      }
       return runId;
     },
     [diagnosticLog, plotSampleHistory, runDatasetController],
@@ -1177,6 +1191,10 @@ export function DashboardApp() {
         rateSamples.push(event.sample);
         if (rateSamples.length > 41) rateSamples.shift();
 
+        if (event.replayed === true && replayedRunRef.current) {
+          replayedRunRef.current.samples.push(event.sample);
+        }
+
         const capturedByRun = runDatasetController.capture(event.sample);
         if (capturedByRun) {
           const telemetryRestarted = plotSampleHistory.append(event.sample);
@@ -1192,7 +1210,17 @@ export function DashboardApp() {
           // A Monitor can attach after another tab requested Run. Entering the
           // target's running state is an unambiguous fallback boundary; Reset
           // and connection work never enter this state.
-          beginRunDataset(target.kind);
+          const retained = replayedRunRef.current?.boundary;
+          beginRunDataset(
+            target.kind,
+            retained
+              ? {
+                  id: retained.runId,
+                  startedAtMs: retained.startedAtMs,
+                  replayed: true,
+                }
+              : undefined,
+          );
         }
         if (!nextRunActive && runDatasetController.isActive) {
           finishActiveRun(event.state, event.detail);
@@ -1275,6 +1303,60 @@ export function DashboardApp() {
       } else if (event.type === "world") {
         setWorldCatalog(event.catalog);
         setSelectedWorldId(event.selectedWorldId);
+      } else if (event.type === "run-history") {
+        if (event.phase === "begin") {
+          replayedRunRef.current = {
+            boundary: event,
+            samples: [],
+            output: [],
+          };
+        } else {
+          const replayed = replayedRunRef.current;
+          replayedRunRef.current = null;
+          if (
+            replayed &&
+            replayed.boundary.runId === event.runId &&
+            !runDatasetController.isActive &&
+            replayed.samples.length > 0
+          ) {
+            const catalog = worldCatalogRef.current;
+            const selectedWorld =
+              catalog.worlds.find(
+                (world) => world.id === selectedWorldIdRef.current,
+              ) ?? catalog.worlds[0]!;
+            const restored = runDatasetController.restore({
+              id: event.runId,
+              target: target.kind,
+              project: currentProjectRef.current,
+              worldId: selectedWorld.id,
+              world: selectedWorld,
+              startedAt: new Date(event.startedAtMs).toISOString(),
+              finishedAt: new Date(
+                event.finishedAtMs ?? event.startedAtMs,
+              ).toISOString(),
+              finalState: event.state,
+              finalDetail: event.detail,
+              recording: {
+                schemaVersion: 3,
+                samples: replayed.samples,
+                droppedSamples: 0,
+              },
+              output: replayed.output,
+              annotations: [],
+            });
+            activeRunFolderRef.current = null;
+            latestRunFolderRef.current = null;
+            setActiveRunId(null);
+            setLatestRun(restored);
+            annotationsRef.current = [];
+            setAnnotations([]);
+            plotSampleHistory.clear(false);
+            setPlotSamples(restored.recording.samples);
+            setRunAutosaveDetail(
+              "Showing the most recent XRP run; it was not saved again.",
+            );
+          }
+        }
       } else if (event.type === "console") {
         if (!projectProviderAvailableRef.current) {
           diagnosticLog.record({
@@ -1316,7 +1398,12 @@ export function DashboardApp() {
             // structured Run event is the shared start boundary; Reset and
             // connection transitions do not emit it and therefore cannot
             // create an empty or mislabeled run.
-            beginRunDataset(target.kind);
+            beginRunDataset(target.kind, {
+              id:
+                requestIdentity ??
+                `${target.kind}-${event.timestampMs ?? Date.now()}`,
+              startedAtMs: event.timestampMs,
+            });
           }
         }
         const entry = {
@@ -1324,6 +1411,14 @@ export function DashboardApp() {
           stream: event.stream,
           line: event.line,
         };
+        const replayedRun = replayedRunRef.current;
+        if (
+          replayedRun &&
+          event.replayed === true &&
+          replayedRun.boundary.runId === event.requestId
+        ) {
+          replayedRun.output.push(entry);
+        }
         runDatasetController.addOutput(entry);
       }
     });
@@ -1367,6 +1462,7 @@ export function DashboardApp() {
       runtimeUpdateTimers.current.clear();
       plotSampleHistory.clear(false);
       projectProviderAvailableRef.current = false;
+      replayedRunRef.current = null;
       target.disconnect();
     };
   }, [
@@ -2149,7 +2245,7 @@ export function DashboardApp() {
                     <div className="recording-actions">
                       <a
                         className="monitor-project-link"
-                        href="../ide/"
+                        href="../workspace/?mode=ide"
                         title="Open the IDE to choose a Working folder and create or open a Project."
                       >
                         Open a Project in the IDE

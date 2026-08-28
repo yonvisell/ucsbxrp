@@ -150,7 +150,7 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/workspace/");
+  await page.goto("/workspace/?mode=split");
 
   const ideFrame = page.frameLocator('iframe[title="UCSBXRP IDE"]');
   const monitorFrame = page.frameLocator('iframe[title="UCSBXRP Monitor"]');
@@ -176,7 +176,7 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
     name: "Resize IDE and Monitor",
   });
   await separator.focus();
-  await page.keyboard.press("End");
+  await page.keyboard.press("Shift+ArrowRight");
   const resizedIdeBox = await idePane.boundingBox();
   expect(resizedIdeBox?.width).toBeGreaterThan(initialIdeBox?.width ?? 0);
 
@@ -202,8 +202,7 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   );
 
   await page.setViewportSize({ width: 901, height: 900 });
-  await separator.focus();
-  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "Side by side" }).click();
   const minimumWideIdeBox = await idePane.boundingBox();
   const minimumWideMonitorBox = await monitorPane.boundingBox();
   expect(minimumWideIdeBox?.width).toBeGreaterThanOrEqual(320);
@@ -224,4 +223,22 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   await page.getByRole("button", { name: "IDE", exact: true }).click();
   await expect(idePane).toBeVisible();
   await expect(monitorPane).toBeHidden();
+
+  await page.getByRole("button", { name: "Stacked" }).click();
+  const stackedSeparator = page.getByRole("separator", {
+    name: "Resize IDE and Monitor",
+  });
+  await stackedSeparator.focus();
+  await page.keyboard.press("End");
+  await expect(idePane).toBeVisible();
+  await expect(monitorPane).toBeHidden();
+});
+
+test("workspace opens in IDE mode unless the user selects another layout", async ({
+  page,
+}) => {
+  await page.goto("/workspace/");
+  await expect(page.getByRole("region", { name: "IDE pane" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Monitor pane" })).toBeHidden();
+  await expect(page).toHaveURL(/mode=ide/);
 });

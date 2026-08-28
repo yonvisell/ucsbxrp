@@ -172,6 +172,16 @@ export type TargetEvent =
       selectedWorldId: string;
     }
   | {
+      /** Delimits one retained run while a newly opened Monitor catches up. */
+      type: "run-history";
+      phase: "begin" | "end";
+      runId: string;
+      startedAtMs: number;
+      finishedAtMs?: number;
+      state: TargetRunState;
+      detail: string;
+    }
+  | {
       type: "physical-network";
       mode: "access_point" | "station";
       address: string;

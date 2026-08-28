@@ -220,6 +220,9 @@ describe("virtual target shared session", () => {
     expect(
       replayedConsole.every((event) => Number.isFinite(event.timestampMs)),
     ).toBe(true);
+    expect(replayedConsole.every((event) => event.replayed === true)).toBe(
+      true,
+    );
 
     lateTab.disconnect();
     ide.disconnect();

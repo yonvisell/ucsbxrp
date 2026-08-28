@@ -422,33 +422,15 @@ export class PhysicalTargetCoordinator {
       this.send(port, { type: "event", event: this.latestWorld });
     }
 
-    let latestRunStart = -1;
-    for (let index = this.consoleHistory.length - 1; index >= 0; index -= 1) {
-      const event = this.consoleHistory[index];
-      if (event?.action === "run" && event.phase === "request") {
-        latestRunStart = index;
-        break;
-      }
+    const retainedRun = this.retainedRun();
+    if (retainedRun) {
+      this.send(port, {
+        type: "event",
+        event: { ...retainedRun, phase: "begin" },
+      });
     }
-
-    if (latestRunStart >= 0) {
-      // Earlier console lines remain available without reopening their old
-      // run boundaries. The latest Run request, its telemetry, and the final
-      // status are then replayed in the same causal order as a live run.
-      for (const event of this.consoleHistory.slice(0, latestRunStart)) {
-        this.send(port, {
-          type: "event",
-          event: { ...event, replayed: true },
-        });
-      }
-      for (const event of this.consoleHistory.slice(latestRunStart)) {
-        this.send(port, { type: "event", event });
-      }
-      this.replayTelemetry(port);
-      this.send(port, { type: "event", event: this.latestStatus });
-      return;
-    }
-
+    // Only the current device status is live. The history envelope restores a
+    // completed run for display without starting or archiving it again.
     this.send(port, { type: "event", event: this.latestStatus });
     this.replayTelemetry(port);
     for (const event of this.consoleHistory) {
@@ -457,6 +439,38 @@ export class PhysicalTargetCoordinator {
         event: { ...event, replayed: true },
       });
     }
+    if (retainedRun) {
+      this.send(port, {
+        type: "event",
+        event: { ...retainedRun, phase: "end" },
+      });
+    }
+  }
+
+  private retainedRun(): Omit<
+    Extract<TargetEvent, { type: "run-history" }>,
+    "phase"
+  > | null {
+    const request = this.consoleHistory.findLast(
+      (event) => event.action === "run" && event.phase === "request",
+    );
+    const runId = request?.requestId ?? request?.eventId;
+    if (!request || !runId || this.latestStatus.type !== "status") return null;
+    const terminal = this.consoleHistory.findLast(
+      (event) =>
+        event.requestId === runId &&
+        (event.phase === "result" || event.phase === "error"),
+    );
+    return {
+      type: "run-history",
+      runId,
+      startedAtMs: request.timestampMs ?? Date.now(),
+      ...(terminal?.timestampMs === undefined
+        ? {}
+        : { finishedAtMs: terminal.timestampMs }),
+      state: this.latestStatus.state,
+      detail: this.latestStatus.detail,
+    };
   }
 
   private send(port: PhysicalWorkerPort, message: PhysicalWorkerMessage): void {

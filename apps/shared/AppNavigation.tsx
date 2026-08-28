@@ -7,8 +7,8 @@ const destinations: ReadonlyArray<{
   label: string;
 }> = [
   { id: "home", href: "../", label: "Home" },
-  { id: "ide", href: "../ide/", label: "IDE" },
-  { id: "monitor", href: "../monitor/", label: "Monitor" },
+  { id: "ide", href: "../workspace/?mode=ide", label: "IDE" },
+  { id: "monitor", href: "../workspace/?mode=monitor", label: "Monitor" },
   { id: "guide", href: "../guide/", label: "Guide" },
   {
     id: "commission",
@@ -37,18 +37,6 @@ export function AppNavigation({
           className="app-navigation-link"
           href={destination.href}
           key={destination.id}
-          rel={
-            (active === "ide" && destination.id === "monitor") ||
-            (active === "monitor" && destination.id === "ide")
-              ? "noopener"
-              : undefined
-          }
-          target={
-            (active === "ide" && destination.id === "monitor") ||
-            (active === "monitor" && destination.id === "ide")
-              ? "_blank"
-              : undefined
-          }
           onClick={
             disabled || onNavigate
               ? (event) => {

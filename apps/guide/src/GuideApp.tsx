@@ -63,9 +63,10 @@ export function GuideApp() {
           <GuideSection id="virtual-run" number="01" title="First virtual run">
             <ol className="procedure">
               <li>
-                Open the <a href="../ide/">IDE</a> in Chrome. When prompted,
-                choose a <strong>Working folder</strong>: the parent folder that
-                will contain all of your named Project folders.
+                Open the <a href="../workspace/?mode=ide">IDE</a> in Chrome.
+                When prompted, choose a <strong>Working folder</strong>: the
+                parent folder that will contain all of your named Project
+                folders.
               </li>
               <li>
                 If the Working folder is empty, the IDE creates and opens an
@@ -80,9 +81,9 @@ export function GuideApp() {
                 select <strong>Run</strong>.
               </li>
               <li>
-                Open the <a href="../monitor/">Monitor</a> in another tab to
-                inspect the world, telemetry, and plots. IDE and Monitor show
-                the same selected target and Run/Stop state.
+                Select <strong>Monitor</strong> or <strong>Side by side</strong>
+                in the workspace header to inspect the world, telemetry, and
+                plots. Both views show the same target and Run/Stop state.
               </li>
             </ol>
             <h3>Course sequence</h3>
@@ -576,47 +577,40 @@ export function GuideApp() {
 
           <GuideSection id="offline-use" number="07" title="Offline use">
             <p>
-              UCSBXRP is a progressive web app (PWA): Chrome can save the course
-              applications for later use without internet. Chrome stores this
-              application copy in the browser profile, not in the Working
-              folder. The Working folder contains your Project folders, run
-              data, and exports.
+              Chrome automatically saves a complete copy of the UCSBXRP course
+              pages after one online load. The copy belongs to the Chrome
+              profile on that computer; it is not stored in the Working folder.
+              The Working folder contains Project folders, saved run data, and
+              exports.
             </p>
-            <h3>Save the course applications</h3>
+            <h3>Prepare before class</h3>
             <ol className="procedure">
               <li>
                 While the computer has internet access, open the UCSBXRP home
-                page in the Chrome profile you will use in class. Wait until the
-                page reports <strong>Course apps available offline</strong>.
+                page in the Chrome profile you will use in class. Wait until it
+                reports <strong>Ready without internet</strong>.
               </li>
               <li>
-                Open the IDE and Monitor once to verify that both load, then
-                choose the Working folder in the IDE. Project files remain
-                ordinary files in that folder.
-              </li>
-              <li>
-                Optionally use Chrome&apos;s install action. Installation adds
-                an operating-system launcher and a separate app window. It does
-                not add a file to the Working folder, and it is not required for
-                offline operation.
+                Bookmark that home-page address, then choose a Working folder in
+                the IDE. The IDE, Monitor, Guide, API reference, virtual XRP,
+                and setup page are already included; they do not need to be
+                opened separately. The Working folder also receives an
+                <code>Open UCSBXRP.html</code> launcher.
               </li>
             </ol>
             <h3>Reopen without internet</h3>
             <ol className="procedure">
               <li>
-                If installed, open <strong>UCSBXRP</strong> from the operating
-                system&apos;s app launcher. It is a Chrome application, not a
-                file in the Working folder.
-              </li>
-              <li>
-                If not installed, use a bookmark or browser history to revisit
-                the same UCSBXRP web address in the same Chrome profile on the
-                same computer. A search result or a different address still
-                requires internet.
+                Open the bookmark in the same Chrome profile on the same
+                computer. The ordinary browser tab works after Chrome has been
+                closed and while the computer has no internet connection. A
+                search result or a different web address still requires
+                internet. You may instead double-click
+                <code>Open UCSBXRP.html</code> in the Working folder.
               </li>
               <li>
                 Reconnect the Working folder if Chrome asks for permission. The
-                Project folders were not moved or copied by the PWA.
+                Project folders remain ordinary folders on the computer.
               </li>
             </ol>
             <div className="offline-capabilities">
@@ -855,7 +849,7 @@ export function GuideApp() {
               </li>
               <li>
                 <strong>When you ask course staff for help:</strong> send the
-                <code> UCSBXRP diagnostic log.txt</code> file from the Working
+                <code> UCSBXRP_diagnostic.log</code> file from the Working
                 folder and state the last action that failed. The file records
                 setup, connection, Compile, Run, Stop, Reset, and save or export
                 errors. It does not contain project source files or telemetry

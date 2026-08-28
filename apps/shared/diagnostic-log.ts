@@ -5,7 +5,7 @@ import {
   type CourseFileHandle,
 } from "./course-folder";
 
-export const diagnosticLogFileName = "UCSBXRP diagnostic log.txt";
+export const diagnosticLogFileName = "UCSBXRP_diagnostic.log";
 export const diagnosticLogMaxBytes = 1024 * 1024;
 
 const retainedLogBytes = 768 * 1024;
@@ -293,12 +293,53 @@ export class DiagnosticLogWriter {
         create: true,
       });
       const file = await handle.getFile();
-      if (file.size + byteLength(content) <= diagnosticLogMaxBytes) {
-        await this.append(handle, file.size, content);
+      const uniqueContent = await this.removeEventIdsAlreadyOnDisk(
+        file,
+        content,
+      );
+      if (!uniqueContent) return;
+      if (file.size + byteLength(uniqueContent) <= diagnosticLogMaxBytes) {
+        await this.append(handle, file.size, uniqueContent);
         return;
       }
-      await this.compactAndWrite(handle, file, content);
+      await this.compactAndWrite(handle, file, uniqueContent);
     });
+  }
+
+  /**
+   * IDE and Monitor can observe the same shared-target event. The file is the
+   * common authority, so discard an event ID already written by another tab.
+   */
+  private async removeEventIdsAlreadyOnDisk(
+    file: File,
+    incoming: string,
+  ): Promise<string> {
+    if (this.eventIdsIn(incoming).length === 0) return incoming;
+    const existingIds = new Set(this.eventIdsIn(await file.text()));
+    const acceptedIds = new Set<string>();
+    return incoming
+      .split(/(?<=\n)/)
+      .filter((line) => {
+        const [eventId] = this.eventIdsIn(line);
+        if (!eventId) return true;
+        if (existingIds.has(eventId) || acceptedIds.has(eventId)) return false;
+        acceptedIds.add(eventId);
+        return true;
+      })
+      .join("");
+  }
+
+  private eventIdsIn(content: string): string[] {
+    const values: string[] = [];
+    const pattern = /(?:^| )event_id=("(?:\\.|[^"\\])*")(?= |\n|$)/g;
+    for (const match of content.matchAll(pattern)) {
+      try {
+        values.push(JSON.parse(match[1]!) as string);
+      } catch {
+        // A malformed older line remains readable but is not a dedupe key.
+      }
+    }
+    return values;
   }
 
   private async append(

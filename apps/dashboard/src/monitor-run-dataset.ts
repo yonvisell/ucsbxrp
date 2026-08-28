@@ -150,6 +150,35 @@ export class MonitorRunDatasetController {
     return this.completed;
   }
 
+  /** Display retained target history without creating another saved run. */
+  restore(run: MonitorRunDataset): MonitorRunDataset {
+    this.recorder.clear();
+    this.active = null;
+    this.output = run.output.map((entry) => ({ ...entry }));
+    this.annotations = run.annotations.map((annotation) => ({ ...annotation }));
+    this.completed = {
+      ...run,
+      project: run.project ? { ...run.project } : null,
+      world: structuredClone(run.world),
+      recording: {
+        ...run.recording,
+        samples: run.recording.samples.map((sample) => ({
+          ...sample,
+          accelerationMg: sample.accelerationMg
+            ? [...sample.accelerationMg]
+            : null,
+          angularRateMdps: sample.angularRateMdps
+            ? [...sample.angularRateMdps]
+            : null,
+          plotValues: sample.plotValues?.map((plot) => ({ ...plot })),
+        })),
+      },
+      output: this.output,
+      annotations: this.annotations,
+    };
+    return this.completed;
+  }
+
   clear(): void {
     this.recorder.clear();
     this.active = null;

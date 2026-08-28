@@ -4,6 +4,30 @@ Last updated: 2026-08-28
 
 ## Current result
 
+Refinement 71 replaces the multi-window PWA/runtime failure with one ordinary
+browser workspace. IDE, Side by side, and Monitor are modes of one persistent
+workspace; switching modes keeps the same embedded IDE authority alive. A
+second IDE is visibly standby and can take control explicitly. Installed-app
+promotion was removed: the complete site is still saved automatically by its
+service worker, reopens from the same bookmarked URL without internet, and now
+writes an `Open UCSBXRP.html` launcher into a selected Working folder.
+
+Retained target history now has an explicit run envelope. A Monitor joining an
+active run receives its stable target run ID and history; a Monitor opened after
+completion restores the completed dataset for plots and exports without
+creating a millisecond run or saving it again. Two simultaneous Monitors share
+that run identity, write one autosave generation, and append one terminal event
+to `UCSBXRP_diagnostic.log`. The diagnostic file itself removes a repeated
+event ID under the existing cross-tab file lock.
+
+This boundary passes 50 focused TypeScript tests, the production build and
+322-file offline verification, and eight production-Chrome workflows. Those
+workflows cover active and completed late-Monitor attachment, two Monitors,
+two IDEs, explicit owner continuation, full-window and split resizing,
+collapse to either pane, project-backed offline use, a complete page close,
+and opening both Guide and IDE from their ordinary URLs with the browser
+offline. No public deployment was made at this boundary.
+
 Refinement 70 removes another set of competing browser authorities. The
 Working-folder manifest and its active Project folder now determine startup,
 Monitor Run, and changes of Working folder. Monitor can compile and run that

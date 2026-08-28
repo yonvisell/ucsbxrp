@@ -452,6 +452,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const [currentProject, setCurrentProject] =
     useState<SynchronizedProject | null>(null);
   const [projectProviderActive, setProjectProviderActive] = useState(false);
+  const [projectProviderAvailable, setProjectProviderAvailable] =
+    useState(false);
   const [checkDetail, setCheckDetail] = useState(
     "The current project has not been compiled.",
   );
@@ -911,6 +913,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       return;
     }
     setProjectProviderActive(false);
+    setProjectProviderAvailable(false);
     projectProviderActiveRef.current = false;
     target.setProjectRunProvider(provideProjectRunSnapshot);
     diagnosticLog.record({
@@ -1025,6 +1028,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       } else if (event.type === "project-provider") {
         projectProviderActiveRef.current = event.active;
         setProjectProviderActive(event.active);
+        setProjectProviderAvailable(event.available);
       }
     });
     targetStateRef.current = "connecting";
@@ -1358,9 +1362,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     (target.kind === "virtual" && targetState === "error");
   const isRunning = targetState === "running" || targetState === "loading";
   const canCommand =
-    targetState === "ready" ||
-    (target.kind === "virtual" && targetState === "error");
+    projectProviderActive &&
+    (targetState === "ready" ||
+      (target.kind === "virtual" && targetState === "error"));
   const canRunProject = canCommand;
+
+  const useThisIde = useCallback(() => {
+    target.setProjectRunProvider(provideProjectRunSnapshot, { takeover: true });
+  }, [provideProjectRunSnapshot, target]);
   const projectCheckFile = checkFileForProject(project);
   const checkingExercises = projectCheckFile === "exercise_checks.py";
   const projectFiles = useMemo(
@@ -3175,7 +3184,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <select
             aria-label="Run on"
             className="target-select"
-            disabled={isRunning || targetState === "connecting"}
+            disabled={
+              !projectProviderActive ||
+              isRunning ||
+              targetState === "connecting"
+            }
             onChange={(event) =>
               updateTargetPreference((current) => ({
                 ...current,
@@ -3235,7 +3248,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <button
             aria-label="Reset"
             className="header-icon-button"
-            disabled={!isConnected}
+            disabled={!projectProviderActive || !isConnected}
             onClick={resetTarget}
             title="Stop the program and restore the selected XRP to its initial course state."
           >
@@ -3245,6 +3258,16 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <SplitWorkspaceLink />
         </div>
         <div className="header-statuses">
+          {!projectProviderActive && projectProviderAvailable ? (
+            <button
+              className="quiet-button"
+              onClick={useThisIde}
+              title="Make this visible IDE the one that supplies and runs the current project."
+              type="button"
+            >
+              Use this IDE
+            </button>
+          ) : null}
           <div
             aria-live="polite"
             className="connection-pill"
@@ -3254,9 +3277,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           >
             <span aria-hidden="true" className={`status-dot ${targetState}`} />
             <span>
-              {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} ·{" "}
-              {targetState}
-              {target.kind === "physical" ? ` · ${physicalStatus}` : ""}
+              {!projectProviderActive && projectProviderAvailable
+                ? "Another IDE controls Run"
+                : `${target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} · ${targetState}${target.kind === "physical" ? ` · ${physicalStatus}` : ""}`}
             </span>
           </div>
           {target.kind === "physical" && targetState === "error" ? (

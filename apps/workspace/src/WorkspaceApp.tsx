@@ -4,6 +4,12 @@ import { ResizableSeparator } from "../../shared/ResizableSeparator";
 
 type WorkspaceMode = "split" | "ide" | "monitor";
 
+function initialMode(): WorkspaceMode {
+  if (typeof window === "undefined") return "ide";
+  const requested = new URLSearchParams(window.location.search).get("mode");
+  return requested === "split" || requested === "monitor" ? requested : "ide";
+}
+
 function initiallyWide(): boolean {
   return (
     typeof window === "undefined" ||
@@ -13,7 +19,7 @@ function initiallyWide(): boolean {
 }
 
 export function WorkspaceApp() {
-  const [mode, setMode] = useState<WorkspaceMode>("split");
+  const [mode, setModeState] = useState<WorkspaceMode>(initialMode);
   const [wide, setWide] = useState(initiallyWide);
   const [splitPercent, setSplitPercent] = useState(50);
 
@@ -25,15 +31,38 @@ export function WorkspaceApp() {
     return () => query.removeEventListener("change", update);
   }, []);
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("mode") === mode) return;
+    url.searchParams.set("mode", mode);
+    window.history.replaceState(null, "", url);
+  }, [mode]);
+
   const splitStyle: CSSProperties = wide
     ? {
-        gridTemplateColumns: `${splitPercent}fr 5px ${100 - splitPercent}fr`,
+        gridTemplateColumns: `${splitPercent}fr 1px ${100 - splitPercent}fr`,
         gridTemplateRows: "minmax(0, 1fr)",
       }
     : {
         gridTemplateColumns: "minmax(0, 1fr)",
-        gridTemplateRows: `${splitPercent}fr 5px ${100 - splitPercent}fr`,
+        gridTemplateRows: `${splitPercent}fr 1px ${100 - splitPercent}fr`,
       };
+
+  const setMode = (next: WorkspaceMode): void => {
+    setModeState(next);
+  };
+
+  const resizePanes = (next: number): void => {
+    if (next <= 5) {
+      setMode("monitor");
+      return;
+    }
+    if (next >= 95) {
+      setMode("ide");
+      return;
+    }
+    setSplitPercent(next);
+  };
 
   return (
     <div className="workspace-app">
@@ -42,7 +71,6 @@ export function WorkspaceApp() {
           <span className="brand-mark">UCSB</span>
           <span className="brand-xrp">XRP</span>
         </a>
-        <strong className="workspace-title">IDE + Monitor</strong>
         <div
           aria-label="Workspace layout"
           className="workspace-layout-controls"
@@ -90,9 +118,9 @@ export function WorkspaceApp() {
         {mode === "split" ? (
           <ResizableSeparator
             label="Resize IDE and Monitor"
-            maximum={64}
-            minimum={36}
-            onChange={setSplitPercent}
+            maximum={95}
+            minimum={5}
+            onChange={resizePanes}
             orientation={wide ? "vertical" : "horizontal"}
             value={splitPercent}
           />

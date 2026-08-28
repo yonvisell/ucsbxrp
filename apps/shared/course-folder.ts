@@ -79,6 +79,7 @@ const obsoleteFolderCapabilityKeys = [
   "active-project-folder-v2",
 ] as const;
 export const workspaceManifestFile = ".ucsbxrp.json";
+export const workspaceLauncherFile = "Open UCSBXRP.html";
 const projectManifestFile = ".ucsb-xrp-project.json";
 
 export class WorkspaceManifestError extends Error {
@@ -121,7 +122,7 @@ Generation 1 is newest; generation 4 is oldest.
 - run-N.json: target, project, time, and completion metadata
 
 Explicit CSV downloads are separate and are never rotated here.
-The cumulative UCSBXRP diagnostic log.txt file is in the Working folder itself.
+The cumulative UCSBXRP_diagnostic.log file is in the Working folder itself.
 `;
 
 function isNotFound(error: unknown): boolean {
@@ -302,6 +303,31 @@ export interface WorkspaceFolderSelection {
   remembered: boolean;
 }
 
+export function workspaceLauncherHtml(courseHomeUrl: string): string {
+  const url = courseHomeUrl.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="0; url=${url}">
+<title>Open UCSBXRP</title>
+<p><a href="${url}">Open UCSBXRP</a></p>
+</html>
+`;
+}
+
+async function writeWorkspaceLauncher(handle: CourseDirectoryHandle) {
+  if (!import.meta.env.PROD || typeof window === "undefined") return;
+  const courseHomeUrl = new URL(
+    import.meta.env.BASE_URL,
+    window.location.origin,
+  ).href;
+  await writeCourseTextFile(
+    handle,
+    workspaceLauncherFile,
+    workspaceLauncherHtml(courseHomeUrl),
+  );
+}
+
 /** Remember the parent folder used when creating or opening projects. */
 export async function replaceRememberedWorkspaceFolder(
   handle: CourseDirectoryHandle,
@@ -312,6 +338,7 @@ export async function replaceRememberedWorkspaceFolder(
     return { changed, remembered: false };
   }
   try {
+    await writeWorkspaceLauncher(handle);
     const database = await openFolderDatabase();
     const transaction = database.transaction(handleStoreName, "readwrite");
     const completed = transactionComplete(transaction);

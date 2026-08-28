@@ -7,11 +7,25 @@ import {
   projectFolderIsInsideCourseFolder,
   requireWorkingFolderParent,
   updateWorkspaceManifest,
+  workspaceLauncherHtml,
   writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
   type CourseFileHandle,
 } from "./course-folder";
+
+describe("Working-folder launcher", () => {
+  it("opens the exact cached course origin without scripts", () => {
+    const html = workspaceLauncherHtml(
+      "https://yonvisell.github.io/ucsbxrp/?release=1&mode=ide",
+    );
+    expect(html).toContain(
+      'href="https://yonvisell.github.io/ucsbxrp/?release=1&amp;mode=ide"',
+    );
+    expect(html).toContain('http-equiv="refresh"');
+    expect(html).not.toContain("<script");
+  });
+});
 
 class MemoryFileHandle {
   readonly kind = "file" as const;
