@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  readWorkspaceManifest,
+  seedWorkingFolder,
+  type TestProject,
+} from "./working-folder";
+
 const starters = [
   { option: "challenge_2", completion: "Challenge 2 complete" },
   { option: "challenge_3", completion: "Challenge 3 complete" },
@@ -7,59 +13,71 @@ const starters = [
   { option: "challenge_5", completion: "Challenge 5 result: delivered" },
 ];
 
-async function openTemplateInBrowser(page: Page, templateId: string) {
-  await page
-    .getByRole("button", { name: "New from template…", exact: true })
-    .click();
+async function createTemplateProject(page: Page, templateId: string) {
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption(templateId);
   await expect(
-    page.getByRole("heading", { name: "Create from a template" }),
+    page.getByRole("heading", { name: "New project" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Open temporarily" }).click();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(
+    0,
+  );
 }
 
 test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
   await expect(
-    page.getByRole("button", { name: "New from template…", exact: true }),
+    page.getByRole("button", { name: "New project…", exact: true }),
   ).toBeVisible();
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
+  await expect(page.getByTestId("project-folder")).toHaveText("Not selected");
+  await expect(page.getByTestId("project-save-state")).toHaveText(
+    "Read-only preview",
+  );
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
   ).toBeVisible();
 });
 
 test("opens a newly created tutorial on the Virtual XRP", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "ucsb-xrp-robot-profile-v2",
-      JSON.stringify({
-        schemaVersion: 2,
-        kind: "physical",
-        physicalConnection: "station",
-        stationEndpoint: "http://127.0.0.1:9",
-        accessPointEndpoint: "http://192.168.4.1",
-      }),
-    );
+  await seedWorkingFolder(page, {
+    folderName: "Tutorial-Target-Test",
+    robot: {
+      id: "tutorial-test-xrp",
+      name: "ucsb-xrp-tutorial-test",
+      networkMode: "station",
+      ssid: "COURSE-NETWORK",
+      address: "127.0.0.1:9",
+    },
+    target: "physical",
   });
   await page.goto("/ide/");
   await expect(page.getByLabel("Run on")).toHaveValue("physical");
 
-  await openTemplateInBrowser(page, "micropython_tutorial");
+  await createTemplateProject(page, "micropython_tutorial");
 
   await expect(page.getByLabel("Run on")).toHaveValue("virtual");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await expect
+    .poll(() =>
+      readWorkspaceManifest<{ settings?: { target?: string } }>(
+        page,
+        "Tutorial-Target-Test",
+      ),
+    )
+    .toMatchObject({ settings: { target: "virtual" } });
 });
 
 test("renders project README files and keeps their Markdown editable", async ({
   page,
 }) => {
+  await seedWorkingFolder(page, { folderName: "Readme-Rendering-Test" });
   await page.goto("/ide/");
-  await openTemplateInBrowser(page, "challenge_4");
+  await createTemplateProject(page, "challenge_4");
 
   const preview = page.getByLabel("Rendered Markdown preview");
   await expect(preview).toBeVisible();
@@ -107,6 +125,7 @@ test("runs the default project directly from a fresh Monitor", async ({
   context,
   page,
 }) => {
+  await seedWorkingFolder(page, { folderName: "Fresh-Monitor-Test" });
   await page.goto("/monitor/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -141,6 +160,7 @@ test("holds Virtual Run during the first isolated production refresh", async ({
   context,
   page,
 }) => {
+  await seedWorkingFolder(page, { folderName: "Isolation-Hold-Test" });
   await context.addInitScript(() => {
     Object.defineProperty(globalThis, "crossOriginIsolated", {
       configurable: true,
@@ -174,6 +194,7 @@ test("runs with declared live defaults if isolation disappears", async ({
   context,
   page,
 }) => {
+  await seedWorkingFolder(page, { folderName: "Isolation-Disappear-Test" });
   await page.goto("/monitor/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -216,15 +237,15 @@ test("runs with declared live defaults if isolation disappears", async ({
 test("Run reports a compilation error before starting invalid code", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "ucsb-xrp-course-project-v2",
-      JSON.stringify({
-        name: "invalid-project",
-        entrypoint: "main.py",
-        files: { "main.py": "def broken(:\n    pass\n" },
-      }),
-    );
+  const invalidProject: TestProject = {
+    name: "Invalid project",
+    entrypoint: "main.py",
+    files: { "main.py": "def broken(:\n    pass\n" },
+  };
+  await seedWorkingFolder(page, {
+    folderName: "Invalid-Project-Test",
+    project: invalidProject,
+    projectFolderName: "Invalid-Project",
   });
   await page.goto("/ide/");
 
@@ -241,8 +262,9 @@ test("Run reports a compilation error before starting invalid code", async ({
 test("runs hardware-free student component checks without changing the target", async ({
   page,
 }) => {
+  await seedWorkingFolder(page, { folderName: "Component-Checks-Test" });
   await page.goto("/ide/");
-  await openTemplateInBrowser(page, "challenge_1");
+  await createTemplateProject(page, "challenge_1");
 
   await expect(
     page.getByRole("button", { name: "Open README.md" }),
@@ -285,11 +307,14 @@ for (const starter of starters) {
       }
     });
 
+    await seedWorkingFolder(page, {
+      folderName: `Starter-${starter.option}`,
+    });
     await page.goto("/ide/");
     await expect(page.getByTestId("target-status")).toContainText(
       "Virtual XRP · ready",
     );
-    await openTemplateInBrowser(page, starter.option);
+    await createTemplateProject(page, starter.option);
     await page.getByRole("button", { name: "Compile" }).click();
     await expect(page.getByTestId("check-result")).toContainText(
       "compiled with MicroPython",
@@ -320,6 +345,7 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   page,
 }) => {
   await page.setViewportSize({ width: 1382, height: 752 });
+  await seedWorkingFolder(page, { folderName: "IDE-Layout-Test" });
   await page.goto("/ide/");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -362,7 +388,7 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   );
   await expect(page.locator(".file-type-icon")).toHaveCount(0);
 
-  await openTemplateInBrowser(page, "micropython_tutorial");
+  await createTemplateProject(page, "micropython_tutorial");
   await expect(
     page.getByRole("button", { name: "Open student_work.py" }),
   ).toBeVisible();
@@ -374,6 +400,7 @@ test("compiles all five active tutorials and reports unfinished exercises withou
   page: ide,
 }) => {
   test.setTimeout(90_000);
+  await seedWorkingFolder(ide, { folderName: "Tutorial-Suite-Test" });
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
   await ide.goto("/ide/");
@@ -424,7 +451,7 @@ test("compiles all five active tutorials and reports unfinished exercises withou
   ] as const;
 
   for (const tutorial of tutorials) {
-    await openTemplateInBrowser(ide, tutorial.id);
+    await createTemplateProject(ide, tutorial.id);
     const preview = ide.getByLabel("Rendered Markdown preview");
     await expect(preview).toBeVisible();
     await expect(
@@ -455,13 +482,14 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   page: ide,
 }) => {
   test.setTimeout(50_000);
+  await seedWorkingFolder(ide, { folderName: "Obstacle-Demo-Test" });
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await openTemplateInBrowser(ide, "demo_obstacle_turn");
+  await createTemplateProject(ide, "demo_obstacle_turn");
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
@@ -542,12 +570,13 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   page: ide,
 }) => {
   test.setTimeout(60_000);
+  await seedWorkingFolder(ide, { folderName: "Spiral-Demo-Test" });
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
 
-  await openTemplateInBrowser(ide, "demo_spiral");
+  await createTemplateProject(ide, "demo_spiral");
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "3 Python files compiled with MicroPython",
@@ -634,6 +663,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
   test.setTimeout(60_000);
   const monitor = await context.newPage();
   const ide = await context.newPage();
+  await seedWorkingFolder(ide, { folderName: "Challenge-Five-Test" });
   const errors: string[] = [];
   for (const page of [monitor, ide]) {
     page.on("pageerror", (error) => errors.push(error.message));
@@ -657,7 +687,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await openTemplateInBrowser(ide, "challenge_5");
+  await createTemplateProject(ide, "challenge_5");
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText(
     "Challenge 5 result: delivered",

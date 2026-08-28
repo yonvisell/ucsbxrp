@@ -868,11 +868,6 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(
     page.getByRole("status").filter({ hasText: "Robot service needs repair" }),
   ).toContainText("not the controller selected over USB-C");
-  expect(
-    await page.evaluate(() =>
-      localStorage.getItem("ucsb-xrp-robot-profile-v2"),
-    ),
-  ).toBeNull();
   await page.evaluate(() =>
     (
       window as unknown as {
@@ -887,25 +882,6 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(page.getByText("Robot setup is complete")).toBeVisible();
   await page.getByRole("button", { name: "Open IDE" }).click();
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "null"),
-      ),
-    )
-    .toMatchObject({
-      schemaVersion: 2,
-      kind: "physical",
-      robotId: "4c91fae8f1775aa4",
-      hostname: "ucsb-xrp-4c91fae8f1775aa4",
-      physicalConnection: "access_point",
-      stationEndpoint: "http://ucsb-xrp.local",
-      accessPointEndpoint: "http://192.168.4.1",
-      lastObservedNetwork: {
-        mode: "access_point",
-        address: "http://192.168.4.1",
-      },
-    });
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect(page.getByTestId("project-folder")).toHaveText(
     "Expanding-Spiral",

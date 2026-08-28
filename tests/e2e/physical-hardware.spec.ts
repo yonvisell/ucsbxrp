@@ -6,6 +6,8 @@ import {
 } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+import { replaceWorkspaceProject, seedWorkingFolder } from "./working-folder";
+
 const xrpAddress = process.env.XRP_ADDRESS?.trim();
 const physicalAllowed =
   process.env.XRP_E2E_PHYSICAL === "1" ||
@@ -217,35 +219,21 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     0,
   );
 
-  await context.addInitScript(
-    ({ address, project, robotId }) => {
-      localStorage.setItem(
-        "ucsb-xrp-robot-profile-v2",
-        JSON.stringify({
-          schemaVersion: 2,
-          kind: "physical",
-          robotId,
-          physicalConnection: "station",
-          stationEndpoint: `http://${address}`,
-          accessPointEndpoint: "http://192.168.4.1",
-        }),
-      );
-      if (!localStorage.getItem("ucsb-xrp-course-project-v2")) {
-        localStorage.setItem(
-          "ucsb-xrp-course-project-v2",
-          JSON.stringify(project),
-        );
-      }
-    },
-    {
-      address: xrpAddress!,
-      project: retainedZeroOutputProject,
-      robotId: initialInfo.robotId,
-    },
-  );
-
   const errors: string[] = [];
   const ide = await context.newPage();
+  await seedWorkingFolder(ide, {
+    folderName: "Physical-Hardware-Test",
+    project: retainedZeroOutputProject,
+    projectFolderName: "Physical-Service-Probe",
+    robot: {
+      id: initialInfo.robotId,
+      name: "ucsb-xrp",
+      networkMode: "station",
+      ssid: "COURSE-NETWORK",
+      address: xrpAddress!,
+    },
+    target: "physical",
+  });
   const monitor = await context.newPage();
   collectBrowserErrors(ide, errors);
   collectBrowserErrors(monitor, errors);
@@ -411,12 +399,10 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     ]);
 
     if (motionAllowed) {
-      await ide.evaluate((project) => {
-        localStorage.setItem(
-          "ucsb-xrp-course-project-v2",
-          JSON.stringify(project),
-        );
-      }, boundedMotionProject);
+      await replaceWorkspaceProject(ide, boundedMotionProject, {
+        folderName: "Physical-Hardware-Test",
+        projectFolderName: "Physical-Service-Probe",
+      });
       await ide.reload();
       await monitor.reload();
       await expect(ideStatus).toContainText("Physical XRP · ready", {

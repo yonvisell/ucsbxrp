@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 
+import { readWorkspaceManifest, seedWorkingFolder } from "./working-folder";
+
 const release = JSON.parse(
   readFileSync(
     new URL("../../vendor/current/release.json", import.meta.url),
@@ -24,6 +26,22 @@ let mockXrpEndpoint = "";
 let reachable = false;
 let serviceState: "ready" | "running" = "ready";
 let rejectedCommand: "stop" | "reset" | null = null;
+
+async function seedPhysicalWorkspace(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await seedWorkingFolder(page, {
+    folderName: "Physical-Network-Recovery",
+    robot: {
+      id: "network-recovery-xrp",
+      name: "ucsb-xrp",
+      networkMode: "station",
+      ssid: "TEST-NETWORK",
+      address: mockXrpEndpoint,
+    },
+    target: "physical",
+  });
+}
 
 test.beforeAll(async () => {
   mockXrp = createServer(async (request, response) => {
@@ -105,6 +123,7 @@ test.beforeAll(async () => {
     const body = url.pathname.endsWith("/info")
       ? {
           ...common,
+          robotId: "network-recovery-xrp",
           robotName: "ucsb-xrp",
           address: mockXrpEndpoint,
           network: {
@@ -156,29 +175,17 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   serviceState = "ready";
   rejectedCommand = null;
 
-  await context.addInitScript((endpoint) => {
-    localStorage.setItem(
-      "ucsb-xrp-target-v1",
-      JSON.stringify({
-        kind: "physical",
-        physicalConnection: "station",
-        physicalEndpoint: endpoint,
-      }),
-    );
-  }, mockXrpEndpoint);
-
   await ide.setViewportSize({ width: 850, height: 752 });
+  await seedPhysicalWorkspace(ide);
   await ide.goto("/ide/");
   await ide.getByRole("button", { name: "Project ›" }).click();
-  await ide
-    .getByRole("button", { name: "New from template…", exact: true })
-    .click();
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await expect(
     ide.getByRole("combobox", { name: "Project template" }),
   ).toHaveValue("");
   await expect(
     ide.getByRole("button", {
-      name: "Choose Working folder and create…",
+      name: "Create",
       exact: true,
     }),
   ).toBeDisabled();
@@ -238,24 +245,25 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(ide.getByRole("button", { name: "Compile" })).toBeEnabled();
   await expect
     .poll(() =>
-      ide.evaluate(() =>
-        JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "{}"),
-      ),
+      readWorkspaceManifest<{
+        settings?: { target?: string };
+        robot?: {
+          id?: string;
+          networkMode?: string;
+          address?: string;
+          ssid?: string;
+        };
+      }>(ide, "Physical-Network-Recovery"),
     )
     .toMatchObject({
-      schemaVersion: 2,
-      kind: "physical",
-      physicalConnection: "station",
-      stationEndpoint: mockXrpEndpoint,
-      accessPointEndpoint: "http://192.168.4.1",
-      lastObservedNetwork: {
-        mode: "station",
-        address: mockXrpEndpoint,
+      settings: { target: "physical" },
+      robot: {
+        id: "network-recovery-xrp",
+        networkMode: "station",
+        address: mockXrpEndpoint.replace(/^https?:\/\//, ""),
         ssid: "TEST-NETWORK",
-        fallback: false,
       },
     });
-
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText("Connected to ucsb-xrp");
   await expect(
@@ -270,18 +278,8 @@ test("reports a rejected physical Stop in the IDE System log", async ({
   reachable = true;
   serviceState = "running";
   rejectedCommand = "stop";
-  await context.addInitScript((endpoint) => {
-    localStorage.setItem(
-      "ucsb-xrp-target-v1",
-      JSON.stringify({
-        kind: "physical",
-        physicalConnection: "station",
-        physicalEndpoint: endpoint,
-      }),
-    );
-  }, mockXrpEndpoint);
-
   try {
+    await seedPhysicalWorkspace(ide);
     await ide.goto("/ide/");
     await expect(
       ide.getByRole("button", { name: "Stop", exact: true }),
@@ -303,18 +301,8 @@ test("reports a rejected physical Reset in the IDE System log", async ({
   reachable = true;
   serviceState = "ready";
   rejectedCommand = "reset";
-  await context.addInitScript((endpoint) => {
-    localStorage.setItem(
-      "ucsb-xrp-target-v1",
-      JSON.stringify({
-        kind: "physical",
-        physicalConnection: "station",
-        physicalEndpoint: endpoint,
-      }),
-    );
-  }, mockXrpEndpoint);
-
   try {
+    await seedPhysicalWorkspace(ide);
     await ide.goto("/ide/");
     await expect(
       ide.getByRole("button", { name: "Reset", exact: true }),

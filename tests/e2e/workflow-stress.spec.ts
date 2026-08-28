@@ -1,6 +1,8 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+import { readWorkspaceManifest, seedWorkingFolder } from "./working-folder";
+
 const release = JSON.parse(
   readFileSync(
     new URL("../../vendor/current/release.json", import.meta.url),
@@ -57,26 +59,6 @@ async function expectVirtualState(
  */
 async function installDelayedRememberedProject(page: Page) {
   await page.addInitScript(() => {
-    const recoveryKey = "ucsb-xrp-course-project-v2";
-    if (sessionStorage.getItem("ucsb-xrp-stress-folder-seeded") === null) {
-      sessionStorage.setItem("ucsb-xrp-stress-folder-seeded", "true");
-      localStorage.clear();
-      localStorage.setItem(
-        recoveryKey,
-        JSON.stringify({
-          name: "Wrong browser draft",
-          entrypoint: "main.py",
-          files: { "main.py": 'print("WRONG BROWSER PROJECT RAN")\n' },
-          session: {
-            projectId: "wrong-browser-project",
-            revision: 2,
-            savedRevision: 1,
-            updatedAt: 1_000,
-          },
-        }),
-      );
-    }
-
     const projectFiles: Record<string, string> = {
       ".ucsb-xrp-project.json": `${JSON.stringify({
         name: "Folder authority",
@@ -90,20 +72,30 @@ async function installDelayedRememberedProject(page: Page) {
       })}\n`,
       "main.py": 'print("FOLDER AUTHORITY RAN")\n',
     };
+    const workspaceFiles: Record<string, string> = {
+      ".ucsbxrp.json": `${JSON.stringify({
+        schemaVersion: 1,
+        activeProject: "Folder-Authority",
+        settings: { target: "virtual" },
+      })}\n`,
+    };
 
     class MemoryFileHandle {
       readonly kind = "file";
 
-      constructor(readonly name: string) {}
+      constructor(
+        readonly name: string,
+        private readonly files: Record<string, string>,
+      ) {}
 
       async getFile() {
-        return new File([projectFiles[this.name] ?? ""], this.name);
+        return new File([this.files[this.name] ?? ""], this.name);
       }
 
       async createWritable() {
         return {
           write: async (content: string | Blob) => {
-            projectFiles[this.name] =
+            this.files[this.name] =
               typeof content === "string" ? content : await content.text();
           },
           close: async () => undefined,
@@ -122,13 +114,17 @@ async function installDelayedRememberedProject(page: Page) {
       async *entries() {
         if (this.path.length === 0) {
           yield [
+            ".ucsbxrp.json",
+            new MemoryFileHandle(".ucsbxrp.json", workspaceFiles),
+          ] as const;
+          yield [
             "Folder-Authority",
             new MemoryDirectoryHandle("Folder-Authority", ["Folder-Authority"]),
           ] as const;
           return;
         }
         for (const name of Object.keys(projectFiles).sort()) {
-          yield [name, new MemoryFileHandle(name)] as const;
+          yield [name, new MemoryFileHandle(name, projectFiles)] as const;
         }
       }
 
@@ -140,21 +136,20 @@ async function installDelayedRememberedProject(page: Page) {
       }
 
       async getFileHandle(name: string, options?: { create?: boolean }) {
-        if (this.path.length !== 1) {
+        const files = this.path.length === 0 ? workspaceFiles : projectFiles;
+        if (!(name in files) && !options?.create) {
           throw new DOMException("File not found", "NotFoundError");
         }
-        if (!(name in projectFiles) && !options?.create) {
-          throw new DOMException("File not found", "NotFoundError");
-        }
-        if (!(name in projectFiles)) projectFiles[name] = "";
-        return new MemoryFileHandle(name);
+        if (!(name in files)) files[name] = "";
+        return new MemoryFileHandle(name, files);
       }
 
       async removeEntry(name: string) {
-        if (!(name in projectFiles)) {
+        const files = this.path.length === 0 ? workspaceFiles : projectFiles;
+        if (!(name in files)) {
           throw new DOMException("File not found", "NotFoundError");
         }
-        delete projectFiles[name];
+        delete files[name];
       }
 
       async isSameEntry(other: MemoryDirectoryHandle) {
@@ -187,14 +182,11 @@ async function installDelayedRememberedProject(page: Page) {
     }
 
     const workspace = new MemoryDirectoryHandle("XRP Course", []);
-    const project = new MemoryDirectoryHandle("Folder-Authority", [
-      "Folder-Authority",
-    ]);
     const retained = new Map<string, unknown>([
-      ["workspace-folder-v1", workspace],
-      ["project-folder-v1", project],
+      ["workspace-folder-capability-v1", workspace],
     ]);
-    const pendingProjectReads: (() => void)[] = [];
+    const pendingWorkspaceReads: (() => void)[] = [];
+    let workspaceReadsReleased = false;
 
     const database = {
       objectStoreNames: { contains: () => true },
@@ -225,8 +217,11 @@ async function installDelayedRememberedProject(page: Page) {
               if (typeof handler === "function") handler(new Event("success"));
               complete();
             };
-            if (String(key) === "project-folder-v1") {
-              pendingProjectReads.push(resolve);
+            if (
+              String(key) === "workspace-folder-capability-v1" &&
+              !workspaceReadsReleased
+            ) {
+              pendingWorkspaceReads.push(resolve);
             } else {
               queueMicrotask(resolve);
             }
@@ -273,7 +268,8 @@ async function installDelayedRememberedProject(page: Page) {
     Object.defineProperty(window, "__releaseRememberedProject", {
       configurable: true,
       value: () => {
-        for (const resolve of pendingProjectReads.splice(0)) resolve();
+        workspaceReadsReleased = true;
+        for (const resolve of pendingWorkspaceReads.splice(0)) resolve();
       },
     });
   });
@@ -282,30 +278,9 @@ async function installDelayedRememberedProject(page: Page) {
 async function installMockPhysicalXrp(context: BrowserContext) {
   await context.addInitScript((currentRelease: typeof release) => {
     Reflect.deleteProperty(globalThis, "SharedWorker");
-    const profileKey = "ucsb-xrp-robot-profile-v2";
     if (localStorage.getItem("ucsb-xrp-stress-profile-seeded") === null) {
-      localStorage.clear();
       localStorage.setItem("ucsb-xrp-stress-profile-seeded", "true");
       localStorage.setItem("ucsb-xrp-stress-robot-id", "robot-a");
-      localStorage.setItem(
-        profileKey,
-        JSON.stringify({
-          schemaVersion: 2,
-          kind: "physical",
-          robotId: "robot-a",
-          physicalConnection: "station",
-          stationEndpoint: "http://192.168.7.44",
-          accessPointEndpoint: "http://192.168.4.1",
-          lastObservedNetwork: {
-            mode: "station",
-            address: "http://192.168.7.44",
-            ssid: "COURSE-NETWORK",
-            requestedMode: "station",
-            fallback: false,
-            observedAtMs: 1,
-          },
-        }),
-      );
     }
 
     const originalFetch = window.fetch.bind(window);
@@ -402,12 +377,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   test.setTimeout(45_000);
   const browserErrors: string[] = [];
   collectBrowserErrors(monitor, browserErrors);
-  await monitor.addInitScript(() => {
-    if (sessionStorage.getItem("ucsb-xrp-stress-fresh-session") === null) {
-      sessionStorage.setItem("ucsb-xrp-stress-fresh-session", "true");
-      localStorage.clear();
-    }
-  });
+  await seedWorkingFolder(monitor, { folderName: "Virtual-Stress-Test" });
 
   // A student can start from Monitor before ever opening the IDE.
   await monitor.goto("/monitor/");
@@ -429,11 +399,9 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
 
   // Changing projects marks the retained target stale. Monitor Run owns the
   // required compilation and must start the newly opened project, not the old one.
-  await ide
-    .getByRole("button", { name: "New from template…", exact: true })
-    .click();
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
-  await ide.getByRole("button", { name: "Open temporarily" }).click();
+  await ide.getByRole("button", { name: "Create", exact: true }).click();
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,
@@ -476,7 +444,9 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await expect(ide.getByTestId("project-name")).toHaveText(
     "Obstacle, left, obstacle",
   );
-  await expect(ide.getByTestId("project-folder")).toHaveText("Not created");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Obstacle-left-obstacle",
+  );
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,
@@ -489,7 +459,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   expect(browserErrors).toEqual([]);
 });
 
-test("does not expose the browser draft while a remembered project is restoring", async ({
+test("does not enable Run before the remembered disk project finishes restoring", async ({
   context,
   page: ide,
 }) => {
@@ -511,7 +481,7 @@ test("does not expose the browser draft while a remembered project is restoring"
     ).__releaseRememberedProject(),
   );
   await expect(ide.getByTestId("project-folder")).toHaveText(
-    "./Folder-Authority",
+    "Folder-Authority",
   );
   await expect(runButton(monitor)).toBeEnabled();
   await expect(runButton(monitor)).toHaveAttribute("title", /Folder authority/);
@@ -519,77 +489,75 @@ test("does not expose the browser draft while a remembered project is restoring"
   await runButton(monitor).click();
   await ide.getByRole("tab", { name: "Program output" }).click();
   await expect(ide.getByRole("log")).toContainText("FOLDER AUTHORITY RAN");
-  await expect(ide.getByRole("log")).not.toContainText(
-    "WRONG BROWSER PROJECT RAN",
-  );
   await ide.getByRole("tab", { name: /System log/ }).click();
   await expect(ide.getByRole("log")).toContainText(
     "Starting Folder authority (main.py)",
   );
 });
 
-test("preserves the commissioned robot through network cycles and rejects another XRP", async ({
+test("preserves the commissioned robot across reloads and rejects another XRP", async ({
   context,
   page: ide,
 }) => {
   await installMockPhysicalXrp(context);
+  await seedWorkingFolder(ide, {
+    folderName: "Physical-Stress-Test",
+    robot: {
+      id: "robot-a",
+      name: "ucsb-xrp-robot-a",
+      networkMode: "station",
+      ssid: "COURSE-NETWORK",
+      address: "192.168.7.44",
+    },
+    target: "physical",
+  });
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );
   await ide.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = ide.getByTestId("settings-panel");
-  const network = settings.getByLabel("Network", { exact: true });
-
-  for (let cycle = 0; cycle < 3; cycle += 1) {
-    await network.selectOption("access_point");
-    await expect(ide.getByTestId("target-status")).toContainText(
-      "Physical XRP · ready",
-    );
-    await network.selectOption("station");
-    await expect(ide.getByTestId("target-status")).toContainText(
-      "Physical XRP · ready",
-    );
-  }
+  const physical = settings.getByRole("group", { name: "Physical XRP" });
+  await expect(physical).toContainText("COURSE-NETWORK");
+  await expect(physical).toContainText("http://192.168.7.44");
 
   await expect
     .poll(() =>
-      ide.evaluate(() =>
-        JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "{}"),
-      ),
+      readWorkspaceManifest<{
+        settings?: { target?: string };
+        robot?: {
+          id?: string;
+          networkMode?: string;
+          address?: string;
+          ssid?: string;
+        };
+      }>(ide, "Physical-Stress-Test"),
     )
     .toMatchObject({
-      schemaVersion: 2,
-      kind: "physical",
-      robotId: "robot-a",
-      physicalConnection: "station",
-      stationEndpoint: "http://192.168.7.44",
-      accessPointEndpoint: "http://192.168.4.1",
-      lastObservedNetwork: {
-        mode: "station",
-        address: "http://192.168.7.44",
+      schemaVersion: 1,
+      settings: { target: "physical" },
+      robot: {
+        id: "robot-a",
+        networkMode: "station",
+        address: "192.168.7.44",
+        ssid: "COURSE-NETWORK",
       },
     });
-
   await ide.reload();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );
   await ide.getByRole("button", { name: "Settings", exact: true }).click();
   const reloadedSettings = ide.getByTestId("settings-panel");
-  await expect(
-    reloadedSettings.getByLabel("Network", { exact: true }),
-  ).toHaveValue("station");
-  await expect(reloadedSettings.getByLabel("XRP address")).toHaveValue(
-    "http://192.168.7.44",
-  );
+  const reloadedPhysical = reloadedSettings.getByRole("group", {
+    name: "Physical XRP",
+  });
+  await expect(reloadedPhysical).toContainText("http://192.168.7.44");
 
   await ide.evaluate(() =>
     localStorage.setItem("ucsb-xrp-stress-robot-id", "robot-b"),
   );
-  await reloadedSettings
-    .getByLabel("Network", { exact: true })
-    .selectOption("access_point");
+  await ide.reload();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · error",
   );
@@ -607,22 +575,19 @@ test("preserves the commissioned robot through network cycles and rejects anothe
   await expect(runButton(monitor)).toBeDisabled();
   await expect
     .poll(() =>
-      monitor.evaluate(() =>
-        JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "{}"),
-      ),
+      readWorkspaceManifest<{
+        robot?: { id?: string };
+      }>(monitor, "Physical-Stress-Test"),
     )
     .toMatchObject({
-      robotId: "robot-a",
-      stationEndpoint: "http://192.168.7.44",
-      accessPointEndpoint: "http://192.168.4.1",
+      robot: { id: "robot-a" },
     });
 
   await ide.evaluate(() =>
     localStorage.setItem("ucsb-xrp-stress-robot-id", "robot-a"),
   );
-  await reloadedSettings
-    .getByLabel("Network", { exact: true })
-    .selectOption("station");
+  await ide.reload();
+  await monitor.reload();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );

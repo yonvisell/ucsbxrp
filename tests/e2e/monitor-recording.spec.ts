@@ -1,6 +1,12 @@
-import { readFile } from "node:fs/promises";
-
 import { expect, test, type Page } from "@playwright/test";
+
+import { readWorkspaceExports, seedWorkingFolder } from "./working-folder";
+
+const monitorWorkspace = "Monitor-Recording";
+
+test.beforeEach(async ({ page }) => {
+  await seedWorkingFolder(page, { folderName: monitorWorkspace });
+});
 
 function recordedCount(text: string | null): number {
   const match = (text ?? "").match(/([\d,]+) samples/);
@@ -77,15 +83,15 @@ test("keeps one completed run ready for notes and every export", async ({
     "Last run ·",
   );
 
-  const downloadPromise = monitor.waitForEvent("download");
   await monitor.getByRole("button", { name: "Export run data as CSV" }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(
-    /^xrp-telemetry-\d{4}-\d{2}-\d{2}T.*\.csv$/,
-  );
-  const path = await download.path();
-  expect(path).not.toBeNull();
-  const csv = await readFile(path!, "utf8");
+  await expect(
+    monitor.getByText(/Saved .*xrp-telemetry-.*\.csv$/),
+  ).toBeVisible();
+  const csvFile = (
+    await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
+  ).find((file) => file.name.endsWith(".csv"));
+  expect(csvFile?.name).toMatch(/^xrp-telemetry-\d{4}-\d{2}-\d{2}T.*\.csv$/);
+  const csv = csvFile?.text ?? "";
   const rows = csv.trimEnd().split("\n");
   const columns = rows[0]!.split(",");
   expect(columns).toEqual(
@@ -101,37 +107,35 @@ test("keeps one completed run ready for notes and every export", async ({
   expect(columns.at(-1)).toBe("note");
   expect(csv).toContain("turn begins");
 
-  const svgDownloadPromise = monitor.waitForEvent("download");
   await monitor.getByRole("button", { name: "Export plots as SVG" }).click();
-  const svgDownload = await svgDownloadPromise;
-  expect(svgDownload.suggestedFilename()).toMatch(/^xrp-plots-.*\.svg$/);
-  const svgPath = await svgDownload.path();
-  expect(svgPath).not.toBeNull();
-  const svg = await readFile(svgPath!, "utf8");
+  await expect(monitor.getByText(/Saved .*xrp-plots-.*\.svg$/)).toBeVisible();
+  const svgFile = (
+    await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
+  ).find((file) => file.name.endsWith(".svg"));
+  expect(svgFile?.name).toMatch(/^xrp-plots-.*\.svg$/);
+  const svg = svgFile?.text ?? "";
   expect(svg).toContain("UCSBXRP signal plots");
   expect(svg).toContain("turn begins");
 
-  const pngDownloadPromise = monitor.waitForEvent("download");
   await monitor.getByRole("button", { name: "Export plots as PNG" }).click();
-  const pngDownload = await pngDownloadPromise;
-  expect(pngDownload.suggestedFilename()).toMatch(/^xrp-plots-.*\.png$/);
-  const pngPath = await pngDownload.path();
-  expect(pngPath).not.toBeNull();
-  expect((await readFile(pngPath!)).byteLength).toBeGreaterThan(2_000);
+  await expect(monitor.getByText(/Saved .*xrp-plots-.*\.png$/)).toBeVisible();
+  const pngFile = (
+    await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
+  ).find((file) => file.name.endsWith(".png"));
+  expect(pngFile?.name).toMatch(/^xrp-plots-.*\.png$/);
+  expect(pngFile?.byteLength ?? 0).toBeGreaterThan(2_000);
 
-  const webmDownloadPromise = monitor.waitForEvent("download", {
-    timeout: 20_000,
-  });
   await monitor
     .getByRole("button", { name: "Export world animation as WebM" })
     .click();
-  const webmDownload = await webmDownloadPromise;
-  expect(webmDownload.suggestedFilename()).toMatch(
-    /^xrp-world-animation-.*\.webm$/,
-  );
-  const webmPath = await webmDownload.path();
-  expect(webmPath).not.toBeNull();
-  expect((await readFile(webmPath!)).byteLength).toBeGreaterThan(1_000);
+  await expect(
+    monitor.getByText(/Saved .*xrp-world-animation-.*\.webm$/),
+  ).toBeVisible({ timeout: 20_000 });
+  const webmFile = (
+    await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
+  ).find((file) => file.name.endsWith(".webm"));
+  expect(webmFile?.name).toMatch(/^xrp-world-animation-.*\.webm$/);
+  expect(webmFile?.byteLength ?? 0).toBeGreaterThan(1_000);
 
   await monitor
     .locator(".monitor-controls")
@@ -345,7 +349,6 @@ test("selects plotted signals from the Monitor controls", async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByTestId("offline-readiness")).toBeVisible();
   await expect(page.getByTestId("wheel-speed-plot")).toBeVisible();
   await expect(page.getByTestId("strip-chart-motor-effort")).toBeVisible();
   expect(
@@ -417,7 +420,6 @@ test("selects plotted signals from the Monitor controls", async ({
   await expect(page.getByText("6 s", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Collapse monitor controls" }).click();
-  await expect(page.getByTestId("offline-readiness")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();
@@ -555,14 +557,16 @@ test("keeps every header command reachable without hidden scrolling at phone wid
 test("keeps a centered world preview visible without a published physical pose", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "ucsb-xrp-target-v1",
-      JSON.stringify({
-        kind: "physical",
-        physicalEndpoint: "http://127.0.0.1:9",
-      }),
-    );
+  await seedWorkingFolder(page, {
+    folderName: monitorWorkspace,
+    robot: {
+      id: "unreachable-monitor-xrp",
+      name: "ucsb-xrp-unreachable",
+      networkMode: "station",
+      ssid: "COURSE-NETWORK",
+      address: "127.0.0.1:9",
+    },
+    target: "physical",
   });
   await page.goto("/monitor/");
 

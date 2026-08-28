@@ -1,41 +1,45 @@
 import { expect, test } from "@playwright/test";
 
-test("changes the explicit XRP Wi-Fi mode without cross-network fallback", async ({
+import { readWorkspaceManifest, seedWorkingFolder } from "./working-folder";
+
+test("shows the one commissioned XRP network from the Working folder", async ({
   page,
 }) => {
-  await page.addInitScript(() => localStorage.clear());
+  await seedWorkingFolder(page, {
+    robot: {
+      id: "network-mode-test-xrp",
+      name: "ucsb-xrp-network-test",
+      networkMode: "station",
+      ssid: "COURSE-NETWORK",
+      address: "192.168.7.44",
+    },
+    target: "physical",
+  });
   await page.goto("/ide/");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
 
   const settings = page.getByTestId("settings-panel");
-  await page.getByLabel("Run on").selectOption("physical");
+  await expect(page.getByLabel("Run on")).toHaveValue("physical");
 
-  const wifi = settings.getByRole("group", { name: "XRP Wi-Fi" });
-  await expect(wifi).toContainText(
-    "Project flashing, controls, and telemetry use Wi-Fi",
-  );
-  const connection = wifi.getByLabel("Network", { exact: true });
-  await expect(connection).toHaveValue("station");
-  const address = wifi.getByLabel("XRP address");
-  await expect(address).toBeVisible();
-  await address.fill("http://192.168.7.44");
-  await address.press("Tab");
-
-  await connection.selectOption("access_point");
-  await expect(wifi.getByLabel("XRP address")).toHaveCount(0);
-  const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ucsb-xrp-robot-profile-v2") ?? "null"),
-  );
-  expect(stored).toMatchObject({
-    schemaVersion: 2,
-    kind: "physical",
-    physicalConnection: "access_point",
-    stationEndpoint: "http://192.168.7.44",
-    accessPointEndpoint: "http://192.168.4.1",
+  const physical = settings.getByRole("group", { name: "Physical XRP" });
+  await expect(physical).toContainText("ucsb-xrp-network-test");
+  await expect(physical).toContainText("COURSE-NETWORK");
+  await expect(physical).toContainText("http://192.168.7.44");
+  await expect(
+    physical.getByRole("link", { name: /Set up, repair, or change network/ }),
+  ).toHaveAttribute("href", "../commission/");
+  expect(await readWorkspaceManifest(page)).toMatchObject({
+    schemaVersion: 1,
+    settings: { target: "physical" },
+    robot: {
+      id: "network-mode-test-xrp",
+      networkMode: "station",
+      address: "192.168.7.44",
+    },
   });
-
-  await connection.selectOption("station");
-  await expect(wifi.getByLabel("XRP address")).toHaveValue(
-    "http://192.168.7.44",
+  await expect(physical.getByRole("combobox")).toHaveCount(0);
+  await expect(physical.getByRole("textbox")).toHaveCount(0);
+  await expect(settings).toContainText(
+    "Run and telemetry use the network verified during XRP setup.",
   );
 });
