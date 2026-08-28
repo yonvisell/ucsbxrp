@@ -18,8 +18,9 @@ Waypoint Courier…**. The new project carries forward
 [`wheel_speed_controller.py`](wheel_speed_controller.py),
 [`differential_drive.py`](differential_drive.py), and
 [`odometry.py`](odometry.py), along with their selections.
-[`navigation_controller.py`](navigation_controller.py) begins with its supplied
-implementation selected. The Challenge 2 project remains unchanged.
+[`navigation_controller.py`](navigation_controller.py) begins with the
+supplied `NavigationController` selected. The Challenge 2 project remains
+unchanged.
 
 ## What you implement
 
@@ -48,17 +49,18 @@ the route is complete. Use `NAVIGATION_CONFIG` and the supplied
 | [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |
 | [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
 | [`robot_config.py`](robot_config.py) | Stores robot calibration and `NAVIGATION_CONFIG`. |
-| [`course_setup.py`](course_setup.py) | Selects each supplied or student component. |
+| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always checks the student files**, regardless of which
-versions are selected for a complete robot run.
+**Test components always loads the classes from the five component project
+files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
 - [`main.py`](main.py) starts the route, passes each new pose to navigation, and
   stops the robot on completion or error.
-- [`component_checks.py`](component_checks.py) checks route progress and motion
-  requests without starting a robot.
+- [`component_checks.py`](component_checks.py) calls the required
+  `NavigationController` methods and the methods of the four carried-forward
+  classes without starting a robot.
 - `Robot` executes each `MotionCommand` through the carried-forward wheel,
   sensing, and odometry components.
 
@@ -90,10 +92,11 @@ set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.
 
 1. Run the supplied navigator on the virtual XRP. Identify each waypoint
    approach, the reduced approach speed, and the final heading adjustment.
-2. Select your navigator. Verify waypoint order and zero requested motion after
-   completion.
-3. Repeat with all carried-forward student components. Compare odometry with
-   virtual ground truth to separate pose-estimation error from navigation
+2. Select the `NavigationController` defined in
+   `navigation_controller.py`. Verify waypoint order and zero requested motion
+   after completion.
+3. Select the classes from all five component project files. Compare odometry
+   with virtual ground truth to separate pose-estimation error from navigation
    behavior.
 4. Record estimated pose, requested forward speed, turn rate, and the driven
    path. Use the assigned values in `ROUTE` for your analysis.

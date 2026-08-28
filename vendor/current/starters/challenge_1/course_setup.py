@@ -1,4 +1,4 @@
-# Select supplied or student Challenge 1 components.
+# Select either the supplied reference class or the class in each project file.
 
 from sensor_model import SensorModel as StudentSensorModel
 from ucsb_xrp import Robot, XRPBot
@@ -12,7 +12,7 @@ from wheel_speed_controller import WheelSpeedController as StudentWheelControlle
 
 
 # False selects the supplied class. Change one flag to True only after
-# the matching student class passes the Test components examples.
+# the matching class in this project passes the Test components examples.
 USE_STUDENT_SENSOR_MODEL = False
 USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
 

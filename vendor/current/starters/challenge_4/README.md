@@ -31,8 +31,9 @@ The last two cases must end without robot motion.
 
 Open the completed Challenge 3 project and select **Continue to Challenge 4 ·
 Mapped Route…**. The new project carries forward the five earlier component
-files and their selections. [`grid_planner.py`](grid_planner.py) begins with the
-supplied planner selected. The Challenge 3 project remains unchanged.
+files and their selections. [`grid_planner.py`](grid_planner.py) begins with
+the supplied `GridPlanner` selected. The Challenge 3 project remains
+unchanged.
 
 ## What you implement
 
@@ -59,10 +60,10 @@ information between `plan()` calls.
 | [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
 | [`grid_planner.py`](grid_planner.py) | Connects the requested start and goal through free grid cells. |
 | [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
-| [`course_setup.py`](course_setup.py) | Selects each supplied or student component. |
+| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always checks the student files**, regardless of which
-versions are selected for a complete robot run.
+**Test components always loads the classes from the six component project
+files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
@@ -87,9 +88,9 @@ goals at turns and at the destination.
 
 ## Check the component
 
-Select **Test components**. The checks call your planner with small software
-grids and do not move either robot. Read `USE`, `INPUT`, and `EXPECT` before
-each result:
+Select **Test components**. The checks call `GridPlanner.plan()` from
+`grid_planner.py` with small software grids and do not move either robot. Read
+`USE`, `INPUT`, and `EXPECT` before each result:
 
 - `PASS` means the returned path met the stated requirements.
 - `NOT IMPLEMENTED` means `plan()` still needs to be written.
@@ -102,12 +103,13 @@ set `USE_STUDENT_GRID_PLANNER` to `True` in `course_setup.py`.
 
 1. Run the supplied planner in each virtual world and compare the obstacle
    layout, reported result, driven route, and final pose.
-2. Select your planner. For every returned path, verify free cells, side-sharing
-   steps, and the requested endpoints.
+2. Select the `GridPlanner` defined in `grid_planner.py`. For every returned
+   path, verify free cells, side-sharing steps, and the requested endpoints.
 3. Confirm separately that an unavailable endpoint and a disconnected map
    return `None` without motion.
-4. Repeat the valid route with all carried-forward student components; assess
-   path validity separately from navigation and pose-estimation performance.
+4. Repeat the valid route with the classes from all five carried-forward
+   component project files selected; assess path validity separately from
+   navigation and pose-estimation performance.
 5. For the physical run, match the arena to `world.json`, start at the marked
    pose, and compare the planned route, estimated trajectory, and observed path.
 

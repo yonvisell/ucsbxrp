@@ -22,7 +22,7 @@ from wheel_speed_controller import (
 
 
 # False selects the supplied class. Change one flag to True only after
-# the matching student class passes the Test components examples.
+# the matching class in this project passes the Test components examples.
 USE_STUDENT_SENSOR_MODEL = False
 USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
 USE_STUDENT_DIFFERENTIAL_DRIVE = False

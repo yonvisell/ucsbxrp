@@ -18,7 +18,7 @@ into another file. Record robot-specific calibration in
 
 ## What you implement
 
-Implement two components:
+Implement two classes:
 
 - [`sensor_model.py`](sensor_model.py): `SensorModel.reset()` establishes the
   encoder and time origins. `SensorModel.update()` converts each later raw
@@ -37,12 +37,12 @@ Leave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.
 
 | File | Role |
 | --- | --- |
-| [`sensor_model.py`](sensor_model.py) | Your encoder and timing measurements. |
-| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Your wheel-speed feedback control. |
+| [`sensor_model.py`](sensor_model.py) | Defines `SensorModel`, which converts encoder counts and time to physical measurements. |
+| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Defines `WheelSpeedController`, which converts wheel-speed error to a `DriveCommand`. |
 | [`robot_config.py`](robot_config.py) | Measured and tuned settings for your XRP. |
-| [`course_setup.py`](course_setup.py) | Selects the supplied or student version of each component. |
+| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 | [`main.py`](main.py) | Runs the straight-distance task and reports distance and elapsed time. |
-| [`component_checks.py`](component_checks.py) | Checks your component classes without starting a robot. |
+| [`component_checks.py`](component_checks.py) | Calls the required `SensorModel` and `WheelSpeedController` methods without starting a robot. |
 
 ## Provided files and tools
 
@@ -69,8 +69,10 @@ block in `main.py` stops both motors on completion or error.
 
 ## Check each component
 
-Select **Test components** in the IDE. The checks use your component files and
-do not move the virtual or physical robot. For each component, read its `USE`,
+Select **Test components** in the IDE. The checks load `SensorModel` from
+`sensor_model.py` and `WheelSpeedController` from
+`wheel_speed_controller.py`; they do not move either robot. For each class,
+read its `USE`,
 `INPUT`, and `EXPECT` lines before the result:
 
 - `PASS` means the implemented behavior matched the stated examples.
@@ -80,17 +82,19 @@ do not move the virtual or physical robot. For each component, read its `USE`,
 
 Fix every `NOT IMPLEMENTED` and `FAIL`, then run **Test components** again. Set
 the matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that
-component passes.
+class passes its checks.
 
 ## Complete the challenge
 
-1. Run the supplied components on the virtual XRP. Locate requested wheel
+1. Run the supplied classes on the virtual XRP. Locate requested wheel
    speed, measured wheel speed, drive command, and wheel travel in Monitor.
-2. Select your `SensorModel`. Verify that forward position increases, each
+2. Select the `SensorModel` defined in `sensor_model.py`. Verify that
+   forward position increases, each
    increment contains only the newest wheel travel, and the speed estimate
    follows changes without reporting each encoder-count step as a speed spike.
-3. Select your `WheelSpeedController`. Verify command limits and an exact zero
-   command at the finish.
+3. Select the `WheelSpeedController` defined in
+   `wheel_speed_controller.py`. Verify command limits and an exact zero command
+   at the finish.
 4. Compare repeated virtual runs using `mean_wheel_travel_mm` and
    `measured_elapsed_time_s` in Program output.
 5. For the physical XRP, first check wheel direction and Stop with the wheels

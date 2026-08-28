@@ -18,13 +18,13 @@ Open the completed Challenge 1 project and select **Continue to Challenge 2 ·
 Turn and Return…**. The new project carries forward
 [`sensor_model.py`](sensor_model.py),
 [`wheel_speed_controller.py`](wheel_speed_controller.py), and their selections.
-[`differential_drive.py`](differential_drive.py) and
-[`odometry.py`](odometry.py) begin with supplied implementations selected. The
-Challenge 1 project remains unchanged.
+The supplied `DifferentialDrive` and `Odometry` classes are initially
+selected for [`differential_drive.py`](differential_drive.py) and
+[`odometry.py`](odometry.py). The Challenge 1 project remains unchanged.
 
 ## What you implement
 
-Implement two new components:
+Implement two new classes:
 
 - [`differential_drive.py`](differential_drive.py):
   `DifferentialDrive.wheel_speeds()` converts requested forward speed and
@@ -48,8 +48,8 @@ robot-specific values in [`robot_config.py`](robot_config.py).
 | [`differential_drive.py`](differential_drive.py) | Converts robot motion to two wheel-speed targets. |
 | [`odometry.py`](odometry.py) | Estimates world position and heading from wheel travel. |
 | [`robot_config.py`](robot_config.py) | Stores measured geometry, calibration, gains, and motion settings. |
-| [`course_setup.py`](course_setup.py) | Selects each supplied or student component independently. |
-| [`component_checks.py`](component_checks.py) | Checks the four student files without starting a robot. |
+| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
+| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |
 
 ## Provided files and tools
 
@@ -74,8 +74,9 @@ wheel increments -> Odometry          -> estimated Pose
 
 ## Check each component
 
-Select **Test components**. The checks do not move either robot. Read each
-component's `USE`, `INPUT`, and `EXPECT` lines before its result:
+Select **Test components**. The checks load all four classes from their named
+project files and do not move either robot. Read each class's `USE`,
+`INPUT`, and `EXPECT` lines before its result:
 
 - `PASS` means the implemented behavior matched the examples.
 - `NOT IMPLEMENTED` means the named method still needs to be written.
@@ -88,14 +89,14 @@ or failing result, repeat **Test components**, and then set the matching
 
 ## Complete the challenge
 
-1. Run the supplied new components on the virtual XRP and identify the outward,
-   turnaround, return, and final-alignment phases.
-2. Select your `DifferentialDrive`; compare each body-motion request with its
-   two wheel-speed targets.
-3. Select your `Odometry`; compare its pose with virtual ground truth. The
-   program uses odometry, not ground truth.
-4. Run all selected student components together and inspect final pose, wheel
-   increments, and requested turn rate.
+1. Run the supplied `DifferentialDrive` and `Odometry` on the virtual XRP and
+   identify the outward, turnaround, return, and final-alignment phases.
+2. Select the `DifferentialDrive` defined in `differential_drive.py`; compare
+   each body-motion request with its two wheel-speed targets.
+3. Select the `Odometry` defined in `odometry.py`; compare its pose with
+   virtual ground truth. The program uses odometry, not ground truth.
+4. Run the classes from all four component project files together and inspect
+   final pose, wheel increments, and requested turn rate.
 5. On the physical course, record the estimated final pose and wheel travel,
    then measure final position and heading independently.
 

@@ -653,7 +653,7 @@ class CourseStarterTests(unittest.TestCase):
                 self.assertIn(
                     "component classes without starting either robot", source
                 )
-                self.assertIn("component's use", source)
+                self.assertIn("Each check names the class and method", source)
                 self.assertIn("PASS means", source)
                 self.assertIn("run_component_checks(", source)
                 self.assertNotIn("def check_", source)
@@ -1036,7 +1036,7 @@ class CourseStarterTests(unittest.TestCase):
                 if challenge in ("challenge_3", "challenge_4", "challenge_5"):
                     self.assertIn("## Project modules", text)
                     self.assertIn(
-                        "Test components always checks the student files",
+                        "Test components always loads the classes from",
                         text,
                     )
                     for responsibility in (

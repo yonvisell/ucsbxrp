@@ -18,8 +18,9 @@ values or obstacle coordinates elsewhere.
 
 Open the completed Challenge 4 project and select **Continue to Challenge 5 ·
 Delivery Mission…**. The new project carries forward all six component files
-and their selections. Your new work extends the existing
-[`sensor_model.py`](sensor_model.py). The Challenge 4 project remains unchanged.
+and their selections. Challenge 5 extends the `SensorModel` class in
+[`sensor_model.py`](sensor_model.py). The Challenge 4 project remains
+unchanged.
 
 ## What you implement
 
@@ -45,10 +46,10 @@ estimate was available; it does not represent zero distance.
 | [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
 | [`grid_planner.py`](grid_planner.py) | Connects the requested start and goal through free grid cells. |
 | [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
-| [`course_setup.py`](course_setup.py) | Selects each supplied or student component. |
+| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always checks the student files**, regardless of which
-versions are selected for a complete robot run.
+**Test components always loads the classes from the six component project
+files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
@@ -57,8 +58,9 @@ versions are selected for a complete robot run.
   exit.
 - [`main.py`](main.py) constructs the mission services, runs the mission, and
   prints its result and final pose.
-- [`component_checks.py`](component_checks.py) checks range estimation and all
-  carried-forward components without starting a robot.
+- [`component_checks.py`](component_checks.py) calls
+  `SensorModel.estimate_range()` and the required methods of the five
+  carried-forward classes without starting a robot.
 - `ArenaMap`, `OccupancyGrid`, and `GridPath.to_goals()` connect the observed
   map condition to planning and navigation.
 
@@ -86,7 +88,7 @@ medians, mixed unusable readings, too few usable readings, and invalid
 - `FAIL` means the method ran but returned an incorrect estimate or error.
 
 Fix every unfinished or failing result, repeat **Test components**, and then
-select the student `SensorModel` in `course_setup.py`.
+select the `SensorModel` defined in `sensor_model.py` in `course_setup.py`.
 
 ## Complete the challenge
 
@@ -94,10 +96,10 @@ select the student `SensorModel` in `course_setup.py`.
    stationary range readings, selected route, mission result, and final pose.
 2. Calculate the median of the usable readings and compare it with the reported
    estimate.
-3. Select your estimator and repeat every case. Verify that range determines
-   the map condition.
-4. Repeat with all carried-forward student components to distinguish sensing,
-   planning, navigation, odometry, and wheel-control results.
+3. Select the `SensorModel` defined in `sensor_model.py` and repeat every
+   case. Verify that range determines the map condition.
+4. Select the classes from all six component project files to distinguish
+   sensing, planning, navigation, odometry, and wheel-control results.
 5. Before physical motion, inspect stationary range values and sensor
    direction. Then run the matched arena from its marked start and record the
    readings, selected route, result, and final pose.
