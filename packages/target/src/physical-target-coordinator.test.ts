@@ -486,6 +486,12 @@ describe("physical target coordinator", () => {
         state: "ready",
         detail: `Run ${run} completed`,
       });
+      for (let idle = 1; idle <= 4; idle += 1) {
+        target.emit({
+          type: "telemetry",
+          sample: telemetry(sampleCount + idle),
+        });
+      }
     }
 
     const monitor = new FakePort();
@@ -538,6 +544,86 @@ describe("physical target coordinator", () => {
         )
         .map((event) => event.sample.seq),
     ).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it("broadcasts idle telemetry live without adding it to late-run replay", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    const liveMonitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(liveMonitor);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "ide-connect",
+        role: "ide",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect")).toHaveLength(1),
+    );
+    coordinator.handle(
+      liveMonitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "live-monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(liveMonitor, "live-monitor-connect")).toHaveLength(1),
+    );
+
+    target.emit({
+      type: "console",
+      stream: "system",
+      line: "Starting run",
+      action: "run",
+      phase: "request",
+      requestId: "run-1",
+      eventId: "run-1-request",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(1) });
+    target.emit({
+      type: "status",
+      state: "ready",
+      detail: "Run completed",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(2) });
+
+    expect(
+      events(liveMonitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1, 2]);
+
+    const lateMonitor = new FakePort();
+    coordinator.attach(lateMonitor);
+    coordinator.handle(
+      lateMonitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "late-monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(lateMonitor, "late-monitor-connect")).toHaveLength(1),
+    );
+
+    expect(
+      events(lateMonitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1]);
   });
 
   it("serializes two-tab commands and permits another run after completion", async () => {
@@ -1106,7 +1192,21 @@ describe("physical target coordinator", () => {
     };
     targets[0]?.emit(runtimeEvent);
     targets[0]?.emit(worldEvent);
+    targets[0]?.emit({
+      type: "console",
+      stream: "system",
+      line: "Starting run",
+      action: "run",
+      phase: "request",
+      requestId: "run-complete-state",
+      eventId: "run-complete-state-request",
+    });
     targets[0]?.emit({ type: "telemetry", sample: telemetry(7) });
+    targets[0]?.emit({
+      type: "status",
+      state: "ready",
+      detail: "Run completed",
+    });
 
     const monitor = new FakePort();
     coordinator.attach(monitor);
@@ -1207,6 +1307,15 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(ide, "ide-connect-history")).toHaveLength(1),
     );
+    target.emit({
+      type: "console",
+      stream: "system",
+      line: "Starting run",
+      action: "run",
+      phase: "request",
+      requestId: "run-history",
+      eventId: "run-history-request",
+    });
     for (const seq of [1, 2, 3]) {
       target.emit({ type: "telemetry", sample: telemetry(seq) });
     }
@@ -1219,6 +1328,11 @@ describe("physical target coordinator", () => {
       ),
     ).toEqual([]);
     target.emit({ type: "telemetry", sample: telemetry(4) });
+    target.emit({
+      type: "status",
+      state: "ready",
+      detail: "Run completed",
+    });
 
     coordinator.handle(monitor, command({ type: "set-role", role: "monitor" }));
     expect(

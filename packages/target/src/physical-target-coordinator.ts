@@ -63,6 +63,7 @@ export class PhysicalTargetCoordinator {
   private readonly consoleHistory: ConsoleEvent[] = [];
   private readonly retainedConsoleIds = new Set<string>();
   private readonly telemetryHistory = new TelemetryEventHistory();
+  private retainingRunTelemetry = false;
   private readonly projectRunProvider =
     new ProjectRunProviderBroker<PhysicalWorkerPort>(
       (port, request) => this.send(port, request),
@@ -329,6 +330,7 @@ export class PhysicalTargetCoordinator {
     this.consoleHistory.length = 0;
     this.retainedConsoleIds.clear();
     this.telemetryHistory.clear();
+    this.retainingRunTelemetry = false;
     this.latestStatus = {
       type: "status",
       state: "disconnected",
@@ -366,8 +368,19 @@ export class PhysicalTargetCoordinator {
         : rawEvent;
     if (event.type === "status") {
       this.latestStatus = event;
+      if (
+        this.retainingRunTelemetry &&
+        event.state !== "loading" &&
+        event.state !== "running"
+      ) {
+        // A late Monitor needs the completed run, not the continuing idle
+        // telemetry stream. Live telemetry is still broadcast below.
+        this.retainingRunTelemetry = false;
+      }
     } else if (event.type === "telemetry") {
-      this.telemetryHistory.retain(event);
+      if (this.retainingRunTelemetry) {
+        this.telemetryHistory.retain(event);
+      }
     } else if (event.type === "project") {
       this.latestProject = event;
     } else if (event.type === "runtime") {
@@ -382,6 +395,7 @@ export class PhysicalTargetCoordinator {
         // A physical run restarts the device telemetry sequence. Retaining
         // only this run prevents a late Monitor from combining separate runs.
         this.telemetryHistory.clear();
+        this.retainingRunTelemetry = true;
       }
       if (event.eventId) {
         this.retainedConsoleIds.add(event.eventId);
