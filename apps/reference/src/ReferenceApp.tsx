@@ -41,6 +41,9 @@ export function ReferenceApp() {
         <main className="reference-content">
           <section className="reference-intro">
             <h1>{apiCatalog.title}</h1>
+            <p className="reference-version">
+              API version <code>{apiCatalog.apiVersion}</code>
+            </p>
             <p>{apiCatalog.introduction}</p>
             <h2>Units and coordinate conventions</h2>
             <ul className="compact-list">
@@ -406,7 +409,7 @@ function entryImport(entry: ApiEntry) {
 
 function roleLabel(kind: string) {
   const labels: Record<string, string> = {
-    "student component": "Class you implement",
+    "project component": "Class you implement",
     "supplied class": "Class supplied by UCSBXRP",
     "value record": "Read-only value",
     "configuration record": "Read-only configuration",

@@ -22,8 +22,8 @@ function CourseDiagram({
 export function ControlCycleFlow() {
   return (
     <CourseDiagram
-      alt="Robot control cycle: the program passes a MotionCommand to Robot.step. Robot.step calls the selected motion components and XRPBot to command the target, then calls the selected measurement components and returns a RobotState. Measurements feed the next control update."
-      caption="The supplied Robot coordinates each sample. The selected DifferentialDrive and WheelSpeedController convert a motion request into motor effort; SensorModel and Odometry convert target readings into Measurements and Pose. XRPBot provides the same device boundary for the Virtual and Physical XRP."
+      alt="Robot control loop: the program passes a MotionCommand to Robot.step. Robot.step calls DifferentialDrive and WheelSpeedController to command the target, then calls SensorModel and Odometry to return a RobotState. The measured wheel speeds inform the next motor command."
+      caption="Each Robot.step() call performs one control-loop update. DifferentialDrive and WheelSpeedController convert a MotionCommand into a DriveCommand. SensorModel and Odometry convert encoder, time, range, and button readings into Measurements and Pose. XRPBot connects the same loop to the Virtual or Physical XRP."
       source="../diagrams/control-cycle.svg"
     />
   );

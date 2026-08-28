@@ -91,6 +91,17 @@
   line-height: 1.58;
 }
 
+.reference-intro > .reference-version {
+  margin: 8px 0 0;
+  color: var(--quiet);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.reference-intro > .reference-version + p {
+  margin-top: 9px;
+}
+
 .reference-content > section:not(.reference-intro) {
   max-width: 930px;
   scroll-margin-top: calc(var(--course-header-height) + 16px);

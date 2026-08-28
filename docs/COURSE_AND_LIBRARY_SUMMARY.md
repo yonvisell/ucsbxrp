@@ -45,7 +45,7 @@ Courier, and one shared mapped arena for Mapped Route and Delivery Mission.
 
 ## What students implement
 
-Six components have interchangeable reference and student implementations:
+Six components have interchangeable supplied and project implementations:
 
 - `SensorModel`
 - `WheelSpeedController`
@@ -54,20 +54,21 @@ Six components have interchangeable reference and student implementations:
 - `NavigationController`
 - `GridPlanner`
 
-Each student component has the same public methods and return types as its
-reference counterpart. Student templates inherit the corresponding base class
+Each project implementation has the same public methods and return types as its
+supplied counterpart. Project templates inherit the corresponding base class
 from `ucsb_xrp.student_api`. In `course_setup.py`, one named
 `USE_STUDENT_*` Boolean independently selects each component. A flag starts as
 `False` for the supplied implementation and changes to `True` only after that
-student component passes its software tests. Early challenge projects include only the
-flags for components introduced so far.
+component implementation passes its software tests. Early challenge projects
+include only the flags for components introduced so far.
 
-Each student component has a literal file: `sensor_model.py`,
+Each component implementation has a literal file: `sensor_model.py`,
 `wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
-`navigation_controller.py`, or `grid_planner.py`. A challenge project includes only the
-components introduced so far. Robot-specific measurements and reusable
-controller settings belong in `robot_config.py`; challenge values belong in
-`challenge.py`; `main.py` constructs the selected objects and runs the task.
+`navigation_controller.py`, or `grid_planner.py`. A challenge project includes
+only the components introduced so far. Robot-specific measurements and
+reusable controller settings belong in `robot_config.py`; challenge values
+belong in `challenge.py`; `main.py` constructs the selected objects and runs
+the task.
 Algorithms and task-specific numerical values are not duplicated in `main.py`.
 
 ## Supplied library services
@@ -91,14 +92,15 @@ make_grid_planner()
 A normal run calls `Robot.start(initial_pose)`, repeatedly calls
 `Robot.step(command, read_range=False)`, and places `Robot.stop()` in a
 `finally` clause. Each step returns a `RobotState` containing the newest
-`Measurements` and `Pose`. `Robot` maintains absolute, wrap-safe sample deadlines;
-student control loops do not call `sleep_ms`.
+`Measurements` and `Pose`. `Robot` maintains absolute, wrap-safe sample
+deadlines; loops that call `Robot.step()` do not call `sleep_ms()`.
 
 For experiments and debugging, `ucsb_xrp.live` supplies bounded numeric,
 Boolean, and enumerated parameters plus named watch and plot values. The
 Monitor renders the declared controls, current values, and optional calculated
-strip plots; `Robot` applies queued parameter changes together at a sample
-boundary. Saved task and robot settings remain in `challenge.py` and
+strip plots; `Robot` applies pending parameter changes together after each
+`Robot.start()` or `Robot.step()` call. Saved task and robot settings remain in
+`challenge.py` and
 `robot_config.py`, while complete histories remain telemetry rather than
 printed counters.
 
@@ -163,7 +165,9 @@ vertical edge with the requested cell.
 
 ## Component interfaces
 
-- `SensorModel.reset(raw)` and `update(raw)` produce `Measurements`;
+- `SensorModel.reset(raw)` and `update(raw)` convert encoder counts and time to
+  wheel position, wheel-travel increments, regularized wheel speed, and elapsed
+  time while preserving range and USER-button readings in `Measurements`;
   `estimate_range(samples, minimum_usable)` returns a median range estimate or
   `None` after rejecting unusable readings.
 - `WheelSpeedController.update(target, measured)` returns bounded
@@ -188,9 +192,9 @@ source-linked console errors. The separate XRP Monitor is the observation
 surface for live values, time-series and X-Y plots, recordings, logs, and the
 robot/world view.
 
-Both applications use one target interface. A physical target runs the student
-project through `ucsb_xrp`, `XRPBot`, XRPLib, and the XRP hardware. A virtual
-target runs the same student MicroPython and `ucsb_xrp` against a simulated
+Both applications use one target interface. A physical target runs the project
+through `ucsb_xrp`, `XRPBot`, XRPLib, and the XRP hardware. A virtual target
+runs the same project MicroPython and `ucsb_xrp` against a simulated
 XRPLib and a repeatable planar XRP model. The simulator supplies hardware and
 world effects—motor response, encoders, range, button and payload state,
 collisions, and ground-truth pose—but does not perform course sensing,
@@ -199,7 +203,7 @@ odometry, mapping, planning, navigation, or mission logic.
 The production web release is delivered once and then runs locally from the
 browser. Physical traffic uses the same target service in either the default
 device-specific XRP hotspot mode or an optional existing local Wi-Fi mode; no
-student project changes with the network choice.
+project files change with the network choice.
 
 The public commissioning wizard is the normal physical-robot entry point.
 Students may choose a **Working folder** immediately or later, connect an
@@ -219,7 +223,7 @@ therefore start the same revision again immediately. Monitor and telemetry use
 the same local Wi-Fi network. A full controller reboot is reserved for setup or
 exceptional recovery.
 New robots default to their unique hotspot; an existing robot keeps its working
-network unless the student changes it. Instructor command-line provisioning is
+network unless the user changes it. Instructor command-line provisioning is
 an optional fleet interface to the same exact release file set.
 
 ## Current implementation note

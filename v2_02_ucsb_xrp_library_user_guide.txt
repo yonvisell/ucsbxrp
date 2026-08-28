@@ -35,7 +35,9 @@ XRPBot
     returns RawSensors
 
 SensorModel
-    converts RawSensors to Measurements
+    converts encoder, time, range, and USER-button readings to wheel position,
+    wheel-travel increments, regularized wheel speed, elapsed time, range, and
+    button state in Measurements
 
 Odometry
     converts measured left and right wheel travel to Pose
@@ -90,12 +92,12 @@ robot_config.py
 
 sensor_model.py, wheel_speed_controller.py, differential_drive.py,
 odometry.py, navigation_controller.py, grid_planner.py
-    Each file contains the student component named by the file. Early
+    Each file contains the component implementation named by the file. Early
     challenges include only the components introduced so far.
 
 course_setup.py
-    Selects the reference or student implementation of each component and
-    provides the make_* factory functions.
+    Selects the supplied class or the class in the named project file for each
+    component and provides the make_* factory functions.
 
 challenge.py
     Loads world-owned task values and defines any non-geometric task settings,
@@ -132,11 +134,12 @@ geometry; the Python task, virtual XRP, and Monitor do not maintain separate
 coordinates.
 
 
-REFERENCE AND STUDENT IMPLEMENTATIONS
+SUPPLIED AND PROJECT IMPLEMENTATIONS
 
-The six student components have the same methods as their supplied reference
-implementations. Code that uses a component obtains it from course_setup.py, so
-the rest of the program is unchanged when an implementation source changes.
+Each of the six component classes has a supplied implementation and a class in
+the corresponding project file. Both classes have the same public methods.
+Code obtains the selected class from course_setup.py, so the rest of the
+program is unchanged when a selection changes.
 
 course_setup.py contains one explicit Boolean per component:
 
@@ -147,10 +150,10 @@ course_setup.py contains one explicit Boolean per component:
     USE_STUDENT_NAVIGATION_CONTROLLER = False
     USE_STUDENT_GRID_PLANNER = False
 
-False selects the supplied implementation and True selects the student's
-implementation. The file initially selects all supplied implementations;
-students change one named flag at a time after its component passes the
-software tests. Early challenge starters contain only the flags for components
+False selects the supplied implementation and True selects the class in the
+named project file. The file initially selects all supplied implementations;
+change one named flag at a time after the corresponding class passes its
+software tests. Early challenge projects contain only the flags for components
 introduced so far.
 
 
@@ -158,17 +161,14 @@ PHYSICAL XRP SETUP AND PROJECT RUNS
 
 Use the browser's XRP setup/repair page over USB-C to install or repair the
 persistent course runtime and to configure the robot's Wi-Fi profile. This
-runtime includes MicroPython, XRPLib, the UCSB-XRP library, supplied reference
-modules, and the robot service.
+runtime includes MicroPython, XRPLib, the UCSB-XRP library, supplied component
+implementations, and the robot service.
 
-After setup, an IDE Run uses the selected local Wi-Fi connection. It validates
-the current project, prepares the complete project in temporary controller RAM,
-and starts the project's main Python file. Stop, program output, and telemetry
-use the same Wi-Fi connection. Reset cooperatively stops the program and clears
-course telemetry and live state while retaining the prepared RAM project, boot
-state, and Wi-Fi connection. Run can therefore start the same revision again
-immediately. A full controller reboot is reserved for setup or exceptional
-recovery. Normal Run does not install or repair the course runtime.
+After setup, an IDE Run uses the selected local Wi-Fi connection. It checks the
+project structure, compiles every Python file, sends the project to the XRP,
+and starts its main Python file. Stop, program output, and telemetry use the
+same Wi-Fi connection. Reset stops the program and clears its telemetry and
+live values. Normal Run does not install or repair the course runtime.
 
 
 RUNNING A DIRECT MOTOR EXPERIMENT
@@ -222,8 +222,8 @@ Run is the start action. A program launched directly on the XRP waits for a
 USER-button press and release before resetting.
 
 Robot.step(command) runs one sample period and returns the next RobotState.
-Robot maintains absolute, wrap-safe sample deadlines internally. Student code
-does not call sleep_ms inside a measured control loop. If calculation overruns
+Robot maintains absolute, wrap-safe sample deadlines internally. A loop that
+calls Robot.step() does not call sleep_ms(). If calculation overruns
 one deadline, Robot records the overrun and advances to the next future sample
 rather than accumulating drift or issuing catch-up samples.
 
@@ -497,13 +497,13 @@ periodic print statements.
 The Monitor renders a compact slider, checkbox, or radio choices from these
 declarations. Read the current value through CRUISE_SPEED.value,
 CONTROLLER_ENABLED.value, or TURN_DIRECTION.value. Robot.start() and
-Robot.step() apply valid queued changes together at a measured sample
-boundary. Programs that do not use Robot may call live.apply_updates() at
-their own explicit control-loop boundary. A numeric range does not need to be
-an exact multiple of step; the applied value is represented by the nearest
-available slider step within the declared bounds.
+Robot.step() apply all pending changes together after each call. Programs that
+do not use Robot may call live.apply_updates() at the point in their loop where
+new settings should take effect. A numeric range does not need to be an exact
+multiple of step; the applied value is represented by the nearest available
+slider step within the declared bounds.
 
-Stage a named value when it changes or once per measured sample:
+Publish a named value when it changes or once per Robot.step() call:
 
     live.watch(
         "wheel_speed_error_mm_s",
@@ -512,9 +512,9 @@ Stage a named value when it changes or once per measured sample:
         label="Wheel-speed error",
     )
 
-Robot publishes the staged values together at its next measured boundary, and
-they appear under Live telemetry. A watch is appropriate for current state, an
-error term, a selected mode, or another compact diagnostic.
+Robot publishes the values after its next update, and they appear under Live
+telemetry. A watch is appropriate for current state, an error term, a selected
+mode, or another compact diagnostic.
 
 Use live.plot() when a calculated numerical value should be available as an
 optional strip plot:
@@ -562,7 +562,7 @@ Component implementations read these named fields. Numerical values are not
 repeated inside the implementation methods.
 
 
-TESTING A STUDENT COMPONENT
+TESTING A COMPONENT IMPLEMENTATION
 
 Each component can be tested without running a complete mission:
 

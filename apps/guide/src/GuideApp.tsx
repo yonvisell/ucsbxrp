@@ -47,15 +47,15 @@ export function GuideApp() {
               a commissioned Physical XRP. Use the Monitor to inspect and export
               run data. The <a href="../reference/">API reference</a> gives the
               required classes, methods, arguments, return values, units, and
-              examples.
+              behavior.
             </p>
             <p>
-              Use the current desktop version of <strong>Google Chrome</strong>{" "}
-              on Windows or macOS. Chrome is the primary course browser because
+              Use the latest version of <strong>Google Chrome</strong> on
+              Windows or macOS. Chrome is the primary course browser because
               Working folders require browser folder access and XRP setup uses
-              USB device access. Current desktop Microsoft Edge is the supported
-              Chromium alternative. Safari, Firefox, phones, and tablets may
-              display these pages, but they do not provide the complete
+              USB device access. The latest Microsoft Edge on Windows or macOS
+              is the supported alternative. Safari, Firefox, phones, and tablets
+              may display these pages, but they do not provide the complete
               project-folder and USB setup workflow.
             </p>
           </section>
@@ -419,14 +419,15 @@ export function GuideApp() {
             title="Physical XRP setup and networks"
           >
             <p>
-              Commission each robot once with{" "}
-              <a href="../commission/">Set up or Repair</a> in desktop Chrome on
-              Windows or macOS; desktop Edge is the supported alternative.
-              Connect the XRP by USB-C while the setup page verifies the
-              controller, installs or repairs the UCSBXRP runtime, configures
-              Wi-Fi, restarts the robot, and verifies its network address. After
-              setup, project transfer, Run, Stop, Reset, program output, and
-              telemetry use Wi-Fi, not USB.
+              Use <a href="../commission/">Set up or Repair</a> before the XRP
+              is used for the first time, and return to it when the course
+              software or network settings need to be repaired or updated. Open
+              it in the latest Chrome on Windows or macOS; the latest Edge is
+              the supported alternative. Connect the XRP by USB-C while the
+              setup page verifies the controller, installs or repairs the
+              UCSBXRP runtime, configures Wi-Fi, restarts the robot, and
+              verifies its network address. After setup, project transfer, Run,
+              Stop, Reset, program output, and telemetry use Wi-Fi, not USB.
             </p>
             <ol className="procedure">
               <li>
@@ -506,8 +507,9 @@ export function GuideApp() {
               The Monitor shows the world view, live telemetry, program-defined
               controls and values, signal plots, and export tools. IDE and
               Monitor use the same selected target and Run/Stop state. Runs
-              started in either app write program output and target events to
-              the IDE terminal.
+              started in either app write program output to the IDE terminal;
+              connection, transfer, Run, Stop, and Reset events appear in its
+              System log.
             </p>
             <dl className="term-list">
               <div>
@@ -784,10 +786,9 @@ export function GuideApp() {
             <ul className="procedure troubleshooting-list">
               <li>
                 <strong>Working-folder or USB controls are unavailable:</strong>{" "}
-                use current desktop Chrome on Windows or macOS. Current desktop
-                Edge is the supported alternative. Reopen the page in that
-                browser rather than continuing in Safari, Firefox, a phone, or a
-                tablet.
+                use the latest Chrome on Windows or macOS. The latest Edge is
+                the supported alternative. Reopen the page in that browser
+                rather than continuing in Safari, Firefox, a phone, or a tablet.
               </li>
               <li>
                 <strong>No project is open:</strong> choose the Working folder
@@ -887,8 +888,8 @@ export function GuideApp() {
             <p>
               The components form a sequence from sensor interpretation through
               motor control, pose estimation, navigation, and route planning.
-              The links below use the same descriptions as the definitive API
-              catalog; each API entry gives the full signatures and required
+              Each link opens the corresponding API entry, including its method
+              signatures, arguments, return values, retained state, and required
               behavior.
             </p>
             <dl className="component-overview-list">
@@ -903,7 +904,7 @@ export function GuideApp() {
                 </div>
               ))}
             </dl>
-            <h3>Virtual and physical targets</h3>
+            <h3>Target differences</h3>
             <table>
               <thead>
                 <tr>
@@ -925,7 +926,10 @@ export function GuideApp() {
                 </tr>
                 <tr>
                   <td>Project preparation</td>
-                  <td>Prepared in the virtual-run worker</td>
+                  <td>
+                    Loaded into the browser&apos;s MicroPython runtime before
+                    Run
+                  </td>
                   <td>Sent to the controller over Wi-Fi before Run</td>
                 </tr>
                 <tr>
@@ -942,7 +946,8 @@ export function GuideApp() {
             </table>
             <p>
               The <a href="../reference/">UCSB XRP API reference</a> gives the
-              complete method definitions and examples.
+              complete class, method, argument, return-value, and unit
+              definitions.
             </p>
           </GuideSection>
         </main>

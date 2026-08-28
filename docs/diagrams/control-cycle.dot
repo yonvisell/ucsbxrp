@@ -29,12 +29,12 @@ digraph ControlCycle {
   ];
 
   program [label="main.py or supplied mission\ncoordinates the task", color="#00588a", fillcolor="#eef4f7"];
-  robot [label="Robot.step()\nsupplied sample coordinator", color="#00588a", fillcolor="#eef4f7"];
-  motion [label="Selected motion components\nDifferentialDrive\nWheelSpeedController", color="#39736f", fillcolor="#f3f8f7"];
+  robot [label="Robot.step()\none control-loop update", color="#00588a", fillcolor="#eef4f7"];
+  motion [label="Selected motor-control classes\nDifferentialDrive\nWheelSpeedController", color="#39736f", fillcolor="#f3f8f7"];
   bot_command [label="XRPBot\nsend motor command", color="#667984", fillcolor="#ffffff"];
-  bot_sample [label="XRPBot\nread sensor sample", color="#667984", fillcolor="#ffffff"];
+  bot_sample [label="XRPBot\nread sensors", color="#667984", fillcolor="#ffffff"];
   target [label="Selected target\nVirtual or Physical XRP", color="#8d7440", fillcolor="#f8f5ed"];
-  measurement [label="Selected measurement components\nSensorModel\nOdometry", color="#39736f", fillcolor="#f3f8f7"];
+  measurement [label="Selected measurement classes\nSensorModel\nOdometry", color="#39736f", fillcolor="#f3f8f7"];
   state [label="RobotState\nMeasurements + Pose", color="#667984", fillcolor="#ffffff"];
 
   { rank=same; program; state; }
@@ -44,17 +44,17 @@ digraph ControlCycle {
 
   program -> robot [label="MotionCommand"];
   robot -> motion [label="calls"];
-  motion -> bot_command [label="motor effort"];
+  motion -> bot_command [label="DriveCommand"];
   bot_command -> target [label="device command"];
   state -> measurement [style=invis, weight=20];
   measurement -> bot_sample [style=invis, weight=20];
   bot_sample -> target [style=invis, weight=20];
   target -> bot_sample [label="device readings", constraint=false];
-  bot_sample -> measurement [label="raw sample", constraint=false];
+  bot_sample -> measurement [label="RawSensors", constraint=false];
   measurement -> state [label="estimates", constraint=false];
   state -> program [label="RobotState", constraint=false];
   measurement -> motion [
-    label="measured wheel-speed feedback",
+    label="measured WheelSpeeds",
     color="#006c64",
     fontcolor="#005f58",
     style=dashed,

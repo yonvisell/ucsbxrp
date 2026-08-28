@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "apiVersion": "0.4.0-dev",
   "title": "UCSB XRP API reference",
-  "introduction": "Robot runs the measured control cycle used throughout the course. Six replaceable classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Your implementation of each class may use any algorithm that satisfies the required behavior stated here.",
+  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Your implementation of each class may use any algorithm that satisfies the required behavior stated here.",
   "publicModules": {
     "ucsb_xrp": [
       "ArenaMap",
@@ -63,17 +63,17 @@
     {
       "id": "components",
       "title": "Components you implement",
-      "introduction": "You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and the mission classes call these methods, so the rest of the project does not change when course_setup.py selects your implementation.",
+      "introduction": "You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and DeliveryMission call the appropriate methods, so the rest of the project does not change when course_setup.py selects your implementation.",
       "entries": [
         {
           "id": "sensor-model",
           "name": "SensorModel",
           "symbols": ["SensorModel", "SensorModelBase"],
-          "kind": "student component",
+          "kind": "project component",
           "projectFile": "sensor_model.py",
           "baseClass": "SensorModelBase",
           "configType": "RobotConfig",
-          "purpose": "Convert encoder counts, device time, ultrasonic range, and USER-button state into physical measurements. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() reduces repeated ultrasonic readings.",
+          "purpose": "Convert encoder counts and device time into wheel positions, wheel-travel increments, regularized wheel-speed estimates, and elapsed sample time while preserving ultrasonic range and USER-button state. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() combines repeated ultrasonic readings.",
           "state": "After reset(), retain the encoder and time zero values, the preceding sample, and enough recent encoder history to estimate wheel speed. Wheel position remains relative to the reset values.",
           "relevantConfigFields": [
             "sample_period_ms",
@@ -181,11 +181,11 @@
           "id": "wheel-speed-controller",
           "name": "WheelSpeedController",
           "symbols": ["WheelSpeedController", "WheelSpeedControllerBase"],
-          "kind": "student component",
+          "kind": "project component",
           "projectFile": "wheel_speed_controller.py",
           "baseClass": "WheelSpeedControllerBase",
           "configType": "RobotConfig",
-          "purpose": "Calculate one bounded motor command for each wheel from its requested speed and measured speed. Robot calls reset() at the start of a run and update() once per measured sample.",
+          "purpose": "Calculate one bounded motor command for each wheel from its requested speed and measured speed. Robot calls reset() at the start of a run and update() during each Robot.step() call.",
           "state": "The controller may retain values needed from earlier samples. reset() must return all retained controller values to their initial condition.",
           "relevantConfigFields": [
             "left_start_command",
@@ -241,7 +241,7 @@
               "requiredBehavior": [
                 "Return an exact zero command for a wheel whose requested speed is zero.",
                 "Keep each command within plus or minus config.max_drive_command.",
-                "For a nonzero requested speed, a larger speed error in the requested direction must produce a stronger command than a smaller error under the same conditions."
+                "For a nonzero requested speed, increasing the speed error in the requested direction must not weaken the command. Before the command reaches config.max_drive_command, the larger speed error must produce a stronger command under the same conditions."
               ]
             }
           ]
@@ -250,11 +250,11 @@
           "id": "differential-drive",
           "name": "DifferentialDrive",
           "symbols": ["DifferentialDrive", "DifferentialDriveBase"],
-          "kind": "student component",
+          "kind": "project component",
           "projectFile": "differential_drive.py",
           "baseClass": "DifferentialDriveBase",
           "configType": "RobotConfig",
-          "purpose": "Convert a requested robot forward speed and turn rate into the two wheel-speed targets required by a differential-drive robot. Robot calls wheel_speeds() once per measured sample.",
+          "purpose": "Convert a requested robot forward speed and turn rate into the two wheel-speed targets required by a differential-drive robot. Robot calls wheel_speeds() during each Robot.step() call.",
           "state": "None. Each wheel_speeds() calculation depends only on its MotionCommand and the configured track width.",
           "relevantConfigFields": ["track_width_mm"],
           "signature": "class DifferentialDrive(DifferentialDriveBase)",
@@ -298,7 +298,7 @@
           "id": "odometry",
           "name": "Odometry",
           "symbols": ["Odometry", "OdometryBase"],
-          "kind": "student component",
+          "kind": "project component",
           "projectFile": "odometry.py",
           "baseClass": "OdometryBase",
           "configType": "RobotConfig",
@@ -379,7 +379,7 @@
           "id": "navigation-controller",
           "name": "NavigationController",
           "symbols": ["NavigationController", "NavigationControllerBase"],
-          "kind": "student component",
+          "kind": "project component",
           "projectFile": "navigation_controller.py",
           "baseClass": "NavigationControllerBase",
           "configType": "NavigationConfig",
@@ -468,7 +468,7 @@
           "id": "grid-planner",
           "name": "GridPlanner",
           "symbols": ["GridPlanner", "GridPlannerBase"],
-          "kind": "student component",
+          "kind": "project component",
           "projectFile": "grid_planner.py",
           "baseClass": "GridPlannerBase",
           "purpose": "Find a connected route through free cells in an occupancy grid. Course planning code or DeliveryMission calls plan() and converts the returned GridPath into navigation goals.",
@@ -516,7 +516,7 @@
     {
       "id": "robot-services",
       "title": "Robot services",
-      "introduction": "Use Robot for ordinary course programs. It assembles the selected components into the timed robot control cycle.",
+      "introduction": "Use Robot for ordinary course programs. It assembles the selected components and performs the timed sequence of motor commands, sensor readings, measurements, and odometry in each Robot.step() call.",
       "entries": [
         {
           "id": "robot",
@@ -524,7 +524,7 @@
           "symbols": ["Robot"],
           "kind": "supplied class",
           "import": "from ucsb_xrp import Robot",
-          "purpose": "Execute one measured robot sample: convert the requested body motion to wheel targets, update motor commands, read sensors, update odometry, and publish telemetry. Course projects normally obtain Robot from make_robot(ROBOT_CONFIG).",
+          "purpose": "Perform one robot control-loop update: convert the requested body motion to wheel targets, update motor commands, read sensors, update odometry, and publish telemetry. Course projects normally obtain Robot from make_robot(ROBOT_CONFIG).",
           "state": "After start(), retain the selected classes, latest RobotState, next absolute sample time, and latest timing overrun.",
           "signature": "Robot(config, bot, sensor_model, wheel_controller, differential_drive, odometry)",
           "parameters": [
@@ -752,7 +752,7 @@
     {
       "id": "data-types",
       "title": "Data types",
-      "introduction": "These validated values carry information between components. Their public fields are read-only.",
+      "introduction": "These read-only records store sensor readings, motion requests, controller outputs, pose, and planning data passed between UCSBXRP classes.",
       "entries": [
         {
           "id": "record-raw-sensors",
@@ -1125,7 +1125,7 @@
     {
       "id": "configuration",
       "title": "Configuration",
-      "introduction": "Robot settings belong in robot_config.py. The constructor checks every value, and the resulting fields can be read but not reassigned.",
+      "introduction": "Robot settings belong in robot_config.py. Each configuration object is read-only after construction.",
       "entries": [
         {
           "id": "class-robot-config",
@@ -1303,7 +1303,7 @@
     {
       "id": "live",
       "title": "Live controls and telemetry values",
-      "introduction": "Import ucsb_xrp.live to create compact controls and publish selected program values to the Monitor. Declare controls once, then read each LiveParameter.value during the robot loop. Robot applies pending changes at sample boundaries.",
+      "introduction": "Import ucsb_xrp.live to create compact controls and publish selected program values to the Monitor. Declare controls once, then read each LiveParameter.value during the robot loop. Robot applies all pending control changes together after each Robot.start() or Robot.step() call.",
       "entries": [
         {
           "id": "module-live",
@@ -1311,7 +1311,7 @@
           "symbols": ["live"],
           "kind": "module",
           "purpose": "Create Monitor controls and publish selected program values.",
-          "state": "Retain declared controls and the latest watch and plot values for the current run. Robot applies queued control changes together at a sample boundary."
+          "state": "Retain declared controls and the latest watch and plot values for the current run. Robot applies all pending control changes together after each Robot.start() or Robot.step() call."
         },
         {
           "id": "class-live-parameter",
@@ -1319,7 +1319,7 @@
           "symbols": ["LiveParameter"],
           "kind": "value object",
           "purpose": "Represent one Monitor control and the value currently applied to the program.",
-          "state": "value changes only when live.apply_updates(), Robot.start(), or Robot.step() applies a queued Monitor setting.",
+          "state": "The value changes only when live.apply_updates(), Robot.start(), or Robot.step() applies a pending Monitor setting.",
           "properties": [
             {
               "name": "value",
@@ -1579,7 +1579,7 @@
           "name": "live.apply_updates",
           "symbols": ["apply_updates"],
           "kind": "function",
-          "purpose": "Apply the latest Monitor control values at one program boundary.",
+          "purpose": "Apply all pending Monitor control changes together and report whether any applied value changed.",
           "signature": "live.apply_updates() -> bool",
           "returns": {
             "type": "bool",
@@ -1699,7 +1699,7 @@
           ],
           "returns": {
             "type": "ProjectWorld",
-            "description": "Selected validated world."
+            "description": "Selected ProjectWorld loaded from world.json."
           },
           "exceptions": [
             "OSError if path cannot be opened.",

@@ -32,7 +32,7 @@ digraph ProjectStructure {
   challenge [label="challenge.py\ntask values", color="#39736f", fillcolor="#f3f8f7"];
 
   config [label="robot_config.py\ngeometry and settings", color="#8d7440", fillcolor="#f8f5ed"];
-  components [label="student component files\nselected implementations", color="#39736f", fillcolor="#f3f8f7"];
+  components [label="component implementation files\nselected classes", color="#39736f", fillcolor="#f3f8f7"];
   setup [label="course_setup.py\nconstructs services", color="#39736f", fillcolor="#f3f8f7"];
 
   program [label="main.py or supplied mission\ncoordinates the task", color="#00588a", fillcolor="#eef4f7"];

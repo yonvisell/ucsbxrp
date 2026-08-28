@@ -56,7 +56,7 @@ function renderMarkdown(source) {
 function renderMarkdownEntry(lines, entry) {
   lines.push(`### \`${entry.name}\``, "", entry.purpose, "");
   const facts = [];
-  if (entry.kind) facts.push(`**Kind:** ${entry.kind}`);
+  if (entry.kind) facts.push(`**Role:** ${roleLabel(entry.kind)}`);
   if (entry.projectFile)
     facts.push(`**Project file:** \`${entry.projectFile}\``);
   if (entry.baseClass) facts.push(`**Base class:** \`${entry.baseClass}\``);
@@ -90,7 +90,6 @@ function renderMarkdownEntry(lines, entry) {
     lines.push(`**${propertyTitle(entry)}**`, "");
     renderMarkdownTable(lines, entry.properties);
   }
-  for (const method of entry.methods ?? []) renderMarkdownMethod(lines, method);
   if (entry.returns) {
     lines.push(
       `**Returns:** \`${entry.returns.type}\` — ${entry.returns.description}`,
@@ -99,6 +98,7 @@ function renderMarkdownEntry(lines, entry) {
   }
   renderList(lines, "Required behavior", entry.requiredBehavior);
   renderList(lines, "Exceptions", entry.exceptions);
+  for (const method of entry.methods ?? []) renderMarkdownMethod(lines, method);
   renderList(lines, "Notes", entry.notes);
   if (entry.example) {
     lines.push(
@@ -176,7 +176,7 @@ function renderPlainText(source) {
 
 function renderPlainEntry(lines, entry) {
   lines.push(entry.name, "-".repeat(entry.name.length), entry.purpose);
-  if (entry.kind) lines.push(`Kind: ${entry.kind}`);
+  if (entry.kind) lines.push(`Role: ${roleLabel(entry.kind)}`);
   if (entry.projectFile) lines.push(`Project file: ${entry.projectFile}`);
   if (entry.baseClass) lines.push(`Base class: ${entry.baseClass}`);
   const importStatement = entryImport(entry);
@@ -190,6 +190,11 @@ function renderPlainEntry(lines, entry) {
   }
   renderPlainValues(lines, entryParameterTitle(entry), entry.parameters);
   renderPlainValues(lines, propertyTitle(entry), entry.properties);
+  if (entry.returns) {
+    lines.push(`Returns: ${entry.returns.type} - ${entry.returns.description}`);
+  }
+  renderPlainList(lines, "Required behavior", entry.requiredBehavior);
+  renderPlainList(lines, "Exceptions", entry.exceptions);
   for (const method of entry.methods ?? []) {
     lines.push(
       "",
@@ -206,11 +211,6 @@ function renderPlainEntry(lines, entry) {
     renderPlainList(lines, "Required behavior", method.requiredBehavior);
     renderPlainList(lines, "Exceptions", method.exceptions);
   }
-  if (entry.returns) {
-    lines.push(`Returns: ${entry.returns.type} - ${entry.returns.description}`);
-  }
-  renderPlainList(lines, "Required behavior", entry.requiredBehavior);
-  renderPlainList(lines, "Exceptions", entry.exceptions);
   renderPlainList(lines, "Notes", entry.notes);
   if (entry.example) {
     lines.push("", entry.example.title, entry.example.code);
@@ -248,6 +248,17 @@ function entryImport(entry) {
   }
   if (entry.kind === "value object") return null;
   return `from ucsb_xrp import ${entry.name}`;
+}
+
+function roleLabel(kind) {
+  const labels = {
+    "project component": "Class you implement",
+    "supplied class": "Class supplied by UCSBXRP",
+    "value record": "Read-only value",
+    "configuration record": "Read-only configuration",
+    "value object": "Value returned by the live module",
+  };
+  return labels[kind] ?? kind;
 }
 
 function signatureTitle(entry) {
