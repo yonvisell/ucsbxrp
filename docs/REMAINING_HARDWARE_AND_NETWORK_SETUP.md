@@ -2,7 +2,7 @@
 
 ## Student setup
 
-Open **Set up or Repair** in current desktop Chrome or Edge.
+Open **Set up or Repair** in the latest desktop Chrome on Windows or macOS.
 
 1. Choose one **Working folder**. Each project receives its own named Project
    folder there.
@@ -11,10 +11,11 @@ Open **Set up or Repair** in current desktop Chrome or Edge.
 3. Choose **Robot hotspot** or **Existing Wi-Fi**. A hotspot works without a
    router. Optionally enter one team member's last name to create a recognizable
    name such as `UCSB-XRP-VISELL`.
-4. Select **Install course software** or **Check and repair course software**.
-   The same action installs, updates, or repairs the robot and can be repeated.
+4. Select **Install or repair course software**. The same action installs,
+   updates, or repairs the robot and can be repeated.
 5. Follow the displayed Wi-Fi instruction, then check the robot connection.
-   The wizard opens the IDE in Physical XRP mode after the service replies.
+   After the service replies, select **Open IDE**. The IDE opens in Physical XRP
+   mode.
 
 USB-C is used for initial setup, firmware repair, and course-software repair.
 After setup, **Run**, **Stop**, Reset, and telemetry use Wi-Fi. Run checks the
@@ -30,16 +31,18 @@ different network, or repair an interrupted installation.
 ## Current development robot
 
 The strongest retained raised-wheel evidence is for robot runtime
-`2026.08-dev.40`, generation 23, on Pink. Native Chrome completed USB repair,
+`2026.08-dev.40`, generation 26, on Pink. Native Chrome completed USB repair,
 verified robot identity, ran two projects from IDE and Monitor, stopped, reset,
 reran, applied an edited project, and observed motor effort, both encoders,
 wheel distance, sensors, pose, plots, ordered logs, 50 Hz telemetry, and final
 zero drive. The exact record is
 `docs/hardware/2026-08-27-dev40-station-repeatability.json`.
 
-The remaining setup work is a factory-state first-use run and one current
-hotspot/offline-return cycle. The station workflow does not need another broad
-repeat unless the robot runtime changes.
+The current public hotspot and Pink paths both pass. The remaining setup work is
+one first-use rehearsal after a full flash erase and one cold offline reopen of
+the installed app while the computer is connected only to the robot hotspot.
+The station workflow does not need another broad repeat unless the robot runtime
+changes.
 
 ## Remaining floor-dependent work
 

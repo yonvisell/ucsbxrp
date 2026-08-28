@@ -2008,3 +2008,35 @@ requires an explicit `station` or `access_point` mode, so omission cannot change
 the robot. Its wording now describes configuration rather than inspection, and
 the setup page accurately states that **Open IDE** becomes available after the
 robot replies. The focused Wi-Fi-helper and commissioning tests pass.
+
+## Refinement 76: factory-firmware onboarding defects
+
+The official SparkFun/WPILib XRP firmware `v2.1.0` was restored to the attached
+RP2350 and identified over USB before entering the browser setup flow. This
+physical first-use path exposed two failures that the simulated USB tests had
+not represented. After factory firmware was detected, the wizard discarded the
+selected serial device, so its firmware action could not enter the RP2350
+bootloader. The selected controller is now retained unless Chrome cannot open
+it, and the action is named **Install course firmware**.
+
+Writing the bundled MicroPython UF2 also exposed a macOS/Chrome behavior: the
+RP2350 reboots and removes its temporary UF2 volume as soon as the transfer is
+complete, leaving `FileSystemWritableFileStream.close()` pending. The installer
+now accepts that expected volume removal after the verified image has been
+written, then continues only after Chrome sees the re-enumerated MicroPython
+controller. A focused test reproduces a `close()` call that never resolves.
+
+With both corrections active at `http://127.0.0.1:4174/`, the wizard installed
+the course firmware and dev.40 runtime, retained the Pink profile, verified the
+robot service at `192.168.7.25`, and handed the physical target to the IDE. The
+attached XRP then completed the saved Straight Run project: mean wheel travel
+was 996.3 mm for a 1000 mm request, both motors returned to zero, program output
+was visible, and Run returned to its ready state. The service's own startup log
+reached its HTTP loop at 4.24 s after reset; the browser check completed without
+a manual reset.
+
+This pass crossed the real factory-firmware-to-course-firmware boundary, but
+the MicroPython filesystem retained earlier course files and the selected
+Working folder retained an earlier Project. A final public first-use rehearsal
+must therefore erase the XRP flash and use an empty Working folder before this
+case is described as a factory-new student workflow.

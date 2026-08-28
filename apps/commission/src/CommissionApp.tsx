@@ -521,13 +521,14 @@ export function CommissionApp() {
       setDetail("Checking the XRP controller and course runtime…");
       recordSetup("USB", "Selected an XRP and opened its serial connection.");
       portRef.current = port;
+      setAuthorizedPort(port);
       let session: MicroPythonSession;
       try {
         session = await openRawRepl(port);
       } catch (replError) {
         sessionRef.current = null;
-        portRef.current = null;
         if (replError instanceof SerialPortOpenError) {
+          portRef.current = null;
           const message = replError.message;
           setError(message);
           setDetail(
@@ -544,7 +545,7 @@ export function CommissionApp() {
         setReplUnavailable(true);
         setStage("firmware");
         setDetail(
-          "The XRP did not enter USB setup mode. Try the USB check again; install the course firmware only if the retry also fails.",
+          "Chrome found the XRP, but MicroPython setup did not start. Try the USB check once more, or install the course firmware to continue.",
         );
         recordSetup(
           "USB",
@@ -741,7 +742,7 @@ export function CommissionApp() {
       setDetail("Firmware installed. Waiting for the XRP to reconnect…");
       recordSetup(
         "Firmware",
-        "Firmware write and readback completed.",
+        "Firmware transfer completed; waiting for the MicroPython USB device.",
         "success",
       );
       await new Promise((resolve) => window.setTimeout(resolve, 1_500));
@@ -1567,7 +1568,7 @@ export function CommissionApp() {
                 className={replUnavailable ? undefined : "primary-button"}
                 onClick={enterFirmwareMode}
               >
-                Prepare firmware update
+                Install course firmware
               </button>
               <p>
                 This uses the exact MicroPython release bundled with the course.

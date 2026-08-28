@@ -1191,6 +1191,7 @@ export async function installFirmware(options: {
   manifest: CommissioningManifest;
   manifestUrl: URL;
   fetch?: typeof fetch;
+  closeWaitMs?: number;
 }): Promise<void> {
   const firmware = options.manifest.micropython.firmware;
   const data = await fetchVerifiedAsset(
@@ -1203,7 +1204,21 @@ export async function installFirmware(options: {
   });
   const writable = await handle.createWritable();
   await writable.write(data);
-  await writable.close();
+  // A complete UF2 write makes the RP2350 reboot and remove its temporary
+  // volume. On macOS that can leave Chrome's close() promise pending even
+  // though the new USB device is already present. The caller verifies that
+  // re-enumerated device before continuing setup.
+  const closeOutcome = writable.close().then(
+    () => ({ state: "closed" as const }),
+    (error: unknown) => ({ state: "error" as const, error }),
+  );
+  const outcome = await Promise.race([
+    closeOutcome,
+    wait(options.closeWaitMs ?? 750).then(() => ({
+      state: "pending" as const,
+    })),
+  ]);
+  if (outcome.state === "error") throw outcome.error;
 }
 
 function wait(milliseconds: number): Promise<void> {

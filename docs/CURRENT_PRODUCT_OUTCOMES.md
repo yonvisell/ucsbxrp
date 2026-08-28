@@ -9,7 +9,7 @@ history; they are not parallel plans. Detailed validation belongs in
 ## Current baseline
 
 - Browser source: current repository `HEAD` plus the active integrated stage.
-- Attached XRP: physically qualified on `2026.08-dev.40`, generation 23, from
+- Attached XRP: physically qualified on `2026.08-dev.40`, generation 26, from
   source commit `0b301cd`.
 - Current course bundle: `2026.08-dev.40`. It requires robot runtime dev.39 or
   later for the atomic edited-project Run transaction; dev.40 also retains and
@@ -95,17 +95,20 @@ including zero changed files, explicit network verification, robot-identity
 verification, explicit completion before Open IDE, two projects,
 Run/Stop/Reset/rerun, shared
 IDE/Monitor state, 50 Hz course telemetry without retained-sample gaps, and
-complete logs. Repeat one current-release
-hotspot cycle with a custom SSID, explicit computer-Wi-Fi instruction, offline
-reopening, and return to an internet network. Earlier hotspot evidence is
-regression history, not proof of the current release. Retain cancellation and
-retry coverage in the simulated commissioning suite.
+complete logs. The current release also passes a public custom-hotspot cycle,
+explicit computer-Wi-Fi instruction, physical Run, and return to Pink. A cold
+reopen while the computer has no internet remains useful independent evidence
+for the installed-app path. Retain cancellation and retry coverage in the
+simulated commissioning suite.
 
-Before release, restore the attached XRP to its SparkFun factory state and run
-the complete first-use path: USB selection, installation, station setup on
-Pink, IDE handoff, project load, motor command, encoder/telemetry observation,
-stop, reset, and recommissioning. This is the primary commissioning acceptance
-case; simulated browser tests remain supporting evidence.
+The official SparkFun/WPILib `v2.1.0` firmware-to-course-firmware path now
+passes locally through USB selection, firmware installation, dev.40 runtime
+installation, Pink verification, IDE handoff, physical motor command, encoder
+observation, program output, and automatic stop. That rehearsal retained the
+existing MicroPython filesystem and an existing Working folder. Before release,
+repeat it after a full flash erase and with an empty Working folder, then
+recommission once. This is the primary first-use case; simulated browser tests
+remain supporting evidence.
 
 ### 3. Course-project clarity and consistency
 
