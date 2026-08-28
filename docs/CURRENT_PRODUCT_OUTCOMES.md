@@ -163,6 +163,35 @@ current robot identity check prevents the UCSBXRP app from selecting the wrong
 robot, but it does not prevent another page on the same LAN from sending an
 unauthenticated command.
 
+### Later usability refinements
+
+- Repair plot-note placement so **Add note** produces a visible vertical marker
+  and label at the selected retained sample. Decide explicitly whether plots
+  stop advancing when a program becomes idle. If continuous idle telemetry has
+  a demonstrated use, expose it as one compact opt-in control. Prefer one
+  telemetry export that includes notes over a separate notes-only CSV unless an
+  instructor workflow requires both.
+- Replace **Run uses another IDE tab** with a literal explanation of which open
+  project supplies the next IDE or Monitor run and how to switch it.
+- Expand troubleshooting for first XRP setup, Working-folder selection,
+  permission loss, project reopening, and network selection.
+- Separate **Implement components** from **Test components** in the Guide.
+  Explain that Test components runs supplied input/output cases without moving
+  a robot and reports which student methods are incomplete or incorrect.
+- State desktop Chrome as the primary student browser on both Windows and
+  macOS; describe Edge as a supported Chromium alternative, not the Windows
+  default recommendation.
+- Protect supplied challenge-definition and world files from accidental edits.
+  An intentional unlock or copy-to-independent-project action may expose them
+  when modification is appropriate.
+- Collapse the Project-folder storage explanation after a native Project folder
+  is connected. Reassess the complete action group together—**Open project…**,
+  **New project from template…**, and **Save project…**—so the distinctions are
+  visible from the labels and dialog text.
+- Treat a difference between port 4174 and the public Pages application as an
+  incomplete deployment, not as browser state. Verify the published asset
+  identity and default project after every release.
+
 ## Deferred empirical work
 
 - Wheel/track calibration, stopping distance, moving IMU/range comparison, and

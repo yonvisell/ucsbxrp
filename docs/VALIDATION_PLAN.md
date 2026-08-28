@@ -50,6 +50,10 @@ Physical tests remain explicit because CI has no robot. Their command, release,
 network route, robot identity, runtime generation, firmware, duration, and
 observations are retained in one JSON record under `docs/hardware/`.
 
+GitHub publication and live-site inspection use the Chrome profile signed in as
+`yonvisell@gmail.com`. Other Chrome profiles or windows may not share that
+authenticated GitHub session; no credential is stored in this repository.
+
 ## Course and numerical behavior
 
 - Test the public interface and physical meaning: units, signs, bounds,
