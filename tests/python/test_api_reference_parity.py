@@ -97,6 +97,8 @@ class ApiCatalogIntegrityTests(unittest.TestCase):
         unresolved = []
         type_values = []
         for entry in self.entries:
+            for value in entry.get("parameters", []):
+                type_values.append((entry["id"], value["type"]))
             for value in entry.get("properties", []):
                 type_values.append((entry["id"], value["type"]))
             if entry.get("returns"):
@@ -114,6 +116,73 @@ class ApiCatalogIntegrityTests(unittest.TestCase):
                 if token[0].isupper():
                     unresolved.append((owner, token))
         self.assertEqual(unresolved, [])
+
+    def test_catalog_definitions_have_student_legible_reference_data(self):
+        for entry in self.entries:
+            with self.subTest(entry=entry["id"]):
+                self.assertTrue(entry["purpose"].strip())
+                self.assertNotRegex(
+                    entry["purpose"].lower(), r"\b(?:contract|consumes?)\b"
+                )
+                for value in entry.get("parameters", []):
+                    self.assertTrue(value["name"].strip())
+                    self.assertTrue(value["type"].strip())
+                    self.assertTrue(value["description"].strip())
+                for value in entry.get("properties", []):
+                    self.assertTrue(value["name"].strip())
+                    self.assertTrue(value["type"].strip())
+                    self.assertTrue(value["description"].strip())
+                for method in entry.get("methods", []):
+                    self.assertTrue(method["summary"].strip())
+                    self.assertTrue(method["signature"].strip())
+                    self.assertIn("returns", method)
+                    for value in method.get("parameters", []):
+                        self.assertTrue(value["name"].strip())
+                        self.assertTrue(value["type"].strip())
+                        self.assertTrue(value["description"].strip())
+
+    def test_student_components_document_construction_state_and_responsibility(self):
+        expected_config = {
+            "sensor-model": "RobotConfig",
+            "wheel-speed-controller": "RobotConfig",
+            "differential-drive": "RobotConfig",
+            "odometry": "RobotConfig",
+            "navigation-controller": "NavigationConfig",
+        }
+        for entry_id, config_type in expected_config.items():
+            with self.subTest(component=entry_id):
+                entry = self.entries_by_id[entry_id]
+                self.assertEqual(len(entry["parameters"]), 1)
+                parameter = entry["parameters"][0]
+                self.assertEqual(parameter["name"], "config")
+                self.assertEqual(parameter["type"], config_type)
+                self.assertTrue(parameter["description"].strip())
+                self.assertTrue(entry["state"].strip())
+                self.assertTrue(entry["exceptions"])
+                config_entry_id = self.symbol_anchors[config_type]
+                config_fields = {
+                    field["name"]
+                    for field in self.entries_by_id[config_entry_id]["properties"]
+                }
+                self.assertLessEqual(
+                    set(entry.get("relevantConfigFields", [])), config_fields
+                )
+
+        planner = self.entries_by_id["grid-planner"]
+        self.assertTrue(planner["state"].strip())
+        component_text = json.dumps(
+            [
+                self.entries_by_id[entry_id]
+                for entry_id in (
+                    "differential-drive",
+                    "odometry",
+                    "navigation-controller",
+                    "grid-planner",
+                )
+            ]
+        ).lower()
+        for solution_fragment in ("omega*b", "radius=", "dx=", "dy="):
+            self.assertNotIn(solution_fragment, component_text)
 
     def test_student_component_signatures_match_the_base_classes(self):
         component_specs = {
@@ -200,6 +269,7 @@ class ApiCatalogIntegrityTests(unittest.TestCase):
             {value["name"]: value["default"] for value in documented},
             expected_defaults,
         )
+        self.assertTrue(self.entries_by_id["class-robot-config"]["exceptions"])
 
         navigation_config = self._class(
             "vendor/current/ucsb_xrp/config.py", "NavigationConfig"

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "apiVersion": "0.4.0-dev",
   "title": "UCSB XRP API reference",
-  "introduction": "This reference describes the Python classes, values, and functions that a course project may use. The supplied reference components are working examples; students may use a different algorithm when it satisfies the stated behavior.",
+  "introduction": "Robot runs the measured control cycle used throughout the course. Six replaceable classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Student implementations may use any algorithm that produces the required behavior stated here.",
   "publicModules": {
     "ucsb_xrp": [
       "ArenaMap",
@@ -63,7 +63,7 @@
     {
       "id": "components",
       "title": "Components you implement",
-      "introduction": "Each student component inherits the corresponding base class from ucsb_xrp.student_api. The base constructor checks the configuration and stores the same object as the read-only self.config property. Robot or supplied mission code calls the methods below; the project class supplies their calculations.",
+      "introduction": "You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and the mission classes call these methods, so the rest of the project does not change when course_setup.py selects your implementation.",
       "entries": [
         {
           "id": "sensor-model",
@@ -73,8 +73,8 @@
           "projectFile": "sensor_model.py",
           "baseClass": "SensorModelBase",
           "configType": "RobotConfig",
-          "purpose": "Convert direct XRP sensor readings into measured wheel motion, wheel-speed estimates, range, and USER-button state.",
-          "state": "After reset(), retain the encoder and time origins, the preceding sample, elapsed-time information, and the recent samples or equivalent state used to estimate wheel speed. Total wheel positions are calculated relative to the reset origins; they do not need separate accumulated position state.",
+          "purpose": "Convert encoder counts, device time, ultrasonic range, and USER-button state into physical measurements. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() reduces repeated ultrasonic readings.",
+          "state": "After reset(), retain the encoder and time zero values, the preceding sample, and enough recent encoder history to estimate wheel speed. Wheel position remains relative to the reset values.",
           "relevantConfigFields": [
             "sample_period_ms",
             "wheel_diameter_mm",
@@ -84,6 +84,14 @@
             "wheel_speed_filter_time_constant_ms"
           ],
           "signature": "class SensorModel(SensorModelBase)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Robot sampling, encoder, wheel, and wheel-speed-estimation settings. The same value is available inside the class as self.config."
+            }
+          ],
+          "exceptions": ["TypeError if config is not a RobotConfig value."],
           "methods": [
             {
               "id": "method-sensor-model-reset",
@@ -121,7 +129,7 @@
               ],
               "returns": {
                 "type": "Measurements",
-                "description": "Cumulative wheel positions from the reset origins, the latest unsmoothed wheel increments, regularized wheel-speed estimates, elapsed time, range, and button state."
+                "description": "Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, range, and button state."
               },
               "exceptions": [
                 "RuntimeError if reset() has not been called.",
@@ -131,7 +139,7 @@
                 "Apply the configured encoder signs, wheel diameter, and encoder counts per revolution.",
                 "Calculate dt_s from consecutive device timestamps with elapsed_time_s().",
                 "Do not smooth left_increment_mm or right_increment_mm; odometry uses the measured increments.",
-                "Estimate wheel speed from recent samples or an equivalent regularized estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.",
+                "Estimate wheel speed from recent encoder samples or an equivalent estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.",
                 "If no positive time has elapsed, report dt_s as zero without dividing by zero; positions and increments still follow the new encoder counts.",
                 "Preserve raw.range_mm and raw.button_pressed in the returned Measurements."
               ]
@@ -177,8 +185,8 @@
           "projectFile": "wheel_speed_controller.py",
           "baseClass": "WheelSpeedControllerBase",
           "configType": "RobotConfig",
-          "purpose": "Calculate bounded left and right motor commands from requested wheel speeds and measured wheel-speed estimates.",
-          "state": "An implementation may retain controller state between samples. reset() must return that state to its initial condition before each run.",
+          "purpose": "Calculate one bounded motor command for each wheel from its requested speed and measured speed. Robot calls reset() at the start of a run and update() once per measured sample.",
+          "state": "The controller may retain values needed from earlier samples. reset() must return all retained controller values to their initial condition.",
           "relevantConfigFields": [
             "left_start_command",
             "right_start_command",
@@ -188,6 +196,14 @@
             "max_drive_command"
           ],
           "signature": "class WheelSpeedController(WheelSpeedControllerBase)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Motor calibration, feedback gain, and command limit. The same value is available inside the class as self.config."
+            }
+          ],
+          "exceptions": ["TypeError if config is not a RobotConfig value."],
           "methods": [
             {
               "id": "method-wheel-speed-controller-reset",
@@ -212,7 +228,7 @@
                   "name": "measured",
                   "type": "WheelSpeeds",
                   "units": "mm/s",
-                  "description": "Latest regularized wheel-speed estimates from SensorModel."
+                  "description": "Latest wheel-speed estimates formed from recent encoder samples by SensorModel."
                 }
               ],
               "returns": {
@@ -238,10 +254,18 @@
           "projectFile": "differential_drive.py",
           "baseClass": "DifferentialDriveBase",
           "configType": "RobotConfig",
-          "purpose": "Convert requested robot forward speed and turn rate into target left and right wheel speeds.",
-          "state": "Each calculation is independent; the component does not need to retain state between calls.",
+          "purpose": "Convert a requested robot forward speed and turn rate into the two wheel-speed targets required by a differential-drive robot. Robot calls wheel_speeds() once per measured sample.",
+          "state": "None. Each wheel_speeds() calculation depends only on its MotionCommand and the configured track width.",
           "relevantConfigFields": ["track_width_mm"],
           "signature": "class DifferentialDrive(DifferentialDriveBase)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Robot geometry containing the effective track width. The same value is available inside the class as self.config."
+            }
+          ],
+          "exceptions": ["TypeError if config is not a RobotConfig value."],
           "methods": [
             {
               "id": "method-differential-drive-wheel-speeds",
@@ -263,8 +287,9 @@
                 "TypeError if command is not a MotionCommand value."
               ],
               "requiredBehavior": [
-                "For track width b, forward speed v, and turn rate omega, return left speed v - omega*b/2 and right speed v + omega*b/2.",
-                "Positive turn rate therefore requests a faster right wheel than left wheel."
+                "Produce wheel speeds consistent with planar differential-drive kinematics and config.track_width_mm.",
+                "Zero turn rate produces equal wheel speeds. Positive turn rate produces a greater right-wheel speed than left-wheel speed; negative turn rate reverses that relationship.",
+                "Support straight motion, in-place rotation, and simultaneous forward motion and turning."
               ]
             }
           ]
@@ -277,10 +302,18 @@
           "projectFile": "odometry.py",
           "baseClass": "OdometryBase",
           "configType": "RobotConfig",
-          "purpose": "Update the estimated world position and heading from measured left and right wheel travel.",
-          "state": "After reset(), retain the latest Pose. Simulator ground-truth position is not an input.",
+          "purpose": "Estimate the robot's world position and heading from measured left- and right-wheel travel. Robot establishes the initial Pose with reset() and supplies one pair of wheel increments to update() after each sample.",
+          "state": "After reset(), retain the latest Pose. The estimate uses measured wheel travel only; simulator ground truth is not an input.",
           "relevantConfigFields": ["track_width_mm"],
           "signature": "class Odometry(OdometryBase)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Robot geometry containing the effective track width. The same value is available inside the class as self.config."
+            }
+          ],
+          "exceptions": ["TypeError if config is not a RobotConfig value."],
           "properties": [
             {
               "name": "pose",
@@ -335,10 +368,9 @@
                 "TypeError for Boolean or nonnumeric increments."
               ],
               "requiredBehavior": [
-                "Use d=(left_increment_mm+right_increment_mm)/2 and dtheta=(right_increment_mm-left_increment_mm)/track_width_mm.",
-                "For dtheta equal to zero, translate by d at the current heading.",
-                "For nonzero dtheta, integrate the exact constant-curvature arc: radius=d/dtheta, dx=radius*(sin(theta+dtheta)-sin(theta)), and dy=-radius*(cos(theta+dtheta)-cos(theta)).",
-                "Retain and return the new pose."
+                "Equal wheel increments translate the pose without changing its heading. Equal and opposite increments rotate the pose about the midpoint between the wheels.",
+                "Unequal increments follow the exact constant-curvature arc implied by the two wheel paths; do not replace a finite turn with a straight-line approximation.",
+                "Wrap the updated heading to [-pi, pi), retain the new Pose, and return it."
               ]
             }
           ]
@@ -351,9 +383,19 @@
           "projectFile": "navigation_controller.py",
           "baseClass": "NavigationControllerBase",
           "configType": "NavigationConfig",
-          "purpose": "Generate motion commands that visit an ordered sequence of world-coordinate goals.",
-          "state": "Retain the ordered goals, the active goal, completion state, and any turn/drive/realignment phase used by the implementation.",
+          "purpose": "Generate forward-speed and turn-rate commands that visit an ordered sequence of world-coordinate goals. The course program supplies the latest odometry Pose and sends each returned MotionCommand to Robot.",
+          "state": "Retain the ordered goals, the active goal, completion state, and any turning, driving, or final-alignment state used by the implementation.",
           "signature": "class NavigationController(NavigationControllerBase)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "NavigationConfig",
+              "description": "Travel speeds, turn rate, slowdown distance, and position and heading tolerances. The same value is available inside the class as self.config."
+            }
+          ],
+          "exceptions": [
+            "TypeError if config is not a NavigationConfig value."
+          ],
           "methods": [
             {
               "id": "method-navigation-controller-start",
@@ -370,6 +412,9 @@
               "returns": { "type": "None", "description": "No value." },
               "requiredBehavior": [
                 "An empty goal sequence is immediately complete; current_goal() returns None and update() returns STOP_COMMAND."
+              ],
+              "exceptions": [
+                "TypeError if goals is not a tuple or list or contains a value other than NavigationGoal."
               ]
             },
             {
@@ -394,7 +439,8 @@
                 "Use approach speed within config.slowdown_distance_mm of the goal and realign if the heading error grows beyond config.realign_heading_rad.",
                 "Visit goals in their supplied order. A goal with heading_rad=None requires position only; a numerical final heading must also be reached.",
                 "After all goals are complete, return STOP_COMMAND."
-              ]
+              ],
+              "exceptions": ["TypeError if pose is not a Pose value."]
             },
             {
               "id": "method-navigation-controller-current-goal",
@@ -425,8 +471,8 @@
           "kind": "student component",
           "projectFile": "grid_planner.py",
           "baseClass": "GridPlannerBase",
-          "purpose": "Find a connected route through free cells in an occupancy grid.",
-          "state": "Search state may remain local to each plan() call.",
+          "purpose": "Find a connected route through free cells in an occupancy grid. Course planning code or DeliveryMission calls plan() and converts the returned GridPath into navigation goals.",
+          "state": "None is required between calls. Search data may remain local to one plan() calculation.",
           "signature": "class GridPlanner(GridPlannerBase)",
           "methods": [
             {
@@ -458,6 +504,9 @@
               "requiredBehavior": [
                 "Use only free cells and move between cells that share a horizontal or vertical edge.",
                 "Any route that connects the endpoints through free edge-adjacent cells is accepted."
+              ],
+              "exceptions": [
+                "TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell."
               ]
             }
           ]
@@ -475,8 +524,8 @@
           "symbols": ["Robot"],
           "kind": "supplied class",
           "import": "from ucsb_xrp import Robot",
-          "purpose": "Run the timed measurement, motor-control, odometry, telemetry, and live-parameter cycle.",
-          "state": "Retains the selected components, latest RobotState, next absolute sample deadline, and latest timing overrun. Projects normally obtain a configured instance with make_robot(ROBOT_CONFIG).",
+          "purpose": "Execute one measured robot sample: convert the requested body motion to wheel targets, update motor commands, read sensors, update odometry, and publish telemetry. Course projects normally obtain Robot from make_robot(ROBOT_CONFIG).",
+          "state": "After start(), retain the selected classes, latest RobotState, next absolute sample time, and latest timing overrun.",
           "signature": "Robot(config, bot, sensor_model, wheel_controller, differential_drive, odometry)",
           "parameters": [
             {
@@ -509,6 +558,9 @@
               "type": "Odometry",
               "description": "Selected pose-estimation component."
             }
+          ],
+          "exceptions": [
+            "TypeError if config is not RobotConfig or a supplied object does not provide the methods required by Robot."
           ],
           "properties": [
             {
@@ -547,6 +599,10 @@
               },
               "requiredBehavior": [
                 "An IDE-managed Run begins immediately. A project launched directly on the XRP waits for the USER button."
+              ],
+              "exceptions": [
+                "TypeError if initial_pose is not a Pose value.",
+                "Hardware or component exceptions raised while resetting or taking the initial sample."
               ]
             },
             {
@@ -574,6 +630,11 @@
               "requiredBehavior": [
                 "Stops the motors before re-raising an exception from the cycle.",
                 "Maintains the configured absolute sample schedule; do not add sleep_ms() inside the control loop."
+              ],
+              "exceptions": [
+                "RuntimeError if start() has not been called.",
+                "TypeError if command is not MotionCommand or read_range is not Boolean.",
+                "Hardware or component exceptions raised during the sample; Robot attempts to stop the motors before re-raising them."
               ]
             },
             {
@@ -597,14 +658,18 @@
               "returns": {
                 "type": "float | None",
                 "description": "Range estimate in mm, or None."
-              }
+              },
+              "exceptions": ["Exceptions raised by the selected SensorModel."]
             },
             {
               "id": "method-robot-stop",
               "name": "stop",
               "signature": "stop() -> None",
               "summary": "Stop both motors and publish a zero drive command.",
-              "returns": { "type": "None", "description": "No value." }
+              "returns": { "type": "None", "description": "No value." },
+              "exceptions": [
+                "Hardware exception if the motors cannot be stopped."
+              ]
             }
           ]
         },
@@ -614,8 +679,8 @@
           "symbols": ["StraightLineController"],
           "kind": "supplied class",
           "import": "from ucsb_xrp import StraightLineController",
-          "purpose": "Request cruise, approach, or zero forward speed from measured mean wheel travel.",
-          "state": "Retains the starting mean wheel position, requested distance, and completion state.",
+          "purpose": "Generate a straight-ahead MotionCommand from measured mean wheel travel, using cruise speed far from the target, approach speed near it, and zero speed at completion.",
+          "state": "After start(), retain the initial mean wheel position, requested travel distance, and completion state.",
           "signature": "StraightLineController(config: NavigationConfig)",
           "parameters": [
             {
@@ -623,6 +688,9 @@
               "type": "NavigationConfig",
               "description": "Cruise and approach speeds, slowdown distance, and position tolerance."
             }
+          ],
+          "exceptions": [
+            "TypeError if config is not a NavigationConfig value."
           ],
           "methods": [
             {
@@ -643,7 +711,11 @@
                   "description": "Requested nonnegative forward travel."
                 }
               ],
-              "returns": { "type": "None", "description": "No value." }
+              "returns": { "type": "None", "description": "No value." },
+              "exceptions": [
+                "TypeError if measurements is not a Measurements value.",
+                "ValueError if distance_mm is Boolean, nonnumeric, nonfinite, or negative."
+              ]
             },
             {
               "id": "method-straight-line-controller-update",
@@ -660,7 +732,11 @@
               "returns": {
                 "type": "MotionCommand",
                 "description": "Next straight-line motion request."
-              }
+              },
+              "exceptions": [
+                "RuntimeError if start() has not been called.",
+                "TypeError if measurements is not a Measurements value."
+              ]
             },
             {
               "id": "method-straight-line-controller-is-complete",
@@ -715,6 +791,10 @@
               "type": "bool",
               "description": "Current USER-button state."
             }
+          ],
+          "exceptions": [
+            "TypeError if time_ms or an encoder count is not an integer, button_pressed is not Boolean, or range_mm is Boolean or nonnumeric.",
+            "ValueError if time_ms is negative or range_mm is nonfinite or not greater than zero."
           ]
         },
         {
@@ -765,13 +845,13 @@
               "name": "left_speed_mm_s",
               "type": "float",
               "units": "mm/s",
-              "description": "Regularized left-wheel speed estimate."
+              "description": "Left-wheel speed estimate formed from recent encoder samples."
             },
             {
               "name": "right_speed_mm_s",
               "type": "float",
               "units": "mm/s",
-              "description": "Regularized right-wheel speed estimate."
+              "description": "Right-wheel speed estimate formed from recent encoder samples."
             },
             {
               "name": "range_mm",
@@ -789,6 +869,10 @@
               "type": "WheelSpeeds",
               "description": "Left and right speed estimates as one value."
             }
+          ],
+          "exceptions": [
+            "TypeError if a numeric argument is Boolean or nonnumeric, time_ms is not an integer, or button_pressed is not Boolean.",
+            "ValueError if time_ms or dt_s is negative, a number is nonfinite, or a supplied range is not greater than zero."
           ]
         },
         {
@@ -811,6 +895,10 @@
               "units": "mm/s",
               "description": "Right-wheel speed."
             }
+          ],
+          "exceptions": [
+            "TypeError if either wheel speed is Boolean or nonnumeric.",
+            "ValueError if either wheel speed is not finite."
           ]
         },
         {
@@ -833,6 +921,10 @@
               "units": "rad/s",
               "description": "Requested counterclockwise turn rate."
             }
+          ],
+          "exceptions": [
+            "TypeError if either argument is Boolean or nonnumeric.",
+            "ValueError if either argument is not finite."
           ]
         },
         {
@@ -853,6 +945,10 @@
               "type": "float",
               "description": "Right command in [-1.0, 1.0]."
             }
+          ],
+          "exceptions": [
+            "TypeError if either command is Boolean or nonnumeric.",
+            "ValueError if either command is nonfinite or outside [-1.0, 1.0]."
           ],
           "notes": [
             "MotorEfforts is a compatibility name for the same type. Use DriveCommand in new code."
@@ -884,6 +980,10 @@
               "units": "rad",
               "description": "Heading wrapped to [-pi, pi)."
             }
+          ],
+          "exceptions": [
+            "TypeError if a coordinate or heading is Boolean or nonnumeric.",
+            "ValueError if a coordinate or heading is not finite."
           ]
         },
         {
@@ -904,6 +1004,9 @@
               "type": "Pose",
               "description": "Odometry estimate."
             }
+          ],
+          "exceptions": [
+            "TypeError if measurements is not Measurements or pose is not Pose."
           ]
         },
         {
@@ -932,6 +1035,10 @@
               "units": "rad",
               "description": "Required final heading, or None for position only."
             }
+          ],
+          "exceptions": [
+            "TypeError if a coordinate or supplied heading is Boolean or nonnumeric.",
+            "ValueError if a coordinate or supplied heading is not finite."
           ]
         },
         {
@@ -952,7 +1059,8 @@
               "type": "int",
               "description": "Row increasing with world y."
             }
-          ]
+          ],
+          "exceptions": ["TypeError if column or row is not an integer."]
         },
         {
           "id": "record-grid-path",
@@ -967,6 +1075,10 @@
               "type": "tuple[GridCell, ...]",
               "description": "Nonempty route of horizontally or vertically adjacent cells."
             }
+          ],
+          "exceptions": [
+            "TypeError if cells is not a tuple or list or contains a value other than GridCell.",
+            "ValueError if cells is empty or consecutive cells do not share a horizontal or vertical edge."
           ],
           "methods": [
             {
@@ -991,7 +1103,12 @@
               "returns": {
                 "type": "tuple[NavigationGoal, ...]",
                 "description": "World-coordinate navigation goals."
-              }
+              },
+              "exceptions": [
+                "AttributeError if grid does not provide cell_center().",
+                "TypeError if final_heading_rad is Boolean or nonnumeric, or grid.cell_center() rejects a path cell's type.",
+                "ValueError if final_heading_rad is not finite or grid.cell_center() rejects a cell outside the grid."
+              ]
             }
           ]
         },
@@ -1008,14 +1125,14 @@
     {
       "id": "configuration",
       "title": "Configuration",
-      "introduction": "Configuration records validate their values at construction and then expose read-only fields. Construct a new record in robot_config.py when a setting changes.",
+      "introduction": "Robot settings belong in robot_config.py. The constructor checks every value, and the resulting fields can be read but not reassigned.",
       "entries": [
         {
           "id": "class-robot-config",
           "name": "RobotConfig",
           "symbols": ["RobotConfig"],
           "kind": "configuration record",
-          "purpose": "Store robot timing, geometry, signs, motor calibration, wheel-speed estimator response, feedback gain, and command limit.",
+          "purpose": "Define one robot's sample timing, wheel geometry, wiring directions, motor calibration, wheel-speed-estimator response, feedback gain, and motor-command limit.",
           "signature": "RobotConfig(sample_period_ms=20, wheel_diameter_mm=60.0, encoder_counts_per_revolution=585.0, track_width_mm=155.0, left_motor_sign=1, right_motor_sign=1, left_encoder_sign=1, right_encoder_sign=1, left_start_command=0.0, right_start_command=0.0, left_speed_command_gain=0.0, right_speed_command_gain=0.0, wheel_speed_filter_time_constant_ms=80.0, wheel_speed_kp=0.0, max_drive_command=1.0)",
           "properties": [
             {
@@ -1023,99 +1140,103 @@
               "type": "int",
               "default": "20",
               "units": "ms",
-              "description": "Robot sample period; at least 1."
+              "description": "Scheduled interval between Robot samples; integer at least 1."
             },
             {
               "name": "wheel_diameter_mm",
               "type": "float",
               "default": "60.0",
               "units": "mm",
-              "description": "Measured wheel diameter; positive."
+              "description": "Measured wheel diameter used to convert encoder revolutions to wheel travel; greater than zero."
             },
             {
               "name": "encoder_counts_per_revolution",
               "type": "float",
               "default": "585.0",
               "units": "count/rev",
-              "description": "Encoder counts for one wheel revolution; positive."
+              "description": "Encoder counts corresponding to one wheel revolution; greater than zero."
             },
             {
               "name": "track_width_mm",
               "type": "float",
               "default": "155.0",
               "units": "mm",
-              "description": "Effective separation between wheel paths used by drive and odometry calculations; positive."
+              "description": "Effective lateral distance between the left and right wheel paths, used by DifferentialDrive and Odometry; greater than zero."
             },
             {
               "name": "left_motor_sign",
               "type": "int",
               "default": "1",
-              "description": "+1 or -1 so positive logical command drives the left wheel forward."
+              "description": "+1 or -1, chosen so a positive left DriveCommand turns the left wheel forward."
             },
             {
               "name": "right_motor_sign",
               "type": "int",
               "default": "1",
-              "description": "+1 or -1 so positive logical command drives the right wheel forward."
+              "description": "+1 or -1, chosen so a positive right DriveCommand turns the right wheel forward."
             },
             {
               "name": "left_encoder_sign",
               "type": "int",
               "default": "1",
-              "description": "+1 or -1 so forward left-wheel travel is positive."
+              "description": "+1 or -1, chosen so forward left-wheel travel produces a positive count change."
             },
             {
               "name": "right_encoder_sign",
               "type": "int",
               "default": "1",
-              "description": "+1 or -1 so forward right-wheel travel is positive."
+              "description": "+1 or -1, chosen so forward right-wheel travel produces a positive count change."
             },
             {
               "name": "left_start_command",
               "type": "float",
               "default": "0.0",
-              "description": "Nonnegative left command used to overcome motor deadband."
+              "description": "Nonnegative left-wheel command needed to overcome motor deadband when a nonzero speed is requested."
             },
             {
               "name": "right_start_command",
               "type": "float",
               "default": "0.0",
-              "description": "Nonnegative right command used to overcome motor deadband."
+              "description": "Nonnegative right-wheel command needed to overcome motor deadband when a nonzero speed is requested."
             },
             {
               "name": "left_speed_command_gain",
               "type": "float",
               "default": "0.0",
               "units": "s/mm",
-              "description": "Left feedforward command per requested wheel speed."
+              "description": "Left-wheel feedforward command per unit of requested wheel speed."
             },
             {
               "name": "right_speed_command_gain",
               "type": "float",
               "default": "0.0",
               "units": "s/mm",
-              "description": "Right feedforward command per requested wheel speed."
+              "description": "Right-wheel feedforward command per unit of requested wheel speed."
             },
             {
               "name": "wheel_speed_filter_time_constant_ms",
               "type": "float",
               "default": "80.0",
               "units": "ms",
-              "description": "Response time of the encoder-derived wheel-speed estimate; zero disables regularization."
+              "description": "Additional response time of the wheel-speed estimate formed from recent encoder samples; zero selects the estimator's minimum supported response."
             },
             {
               "name": "wheel_speed_kp",
               "type": "float",
               "default": "0.0",
               "units": "s/mm",
-              "description": "Proportional motor-command correction per wheel-speed error."
+              "description": "Proportional change in motor command per unit of wheel-speed error."
             },
             {
               "name": "max_drive_command",
               "type": "float",
               "default": "1.0",
-              "description": "Final absolute command limit in [0.0, 1.0]."
+              "description": "Maximum absolute DriveCommand sent to either motor; from 0.0 to 1.0 inclusive."
             }
+          ],
+          "exceptions": [
+            "TypeError if an argument has the wrong type, an unknown argument is supplied, or a current and older compatibility name are both supplied.",
+            "ValueError if a number is not finite or violates the range stated above, or if a starting command exceeds max_drive_command."
           ],
           "notes": [
             "For compatibility with projects created before API 0.3, the implementation also accepts the older argument names ending in _effort. New projects should use the names above."
@@ -1126,51 +1247,55 @@
           "name": "NavigationConfig",
           "symbols": ["NavigationConfig"],
           "kind": "configuration record",
-          "purpose": "Store speeds, distances, angular rates, and tolerances used by supplied straight-line and student navigation controllers.",
+          "purpose": "Define the travel speeds, slowdown distance, turn rate, and accepted position and heading errors used by StraightLineController and NavigationController.",
           "signature": "NavigationConfig(cruise_speed_mm_s, approach_speed_mm_s, slowdown_distance_mm, turn_rate_rad_s, position_tolerance_mm, heading_tolerance_rad, realign_heading_rad)",
           "properties": [
             {
               "name": "cruise_speed_mm_s",
               "type": "float",
               "units": "mm/s",
-              "description": "Normal forward speed; positive."
+              "description": "Normal forward speed away from a goal; greater than zero."
             },
             {
               "name": "approach_speed_mm_s",
               "type": "float",
               "units": "mm/s",
-              "description": "Reduced speed near a goal; positive and no greater than cruise speed."
+              "description": "Reduced forward speed near a goal; greater than zero and no greater than cruise_speed_mm_s."
             },
             {
               "name": "slowdown_distance_mm",
               "type": "float",
               "units": "mm",
-              "description": "Distance at which approach speed begins; positive."
+              "description": "Remaining distance at which the controller changes from cruise speed to approach speed; greater than zero."
             },
             {
               "name": "turn_rate_rad_s",
               "type": "float",
               "units": "rad/s",
-              "description": "Magnitude of turning command; positive."
+              "description": "Magnitude of the requested angular velocity while turning; greater than zero."
             },
             {
               "name": "position_tolerance_mm",
               "type": "float",
               "units": "mm",
-              "description": "Nonnegative accepted position error."
+              "description": "Maximum remaining planar distance accepted as reaching a goal; nonnegative."
             },
             {
               "name": "heading_tolerance_rad",
               "type": "float",
               "units": "rad",
-              "description": "Nonnegative accepted heading error."
+              "description": "Maximum absolute heading error accepted as aligned; nonnegative."
             },
             {
               "name": "realign_heading_rad",
               "type": "float",
               "units": "rad",
-              "description": "Heading-error magnitude that triggers realignment; no smaller than heading tolerance."
+              "description": "Absolute heading error at which forward travel stops for realignment; no smaller than heading_tolerance_rad."
             }
+          ],
+          "exceptions": [
+            "TypeError if an argument is Boolean or nonnumeric.",
+            "ValueError if a number is not finite or violates the range stated above, approach_speed_mm_s exceeds cruise_speed_mm_s, or realign_heading_rad is below heading_tolerance_rad."
           ]
         }
       ]
@@ -1185,7 +1310,8 @@
           "name": "ucsb_xrp.live",
           "symbols": ["live"],
           "kind": "module",
-          "purpose": "Create Monitor controls and publish selected program values."
+          "purpose": "Create Monitor controls and publish selected program values.",
+          "state": "Retain declared controls and the latest watch and plot values for the current run. Robot applies queued control changes together at a sample boundary."
         },
         {
           "id": "class-live-parameter",
@@ -1193,6 +1319,7 @@
           "symbols": ["LiveParameter"],
           "kind": "value object",
           "purpose": "Represent one Monitor control and the value currently applied to the program.",
+          "state": "value changes only when live.apply_updates(), Robot.start(), or Robot.step() applies a queued Monitor setting.",
           "properties": [
             {
               "name": "value",
@@ -1294,6 +1421,10 @@
           "requiredBehavior": [
             "maximum must exceed minimum; step must be positive and no larger than the range; default must lie inside the inclusive bounds.",
             "The range does not need to contain an exact whole number of steps. The applied value is the nearest available step within the bounds."
+          ],
+          "exceptions": [
+            "TypeError if name, unit, or label is not a string or a numeric argument is Boolean or nonnumeric.",
+            "ValueError if text is empty or too long, name is not a Python identifier, a number is nonfinite, bounds or step are invalid, default lies outside the bounds, the name is already in use, or 16 controls already exist."
           ]
         },
         {
@@ -1324,7 +1455,11 @@
           "returns": {
             "type": "LiveParameter",
             "description": "Boolean control."
-          }
+          },
+          "exceptions": [
+            "TypeError if name or label is not a string or default is not Boolean.",
+            "ValueError if text is empty or too long, name is not a Python identifier, the name is already in use, or 16 controls already exist."
+          ]
         },
         {
           "id": "function-live-choice",
@@ -1359,7 +1494,11 @@
           "returns": {
             "type": "LiveParameter",
             "description": "Choice control."
-          }
+          },
+          "exceptions": [
+            "TypeError if name, label, or any choice is not a string.",
+            "ValueError if text is empty or too long, name is not a Python identifier, options does not contain two to six unique choices, default is not one of them, the name is already in use, or 16 controls already exist."
+          ]
         },
         {
           "id": "function-live-watch",
@@ -1392,7 +1531,11 @@
               "description": "Displayed label; derived from name when omitted."
             }
           ],
-          "returns": { "type": "None", "description": "No value." }
+          "returns": { "type": "None", "description": "No value." },
+          "exceptions": [
+            "TypeError if name, unit, or label is not a string or value is not a number, Boolean, or string.",
+            "ValueError if text is empty or too long, name is not a Python identifier, a numeric value is nonfinite, or 16 watch values already exist."
+          ]
         },
         {
           "id": "function-live-plot",
@@ -1425,7 +1568,11 @@
               "description": "Displayed label; derived from name when omitted."
             }
           ],
-          "returns": { "type": "None", "description": "No value." }
+          "returns": { "type": "None", "description": "No value." },
+          "exceptions": [
+            "TypeError if name, unit, or label is not a string or value is Boolean or nonnumeric.",
+            "ValueError if text is empty or too long, name is not a Python identifier, value is nonfinite, or 16 plot values already exist."
+          ]
         },
         {
           "id": "function-live-apply-updates",
@@ -1453,7 +1600,8 @@
           "name": "ProjectWorld",
           "symbols": ["ProjectWorld"],
           "kind": "supplied class",
-          "purpose": "Provide one validated world from the project's world.json file.",
+          "purpose": "Provide one named world loaded from the project's world.json file, including bounds, initial pose, fixed obstacles, changeable features, and waypoint markers.",
+          "state": "The loaded world does not change. arena_map() creates a new ArenaMap, and waypoint methods create NavigationGoal values from the stored markers.",
           "properties": [
             { "name": "id", "type": "str", "description": "World identifier." },
             { "name": "label", "type": "str", "description": "Display name." },
@@ -1488,7 +1636,13 @@
                   "description": "Feature names that should act as obstacles."
                 }
               ],
-              "returns": { "type": "ArenaMap", "description": "Validated map." }
+              "returns": {
+                "type": "ArenaMap",
+                "description": "Arena geometry with the named features marked as obstacles."
+              },
+              "exceptions": [
+                "ValueError if blocked_features contains a name not present in feature_names."
+              ]
             },
             {
               "id": "method-project-world-waypoint",
@@ -1505,7 +1659,10 @@
               "returns": {
                 "type": "NavigationGoal",
                 "description": "Waypoint goal."
-              }
+              },
+              "exceptions": [
+                "ValueError if no waypoint has that name or its stored coordinates are invalid."
+              ]
             },
             {
               "id": "method-project-world-waypoints",
@@ -1543,7 +1700,12 @@
           "returns": {
             "type": "ProjectWorld",
             "description": "Selected validated world."
-          }
+          },
+          "exceptions": [
+            "OSError if path cannot be opened.",
+            "ValueError if the JSON, world list, selected world, bounds, coordinates, or names are invalid.",
+            "TypeError if a world field has the wrong JSON type."
+          ]
         },
         {
           "id": "class-rectangle",
@@ -1584,6 +1746,10 @@
               "description": "Minimum and maximum x and y bounds."
             }
           ],
+          "exceptions": [
+            "TypeError if a boundary is Boolean or nonnumeric.",
+            "ValueError if a boundary is nonfinite or the rectangle does not have positive width and height."
+          ],
           "methods": [
             {
               "id": "method-rectangle-contains",
@@ -1614,7 +1780,11 @@
               "returns": {
                 "type": "bool",
                 "description": "Containment result."
-              }
+              },
+              "exceptions": [
+                "TypeError if a coordinate or margin is Boolean or nonnumeric.",
+                "ValueError if a coordinate is nonfinite or margin_mm is nonfinite or negative."
+              ]
             }
           ]
         },
@@ -1624,6 +1794,7 @@
           "symbols": ["ArenaMap"],
           "kind": "supplied class",
           "purpose": "Represent rectangular arena bounds, fixed obstacles, and named changeable obstacle features.",
+          "state": "The map does not change after construction. with_feature_blocked() returns a new ArenaMap rather than modifying the current map.",
           "signature": "ArenaMap(bounds_mm, obstacles=(), features=None, blocked_features=())",
           "parameters": [
             {
@@ -1650,6 +1821,10 @@
               "default": "()",
               "description": "Feature names initially treated as obstacles."
             }
+          ],
+          "exceptions": [
+            "TypeError if bounds or obstacles are not rectangles or four-number bounds, obstacles is not a sequence, features is not a dictionary of named rectangles, or a feature name is empty or nontext.",
+            "ValueError if a rectangle is invalid or blocked_features contains an unknown name."
           ],
           "properties": [
             {
@@ -1690,7 +1865,8 @@
               "returns": {
                 "type": "tuple[float, float, float, float]",
                 "description": "Feature bounds in millimeters."
-              }
+              },
+              "exceptions": ["ValueError if name is not a known feature."]
             },
             {
               "id": "method-arena-map-contains",
@@ -1714,7 +1890,11 @@
               "returns": {
                 "type": "bool",
                 "description": "True inside or on the arena boundary."
-              }
+              },
+              "exceptions": [
+                "TypeError if a coordinate is Boolean or nonnumeric.",
+                "ValueError if a coordinate is not finite."
+              ]
             },
             {
               "id": "method-arena-map-is-free",
@@ -1745,7 +1925,11 @@
               "returns": {
                 "type": "bool",
                 "description": "True when the point satisfies the requested clearance."
-              }
+              },
+              "exceptions": [
+                "TypeError if a coordinate or clearance is Boolean or nonnumeric.",
+                "ValueError if a coordinate is nonfinite or clearance_mm is nonfinite or negative."
+              ]
             },
             {
               "id": "method-arena-map-with-feature-blocked",
@@ -1767,7 +1951,11 @@
               "returns": {
                 "type": "ArenaMap",
                 "description": "New immutable map."
-              }
+              },
+              "exceptions": [
+                "ValueError if name is not a known feature.",
+                "TypeError if blocked is not Boolean."
+              ]
             }
           ]
         },
@@ -1777,6 +1965,7 @@
           "symbols": ["OccupancyGrid"],
           "kind": "supplied class",
           "purpose": "Sample an ArenaMap into uniform free and blocked cells.",
+          "state": "Grid resolution, origin, dimensions, and blocked cells do not change after from_arena() creates the grid.",
           "signature": "OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid",
           "parameters": [
             {
@@ -1797,6 +1986,10 @@
               "units": "mm",
               "description": "Nonnegative obstacle and wall clearance."
             }
+          ],
+          "exceptions": [
+            "TypeError if arena is not ArenaMap or a numeric argument is Boolean or nonnumeric.",
+            "ValueError if resolution_mm is nonfinite or not greater than zero, or clearance_mm is nonfinite or negative."
           ],
           "properties": [
             {
@@ -1851,7 +2044,11 @@
               "returns": {
                 "type": "GridCell | None",
                 "description": "Containing cell, or None outside the grid."
-              }
+              },
+              "exceptions": [
+                "TypeError if a coordinate is Boolean or nonnumeric.",
+                "ValueError if a coordinate is not finite."
+              ]
             },
             {
               "id": "method-occupancy-grid-cell-center",
@@ -1868,7 +2065,11 @@
               "returns": {
                 "type": "tuple[float, float]",
                 "description": "World x and y coordinates in millimeters."
-              }
+              },
+              "exceptions": [
+                "TypeError if cell is not GridCell.",
+                "ValueError if cell lies outside the grid."
+              ]
             },
             {
               "id": "method-occupancy-grid-contains",
@@ -1885,7 +2086,8 @@
               "returns": {
                 "type": "bool",
                 "description": "True when row and column are in bounds."
-              }
+              },
+              "exceptions": ["TypeError if cell is not GridCell."]
             },
             {
               "id": "method-occupancy-grid-is-blocked",
@@ -1899,7 +2101,8 @@
                   "description": "Cell to test."
                 }
               ],
-              "returns": { "type": "bool", "description": "Blocked state." }
+              "returns": { "type": "bool", "description": "Blocked state." },
+              "exceptions": ["TypeError if cell is not GridCell."]
             },
             {
               "id": "method-occupancy-grid-neighbors",
@@ -1916,7 +2119,8 @@
               "returns": {
                 "type": "tuple[GridCell, ...]",
                 "description": "Free edge-adjacent cells in deterministic order."
-              }
+              },
+              "exceptions": ["TypeError if cell is not GridCell."]
             }
           ],
           "notes": [
@@ -1984,6 +2188,10 @@
               "type": "bool",
               "description": "Blocked state used when no range estimate is available."
             }
+          ],
+          "exceptions": [
+            "TypeError if initial_pose, arena, destination, a numeric setting, or assume_blocked_without_range has the wrong type.",
+            "ValueError if observed_feature_name is unknown, a count is below one, minimum_usable_range_count exceeds range_sample_count, or a numeric setting is nonfinite or outside its stated range."
           ]
         },
         {
@@ -1992,6 +2200,7 @@
           "symbols": ["DeliveryMission"],
           "kind": "supplied class",
           "purpose": "Perform range observation, map update, route planning, and navigation for a DeliveryTask.",
+          "state": "Retain task and result. result is None before run(), no_path when planning finds no route, and delivered after navigation completes.",
           "signature": "DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)",
           "parameters": [
             {
@@ -2009,6 +2218,9 @@
               "type": "GridPlanner",
               "description": "Selected grid-planning component."
             }
+          ],
+          "exceptions": [
+            "TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods."
           ],
           "properties": [
             {
@@ -2038,7 +2250,11 @@
               "returns": {
                 "type": "RobotState",
                 "description": "Last robot state."
-              }
+              },
+              "exceptions": [
+                "RuntimeError if navigation does not complete within 30,000 Robot steps.",
+                "Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising."
+              ]
             }
           ]
         }
@@ -2053,7 +2269,8 @@
           "name": "XRPBot",
           "symbols": ["XRPBot"],
           "kind": "supplied class",
-          "purpose": "Read XRPLib devices and apply bounded, signed drive commands. Ordinary projects should use Robot instead.",
+          "purpose": "Read the XRP's encoders, clock, ultrasonic sensor, and USER button, and send bounded DriveCommand values to its motors. Ordinary course programs use Robot; use XRPBot directly only for low-level experiments.",
+          "state": "Retain the RobotConfig and the encoder counts chosen as zero by reset_encoders().",
           "signature": "XRPBot(config: RobotConfig)",
           "parameters": [
             {
@@ -2061,6 +2278,10 @@
               "type": "RobotConfig",
               "description": "Motor signs, encoder signs, and final command limit."
             }
+          ],
+          "exceptions": [
+            "TypeError if config is not a RobotConfig value.",
+            "Hardware exception if XRP devices cannot be initialized or stopped."
           ],
           "properties": [
             {
@@ -2086,21 +2307,29 @@
               "returns": {
                 "type": "RawSensors",
                 "description": "Direct hardware sample."
-              }
+              },
+              "exceptions": [
+                "TypeError if include_range is not Boolean.",
+                "Hardware or run-stop exception while reading the XRP."
+              ]
             },
             {
               "id": "method-xrpbot-reset-encoders",
               "name": "reset_encoders",
               "signature": "reset_encoders() -> None",
               "summary": "Use current hardware counts as the session zero.",
-              "returns": { "type": "None", "description": "No value." }
+              "returns": { "type": "None", "description": "No value." },
+              "exceptions": [
+                "Hardware or run-stop exception while reading encoder counts."
+              ]
             },
             {
               "id": "method-xrpbot-wait-for-button",
               "name": "wait_for_button",
               "signature": "wait_for_button() -> None",
               "summary": "Wait for the XRP USER button.",
-              "returns": { "type": "None", "description": "No value." }
+              "returns": { "type": "None", "description": "No value." },
+              "exceptions": ["Hardware or run-stop exception while waiting."]
             },
             {
               "id": "method-xrpbot-set-drive",
@@ -2114,14 +2343,22 @@
                   "description": "Logical left and right motor commands."
                 }
               ],
-              "returns": { "type": "None", "description": "No value." }
+              "returns": { "type": "None", "description": "No value." },
+              "exceptions": [
+                "TypeError if command is not DriveCommand.",
+                "ValueError if a command field is not a finite real number.",
+                "Hardware or run-stop exception while writing the motors; XRPBot attempts to stop both motors before re-raising."
+              ]
             },
             {
               "id": "method-xrpbot-stop",
               "name": "stop",
               "signature": "stop() -> None",
               "summary": "Attempt to stop both motors.",
-              "returns": { "type": "None", "description": "No value." }
+              "returns": { "type": "None", "description": "No value." },
+              "exceptions": [
+                "Hardware exception if either motor cannot be set to zero."
+              ]
             }
           ],
           "notes": ["set_efforts() is a compatibility alias for set_drive()."]
@@ -2152,8 +2389,12 @@
           ],
           "returns": {
             "type": "float",
-            "description": "value limited to [lower, upper]."
-          }
+            "description": "The input value limited to [lower, upper]."
+          },
+          "exceptions": [
+            "TypeError if an argument is Boolean or nonnumeric.",
+            "ValueError if an argument is not finite or lower exceeds upper."
+          ]
         },
         {
           "id": "function-elapsed-time-s",
@@ -2179,7 +2420,10 @@
           "returns": {
             "type": "float",
             "description": "Wrap-safe elapsed time in seconds."
-          }
+          },
+          "exceptions": [
+            "TypeError if either timestamp is Boolean or not an integer."
+          ]
         },
         {
           "id": "function-wrap-angle-rad",
@@ -2199,7 +2443,11 @@
           "returns": {
             "type": "float",
             "description": "Equivalent angle in [-pi, pi)."
-          }
+          },
+          "exceptions": [
+            "TypeError if angle_rad is Boolean or nonnumeric.",
+            "ValueError if angle_rad is not finite."
+          ]
         },
         {
           "id": "function-distance-to-goal",
@@ -2223,7 +2471,12 @@
           "returns": {
             "type": "float",
             "description": "Euclidean position error in millimeters."
-          }
+          },
+          "exceptions": [
+            "AttributeError if pose or goal does not provide x_mm and y_mm.",
+            "TypeError if a coordinate is Boolean or nonnumeric.",
+            "ValueError if a coordinate is not finite."
+          ]
         },
         {
           "id": "function-bearing-to-goal",
@@ -2247,7 +2500,12 @@
           "returns": {
             "type": "float",
             "description": "World-frame bearing in [-pi, pi) radians."
-          }
+          },
+          "exceptions": [
+            "AttributeError if pose or goal does not provide x_mm and y_mm.",
+            "TypeError if a coordinate is Boolean or nonnumeric.",
+            "ValueError if a coordinate is not finite."
+          ]
         }
       ]
     }

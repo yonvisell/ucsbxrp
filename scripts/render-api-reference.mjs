@@ -34,7 +34,7 @@ function renderMarkdown(source) {
   const lines = [
     `# ${source.title}`,
     "",
-    `API version: \`${source.apiVersion}\`. This file is generated from \`course_content/api-reference.json\`; edit the catalog rather than this file.`,
+    `API version: \`${source.apiVersion}\`.`,
     "",
     source.introduction,
     "",
@@ -60,20 +60,21 @@ function renderMarkdownEntry(lines, entry) {
   if (entry.projectFile)
     facts.push(`**Project file:** \`${entry.projectFile}\``);
   if (entry.baseClass) facts.push(`**Base class:** \`${entry.baseClass}\``);
-  if (entry.import) facts.push(`**Import:** \`${entry.import}\``);
+  const importStatement = entryImport(entry);
+  if (importStatement) facts.push(`**Import:** \`${importStatement}\``);
   if (facts.length > 0) lines.push(...facts.map((fact) => `- ${fact}`), "");
-  if (entry.signature) lines.push("```python", entry.signature, "```", "");
-  if (entry.baseClass) {
-    const constructorText = entry.configType
-      ? `Its constructor stores the supplied \`${entry.configType}\` as the read-only \`self.config\` property.`
-      : "It requires no configuration constructor.";
+  if (entry.signature) {
     lines.push(
-      `The base class defines the public methods below. ${constructorText} The project class implements those methods.`,
+      `**${signatureTitle(entry)}**`,
+      "",
+      "```python",
+      entry.signature,
+      "```",
       "",
     );
   }
   if (entry.state) {
-    lines.push("**Information retained between calls:**", "", entry.state, "");
+    lines.push("**State between calls:**", "", entry.state, "");
   }
   if (entry.relevantConfigFields) {
     lines.push(
@@ -82,11 +83,11 @@ function renderMarkdownEntry(lines, entry) {
     );
   }
   if (entry.parameters?.length) {
-    lines.push("**Parameters**", "");
+    lines.push(`**${entryParameterTitle(entry)}**`, "");
     renderMarkdownTable(lines, entry.parameters);
   }
   if (entry.properties?.length) {
-    lines.push("**Readable fields**", "");
+    lines.push(`**${propertyTitle(entry)}**`, "");
     renderMarkdownTable(lines, entry.properties);
   }
   for (const method of entry.methods ?? []) renderMarkdownMethod(lines, method);
@@ -115,11 +116,11 @@ function renderMarkdownMethod(lines, method) {
   lines.push(
     `#### \`${method.name}()\``,
     "",
+    method.summary,
+    "",
     "```python",
     method.signature,
     "```",
-    "",
-    method.summary,
     "",
   );
   if (method.parameters?.length) {
@@ -158,7 +159,6 @@ function renderPlainText(source) {
   const lines = [
     source.title.toUpperCase(),
     `API version: ${source.apiVersion}`,
-    "Generated from course_content/api-reference.json.",
     "",
     source.introduction,
     "",
@@ -179,27 +179,23 @@ function renderPlainEntry(lines, entry) {
   if (entry.kind) lines.push(`Kind: ${entry.kind}`);
   if (entry.projectFile) lines.push(`Project file: ${entry.projectFile}`);
   if (entry.baseClass) lines.push(`Base class: ${entry.baseClass}`);
-  if (entry.import) lines.push(`Import: ${entry.import}`);
-  if (entry.signature) lines.push(`Signature: ${entry.signature}`);
-  if (entry.baseClass) {
-    lines.push(
-      entry.configType
-        ? `The base constructor stores the supplied ${entry.configType} as the read-only self.config property.`
-        : "The base class requires no configuration constructor.",
-    );
+  const importStatement = entryImport(entry);
+  if (importStatement) lines.push(`Import: ${importStatement}`);
+  if (entry.signature) {
+    lines.push(`${signatureTitle(entry)}: ${entry.signature}`);
   }
-  if (entry.state) lines.push(`Information retained: ${entry.state}`);
+  if (entry.state) lines.push(`State between calls: ${entry.state}`);
   if (entry.relevantConfigFields) {
     lines.push(`Configuration used: ${entry.relevantConfigFields.join(", ")}`);
   }
-  renderPlainValues(lines, "Parameters", entry.parameters);
-  renderPlainValues(lines, "Readable fields", entry.properties);
+  renderPlainValues(lines, entryParameterTitle(entry), entry.parameters);
+  renderPlainValues(lines, propertyTitle(entry), entry.properties);
   for (const method of entry.methods ?? []) {
     lines.push(
       "",
       `${method.name}()`,
-      `Signature: ${method.signature}`,
       method.summary,
+      `Signature: ${method.signature}`,
     );
     renderPlainValues(lines, "Parameters", method.parameters);
     if (method.returns) {
@@ -240,4 +236,45 @@ function renderPlainValues(lines, title, values) {
 function renderPlainList(lines, title, values) {
   if (!values?.length) return;
   lines.push(`${title}:`, ...values.map((value) => `- ${value}`));
+}
+
+function entryImport(entry) {
+  if (entry.import) return entry.import;
+  if (entry.projectFile) {
+    return `from ${entry.projectFile.replace(/\.py$/, "")} import ${entry.name}`;
+  }
+  if (entry.id === "module-live" || entry.name.startsWith("live.")) {
+    return "from ucsb_xrp import live";
+  }
+  if (entry.kind === "value object") return null;
+  return `from ucsb_xrp import ${entry.name}`;
+}
+
+function signatureTitle(entry) {
+  if (entry.baseClass) return "Class declaration";
+  if (entry.kind === "constant") return "Value";
+  if (entry.signature?.includes(".from_arena(")) return "Factory function";
+  if (
+    entry.kind.includes("class") ||
+    entry.kind.includes("record") ||
+    entry.kind === "value object"
+  ) {
+    return "Constructor";
+  }
+  return "Signature";
+}
+
+function entryParameterTitle(entry) {
+  if (entry.signature?.includes(".from_arena(")) return "Factory parameters";
+  if (entry.baseClass || entry.kind.includes("class")) {
+    return "Constructor parameters";
+  }
+  return "Parameters";
+}
+
+function propertyTitle(entry) {
+  if (entry.kind === "configuration record") {
+    return "Constructor parameters and readable fields";
+  }
+  return "Readable fields";
 }

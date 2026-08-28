@@ -1,8 +1,7 @@
 UCSB XRP API REFERENCE
 API version: 0.4.0-dev
-Generated from course_content/api-reference.json.
 
-This reference describes the Python classes, values, and functions that a course project may use. The supplied reference components are working examples; students may use a different algorithm when it satisfies the stated behavior.
+Robot runs the measured control cycle used throughout the course. Six replaceable classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Student implementations may use any algorithm that produces the required behavior stated here.
 
 UNITS AND COORDINATE CONVENTIONS
 - Distances, positions, wheel travel, and range use millimeters (mm).
@@ -13,22 +12,24 @@ UNITS AND COORDINATE CONVENTIONS
 
 COMPONENTS YOU IMPLEMENT
 
-Each student component inherits the corresponding base class from ucsb_xrp.student_api. The base constructor checks the configuration and stores the same object as the read-only self.config property. Robot or supplied mission code calls the methods below; the project class supplies their calculations.
+You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and the mission classes call these methods, so the rest of the project does not change when course_setup.py selects your implementation.
 
 SensorModel
 -----------
-Convert direct XRP sensor readings into measured wheel motion, wheel-speed estimates, range, and USER-button state.
+Convert encoder counts, device time, ultrasonic range, and USER-button state into physical measurements. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() reduces repeated ultrasonic readings.
 Kind: student component
 Project file: sensor_model.py
 Base class: SensorModelBase
-Signature: class SensorModel(SensorModelBase)
-The base constructor stores the supplied RobotConfig as the read-only self.config property.
-Information retained: After reset(), retain the encoder and time origins, the preceding sample, elapsed-time information, and the recent samples or equivalent state used to estimate wheel speed. Total wheel positions are calculated relative to the reset origins; they do not need separate accumulated position state.
+Import: from sensor_model import SensorModel
+Class declaration: class SensorModel(SensorModelBase)
+State between calls: After reset(), retain the encoder and time zero values, the preceding sample, and enough recent encoder history to estimate wheel speed. Wheel position remains relative to the reset values.
 Configuration used: sample_period_ms, wheel_diameter_mm, encoder_counts_per_revolution, left_encoder_sign, right_encoder_sign, wheel_speed_filter_time_constant_ms
+Constructor parameters:
+- config (RobotConfig): Robot sampling, encoder, wheel, and wheel-speed-estimation settings. The same value is available inside the class as self.config.
 
 reset()
-Signature: reset(raw: RawSensors) -> Measurements
 Establish the encoder and time origins for a new run.
+Signature: reset(raw: RawSensors) -> Measurements
 Parameters:
 - raw (RawSensors): First hardware sample after Robot resets the encoders.
 Returns: Measurements - A measurement at raw.time_ms with zero positions, increments, speeds, and dt_s, while preserving raw.range_mm and raw.button_pressed.
@@ -39,16 +40,16 @@ Exceptions:
 - TypeError if raw is not a RawSensors value.
 
 update()
-Signature: update(raw: RawSensors) -> Measurements
 Convert the next hardware sample into physical measurements.
+Signature: update(raw: RawSensors) -> Measurements
 Parameters:
 - raw (RawSensors): Next encoder, device-time, range, and USER-button sample.
-Returns: Measurements - Cumulative wheel positions from the reset origins, the latest unsmoothed wheel increments, regularized wheel-speed estimates, elapsed time, range, and button state.
+Returns: Measurements - Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, range, and button state.
 Required behavior:
 - Apply the configured encoder signs, wheel diameter, and encoder counts per revolution.
 - Calculate dt_s from consecutive device timestamps with elapsed_time_s().
 - Do not smooth left_increment_mm or right_increment_mm; odometry uses the measured increments.
-- Estimate wheel speed from recent samples or an equivalent regularized estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.
+- Estimate wheel speed from recent encoder samples or an equivalent estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.
 - If no positive time has elapsed, report dt_s as zero without dividing by zero; positions and increments still follow the new encoder counts.
 - Preserve raw.range_mm and raw.button_pressed in the returned Measurements.
 Exceptions:
@@ -56,8 +57,8 @@ Exceptions:
 - TypeError if raw is not a RawSensors value.
 
 estimate_range()
-Signature: estimate_range(samples, minimum_usable: int) -> float | None
 Combine repeated ultrasonic readings while rejecting unusable values.
+Signature: estimate_range(samples, minimum_usable: int) -> float | None
 Parameters:
 - samples (sequence[float | None]; mm): Range readings to combine.
 - minimum_usable (int): Minimum number of usable readings required; must be at least 1.
@@ -65,6 +66,8 @@ Returns: float | None - Median of the finite, positive, non-Boolean readings, or
 Exceptions:
 - TypeError if minimum_usable is not an integer or samples cannot be iterated.
 - ValueError if minimum_usable is less than 1.
+Exceptions:
+- TypeError if config is not a RobotConfig value.
 
 Measure one encoder update
 from robot_config import ROBOT_CONFIG
@@ -79,26 +82,28 @@ print(measurement.left_speed_mm_s)
 
 WheelSpeedController
 --------------------
-Calculate bounded left and right motor commands from requested wheel speeds and measured wheel-speed estimates.
+Calculate one bounded motor command for each wheel from its requested speed and measured speed. Robot calls reset() at the start of a run and update() once per measured sample.
 Kind: student component
 Project file: wheel_speed_controller.py
 Base class: WheelSpeedControllerBase
-Signature: class WheelSpeedController(WheelSpeedControllerBase)
-The base constructor stores the supplied RobotConfig as the read-only self.config property.
-Information retained: An implementation may retain controller state between samples. reset() must return that state to its initial condition before each run.
+Import: from wheel_speed_controller import WheelSpeedController
+Class declaration: class WheelSpeedController(WheelSpeedControllerBase)
+State between calls: The controller may retain values needed from earlier samples. reset() must return all retained controller values to their initial condition.
 Configuration used: left_start_command, right_start_command, left_speed_command_gain, right_speed_command_gain, wheel_speed_kp, max_drive_command
+Constructor parameters:
+- config (RobotConfig): Motor calibration, feedback gain, and command limit. The same value is available inside the class as self.config.
 
 reset()
-Signature: reset() -> None
 Prepare controller state for a new run.
+Signature: reset() -> None
 Returns: None - No value.
 
 update()
-Signature: update(target: WheelSpeeds, measured: WheelSpeeds) -> DriveCommand
 Calculate the next motor command for both wheels.
+Signature: update(target: WheelSpeeds, measured: WheelSpeeds) -> DriveCommand
 Parameters:
 - target (WheelSpeeds; mm/s): Requested left and right wheel speeds from DifferentialDrive.
-- measured (WheelSpeeds; mm/s): Latest regularized wheel-speed estimates from SensorModel.
+- measured (WheelSpeeds; mm/s): Latest wheel-speed estimates formed from recent encoder samples by SensorModel.
 Returns: DriveCommand - Normalized left and right motor commands bounded by config.max_drive_command.
 Required behavior:
 - Return an exact zero command for a wheel whose requested speed is zero.
@@ -106,46 +111,55 @@ Required behavior:
 - For a nonzero requested speed, a larger speed error in the requested direction must produce a stronger command than a smaller error under the same conditions.
 Exceptions:
 - TypeError if target or measured is not a WheelSpeeds value.
+Exceptions:
+- TypeError if config is not a RobotConfig value.
 
 DifferentialDrive
 -----------------
-Convert requested robot forward speed and turn rate into target left and right wheel speeds.
+Convert a requested robot forward speed and turn rate into the two wheel-speed targets required by a differential-drive robot. Robot calls wheel_speeds() once per measured sample.
 Kind: student component
 Project file: differential_drive.py
 Base class: DifferentialDriveBase
-Signature: class DifferentialDrive(DifferentialDriveBase)
-The base constructor stores the supplied RobotConfig as the read-only self.config property.
-Information retained: Each calculation is independent; the component does not need to retain state between calls.
+Import: from differential_drive import DifferentialDrive
+Class declaration: class DifferentialDrive(DifferentialDriveBase)
+State between calls: None. Each wheel_speeds() calculation depends only on its MotionCommand and the configured track width.
 Configuration used: track_width_mm
+Constructor parameters:
+- config (RobotConfig): Robot geometry containing the effective track width. The same value is available inside the class as self.config.
 
 wheel_speeds()
-Signature: wheel_speeds(command: MotionCommand) -> WheelSpeeds
 Calculate target wheel speeds for one body-motion request.
+Signature: wheel_speeds(command: MotionCommand) -> WheelSpeeds
 Parameters:
 - command (MotionCommand): Requested forward speed and counterclockwise turn rate.
 Returns: WheelSpeeds - Target left and right wheel speeds in mm/s.
 Required behavior:
-- For track width b, forward speed v, and turn rate omega, return left speed v - omega*b/2 and right speed v + omega*b/2.
-- Positive turn rate therefore requests a faster right wheel than left wheel.
+- Produce wheel speeds consistent with planar differential-drive kinematics and config.track_width_mm.
+- Zero turn rate produces equal wheel speeds. Positive turn rate produces a greater right-wheel speed than left-wheel speed; negative turn rate reverses that relationship.
+- Support straight motion, in-place rotation, and simultaneous forward motion and turning.
 Exceptions:
 - TypeError if command is not a MotionCommand value.
+Exceptions:
+- TypeError if config is not a RobotConfig value.
 
 Odometry
 --------
-Update the estimated world position and heading from measured left and right wheel travel.
+Estimate the robot's world position and heading from measured left- and right-wheel travel. Robot establishes the initial Pose with reset() and supplies one pair of wheel increments to update() after each sample.
 Kind: student component
 Project file: odometry.py
 Base class: OdometryBase
-Signature: class Odometry(OdometryBase)
-The base constructor stores the supplied RobotConfig as the read-only self.config property.
-Information retained: After reset(), retain the latest Pose. Simulator ground-truth position is not an input.
+Import: from odometry import Odometry
+Class declaration: class Odometry(OdometryBase)
+State between calls: After reset(), retain the latest Pose. The estimate uses measured wheel travel only; simulator ground truth is not an input.
 Configuration used: track_width_mm
+Constructor parameters:
+- config (RobotConfig): Robot geometry containing the effective track width. The same value is available inside the class as self.config.
 Readable fields:
 - pose (Pose): Latest estimated pose; available after reset().
 
 reset()
-Signature: reset(initial_pose: Pose) -> Pose
 Set the pose for a new run.
+Signature: reset(initial_pose: Pose) -> Pose
 Parameters:
 - initial_pose (Pose): Known starting position and heading.
 Returns: Pose - The established initial pose.
@@ -153,43 +167,48 @@ Exceptions:
 - TypeError if initial_pose is not a Pose value.
 
 update()
-Signature: update(left_increment_mm: float, right_increment_mm: float) -> Pose
 Integrate one differential-drive wheel-travel increment.
+Signature: update(left_increment_mm: float, right_increment_mm: float) -> Pose
 Parameters:
 - left_increment_mm (float; mm): Signed left-wheel travel since the preceding sample.
 - right_increment_mm (float; mm): Signed right-wheel travel since the preceding sample.
 Returns: Pose - Updated pose with heading wrapped to [-pi, pi).
 Required behavior:
-- Use d=(left_increment_mm+right_increment_mm)/2 and dtheta=(right_increment_mm-left_increment_mm)/track_width_mm.
-- For dtheta equal to zero, translate by d at the current heading.
-- For nonzero dtheta, integrate the exact constant-curvature arc: radius=d/dtheta, dx=radius*(sin(theta+dtheta)-sin(theta)), and dy=-radius*(cos(theta+dtheta)-cos(theta)).
-- Retain and return the new pose.
+- Equal wheel increments translate the pose without changing its heading. Equal and opposite increments rotate the pose about the midpoint between the wheels.
+- Unequal increments follow the exact constant-curvature arc implied by the two wheel paths; do not replace a finite turn with a straight-line approximation.
+- Wrap the updated heading to [-pi, pi), retain the new Pose, and return it.
 Exceptions:
 - RuntimeError if reset() has not been called.
 - TypeError for Boolean or nonnumeric increments.
+Exceptions:
+- TypeError if config is not a RobotConfig value.
 
 NavigationController
 --------------------
-Generate motion commands that visit an ordered sequence of world-coordinate goals.
+Generate forward-speed and turn-rate commands that visit an ordered sequence of world-coordinate goals. The course program supplies the latest odometry Pose and sends each returned MotionCommand to Robot.
 Kind: student component
 Project file: navigation_controller.py
 Base class: NavigationControllerBase
-Signature: class NavigationController(NavigationControllerBase)
-The base constructor stores the supplied NavigationConfig as the read-only self.config property.
-Information retained: Retain the ordered goals, the active goal, completion state, and any turn/drive/realignment phase used by the implementation.
+Import: from navigation_controller import NavigationController
+Class declaration: class NavigationController(NavigationControllerBase)
+State between calls: Retain the ordered goals, the active goal, completion state, and any turning, driving, or final-alignment state used by the implementation.
+Constructor parameters:
+- config (NavigationConfig): Travel speeds, turn rate, slowdown distance, and position and heading tolerances. The same value is available inside the class as self.config.
 
 start()
-Signature: start(goals: sequence[NavigationGoal]) -> None
 Store an ordered goal sequence and begin navigation.
+Signature: start(goals: sequence[NavigationGoal]) -> None
 Parameters:
 - goals (sequence[NavigationGoal]): Tuple or list of navigation goals in visit order; it may be empty.
 Returns: None - No value.
 Required behavior:
 - An empty goal sequence is immediately complete; current_goal() returns None and update() returns STOP_COMMAND.
+Exceptions:
+- TypeError if goals is not a tuple or list or contains a value other than NavigationGoal.
 
 update()
-Signature: update(pose: Pose) -> MotionCommand
 Calculate the next motion request from the latest odometry pose.
+Signature: update(pose: Pose) -> MotionCommand
 Parameters:
 - pose (Pose): Current odometry estimate.
 Returns: MotionCommand - Forward-speed and turn-rate request for the next Robot step.
@@ -199,30 +218,34 @@ Required behavior:
 - Use approach speed within config.slowdown_distance_mm of the goal and realign if the heading error grows beyond config.realign_heading_rad.
 - Visit goals in their supplied order. A goal with heading_rad=None requires position only; a numerical final heading must also be reached.
 - After all goals are complete, return STOP_COMMAND.
+Exceptions:
+- TypeError if pose is not a Pose value.
 
 current_goal()
-Signature: current_goal() -> NavigationGoal | None
 Return the active goal, or None after completion.
+Signature: current_goal() -> NavigationGoal | None
 Returns: NavigationGoal | None - Current goal or None.
 
 is_complete()
-Signature: is_complete() -> bool
 Report whether every required position and heading is complete.
+Signature: is_complete() -> bool
 Returns: bool - True only after the complete goal sequence has been reached.
+Exceptions:
+- TypeError if config is not a NavigationConfig value.
 
 GridPlanner
 -----------
-Find a connected route through free cells in an occupancy grid.
+Find a connected route through free cells in an occupancy grid. Course planning code or DeliveryMission calls plan() and converts the returned GridPath into navigation goals.
 Kind: student component
 Project file: grid_planner.py
 Base class: GridPlannerBase
-Signature: class GridPlanner(GridPlannerBase)
-The base class requires no configuration constructor.
-Information retained: Search state may remain local to each plan() call.
+Import: from grid_planner import GridPlanner
+Class declaration: class GridPlanner(GridPlannerBase)
+State between calls: None is required between calls. Search data may remain local to one plan() calculation.
 
 plan()
-Signature: plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None
 Find a valid connected route from the start cell to the goal cell.
+Signature: plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None
 Parameters:
 - grid (OccupancyGrid): Map of free and blocked cells.
 - start (GridCell | None): Starting cell, or None when the position lies outside the grid.
@@ -231,6 +254,8 @@ Returns: GridPath | None - A route including both endpoints, or None when an end
 Required behavior:
 - Use only free cells and move between cells that share a horizontal or vertical edge.
 - Any route that connects the endpoints through free edge-adjacent cells is accepted.
+Exceptions:
+- TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell.
 
 ROBOT SERVICES
 
@@ -238,12 +263,12 @@ Use Robot for ordinary course programs. It assembles the selected components int
 
 Robot
 -----
-Run the timed measurement, motor-control, odometry, telemetry, and live-parameter cycle.
+Execute one measured robot sample: convert the requested body motion to wheel targets, update motor commands, read sensors, update odometry, and publish telemetry. Course projects normally obtain Robot from make_robot(ROBOT_CONFIG).
 Kind: supplied class
 Import: from ucsb_xrp import Robot
-Signature: Robot(config, bot, sensor_model, wheel_controller, differential_drive, odometry)
-Information retained: Retains the selected components, latest RobotState, next absolute sample deadline, and latest timing overrun. Projects normally obtain a configured instance with make_robot(ROBOT_CONFIG).
-Parameters:
+Constructor: Robot(config, bot, sensor_model, wheel_controller, differential_drive, odometry)
+State between calls: After start(), retain the selected classes, latest RobotState, next absolute sample time, and latest timing overrun.
+Constructor parameters:
 - config (RobotConfig): Timing, geometry, calibration, gains, and limits.
 - bot (XRPBot): Physical or simulated hardware boundary.
 - sensor_model (SensorModel): Selected sensor interpretation component.
@@ -256,17 +281,20 @@ Readable fields:
 - last_overrun_ms (int; ms): Amount by which the latest calculation exceeded its sample deadline, or zero.
 
 start()
-Signature: start(initial_pose: Pose) -> RobotState
 Reset encoders and components and begin a run.
+Signature: start(initial_pose: Pose) -> RobotState
 Parameters:
 - initial_pose (Pose): Known starting pose.
 Returns: RobotState - Initial zero-travel measurement and pose.
 Required behavior:
 - An IDE-managed Run begins immediately. A project launched directly on the XRP waits for the USER button.
+Exceptions:
+- TypeError if initial_pose is not a Pose value.
+- Hardware or component exceptions raised while resetting or taking the initial sample.
 
 step()
-Signature: step(command: MotionCommand, read_range: bool = False) -> RobotState
 Execute one complete robot control cycle.
+Signature: step(command: MotionCommand, read_range: bool = False) -> RobotState
 Parameters:
 - command (MotionCommand): Requested body motion.
 - read_range (bool; default False): Request an ultrasonic reading for this sample.
@@ -274,49 +302,67 @@ Returns: RobotState - New measurements and odometry pose.
 Required behavior:
 - Stops the motors before re-raising an exception from the cycle.
 - Maintains the configured absolute sample schedule; do not add sleep_ms() inside the control loop.
+Exceptions:
+- RuntimeError if start() has not been called.
+- TypeError if command is not MotionCommand or read_range is not Boolean.
+- Hardware or component exceptions raised during the sample; Robot attempts to stop the motors before re-raising them.
 
 estimate_range()
-Signature: estimate_range(samples, minimum_usable: int) -> float | None
 Use the selected SensorModel to combine range readings.
+Signature: estimate_range(samples, minimum_usable: int) -> float | None
 Parameters:
 - samples (sequence[float | None]; mm): Range readings to combine.
 - minimum_usable (int): Minimum number of usable readings required.
 Returns: float | None - Range estimate in mm, or None.
+Exceptions:
+- Exceptions raised by the selected SensorModel.
 
 stop()
-Signature: stop() -> None
 Stop both motors and publish a zero drive command.
+Signature: stop() -> None
 Returns: None - No value.
+Exceptions:
+- Hardware exception if the motors cannot be stopped.
+Exceptions:
+- TypeError if config is not RobotConfig or a supplied object does not provide the methods required by Robot.
 
 StraightLineController
 ----------------------
-Request cruise, approach, or zero forward speed from measured mean wheel travel.
+Generate a straight-ahead MotionCommand from measured mean wheel travel, using cruise speed far from the target, approach speed near it, and zero speed at completion.
 Kind: supplied class
 Import: from ucsb_xrp import StraightLineController
-Signature: StraightLineController(config: NavigationConfig)
-Information retained: Retains the starting mean wheel position, requested distance, and completion state.
-Parameters:
+Constructor: StraightLineController(config: NavigationConfig)
+State between calls: After start(), retain the initial mean wheel position, requested travel distance, and completion state.
+Constructor parameters:
 - config (NavigationConfig): Cruise and approach speeds, slowdown distance, and position tolerance.
 
 start()
-Signature: start(measurements: Measurements, distance_mm: float) -> None
 Begin a nonnegative forward move from the current mean wheel position.
+Signature: start(measurements: Measurements, distance_mm: float) -> None
 Parameters:
 - measurements (Measurements): Measurements at the beginning of the move.
 - distance_mm (float; mm): Requested nonnegative forward travel.
 Returns: None - No value.
+Exceptions:
+- TypeError if measurements is not a Measurements value.
+- ValueError if distance_mm is Boolean, nonnumeric, nonfinite, or negative.
 
 update()
-Signature: update(measurements: Measurements) -> MotionCommand
 Return cruise, approach, or stop command from remaining distance.
+Signature: update(measurements: Measurements) -> MotionCommand
 Parameters:
 - measurements (Measurements): Latest measured wheel positions.
 Returns: MotionCommand - Next straight-line motion request.
+Exceptions:
+- RuntimeError if start() has not been called.
+- TypeError if measurements is not a Measurements value.
 
 is_complete()
-Signature: is_complete() -> bool
 Report whether the distance is within the position tolerance.
+Signature: is_complete() -> bool
 Returns: bool - Completion state.
+Exceptions:
+- TypeError if config is not a NavigationConfig value.
 
 DATA TYPES
 
@@ -326,19 +372,24 @@ RawSensors
 ----------
 Store one direct hardware sample.
 Kind: value record
-Signature: RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)
+Import: from ucsb_xrp import RawSensors
+Constructor: RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)
 Readable fields:
 - time_ms (int; ms): Device timestamp.
 - left_encoder_count (int; count): Left encoder count relative to the latest reset.
 - right_encoder_count (int; count): Right encoder count relative to the latest reset.
 - range_mm (float | None; mm): Ultrasonic range, or None when unavailable or not requested.
 - button_pressed (bool): Current USER-button state.
+Exceptions:
+- TypeError if time_ms or an encoder count is not an integer, button_pressed is not Boolean, or range_mm is Boolean or nonnumeric.
+- ValueError if time_ms is negative or range_mm is nonfinite or not greater than zero.
 
 Measurements
 ------------
 Store sensor-derived motion and range values for one sample.
 Kind: value record
-Signature: Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)
+Import: from ucsb_xrp import Measurements
+Constructor: Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)
 Readable fields:
 - time_ms (int; ms): Device timestamp.
 - dt_s (float; s): Elapsed time from the preceding sample.
@@ -346,38 +397,53 @@ Readable fields:
 - right_position_mm (float; mm): Cumulative right-wheel travel since reset.
 - left_increment_mm (float; mm): Unsmoothed left-wheel travel since the preceding sample.
 - right_increment_mm (float; mm): Unsmoothed right-wheel travel since the preceding sample.
-- left_speed_mm_s (float; mm/s): Regularized left-wheel speed estimate.
-- right_speed_mm_s (float; mm/s): Regularized right-wheel speed estimate.
+- left_speed_mm_s (float; mm/s): Left-wheel speed estimate formed from recent encoder samples.
+- right_speed_mm_s (float; mm/s): Right-wheel speed estimate formed from recent encoder samples.
 - range_mm (float | None; mm): Range reading or None.
 - button_pressed (bool): USER-button state.
 - wheel_speeds (WheelSpeeds): Left and right speed estimates as one value.
+Exceptions:
+- TypeError if a numeric argument is Boolean or nonnumeric, time_ms is not an integer, or button_pressed is not Boolean.
+- ValueError if time_ms or dt_s is negative, a number is nonfinite, or a supplied range is not greater than zero.
 
 WheelSpeeds
 -----------
 Store left and right wheel speeds.
 Kind: value record
-Signature: WheelSpeeds(left_mm_s, right_mm_s)
+Import: from ucsb_xrp import WheelSpeeds
+Constructor: WheelSpeeds(left_mm_s, right_mm_s)
 Readable fields:
 - left_mm_s (float; mm/s): Left-wheel speed.
 - right_mm_s (float; mm/s): Right-wheel speed.
+Exceptions:
+- TypeError if either wheel speed is Boolean or nonnumeric.
+- ValueError if either wheel speed is not finite.
 
 MotionCommand
 -------------
 Store requested robot-body motion.
 Kind: value record
-Signature: MotionCommand(forward_speed_mm_s, turn_rate_rad_s)
+Import: from ucsb_xrp import MotionCommand
+Constructor: MotionCommand(forward_speed_mm_s, turn_rate_rad_s)
 Readable fields:
 - forward_speed_mm_s (float; mm/s): Requested forward speed.
 - turn_rate_rad_s (float; rad/s): Requested counterclockwise turn rate.
+Exceptions:
+- TypeError if either argument is Boolean or nonnumeric.
+- ValueError if either argument is not finite.
 
 DriveCommand
 ------------
 Store normalized left and right motor commands before hardware sign conversion.
 Kind: value record
-Signature: DriveCommand(left, right)
+Import: from ucsb_xrp import DriveCommand
+Constructor: DriveCommand(left, right)
 Readable fields:
 - left (float): Left command in [-1.0, 1.0].
 - right (float): Right command in [-1.0, 1.0].
+Exceptions:
+- TypeError if either command is Boolean or nonnumeric.
+- ValueError if either command is nonfinite or outside [-1.0, 1.0].
 Notes:
 - MotorEfforts is a compatibility name for the same type. Use DriveCommand in new code.
 
@@ -385,103 +451,134 @@ Pose
 ----
 Store estimated position and heading in world coordinates.
 Kind: value record
-Signature: Pose(x_mm, y_mm, heading_rad)
+Import: from ucsb_xrp import Pose
+Constructor: Pose(x_mm, y_mm, heading_rad)
 Readable fields:
 - x_mm (float; mm): World x position.
 - y_mm (float; mm): World y position.
 - heading_rad (float; rad): Heading wrapped to [-pi, pi).
+Exceptions:
+- TypeError if a coordinate or heading is Boolean or nonnumeric.
+- ValueError if a coordinate or heading is not finite.
 
 RobotState
 ----------
 Pair the measurements and odometry pose returned by one robot sample.
 Kind: value record
-Signature: RobotState(measurements: Measurements, pose: Pose)
+Import: from ucsb_xrp import RobotState
+Constructor: RobotState(measurements: Measurements, pose: Pose)
 Readable fields:
 - measurements (Measurements): Sensor-derived values.
 - pose (Pose): Odometry estimate.
+Exceptions:
+- TypeError if measurements is not Measurements or pose is not Pose.
 
 NavigationGoal
 --------------
 Store a destination position and optional required heading.
 Kind: value record
-Signature: NavigationGoal(x_mm, y_mm, heading_rad=None)
+Import: from ucsb_xrp import NavigationGoal
+Constructor: NavigationGoal(x_mm, y_mm, heading_rad=None)
 Readable fields:
 - x_mm (float; mm): Destination x position.
 - y_mm (float; mm): Destination y position.
 - heading_rad (float | None; rad): Required final heading, or None for position only.
+Exceptions:
+- TypeError if a coordinate or supplied heading is Boolean or nonnumeric.
+- ValueError if a coordinate or supplied heading is not finite.
 
 GridCell
 --------
 Store one integer occupancy-grid coordinate.
 Kind: value record
-Signature: GridCell(column, row)
+Import: from ucsb_xrp import GridCell
+Constructor: GridCell(column, row)
 Readable fields:
 - column (int): Column increasing with world x.
 - row (int): Row increasing with world y.
+Exceptions:
+- TypeError if column or row is not an integer.
 
 GridPath
 --------
 Store an ordered route of edge-adjacent grid cells.
 Kind: value record
-Signature: GridPath(cells)
+Import: from ucsb_xrp import GridPath
+Constructor: GridPath(cells)
 Readable fields:
 - cells (tuple[GridCell, ...]): Nonempty route of horizontally or vertically adjacent cells.
 
 to_goals()
-Signature: to_goals(grid: OccupancyGrid, final_heading_rad: float | None = None) -> tuple[NavigationGoal, ...]
 Convert the route to compact goals at turns and the final cell.
+Signature: to_goals(grid: OccupancyGrid, final_heading_rad: float | None = None) -> tuple[NavigationGoal, ...]
 Parameters:
 - grid (OccupancyGrid): Grid used to convert cell centers to world coordinates.
 - final_heading_rad (float | None; default None; rad): Optional heading required at the final goal.
 Returns: tuple[NavigationGoal, ...] - World-coordinate navigation goals.
+Exceptions:
+- AttributeError if grid does not provide cell_center().
+- TypeError if final_heading_rad is Boolean or nonnumeric, or grid.cell_center() rejects a path cell's type.
+- ValueError if final_heading_rad is not finite or grid.cell_center() rejects a cell outside the grid.
+Exceptions:
+- TypeError if cells is not a tuple or list or contains a value other than GridCell.
+- ValueError if cells is empty or consecutive cells do not share a horizontal or vertical edge.
 
 STOP_COMMAND
 ------------
 Shared zero-motion request.
 Kind: constant
-Signature: STOP_COMMAND = MotionCommand(0.0, 0.0)
+Import: from ucsb_xrp import STOP_COMMAND
+Value: STOP_COMMAND = MotionCommand(0.0, 0.0)
 
 CONFIGURATION
 
-Configuration records validate their values at construction and then expose read-only fields. Construct a new record in robot_config.py when a setting changes.
+Robot settings belong in robot_config.py. The constructor checks every value, and the resulting fields can be read but not reassigned.
 
 RobotConfig
 -----------
-Store robot timing, geometry, signs, motor calibration, wheel-speed estimator response, feedback gain, and command limit.
+Define one robot's sample timing, wheel geometry, wiring directions, motor calibration, wheel-speed-estimator response, feedback gain, and motor-command limit.
 Kind: configuration record
-Signature: RobotConfig(sample_period_ms=20, wheel_diameter_mm=60.0, encoder_counts_per_revolution=585.0, track_width_mm=155.0, left_motor_sign=1, right_motor_sign=1, left_encoder_sign=1, right_encoder_sign=1, left_start_command=0.0, right_start_command=0.0, left_speed_command_gain=0.0, right_speed_command_gain=0.0, wheel_speed_filter_time_constant_ms=80.0, wheel_speed_kp=0.0, max_drive_command=1.0)
-Readable fields:
-- sample_period_ms (int; default 20; ms): Robot sample period; at least 1.
-- wheel_diameter_mm (float; default 60.0; mm): Measured wheel diameter; positive.
-- encoder_counts_per_revolution (float; default 585.0; count/rev): Encoder counts for one wheel revolution; positive.
-- track_width_mm (float; default 155.0; mm): Effective separation between wheel paths used by drive and odometry calculations; positive.
-- left_motor_sign (int; default 1): +1 or -1 so positive logical command drives the left wheel forward.
-- right_motor_sign (int; default 1): +1 or -1 so positive logical command drives the right wheel forward.
-- left_encoder_sign (int; default 1): +1 or -1 so forward left-wheel travel is positive.
-- right_encoder_sign (int; default 1): +1 or -1 so forward right-wheel travel is positive.
-- left_start_command (float; default 0.0): Nonnegative left command used to overcome motor deadband.
-- right_start_command (float; default 0.0): Nonnegative right command used to overcome motor deadband.
-- left_speed_command_gain (float; default 0.0; s/mm): Left feedforward command per requested wheel speed.
-- right_speed_command_gain (float; default 0.0; s/mm): Right feedforward command per requested wheel speed.
-- wheel_speed_filter_time_constant_ms (float; default 80.0; ms): Response time of the encoder-derived wheel-speed estimate; zero disables regularization.
-- wheel_speed_kp (float; default 0.0; s/mm): Proportional motor-command correction per wheel-speed error.
-- max_drive_command (float; default 1.0): Final absolute command limit in [0.0, 1.0].
+Import: from ucsb_xrp import RobotConfig
+Constructor: RobotConfig(sample_period_ms=20, wheel_diameter_mm=60.0, encoder_counts_per_revolution=585.0, track_width_mm=155.0, left_motor_sign=1, right_motor_sign=1, left_encoder_sign=1, right_encoder_sign=1, left_start_command=0.0, right_start_command=0.0, left_speed_command_gain=0.0, right_speed_command_gain=0.0, wheel_speed_filter_time_constant_ms=80.0, wheel_speed_kp=0.0, max_drive_command=1.0)
+Constructor parameters and readable fields:
+- sample_period_ms (int; default 20; ms): Scheduled interval between Robot samples; integer at least 1.
+- wheel_diameter_mm (float; default 60.0; mm): Measured wheel diameter used to convert encoder revolutions to wheel travel; greater than zero.
+- encoder_counts_per_revolution (float; default 585.0; count/rev): Encoder counts corresponding to one wheel revolution; greater than zero.
+- track_width_mm (float; default 155.0; mm): Effective lateral distance between the left and right wheel paths, used by DifferentialDrive and Odometry; greater than zero.
+- left_motor_sign (int; default 1): +1 or -1, chosen so a positive left DriveCommand turns the left wheel forward.
+- right_motor_sign (int; default 1): +1 or -1, chosen so a positive right DriveCommand turns the right wheel forward.
+- left_encoder_sign (int; default 1): +1 or -1, chosen so forward left-wheel travel produces a positive count change.
+- right_encoder_sign (int; default 1): +1 or -1, chosen so forward right-wheel travel produces a positive count change.
+- left_start_command (float; default 0.0): Nonnegative left-wheel command needed to overcome motor deadband when a nonzero speed is requested.
+- right_start_command (float; default 0.0): Nonnegative right-wheel command needed to overcome motor deadband when a nonzero speed is requested.
+- left_speed_command_gain (float; default 0.0; s/mm): Left-wheel feedforward command per unit of requested wheel speed.
+- right_speed_command_gain (float; default 0.0; s/mm): Right-wheel feedforward command per unit of requested wheel speed.
+- wheel_speed_filter_time_constant_ms (float; default 80.0; ms): Additional response time of the wheel-speed estimate formed from recent encoder samples; zero selects the estimator's minimum supported response.
+- wheel_speed_kp (float; default 0.0; s/mm): Proportional change in motor command per unit of wheel-speed error.
+- max_drive_command (float; default 1.0): Maximum absolute DriveCommand sent to either motor; from 0.0 to 1.0 inclusive.
+Exceptions:
+- TypeError if an argument has the wrong type, an unknown argument is supplied, or a current and older compatibility name are both supplied.
+- ValueError if a number is not finite or violates the range stated above, or if a starting command exceeds max_drive_command.
 Notes:
 - For compatibility with projects created before API 0.3, the implementation also accepts the older argument names ending in _effort. New projects should use the names above.
 
 NavigationConfig
 ----------------
-Store speeds, distances, angular rates, and tolerances used by supplied straight-line and student navigation controllers.
+Define the travel speeds, slowdown distance, turn rate, and accepted position and heading errors used by StraightLineController and NavigationController.
 Kind: configuration record
-Signature: NavigationConfig(cruise_speed_mm_s, approach_speed_mm_s, slowdown_distance_mm, turn_rate_rad_s, position_tolerance_mm, heading_tolerance_rad, realign_heading_rad)
-Readable fields:
-- cruise_speed_mm_s (float; mm/s): Normal forward speed; positive.
-- approach_speed_mm_s (float; mm/s): Reduced speed near a goal; positive and no greater than cruise speed.
-- slowdown_distance_mm (float; mm): Distance at which approach speed begins; positive.
-- turn_rate_rad_s (float; rad/s): Magnitude of turning command; positive.
-- position_tolerance_mm (float; mm): Nonnegative accepted position error.
-- heading_tolerance_rad (float; rad): Nonnegative accepted heading error.
-- realign_heading_rad (float; rad): Heading-error magnitude that triggers realignment; no smaller than heading tolerance.
+Import: from ucsb_xrp import NavigationConfig
+Constructor: NavigationConfig(cruise_speed_mm_s, approach_speed_mm_s, slowdown_distance_mm, turn_rate_rad_s, position_tolerance_mm, heading_tolerance_rad, realign_heading_rad)
+Constructor parameters and readable fields:
+- cruise_speed_mm_s (float; mm/s): Normal forward speed away from a goal; greater than zero.
+- approach_speed_mm_s (float; mm/s): Reduced forward speed near a goal; greater than zero and no greater than cruise_speed_mm_s.
+- slowdown_distance_mm (float; mm): Remaining distance at which the controller changes from cruise speed to approach speed; greater than zero.
+- turn_rate_rad_s (float; rad/s): Magnitude of the requested angular velocity while turning; greater than zero.
+- position_tolerance_mm (float; mm): Maximum remaining planar distance accepted as reaching a goal; nonnegative.
+- heading_tolerance_rad (float; rad): Maximum absolute heading error accepted as aligned; nonnegative.
+- realign_heading_rad (float; rad): Absolute heading error at which forward travel stops for realignment; no smaller than heading_tolerance_rad.
+Exceptions:
+- TypeError if an argument is Boolean or nonnumeric.
+- ValueError if a number is not finite or violates the range stated above, approach_speed_mm_s exceeds cruise_speed_mm_s, or realign_heading_rad is below heading_tolerance_rad.
 
 LIVE CONTROLS AND TELEMETRY VALUES
 
@@ -491,11 +588,14 @@ ucsb_xrp.live
 -------------
 Create Monitor controls and publish selected program values.
 Kind: module
+Import: from ucsb_xrp import live
+State between calls: Retain declared controls and the latest watch and plot values for the current run. Robot applies queued control changes together at a sample boundary.
 
 LiveParameter
 -------------
 Represent one Monitor control and the value currently applied to the program.
 Kind: value object
+State between calls: value changes only when live.apply_updates(), Robot.start(), or Robot.step() applies a queued Monitor setting.
 Readable fields:
 - value (float | bool | str): Value currently applied to the program; read it but do not assign to it.
 - name (str): Python-style identifier.
@@ -511,6 +611,7 @@ live.number
 -----------
 Declare a bounded numeric slider.
 Kind: function
+Import: from ucsb_xrp import live
 Signature: live.number(name, default, minimum, maximum, step, unit='', label=None) -> LiveParameter
 Parameters:
 - name (str): Unique Python-style identifier, at most 32 characters.
@@ -524,22 +625,30 @@ Returns: LiveParameter - Numeric control.
 Required behavior:
 - maximum must exceed minimum; step must be positive and no larger than the range; default must lie inside the inclusive bounds.
 - The range does not need to contain an exact whole number of steps. The applied value is the nearest available step within the bounds.
+Exceptions:
+- TypeError if name, unit, or label is not a string or a numeric argument is Boolean or nonnumeric.
+- ValueError if text is empty or too long, name is not a Python identifier, a number is nonfinite, bounds or step are invalid, default lies outside the bounds, the name is already in use, or 16 controls already exist.
 
 live.toggle
 -----------
 Declare an on/off control.
 Kind: function
+Import: from ucsb_xrp import live
 Signature: live.toggle(name, default, label=None) -> LiveParameter
 Parameters:
 - name (str): Unique Python-style identifier.
 - default (bool): Initial applied state.
 - label (str | None; default None): Displayed label; derived from name when omitted.
 Returns: LiveParameter - Boolean control.
+Exceptions:
+- TypeError if name or label is not a string or default is not Boolean.
+- ValueError if text is empty or too long, name is not a Python identifier, the name is already in use, or 16 controls already exist.
 
 live.choice
 -----------
 Declare a control with two to six string choices.
 Kind: function
+Import: from ucsb_xrp import live
 Signature: live.choice(name, default, options, label=None) -> LiveParameter
 Parameters:
 - name (str): Unique Python-style identifier.
@@ -547,11 +656,15 @@ Parameters:
 - options (sequence[str]): Two to six unique choices.
 - label (str | None; default None): Displayed label; derived from name when omitted.
 Returns: LiveParameter - Choice control.
+Exceptions:
+- TypeError if name, label, or any choice is not a string.
+- ValueError if text is empty or too long, name is not a Python identifier, options does not contain two to six unique choices, default is not one of them, the name is already in use, or 16 controls already exist.
 
 live.watch
 ----------
 Publish the latest number, Boolean, or short string as a named live value.
 Kind: function
+Import: from ucsb_xrp import live
 Signature: live.watch(name, value, unit='', label=None) -> None
 Parameters:
 - name (str): Unique Python-style identifier.
@@ -559,11 +672,15 @@ Parameters:
 - unit (str; default ''): Short displayed unit.
 - label (str | None; default None): Displayed label; derived from name when omitted.
 Returns: None - No value.
+Exceptions:
+- TypeError if name, unit, or label is not a string or value is not a number, Boolean, or string.
+- ValueError if text is empty or too long, name is not a Python identifier, a numeric value is nonfinite, or 16 watch values already exist.
 
 live.plot
 ---------
 Publish a finite numeric value as an optional Monitor strip-plot signal.
 Kind: function
+Import: from ucsb_xrp import live
 Signature: live.plot(name, value, unit='', label=None) -> None
 Parameters:
 - name (str): Unique Python-style identifier.
@@ -571,11 +688,15 @@ Parameters:
 - unit (str; default ''): Short displayed unit.
 - label (str | None; default None): Displayed label; derived from name when omitted.
 Returns: None - No value.
+Exceptions:
+- TypeError if name, unit, or label is not a string or value is Boolean or nonnumeric.
+- ValueError if text is empty or too long, name is not a Python identifier, value is nonfinite, or 16 plot values already exist.
 
 live.apply_updates
 ------------------
 Apply the latest Monitor control values at one program boundary.
 Kind: function
+Import: from ucsb_xrp import live
 Signature: live.apply_updates() -> bool
 Returns: bool - True if at least one applied value changed.
 Notes:
@@ -585,8 +706,10 @@ WORLDS, MAPS, ROUTES, AND MISSIONS
 
 ProjectWorld
 ------------
-Provide one validated world from the project's world.json file.
+Provide one named world loaded from the project's world.json file, including bounds, initial pose, fixed obstacles, changeable features, and waypoint markers.
 Kind: supplied class
+Import: from ucsb_xrp import ProjectWorld
+State between calls: The loaded world does not change. arena_map() creates a new ArenaMap, and waypoint methods create NavigationGoal values from the stored markers.
 Readable fields:
 - id (str): World identifier.
 - label (str): Display name.
@@ -595,39 +718,49 @@ Readable fields:
 - feature_names (tuple[str, ...]): Named changeable obstacle features.
 
 arena_map()
-Signature: arena_map(blocked_features=()) -> ArenaMap
 Build an arena map with selected features blocked.
+Signature: arena_map(blocked_features=()) -> ArenaMap
 Parameters:
 - blocked_features (sequence[str]; default ()): Feature names that should act as obstacles.
-Returns: ArenaMap - Validated map.
+Returns: ArenaMap - Arena geometry with the named features marked as obstacles.
+Exceptions:
+- ValueError if blocked_features contains a name not present in feature_names.
 
 waypoint()
-Signature: waypoint(name: str) -> NavigationGoal
 Return one named waypoint.
+Signature: waypoint(name: str) -> NavigationGoal
 Parameters:
 - name (str): Waypoint name from world.json.
 Returns: NavigationGoal - Waypoint goal.
+Exceptions:
+- ValueError if no waypoint has that name or its stored coordinates are invalid.
 
 waypoints()
-Signature: waypoints() -> tuple[NavigationGoal, ...]
 Return all waypoints in file order.
+Signature: waypoints() -> tuple[NavigationGoal, ...]
 Returns: tuple[NavigationGoal, ...] - Waypoint sequence.
 
 load_world
 ----------
 Load the default or named world from a project JSON file.
 Kind: function
+Import: from ucsb_xrp import load_world
 Signature: load_world(path='world.json', world_id=None) -> ProjectWorld
 Parameters:
 - path (str; default 'world.json'): Project world file.
 - world_id (str | None; default None): World identifier; None selects default_world.
 Returns: ProjectWorld - Selected validated world.
+Exceptions:
+- OSError if path cannot be opened.
+- ValueError if the JSON, world list, selected world, bounds, coordinates, or names are invalid.
+- TypeError if a world field has the wrong JSON type.
 
 Rectangle
 ---------
 Represent a closed axis-aligned rectangle in world millimeters.
 Kind: value record
-Signature: Rectangle(minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm)
+Import: from ucsb_xrp import Rectangle
+Constructor: Rectangle(minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm)
 Readable fields:
 - minimum_x_mm (float; mm): Minimum x boundary.
 - minimum_y_mm (float; mm): Minimum y boundary.
@@ -636,20 +769,28 @@ Readable fields:
 - bounds_mm (tuple[float, float, float, float]; mm): Minimum and maximum x and y bounds.
 
 contains()
-Signature: contains(x_mm, y_mm, margin_mm=0.0) -> bool
 Test whether a point lies inside bounds expanded by margin_mm.
+Signature: contains(x_mm, y_mm, margin_mm=0.0) -> bool
 Parameters:
 - x_mm (float; mm): Point x coordinate.
 - y_mm (float; mm): Point y coordinate.
 - margin_mm (float; default 0.0; mm): Nonnegative outward expansion.
 Returns: bool - Containment result.
+Exceptions:
+- TypeError if a coordinate or margin is Boolean or nonnumeric.
+- ValueError if a coordinate is nonfinite or margin_mm is nonfinite or negative.
+Exceptions:
+- TypeError if a boundary is Boolean or nonnumeric.
+- ValueError if a boundary is nonfinite or the rectangle does not have positive width and height.
 
 ArenaMap
 --------
 Represent rectangular arena bounds, fixed obstacles, and named changeable obstacle features.
 Kind: supplied class
-Signature: ArenaMap(bounds_mm, obstacles=(), features=None, blocked_features=())
-Parameters:
+Import: from ucsb_xrp import ArenaMap
+Constructor: ArenaMap(bounds_mm, obstacles=(), features=None, blocked_features=())
+State between calls: The map does not change after construction. with_feature_blocked() returns a new ArenaMap rather than modifying the current map.
+Constructor parameters:
 - bounds_mm (Rectangle | sequence[float]; mm): Arena bounds as a Rectangle or four-number bounds.
 - obstacles (sequence[Rectangle]; default ()): Fixed obstacles.
 - features (dict[str, Rectangle] | None; default None): Named changeable rectangles.
@@ -661,43 +802,59 @@ Readable fields:
 - blocked_features (tuple[str, ...]): Features currently treated as obstacles.
 
 feature_bounds()
-Signature: feature_bounds(name: str) -> tuple[float, float, float, float]
 Return one feature's bounds.
+Signature: feature_bounds(name: str) -> tuple[float, float, float, float]
 Parameters:
 - name (str): Known feature name.
 Returns: tuple[float, float, float, float] - Feature bounds in millimeters.
+Exceptions:
+- ValueError if name is not a known feature.
 
 contains()
-Signature: contains(x_mm, y_mm) -> bool
 Test whether a point lies inside the arena.
+Signature: contains(x_mm, y_mm) -> bool
 Parameters:
 - x_mm (float; mm): Point x coordinate.
 - y_mm (float; mm): Point y coordinate.
 Returns: bool - True inside or on the arena boundary.
+Exceptions:
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.
 
 is_free()
-Signature: is_free(x_mm, y_mm, clearance_mm=0.0) -> bool
 Test arena and obstacle clearance.
+Signature: is_free(x_mm, y_mm, clearance_mm=0.0) -> bool
 Parameters:
 - x_mm (float; mm): Point x coordinate.
 - y_mm (float; mm): Point y coordinate.
 - clearance_mm (float; default 0.0; mm): Required nonnegative distance from walls and obstacles.
 Returns: bool - True when the point satisfies the requested clearance.
+Exceptions:
+- TypeError if a coordinate or clearance is Boolean or nonnumeric.
+- ValueError if a coordinate is nonfinite or clearance_mm is nonfinite or negative.
 
 with_feature_blocked()
-Signature: with_feature_blocked(name: str, blocked: bool) -> ArenaMap
 Return a new map with one feature's blocked state changed.
+Signature: with_feature_blocked(name: str, blocked: bool) -> ArenaMap
 Parameters:
 - name (str): Known feature name.
 - blocked (bool): Whether the feature should act as an obstacle.
 Returns: ArenaMap - New immutable map.
+Exceptions:
+- ValueError if name is not a known feature.
+- TypeError if blocked is not Boolean.
+Exceptions:
+- TypeError if bounds or obstacles are not rectangles or four-number bounds, obstacles is not a sequence, features is not a dictionary of named rectangles, or a feature name is empty or nontext.
+- ValueError if a rectangle is invalid or blocked_features contains an unknown name.
 
 OccupancyGrid
 -------------
 Sample an ArenaMap into uniform free and blocked cells.
 Kind: supplied class
-Signature: OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid
-Parameters:
+Import: from ucsb_xrp import OccupancyGrid
+Factory function: OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid
+State between calls: Grid resolution, origin, dimensions, and blocked cells do not change after from_arena() creates the grid.
+Factory parameters:
 - arena (ArenaMap): Arena geometry to sample.
 - resolution_mm (float; mm): Positive square-cell size.
 - clearance_mm (float; default 0.0; mm): Nonnegative obstacle and wall clearance.
@@ -709,40 +866,55 @@ Readable fields:
 - row_count (int): Number of rows.
 
 world_to_cell()
-Signature: world_to_cell(x_mm, y_mm) -> GridCell | None
 Convert a world point to a cell or None outside the grid.
+Signature: world_to_cell(x_mm, y_mm) -> GridCell | None
 Parameters:
 - x_mm (float; mm): World x coordinate.
 - y_mm (float; mm): World y coordinate.
 Returns: GridCell | None - Containing cell, or None outside the grid.
+Exceptions:
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.
 
 cell_center()
-Signature: cell_center(cell: GridCell) -> tuple[float, float]
 Return a cell center in world millimeters.
+Signature: cell_center(cell: GridCell) -> tuple[float, float]
 Parameters:
 - cell (GridCell): Cell inside the grid.
 Returns: tuple[float, float] - World x and y coordinates in millimeters.
+Exceptions:
+- TypeError if cell is not GridCell.
+- ValueError if cell lies outside the grid.
 
 contains()
-Signature: contains(cell: GridCell) -> bool
 Test whether a cell is inside the grid.
+Signature: contains(cell: GridCell) -> bool
 Parameters:
 - cell (GridCell): Cell to test.
 Returns: bool - True when row and column are in bounds.
+Exceptions:
+- TypeError if cell is not GridCell.
 
 is_blocked()
-Signature: is_blocked(cell: GridCell) -> bool
 Report blocked state; cells outside the grid are blocked.
+Signature: is_blocked(cell: GridCell) -> bool
 Parameters:
 - cell (GridCell): Cell to test.
 Returns: bool - Blocked state.
+Exceptions:
+- TypeError if cell is not GridCell.
 
 neighbors()
-Signature: neighbors(cell: GridCell) -> tuple[GridCell, ...]
 Return free cells sharing a horizontal or vertical edge.
+Signature: neighbors(cell: GridCell) -> tuple[GridCell, ...]
 Parameters:
 - cell (GridCell): Reference cell.
 Returns: tuple[GridCell, ...] - Free edge-adjacent cells in deterministic order.
+Exceptions:
+- TypeError if cell is not GridCell.
+Exceptions:
+- TypeError if arena is not ArenaMap or a numeric argument is Boolean or nonnumeric.
+- ValueError if resolution_mm is nonfinite or not greater than zero, or clearance_mm is nonfinite or negative.
 Notes:
 - For direct software tests, the full constructor accepts resolution_mm, origin_x_mm, origin_y_mm, column_count, row_count, and row-major blocked values. Course projects normally use from_arena().
 
@@ -750,7 +922,8 @@ DeliveryTask
 ------------
 Store the fixed values needed for one supplied delivery mission.
 Kind: value record
-Signature: DeliveryTask(initial_pose, arena, grid_resolution_mm, clearance_mm, destination, observed_feature_name, range_sample_count, minimum_usable_range_count, blocked_range_threshold_mm, assume_blocked_without_range)
+Import: from ucsb_xrp import DeliveryTask
+Constructor: DeliveryTask(initial_pose, arena, grid_resolution_mm, clearance_mm, destination, observed_feature_name, range_sample_count, minimum_usable_range_count, blocked_range_threshold_mm, assume_blocked_without_range)
 Readable fields:
 - initial_pose (Pose): Robot pose at mission start.
 - arena (ArenaMap): Arena before the observed feature is classified.
@@ -762,13 +935,18 @@ Readable fields:
 - minimum_usable_range_count (int): Positive minimum usable readings, no greater than range_sample_count.
 - blocked_range_threshold_mm (float; mm): Positive range at or below which the observed feature is treated as blocked.
 - assume_blocked_without_range (bool): Blocked state used when no range estimate is available.
+Exceptions:
+- TypeError if initial_pose, arena, destination, a numeric setting, or assume_blocked_without_range has the wrong type.
+- ValueError if observed_feature_name is unknown, a count is below one, minimum_usable_range_count exceeds range_sample_count, or a numeric setting is nonfinite or outside its stated range.
 
 DeliveryMission
 ---------------
 Perform range observation, map update, route planning, and navigation for a DeliveryTask.
 Kind: supplied class
-Signature: DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)
-Parameters:
+Import: from ucsb_xrp import DeliveryMission
+Constructor: DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)
+State between calls: Retain task and result. result is None before run(), no_path when planning finds no route, and delivered after navigation completes.
+Constructor parameters:
 - task (DeliveryTask): Mission settings.
 - navigation (NavigationController): Selected navigation component.
 - planner (GridPlanner): Selected grid-planning component.
@@ -777,52 +955,75 @@ Readable fields:
 - result (str | None): delivered, no_path, or None before completion.
 
 run()
-Signature: run(robot: Robot) -> RobotState
 Run the supplied delivery sequence and always attempt robot.stop().
+Signature: run(robot: Robot) -> RobotState
 Parameters:
 - robot (Robot): Assembled robot service.
 Returns: RobotState - Last robot state.
+Exceptions:
+- RuntimeError if navigation does not complete within 30,000 Robot steps.
+- Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising.
+Exceptions:
+- TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods.
 
 LOW-LEVEL XRP ACCESS AND NUMERICAL FUNCTIONS
 
 XRPBot
 ------
-Read XRPLib devices and apply bounded, signed drive commands. Ordinary projects should use Robot instead.
+Read the XRP's encoders, clock, ultrasonic sensor, and USER button, and send bounded DriveCommand values to its motors. Ordinary course programs use Robot; use XRPBot directly only for low-level experiments.
 Kind: supplied class
-Signature: XRPBot(config: RobotConfig)
-Parameters:
+Import: from ucsb_xrp import XRPBot
+Constructor: XRPBot(config: RobotConfig)
+State between calls: Retain the RobotConfig and the encoder counts chosen as zero by reset_encoders().
+Constructor parameters:
 - config (RobotConfig): Motor signs, encoder signs, and final command limit.
 Readable fields:
 - config (RobotConfig): Hardware configuration.
 
 read()
-Signature: read(include_range: bool = False) -> RawSensors
 Read encoders, time, button state, and optionally range.
+Signature: read(include_range: bool = False) -> RawSensors
 Parameters:
 - include_range (bool; default False): Read the ultrasonic sensor on this sample.
 Returns: RawSensors - Direct hardware sample.
+Exceptions:
+- TypeError if include_range is not Boolean.
+- Hardware or run-stop exception while reading the XRP.
 
 reset_encoders()
-Signature: reset_encoders() -> None
 Use current hardware counts as the session zero.
+Signature: reset_encoders() -> None
 Returns: None - No value.
+Exceptions:
+- Hardware or run-stop exception while reading encoder counts.
 
 wait_for_button()
-Signature: wait_for_button() -> None
 Wait for the XRP USER button.
+Signature: wait_for_button() -> None
 Returns: None - No value.
+Exceptions:
+- Hardware or run-stop exception while waiting.
 
 set_drive()
-Signature: set_drive(command: DriveCommand) -> None
 Apply one normalized motor command after configured signs and limits.
+Signature: set_drive(command: DriveCommand) -> None
 Parameters:
 - command (DriveCommand): Logical left and right motor commands.
 Returns: None - No value.
+Exceptions:
+- TypeError if command is not DriveCommand.
+- ValueError if a command field is not a finite real number.
+- Hardware or run-stop exception while writing the motors; XRPBot attempts to stop both motors before re-raising.
 
 stop()
-Signature: stop() -> None
 Attempt to stop both motors.
+Signature: stop() -> None
 Returns: None - No value.
+Exceptions:
+- Hardware exception if either motor cannot be set to zero.
+Exceptions:
+- TypeError if config is not a RobotConfig value.
+- Hardware exception if XRP devices cannot be initialized or stopped.
 Notes:
 - set_efforts() is a compatibility alias for set_drive().
 
@@ -830,48 +1031,69 @@ clamp
 -----
 Limit a numeric value to an inclusive interval.
 Kind: function
+Import: from ucsb_xrp import clamp
 Signature: clamp(value, lower, upper) -> float
 Parameters:
 - value (float): Value to limit.
 - lower (float): Inclusive lower bound.
 - upper (float): Inclusive upper bound; not less than lower.
-Returns: float - value limited to [lower, upper].
+Returns: float - The input value limited to [lower, upper].
+Exceptions:
+- TypeError if an argument is Boolean or nonnumeric.
+- ValueError if an argument is not finite or lower exceeds upper.
 
 elapsed_time_s
 --------------
 Calculate a MicroPython-tick-safe elapsed interval in seconds.
 Kind: function
+Import: from ucsb_xrp import elapsed_time_s
 Signature: elapsed_time_s(later_ms: int, earlier_ms: int) -> float
 Parameters:
 - later_ms (int; ms): Later device timestamp.
 - earlier_ms (int; ms): Earlier device timestamp.
 Returns: float - Wrap-safe elapsed time in seconds.
+Exceptions:
+- TypeError if either timestamp is Boolean or not an integer.
 
 wrap_angle_rad
 --------------
 Return the equivalent angle in [-pi, pi).
 Kind: function
+Import: from ucsb_xrp import wrap_angle_rad
 Signature: wrap_angle_rad(angle_rad: float) -> float
 Parameters:
 - angle_rad (float; rad): Angle to wrap.
 Returns: float - Equivalent angle in [-pi, pi).
+Exceptions:
+- TypeError if angle_rad is Boolean or nonnumeric.
+- ValueError if angle_rad is not finite.
 
 distance_to_goal
 ----------------
 Calculate planar distance from a pose to a navigation goal in millimeters.
 Kind: function
+Import: from ucsb_xrp import distance_to_goal
 Signature: distance_to_goal(pose: Pose, goal: NavigationGoal) -> float
 Parameters:
 - pose (Pose): Current world pose.
 - goal (NavigationGoal): Destination position.
 Returns: float - Euclidean position error in millimeters.
+Exceptions:
+- AttributeError if pose or goal does not provide x_mm and y_mm.
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.
 
 bearing_to_goal
 ---------------
 Calculate wrapped world-frame bearing from a pose to a navigation goal.
 Kind: function
+Import: from ucsb_xrp import bearing_to_goal
 Signature: bearing_to_goal(pose: Pose, goal: NavigationGoal) -> float
 Parameters:
 - pose (Pose): Current world pose.
 - goal (NavigationGoal): Destination position.
 Returns: float - World-frame bearing in [-pi, pi) radians.
+Exceptions:
+- AttributeError if pose or goal does not provide x_mm and y_mm.
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.

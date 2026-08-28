@@ -259,9 +259,36 @@ test("API catalog renders coherent component requirements and linked types", asy
     page.getByRole("heading", { name: "API reference" }),
   ).toBeVisible();
   await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
+  const tocFontSize = await page
+    .locator(".reference-toc .toc-child")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(tocFontSize).toBeGreaterThanOrEqual(12);
   const section = page.locator("#sensor-model");
-  await expect(section).toContainText("Base class SensorModelBase");
+  await expect(section.locator(".entry-meta")).toContainText("Base class");
+  await expect(
+    section
+      .locator(".entry-meta")
+      .getByText("SensorModelBase", { exact: true }),
+  ).toHaveText("SensorModelBase");
   await expect(section).toContainText("class SensorModel(SensorModelBase)");
+  await expect(section).toContainText(
+    "Convert encoder counts, device time, ultrasonic range, and USER-button state into physical measurements.",
+  );
+  await expect(
+    section.getByText("Constructor parameters", { exact: true }),
+  ).toBeVisible();
+  await expect(section.locator(".entry-kind")).toHaveCount(0);
+  const definitionOrder = await section.evaluate((element) => ({
+    purpose: element.querySelector(".entry-purpose")?.getBoundingClientRect()
+      .top,
+    declaration: element
+      .querySelector(".class-signature")
+      ?.getBoundingClientRect().top,
+  }));
+  expect(definitionOrder.purpose).toBeLessThan(definitionOrder.declaration!);
   await expect(
     section.getByRole("heading", { name: "update()" }),
   ).toBeVisible();
@@ -275,7 +302,7 @@ test("API catalog renders coherent component requirements and linked types", asy
     section.getByText("Exceptions", { exact: true }).first(),
   ).toBeVisible();
   await expect(section).toContainText(
-    "Total wheel positions are calculated relative to the reset origins",
+    "Wheel position remains relative to the reset values",
   );
   await expect(
     section.locator('a[href="#record-raw-sensors"]').first(),
@@ -283,6 +310,19 @@ test("API catalog renders coherent component requirements and linked types", asy
   await expect(
     section.locator('a[href="#class-robot-config"]').first(),
   ).toHaveText("RobotConfig");
+  await expect(
+    section.locator('a[href="#field-class-robot-config-sample-period-ms"]'),
+  ).toHaveText("sample_period_ms");
+
+  const update = page.locator("#method-sensor-model-update");
+  const methodOrder = await update.evaluate((element) => ({
+    purpose: element.querySelector(".method-purpose")?.getBoundingClientRect()
+      .top,
+    signature: element
+      .querySelector(".method-signature")
+      ?.getBoundingClientRect().top,
+  }));
+  expect(methodOrder.purpose).toBeLessThan(methodOrder.signature!);
 
   await page.goto("/reference/#wheel-speed-controller");
   await expect(page.locator("#wheel-speed-controller")).toContainText(
@@ -291,8 +331,9 @@ test("API catalog renders coherent component requirements and linked types", asy
 
   await page.goto("/reference/#odometry");
   await expect(page.locator("#odometry")).toContainText(
-    "exact constant-curvature arc",
+    "exact constant-curvature arc implied by the two wheel paths",
   );
+  await expect(page.locator("#odometry")).not.toContainText("radius=");
 
   await page.goto("/reference/#navigation-controller");
   await expect(page.locator("#navigation-controller")).toContainText(
@@ -320,6 +361,16 @@ test("API catalog renders coherent component requirements and linked types", asy
     "wheel_speed_filter_time_constant_ms",
   );
   await expect(configuration).toContainText("80.0");
+  await expect(
+    configuration.getByText("Constructor parameters and readable fields", {
+      exact: true,
+    }),
+  ).toHaveCount(2);
+  await expect(
+    page.locator("#field-class-robot-config-track-width-mm"),
+  ).toContainText(
+    "Effective lateral distance between the left and right wheel paths",
+  );
 });
 
 test("API catalog provides stable unique anchors for contextual navigation", async ({
@@ -344,7 +395,7 @@ test("API catalog provides stable unique anchors for contextual navigation", asy
   const gridPathMethod = page.locator("#method-grid-path-to-goals");
   await expect(gridPathMethod).toContainText("to_goals(grid: OccupancyGrid");
   await expect(
-    gridPathMethod.locator('a[href="#class-occupancy-grid"]'),
+    gridPathMethod.locator('a[href="#class-occupancy-grid"]').first(),
   ).toHaveText("OccupancyGrid");
 
   await expect(page.locator("#records")).toHaveCount(1);
@@ -415,16 +466,27 @@ test("API sections remain readable without page clipping at phone width", async 
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(signatureFontSize).toBeGreaterThanOrEqual(10.5);
-  expect(signatureFontSize).toBeLessThanOrEqual(12);
+  expect(signatureFontSize).toBeGreaterThanOrEqual(12.5);
   const exampleFontSize = await page
     .locator("#sensor-model .code-example pre code")
     .first()
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(exampleFontSize).toBeGreaterThanOrEqual(10.5);
-  expect(exampleFontSize).toBeLessThanOrEqual(12);
+  expect(exampleFontSize).toBeGreaterThanOrEqual(12.5);
+  const bodyFontSize = await page
+    .locator("#sensor-model .entry-purpose")
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(bodyFontSize).toBeGreaterThanOrEqual(14.5);
+  const tableFontSize = await page
+    .locator("#sensor-model .parameter-row span")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(tableFontSize).toBeGreaterThanOrEqual(12.5);
 });
 
 test("Guide remains usable without horizontal page scrolling at phone width", async ({

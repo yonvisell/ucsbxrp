@@ -1,8 +1,8 @@
 # UCSB XRP API reference
 
-API version: `0.4.0-dev`. This file is generated from `course_content/api-reference.json`; edit the catalog rather than this file.
+API version: `0.4.0-dev`.
 
-This reference describes the Python classes, values, and functions that a course project may use. The supplied reference components are working examples; students may use a different algorithm when it satisfies the stated behavior.
+Robot runs the measured control cycle used throughout the course. Six replaceable classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Student implementations may use any algorithm that produces the required behavior stated here.
 
 ## Units and coordinate conventions
 
@@ -14,35 +14,42 @@ This reference describes the Python classes, values, and functions that a course
 
 ## Components you implement
 
-Each student component inherits the corresponding base class from ucsb_xrp.student_api. The base constructor checks the configuration and stores the same object as the read-only self.config property. Robot or supplied mission code calls the methods below; the project class supplies their calculations.
+You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and the mission classes call these methods, so the rest of the project does not change when course_setup.py selects your implementation.
 
 ### `SensorModel`
 
-Convert direct XRP sensor readings into measured wheel motion, wheel-speed estimates, range, and USER-button state.
+Convert encoder counts, device time, ultrasonic range, and USER-button state into physical measurements. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() reduces repeated ultrasonic readings.
 
 - **Kind:** student component
 - **Project file:** `sensor_model.py`
 - **Base class:** `SensorModelBase`
+- **Import:** `from sensor_model import SensorModel`
+
+**Class declaration**
 
 ```python
 class SensorModel(SensorModelBase)
 ```
 
-The base class defines the public methods below. Its constructor stores the supplied `RobotConfig` as the read-only `self.config` property. The project class implements those methods.
+**State between calls:**
 
-**Information retained between calls:**
-
-After reset(), retain the encoder and time origins, the preceding sample, elapsed-time information, and the recent samples or equivalent state used to estimate wheel speed. Total wheel positions are calculated relative to the reset origins; they do not need separate accumulated position state.
+After reset(), retain the encoder and time zero values, the preceding sample, and enough recent encoder history to estimate wheel speed. Wheel position remains relative to the reset values.
 
 **Configuration used:** `sample_period_ms`, `wheel_diameter_mm`, `encoder_counts_per_revolution`, `left_encoder_sign`, `right_encoder_sign`, `wheel_speed_filter_time_constant_ms`.
 
+**Constructor parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `config` | `RobotConfig` | — | — | Robot sampling, encoder, wheel, and wheel-speed-estimation settings. The same value is available inside the class as self.config. |
+
 #### `reset()`
+
+Establish the encoder and time origins for a new run.
 
 ```python
 reset(raw: RawSensors) -> Measurements
 ```
-
-Establish the encoder and time origins for a new run.
 
 **Parameters**
 
@@ -63,11 +70,11 @@ Establish the encoder and time origins for a new run.
 
 #### `update()`
 
+Convert the next hardware sample into physical measurements.
+
 ```python
 update(raw: RawSensors) -> Measurements
 ```
-
-Convert the next hardware sample into physical measurements.
 
 **Parameters**
 
@@ -75,14 +82,14 @@ Convert the next hardware sample into physical measurements.
 | --- | --- | --- | --- | --- |
 | `raw` | `RawSensors` | — | — | Next encoder, device-time, range, and USER-button sample. |
 
-**Returns:** `Measurements` — Cumulative wheel positions from the reset origins, the latest unsmoothed wheel increments, regularized wheel-speed estimates, elapsed time, range, and button state.
+**Returns:** `Measurements` — Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, range, and button state.
 
 **Required behavior**
 
 - Apply the configured encoder signs, wheel diameter, and encoder counts per revolution.
 - Calculate dt_s from consecutive device timestamps with elapsed_time_s().
 - Do not smooth left_increment_mm or right_increment_mm; odometry uses the measured increments.
-- Estimate wheel speed from recent samples or an equivalent regularized estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.
+- Estimate wheel speed from recent encoder samples or an equivalent estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.
 - If no positive time has elapsed, report dt_s as zero without dividing by zero; positions and increments still follow the new encoder counts.
 - Preserve raw.range_mm and raw.button_pressed in the returned Measurements.
 
@@ -93,11 +100,11 @@ Convert the next hardware sample into physical measurements.
 
 #### `estimate_range()`
 
+Combine repeated ultrasonic readings while rejecting unusable values.
+
 ```python
 estimate_range(samples, minimum_usable: int) -> float | None
 ```
-
-Combine repeated ultrasonic readings while rejecting unusable values.
 
 **Parameters**
 
@@ -112,6 +119,10 @@ Combine repeated ultrasonic readings while rejecting unusable values.
 
 - TypeError if minimum_usable is not an integer or samples cannot be iterated.
 - ValueError if minimum_usable is less than 1.
+
+**Exceptions**
+
+- TypeError if config is not a RobotConfig value.
 
 **Measure one encoder update**
 
@@ -129,48 +140,55 @@ print(measurement.left_speed_mm_s)
 
 ### `WheelSpeedController`
 
-Calculate bounded left and right motor commands from requested wheel speeds and measured wheel-speed estimates.
+Calculate one bounded motor command for each wheel from its requested speed and measured speed. Robot calls reset() at the start of a run and update() once per measured sample.
 
 - **Kind:** student component
 - **Project file:** `wheel_speed_controller.py`
 - **Base class:** `WheelSpeedControllerBase`
+- **Import:** `from wheel_speed_controller import WheelSpeedController`
+
+**Class declaration**
 
 ```python
 class WheelSpeedController(WheelSpeedControllerBase)
 ```
 
-The base class defines the public methods below. Its constructor stores the supplied `RobotConfig` as the read-only `self.config` property. The project class implements those methods.
+**State between calls:**
 
-**Information retained between calls:**
-
-An implementation may retain controller state between samples. reset() must return that state to its initial condition before each run.
+The controller may retain values needed from earlier samples. reset() must return all retained controller values to their initial condition.
 
 **Configuration used:** `left_start_command`, `right_start_command`, `left_speed_command_gain`, `right_speed_command_gain`, `wheel_speed_kp`, `max_drive_command`.
 
+**Constructor parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `config` | `RobotConfig` | — | — | Motor calibration, feedback gain, and command limit. The same value is available inside the class as self.config. |
+
 #### `reset()`
+
+Prepare controller state for a new run.
 
 ```python
 reset() -> None
 ```
 
-Prepare controller state for a new run.
-
 **Returns:** `None` — No value.
 
 #### `update()`
 
+Calculate the next motor command for both wheels.
+
 ```python
 update(target: WheelSpeeds, measured: WheelSpeeds) -> DriveCommand
 ```
-
-Calculate the next motor command for both wheels.
 
 **Parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
 | `target` | `WheelSpeeds` | — | mm/s | Requested left and right wheel speeds from DifferentialDrive. |
-| `measured` | `WheelSpeeds` | — | mm/s | Latest regularized wheel-speed estimates from SensorModel. |
+| `measured` | `WheelSpeeds` | — | mm/s | Latest wheel-speed estimates formed from recent encoder samples by SensorModel. |
 
 **Returns:** `DriveCommand` — Normalized left and right motor commands bounded by config.max_drive_command.
 
@@ -184,33 +202,44 @@ Calculate the next motor command for both wheels.
 
 - TypeError if target or measured is not a WheelSpeeds value.
 
+**Exceptions**
+
+- TypeError if config is not a RobotConfig value.
+
 ### `DifferentialDrive`
 
-Convert requested robot forward speed and turn rate into target left and right wheel speeds.
+Convert a requested robot forward speed and turn rate into the two wheel-speed targets required by a differential-drive robot. Robot calls wheel_speeds() once per measured sample.
 
 - **Kind:** student component
 - **Project file:** `differential_drive.py`
 - **Base class:** `DifferentialDriveBase`
+- **Import:** `from differential_drive import DifferentialDrive`
+
+**Class declaration**
 
 ```python
 class DifferentialDrive(DifferentialDriveBase)
 ```
 
-The base class defines the public methods below. Its constructor stores the supplied `RobotConfig` as the read-only `self.config` property. The project class implements those methods.
+**State between calls:**
 
-**Information retained between calls:**
-
-Each calculation is independent; the component does not need to retain state between calls.
+None. Each wheel_speeds() calculation depends only on its MotionCommand and the configured track width.
 
 **Configuration used:** `track_width_mm`.
 
+**Constructor parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `config` | `RobotConfig` | — | — | Robot geometry containing the effective track width. The same value is available inside the class as self.config. |
+
 #### `wheel_speeds()`
+
+Calculate target wheel speeds for one body-motion request.
 
 ```python
 wheel_speeds(command: MotionCommand) -> WheelSpeeds
 ```
-
-Calculate target wheel speeds for one body-motion request.
 
 **Parameters**
 
@@ -222,32 +251,44 @@ Calculate target wheel speeds for one body-motion request.
 
 **Required behavior**
 
-- For track width b, forward speed v, and turn rate omega, return left speed v - omega*b/2 and right speed v + omega*b/2.
-- Positive turn rate therefore requests a faster right wheel than left wheel.
+- Produce wheel speeds consistent with planar differential-drive kinematics and config.track_width_mm.
+- Zero turn rate produces equal wheel speeds. Positive turn rate produces a greater right-wheel speed than left-wheel speed; negative turn rate reverses that relationship.
+- Support straight motion, in-place rotation, and simultaneous forward motion and turning.
 
 **Exceptions**
 
 - TypeError if command is not a MotionCommand value.
 
+**Exceptions**
+
+- TypeError if config is not a RobotConfig value.
+
 ### `Odometry`
 
-Update the estimated world position and heading from measured left and right wheel travel.
+Estimate the robot's world position and heading from measured left- and right-wheel travel. Robot establishes the initial Pose with reset() and supplies one pair of wheel increments to update() after each sample.
 
 - **Kind:** student component
 - **Project file:** `odometry.py`
 - **Base class:** `OdometryBase`
+- **Import:** `from odometry import Odometry`
+
+**Class declaration**
 
 ```python
 class Odometry(OdometryBase)
 ```
 
-The base class defines the public methods below. Its constructor stores the supplied `RobotConfig` as the read-only `self.config` property. The project class implements those methods.
+**State between calls:**
 
-**Information retained between calls:**
-
-After reset(), retain the latest Pose. Simulator ground-truth position is not an input.
+After reset(), retain the latest Pose. The estimate uses measured wheel travel only; simulator ground truth is not an input.
 
 **Configuration used:** `track_width_mm`.
+
+**Constructor parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `config` | `RobotConfig` | — | — | Robot geometry containing the effective track width. The same value is available inside the class as self.config. |
 
 **Readable fields**
 
@@ -257,11 +298,11 @@ After reset(), retain the latest Pose. Simulator ground-truth position is not an
 
 #### `reset()`
 
+Set the pose for a new run.
+
 ```python
 reset(initial_pose: Pose) -> Pose
 ```
-
-Set the pose for a new run.
 
 **Parameters**
 
@@ -277,11 +318,11 @@ Set the pose for a new run.
 
 #### `update()`
 
+Integrate one differential-drive wheel-travel increment.
+
 ```python
 update(left_increment_mm: float, right_increment_mm: float) -> Pose
 ```
-
-Integrate one differential-drive wheel-travel increment.
 
 **Parameters**
 
@@ -294,41 +335,51 @@ Integrate one differential-drive wheel-travel increment.
 
 **Required behavior**
 
-- Use d=(left_increment_mm+right_increment_mm)/2 and dtheta=(right_increment_mm-left_increment_mm)/track_width_mm.
-- For dtheta equal to zero, translate by d at the current heading.
-- For nonzero dtheta, integrate the exact constant-curvature arc: radius=d/dtheta, dx=radius*(sin(theta+dtheta)-sin(theta)), and dy=-radius*(cos(theta+dtheta)-cos(theta)).
-- Retain and return the new pose.
+- Equal wheel increments translate the pose without changing its heading. Equal and opposite increments rotate the pose about the midpoint between the wheels.
+- Unequal increments follow the exact constant-curvature arc implied by the two wheel paths; do not replace a finite turn with a straight-line approximation.
+- Wrap the updated heading to [-pi, pi), retain the new Pose, and return it.
 
 **Exceptions**
 
 - RuntimeError if reset() has not been called.
 - TypeError for Boolean or nonnumeric increments.
 
+**Exceptions**
+
+- TypeError if config is not a RobotConfig value.
+
 ### `NavigationController`
 
-Generate motion commands that visit an ordered sequence of world-coordinate goals.
+Generate forward-speed and turn-rate commands that visit an ordered sequence of world-coordinate goals. The course program supplies the latest odometry Pose and sends each returned MotionCommand to Robot.
 
 - **Kind:** student component
 - **Project file:** `navigation_controller.py`
 - **Base class:** `NavigationControllerBase`
+- **Import:** `from navigation_controller import NavigationController`
+
+**Class declaration**
 
 ```python
 class NavigationController(NavigationControllerBase)
 ```
 
-The base class defines the public methods below. Its constructor stores the supplied `NavigationConfig` as the read-only `self.config` property. The project class implements those methods.
+**State between calls:**
 
-**Information retained between calls:**
+Retain the ordered goals, the active goal, completion state, and any turning, driving, or final-alignment state used by the implementation.
 
-Retain the ordered goals, the active goal, completion state, and any turn/drive/realignment phase used by the implementation.
+**Constructor parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `config` | `NavigationConfig` | — | — | Travel speeds, turn rate, slowdown distance, and position and heading tolerances. The same value is available inside the class as self.config. |
 
 #### `start()`
+
+Store an ordered goal sequence and begin navigation.
 
 ```python
 start(goals: sequence[NavigationGoal]) -> None
 ```
-
-Store an ordered goal sequence and begin navigation.
 
 **Parameters**
 
@@ -342,13 +393,17 @@ Store an ordered goal sequence and begin navigation.
 
 - An empty goal sequence is immediately complete; current_goal() returns None and update() returns STOP_COMMAND.
 
+**Exceptions**
+
+- TypeError if goals is not a tuple or list or contains a value other than NavigationGoal.
+
 #### `update()`
+
+Calculate the next motion request from the latest odometry pose.
 
 ```python
 update(pose: Pose) -> MotionCommand
 ```
-
-Calculate the next motion request from the latest odometry pose.
 
 **Parameters**
 
@@ -366,51 +421,60 @@ Calculate the next motion request from the latest odometry pose.
 - Visit goals in their supplied order. A goal with heading_rad=None requires position only; a numerical final heading must also be reached.
 - After all goals are complete, return STOP_COMMAND.
 
+**Exceptions**
+
+- TypeError if pose is not a Pose value.
+
 #### `current_goal()`
+
+Return the active goal, or None after completion.
 
 ```python
 current_goal() -> NavigationGoal | None
 ```
 
-Return the active goal, or None after completion.
-
 **Returns:** `NavigationGoal | None` — Current goal or None.
 
 #### `is_complete()`
+
+Report whether every required position and heading is complete.
 
 ```python
 is_complete() -> bool
 ```
 
-Report whether every required position and heading is complete.
-
 **Returns:** `bool` — True only after the complete goal sequence has been reached.
+
+**Exceptions**
+
+- TypeError if config is not a NavigationConfig value.
 
 ### `GridPlanner`
 
-Find a connected route through free cells in an occupancy grid.
+Find a connected route through free cells in an occupancy grid. Course planning code or DeliveryMission calls plan() and converts the returned GridPath into navigation goals.
 
 - **Kind:** student component
 - **Project file:** `grid_planner.py`
 - **Base class:** `GridPlannerBase`
+- **Import:** `from grid_planner import GridPlanner`
+
+**Class declaration**
 
 ```python
 class GridPlanner(GridPlannerBase)
 ```
 
-The base class defines the public methods below. It requires no configuration constructor. The project class implements those methods.
+**State between calls:**
 
-**Information retained between calls:**
-
-Search state may remain local to each plan() call.
+None is required between calls. Search data may remain local to one plan() calculation.
 
 #### `plan()`
+
+Find a valid connected route from the start cell to the goal cell.
 
 ```python
 plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None
 ```
-
-Find a valid connected route from the start cell to the goal cell.
 
 **Parameters**
 
@@ -427,26 +491,32 @@ Find a valid connected route from the start cell to the goal cell.
 - Use only free cells and move between cells that share a horizontal or vertical edge.
 - Any route that connects the endpoints through free edge-adjacent cells is accepted.
 
+**Exceptions**
+
+- TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell.
+
 ## Robot services
 
 Use Robot for ordinary course programs. It assembles the selected components into the timed robot control cycle.
 
 ### `Robot`
 
-Run the timed measurement, motor-control, odometry, telemetry, and live-parameter cycle.
+Execute one measured robot sample: convert the requested body motion to wheel targets, update motor commands, read sensors, update odometry, and publish telemetry. Course projects normally obtain Robot from make_robot(ROBOT_CONFIG).
 
 - **Kind:** supplied class
 - **Import:** `from ucsb_xrp import Robot`
+
+**Constructor**
 
 ```python
 Robot(config, bot, sensor_model, wheel_controller, differential_drive, odometry)
 ```
 
-**Information retained between calls:**
+**State between calls:**
 
-Retains the selected components, latest RobotState, next absolute sample deadline, and latest timing overrun. Projects normally obtain a configured instance with make_robot(ROBOT_CONFIG).
+After start(), retain the selected classes, latest RobotState, next absolute sample time, and latest timing overrun.
 
-**Parameters**
+**Constructor parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -467,11 +537,11 @@ Retains the selected components, latest RobotState, next absolute sample deadlin
 
 #### `start()`
 
+Reset encoders and components and begin a run.
+
 ```python
 start(initial_pose: Pose) -> RobotState
 ```
-
-Reset encoders and components and begin a run.
 
 **Parameters**
 
@@ -485,13 +555,18 @@ Reset encoders and components and begin a run.
 
 - An IDE-managed Run begins immediately. A project launched directly on the XRP waits for the USER button.
 
+**Exceptions**
+
+- TypeError if initial_pose is not a Pose value.
+- Hardware or component exceptions raised while resetting or taking the initial sample.
+
 #### `step()`
+
+Execute one complete robot control cycle.
 
 ```python
 step(command: MotionCommand, read_range: bool = False) -> RobotState
 ```
-
-Execute one complete robot control cycle.
 
 **Parameters**
 
@@ -507,13 +582,19 @@ Execute one complete robot control cycle.
 - Stops the motors before re-raising an exception from the cycle.
 - Maintains the configured absolute sample schedule; do not add sleep_ms() inside the control loop.
 
+**Exceptions**
+
+- RuntimeError if start() has not been called.
+- TypeError if command is not MotionCommand or read_range is not Boolean.
+- Hardware or component exceptions raised during the sample; Robot attempts to stop the motors before re-raising them.
+
 #### `estimate_range()`
+
+Use the selected SensorModel to combine range readings.
 
 ```python
 estimate_range(samples, minimum_usable: int) -> float | None
 ```
-
-Use the selected SensorModel to combine range readings.
 
 **Parameters**
 
@@ -524,32 +605,46 @@ Use the selected SensorModel to combine range readings.
 
 **Returns:** `float | None` — Range estimate in mm, or None.
 
+**Exceptions**
+
+- Exceptions raised by the selected SensorModel.
+
 #### `stop()`
+
+Stop both motors and publish a zero drive command.
 
 ```python
 stop() -> None
 ```
 
-Stop both motors and publish a zero drive command.
-
 **Returns:** `None` — No value.
+
+**Exceptions**
+
+- Hardware exception if the motors cannot be stopped.
+
+**Exceptions**
+
+- TypeError if config is not RobotConfig or a supplied object does not provide the methods required by Robot.
 
 ### `StraightLineController`
 
-Request cruise, approach, or zero forward speed from measured mean wheel travel.
+Generate a straight-ahead MotionCommand from measured mean wheel travel, using cruise speed far from the target, approach speed near it, and zero speed at completion.
 
 - **Kind:** supplied class
 - **Import:** `from ucsb_xrp import StraightLineController`
+
+**Constructor**
 
 ```python
 StraightLineController(config: NavigationConfig)
 ```
 
-**Information retained between calls:**
+**State between calls:**
 
-Retains the starting mean wheel position, requested distance, and completion state.
+After start(), retain the initial mean wheel position, requested travel distance, and completion state.
 
-**Parameters**
+**Constructor parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -557,11 +652,11 @@ Retains the starting mean wheel position, requested distance, and completion sta
 
 #### `start()`
 
+Begin a nonnegative forward move from the current mean wheel position.
+
 ```python
 start(measurements: Measurements, distance_mm: float) -> None
 ```
-
-Begin a nonnegative forward move from the current mean wheel position.
 
 **Parameters**
 
@@ -572,13 +667,18 @@ Begin a nonnegative forward move from the current mean wheel position.
 
 **Returns:** `None` — No value.
 
+**Exceptions**
+
+- TypeError if measurements is not a Measurements value.
+- ValueError if distance_mm is Boolean, nonnumeric, nonfinite, or negative.
+
 #### `update()`
+
+Return cruise, approach, or stop command from remaining distance.
 
 ```python
 update(measurements: Measurements) -> MotionCommand
 ```
-
-Return cruise, approach, or stop command from remaining distance.
 
 **Parameters**
 
@@ -588,15 +688,24 @@ Return cruise, approach, or stop command from remaining distance.
 
 **Returns:** `MotionCommand` — Next straight-line motion request.
 
+**Exceptions**
+
+- RuntimeError if start() has not been called.
+- TypeError if measurements is not a Measurements value.
+
 #### `is_complete()`
+
+Report whether the distance is within the position tolerance.
 
 ```python
 is_complete() -> bool
 ```
 
-Report whether the distance is within the position tolerance.
-
 **Returns:** `bool` — Completion state.
+
+**Exceptions**
+
+- TypeError if config is not a NavigationConfig value.
 
 ## Data types
 
@@ -607,6 +716,9 @@ These validated values carry information between components. Their public fields
 Store one direct hardware sample.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import RawSensors`
+
+**Constructor**
 
 ```python
 RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)
@@ -622,11 +734,19 @@ RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pr
 | `range_mm` | `float | None` | — | mm | Ultrasonic range, or None when unavailable or not requested. |
 | `button_pressed` | `bool` | — | — | Current USER-button state. |
 
+**Exceptions**
+
+- TypeError if time_ms or an encoder count is not an integer, button_pressed is not Boolean, or range_mm is Boolean or nonnumeric.
+- ValueError if time_ms is negative or range_mm is nonfinite or not greater than zero.
+
 ### `Measurements`
 
 Store sensor-derived motion and range values for one sample.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import Measurements`
+
+**Constructor**
 
 ```python
 Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)
@@ -642,17 +762,25 @@ Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_
 | `right_position_mm` | `float` | — | mm | Cumulative right-wheel travel since reset. |
 | `left_increment_mm` | `float` | — | mm | Unsmoothed left-wheel travel since the preceding sample. |
 | `right_increment_mm` | `float` | — | mm | Unsmoothed right-wheel travel since the preceding sample. |
-| `left_speed_mm_s` | `float` | — | mm/s | Regularized left-wheel speed estimate. |
-| `right_speed_mm_s` | `float` | — | mm/s | Regularized right-wheel speed estimate. |
+| `left_speed_mm_s` | `float` | — | mm/s | Left-wheel speed estimate formed from recent encoder samples. |
+| `right_speed_mm_s` | `float` | — | mm/s | Right-wheel speed estimate formed from recent encoder samples. |
 | `range_mm` | `float | None` | — | mm | Range reading or None. |
 | `button_pressed` | `bool` | — | — | USER-button state. |
 | `wheel_speeds` | `WheelSpeeds` | — | — | Left and right speed estimates as one value. |
+
+**Exceptions**
+
+- TypeError if a numeric argument is Boolean or nonnumeric, time_ms is not an integer, or button_pressed is not Boolean.
+- ValueError if time_ms or dt_s is negative, a number is nonfinite, or a supplied range is not greater than zero.
 
 ### `WheelSpeeds`
 
 Store left and right wheel speeds.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import WheelSpeeds`
+
+**Constructor**
 
 ```python
 WheelSpeeds(left_mm_s, right_mm_s)
@@ -665,11 +793,19 @@ WheelSpeeds(left_mm_s, right_mm_s)
 | `left_mm_s` | `float` | — | mm/s | Left-wheel speed. |
 | `right_mm_s` | `float` | — | mm/s | Right-wheel speed. |
 
+**Exceptions**
+
+- TypeError if either wheel speed is Boolean or nonnumeric.
+- ValueError if either wheel speed is not finite.
+
 ### `MotionCommand`
 
 Store requested robot-body motion.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import MotionCommand`
+
+**Constructor**
 
 ```python
 MotionCommand(forward_speed_mm_s, turn_rate_rad_s)
@@ -682,11 +818,19 @@ MotionCommand(forward_speed_mm_s, turn_rate_rad_s)
 | `forward_speed_mm_s` | `float` | — | mm/s | Requested forward speed. |
 | `turn_rate_rad_s` | `float` | — | rad/s | Requested counterclockwise turn rate. |
 
+**Exceptions**
+
+- TypeError if either argument is Boolean or nonnumeric.
+- ValueError if either argument is not finite.
+
 ### `DriveCommand`
 
 Store normalized left and right motor commands before hardware sign conversion.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import DriveCommand`
+
+**Constructor**
 
 ```python
 DriveCommand(left, right)
@@ -699,6 +843,11 @@ DriveCommand(left, right)
 | `left` | `float` | — | — | Left command in [-1.0, 1.0]. |
 | `right` | `float` | — | — | Right command in [-1.0, 1.0]. |
 
+**Exceptions**
+
+- TypeError if either command is Boolean or nonnumeric.
+- ValueError if either command is nonfinite or outside [-1.0, 1.0].
+
 **Notes**
 
 - MotorEfforts is a compatibility name for the same type. Use DriveCommand in new code.
@@ -708,6 +857,9 @@ DriveCommand(left, right)
 Store estimated position and heading in world coordinates.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import Pose`
+
+**Constructor**
 
 ```python
 Pose(x_mm, y_mm, heading_rad)
@@ -721,11 +873,19 @@ Pose(x_mm, y_mm, heading_rad)
 | `y_mm` | `float` | — | mm | World y position. |
 | `heading_rad` | `float` | — | rad | Heading wrapped to [-pi, pi). |
 
+**Exceptions**
+
+- TypeError if a coordinate or heading is Boolean or nonnumeric.
+- ValueError if a coordinate or heading is not finite.
+
 ### `RobotState`
 
 Pair the measurements and odometry pose returned by one robot sample.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import RobotState`
+
+**Constructor**
 
 ```python
 RobotState(measurements: Measurements, pose: Pose)
@@ -738,11 +898,18 @@ RobotState(measurements: Measurements, pose: Pose)
 | `measurements` | `Measurements` | — | — | Sensor-derived values. |
 | `pose` | `Pose` | — | — | Odometry estimate. |
 
+**Exceptions**
+
+- TypeError if measurements is not Measurements or pose is not Pose.
+
 ### `NavigationGoal`
 
 Store a destination position and optional required heading.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import NavigationGoal`
+
+**Constructor**
 
 ```python
 NavigationGoal(x_mm, y_mm, heading_rad=None)
@@ -756,11 +923,19 @@ NavigationGoal(x_mm, y_mm, heading_rad=None)
 | `y_mm` | `float` | — | mm | Destination y position. |
 | `heading_rad` | `float | None` | — | rad | Required final heading, or None for position only. |
 
+**Exceptions**
+
+- TypeError if a coordinate or supplied heading is Boolean or nonnumeric.
+- ValueError if a coordinate or supplied heading is not finite.
+
 ### `GridCell`
 
 Store one integer occupancy-grid coordinate.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import GridCell`
+
+**Constructor**
 
 ```python
 GridCell(column, row)
@@ -773,11 +948,18 @@ GridCell(column, row)
 | `column` | `int` | — | — | Column increasing with world x. |
 | `row` | `int` | — | — | Row increasing with world y. |
 
+**Exceptions**
+
+- TypeError if column or row is not an integer.
+
 ### `GridPath`
 
 Store an ordered route of edge-adjacent grid cells.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import GridPath`
+
+**Constructor**
 
 ```python
 GridPath(cells)
@@ -791,11 +973,11 @@ GridPath(cells)
 
 #### `to_goals()`
 
+Convert the route to compact goals at turns and the final cell.
+
 ```python
 to_goals(grid: OccupancyGrid, final_heading_rad: float | None = None) -> tuple[NavigationGoal, ...]
 ```
-
-Convert the route to compact goals at turns and the final cell.
 
 **Parameters**
 
@@ -806,11 +988,25 @@ Convert the route to compact goals at turns and the final cell.
 
 **Returns:** `tuple[NavigationGoal, ...]` — World-coordinate navigation goals.
 
+**Exceptions**
+
+- AttributeError if grid does not provide cell_center().
+- TypeError if final_heading_rad is Boolean or nonnumeric, or grid.cell_center() rejects a path cell's type.
+- ValueError if final_heading_rad is not finite or grid.cell_center() rejects a cell outside the grid.
+
+**Exceptions**
+
+- TypeError if cells is not a tuple or list or contains a value other than GridCell.
+- ValueError if cells is empty or consecutive cells do not share a horizontal or vertical edge.
+
 ### `STOP_COMMAND`
 
 Shared zero-motion request.
 
 - **Kind:** constant
+- **Import:** `from ucsb_xrp import STOP_COMMAND`
+
+**Value**
 
 ```python
 STOP_COMMAND = MotionCommand(0.0, 0.0)
@@ -818,37 +1014,45 @@ STOP_COMMAND = MotionCommand(0.0, 0.0)
 
 ## Configuration
 
-Configuration records validate their values at construction and then expose read-only fields. Construct a new record in robot_config.py when a setting changes.
+Robot settings belong in robot_config.py. The constructor checks every value, and the resulting fields can be read but not reassigned.
 
 ### `RobotConfig`
 
-Store robot timing, geometry, signs, motor calibration, wheel-speed estimator response, feedback gain, and command limit.
+Define one robot's sample timing, wheel geometry, wiring directions, motor calibration, wheel-speed-estimator response, feedback gain, and motor-command limit.
 
 - **Kind:** configuration record
+- **Import:** `from ucsb_xrp import RobotConfig`
+
+**Constructor**
 
 ```python
 RobotConfig(sample_period_ms=20, wheel_diameter_mm=60.0, encoder_counts_per_revolution=585.0, track_width_mm=155.0, left_motor_sign=1, right_motor_sign=1, left_encoder_sign=1, right_encoder_sign=1, left_start_command=0.0, right_start_command=0.0, left_speed_command_gain=0.0, right_speed_command_gain=0.0, wheel_speed_filter_time_constant_ms=80.0, wheel_speed_kp=0.0, max_drive_command=1.0)
 ```
 
-**Readable fields**
+**Constructor parameters and readable fields**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
-| `sample_period_ms` | `int` | 20 | ms | Robot sample period; at least 1. |
-| `wheel_diameter_mm` | `float` | 60.0 | mm | Measured wheel diameter; positive. |
-| `encoder_counts_per_revolution` | `float` | 585.0 | count/rev | Encoder counts for one wheel revolution; positive. |
-| `track_width_mm` | `float` | 155.0 | mm | Effective separation between wheel paths used by drive and odometry calculations; positive. |
-| `left_motor_sign` | `int` | 1 | — | +1 or -1 so positive logical command drives the left wheel forward. |
-| `right_motor_sign` | `int` | 1 | — | +1 or -1 so positive logical command drives the right wheel forward. |
-| `left_encoder_sign` | `int` | 1 | — | +1 or -1 so forward left-wheel travel is positive. |
-| `right_encoder_sign` | `int` | 1 | — | +1 or -1 so forward right-wheel travel is positive. |
-| `left_start_command` | `float` | 0.0 | — | Nonnegative left command used to overcome motor deadband. |
-| `right_start_command` | `float` | 0.0 | — | Nonnegative right command used to overcome motor deadband. |
-| `left_speed_command_gain` | `float` | 0.0 | s/mm | Left feedforward command per requested wheel speed. |
-| `right_speed_command_gain` | `float` | 0.0 | s/mm | Right feedforward command per requested wheel speed. |
-| `wheel_speed_filter_time_constant_ms` | `float` | 80.0 | ms | Response time of the encoder-derived wheel-speed estimate; zero disables regularization. |
-| `wheel_speed_kp` | `float` | 0.0 | s/mm | Proportional motor-command correction per wheel-speed error. |
-| `max_drive_command` | `float` | 1.0 | — | Final absolute command limit in [0.0, 1.0]. |
+| `sample_period_ms` | `int` | 20 | ms | Scheduled interval between Robot samples; integer at least 1. |
+| `wheel_diameter_mm` | `float` | 60.0 | mm | Measured wheel diameter used to convert encoder revolutions to wheel travel; greater than zero. |
+| `encoder_counts_per_revolution` | `float` | 585.0 | count/rev | Encoder counts corresponding to one wheel revolution; greater than zero. |
+| `track_width_mm` | `float` | 155.0 | mm | Effective lateral distance between the left and right wheel paths, used by DifferentialDrive and Odometry; greater than zero. |
+| `left_motor_sign` | `int` | 1 | — | +1 or -1, chosen so a positive left DriveCommand turns the left wheel forward. |
+| `right_motor_sign` | `int` | 1 | — | +1 or -1, chosen so a positive right DriveCommand turns the right wheel forward. |
+| `left_encoder_sign` | `int` | 1 | — | +1 or -1, chosen so forward left-wheel travel produces a positive count change. |
+| `right_encoder_sign` | `int` | 1 | — | +1 or -1, chosen so forward right-wheel travel produces a positive count change. |
+| `left_start_command` | `float` | 0.0 | — | Nonnegative left-wheel command needed to overcome motor deadband when a nonzero speed is requested. |
+| `right_start_command` | `float` | 0.0 | — | Nonnegative right-wheel command needed to overcome motor deadband when a nonzero speed is requested. |
+| `left_speed_command_gain` | `float` | 0.0 | s/mm | Left-wheel feedforward command per unit of requested wheel speed. |
+| `right_speed_command_gain` | `float` | 0.0 | s/mm | Right-wheel feedforward command per unit of requested wheel speed. |
+| `wheel_speed_filter_time_constant_ms` | `float` | 80.0 | ms | Additional response time of the wheel-speed estimate formed from recent encoder samples; zero selects the estimator's minimum supported response. |
+| `wheel_speed_kp` | `float` | 0.0 | s/mm | Proportional change in motor command per unit of wheel-speed error. |
+| `max_drive_command` | `float` | 1.0 | — | Maximum absolute DriveCommand sent to either motor; from 0.0 to 1.0 inclusive. |
+
+**Exceptions**
+
+- TypeError if an argument has the wrong type, an unknown argument is supplied, or a current and older compatibility name are both supplied.
+- ValueError if a number is not finite or violates the range stated above, or if a starting command exceeds max_drive_command.
 
 **Notes**
 
@@ -856,25 +1060,33 @@ RobotConfig(sample_period_ms=20, wheel_diameter_mm=60.0, encoder_counts_per_revo
 
 ### `NavigationConfig`
 
-Store speeds, distances, angular rates, and tolerances used by supplied straight-line and student navigation controllers.
+Define the travel speeds, slowdown distance, turn rate, and accepted position and heading errors used by StraightLineController and NavigationController.
 
 - **Kind:** configuration record
+- **Import:** `from ucsb_xrp import NavigationConfig`
+
+**Constructor**
 
 ```python
 NavigationConfig(cruise_speed_mm_s, approach_speed_mm_s, slowdown_distance_mm, turn_rate_rad_s, position_tolerance_mm, heading_tolerance_rad, realign_heading_rad)
 ```
 
-**Readable fields**
+**Constructor parameters and readable fields**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
-| `cruise_speed_mm_s` | `float` | — | mm/s | Normal forward speed; positive. |
-| `approach_speed_mm_s` | `float` | — | mm/s | Reduced speed near a goal; positive and no greater than cruise speed. |
-| `slowdown_distance_mm` | `float` | — | mm | Distance at which approach speed begins; positive. |
-| `turn_rate_rad_s` | `float` | — | rad/s | Magnitude of turning command; positive. |
-| `position_tolerance_mm` | `float` | — | mm | Nonnegative accepted position error. |
-| `heading_tolerance_rad` | `float` | — | rad | Nonnegative accepted heading error. |
-| `realign_heading_rad` | `float` | — | rad | Heading-error magnitude that triggers realignment; no smaller than heading tolerance. |
+| `cruise_speed_mm_s` | `float` | — | mm/s | Normal forward speed away from a goal; greater than zero. |
+| `approach_speed_mm_s` | `float` | — | mm/s | Reduced forward speed near a goal; greater than zero and no greater than cruise_speed_mm_s. |
+| `slowdown_distance_mm` | `float` | — | mm | Remaining distance at which the controller changes from cruise speed to approach speed; greater than zero. |
+| `turn_rate_rad_s` | `float` | — | rad/s | Magnitude of the requested angular velocity while turning; greater than zero. |
+| `position_tolerance_mm` | `float` | — | mm | Maximum remaining planar distance accepted as reaching a goal; nonnegative. |
+| `heading_tolerance_rad` | `float` | — | rad | Maximum absolute heading error accepted as aligned; nonnegative. |
+| `realign_heading_rad` | `float` | — | rad | Absolute heading error at which forward travel stops for realignment; no smaller than heading_tolerance_rad. |
+
+**Exceptions**
+
+- TypeError if an argument is Boolean or nonnumeric.
+- ValueError if a number is not finite or violates the range stated above, approach_speed_mm_s exceeds cruise_speed_mm_s, or realign_heading_rad is below heading_tolerance_rad.
 
 ## Live controls and telemetry values
 
@@ -885,12 +1097,21 @@ Import ucsb_xrp.live to create compact controls and publish selected program val
 Create Monitor controls and publish selected program values.
 
 - **Kind:** module
+- **Import:** `from ucsb_xrp import live`
+
+**State between calls:**
+
+Retain declared controls and the latest watch and plot values for the current run. Robot applies queued control changes together at a sample boundary.
 
 ### `LiveParameter`
 
 Represent one Monitor control and the value currently applied to the program.
 
 - **Kind:** value object
+
+**State between calls:**
+
+value changes only when live.apply_updates(), Robot.start(), or Robot.step() applies a queued Monitor setting.
 
 **Readable fields**
 
@@ -911,6 +1132,9 @@ Represent one Monitor control and the value currently applied to the program.
 Declare a bounded numeric slider.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import live`
+
+**Signature**
 
 ```python
 live.number(name, default, minimum, maximum, step, unit='', label=None) -> LiveParameter
@@ -935,11 +1159,19 @@ live.number(name, default, minimum, maximum, step, unit='', label=None) -> LiveP
 - maximum must exceed minimum; step must be positive and no larger than the range; default must lie inside the inclusive bounds.
 - The range does not need to contain an exact whole number of steps. The applied value is the nearest available step within the bounds.
 
+**Exceptions**
+
+- TypeError if name, unit, or label is not a string or a numeric argument is Boolean or nonnumeric.
+- ValueError if text is empty or too long, name is not a Python identifier, a number is nonfinite, bounds or step are invalid, default lies outside the bounds, the name is already in use, or 16 controls already exist.
+
 ### `live.toggle`
 
 Declare an on/off control.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import live`
+
+**Signature**
 
 ```python
 live.toggle(name, default, label=None) -> LiveParameter
@@ -955,11 +1187,19 @@ live.toggle(name, default, label=None) -> LiveParameter
 
 **Returns:** `LiveParameter` — Boolean control.
 
+**Exceptions**
+
+- TypeError if name or label is not a string or default is not Boolean.
+- ValueError if text is empty or too long, name is not a Python identifier, the name is already in use, or 16 controls already exist.
+
 ### `live.choice`
 
 Declare a control with two to six string choices.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import live`
+
+**Signature**
 
 ```python
 live.choice(name, default, options, label=None) -> LiveParameter
@@ -976,11 +1216,19 @@ live.choice(name, default, options, label=None) -> LiveParameter
 
 **Returns:** `LiveParameter` — Choice control.
 
+**Exceptions**
+
+- TypeError if name, label, or any choice is not a string.
+- ValueError if text is empty or too long, name is not a Python identifier, options does not contain two to six unique choices, default is not one of them, the name is already in use, or 16 controls already exist.
+
 ### `live.watch`
 
 Publish the latest number, Boolean, or short string as a named live value.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import live`
+
+**Signature**
 
 ```python
 live.watch(name, value, unit='', label=None) -> None
@@ -997,11 +1245,19 @@ live.watch(name, value, unit='', label=None) -> None
 
 **Returns:** `None` — No value.
 
+**Exceptions**
+
+- TypeError if name, unit, or label is not a string or value is not a number, Boolean, or string.
+- ValueError if text is empty or too long, name is not a Python identifier, a numeric value is nonfinite, or 16 watch values already exist.
+
 ### `live.plot`
 
 Publish a finite numeric value as an optional Monitor strip-plot signal.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import live`
+
+**Signature**
 
 ```python
 live.plot(name, value, unit='', label=None) -> None
@@ -1018,11 +1274,19 @@ live.plot(name, value, unit='', label=None) -> None
 
 **Returns:** `None` — No value.
 
+**Exceptions**
+
+- TypeError if name, unit, or label is not a string or value is Boolean or nonnumeric.
+- ValueError if text is empty or too long, name is not a Python identifier, value is nonfinite, or 16 plot values already exist.
+
 ### `live.apply_updates`
 
 Apply the latest Monitor control values at one program boundary.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import live`
+
+**Signature**
 
 ```python
 live.apply_updates() -> bool
@@ -1038,9 +1302,14 @@ live.apply_updates() -> bool
 
 ### `ProjectWorld`
 
-Provide one validated world from the project's world.json file.
+Provide one named world loaded from the project's world.json file, including bounds, initial pose, fixed obstacles, changeable features, and waypoint markers.
 
 - **Kind:** supplied class
+- **Import:** `from ucsb_xrp import ProjectWorld`
+
+**State between calls:**
+
+The loaded world does not change. arena_map() creates a new ArenaMap, and waypoint methods create NavigationGoal values from the stored markers.
 
 **Readable fields**
 
@@ -1054,11 +1323,11 @@ Provide one validated world from the project's world.json file.
 
 #### `arena_map()`
 
+Build an arena map with selected features blocked.
+
 ```python
 arena_map(blocked_features=()) -> ArenaMap
 ```
-
-Build an arena map with selected features blocked.
 
 **Parameters**
 
@@ -1066,15 +1335,19 @@ Build an arena map with selected features blocked.
 | --- | --- | --- | --- | --- |
 | `blocked_features` | `sequence[str]` | () | — | Feature names that should act as obstacles. |
 
-**Returns:** `ArenaMap` — Validated map.
+**Returns:** `ArenaMap` — Arena geometry with the named features marked as obstacles.
+
+**Exceptions**
+
+- ValueError if blocked_features contains a name not present in feature_names.
 
 #### `waypoint()`
+
+Return one named waypoint.
 
 ```python
 waypoint(name: str) -> NavigationGoal
 ```
-
-Return one named waypoint.
 
 **Parameters**
 
@@ -1084,13 +1357,17 @@ Return one named waypoint.
 
 **Returns:** `NavigationGoal` — Waypoint goal.
 
+**Exceptions**
+
+- ValueError if no waypoint has that name or its stored coordinates are invalid.
+
 #### `waypoints()`
+
+Return all waypoints in file order.
 
 ```python
 waypoints() -> tuple[NavigationGoal, ...]
 ```
-
-Return all waypoints in file order.
 
 **Returns:** `tuple[NavigationGoal, ...]` — Waypoint sequence.
 
@@ -1099,6 +1376,9 @@ Return all waypoints in file order.
 Load the default or named world from a project JSON file.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import load_world`
+
+**Signature**
 
 ```python
 load_world(path='world.json', world_id=None) -> ProjectWorld
@@ -1113,11 +1393,20 @@ load_world(path='world.json', world_id=None) -> ProjectWorld
 
 **Returns:** `ProjectWorld` — Selected validated world.
 
+**Exceptions**
+
+- OSError if path cannot be opened.
+- ValueError if the JSON, world list, selected world, bounds, coordinates, or names are invalid.
+- TypeError if a world field has the wrong JSON type.
+
 ### `Rectangle`
 
 Represent a closed axis-aligned rectangle in world millimeters.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import Rectangle`
+
+**Constructor**
 
 ```python
 Rectangle(minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm)
@@ -1135,11 +1424,11 @@ Rectangle(minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm)
 
 #### `contains()`
 
+Test whether a point lies inside bounds expanded by margin_mm.
+
 ```python
 contains(x_mm, y_mm, margin_mm=0.0) -> bool
 ```
-
-Test whether a point lies inside bounds expanded by margin_mm.
 
 **Parameters**
 
@@ -1151,17 +1440,34 @@ Test whether a point lies inside bounds expanded by margin_mm.
 
 **Returns:** `bool` — Containment result.
 
+**Exceptions**
+
+- TypeError if a coordinate or margin is Boolean or nonnumeric.
+- ValueError if a coordinate is nonfinite or margin_mm is nonfinite or negative.
+
+**Exceptions**
+
+- TypeError if a boundary is Boolean or nonnumeric.
+- ValueError if a boundary is nonfinite or the rectangle does not have positive width and height.
+
 ### `ArenaMap`
 
 Represent rectangular arena bounds, fixed obstacles, and named changeable obstacle features.
 
 - **Kind:** supplied class
+- **Import:** `from ucsb_xrp import ArenaMap`
+
+**Constructor**
 
 ```python
 ArenaMap(bounds_mm, obstacles=(), features=None, blocked_features=())
 ```
 
-**Parameters**
+**State between calls:**
+
+The map does not change after construction. with_feature_blocked() returns a new ArenaMap rather than modifying the current map.
+
+**Constructor parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -1181,11 +1487,11 @@ ArenaMap(bounds_mm, obstacles=(), features=None, blocked_features=())
 
 #### `feature_bounds()`
 
+Return one feature's bounds.
+
 ```python
 feature_bounds(name: str) -> tuple[float, float, float, float]
 ```
-
-Return one feature's bounds.
 
 **Parameters**
 
@@ -1195,13 +1501,17 @@ Return one feature's bounds.
 
 **Returns:** `tuple[float, float, float, float]` — Feature bounds in millimeters.
 
+**Exceptions**
+
+- ValueError if name is not a known feature.
+
 #### `contains()`
+
+Test whether a point lies inside the arena.
 
 ```python
 contains(x_mm, y_mm) -> bool
 ```
-
-Test whether a point lies inside the arena.
 
 **Parameters**
 
@@ -1212,13 +1522,18 @@ Test whether a point lies inside the arena.
 
 **Returns:** `bool` — True inside or on the arena boundary.
 
+**Exceptions**
+
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.
+
 #### `is_free()`
+
+Test arena and obstacle clearance.
 
 ```python
 is_free(x_mm, y_mm, clearance_mm=0.0) -> bool
 ```
-
-Test arena and obstacle clearance.
 
 **Parameters**
 
@@ -1230,13 +1545,18 @@ Test arena and obstacle clearance.
 
 **Returns:** `bool` — True when the point satisfies the requested clearance.
 
+**Exceptions**
+
+- TypeError if a coordinate or clearance is Boolean or nonnumeric.
+- ValueError if a coordinate is nonfinite or clearance_mm is nonfinite or negative.
+
 #### `with_feature_blocked()`
+
+Return a new map with one feature's blocked state changed.
 
 ```python
 with_feature_blocked(name: str, blocked: bool) -> ArenaMap
 ```
-
-Return a new map with one feature's blocked state changed.
 
 **Parameters**
 
@@ -1247,17 +1567,34 @@ Return a new map with one feature's blocked state changed.
 
 **Returns:** `ArenaMap` — New immutable map.
 
+**Exceptions**
+
+- ValueError if name is not a known feature.
+- TypeError if blocked is not Boolean.
+
+**Exceptions**
+
+- TypeError if bounds or obstacles are not rectangles or four-number bounds, obstacles is not a sequence, features is not a dictionary of named rectangles, or a feature name is empty or nontext.
+- ValueError if a rectangle is invalid or blocked_features contains an unknown name.
+
 ### `OccupancyGrid`
 
 Sample an ArenaMap into uniform free and blocked cells.
 
 - **Kind:** supplied class
+- **Import:** `from ucsb_xrp import OccupancyGrid`
+
+**Factory function**
 
 ```python
 OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid
 ```
 
-**Parameters**
+**State between calls:**
+
+Grid resolution, origin, dimensions, and blocked cells do not change after from_arena() creates the grid.
+
+**Factory parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -1277,11 +1614,11 @@ OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: fl
 
 #### `world_to_cell()`
 
+Convert a world point to a cell or None outside the grid.
+
 ```python
 world_to_cell(x_mm, y_mm) -> GridCell | None
 ```
-
-Convert a world point to a cell or None outside the grid.
 
 **Parameters**
 
@@ -1292,13 +1629,18 @@ Convert a world point to a cell or None outside the grid.
 
 **Returns:** `GridCell | None` — Containing cell, or None outside the grid.
 
+**Exceptions**
+
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.
+
 #### `cell_center()`
+
+Return a cell center in world millimeters.
 
 ```python
 cell_center(cell: GridCell) -> tuple[float, float]
 ```
-
-Return a cell center in world millimeters.
 
 **Parameters**
 
@@ -1308,13 +1650,18 @@ Return a cell center in world millimeters.
 
 **Returns:** `tuple[float, float]` — World x and y coordinates in millimeters.
 
+**Exceptions**
+
+- TypeError if cell is not GridCell.
+- ValueError if cell lies outside the grid.
+
 #### `contains()`
+
+Test whether a cell is inside the grid.
 
 ```python
 contains(cell: GridCell) -> bool
 ```
-
-Test whether a cell is inside the grid.
 
 **Parameters**
 
@@ -1324,13 +1671,17 @@ Test whether a cell is inside the grid.
 
 **Returns:** `bool` — True when row and column are in bounds.
 
+**Exceptions**
+
+- TypeError if cell is not GridCell.
+
 #### `is_blocked()`
+
+Report blocked state; cells outside the grid are blocked.
 
 ```python
 is_blocked(cell: GridCell) -> bool
 ```
-
-Report blocked state; cells outside the grid are blocked.
 
 **Parameters**
 
@@ -1340,13 +1691,17 @@ Report blocked state; cells outside the grid are blocked.
 
 **Returns:** `bool` — Blocked state.
 
+**Exceptions**
+
+- TypeError if cell is not GridCell.
+
 #### `neighbors()`
+
+Return free cells sharing a horizontal or vertical edge.
 
 ```python
 neighbors(cell: GridCell) -> tuple[GridCell, ...]
 ```
-
-Return free cells sharing a horizontal or vertical edge.
 
 **Parameters**
 
@@ -1355,6 +1710,15 @@ Return free cells sharing a horizontal or vertical edge.
 | `cell` | `GridCell` | — | — | Reference cell. |
 
 **Returns:** `tuple[GridCell, ...]` — Free edge-adjacent cells in deterministic order.
+
+**Exceptions**
+
+- TypeError if cell is not GridCell.
+
+**Exceptions**
+
+- TypeError if arena is not ArenaMap or a numeric argument is Boolean or nonnumeric.
+- ValueError if resolution_mm is nonfinite or not greater than zero, or clearance_mm is nonfinite or negative.
 
 **Notes**
 
@@ -1365,6 +1729,9 @@ Return free cells sharing a horizontal or vertical edge.
 Store the fixed values needed for one supplied delivery mission.
 
 - **Kind:** value record
+- **Import:** `from ucsb_xrp import DeliveryTask`
+
+**Constructor**
 
 ```python
 DeliveryTask(initial_pose, arena, grid_resolution_mm, clearance_mm, destination, observed_feature_name, range_sample_count, minimum_usable_range_count, blocked_range_threshold_mm, assume_blocked_without_range)
@@ -1385,17 +1752,29 @@ DeliveryTask(initial_pose, arena, grid_resolution_mm, clearance_mm, destination,
 | `blocked_range_threshold_mm` | `float` | — | mm | Positive range at or below which the observed feature is treated as blocked. |
 | `assume_blocked_without_range` | `bool` | — | — | Blocked state used when no range estimate is available. |
 
+**Exceptions**
+
+- TypeError if initial_pose, arena, destination, a numeric setting, or assume_blocked_without_range has the wrong type.
+- ValueError if observed_feature_name is unknown, a count is below one, minimum_usable_range_count exceeds range_sample_count, or a numeric setting is nonfinite or outside its stated range.
+
 ### `DeliveryMission`
 
 Perform range observation, map update, route planning, and navigation for a DeliveryTask.
 
 - **Kind:** supplied class
+- **Import:** `from ucsb_xrp import DeliveryMission`
+
+**Constructor**
 
 ```python
 DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)
 ```
 
-**Parameters**
+**State between calls:**
+
+Retain task and result. result is None before run(), no_path when planning finds no route, and delivered after navigation completes.
+
+**Constructor parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -1412,11 +1791,11 @@ DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: G
 
 #### `run()`
 
+Run the supplied delivery sequence and always attempt robot.stop().
+
 ```python
 run(robot: Robot) -> RobotState
 ```
-
-Run the supplied delivery sequence and always attempt robot.stop().
 
 **Parameters**
 
@@ -1426,19 +1805,35 @@ Run the supplied delivery sequence and always attempt robot.stop().
 
 **Returns:** `RobotState` — Last robot state.
 
+**Exceptions**
+
+- RuntimeError if navigation does not complete within 30,000 Robot steps.
+- Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising.
+
+**Exceptions**
+
+- TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods.
+
 ## Low-level XRP access and numerical functions
 
 ### `XRPBot`
 
-Read XRPLib devices and apply bounded, signed drive commands. Ordinary projects should use Robot instead.
+Read the XRP's encoders, clock, ultrasonic sensor, and USER button, and send bounded DriveCommand values to its motors. Ordinary course programs use Robot; use XRPBot directly only for low-level experiments.
 
 - **Kind:** supplied class
+- **Import:** `from ucsb_xrp import XRPBot`
+
+**Constructor**
 
 ```python
 XRPBot(config: RobotConfig)
 ```
 
-**Parameters**
+**State between calls:**
+
+Retain the RobotConfig and the encoder counts chosen as zero by reset_encoders().
+
+**Constructor parameters**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
@@ -1452,11 +1847,11 @@ XRPBot(config: RobotConfig)
 
 #### `read()`
 
+Read encoders, time, button state, and optionally range.
+
 ```python
 read(include_range: bool = False) -> RawSensors
 ```
-
-Read encoders, time, button state, and optionally range.
 
 **Parameters**
 
@@ -1466,33 +1861,46 @@ Read encoders, time, button state, and optionally range.
 
 **Returns:** `RawSensors` — Direct hardware sample.
 
+**Exceptions**
+
+- TypeError if include_range is not Boolean.
+- Hardware or run-stop exception while reading the XRP.
+
 #### `reset_encoders()`
+
+Use current hardware counts as the session zero.
 
 ```python
 reset_encoders() -> None
 ```
 
-Use current hardware counts as the session zero.
-
 **Returns:** `None` — No value.
 
+**Exceptions**
+
+- Hardware or run-stop exception while reading encoder counts.
+
 #### `wait_for_button()`
+
+Wait for the XRP USER button.
 
 ```python
 wait_for_button() -> None
 ```
 
-Wait for the XRP USER button.
-
 **Returns:** `None` — No value.
 
+**Exceptions**
+
+- Hardware or run-stop exception while waiting.
+
 #### `set_drive()`
+
+Apply one normalized motor command after configured signs and limits.
 
 ```python
 set_drive(command: DriveCommand) -> None
 ```
-
-Apply one normalized motor command after configured signs and limits.
 
 **Parameters**
 
@@ -1502,15 +1910,30 @@ Apply one normalized motor command after configured signs and limits.
 
 **Returns:** `None` — No value.
 
+**Exceptions**
+
+- TypeError if command is not DriveCommand.
+- ValueError if a command field is not a finite real number.
+- Hardware or run-stop exception while writing the motors; XRPBot attempts to stop both motors before re-raising.
+
 #### `stop()`
+
+Attempt to stop both motors.
 
 ```python
 stop() -> None
 ```
 
-Attempt to stop both motors.
-
 **Returns:** `None` — No value.
+
+**Exceptions**
+
+- Hardware exception if either motor cannot be set to zero.
+
+**Exceptions**
+
+- TypeError if config is not a RobotConfig value.
+- Hardware exception if XRP devices cannot be initialized or stopped.
 
 **Notes**
 
@@ -1521,6 +1944,9 @@ Attempt to stop both motors.
 Limit a numeric value to an inclusive interval.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import clamp`
+
+**Signature**
 
 ```python
 clamp(value, lower, upper) -> float
@@ -1534,13 +1960,21 @@ clamp(value, lower, upper) -> float
 | `lower` | `float` | — | — | Inclusive lower bound. |
 | `upper` | `float` | — | — | Inclusive upper bound; not less than lower. |
 
-**Returns:** `float` — value limited to [lower, upper].
+**Returns:** `float` — The input value limited to [lower, upper].
+
+**Exceptions**
+
+- TypeError if an argument is Boolean or nonnumeric.
+- ValueError if an argument is not finite or lower exceeds upper.
 
 ### `elapsed_time_s`
 
 Calculate a MicroPython-tick-safe elapsed interval in seconds.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import elapsed_time_s`
+
+**Signature**
 
 ```python
 elapsed_time_s(later_ms: int, earlier_ms: int) -> float
@@ -1555,11 +1989,18 @@ elapsed_time_s(later_ms: int, earlier_ms: int) -> float
 
 **Returns:** `float` — Wrap-safe elapsed time in seconds.
 
+**Exceptions**
+
+- TypeError if either timestamp is Boolean or not an integer.
+
 ### `wrap_angle_rad`
 
 Return the equivalent angle in [-pi, pi).
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import wrap_angle_rad`
+
+**Signature**
 
 ```python
 wrap_angle_rad(angle_rad: float) -> float
@@ -1573,11 +2014,19 @@ wrap_angle_rad(angle_rad: float) -> float
 
 **Returns:** `float` — Equivalent angle in [-pi, pi).
 
+**Exceptions**
+
+- TypeError if angle_rad is Boolean or nonnumeric.
+- ValueError if angle_rad is not finite.
+
 ### `distance_to_goal`
 
 Calculate planar distance from a pose to a navigation goal in millimeters.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import distance_to_goal`
+
+**Signature**
 
 ```python
 distance_to_goal(pose: Pose, goal: NavigationGoal) -> float
@@ -1592,11 +2041,20 @@ distance_to_goal(pose: Pose, goal: NavigationGoal) -> float
 
 **Returns:** `float` — Euclidean position error in millimeters.
 
+**Exceptions**
+
+- AttributeError if pose or goal does not provide x_mm and y_mm.
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.
+
 ### `bearing_to_goal`
 
 Calculate wrapped world-frame bearing from a pose to a navigation goal.
 
 - **Kind:** function
+- **Import:** `from ucsb_xrp import bearing_to_goal`
+
+**Signature**
 
 ```python
 bearing_to_goal(pose: Pose, goal: NavigationGoal) -> float
@@ -1610,3 +2068,9 @@ bearing_to_goal(pose: Pose, goal: NavigationGoal) -> float
 | `goal` | `NavigationGoal` | — | — | Destination position. |
 
 **Returns:** `float` — World-frame bearing in [-pi, pi) radians.
+
+**Exceptions**
+
+- AttributeError if pose or goal does not provide x_mm and y_mm.
+- TypeError if a coordinate is Boolean or nonnumeric.
+- ValueError if a coordinate is not finite.

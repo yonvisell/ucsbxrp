@@ -42,12 +42,6 @@ export function ReferenceApp() {
           <section className="reference-intro">
             <h1>{apiCatalog.title}</h1>
             <p>{apiCatalog.introduction}</p>
-            <p>
-              The <a href="../guide/">Guide</a> explains projects, the IDE,
-              Monitor, and robot setup. This page is the definitive reference
-              for public Python names, arguments, return values, and required
-              component behavior.
-            </p>
             <h2>Units and coordinate conventions</h2>
             <ul className="compact-list">
               {apiCatalog.conventions.map((convention) => (
@@ -77,47 +71,59 @@ export function ReferenceApp() {
 }
 
 function EntryReference({ entry }: { entry: ApiEntry }) {
+  const importStatement = entryImport(entry);
+
   return (
     <article className="class-reference" id={entry.id}>
       <header className="entry-heading">
-        <div>
-          <span className="entry-kind">{entry.kind}</span>
-          <h3>{entry.name}</h3>
-        </div>
-        {entry.projectFile && <code>{entry.projectFile}</code>}
+        <h3>{entry.name}</h3>
       </header>
 
       <p className="entry-purpose">{entry.purpose}</p>
 
-      {entry.baseClass && (
-        <p className="component-base">
-          Base class <TypeText value={entry.baseClass} /> defines the public
-          methods shown below.{" "}
-          {entry.configType ? (
-            <>
-              Its constructor stores the supplied{" "}
-              <TypeText value={entry.configType} /> as read-only{" "}
-              <code>self.config</code>.{" "}
-            </>
-          ) : (
-            <>It requires no configuration constructor. </>
-          )}
-          Implement the project class shown below.
-        </p>
-      )}
-
-      {entry.import && (
-        <p className="import-line">
-          <strong>Import:</strong> <code>{entry.import}</code>
-        </p>
-      )}
+      <dl className="entry-meta">
+        <div>
+          <dt>Role</dt>
+          <dd>{roleLabel(entry.kind)}</dd>
+        </div>
+        {entry.projectFile && (
+          <div>
+            <dt>Student file</dt>
+            <dd>
+              <code>{entry.projectFile}</code>
+            </dd>
+          </div>
+        )}
+        {entry.baseClass && (
+          <div>
+            <dt>Base class</dt>
+            <dd>
+              <TypeText value={entry.baseClass} currentAnchor={entry.id} />
+            </dd>
+          </div>
+        )}
+        {importStatement && (
+          <div className="entry-import">
+            <dt>Import</dt>
+            <dd>
+              <code>{importStatement}</code>
+            </dd>
+          </div>
+        )}
+      </dl>
 
       {entry.signature && (
-        <code className="class-signature">{entry.signature}</code>
+        <DefinitionBlock title={signatureTitle(entry)}>
+          <TypeText
+            className="class-signature"
+            currentAnchor={entry.id}
+            value={entry.signature}
+          />
+        </DefinitionBlock>
       )}
 
       {entry.state && (
-        <InfoBlock title="Information retained between calls">
+        <InfoBlock title="State between calls">
           <p>{entry.state}</p>
         </InfoBlock>
       )}
@@ -130,7 +136,12 @@ function EntryReference({ entry }: { entry: ApiEntry }) {
             {entry.relevantConfigFields.map((field, index) => (
               <span key={field}>
                 {index > 0 && ", "}
-                <code>{field}</code>
+                <a
+                  className="config-field-link"
+                  href={`#${configFieldAnchor(entry.configType, field)}`}
+                >
+                  <code>{field}</code>
+                </a>
               </span>
             ))}
           </p>
@@ -138,20 +149,10 @@ function EntryReference({ entry }: { entry: ApiEntry }) {
       )}
 
       {entry.parameters && entry.parameters.length > 0 && (
-        <InfoBlock title="Parameters">
+        <InfoBlock title={entryParameterTitle(entry)}>
           <ValueTable rows={entry.parameters} />
         </InfoBlock>
       )}
-
-      {entry.properties && entry.properties.length > 0 && (
-        <InfoBlock title="Readable fields">
-          <ValueTable rows={entry.properties} />
-        </InfoBlock>
-      )}
-
-      {entry.methods?.map((method) => (
-        <MethodReference method={method} key={method.id} />
-      ))}
 
       {entry.returns && (
         <ReturnValue type={entry.returns.type}>
@@ -172,6 +173,23 @@ function EntryReference({ entry }: { entry: ApiEntry }) {
           </ul>
         </InfoBlock>
       )}
+
+      {entry.properties && entry.properties.length > 0 && (
+        <InfoBlock title={propertyTitle(entry)}>
+          <ValueTable
+            rowAnchorPrefix={`field-${entry.id}`}
+            rows={entry.properties}
+          />
+        </InfoBlock>
+      )}
+
+      {entry.methods?.map((method) => (
+        <MethodReference
+          currentAnchor={entry.id}
+          method={method}
+          key={method.id}
+        />
+      ))}
 
       {entry.notes && entry.notes.length > 0 && (
         <InfoBlock title="Notes">
@@ -195,12 +213,22 @@ function EntryReference({ entry }: { entry: ApiEntry }) {
   );
 }
 
-function MethodReference({ method }: { method: ApiMethod }) {
+function MethodReference({
+  currentAnchor,
+  method,
+}: {
+  currentAnchor: string;
+  method: ApiMethod;
+}) {
   return (
     <section className="method-reference" id={method.id}>
       <h4>{method.name}()</h4>
-      <code className="method-signature">{method.signature}</code>
-      <p>{method.summary}</p>
+      <p className="method-purpose">{method.summary}</p>
+      <TypeText
+        className="method-signature"
+        currentAnchor={currentAnchor}
+        value={method.signature}
+      />
 
       {method.parameters && method.parameters.length > 0 && (
         <InfoBlock title="Parameters">
@@ -246,6 +274,21 @@ function InfoBlock({
   );
 }
 
+function DefinitionBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="definition-block">
+      <h4>{title}</h4>
+      {children}
+    </div>
+  );
+}
+
 function RequirementList({ values }: { values: string[] }) {
   return (
     <InfoBlock title="Required behavior">
@@ -274,7 +317,13 @@ function ReturnValue({
   );
 }
 
-function ValueTable({ rows }: { rows: ApiValue[] }) {
+function ValueTable({
+  rowAnchorPrefix,
+  rows,
+}: {
+  rowAnchorPrefix?: string;
+  rows: ApiValue[];
+}) {
   return (
     <div className="parameter-table">
       <div className="parameter-head" aria-hidden="true">
@@ -285,7 +334,15 @@ function ValueTable({ rows }: { rows: ApiValue[] }) {
         <span>Description</span>
       </div>
       {rows.map((row) => (
-        <div className="parameter-row" key={row.name}>
+        <div
+          className="parameter-row"
+          id={
+            rowAnchorPrefix
+              ? `${rowAnchorPrefix}-${slugify(row.name)}`
+              : undefined
+          }
+          key={row.name}
+        >
           <code data-label="Name">{row.name}</code>
           <span data-label="Type">
             <TypeText value={row.type} />
@@ -299,7 +356,15 @@ function ValueTable({ rows }: { rows: ApiValue[] }) {
   );
 }
 
-function TypeText({ value }: { value: string }) {
+function TypeText({
+  className,
+  currentAnchor,
+  value,
+}: {
+  className?: string;
+  currentAnchor?: string;
+  value: string;
+}) {
   const symbols = [...apiAnchors.keys()].sort(
     (left, right) => right.length - left.length,
   );
@@ -307,10 +372,10 @@ function TypeText({ value }: { value: string }) {
   const parts = value.split(pattern);
 
   return (
-    <code className="type-expression">
+    <code className={["type-expression", className].filter(Boolean).join(" ")}>
       {parts.map((part, index) => {
         const anchor = apiAnchors.get(part);
-        return anchor ? (
+        return anchor && anchor !== currentAnchor ? (
           <a href={`#${anchor}`} key={`${part}-${index}`}>
             {part}
           </a>
@@ -324,4 +389,71 @@ function TypeText({ value }: { value: string }) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function entryImport(entry: ApiEntry) {
+  if (entry.import) return entry.import;
+  if (entry.projectFile) {
+    const moduleName = entry.projectFile.replace(/\.py$/, "");
+    return `from ${moduleName} import ${entry.name}`;
+  }
+  if (entry.id === "module-live" || entry.name.startsWith("live.")) {
+    return "from ucsb_xrp import live";
+  }
+  if (entry.kind === "value object") return null;
+  return `from ucsb_xrp import ${entry.name}`;
+}
+
+function roleLabel(kind: string) {
+  const labels: Record<string, string> = {
+    "student component": "Class you implement",
+    "supplied class": "Class supplied by UCSBXRP",
+    "value record": "Read-only value",
+    "configuration record": "Read-only configuration",
+    "value object": "Value returned by the live module",
+  };
+  return labels[kind] ?? kind;
+}
+
+function signatureTitle(entry: ApiEntry) {
+  if (entry.baseClass) return "Class declaration";
+  if (entry.kind === "constant") return "Value";
+  if (entry.signature?.includes(".from_arena(")) return "Factory function";
+  if (
+    entry.kind.includes("class") ||
+    entry.kind.includes("record") ||
+    entry.kind === "value object"
+  ) {
+    return "Constructor";
+  }
+  return "Signature";
+}
+
+function entryParameterTitle(entry: ApiEntry) {
+  if (entry.signature?.includes(".from_arena(")) {
+    return "Factory parameters";
+  }
+  if (entry.baseClass || entry.kind.includes("class")) {
+    return "Constructor parameters";
+  }
+  return "Parameters";
+}
+
+function propertyTitle(entry: ApiEntry) {
+  if (entry.kind === "configuration record") {
+    return "Constructor parameters and readable fields";
+  }
+  return "Readable fields";
+}
+
+function configFieldAnchor(configType: string | undefined, field: string) {
+  const entryAnchor = configType ? apiAnchors.get(configType) : undefined;
+  return `field-${entryAnchor ?? "configuration"}-${slugify(field)}`;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
