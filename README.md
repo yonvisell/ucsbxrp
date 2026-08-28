@@ -220,8 +220,9 @@ non-moving protocol lifecycle. With the robot raised and wheels clear,
 motor/encoder response check. Neither command requires a staged checklist.
 The installed service automatically reboots through a hardware watchdog if its
 shared MicroPython runtime ever locks; USB remains the fallback repair path.
-Detailed recovery and remaining floor-calibration work are in
-`docs/REMAINING_HARDWARE_AND_NETWORK_SETUP.md`.
+Keep the default service probe non-moving. Run the bounded motor check only with
+the robot raised and its wheels clear, then complete floor calibration in the
+actual course arena before relying on physical distances or turns.
 
 ## Student version control
 
@@ -309,9 +310,10 @@ npm run check
 
 Narrower commands are `npm run test:python`, `npm run test:micropython`,
 `npm test`, `npm run build`, `npm run test:offline`, and
-`npm run test:browser`. See `docs/VALIDATION_PLAN.md` for the boundaries and
-`STATUS.md` for current measured results.
+`npm run test:browser`. The attached-robot browser test is opt-in with
+`XRP_E2E_PHYSICAL=1`; it remains non-moving unless the operator also sets
+`XRP_E2E_MOTION=raised_wheels` while that condition is physically true.
 
-For the self-contained GitHub Pages artifact, deployment workflow, license
-packaging, and conservative resource audit, see
-`docs/DISTRIBUTION_AND_EFFICIENCY.md`.
+The GitHub Pages workflow in `.github/workflows/pages.yml` validates and builds
+the self-contained artifact, packages third-party notices, runs the stable
+Chrome workflows, and deploys pushes to `main`.
