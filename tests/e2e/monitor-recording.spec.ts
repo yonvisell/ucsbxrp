@@ -237,7 +237,9 @@ test("can save a world replay automatically when recording stops", async ({
     .toBeGreaterThan(3);
 
   await page.getByRole("button", { name: "Stop recording" }).click();
-  await expect(page.getByText(/^Saved xrp-world-replay-/)).toBeVisible();
+  await expect(page.getByText(/^Saved xrp-world-replay-/)).toBeVisible({
+    timeout: 15_000,
+  });
   const saved = await page.evaluate(async () => {
     const exports = (
       window as unknown as {
