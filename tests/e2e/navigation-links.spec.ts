@@ -198,7 +198,7 @@ test("Guide states the complete first-use workflow and operating limits", async 
   await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
   await expect(page.locator(".guide-intro")).toContainText("Google Chrome");
   await expect(page.locator(".guide-intro")).toContainText(
-    "Microsoft Edge is the supported Chromium alternative",
+    "The latest Microsoft Edge on Windows or macOS is the supported alternative",
   );
   await expect(page.locator(".guide-toc span")).toHaveCount(0);
   await expect(
@@ -210,7 +210,7 @@ test("Guide states the complete first-use workflow and operating limits", async 
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Implement and test a component" }),
+    page.getByRole("heading", { name: "Implement and test a class" }),
   ).toBeVisible();
   await expect(
     page.getByText("Do not add sleep_ms() to a loop that calls Robot.step().", {
@@ -240,7 +240,9 @@ test("Guide states the complete first-use workflow and operating limits", async 
   );
   await expect(
     page.locator("#project-structure .course-diagram"),
-  ).toContainText("selected DifferentialDrive and WheelSpeedController");
+  ).toContainText(
+    "DifferentialDrive and WheelSpeedController convert a MotionCommand into a DriveCommand",
+  );
   await expect(
     page.locator("#project-structure .course-diagram img"),
   ).toHaveAttribute("src", "../diagrams/control-cycle.svg");
@@ -282,7 +284,7 @@ test("Guide states the complete first-use workflow and operating limits", async 
     "Continue to Challenge",
   );
   await expect(page.locator("#monitor")).toContainText(
-    "Runs started in either app write program output and target events to the IDE terminal",
+    "Runs started in either app write program output to the IDE terminal; connection, transfer, Run, Stop, and Reset events appear in its System log",
   );
   await expect(page.locator('a[href="../reference/"]')).not.toHaveCount(0);
 });
@@ -311,7 +313,7 @@ test("API catalog renders coherent component requirements and linked types", asy
   ).toHaveText("SensorModelBase");
   await expect(section).toContainText("class SensorModel(SensorModelBase)");
   await expect(section).toContainText(
-    "Convert encoder counts, device time, ultrasonic range, and USER-button state into physical measurements.",
+    "Convert encoder counts and device time into wheel positions, wheel-travel increments, regularized wheel-speed estimates, and elapsed sample time",
   );
   await expect(
     section.getByText("Constructor parameters", { exact: true }),
@@ -362,7 +364,7 @@ test("API catalog renders coherent component requirements and linked types", asy
 
   await page.goto("/reference/#wheel-speed-controller");
   await expect(page.locator("#wheel-speed-controller")).toContainText(
-    "larger speed error in the requested direction",
+    "increasing the speed error in the requested direction must not weaken the command",
   );
 
   await page.goto("/reference/#odometry");
@@ -542,15 +544,15 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(bodyFontSize).toBeGreaterThanOrEqual(10.75);
-  expect(bodyFontSize).toBeLessThanOrEqual(11.25);
+  expect(bodyFontSize).toBeGreaterThanOrEqual(13.5);
+  expect(bodyFontSize).toBeLessThanOrEqual(14.5);
   const inlineCodeFontSize = await page
     .locator(".guide-content code")
     .first()
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(10.25);
+  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(12.75);
   expect(inlineCodeFontSize).toBeLessThanOrEqual(bodyFontSize);
 
   const diagramsFit = await page

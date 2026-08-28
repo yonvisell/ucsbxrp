@@ -196,7 +196,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   );
   await expect(ide.getByTestId("target-status")).toHaveAttribute(
     "title",
-    /Run and telemetry use Wi-Fi, not USB/,
+    /Run and telemetry use Wi-Fi\. The computer and XRP must use the network selected during Set up or Repair\./,
   );
   await expect(ide.getByRole("button", { name: "Compile" })).toBeDisabled();
   await expect(
@@ -227,7 +227,10 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   );
   await expect(monitor.getByText("XRP not reachable")).toBeVisible();
   await expect(
-    monitor.getByText(/Run and telemetry use Wi-Fi, not USB/),
+    monitor.getByText(
+      "Connect this computer and the XRP to TEST-NETWORK, then select Reconnect.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(
     monitor.getByRole("button", { name: "Run", exact: true }),

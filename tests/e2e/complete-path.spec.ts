@@ -115,6 +115,7 @@ test("keeps the IDE workspace fitted while a window shrinks and expands", async 
   await seedWorkingFolder(ide, { folderName: "Responsive-IDE" });
   await ide.setViewportSize({ width: 820, height: 400 });
   await ide.goto("/ide/");
+  await expect(ide.locator(".ide-workspace")).toBeVisible();
 
   const verifyShell = async () => {
     const geometry = await ide.evaluate(() => {
