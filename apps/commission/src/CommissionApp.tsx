@@ -365,7 +365,7 @@ export function CommissionApp() {
         if (!disposed) {
           setStage("folder");
           setDetail(
-            "Choose one Working folder that will contain your named Project folders, or continue and choose it later in the IDE.",
+            "Choose one Working folder that will contain your named Project folders.",
           );
         }
       } catch (initializationError) {

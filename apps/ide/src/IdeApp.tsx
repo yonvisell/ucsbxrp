@@ -59,7 +59,6 @@ import {
 } from "../../shared/course-folder";
 import {
   createProjectFolder,
-  clearRecoveredProject,
   defaultProject,
   defaultProjectFolderName,
   deleteProjectFile,
@@ -68,7 +67,6 @@ import {
   hasProjectFolderMetadata,
   isDefaultProject,
   isCourseRepositoryFolder,
-  loadRecoveredProjectState,
   listDirectProjectFolders,
   normalizedProjectPath,
   projectContentDigest,
@@ -80,7 +78,6 @@ import {
   renameProjectFile,
   sameProjectContents,
   setProjectEntrypoint,
-  storeRecoveredProject,
   suggestedDuplicatePath,
   suggestedProjectFolderName,
   supportsWorkingFolders,
@@ -335,23 +332,16 @@ export function IdeApp({
   projectBootstrapOwner,
 }: IdeAppProps) {
   const embeddedApplication = isEmbeddedApplication();
-  const storedRecovery = useMemo(() => loadRecoveredProjectState(), []);
-  const initialRecovery = useMemo(
-    () =>
-      authorDraftProject
-        ? {
-            project: authorDraftProject,
-            preservedDraft: storedRecovery.project,
-          }
-        : storedRecovery,
-    [authorDraftProject, storedRecovery],
+  const initialProjectSnapshot = useMemo<ProjectSnapshot>(
+    () => authorDraftProject ?? defaultProject(),
+    [authorDraftProject],
   );
   const initialProjectSession = useMemo(
     () =>
-      createProjectSession(initialRecovery.project, {
+      createProjectSession(initialProjectSnapshot, {
         source: "browser-draft",
       }),
-    [initialRecovery.project],
+    [initialProjectSnapshot],
   );
   const initialProject = initialProjectSession.project;
   const [settings, setSettings] = useState<IdeSettings>(loadSettings);
@@ -475,10 +465,10 @@ export function IdeApp({
   const projectRef = useRef(project);
   const projectSessionRef = useRef(projectSession);
   const preservedBrowserDraftRef = useRef<ProjectSnapshot | undefined>(
-    initialRecovery.preservedDraft,
+    undefined,
   );
   const [preservedBrowserDraft, setPreservedBrowserDraft] =
-    useState<ProjectSnapshot | null>(initialRecovery.preservedDraft ?? null);
+    useState<ProjectSnapshot | null>(null);
   const settingsDrawerRef = useRef<HTMLElement | null>(null);
   const fileActionsRef = useRef<HTMLDivElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -806,24 +796,6 @@ export function IdeApp({
       initializedProjectEffect.current = true;
     }
   }, [project]);
-
-  useEffect(() => {
-    if (!projectSessionReady || !projectProviderActive) return;
-    const preservedDraft = preservedBrowserDraftRef.current;
-    if (projectSessionHasUnsavedChanges(projectSession) || preservedDraft) {
-      storeRecoveredProject(
-        snapshotForProjectSession(projectSession),
-        preservedDraft,
-      );
-    } else {
-      clearRecoveredProject();
-    }
-  }, [
-    projectProviderActive,
-    projectSession,
-    projectSessionReady,
-    workingFolder,
-  ]);
 
   useEffect(() => {
     if (!projectSessionReady || !workingFolder) return;
@@ -2017,13 +1989,6 @@ export function IdeApp({
         }
         const sessionToSave = projectSessionRef.current;
         const expected = projectRevisionIdentity(sessionToSave);
-        let browserRecoveryAvailable = false;
-        if (projectProviderActiveRef.current) {
-          browserRecoveryAvailable = storeRecoveredProject(
-            snapshotForProjectSession(sessionToSave),
-            preservedBrowserDraftRef.current,
-          );
-        }
         if (!activity()) return false;
 
         if (
@@ -2038,21 +2003,6 @@ export function IdeApp({
 
         const folder = workingFolderRef.current;
         if (folder === null) {
-          // Only the active IDE publishes browser recovery. A standby tab may
-          // contain a distinct draft, so it waits for explicit project
-          // takeover or closure instead of silently discarding that work.
-          if (
-            !projectProviderActiveRef.current &&
-            projectSessionHasUnsavedChanges(sessionToSave)
-          ) {
-            return false;
-          }
-          if (projectProviderActiveRef.current && !browserRecoveryAvailable) {
-            setOperationDetail(
-              "Chrome could not preserve this project for the course update. Save it to a project folder, then the update can continue.",
-            );
-            return false;
-          }
           return (
             activity() &&
             projectRevisionIsReloadable(
@@ -2084,12 +2034,6 @@ export function IdeApp({
               return false;
             }
             publishProjectSession(outcome.session);
-            if (projectProviderActiveRef.current) {
-              storeRecoveredProject(
-                snapshotForProjectSession(outcome.session),
-                preservedBrowserDraftRef.current,
-              );
-            }
             folderDirtyRef.current = false;
             setFolderDirty(false);
             setFolderSaveState("current");
@@ -3873,15 +3817,6 @@ export function IdeApp({
               <option value="on">Show minimap</option>
             </select>
           </label>
-          <section className="settings-note">
-            <h3>Physical workflow</h3>
-            <p>
-              Virtual and physical targets use the same project. On a physical
-              XRP, Run compiles when needed, loads the current project into
-              robot memory, and starts it. Resetting the XRP clears that loaded
-              copy; the next Run loads it again from the IDE.
-            </p>
-          </section>
           <section className="settings-note shortcuts-note">
             <h3>Shortcuts</h3>
             <dl>

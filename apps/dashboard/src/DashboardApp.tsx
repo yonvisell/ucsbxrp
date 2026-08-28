@@ -600,7 +600,7 @@ export function DashboardApp() {
   const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [runAutosaveDetail, setRunAutosaveDetail] = useState(
-    "Open or create a project in the IDE to save run data with its source.",
+    "Choose a Working folder and project in the IDE.",
   );
   const [annotations, setAnnotations] = useState<MonitorAnnotation[]>([]);
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
@@ -713,9 +713,7 @@ export function DashboardApp() {
           autosaveFolderRef.current = null;
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
-          setRunAutosaveDetail(
-            "Not saved to disk · connect a project folder in the IDE.",
-          );
+          setRunAutosaveDetail("Choose a Working folder and project in the IDE.");
           return;
         }
         autosaveFolderRemembered.current = true;
@@ -763,7 +761,7 @@ export function DashboardApp() {
     const folderEpoch = autosaveFolderEpoch.current;
     if (!folder) {
       setRunAutosaveDetail(
-        "Not saved to disk · connect a project folder in the IDE.",
+        "Run data was not saved; reconnect the Project folder in the IDE.",
       );
       return;
     }
@@ -949,7 +947,7 @@ export function DashboardApp() {
           setRunAutosaveDetail(
             autosaveFolderRef.current
               ? `Will save automatically to ${autosaveFolderRef.current.name}.`
-              : "Not saved to disk · connect a project folder in the IDE.",
+              : "Run data will not be saved; reconnect the Project folder in the IDE.",
           );
         } else if (!nextRunActive && runDatasetController.isActive) {
           finishActiveRun(event.state, event.detail);
@@ -1078,6 +1076,7 @@ export function DashboardApp() {
   };
 
   const canRunCurrent =
+    autosaveFolder !== null &&
     !virtualRuntimePreparing &&
     !projectBootstrapPending &&
     (targetState === "ready" ||
@@ -1524,6 +1523,10 @@ export function DashboardApp() {
                     ? "Opening the saved IDE project before Run."
                     : runStarting
                       ? "Compiling the default project before Run."
+                      : !autosaveFolder
+                        ? rememberedAutosaveFolder
+                          ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
+                          : "Choose a Working folder and create or open a project in the IDE before running."
                       : !projectProviderAvailable && target.kind === "physical"
                         ? "Open the IDE to choose the project for the physical XRP."
                         : !projectProviderAvailable
