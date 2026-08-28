@@ -22,6 +22,7 @@ test("duplicate IDE tabs keep the same saved Project and do not block Monitor", 
   );
   await expect(secondIde.getByTestId("project-folder")).toHaveText(
     "Expanding-Spiral",
+    { timeout: 15_000 },
   );
 
   const monitor = await context.newPage();

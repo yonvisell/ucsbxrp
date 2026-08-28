@@ -2012,6 +2012,11 @@ export function DashboardApp() {
           heading: sample.estimatedHeadingRad ?? sample.headingRad,
         }
       : null;
+  const projectStatusLabel =
+    currentProject?.name ??
+    (autosaveFolder
+      ? `${autosaveFolder.name} loads on Run`
+      : "No project selected");
 
   return (
     <div className={`app-shell ${embeddedApplication ? "embedded-app" : ""}`}>
@@ -2079,7 +2084,7 @@ export function DashboardApp() {
             <span aria-hidden="true" className={`status-dot ${targetState}`} />
             <span>
               {target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} ·{" "}
-              {targetState} · {currentProject?.name ?? "No project"}
+              {targetState} · {projectStatusLabel}
             </span>
           </div>
           {target.kind === "physical" && targetState === "error" ? (
