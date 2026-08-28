@@ -1493,7 +1493,7 @@ export function IdeApp({
   );
 
   const connectWorkingFolder = useCallback(
-    async (folder: CourseDirectoryHandle) => {
+    async (folder: CourseDirectoryHandle, selectProjectFromFolder = true) => {
       if (await isCourseRepositoryFolder(folder)) {
         throw new Error(
           "Choose a Working folder for student projects, not the UCSBXRP course software repository.",
@@ -1506,6 +1506,14 @@ export function IdeApp({
       setWorkspaceFolder(folder);
       setRememberedWorkspaceFolder(folder);
       setWorkingFolderAccessState("connected");
+
+      // New Project and Save Project already own the Project that will become
+      // active. Connecting their parent folder must not also create or open a
+      // different Project behind the dialog.
+      if (!selectProjectFromFolder) {
+        setOperationDetail(`${folder.name} is the Working folder.`);
+        return folder;
+      }
 
       if (selection.changed || !workspaceFolder) {
         const choices = await listDirectProjectFolders(folder);
@@ -1574,10 +1582,16 @@ export function IdeApp({
   );
 
   const selectWorkspaceFolder = useCallback(
-    async (reportError?: (detail: string) => void) => {
+    async (
+      reportError?: (detail: string) => void,
+      selectProjectFromFolder = true,
+    ) => {
       beginFolderInteraction();
       try {
-        return await connectWorkingFolder(await chooseWorkspaceFolder());
+        return await connectWorkingFolder(
+          await chooseWorkspaceFolder(),
+          selectProjectFromFolder,
+        );
       } catch (error) {
         if (!wasCancelled(error)) {
           const detail = errorDetail(error);
@@ -1593,7 +1607,10 @@ export function IdeApp({
   );
 
   const ensureWorkingFolderAccess = useCallback(
-    async (reportError?: (detail: string) => void) => {
+    async (
+      reportError?: (detail: string) => void,
+      selectProjectFromFolder = true,
+    ) => {
       if (workspaceFolder) return workspaceFolder;
 
       beginFolderInteraction();
@@ -1609,10 +1626,16 @@ export function IdeApp({
             reportError?.(detail);
             return null;
           }
-          return await connectWorkingFolder(rememberedWorkspaceFolder);
+          return await connectWorkingFolder(
+            rememberedWorkspaceFolder,
+            selectProjectFromFolder,
+          );
         }
 
-        return await connectWorkingFolder(await chooseWorkspaceFolder());
+        return await connectWorkingFolder(
+          await chooseWorkspaceFolder(),
+          selectProjectFromFolder,
+        );
       } catch (error) {
         if (!wasCancelled(error)) {
           const detail = errorDetail(error);
@@ -1697,8 +1720,8 @@ export function IdeApp({
       setProjectChooserError(detail);
     };
     const folder = workspaceFolder
-      ? await selectWorkspaceFolder(reportSelectionError)
-      : await ensureWorkingFolderAccess(reportSelectionError);
+      ? await selectWorkspaceFolder(reportSelectionError, false)
+      : await ensureWorkingFolderAccess(reportSelectionError, false);
     if (folder) {
       await showProjectsInWorkingFolder(folder);
       return;
@@ -2234,7 +2257,7 @@ export function IdeApp({
       setOperationDetail(
         "Choose the Working folder for the next challenge project.",
       );
-      if (!(await ensureWorkingFolderAccess())) return;
+      if (!(await ensureWorkingFolderAccess(undefined, false))) return;
     }
     try {
       await prepareNextChallengeCreation(project);
@@ -2351,7 +2374,7 @@ export function IdeApp({
         let folderAccessError = "";
         projectsFolder = await ensureWorkingFolderAccess((detail) => {
           folderAccessError = detail;
-        });
+        }, false);
         if (!projectsFolder) {
           setNewProjectError(
             folderAccessError ||

@@ -1966,3 +1966,20 @@ test, and the folder-picker/update boundary test pass.
 The publication gate also passes: formatting, 247 Python tests, MicroPython
 1.28 source/reference-bytecode parity, 382 browser-library unit tests, the
 production build, and all 267 offline payload files.
+
+## Refinement 74: one owner for first Project creation
+
+The first native test of the published IDE found an action-ownership defect:
+**New project** selected an empty Working folder, the generic folder connector
+created Expanding spiral immediately, and the still-open dialog then reported
+that its own requested folder already existed. Connecting a Working folder can
+now be done without selecting or creating a Project when **New project**,
+**Save project**, challenge progression, or the Project chooser already owns
+the next action. The ordinary IDE entry path still creates Expanding spiral in
+an empty folder when no more specific Project action is underway.
+
+A Stable Chrome regression now begins without a Working folder, selects
+Expanding spiral in **New project**, chooses an empty Working folder, and
+confirms that the requested Project is created once, opened, and recorded as
+the active Project in `.ucsbxrp.json`. Type checking, the production build, and
+that exact browser workflow pass.

@@ -41,6 +41,48 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("creates the selected Project when its Working folder is chosen", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => {
+        const root = await navigator.storage.getDirectory();
+        try {
+          await root.removeEntry("Fresh-New-Project", { recursive: true });
+        } catch (error) {
+          if (
+            !(error instanceof DOMException) ||
+            error.name !== "NotFoundError"
+          ) {
+            throw error;
+          }
+        }
+        return root.getDirectoryHandle("Fresh-New-Project", { create: true });
+      },
+    });
+  });
+  await page.goto("/ide/");
+
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page.getByLabel("Project template").selectOption("demo_spiral");
+  await page
+    .getByRole("button", { name: "Choose Working folder and create" })
+    .click();
+
+  await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Expanding-spiral",
+  );
+  await expect
+    .poll(() => readWorkspaceManifest(page, "Fresh-New-Project"))
+    .toMatchObject({ activeProject: "Expanding-spiral" });
+});
+
 test("opens a newly created tutorial on the Virtual XRP", async ({ page }) => {
   await seedWorkingFolder(page, {
     folderName: "Tutorial-Target-Test",
