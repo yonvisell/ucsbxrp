@@ -385,31 +385,41 @@ test("compiles all five active tutorials and reports unfinished exercises withou
       id: "micropython_tutorial",
       title: "Tutorial 1: Python essentials",
       compiled: 3,
-      summary: "Tutorial 1: 0 passed · 4 not completed · 0 incorrect",
+      summary: "Tutorial 1: 0 passed · 5 not completed · 0 incorrect",
+      helpLabel: "Tutorial path",
+      helpHref: "../guide/#virtual-run",
     },
     {
       id: "tutorial_virtual_drawing",
       title: "Tutorial 2: draw with the Virtual XRP",
       compiled: 5,
       summary: "Tutorial 2: 0 passed · 3 not completed · 0 incorrect",
+      helpLabel: "Data types",
+      helpHref: "../reference/#records",
     },
     {
       id: "tutorial_robot_programs",
       title: "Tutorial 3: UCSBXRP robot programs",
       compiled: 5,
       summary: "Tutorial 3: 0 passed · 1 not completed · 0 incorrect",
+      helpLabel: "Robot service API",
+      helpHref: "../reference/#robot",
     },
     {
       id: "tutorial_behavior_telemetry",
       title: "Tutorial 4: behavior and telemetry",
       compiled: 5,
       summary: "Tutorial 4: 0 passed · 3 not completed · 0 incorrect",
+      helpLabel: "Live controls and telemetry",
+      helpHref: "../reference/#live",
     },
     {
       id: "tutorial_physical_preflight",
       title: "Tutorial 5: physical XRP preflight",
       compiled: 5,
       summary: "Tutorial 5: 0 passed · 1 not completed · 0 incorrect",
+      helpLabel: "Physical XRP setup",
+      helpHref: "../guide/#physical-xrp",
     },
   ] as const;
 
@@ -423,6 +433,10 @@ test("compiles all five active tutorials and reports unfinished exercises withou
     await expect(
       ide.getByRole("button", { name: "Open student_work.py" }),
     ).toBeVisible();
+    await ide.getByRole("button", { name: "Open student_work.py" }).click();
+    await expect(
+      ide.getByRole("link", { name: tutorial.helpLabel }),
+    ).toHaveAttribute("href", tutorial.helpHref);
     await ide.getByRole("button", { name: "Compile" }).click();
     await expect(ide.getByTestId("check-result")).toContainText(
       `${tutorial.compiled} Python files compiled with MicroPython`,

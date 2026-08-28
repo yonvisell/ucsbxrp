@@ -31,10 +31,12 @@ history; they are not parallel plans. Detailed validation belongs in
   raised-wheel evidence for Run, Stop, Reset, rerun, project edits, motor
   effort, encoders, wheel distance, sensor data, pose, plots, logs, and final
   zero drive on dev.40.
-- The five active tutorial projects progress from Python fundamentals through
-  Virtual XRP drawing, the sampled robot program, telemetry, and a physical-XRP
-  preflight. Each has student tasks and immediate checks rather than a shipped
-  solution.
+- The five active tutorial projects progress from Python fundamentals—including
+  narrow handling of expected input errors—through Virtual XRP drawing, the
+  sampled robot program, telemetry, and a physical-XRP preflight. Each has
+  student tasks and immediate checks rather than a shipped solution. When a
+  student opens `student_work.py`, the IDE links to the Guide or API section for
+  that specific tutorial.
 - Five cumulative challenge projects carry prior student modules forward.
   Their README files identify the task, supplied code, student work, and
   measurable behavior; mutable task values remain in code rather than prose.
@@ -110,13 +112,13 @@ The existing visual world editor satisfies instructor world authoring. Reuse it
 inside the IDE for `world.json` only if students are expected to modify a world;
 retain readable JSON as the advanced representation.
 
-Expand the tutorial sequence without turning it into a general Python course.
-Begin with syntax, values, functions, decisions, loops, and collections; then
-introduce records, classes, inheritance, error handling, sampled robot programs,
-telemetry, and physical deployment. Use the Virtual XRP as soon as the required
-Python concepts permit it, keep exercises relevant to later course work, and do
-not reveal challenge solutions. Add concise comments at the decisions students
-must understand; prefer ordinary `#` comments over triple-quoted commentary.
+The tutorial sequence now covers syntax, values, functions, decisions, loops,
+collections, records, classes, inheritance, expected-error handling, sampled
+robot programs, telemetry, and physical deployment. It uses the Virtual XRP as
+soon as the required Python concepts permit it and does not reveal challenge
+solutions. Tutorial-specific IDE help points from `student_work.py` to the
+relevant Guide or API section. A future one-click tutorial progression should
+remain separate from the challenge carry-forward mechanism.
 
 Use the 10 ft by 4 ft arena (3048 mm by 1219.2 mm), centered at `(0, 0)`, as
 the default world for demos and challenges. Tutorials that do not use a physical

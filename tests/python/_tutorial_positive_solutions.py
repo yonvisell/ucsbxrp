@@ -50,10 +50,20 @@ def tutorial_one_solution():
             "mean_difference_mm_s": left_mean - right_mean,
         }
 
+    def parse_stop_distance_mm(text_value, fallback_mm):
+        try:
+            distance_mm = float(text_value)
+        except (TypeError, ValueError):
+            return fallback_mm
+        if distance_mm <= 0.0:
+            return fallback_mm
+        return distance_mm
+
     module.average_speed_mm_s = average_speed_mm_s
     module.route_distance_mm = route_distance_mm
     module.range_state = range_state
     module.wheel_speed_summary = wheel_speed_summary
+    module.parse_stop_distance_mm = parse_stop_distance_mm
     return module
 
 

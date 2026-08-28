@@ -1,11 +1,11 @@
 # Tutorial 1: Python essentials
 
 This project introduces the Python used in UCSBXRP programs: syntax, values,
-functions, conditions, loops, collections, and errors. It performs
+functions, conditions, loops, collections, and expected input errors. It performs
 robot-related calculations but does not move a virtual or physical robot.
 Edit only `student_work.py`. The other files run and check your work.
 
-## Three complete Python examples
+## Four complete Python examples
 
 These examples solve different problems from the exercises below. Run them
 mentally before editing: follow the values assigned to each name and the value
@@ -42,6 +42,22 @@ print(trial["name"], trial["completed"])
 The dictionary keeps two named values together. A key in square brackets reads
 or updates its associated value.
 
+```python
+def trial_count_from_text(text_value):
+    try:
+        return int(text_value)
+    except (TypeError, ValueError):
+        return 1
+
+
+trial_count = trial_count_from_text("three")  # 1
+```
+
+`int(...)` raises `TypeError` or `ValueError` when its input cannot be converted
+to an integer. This function catches only those expected conversion errors and
+returns a stated fallback. Other exceptions remain visible so they can be
+diagnosed rather than mistaken for invalid input.
+
 ## Work through the exercises
 
 1. Open [`student_work.py`](student_work.py).
@@ -50,7 +66,7 @@ or updates its associated value.
    robot.
 4. Read **Program output**. Each exercise reports `PASS`, `NOT COMPLETED`, or
    `INCORRECT` and identifies the result that needs attention.
-5. Select **Run** after all four exercises pass. [`main.py`](main.py) repeats
+5. Select **Run** after all five exercises pass. [`main.py`](main.py) repeats
    the same software-only checks as one complete tutorial run.
 
 The unfinished functions raise `NotImplementedError`. This is valid Python and
@@ -109,6 +125,21 @@ Use a loop and accumulators rather than writing a separate expression for each
 sample. A dictionary associates a key with a value. Create one with braces,
 for example `{"sample_count": 3}`, and retrieve a value with its key.
 
+## Exercise 5: recover from an expected input error
+
+Complete `parse_stop_distance_mm(text_value, fallback_mm)`. A saved stop-distance
+setting may arrive as text. The supplied `fallback_mm` is a positive distance to
+use when that setting is unavailable or invalid. Your function must:
+
+- call `float(text_value)` to convert an integer, decimal, or numeric text value;
+- return `fallback_mm` when conversion raises `TypeError` or `ValueError`;
+- also return `fallback_mm` when the converted distance is zero or negative; and
+- otherwise return the converted positive distance.
+
+Place only the conversion inside `try`. Catch the two expected exception types
+with `except (TypeError, ValueError)`. Do not catch `Exception`: an unexpected
+program or device error should remain visible so it can be diagnosed.
+
 ## Python details used in this project
 
 - Python syntax includes punctuation, indentation, and keywords such as `def`,
@@ -123,6 +154,8 @@ for example `{"sample_count": 3}`, and retrieve a value with its key.
   order; dictionaries associate keys with values.
 - `raise ValueError(...)` reports an invalid input. The checks deliberately
   supply invalid values to verify that the function rejects them.
+- `try` runs a statement that may report an expected error. A matching `except`
+  handles only the named error types and supplies the intended fallback result.
 - A line beginning with `#` is a comment for a person reading the program.
   Course starter files use these comments to explain intent without adding
   executable statements.
@@ -152,5 +185,5 @@ above it for spelling, parentheses, and indentation. Then run the focused
 exercise checks again. An occasional `print(...)` can expose an intermediate
 value, but printing every iteration obscures the calculation being inspected.
 
-When all four exercises pass, create **Tutorial 2 · Virtual drawing** from the
+When all five exercises pass, create **Tutorial 2 · Virtual drawing** from the
 project templates.

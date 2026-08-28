@@ -2,6 +2,7 @@
 
 from student_work import (
     average_speed_mm_s,
+    parse_stop_distance_mm,
     range_state,
     route_distance_mm,
     wheel_speed_summary,
@@ -83,6 +84,33 @@ def _check_wheel_speed_summary():
     _expect_value_error(wheel_speed_summary, (100.0,), (90.0, 95.0))
 
 
+class _UnexpectedConversionFailure:
+    def __float__(self):
+        raise RuntimeError("unexpected conversion failure")
+
+
+def _check_stop_distance_parser():
+    result = parse_stop_distance_mm("275.5", 240.0)
+    if result is None:
+        raise NotImplementedError("parse_stop_distance_mm returned no result")
+    _close(result, 275.5)
+    _close(parse_stop_distance_mm(320, 240.0), 320.0)
+    _close(parse_stop_distance_mm("not a distance", 240.0), 240.0)
+    _close(parse_stop_distance_mm(None, 240.0), 240.0)
+    _close(parse_stop_distance_mm("0", 240.0), 240.0)
+    _close(parse_stop_distance_mm("-20", 240.0), 240.0)
+
+    try:
+        parse_stop_distance_mm(_UnexpectedConversionFailure(), 240.0)
+    except RuntimeError as error:
+        if str(error) != "unexpected conversion failure":
+            raise
+    else:
+        raise AssertionError(
+            "catch TypeError and ValueError, but allow unexpected errors to remain visible"
+        )
+
+
 def run_exercise_checks():
     # Run each independent exercise and print a concise outcome.
     checks = (
@@ -90,6 +118,7 @@ def run_exercise_checks():
         ("2 · route distance", _check_route_distance),
         ("3 · range decision", _check_range_state),
         ("4 · wheel-speed summary", _check_wheel_speed_summary),
+        ("5 · expected input error", _check_stop_distance_parser),
     )
     passed = 0
     incomplete = 0

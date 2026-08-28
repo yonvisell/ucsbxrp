@@ -1812,3 +1812,20 @@ project, storage-recovery, autosave, multi-IDE, deferred-update, complete virtua
 workflow, and responsive-rail tests. A background browser visual pass confirmed
 the explanatory Open dialog, the nonduplicated storage state, and accessible
 project controls in both wide and narrow layouts.
+
+The integrated browser release at commit `750ce2a` is live on GitHub Pages.
+Pages workflow 24 passed the complete browser gate, built the static artifact,
+and deployed it. The public manifest reports version
+`b5300e2afd46f162b694`; all nine application routes return their current hashed
+assets, and native Chrome confirms that the deployed IDE and Monitor fill the
+viewport. A direct two-tab Virtual XRP check ran and stopped Expanding spiral
+from Monitor while IDE reflected the same run state.
+
+The next tutorial refinement closes the remaining direct Python-content gap.
+Tutorial 1 now asks students to handle only the expected `TypeError` and
+`ValueError` from converting a saved stop distance, use an explicit fallback,
+and leave unexpected errors visible. Its checker distinguishes incomplete,
+incorrect, and overbroad exception handling. The IDE now links
+`student_work.py` to tutorial-specific Guide or API material rather than one
+generic destination. Focused Python checks, a root production/offline build,
+and the five-tutorial Chrome compile/check/help workflow pass without motion.

@@ -1,4 +1,4 @@
-# Complete the four Python functions used in Tutorial 1.
+# Complete the five Python functions used in Tutorial 1.
 
 
 # Return the average speed for a distance and duration.
@@ -19,3 +19,8 @@ def range_state(range_mm, stop_distance_mm):
 # Return a dictionary summarizing paired left and right wheel speeds.
 def wheel_speed_summary(left_samples_mm_s, right_samples_mm_s):
     raise NotImplementedError("complete wheel_speed_summary")
+
+
+# Parse a positive stop distance, or return the supplied fallback distance.
+def parse_stop_distance_mm(text_value, fallback_mm):
+    raise NotImplementedError("complete parse_stop_distance_mm")

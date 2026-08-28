@@ -227,7 +227,7 @@
     "source": "templates/tutorial_1_python_essentials",
     "label": "Tutorial 1 · Python Essentials",
     "short_label": "Tutorial 1 · Python essentials",
-    "summary": "Practice Python syntax, values, functions, conditions, loops, collections, and errors.",
+    "summary": "Practice Python syntax, values, functions, conditions, loops, collections, and expected input errors.",
     "entrypoint": "main.py",
     "published": true
   },

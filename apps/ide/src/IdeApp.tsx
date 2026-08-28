@@ -250,8 +250,39 @@ const contextHelpByFilename: Record<string, { href: string; label: string }> = {
   },
 };
 
-function contextHelpForPath(path: string) {
-  return contextHelpByFilename[path.split("/").at(-1) ?? ""] ?? null;
+const tutorialHelpByTemplateId: Record<
+  string,
+  { href: string; label: string }
+> = {
+  micropython_tutorial: {
+    href: "../guide/#virtual-run",
+    label: "Tutorial path",
+  },
+  tutorial_virtual_drawing: {
+    href: "../reference/#records",
+    label: "Data types",
+  },
+  tutorial_robot_programs: {
+    href: "../reference/#robot",
+    label: "Robot service API",
+  },
+  tutorial_behavior_telemetry: {
+    href: "../reference/#live",
+    label: "Live controls and telemetry",
+  },
+  tutorial_physical_preflight: {
+    href: "../guide/#physical-xrp",
+    label: "Physical XRP setup",
+  },
+};
+
+function contextHelpForPath(path: string, templateId?: string) {
+  const filename = path.split("/").at(-1) ?? "";
+  if (filename === "student_work.py" && templateId) {
+    const tutorialHelp = tutorialHelpByTemplateId[templateId];
+    if (tutorialHelp) return tutorialHelp;
+  }
+  return contextHelpByFilename[filename] ?? null;
 }
 
 const templateGroups: readonly {
@@ -2755,7 +2786,7 @@ export function IdeApp({
       : target.kind === "virtual"
         ? DEFAULT_COURSE_PROJECT.name
         : "No project selected";
-  const activeHelp = contextHelpForPath(activePath);
+  const activeHelp = contextHelpForPath(activePath, project.templateId);
   const pendingTemplate = pendingProject?.templateId
     ? COURSE_PROJECT_TEMPLATES.find(
         (template) => template.id === pendingProject.templateId,
