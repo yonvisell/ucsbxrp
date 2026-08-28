@@ -1,33 +1,41 @@
-# Describe a drawing for the Tutorial 2 virtual-robot runner.
+# Describe a drawing for the Tutorial 2 Virtual XRP runner.
 
 from ucsb_xrp import MotionCommand
 
 
-# Data object for one constant robot command held for several samples.
+# Store one constant motion command and the number of samples that use it.
 class DrawingSegment:
 
-    def __init__(self, name, forward_speed_mm_s, turn_rate_rad_s, steps):
-        # Validate and store the name, command values, and number of samples.
+    def __init__(
+        self,
+        name: str,
+        forward_speed_mm_s: float,
+        turn_rate_rad_s: float,
+        steps: int,
+    ) -> None:
+        # Example: DrawingSegment("side 1", 100.0, 0.0, 35).
+        # Validate the four inputs, then store them with the same field names.
         raise NotImplementedError("complete DrawingSegment.__init__")
 
-    def command(self):
-        # Return this segment's command values in a UCSBXRP record.
+    def command(self) -> MotionCommand:
+        # Return MotionCommand(self.forward_speed_mm_s, self.turn_rate_rad_s).
         raise NotImplementedError("complete DrawingSegment.command")
 
 
-# DrawingSegment specialization for a positive in-place left turn.
+# A turn is a DrawingSegment with zero forward speed and positive yaw rate.
 class TurnSegment(DrawingSegment):
 
-    def __init__(self, name, turn_rate_rad_s, steps):
-        # Initialize a left turn with zero forward speed.
+    def __init__(self, name: str, turn_rate_rad_s: float, steps: int) -> None:
+        # Reject a nonpositive turn rate, then call super().__init__(...).
         raise NotImplementedError("complete TurnSegment.__init__")
 
 
 # Return four straight sides alternating with four left turns.
 def build_drawing(
-    side_speed_mm_s,
-    side_steps,
-    turn_rate_rad_s,
-    turn_steps,
-):
+    side_speed_mm_s: float,
+    side_steps: int,
+    turn_rate_rad_s: float,
+    turn_steps: int,
+) -> "list | tuple":
+    # Use a four-iteration loop. Reject a drawing longer than 500 samples.
     raise NotImplementedError("complete build_drawing")

@@ -1,127 +1,108 @@
-# Tutorial 2: draw with the Virtual XRP
+# Tutorial 2: Virtual XRP drawing
 
-This is the first robot-running tutorial. It uses UCSBXRP records, a small data
-object, one directly relevant use of inheritance, a list, and loops to describe
-a drawing. The supplied [`main.py`](main.py) converts that description into
-sampled virtual-robot motion. Edit only `student_work.py`; use the **Virtual
-XRP** target for this tutorial.
+Describe a square as a sequence of motion segments, then run that sequence on
+the Virtual XRP. The path in Monitor is the drawing. This tutorial introduces
+UCSBXRP records, modules, classes, and the small form of inheritance used by
+course components.
 
-The Monitor path acts like a pen that remains on the floor: every virtual
-motion is visible. Reset the Virtual XRP before comparing two drawings.
+Use the **Virtual XRP**. Edit only `student_work.py`. Its comments contain the
+required values and one concrete example beside each exercise.
 
-## Work through the exercises
+## The files used in this project
 
-1. Open [`student_work.py`](student_work.py) and complete the
-   `DrawingSegment` initializer and `command()` method.
-2. Select **Check exercises** and resolve the first reported outcome.
-3. Complete `TurnSegment.__init__`, then complete `build_drawing(...)`.
-4. Select **Run**. If all three exercises pass, the supplied runner executes the
-   drawing in Monitor and stops the robot at the end.
+- `student_work.py` defines the segment classes and creates the drawing.
+- `exercise_checks.py` checks those definitions without starting a robot.
+- `main.py` imports your drawing and executes it as sampled robot commands.
+- `course_setup.py` assembles the supplied robot components.
+- `robot_config.py` contains named robot settings.
+- `world.json` defines the space shown in Monitor.
 
-The exercise checks inspect results, not a particular implementation. Do not
-edit [`exercise_checks.py`](exercise_checks.py) to make a result pass. Each
-check reports `PASS`, `NOT COMPLETED`, or `INCORRECT` and identifies the
-exercise involved.
-
-## A complete class and inheritance example
-
-This example describes timed indicator lights, not drawing segments:
+Each `.py` file is a Python module. For example, this statement in `main.py`
+loads the function defined in `student_work.py`:
 
 ```python
-class TimedLight:
-    def __init__(self, color, duration_s):
-        self.color = color
-        self.duration_s = duration_s
-
-
-class WarningLight(TimedLight):
-    def __init__(self, duration_s):
-        super().__init__("amber", duration_s)
-
-
-warning = WarningLight(2.0)
-print(warning.color, warning.duration_s)  # amber 2.0
+from student_work import build_drawing
 ```
 
-`WarningLight` inherits both stored fields from `TimedLight`.
-`super().__init__(...)` calls the parent initializer with the fixed color and
-the duration supplied by the caller.
+## Exercise 1: one motion-segment class
 
-## Exercise 1: connect a data object to a UCSBXRP record
+Complete `DrawingSegment.__init__` and `DrawingSegment.command`.
 
-UCSBXRP passes related values in records with named fields. `Pose` contains
-`x_mm`, `y_mm`, and `heading_rad`. `MotionCommand` contains
-`forward_speed_mm_s` and `turn_rate_rad_s`. The runner constructs a `Pose` for
-the initial robot state. Your `DrawingSegment.command()` method must return a
-`MotionCommand` containing the segment's two command values.
+```python
+segment = DrawingSegment("side 1", 100.0, 0.0, 35)
+command = segment.command()
+```
 
-A record groups named values so one function can pass them to another. A data
-object stores values between method calls and provides operations through its
-methods. Neither determines robot timing or touches hardware by itself.
+The initializer receives and stores:
 
-First complete `DrawingSegment.__init__`, then complete `command()`.
+- `name: str`, a nonempty label;
+- `forward_speed_mm_s: float`;
+- `turn_rate_rad_s: float`; and
+- `steps: int`, a positive number of control samples.
 
-`DrawingSegment` represents one constant command held for a whole number of
-samples. Its initializer receives:
+Raise `ValueError` for an empty name, a nonpositive sample count, or a segment
+whose forward speed and turn rate are both zero. Reject Boolean values for
+`steps`; although `bool` is related to `int` in Python, it is not a sample
+count.
 
-- `name`: short text identifying the segment;
-- `forward_speed_mm_s`: forward speed in millimeters per second;
-- `turn_rate_rad_s`: yaw rate in radians per second; and
-- `steps`: a positive integer number of control samples.
+`command()` returns `MotionCommand(self.forward_speed_mm_s,
+self.turn_rate_rad_s)`. `MotionCommand` is a UCSBXRP record: one value with
+named, read-only fields. A record carries data between parts of the program. A
+`DrawingSegment` object also retains how many samples should use that command.
 
-Store those four values in instance variables with the same names. Reject an
-empty name, a nonpositive number of steps, and a segment with both speed and
-turn rate equal to zero by raising `ValueError`.
+## Exercise 2: inheritance used for a specialized segment
 
-A class defines the data and operations for one kind of object. `__init__`
-initializes a new object, and `self` is the particular object receiving the
-method call. This class retains values that belong together; it does not run
-the robot.
+Complete `TurnSegment.__init__`.
 
-## Exercise 2: specialize a segment through inheritance
+```python
+turn = TurnSegment("corner 1", 1.6, 49)
+```
 
-`TurnSegment(DrawingSegment)` means that `TurnSegment` inherits the stored
-fields, validation, and `command()` method of `DrawingSegment`. Complete its
-initializer so that it calls `super().__init__(...)` with zero forward speed,
-the supplied positive turn rate, and the supplied sample count. Reject a turn
-rate that is zero or negative.
+`TurnSegment(DrawingSegment)` inherits the stored fields, validation, and
+`command()` method. Its initializer rejects a nonpositive turn rate, then calls
+the parent initializer:
 
-This is the inheritance pattern used later by course component classes: a
-small subclass has the methods and stored fields defined by its base class and
-adds the course-specific calculation. It is not a reason to create a class for
-every function or value.
+```python
+super().__init__(name, 0.0, turn_rate_rad_s, steps)
+```
 
-## Exercise 3: build a square drawing
+The course component files use the same relationship: a student class inherits
+the public methods and configuration of its supplied base class, then provides
+the required calculation. Inheritance is useful here because the specialized
+object is still a `DrawingSegment`; it is not required for ordinary helper
+functions.
 
-Complete
-`build_drawing(side_speed_mm_s, side_steps, turn_rate_rad_s, turn_steps)` so it
-returns a list or tuple with eight segments: four straight `DrawingSegment`
-sides alternating with four `TurnSegment` left turns. Use a `for` loop to add
-one side and one turn per iteration.
+## Exercise 3: build an ordered drawing
 
-Each side must use the supplied `side_speed_mm_s` and `side_steps`. Each corner
-must use the supplied `turn_rate_rad_s` and `turn_steps`. The complete route
-contains `4 * (side_steps + turn_steps)` samples. Raise `ValueError` if that
-value exceeds 500; the segment initializers already reject nonpositive or
-invalid values. The checks call the function with two different sets of named
-arguments, so do not replace the parameters with fixed values.
+Complete `build_drawing(...)`. Return a list or tuple containing eight segments:
+four straight sides alternating with four left turns. Use a `for` loop that
+adds one side and one corner during each of four iterations.
 
-A module is one `.py` file. `main.py` imports your class and function from the
-`student_work` module. The runner supplies the square settings by name. Its
-turn setting requests approximately 90 degrees at the 20 ms sample period.
-The outer loop visits each segment, and the inner loop holds its command for
-`segment.steps` sampled updates.
+Use the values passed through the function parameters. The checks call the
+function with more than one set of values, so fixed numerical replacements are
+not correct. Raise `ValueError` when the complete drawing would exceed 500
+samples:
 
-## Inspect the result
+```python
+total_steps = 4 * (side_steps + turn_steps)
+```
 
-Open Monitor before running. The World view should show four straight sides
-with four in-place left turns between them. Real motors cannot change speed
-instantaneously, so the shape need not have mathematically sharp vertices. The
-final motor command must be zero.
+## Check and run
 
-The runner uses `Robot.step()` to maintain the sample schedule. Do not add
-`sleep_ms()` to `student_work.py`: an extra delay would change the sample
-interval used for speed estimation, control, and odometry.
+1. Open `student_work.py` and complete Exercise 1.
+2. Select **Check exercises** and correct any `NOT COMPLETED` or `INCORRECT`
+   result.
+3. Complete Exercises 2 and 3, checking after each change.
+4. Open Monitor, reset the Virtual XRP, and select **Run**.
+5. Confirm four sides, four left turns, and a zero final motor command.
 
-When all three exercises pass and the drawing runs, create **Tutorial 3 · UCSBXRP
-robot programs** from the project templates.
+`main.py` uses a nested loop: the outer loop visits each segment, and the inner
+loop calls `Robot.step(...)` for `segment.steps` samples. `Robot.step()` already
+maintains the sample schedule. Do not add `sleep()` or `sleep_ms()`; an extra
+delay would change encoder timing, wheel-speed estimation, control, odometry,
+and total motion.
+
+The virtual motors respond gradually, so corners need not be mathematically
+sharp. Reset before comparing two drawings so both begin from the same pose.
+
+Continue with **Tutorial 3: Sampled robot programs** after the drawing runs.

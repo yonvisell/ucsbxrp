@@ -1,110 +1,99 @@
-# Tutorial 3: UCSBXRP robot programs
+# Tutorial 3: sampled robot programs
 
-This project introduces the sampled program structure used by the course
-challenges. Edit only `student_work.py`. Complete and test the program with the
-**Virtual XRP** before considering a physical run.
+Write one finite Virtual XRP program using the same `Robot.start()`,
+`Robot.step()`, and `Robot.stop()` structure used by the course challenges. The
+program requests straight motion for a fixed number of samples; it does not
+solve a distance-control challenge.
 
-## The UCSBXRP project structure
+Use the **Virtual XRP**. Edit only `student_work.py`. The function comments in
+that file contain the sequence to implement, so this README can remain closed
+while you code.
 
-This tutorial is a complete project rather than one standalone Python file:
+## Project modules
 
-- `README.md` states the task and checkable result;
-- `student_work.py` contains the one exercise you edit;
-- `exercise_checks.py` checks that exercise with a software robot;
-- `main.py` is the entrypoint that constructs and runs the project;
-- `robot_config.py` contains named robot settings and units;
-- `course_setup.py` assembles the supplied course components; and
-- `world.json` gives the Virtual XRP and Monitor one shared world.
+This is a complete UCSBXRP project:
 
-Python files are modules. `import` statements connect them by name. Keeping
-task flow, robot settings, checks, and world geometry in their stated files
-makes later projects readable without copying those responsibilities into one
-large script.
+- `main.py` is the entrypoint and calls your functions;
+- `student_work.py` contains the two exercises;
+- `exercise_checks.py` substitutes a software robot and checks method calls;
+- `course_setup.py` assembles the supplied components;
+- `robot_config.py` contains robot timing, geometry, calibration, and limits;
+- `world.json` defines the world shared by the Virtual XRP and Monitor.
 
-## The program structure
+Imports connect these modules. `main.py` does not copy your functions; it loads
+them with `from student_work import ...`.
 
-[`main.py`](main.py) constructs the robot from the supplied course components,
-then calls your `run_robot_program(robot)` function. Your function is
-responsible for one complete run:
+## Exercise 1: read a RobotState record
 
-1. `robot.start(Pose(...))` initializes measurements, odometry, and the sample
-   schedule and returns the first `RobotState`.
-2. Each `robot.step(MotionCommand(...))` applies a motion request, waits until
-   the next scheduled sample, reads the XRP, updates the course components, and
-   returns the next `RobotState`.
-3. `robot.stop()` sets the final motor command to zero.
-
-Place `robot.start(...)` and the sampled loop inside `try`, then call
-`robot.stop()` in `finally` so the stop occurs after normal completion and
-after an unexpected start or step error.
-
-## Exercise: write one finite sampled program
-
-Complete `run_robot_program(robot)` in
-[`student_work.py`](student_work.py). It must:
-
-- call `robot.start(Pose(0.0, 0.0, 0.0))` exactly once;
-- call `robot.step(...)` between 20 and 150 times;
-- supply a `MotionCommand` with positive forward speed and zero turn rate on
-  every step;
-- retain the state returned by each step and return the final state; and
-- call `robot.stop()` from a `finally` block.
-
-Use a `for` loop because this exercise has a known maximum number of samples.
-The supplied check substitutes a small software robot that records the calls
-and deliberately raises one `robot.step()` error to confirm that `finally`
-still calls `robot.stop()`. It does not move the virtual or physical XRP.
-
-The constructor `MotionCommand(forward_speed_mm_s, turn_rate_rad_s)` expresses
-robot motion rather than raw motor power. Positive forward speed is in
-millimeters per second. Positive turn rate is a left yaw rate in radians per
-second; this exercise requires zero turn rate.
-
-## Reading a returned robot state
-
-This complete example answers a different question from the exercise: whether
-the mean wheel position has reached a requested distance.
+Complete `mean_wheel_position_mm(state: RobotState) -> float`. Return the
+arithmetic mean of the latest left and right wheel positions:
 
 ```python
-def reached_distance(state, target_mm):
-    measurements = state.measurements
-    mean_position_mm = (
-        measurements.left_position_mm + measurements.right_position_mm
-    ) / 2.0
-    return mean_position_mm >= target_mm
+measurements = state.measurements
+mean_mm = (
+    measurements.left_position_mm + measurements.right_position_mm
+) / 2.0
 ```
 
-`RobotState` groups the latest measurements and pose. Reading it does not take
-another sample; the next `robot.step(...)` call produces the next state.
+`RobotState` groups the newest `Measurements` and odometry `Pose`. Reading its
+fields does not acquire another sample. The next `Robot.step(...)` call produces
+the next state.
 
-## Do not add another delay
+## Exercise 2: run a finite sampled motion
 
-**Do not call `sleep()`, `sleep_ms()`, or another delay inside the sampled
-loop.** `Robot.step()` already waits until the next absolute sample time. An
-additional delay changes the time between encoder readings, so it changes the
-wheel-speed estimate, controller response, odometry update, telemetry rate,
-and total motion. The virtual and physical targets use the same scheduling
-rule.
+Complete:
 
-## Test and inspect
+```python
+def run_robot_program(
+    robot: Robot,
+    forward_speed_mm_s: float,
+    sample_count: int,
+) -> RobotState:
+```
 
-1. Select **Check exercises**. The action tests the robot call sequence without
-   starting a robot.
-2. Resolve any `NOT COMPLETED` or `INCORRECT` outcome.
+Before starting the robot:
+
+- raise `ValueError` when `forward_speed_mm_s` is not positive; and
+- raise `ValueError` unless `sample_count` is a non-Boolean integer from 20 to
+  150, inclusive.
+
+Then implement this sequence:
+
+1. Enter a `try` block.
+2. Call `robot.start(Pose(0.0, 0.0, 0.0))` once and retain the returned state.
+3. Create `MotionCommand(forward_speed_mm_s, 0.0)`.
+4. Use a `for` loop to call `robot.step(command)` exactly `sample_count` times.
+   Replace the retained state with each returned state.
+5. Return the final state.
+6. In a `finally` block, call `robot.stop()`.
+
+The `finally` block runs after normal completion and after an unexpected
+`robot.start()` or `robot.step()` exception. It therefore provides one reliable
+location for the final stop command. Do not catch those unexpected exceptions;
+their messages are needed for diagnosis.
+
+## Robot.step controls the sample time
+
+**Do not call `sleep()`, `sleep_ms()`, or another delay inside a sampled robot
+loop.** `Robot.step()` waits for the next absolute sample time, applies the
+motion request, reads the XRP, updates wheel measurements and pose, and
+publishes telemetry. An added delay changes the measurement interval,
+wheel-speed estimate, controller response, odometry, telemetry rate, and total
+motion.
+
+## Check and run
+
+1. Complete `mean_wheel_position_mm` and select **Check exercises**.
+2. Complete `run_robot_program` and check again. The checker uses a software
+   robot; it does not move either XRP.
 3. Open Monitor and select **Run** with the Virtual XRP selected.
-4. Confirm a nearly straight path, increasing wheel distance, and a final
-   motor command of zero.
-5. Reset the Virtual XRP and repeat the run. Comparable programs should produce
-   comparable trajectories from the same initial pose.
+4. Confirm an approximately straight path, increasing mean wheel position, and
+   a zero final drive command.
+5. Reset and repeat. A fixed program in the same virtual world should produce a
+   comparable trajectory.
 
-`main.py` runs the same exercise check before it constructs the robot. Your
-`run_robot_program()` is responsible for the final `robot.stop()` call,
-including when `robot.step()` raises an unexpected error.
+`PASS` confirms the required result or call sequence. `NOT COMPLETED` means a
+placeholder remains. `INCORRECT` identifies the first differing value or robot
+method call.
 
-`RobotState.pose` is the current odometry estimate. `RobotState.measurements`
-contains the current sample time, wheel positions and speeds, wheel increments,
-optional range, and USER-button state. Later projects use these fields to make
-decisions; this exercise only retains and returns the latest state.
-
-When the exercise passes and runs, create **Tutorial 4 · Behavior and
-telemetry** from the project templates.
+Continue with **Tutorial 4: Behavior, controls, and telemetry** after this run.

@@ -132,15 +132,32 @@ def tutorial_three_solution():
 
     module = ModuleType("student_work")
 
-    def run_robot_program(robot):
+    def mean_wheel_position_mm(state):
+        return (
+            state.measurements.left_position_mm
+            + state.measurements.right_position_mm
+        ) / 2.0
+
+    def run_robot_program(robot, forward_speed_mm_s, sample_count):
+        if forward_speed_mm_s <= 0.0:
+            raise ValueError("forward speed must be positive")
+        if (
+            not isinstance(sample_count, int)
+            or isinstance(sample_count, bool)
+            or sample_count < 20
+            or sample_count > 150
+        ):
+            raise ValueError("sample count must be an integer from 20 to 150")
         try:
             state = robot.start(Pose(0.0, 0.0, 0.0))
-            for _ in range(30):
-                state = robot.step(MotionCommand(80.0, 0.0))
+            command = MotionCommand(forward_speed_mm_s, 0.0)
+            for _ in range(sample_count):
+                state = robot.step(command)
             return state
         finally:
             robot.stop()
 
+    module.mean_wheel_position_mm = mean_wheel_position_mm
     module.run_robot_program = run_robot_program
     return module
 

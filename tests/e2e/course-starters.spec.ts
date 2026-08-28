@@ -391,7 +391,7 @@ test("compiles all five active tutorials and reports unfinished exercises withou
     },
     {
       id: "tutorial_virtual_drawing",
-      title: "Tutorial 2: draw with the Virtual XRP",
+      title: "Tutorial 2: Virtual XRP drawing",
       compiled: 5,
       summary: "Tutorial 2: 0 passed · 3 not completed · 0 incorrect",
       helpLabel: "Data types",
@@ -399,15 +399,15 @@ test("compiles all five active tutorials and reports unfinished exercises withou
     },
     {
       id: "tutorial_robot_programs",
-      title: "Tutorial 3: UCSBXRP robot programs",
+      title: "Tutorial 3: sampled robot programs",
       compiled: 5,
-      summary: "Tutorial 3: 0 passed · 1 not completed · 0 incorrect",
+      summary: "Tutorial 3: 0 passed · 2 not completed · 0 incorrect",
       helpLabel: "Robot service API",
       helpHref: "../reference/#robot",
     },
     {
       id: "tutorial_behavior_telemetry",
-      title: "Tutorial 4: behavior and telemetry",
+      title: "Tutorial 4: behavior, controls, and telemetry",
       compiled: 5,
       summary: "Tutorial 4: 0 passed · 3 not completed · 0 incorrect",
       helpLabel: "Live controls and telemetry",
@@ -415,7 +415,7 @@ test("compiles all five active tutorials and reports unfinished exercises withou
     },
     {
       id: "tutorial_physical_preflight",
-      title: "Tutorial 5: physical XRP preflight",
+      title: "Tutorial 5: Physical XRP deployment",
       compiled: 5,
       summary: "Tutorial 5: 0 passed · 1 not completed · 0 incorrect",
       helpLabel: "Physical XRP setup",

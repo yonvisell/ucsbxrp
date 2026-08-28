@@ -1,122 +1,118 @@
-# Tutorial 4: behavior and telemetry
+# Tutorial 4: behavior, controls, and telemetry
 
-This project combines a measured finite-state behavior with adjustable values,
-watch values, and plot signals. Edit only `student_work.py`. Use the **Virtual
-XRP** and open Monitor before running.
+Implement a small measured behavior, expose parameters that can be adjusted
+during a run, and publish internal values to Monitor. The Virtual XRP approaches
+a wall, turns approximately 90 degrees, and stops.
 
-The supplied runner approaches the wall, turns approximately 90 degrees, and
-stops. Your functions decide the state transitions and motion commands and
-publish selected intermediate values. The loop itself remains in
-[`main.py`](main.py) so the sample scheduling and stopping behavior are not
-duplicated.
+Use the **Virtual XRP** and open Monitor before running. Edit only
+`student_work.py`. The sampled loop and final stop remain supplied in `main.py`.
 
-## Live controls already declared for you
+## Program phases
 
-The first part of [`student_work.py`](student_work.py) declares five controls:
+The behavior has three mutually exclusive phases:
 
-- **Forward speed**, **Stop distance**, and **Turn rate** use
-  `live.number(...)`;
-- **Turn direction** uses `live.choice(...)`; and
-- **Run behavior** uses `live.toggle(...)`.
+- `APPROACH`: move forward while reading the range sensor;
+- `TURN`: rotate after the wall is close; and
+- `DONE`: request zero motion.
 
-Each returned control has a `.value` property. The Monitor can update this
-value while the program runs. The identifier, default, limits, units, and label
-fully define the control; leave them unchanged until the exercises pass.
+This is a finite-state machine: the current phase and new measurements determine
+the next phase. Separating the phase transition from the motor command makes
+each decision testable with explicit inputs.
 
-This complete example declares a different live setting and reports a measured
-wheel difference:
+## Exercise 1: phase transitions
+
+Complete:
 
 ```python
-ALERT_DIFFERENCE = live.number(
-    "alert_difference_mm",
-    10.0,
-    minimum=0.0,
-    maximum=30.0,
-    step=1.0,
-    unit="mm",
-    label="Alert difference",
-)
-
-
-def publish_difference(state):
-    measurements = state.measurements
-    difference_mm = abs(
-        measurements.left_position_mm - measurements.right_position_mm
-    )
-    live.watch("difference_alert", difference_mm > ALERT_DIFFERENCE.value)
+def next_phase(
+    phase: str,
+    range_mm: float | None,
+    stop_distance_mm: float,
+    turn_complete: bool,
+) -> str:
 ```
 
-The parameter is declared once. The function reads its current `.value` and
-publishes one named result each time the program calls it.
-
-## Exercise 1: state transitions
-
-Complete `next_phase(phase, range_mm, stop_distance_mm, turn_complete)`.
+Required results:
 
 - `APPROACH` remains active while range is unavailable or greater than the stop
-  distance, and changes to `TURN` when range is at or below the threshold.
-- `TURN` remains active until `turn_complete` is true, then changes to `DONE`.
+  distance;
+- `APPROACH` changes to `TURN` when range is at or below the stop distance;
+- `TURN` remains active until `turn_complete` is `True`, then becomes `DONE`;
 - `DONE` remains `DONE`.
-- An unknown phase or nonpositive stop distance raises `ValueError`.
 
-The three phase names are mutually exclusive. This function depends only on
-its arguments, so the checks can test each transition with explicit inputs
-before the robot runs.
+Raise `ValueError` for an unknown phase or a nonpositive stop distance. Check
+`range_mm is not None` before comparing it with a distance.
 
-## Exercise 2: motion for each phase
+## Exercise 2: motion command for each phase
 
-Complete
-`command_for_phase(phase, forward_speed_mm_s, turn_rate_rad_s, turn_direction)`.
-Return a `MotionCommand` with:
+Complete `command_for_phase(...) -> MotionCommand`.
 
-- positive forward speed and zero turn rate for `APPROACH`;
-- zero forward speed and positive yaw rate for a left `TURN`;
-- zero forward speed and negative yaw rate for a right `TURN`; and
-- zero speed and zero turn rate for `DONE`.
+- `APPROACH` returns positive forward speed and zero turn rate.
+- `TURN` returns zero forward speed and positive turn rate for `"left"`, or
+  negative turn rate for `"right"`.
+- `DONE` returns zero forward speed and zero turn rate.
 
-Reject unknown phases, nonpositive speed or turn-rate settings, and a turn
-direction other than `"left"` or `"right"` with `ValueError`.
+Raise `ValueError` for an unknown phase, nonpositive speed, nonpositive turn
+rate, or a direction other than `"left"` or `"right"`.
 
-## Exercise 3: publish useful telemetry
+`MotionCommand` expresses requested robot motion in millimeters per second and
+radians per second. It does not expose raw motor drive values.
 
-Complete `publish_telemetry(state, phase)`. Publish:
+## Live parameters
 
-- a watch value named `phase` containing the phase text;
-- a watch value named `range_mm` containing the measured range or the text
-  `"unavailable"`, with unit `"mm"`;
-- a plot signal named `wheel_distance_mm` containing the mean of the left and
-  right wheel positions, with unit `"mm"`; and
-- a plot signal named `heading_rad` containing `state.pose.heading_rad`, with
-  unit `"rad"`.
+The top of `student_work.py` declares five controls once:
 
-Use `live.watch(...)` for a current value that helps interpret program state.
-Use `live.plot(...)` for a numeric value whose variation with time matters.
-Telemetry reports the program; it must not determine the control command.
+```python
+FORWARD_SPEED = live.number(
+    "tutorial_forward_speed_mm_s",
+    110.0,
+    minimum=60.0,
+    maximum=180.0,
+    step=10.0,
+    unit="mm/s",
+    label="Forward speed",
+)
+```
 
-## Test and run
+`live.number`, `live.choice`, and `live.toggle` create the controls shown in
+Monitor. Read the applied setting through `.value`; do not assign to it. Robot
+applies pending changes at a sample boundary, so student code does not add
+network handling or timing logic.
 
-1. Select **Check exercises**. The check substitutes explicit phases,
-   measurements, and a telemetry recorder without starting either robot.
-2. Resolve all `NOT COMPLETED` and `INCORRECT` outcomes.
-3. Select **Run** with the Virtual XRP selected.
-4. In Monitor, adjust one control at a time. Observe the path, phase, range,
-   wheel distance, and heading.
-5. Reset and repeat a run before comparing two settings.
-6. Use Monitor recording and export when a plot or trajectory is evidence for
-   an engineering conclusion; Program output is intended for occasional
-   milestones and errors, not one print per sample.
+These adjustments last for the current run. Values that define a saved robot
+or assignment remain in `robot_config.py` or the project task file.
 
-`main.py` runs the exercise checks before constructing the robot. Its supplied
-runner always calls `robot.stop()` from a `finally` block, so your three
-functions only decide, command, and report.
+## Exercise 3: watch values and plot signals
 
-`Robot.step()` maintains the sample schedule and publishes the standard robot
-telemetry. Do not add `sleep_ms()` to this sampled loop. The additional delay
-would change encoder sample spacing, control response, odometry, and telemetry
-timing rather than merely slowing the display.
+Complete `publish_telemetry(state, phase) -> None`.
 
-After the behavior works in the Virtual XRP, create **Tutorial 5 · Physical
-XRP preflight**. It carries the same sampled and telemetry structure through
-the final deployment workflow while commanding zero motion. The course
-challenges then apply the same cycle—measure, decide, command, and update—through
-student-implemented course components.
+Publish two current values with `live.watch(...)`:
+
+- `phase`: the phase text;
+- `range_mm`: the measured range or `"unavailable"`, with unit `"mm"`.
+
+Publish two numerical signals with `live.plot(...)`:
+
+- `wheel_distance_mm`: mean left/right wheel position, with unit `"mm"`;
+- `heading_rad`: `state.pose.heading_rad`, with unit `"rad"`.
+
+A watch shows the latest program state. A plot preserves a numerical value in
+the run history and adds it as an optional plot signal. Telemetry reports what
+the program is doing; it must not decide the next command.
+
+Use `print(...)` for infrequent milestones or exceptions, not once per sample.
+Monitor recording is the appropriate source for complete time histories.
+
+## Check and run
+
+1. Complete one exercise in `student_work.py` and select **Check exercises**.
+2. Resolve the reported `NOT COMPLETED` or `INCORRECT` result before continuing.
+3. Open Monitor and select **Run** with the Virtual XRP selected.
+4. Observe the approach, range threshold, turn, and final stop.
+5. Change one live control and repeat from Reset. Compare the path and plots.
+
+The supplied loop calls `Robot.step()` at the measured sample rate and always
+calls `robot.stop()` in `finally`. Do not add `sleep()` or `sleep_ms()`.
+
+Continue with **Tutorial 5: Physical XRP deployment** after the behavior and
+telemetry work in simulation.

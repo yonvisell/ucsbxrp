@@ -1,4 +1,4 @@
-# Collect and report a fixed-duration zero-motion physical-XRP preflight.
+# Collect and report a fixed-duration zero-motion XRP deployment check.
 
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks
@@ -31,7 +31,7 @@ def run_preflight():
 
     states = collect_stationary_samples(make_robot(ROBOT_CONFIG))
     report = preflight_report(states)
-    print("Zero-motion preflight complete")
+    print("Stationary preflight complete")
     print("sample_count:", report["sample_count"])
     print("elapsed_time_s:", report["elapsed_time_s"])
     print(

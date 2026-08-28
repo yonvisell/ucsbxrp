@@ -158,20 +158,25 @@ class CourseStarterTests(unittest.TestCase):
         python_readme = (tutorials[0] / "README.md").read_text(encoding="utf-8")
         for concept in (
             "syntax",
-            "values",
+            "Type annotations",
             "function",
-            "conditions",
             "list",
             "tuple",
             "dictionary",
             "loop",
             "ValueError",
             "None",
+            "TypeError",
         ):
             self.assertIn(concept, python_readme)
 
+        python_main = (tutorials[0] / "main.py").read_text(encoding="utf-8")
+        self.assertIn("run_exercise_checks", python_main)
+        self.assertNotIn("spiral", python_main.lower())
+        self.assertNotIn("make_robot", python_main)
+
         drawing_readme = (tutorials[1] / "README.md").read_text(encoding="utf-8")
-        for concept in ("record", "data object", "class", "inheritance"):
+        for concept in ("module", "record", "class", "inheritance"):
             self.assertIn(concept, drawing_readme)
         drawing_source = (tutorials[1] / "student_work.py").read_text(
             encoding="utf-8"
@@ -191,7 +196,7 @@ class CourseStarterTests(unittest.TestCase):
             "world.json",
         ):
             self.assertIn(project_file, robot_readme)
-        self.assertIn("Do not add another delay", robot_readme)
+        self.assertIn("Robot.step controls the sample time", robot_readme)
         self.assertNotIn("sleep_ms", (tutorials[2] / "student_work.py").read_text(encoding="utf-8"))
 
         telemetry_source = (tutorials[3] / "student_work.py").read_text(encoding="utf-8")
@@ -207,7 +212,7 @@ class CourseStarterTests(unittest.TestCase):
         for concept in (
             "Virtual XRP",
             "Physical XRP",
-            "Setup and repair",
+            "Set up or Repair",
             "STOP_COMMAND",
             "Reset",
         ):
@@ -267,35 +272,85 @@ class CourseStarterTests(unittest.TestCase):
                     ]
                     self.assertEqual(decorated, [])
 
+    def test_student_tutorial_functions_use_practical_type_annotations(self):
+        tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*") )
+        for tutorial in tutorials:
+            path = tutorial / "student_work.py"
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            functions = [
+                node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+            ]
+            self.assertGreater(len(functions), 0)
+            for function in functions:
+                with self.subTest(tutorial=tutorial.name, function=function.name):
+                    self.assertIsNotNone(function.returns)
+                    parameters = [
+                        argument
+                        for argument in function.args.args
+                        if argument.arg != "self"
+                    ]
+                    if parameters:
+                        self.assertTrue(
+                            all(
+                                argument.annotation is not None
+                                for argument in parameters
+                            )
+                        )
+
     def test_tutorial_three_checks_that_finally_stops_after_a_step_error(self):
         tutorial = TEMPLATES / "tutorial_3_robot_programs"
         course_source = str(ROOT / "vendor" / "current")
         saved_student_work = sys.modules.pop("student_work", None)
         sys.path.insert(0, course_source)
 
-        def safe_program(robot):
+        def mean_wheel_position_mm(state):
+            return (
+                state.measurements.left_position_mm
+                + state.measurements.right_position_mm
+            ) / 2.0
+
+        def safe_program(robot, forward_speed_mm_s, sample_count):
             from ucsb_xrp import MotionCommand, Pose
 
+            if forward_speed_mm_s <= 0.0:
+                raise ValueError("forward speed must be positive")
+            if (
+                not isinstance(sample_count, int)
+                or isinstance(sample_count, bool)
+                or sample_count < 20
+                or sample_count > 150
+            ):
+                raise ValueError("sample count must be an integer from 20 to 150")
             try:
                 state = robot.start(Pose(0.0, 0.0, 0.0))
-                for _ in range(20):
-                    state = robot.step(MotionCommand(80.0, 0.0))
+                for _ in range(sample_count):
+                    state = robot.step(MotionCommand(forward_speed_mm_s, 0.0))
                 return state
             finally:
                 robot.stop()
 
-        def unsafe_program(robot):
+        def unsafe_program(robot, forward_speed_mm_s, sample_count):
             from ucsb_xrp import MotionCommand, Pose
 
+            if forward_speed_mm_s <= 0.0:
+                raise ValueError("forward speed must be positive")
+            if (
+                not isinstance(sample_count, int)
+                or isinstance(sample_count, bool)
+                or sample_count < 20
+                or sample_count > 150
+            ):
+                raise ValueError("sample count must be an integer from 20 to 150")
             state = robot.start(Pose(0.0, 0.0, 0.0))
-            for _ in range(20):
-                state = robot.step(MotionCommand(80.0, 0.0))
+            for _ in range(sample_count):
+                state = robot.step(MotionCommand(forward_speed_mm_s, 0.0))
             robot.stop()
             return state
 
         try:
             sys.modules["student_work"] = types.SimpleNamespace(
-                run_robot_program=safe_program
+                mean_wheel_position_mm=mean_wheel_position_mm,
+                run_robot_program=safe_program,
             )
             safe_checks = runpy.run_path(
                 str(tutorial / "exercise_checks.py"), run_name="exercise_checks_safe"
@@ -303,7 +358,8 @@ class CourseStarterTests(unittest.TestCase):
             safe_checks["_check_robot_program"]()
 
             sys.modules["student_work"] = types.SimpleNamespace(
-                run_robot_program=unsafe_program
+                mean_wheel_position_mm=mean_wheel_position_mm,
+                run_robot_program=unsafe_program,
             )
             unsafe_checks = runpy.run_path(
                 str(tutorial / "exercise_checks.py"), run_name="exercise_checks_unsafe"
@@ -382,7 +438,7 @@ class CourseStarterTests(unittest.TestCase):
                 )
             )
             self.assertEqual(robot.stop_count, 1)
-            self.assertIn("Zero-motion preflight complete", output.getvalue())
+            self.assertIn("Stationary preflight complete", output.getvalue())
 
             failing_robot = RecordingRobot(fail_at_step=3)
             with self.assertRaisesRegex(

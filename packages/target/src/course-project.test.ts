@@ -86,7 +86,7 @@ describe("course starter catalog", () => {
       "run_robot_program",
     );
     expect(robotPrograms.project.files["README.md"]).toContain(
-      "Do not add another delay",
+      "Robot.step controls the sample time",
     );
 
     const telemetry = courseProjectTemplate("tutorial_behavior_telemetry");
@@ -107,7 +107,7 @@ describe("course starter catalog", () => {
     );
     expect(
       physicalPreflight.project.files["README.md"]!.replace(/\s+/g, " "),
-    ).toContain("Setup and repair");
+    ).toContain("Set up or Repair");
     for (const template of COURSE_PROJECT_TEMPLATES) {
       expect(template.project.files["world.json"]).toContain('"worlds"');
     }

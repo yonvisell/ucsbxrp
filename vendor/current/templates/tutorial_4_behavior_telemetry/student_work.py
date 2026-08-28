@@ -1,12 +1,13 @@
-# Complete the behavior and telemetry functions for Tutorial 4.
+# Complete the measured behavior and telemetry functions for Tutorial 4.
 
-from ucsb_xrp import MotionCommand, live
+from ucsb_xrp import MotionCommand, RobotState, live
 
 
 APPROACH = "approach"
 TURN = "turn"
 DONE = "done"
 
+# Live controls are declared once. Read each current setting through .value.
 FORWARD_SPEED = live.number(
     "tutorial_forward_speed_mm_s",
     110.0,
@@ -47,21 +48,26 @@ RUN_BEHAVIOR = live.toggle(
 )
 
 
-def next_phase(phase, range_mm, stop_distance_mm, turn_complete):
-    # Return the next phase from one range measurement and the turn status.
+def next_phase(
+    phase: str,
+    range_mm: "float | None",
+    stop_distance_mm: float,
+    turn_complete: bool,
+) -> str:
+    # APPROACH uses range, TURN uses turn_complete, and DONE remains DONE.
     raise NotImplementedError("complete next_phase")
 
 
 def command_for_phase(
-    phase,
-    forward_speed_mm_s,
-    turn_rate_rad_s,
-    turn_direction,
-):
-    # Return the motion command associated with the current phase.
+    phase: str,
+    forward_speed_mm_s: float,
+    turn_rate_rad_s: float,
+    turn_direction: str,
+) -> MotionCommand:
+    # Return forward, signed in-place turn, or zero motion for the phase.
     raise NotImplementedError("complete command_for_phase")
 
 
-def publish_telemetry(state, phase):
-    # Publish selected intermediate state for the Monitor.
+def publish_telemetry(state: RobotState, phase: str) -> None:
+    # Watch phase and range. Plot mean wheel distance and odometry heading.
     raise NotImplementedError("complete publish_telemetry")
