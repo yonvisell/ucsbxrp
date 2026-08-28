@@ -4,6 +4,32 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 68 qualifies dev.40 on the attached RP2350 XRP in native Chrome.
+The USB wizard retained the Pink station profile, installed the changed runtime,
+verified robot identity at `192.168.7.25`, and completed a second repair with
+zero changed and 28 unchanged files. The IDE handoff, Monitor-initiated Run,
+two different projects, atomic edited-project Run, cooperative Stop, course
+Reset without reboot, rerun, live parameters, plot values, motors, encoders,
+ordered logs, and final zero drive all passed.
+
+Physical execution exposed two telemetry-tail defects that ordinary software
+tests had not modeled: a run could finish while a response was being assembled,
+and a command pause could outlast the retained 50 Hz window. The service now
+forces a final drain before adding its stationary sample, and the bounded ring
+retains 96 course-loop samples. The final complete Run, Stop, Reset, rerun, and
+second Stop produced no telemetry-gap event; the measured active source rate
+was 50.0 Hz. Evidence is retained in
+`docs/hardware/2026-08-27-dev40-station-repeatability.json`.
+
+The same stage adds the measured source rate to Live telemetry, retains 1,800
+plot samples, keeps and exports notes, and uses one shared 15-degree HC-SR04
+sensor geometry in the simulator and World view. The integrated fast boundary
+passes 237 Python tests, MicroPython source/bytecode/service proof, 377
+TypeScript tests, production build, and offline verification. Eleven focused
+Stable Chrome workflows cover Monitor recording/export and live IDE/workspace
+resizing. Local preview service workers are removed on localhost, and the
+browser-test viewport override is always reset after responsive checks.
+
 Refinement 67 qualifies the current dev.37 station workflow on the attached
 RP2350 XRP. Native Chrome Web Serial completed an idempotent repair with zero
 changed and 28 unchanged files, restarted the controller, paused for the

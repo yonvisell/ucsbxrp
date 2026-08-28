@@ -9,8 +9,8 @@ history; they are not parallel plans. Detailed validation belongs in
 ## Current baseline
 
 - Browser source: current repository `HEAD` plus the active integrated stage.
-- Attached XRP: physically qualified on `2026.08-dev.38`, generation 19, from
-  source commit `a69b478`.
+- Attached XRP: physically qualified on `2026.08-dev.40`, generation 23, from
+  source commit `0b301cd`.
 - Current course bundle: `2026.08-dev.40`. It requires robot runtime dev.39 or
   later for the atomic edited-project Run transaction; dev.40 also retains and
   drains physical telemetry in larger bounded batches.
@@ -27,10 +27,10 @@ history; they are not parallel plans. Detailed validation belongs in
 - The IDE and Monitor share the exact current project, run state, program
   output, telemetry history, runtime controls, and robot identity. A fresh
   Monitor can run the default virtual project.
-- Expanding Spiral and the physical command path have current-release,
+- Straight Run, Expanding Spiral, and the physical command path have current-release,
   raised-wheel evidence for Run, Stop, Reset, rerun, project edits, motor
   effort, encoders, wheel distance, sensor data, pose, plots, logs, and final
-  zero drive on dev.37.
+  zero drive on dev.40.
 - The five active tutorial projects progress from Python fundamentals through
   Virtual XRP drawing, the sampled robot program, telemetry, and a physical-XRP
   preflight. Each has student tasks and immediate checks rather than a shipped
@@ -52,25 +52,15 @@ history; they are not parallel plans. Detailed validation belongs in
 
 ## Active outcomes, in priority order
 
-### Monitor telemetry presentation (queued after the current release baseline)
+### Monitor telemetry presentation
 
-Review Live telemetry, plotting, notes, recording, and export as one compact
-workflow. Show the measured telemetry sample rate near the end of Live
-telemetry, derived from received timestamps rather than adding robot traffic;
-show the configured robot-loop rate only where it helps interpret the data.
-Measure transport and RP2350 load before adding per-channel subscriptions.
-
-Evaluate replacing the separate Plot signals list with compact visibility and
-plot checkboxes beside each telemetry variable, moving the time window into
-the same section, and reserving the side panel primarily for recording and
-export. Remove the keyboard-only note hint, make note visibility explicit,
-and verify that visible notes appear in plot and animation exports. A note
-count must not look interactive unless it opens a useful note list.
-
-Render the SparkFun HC-SR04 field of view as an approximately 15-degree planar
-sector from the sensor board rather than a centerline. Use the same sector and
-an approximately 20–30 mm front inset in the Virtual XRP range model so the
-World view and simulated measurement use one geometry.
+Live telemetry now reports its measured source rate from sample sequence and
+timestamps without adding robot traffic. Plot history covers at least 30
+seconds at the 50 Hz course-loop rate, the time window precedes signal choices,
+notes persist across runs and export with their time and pose, and visible notes
+remain in plot exports. The simulator and World view share a 15-degree HC-SR04
+fan with a 70 mm sensor origin. Per-channel transport subscriptions remain
+deferred unless measurement shows telemetry transport to be a bottleneck.
 
 ### 1. Ordinary student project and run workflow
 
@@ -89,19 +79,15 @@ application build and course release without another visible status badge.
 
 ### 2. Current-release setup, repair, and robot operation
 
-Current dev.38 native Web Serial setup and idempotent repair pass on Pink,
+Current dev.40 native Web Serial setup and idempotent repair pass on Pink,
 including zero changed files, explicit network verification, robot-identity
 verification, atomic IDE handoff, two projects, Run/Stop/Reset/rerun, shared
-IDE/Monitor state, telemetry, and complete logs. Repeat one current-release
+IDE/Monitor state, 50 Hz course telemetry without retained-sample gaps, and
+complete logs. Repeat one current-release
 hotspot cycle with a custom SSID, explicit computer-Wi-Fi instruction, offline
 reopening, and return to an internet network. Earlier hotspot evidence is
 regression history, not proof of the current release. Retain cancellation and
 retry coverage in the simulated commissioning suite.
-
-Station discovery also needs a robot-specific hostname or equivalent candidate
-derived from stable robot identity; a classroom full of `ucsb-xrp.local`
-responders is ambiguous even though identity checks prevent commands to the
-wrong robot.
 
 Before release, restore the attached XRP to its SparkFun factory state and run
 the complete first-use path: USB selection, installation, station setup on
