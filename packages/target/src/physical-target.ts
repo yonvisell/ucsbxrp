@@ -2066,7 +2066,7 @@ export class PhysicalTargetClient implements TargetClient {
     }
     if (message.type === "telemetry-batch") {
       for (const event of message.events) {
-        this.emit(event);
+        this.emit({ ...event, replayed: true });
       }
       return;
     }

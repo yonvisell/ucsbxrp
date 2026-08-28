@@ -1843,3 +1843,16 @@ physical-XRP browser check on dev.40 confirmed Run/Stop, a fixed four-sample
 completed-run plot while fresh 2 Hz stationary telemetry continued, and a
 visible note line and label on both selected plots. The local integrated preview
 was replaced in place and remains at `http://127.0.0.1:4174/`.
+
+The first Pages run for this slice exposed one missed interaction: a Monitor
+opened after a completed virtual run received retained telemetry while ready,
+and the stopped-plot rule initially discarded that history. Retained batches
+now carry an explicit replay marker, so a late Monitor reconstructs the path and
+strip charts while new physical idle samples remain live-values-only. The exact
+late-Monitor workflow and the annotation/export workflows pass together.
+
+Pages publication no longer waits behind the approximately ten-minute full
+browser suite. Fast source, MicroPython, unit, production-build, and offline
+artifact checks remain a deployment prerequisite; the complete Stable Chrome
+suite runs in parallel on the same commit. A newer push cancels an obsolete
+in-progress release instead of queuing behind it.

@@ -202,7 +202,14 @@ describe("virtual target shared session", () => {
     expect(
       lateEvents.filter((event) => event.type === "status").at(-1),
     ).toMatchObject({ state: "ready" });
-    expect(lateEvents.some((event) => event.type === "telemetry")).toBe(true);
+    const replayedTelemetry = lateEvents.filter(
+      (event): event is Extract<TargetEvent, { type: "telemetry" }> =>
+        event.type === "telemetry",
+    );
+    expect(replayedTelemetry.length).toBeGreaterThan(1);
+    expect(replayedTelemetry.every((event) => event.replayed === true)).toBe(
+      true,
+    );
     const replayedConsole = lateEvents.filter(
       (event): event is Extract<TargetEvent, { type: "console" }> =>
         event.type === "console",

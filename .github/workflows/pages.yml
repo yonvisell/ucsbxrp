@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -34,9 +34,6 @@ jobs:
       - name: Install pinned dependencies
         run: npm ci
 
-      - name: Test the browser workflows
-        run: npm run test:browser
-
       - name: Validate and build the deployment artifact
         env:
           COURSE_BASE_PATH: ${{ steps.pages.outputs.base_path || '/' }}
@@ -46,6 +43,24 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
+
+  browser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Use the project Node version
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Test the browser workflows
+        run: npm run test:browser
 
   deploy:
     environment:

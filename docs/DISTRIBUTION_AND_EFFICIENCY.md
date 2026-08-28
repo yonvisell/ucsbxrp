@@ -41,10 +41,14 @@ course laptops identifies a real latency or memory problem.
 
 ## GitHub Pages packaging
 
-`.github/workflows/pages.yml` builds and validates the static artifact, then
-publishes `dist` using the supported GitHub Pages artifact workflow. It obtains
-the deployment base path from GitHub Pages itself, so the same workflow handles
-both forms:
+`.github/workflows/pages.yml` runs the fast source, MicroPython, unit, build,
+and offline-package checks before publishing `dist` through the supported
+GitHub Pages artifact workflow. The complete Stable Chrome suite runs in
+parallel and remains visible on the same release. This keeps publication of a
+locally validated static change prompt without deleting the broad regression
+suite. A newer push cancels an obsolete in-progress release rather than making
+it publish first. The workflow obtains the deployment base path from GitHub
+Pages itself, so it handles both forms:
 
 - `https://yonvisell.github.io/` when the repository is `yonvisell.github.io`;
 - `https://yonvisell.github.io/<repository>/` for an ordinary project

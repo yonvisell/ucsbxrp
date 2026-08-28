@@ -886,6 +886,7 @@ export function DashboardApp() {
         if (rateSamples.length > 41) rateSamples.shift();
 
         const followStripPlots =
+          event.replayed === true ||
           runStartingRef.current ||
           isActiveRunState(targetStateRef.current) ||
           recorder.isRecording;

@@ -148,6 +148,8 @@ export type TargetEvent =
   | {
       type: "telemetry";
       sample: TelemetrySample;
+      /** True when a newly opened Monitor is receiving retained history. */
+      replayed?: boolean;
     }
   | {
       type: "project";
