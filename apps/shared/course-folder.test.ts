@@ -2,44 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   autosaveDirectoryName,
-  courseFolderIdeHandoffKey,
-  courseFolderIsWaitingForIde,
   courseFolderPermission,
-  finishCourseFolderIdeHandoff,
-  handCourseFolderToIde,
+  loadWorkspaceManifest,
   projectFolderIsInsideCourseFolder,
+  updateWorkspaceManifest,
   writeCourseFile,
   writeRotatingTextBundle,
   type CourseDirectoryHandle,
 } from "./course-folder";
-
-class MemoryStorage implements Storage {
-  private readonly values = new Map<string, string>();
-
-  get length() {
-    return this.values.size;
-  }
-
-  clear() {
-    this.values.clear();
-  }
-
-  getItem(key: string) {
-    return this.values.get(key) ?? null;
-  }
-
-  key(index: number) {
-    return [...this.values.keys()][index] ?? null;
-  }
-
-  removeItem(key: string) {
-    this.values.delete(key);
-  }
-
-  setItem(key: string, value: string) {
-    this.values.set(key, value);
-  }
-}
 
 class MemoryFileHandle {
   readonly kind = "file" as const;
@@ -241,31 +211,36 @@ describe("course-folder autosaves", () => {
       projectFolderIsInsideCourseFolder(course, course),
     ).resolves.toBe(false);
   });
-});
 
-describe("commissioning folder handoff", () => {
-  it("expires instead of leaving a permanent pending marker", () => {
-    const storage = new MemoryStorage();
-    handCourseFolderToIde("robot-a", 33, storage, 1_000);
+  it("keeps active Project and robot settings in one Working-folder file", async () => {
+    const files = new Map<string, string | Blob>();
+    const workspace = new MemoryDirectoryHandle("XRP Work", files);
 
-    expect(courseFolderIsWaitingForIde(storage, 120_999)).toBe(true);
-    expect(courseFolderIsWaitingForIde(storage, 121_000)).toBe(false);
-    expect(storage.getItem(courseFolderIdeHandoffKey)).toBeNull();
-  });
+    await expect(
+      updateWorkspaceManifest(workspace, { activeProject: "Spiral" }),
+    ).resolves.toBe(true);
+    await expect(
+      updateWorkspaceManifest(workspace, {
+        robot: {
+          id: "robot-a",
+          name: "ucsb-xrp-visell",
+          networkMode: "station",
+          ssid: "Pink",
+          address: "192.168.7.25",
+        },
+      }),
+    ).resolves.toBe(true);
 
-  it("ignores malformed legacy or interrupted handoff state", () => {
-    const storage = new MemoryStorage();
-    storage.setItem(courseFolderIdeHandoffKey, "pending");
-
-    expect(courseFolderIsWaitingForIde(storage, 1_000)).toBe(false);
-    expect(storage.getItem(courseFolderIdeHandoffKey)).toBeNull();
-  });
-
-  it("can be finished explicitly after the IDE consumes it", () => {
-    const storage = new MemoryStorage();
-    handCourseFolderToIde("robot-a", 33, storage, 1_000);
-    finishCourseFolderIdeHandoff(storage);
-
-    expect(courseFolderIsWaitingForIde(storage, 1_001)).toBe(false);
+    await expect(loadWorkspaceManifest(workspace)).resolves.toEqual({
+      schemaVersion: 1,
+      activeProject: "Spiral",
+      robot: {
+        id: "robot-a",
+        name: "ucsb-xrp-visell",
+        networkMode: "station",
+        ssid: "Pink",
+        address: "192.168.7.25",
+      },
+    });
   });
 });

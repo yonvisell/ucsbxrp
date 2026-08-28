@@ -552,7 +552,7 @@
 
 .commission-success {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   color: var(--cyan-deep);
 }
@@ -567,9 +567,14 @@
 }
 
 .commission-success p {
-  margin: 0;
+  margin: 3px 0 10px;
   color: var(--ink);
   font-size: var(--font-sm);
+}
+
+.commission-success strong {
+  color: var(--ink);
+  font-size: var(--font-md);
 }
 
 @media (max-width: 650px) {

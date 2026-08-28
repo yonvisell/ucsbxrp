@@ -23,7 +23,9 @@ history; they are not parallel plans. Detailed validation belongs in
 
 - One Working folder may contain several named Project folders. The IDE opens
   only valid direct-child UCSBXRP projects, saves folder-backed projects
-  automatically, and preserves a browser draft when no folder is available.
+  automatically, and provides read-only built-in previews when no folder is
+  available. IndexedDB retains only the Working-folder capability;
+  `.ucsbxrp.json` owns its active Project and serializable robot/course state.
 - The IDE and Monitor share the exact current project, run state, program
   output, telemetry history, runtime controls, and robot identity. A fresh
   Monitor can run the default virtual project.
@@ -89,7 +91,8 @@ application build and course release without another visible status badge.
 
 Current dev.40 native Web Serial setup and idempotent repair pass on Pink,
 including zero changed files, explicit network verification, robot-identity
-verification, atomic IDE handoff, two projects, Run/Stop/Reset/rerun, shared
+verification, explicit completion before Open IDE, two projects,
+Run/Stop/Reset/rerun, shared
 IDE/Monitor state, 50 Hz course telemetry without retained-sample gaps, and
 complete logs. Repeat one current-release
 hotspot cycle with a custom SSID, explicit computer-Wi-Fi instruction, offline

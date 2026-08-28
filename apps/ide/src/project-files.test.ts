@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { STAGE_ONE_PROJECT, courseProjectTemplate } from "@ucsb-xrp/target";
+import { courseProjectTemplate } from "@ucsb-xrp/target";
 
 import {
   createProjectFolder,
@@ -13,7 +13,6 @@ import {
   loadRecoveredProject,
   loadRecoveredProjectState,
   normalizedProjectPath,
-  previousProjectRecoveryKey,
   projectContentDigest,
   projectPathError,
   projectFolderNameError,
@@ -30,40 +29,6 @@ import {
   projectRecoveryKey,
   type CourseDirectoryHandle,
 } from "./project-files";
-
-const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
-const originalStageOneStarterSource = `from time import sleep_ms
-from ucsb_xrp import MotorEfforts, XRPBot
-
-bot = XRPBot()
-print("Virtual XRP ready")
-
-try:
-    # Challenge 1 fixed-effort test: -1 reverse, 0 stop, +1 forward.
-    test_efforts = MotorEfforts(0.58, 0.52)
-    bot.set_efforts(test_efforts)
-    print("Applying normalized {}".format(test_efforts))
-    sleep_ms(1800)
-finally:
-    bot.stop()
-
-print("Virtual run complete")
-`;
-const earlyStageOneStarterSource = `from time import sleep_ms
-from ucsb_xrp import MotorEfforts, XRPBot
-
-bot = XRPBot()
-print("Virtual XRP ready")
-
-try:
-    bot.set_efforts(MotorEfforts(0.58, 0.52))
-    print("Driving with left=0.58, right=0.52")
-    sleep_ms(1800)
-finally:
-    bot.stop()
-
-print("Virtual run complete")
-`;
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -280,107 +245,21 @@ describe("project recovery", () => {
     expect(recovered.files).toEqual(spiral.files);
   });
 
-  it("updates only the exact earlier spiral starter", () => {
-    const current = courseProjectTemplate("demo_spiral").project;
-    const currentMain = current.files["main.py"]!;
-    const previousMain = currentMain
-      .replace(
-        '    "spiral_winding_turns_per_m",\n    1.2,\n    minimum=0.4,\n    maximum=2.0,',
-        '    "spiral_winding_turns_per_m",\n    0.8,\n    minimum=0.4,\n    maximum=1.2,',
-      )
-      .replace(
-        "try:\n    state = robot.start(Pose(0.0, 0.0, 0.0))",
-        'try:\n    print("Press and release USER to start the spiral demo")\n    state = robot.start(Pose(0.0, 0.0, 0.0))',
-      );
+  it("ignores browser project records from earlier releases", () => {
     storage.setItem(
-      projectRecoveryKey,
+      "ucsb-xrp-course-project-v2",
       JSON.stringify({
-        name: current.name,
-        entrypoint: current.entrypoint,
-        files: { ...current.files, "main.py": previousMain },
-      }),
-    );
-
-    expect(loadRecoveredProject().files).toEqual(current.files);
-
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: current.name,
-        entrypoint: current.entrypoint,
-        files: {
-          ...current.files,
-          "main.py": `${previousMain}\n# Student note\n`,
-        },
-      }),
-    );
-    expect(loadRecoveredProject().files["main.py"]).toContain("Student note");
-  });
-
-  it("migrates only the exact original Stage 1 starter", () => {
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: "straight-run-proof",
+        name: "stale project",
         entrypoint: "main.py",
-        files: {
-          "main.py": originalStageOneStarterSource,
-          "notes.md": "student notes",
-        },
+        files: { "main.py": "print('stale')\n" },
       }),
     );
+    storage.setItem("ucsb-xrp-stage-one-main-py", "print('older')\n");
 
-    const recovered = loadRecoveredProject();
-
-    expect(recovered.files["main.py"]).toBe(STAGE_ONE_PROJECT.files["main.py"]);
-    expect(recovered.files["notes.md"]).toBe("student notes");
-  });
-
-  it("migrates the exact early generated Stage 1 starter", () => {
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: "straight-run-proof",
-        entrypoint: "main.py",
-        files: { "main.py": earlyStageOneStarterSource },
-      }),
-    );
-
-    const recovered = loadRecoveredProject();
-
-    expect(recovered.files["main.py"]).toBe(STAGE_ONE_PROJECT.files["main.py"]);
-  });
-
-  it("preserves arbitrary user source even when it still calls XRPBot()", () => {
-    const userSource = `${originalStageOneStarterSource}\n# Student calibration note\n`;
-    storage.setItem(
-      projectRecoveryKey,
-      JSON.stringify({
-        name: "student-project",
-        entrypoint: "main.py",
-        files: { "main.py": userSource },
-      }),
-    );
-
-    expect(loadRecoveredProject().files["main.py"]).toBe(userSource);
-  });
-
-  it("applies the same exact migration to the legacy single-file key", () => {
-    storage.setItem(legacyRecoveryKey, originalStageOneStarterSource);
-
-    expect(loadRecoveredProject().files["main.py"]).toBe(
-      STAGE_ONE_PROJECT.files["main.py"],
-    );
-  });
-
-  it("preserves arbitrary source from the legacy single-file key", () => {
-    const userSource = "from ucsb_xrp import XRPBot\n\nbot = XRPBot()\n";
-    storage.setItem(legacyRecoveryKey, userSource);
-
-    const recovered = loadRecoveredProject();
-
-    expect(recovered.name).toBe("Recovered project");
-    expect(recovered.files["main.py"]).toBe(userSource);
+    expect(loadRecoveredProject().name).toBe("Expanding spiral");
+    expect(storage.getItem(projectRecoveryKey)).toBeNull();
+    expect(storage.getItem("ucsb-xrp-course-project-v2")).toBeNull();
+    expect(storage.getItem("ucsb-xrp-stage-one-main-py")).toBeNull();
   });
 
   it("stores and recovers a valid project without changing user files", () => {
@@ -410,32 +289,6 @@ describe("project recovery", () => {
         files: { "main.py": "print('keep me')\n" },
       }),
     ).toBe(false);
-  });
-
-  it("migrates the previous recovery once and ignores later stale writes", () => {
-    const previous = {
-      name: "previous project",
-      entrypoint: "main.py",
-      files: { "main.py": "print('previous')\n" },
-    };
-    const encodedPrevious = JSON.stringify(previous);
-    storage.setItem(previousProjectRecoveryKey, encodedPrevious);
-
-    expect(loadRecoveredProject()).toEqual(previous);
-    expect(storage.getItem(previousProjectRecoveryKey)).toBe(encodedPrevious);
-    expect(JSON.parse(storage.getItem(projectRecoveryKey) ?? "null")).toEqual(
-      previous,
-    );
-
-    storage.setItem(
-      previousProjectRecoveryKey,
-      JSON.stringify({
-        name: "stale tab",
-        entrypoint: "main.py",
-        files: { "main.py": "print('stale')\n" },
-      }),
-    );
-    expect(loadRecoveredProject()).toEqual(previous);
   });
 
   it("stores and recovers optional project-session metadata", () => {

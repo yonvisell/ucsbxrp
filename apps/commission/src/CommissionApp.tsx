@@ -13,11 +13,10 @@ import { CourseHeader } from "../../shared/CourseHeader";
 import {
   chooseWorkspaceFolder,
   courseFolderPermission,
-  forgetWorkspaceFolder,
-  handCourseFolderToIde,
   loadRememberedWorkspaceFolder,
   replaceRememberedWorkspaceFolder,
   requestCourseFolderPermission,
+  updateWorkspaceManifest,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
 import {
@@ -336,7 +335,7 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is the current Working folder. Use it, choose a different folder, or continue without one.`,
+                `${rememberedFolder.name} is the current Working folder. Use it or choose a different folder.`,
               );
               setStage("folder");
               return;
@@ -355,7 +354,7 @@ export function CommissionApp() {
             setFolder(rememberedFolder);
             setFolderVerified(false);
             setDetail(
-              `${rememberedFolder.name} is the remembered Working folder. Reconnect it, choose a different folder, or continue without one.`,
+              `${rememberedFolder.name} is the remembered Working folder. Reconnect it or choose a different folder.`,
             );
             setStage("folder");
             return;
@@ -403,7 +402,7 @@ export function CommissionApp() {
       const remembered = await replaceRememberedWorkspaceFolder(selected);
       if (!remembered.remembered) {
         throw new Error(
-          "Chrome could not remember this folder. Choose it again, or continue without a Working folder.",
+          "Chrome could not remember this folder. Choose it again.",
         );
       }
       folderRef.current = selected;
@@ -415,8 +414,9 @@ export function CommissionApp() {
         "success",
       );
       setDetail(
-        `${selected.name} is ready. Continue to the USB step when you are ready.`,
+        "Keep the XRP connected by USB-C through the controller check and course-software update.",
       );
+      setStage("usb");
     } catch (folderError) {
       if (!wasCancelled(folderError)) {
         const message = errorDetail(folderError);
@@ -478,32 +478,6 @@ export function CommissionApp() {
     folderVerified,
     recordSetup,
   ]);
-
-  const skipFolder = useCallback(async () => {
-    setError("");
-    beginFolderInteraction();
-    try {
-      if (!(await forgetWorkspaceFolder())) {
-        setError(
-          "Chrome could not clear the remembered folder. Reload this page, then try again.",
-        );
-        return;
-      }
-      folderRef.current = null;
-      setFolder(null);
-      setFolderVerified(false);
-      setDetail(
-        "Connect the XRP by USB-C and keep it connected through setup. You can choose a Working folder in the IDE later.",
-      );
-      recordSetup(
-        "Folder",
-        "Continued without a Working folder; the visible setup log remains available to copy.",
-      );
-      setStage("usb");
-    } finally {
-      finishFolderInteraction();
-    }
-  }, [beginFolderInteraction, finishFolderInteraction, recordSetup]);
 
   useEffect(() => {
     if (stage !== "usb" || !manifest || !supportsWebSerial()) return;
@@ -976,9 +950,16 @@ export function CommissionApp() {
       );
       storeTargetPreference(preference);
       if (folderRef.current) {
-        handCourseFolderToIde(verifiedRobotId, manifest.releaseSequence);
+        await updateWorkspaceManifest(folderRef.current, {
+          robot: {
+            id: verifiedRobotId,
+            name: info.robotName,
+            networkMode: result.network.mode,
+            ssid: result.network.ssid,
+            address: result.network.address,
+          },
+        });
       }
-      navigatingRef.current = true;
       setWifiIssue("");
       setWifiNeedsRepair(false);
       setDetail(`${info.robotName} is commissioned and ready.`);
@@ -989,7 +970,6 @@ export function CommissionApp() {
       );
       setStage("complete");
       await setupLogWriteRef.current.catch(() => undefined);
-      window.location.assign(new URL("../ide/", window.location.href));
     } catch (probeError) {
       const serviceFailure = probeError instanceof XrpServiceProbeError;
       const issue = wasCancelled(probeError)
@@ -1092,7 +1072,7 @@ export function CommissionApp() {
       setDetail(
         folderRef.current
           ? `${folderRef.current.name} is the current Working folder. Use it or choose a different folder.`
-          : "Choose a Working folder, or continue without one.",
+          : "Choose a Working folder to continue.",
       );
       return;
     }
@@ -1299,7 +1279,6 @@ export function CommissionApp() {
                 >
                   {folder ? "Choose different folder" : "Choose Working folder"}
                 </button>
-                <button onClick={skipFolder}>Continue without folder</button>
               </div>
               <p>
                 Choose one parent Working folder for your UCSBXRP work. Each
@@ -1676,7 +1655,23 @@ export function CommissionApp() {
           {stage === "complete" ? (
             <div className="commission-success">
               <span aria-hidden="true">✓</span>
-              <p>Opening the IDE with Physical XRP selected…</p>
+              <div>
+                <strong>Robot setup is complete</strong>
+                <p>
+                  {result?.network.ssid
+                    ? `${result.network.ssid} was verified for Run and telemetry.`
+                    : "The robot connection was verified."}
+                  {folder ? ` ${folder.name} is the Working folder.` : ""}
+                </p>
+                <button
+                  className="primary-button"
+                  disabled={Boolean(navigationDestination)}
+                  onClick={() => void exitSetup("../ide/")}
+                  type="button"
+                >
+                  Open IDE
+                </button>
+              </div>
             </div>
           ) : null}
 

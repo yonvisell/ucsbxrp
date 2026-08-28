@@ -38,25 +38,45 @@ export interface RotatingTextEntry {
 export const autosaveDirectoryName = "UCSB_XRP_Autosaves";
 export const autosaveGenerations = 4;
 export const courseFolderChangedKey = "ucsb-xrp-course-folder-changed-v1";
-export const courseFolderIdeHandoffKey =
-  "ucsb-xrp-course-folder-ide-handoff-v1";
 
-const courseFolderIdeHandoffLifetimeMs = 2 * 60_000;
-
-interface CourseFolderIdeHandoffRecord {
-  robotId: string;
-  releaseSequence: number;
-  expiresAtMs: number;
+function announceCourseFolderChanged(): void {
+  try {
+    // The storage event reaches other tabs. Remove the nonce immediately so
+    // it is an event signal, not a second configuration record.
+    localStorage.setItem(courseFolderChangedKey, crypto.randomUUID());
+    localStorage.removeItem(courseFolderChangedKey);
+  } catch {
+    // The on-disk Working-folder configuration remains authoritative.
+  }
 }
 
 const databaseName = "ucsb-xrp-course-tools-v1";
 const databaseVersion = 1;
 const handleStoreName = "course-folders";
+// IndexedDB retains only the browser capability needed to reopen a directory.
+// Serializable project and robot state belongs in .ucsbxrp.json on disk.
+const workspaceFolderCapabilityKey = "workspace-folder-capability-v1";
+const obsoleteWorkspaceContextKey = "workspace-context-v2";
 const workingFolderKey = "working-folder";
 const projectFolderKey = "active-project-folder-v2";
 const previousProjectFolderKey = "project-folder-v1";
 const workspaceFolderKey = "workspace-folder-v1";
-const projectMetadataFile = ".ucsb-xrp-project.json";
+export const workspaceManifestFile = ".ucsbxrp.json";
+
+export interface WorkspaceManifestRobot {
+  id: string;
+  name: string;
+  networkMode: "station" | "access_point";
+  ssid: string;
+  address: string;
+}
+
+export interface WorkspaceManifest {
+  schemaVersion: 1;
+  activeProject: string | null;
+  robot?: WorkspaceManifestRobot;
+  settings?: Record<string, string | number | boolean | null>;
+}
 const autosaveReadme = `UCSB XRP automatic copies
 
 The browser creates these files after a project folder has been selected.
@@ -168,62 +188,10 @@ export async function requestCourseFolderPermission(
   return handle.requestPermission({ mode: "readwrite" });
 }
 
-async function rememberFolder(
-  handle: CourseDirectoryHandle,
-  key: string,
-  changeKey?: string,
-): Promise<boolean> {
-  if (typeof indexedDB === "undefined") {
-    return false;
-  }
-  try {
-    const database = await openFolderDatabase();
-    const transaction = database.transaction(handleStoreName, "readwrite");
-    const completed = transactionComplete(transaction);
-    transaction.objectStore(handleStoreName).put(handle, key);
-    await completed;
-    database.close();
-    if (changeKey) {
-      try {
-        localStorage.setItem(changeKey, String(Date.now()));
-      } catch {
-        // The handle remains available to this origin even without localStorage.
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function forgetFolder(key: string, changeKey?: string): Promise<boolean> {
-  if (typeof indexedDB === "undefined") {
-    return false;
-  }
-  try {
-    const database = await openFolderDatabase();
-    const transaction = database.transaction(handleStoreName, "readwrite");
-    const completed = transactionComplete(transaction);
-    transaction.objectStore(handleStoreName).delete(key);
-    await completed;
-    database.close();
-    if (changeKey) {
-      try {
-        localStorage.setItem(changeKey, String(Date.now()));
-      } catch {
-        // Deleting the retained handle does not depend on localStorage.
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function rememberWorkspaceFolder(
   handle: CourseDirectoryHandle,
 ): Promise<boolean> {
-  return rememberFolder(handle, workspaceFolderKey);
+  return (await replaceRememberedWorkspaceFolder(handle)).remembered;
 }
 
 async function sameDirectoryHandle(
@@ -294,9 +262,15 @@ export async function replaceRememberedWorkspaceFolder(
     const transaction = database.transaction(handleStoreName, "readwrite");
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
-    store.put(handle, workspaceFolderKey);
+    store.put(handle, workspaceFolderCapabilityKey);
+    store.delete(obsoleteWorkspaceContextKey);
+    store.delete(workspaceFolderKey);
+    store.delete(projectFolderKey);
+    store.delete(previousProjectFolderKey);
+    store.delete(workingFolderKey);
     await completed;
     database.close();
+    announceCourseFolderChanged();
     return { changed, remembered: true };
   } catch {
     return { changed, remembered: false };
@@ -311,17 +285,14 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
     const transaction = database.transaction(handleStoreName, "readwrite");
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
+    store.delete(workspaceFolderCapabilityKey);
+    store.delete(obsoleteWorkspaceContextKey);
     store.delete(workspaceFolderKey);
     store.delete(projectFolderKey);
     store.delete(previousProjectFolderKey);
     await completed;
     database.close();
-    try {
-      const changedAt = String(Date.now());
-      localStorage.setItem(courseFolderChangedKey, changedAt);
-    } catch {
-      // IndexedDB remains authoritative if localStorage is unavailable.
-    }
+    announceCourseFolderChanged();
     return true;
   } catch {
     return false;
@@ -329,122 +300,59 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
 }
 
 export async function forgetWorkspaceFolder(): Promise<boolean> {
-  return forgetFolder(workspaceFolderKey);
+  return forgetWorkspaceAndProjectFolders();
 }
 
 export async function rememberProjectFolder(
   handle: CourseDirectoryHandle,
 ): Promise<boolean> {
-  return rememberFolder(handle, projectFolderKey, courseFolderChangedKey);
-}
-
-export async function forgetProjectFolder(): Promise<boolean> {
-  if (typeof indexedDB === "undefined") return false;
+  const workspace = await loadRememberedWorkspaceFolder();
+  if (!workspace) return false;
+  if ((await projectFolderIsInsideCourseFolder(workspace, handle)) !== true) {
+    return false;
+  }
   try {
-    const database = await openFolderDatabase();
-    const transaction = database.transaction(handleStoreName, "readwrite");
-    const completed = transactionComplete(transaction);
-    const store = transaction.objectStore(handleStoreName);
-    store.delete(projectFolderKey);
-    store.delete(previousProjectFolderKey);
-    await completed;
-    database.close();
-    try {
-      localStorage.setItem(courseFolderChangedKey, String(Date.now()));
-    } catch {
-      // IndexedDB remains authoritative if localStorage is unavailable.
-    }
+    const updated = await updateWorkspaceManifest(workspace, {
+      activeProject: handle.name,
+    });
+    if (!updated) return false;
+    announceCourseFolderChanged();
     return true;
   } catch {
     return false;
   }
 }
 
-function readCourseFolderIdeHandoff(
-  storage: Storage,
-): CourseFolderIdeHandoffRecord | null {
+export async function forgetProjectFolder(): Promise<boolean> {
   try {
-    const value = JSON.parse(
-      storage.getItem(courseFolderIdeHandoffKey) ?? "null",
-    ) as Partial<CourseFolderIdeHandoffRecord> | null;
-    if (
-      value === null ||
-      typeof value.robotId !== "string" ||
-      value.robotId.length === 0 ||
-      typeof value.releaseSequence !== "number" ||
-      !Number.isInteger(value.releaseSequence) ||
-      typeof value.expiresAtMs !== "number" ||
-      !Number.isFinite(value.expiresAtMs)
-    ) {
-      return null;
-    }
-    return {
-      robotId: value.robotId,
-      releaseSequence: value.releaseSequence,
-      expiresAtMs: value.expiresAtMs,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function handCourseFolderToIde(
-  robotId: string,
-  releaseSequence: number,
-  storage: Storage = localStorage,
-  nowMs: number = Date.now(),
-): void {
-  try {
-    storage.setItem(
-      courseFolderIdeHandoffKey,
-      JSON.stringify({
-        robotId,
-        releaseSequence,
-        expiresAtMs: nowMs + courseFolderIdeHandoffLifetimeMs,
-      } satisfies CourseFolderIdeHandoffRecord),
-    );
-  } catch {
-    // The remembered IndexedDB handle still remains useful to the IDE.
-  }
-}
-
-export function courseFolderIsWaitingForIde(
-  storage: Storage = localStorage,
-  nowMs: number = Date.now(),
-): boolean {
-  try {
-    const record = readCourseFolderIdeHandoff(storage);
-    if (record !== null && record.expiresAtMs > nowMs) return true;
-    storage.removeItem(courseFolderIdeHandoffKey);
-    return false;
+    const workspace = await loadRememberedWorkspaceFolder();
+    if (!workspace) return true;
+    const updated = await updateWorkspaceManifest(workspace, {
+      activeProject: null,
+    });
+    if (!updated) return false;
+    announceCourseFolderChanged();
+    return true;
   } catch {
     return false;
   }
 }
 
-export function finishCourseFolderIdeHandoff(
-  storage: Storage = localStorage,
-): void {
-  try {
-    storage.removeItem(courseFolderIdeHandoffKey);
-  } catch {
-    // No persistent handoff state remains available to clear.
-  }
-}
-
-async function loadRememberedFolder(
-  key: string,
-): Promise<CourseDirectoryHandle | null> {
+async function loadWorkspaceCapability(): Promise<CourseDirectoryHandle | null> {
   if (typeof indexedDB === "undefined") {
     return null;
   }
   try {
     const database = await openFolderDatabase();
-    const transaction = database.transaction(handleStoreName, "readonly");
+    const transaction = database.transaction(handleStoreName, "readwrite");
     const completed = transactionComplete(transaction);
-    const handle = await requestResult(
-      transaction.objectStore(handleStoreName).get(key),
-    );
+    const store = transaction.objectStore(handleStoreName);
+    const handle = await requestResult(store.get(workspaceFolderCapabilityKey));
+    store.delete(obsoleteWorkspaceContextKey);
+    store.delete(workspaceFolderKey);
+    store.delete(projectFolderKey);
+    store.delete(previousProjectFolderKey);
+    store.delete(workingFolderKey);
     await completed;
     database.close();
     return (handle as CourseDirectoryHandle | undefined) ?? null;
@@ -453,51 +361,82 @@ async function loadRememberedFolder(
   }
 }
 
-async function hasProjectMetadata(
-  handle: CourseDirectoryHandle,
-): Promise<boolean> {
-  try {
-    await handle.getFileHandle(projectMetadataFile);
-    return true;
-  } catch (error) {
-    if (isNotFound(error)) {
-      return false;
-    }
-    throw error;
+function validWorkspaceManifest(value: unknown): value is WorkspaceManifest {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("schemaVersion" in value) ||
+    value.schemaVersion !== 1 ||
+    !("activeProject" in value) ||
+    (value.activeProject !== null && typeof value.activeProject !== "string")
+  ) {
+    return false;
   }
+  return true;
 }
 
-export async function loadRememberedWorkspaceFolder(): Promise<CourseDirectoryHandle | null> {
-  const remembered = await loadRememberedFolder(workspaceFolderKey);
-  if (remembered) {
-    return remembered;
-  }
-  const legacy = await loadRememberedFolder(workingFolderKey);
-  if (!legacy) {
-    return null;
-  }
+export async function loadWorkspaceManifest(
+  workspace: CourseDirectoryHandle,
+): Promise<WorkspaceManifest | null> {
   try {
-    return (await hasProjectMetadata(legacy)) ? null : legacy;
+    const file = await workspace.getFileHandle(workspaceManifestFile);
+    const value = JSON.parse(await (await file.getFile()).text()) as unknown;
+    return validWorkspaceManifest(value) ? value : null;
   } catch {
     return null;
   }
 }
 
-export async function loadRememberedProjectFolder(): Promise<CourseDirectoryHandle | null> {
-  const remembered = await loadRememberedFolder(projectFolderKey);
-  if (remembered) {
-    return remembered;
-  }
-  const previous = await loadRememberedFolder(previousProjectFolderKey);
-  if (previous) {
-    return previous;
-  }
-  const legacy = await loadRememberedFolder(workingFolderKey);
-  if (!legacy) {
-    return null;
-  }
+export async function updateWorkspaceManifest(
+  workspace: CourseDirectoryHandle,
+  update: {
+    activeProject?: string | null;
+    robot?: WorkspaceManifestRobot;
+    settings?: Record<string, string | number | boolean | null>;
+  },
+): Promise<boolean> {
   try {
-    return (await hasProjectMetadata(legacy)) ? legacy : null;
+    const previous = await loadWorkspaceManifest(workspace);
+    const next: WorkspaceManifest = {
+      schemaVersion: 1,
+      activeProject:
+        update.activeProject !== undefined
+          ? update.activeProject
+          : (previous?.activeProject ?? null),
+      ...((update.robot ?? previous?.robot)
+        ? { robot: update.robot ?? previous!.robot }
+        : {}),
+      ...((update.settings ?? previous?.settings)
+        ? { settings: update.settings ?? previous!.settings }
+        : {}),
+    };
+    const file = await workspace.getFileHandle(workspaceManifestFile, {
+      create: true,
+    });
+    const writable = await file.createWritable();
+    await writable.write(`${JSON.stringify(next, null, 2)}\n`);
+    await writable.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function loadRememberedWorkspaceFolder(): Promise<CourseDirectoryHandle | null> {
+  // Older releases stored workspace, project, and recovery records
+  // independently. Do not migrate them: that model could reopen an unrelated
+  // project after a student selected a new Working folder.
+  return loadWorkspaceCapability();
+}
+
+export async function loadRememberedProjectFolder(): Promise<CourseDirectoryHandle | null> {
+  const workspace = await loadRememberedWorkspaceFolder();
+  if (!workspace) return null;
+  const manifest = await loadWorkspaceManifest(workspace);
+  const name = manifest?.activeProject?.trim();
+  if (!name || name.includes("/") || name.includes("\\")) return null;
+  try {
+    return await workspace.getDirectoryHandle(name);
   } catch {
     return null;
   }

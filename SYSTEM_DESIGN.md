@@ -31,14 +31,15 @@ guide, landing page, and shared packages.
 
 The IDE is the programming surface. It provides:
 
-- an optional Working folder containing named Project folders, automatic
-  project writes, and an independent browser-held draft;
+- one selected Working folder containing named Project folders and automatic
+  project writes; built-in projects remain available as read-only previews
+  before a folder is selected;
 - multi-file creation, rename, duplicate, delete, tabs, and main-file
   metadata;
 - one grouped project catalog containing the five cumulative challenges,
   sensor-driven obstacle-turn and expanding-spiral demos, and a staged
-  MicroPython tutorial; a fresh browser opens the spiral demo while recovered
-  student work remains authoritative;
+  MicroPython tutorial; an empty Working folder receives an editable Expanding
+  Spiral project;
 - local Monaco workers and MicroPython compilation;
 - explicit **Compile**, one stateful Run/Stop control, and Reset; physical Run
   loads the exact current project into controller RAM before starting it;
@@ -79,29 +80,28 @@ parent, nested project metadata, and malformed metadata before reading child
 trees or changing the active autosave connection. Legacy root metadata without
 session or digest fields remains importable. When a Working folder is active,
 loading a template first asks for the child-directory name and writes the
-complete project immediately. Without a Working folder, changes remain in a
-browser-held draft until the student creates a project folder. Any Python file
-can be selected as its entrypoint. Working-folder and active-project handles are
-retained separately in IndexedDB when structured handle storage is available.
-Changing the Working folder does not move, close, or replace the current
-project. If project read/write permission does not survive, one explicit
-Reconnect gesture restores it.
+complete project immediately. Without a Working folder, catalog projects can be
+previewed but not edited, compiled, or run. Any Python file can be selected as
+its entrypoint. IndexedDB retains only the non-serializable browser capability
+for the Working folder. The folder's `.ucsbxrp.json` file is the serialized
+source for its active Project, robot profile, and course application settings.
+An active Project therefore cannot exist independently of its Working folder.
+Selecting another Working folder resolves that folder's own configuration and
+never carries an earlier active Project with it. If folder permission does not
+survive, one explicit Reconnect gesture restores it.
 Folder writes are debounced, serialized, and revision/epoch checked so an older
 queued snapshot cannot overwrite a newer edit or explicit save. Before
 overwriting source, the previous complete project is rotated through four JSON
 generations in the project's `UCSB_XRP_Autosaves`.
 Each project also has a stable project ID, monotonic content revision, saved
-revision, and update time in `.ucsb-xrp-project.json`. IDE startup resolves the
-remembered project folder and browser-held draft before publishing one
-project to the shared target. The active IDE alone updates the global recovery
-copy and remembered active-project handle. A standby IDE may edit and autosave
-its own project folder, but cannot replace the project used by Run or reopened
-on the next launch; the student must explicitly choose **Use this project**.
-Monitor reads that same active-project handle for run archives and can only
-request permission to reconnect it—it never selects a different project. While
-startup resolution is active, a short explicit cross-tab bootstrap record
-disables Monitor Run; it is cleared when the resolved project reaches the
-target. It is not a normal delay or another project copy.
+revision, and update time in `.ucsb-xrp-project.json`. IDE startup first obtains
+the Working-folder capability, then reads `.ucsbxrp.json` and opens that named
+direct-child Project. A missing configuration in an empty folder creates and
+opens Expanding Spiral. A current-release browser recovery record is retained
+only for exceptional unsaved work; earlier browser project/configuration keys
+are ignored rather than migrated. The selected folder files remain
+authoritative. Monitor derives the same active Project through the Working
+folder configuration for run archives.
 
 The project catalog is declarative. The instructor authoring command copies the
 closest working challenge into a draft, registers it with `published: false`,
@@ -117,15 +117,12 @@ instructor.
 ### Commissioning and repair
 
 The commissioning wizard is the ordinary student entrypoint for a new,
-outdated, or damaged XRP. A Working folder is useful but not a commissioning
-prerequisite: students may select one for Project folders and setup logs, or
-defer it until the IDE. Selecting or changing it never creates, opens, moves, or
-replaces a project. The application cache remains browser-owned; a page cannot
-place that cache inside a user-selected folder. When a Working folder is
-selected, the wizard writes and reads back a small setup log before continuing.
-Meaningful controller, installation, reset, and network-probe events append to
-the same password-free log; without a Working folder the visible log remains
-copyable.
+outdated, or damaged XRP. Selecting a Working folder is the first required
+step. One successful folder selection verifies write access, records the sole
+browser directory capability, creates the setup log, and advances to USB. The
+application cache remains browser-owned; a page cannot place that cache inside
+a user-selected folder. Meaningful controller, installation, reset, and
+network-probe events append to the same password-free log.
 Raw serial traffic is not retained.
 
 One user-selected Web Serial connection enters the MicroPython raw REPL. The
@@ -155,15 +152,13 @@ Monitor, and telemetry. After network activation and reset, the wizard reports
 every service-probe attempt and distinguishes an unreachable network from an
 incompatible service. An exact service/release and robot-identity reply stores
 the network mode and endpoint that were actually verified. Thus, a failed
-station join that fell back to a robot hotspot cannot hand the IDE the
-unreachable station route. Only after this check does the wizard create a
-short-lived Working-folder handoff and open the IDE in physical mode;
-interrupted setup leaves no permanent pending state. The IDE retains an existing
-active project. In a fresh browser it opens the spiral example without saving
-it to a project folder; it does not silently create `./Expanding-Spiral` or
-write project files as a side effect of commissioning. The Working folder
-itself is not imported as a project; an existing project is loaded only through
-**Open project**. It cannot silently choose
+station join that fell back to a robot hotspot cannot provide the unreachable
+station route. After verification, the wizard writes the robot profile to
+`.ucsbxrp.json`, displays a clear completion state, and waits for the student to
+choose **Open IDE**. It creates no localStorage handoff record. The IDE then
+reads the same Working-folder configuration. An empty Working folder receives
+Expanding Spiral; an existing folder reopens its configured active Project. The
+Working folder itself is never imported as a project. The wizard cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
 firmware-volume, and local-network permissions; these are the only intentional
 user-mediated boundaries.

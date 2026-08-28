@@ -48,9 +48,11 @@ Those remain empirical work rather than inferred passes.
   timing, hardware, telemetry, and course behavior in supplied code.
 - Preserve the separation between the browser connection layer, the
   MicroPython course package, the physical service, and simulated hardware.
-- Treat the Project folder as the authoritative native project when permission
-  is available. A Working folder is only its parent. Browser storage preserves
-  a temporary draft; it is not a second folder tree.
+- Treat the selected Working folder as the configuration boundary and each
+  direct-child Project folder as authoritative project content. IndexedDB may
+  retain only the Working-folder capability; `.ucsbxrp.json` owns the active
+  Project and serializable robot/course settings. Browser recovery is reserved
+  for exceptional unsaved work, not ordinary project selection.
 - Retain transactional runtime installation, exact project revision transfer,
   command serialization, and explicit robot identity. Simplification must not
   weaken those boundaries.
@@ -71,7 +73,9 @@ Finish one coherent browser release rather than extending isolated surfaces.
   actual viewport in both resize directions.
 - Use one literal folder model: a Working folder contains named Project folders.
   Keep project commands together, autosave folder-backed work, and preserve the
-  current project after a cancelled or denied picker.
+  current project after a cancelled or denied picker. A changed Working folder
+  must resolve only its own active Project; an empty one creates Expanding
+  Spiral.
 - Retain the completed Guide/API/tutorial revisions, rendered project READMEs,
   clean instructor specification, visual world editor, and direct contextual
   reference links.

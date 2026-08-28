@@ -2,7 +2,6 @@ import {
   COURSE_PROJECT_TEMPLATES,
   DEFAULT_COURSE_PROJECT,
   DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
-  STAGE_ONE_PROJECT,
   type CourseProject,
 } from "@ucsb-xrp/target";
 
@@ -69,44 +68,15 @@ export interface ProjectRecoveryState {
   preservedDraft?: ProjectSnapshot;
 }
 
-export const projectRecoveryKey = "ucsb-xrp-course-project-v2";
-export const previousProjectRecoveryKey = "ucsb-xrp-course-project-v1";
-const legacyRecoveryKey = "ucsb-xrp-stage-one-main-py";
+export const projectRecoveryKey = "ucsb-xrp-unsaved-project-v3";
+const obsoleteRecoveryKeys = [
+  "ucsb-xrp-course-project-v2",
+  "ucsb-xrp-course-project-v1",
+  "ucsb-xrp-stage-one-main-py",
+] as const;
 const projectMetadataFile = ".ucsb-xrp-project.json";
 const sha256Pattern = /^[0-9a-f]{64}$/;
 const windowsReservedName = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
-const originalStageOneStarterSource = `from time import sleep_ms
-from ucsb_xrp import MotorEfforts, XRPBot
-
-bot = XRPBot()
-print("Virtual XRP ready")
-
-try:
-    # Challenge 1 fixed-effort test: -1 reverse, 0 stop, +1 forward.
-    test_efforts = MotorEfforts(0.58, 0.52)
-    bot.set_efforts(test_efforts)
-    print("Applying normalized {}".format(test_efforts))
-    sleep_ms(1800)
-finally:
-    bot.stop()
-
-print("Virtual run complete")
-`;
-const earlyStageOneStarterSource = `from time import sleep_ms
-from ucsb_xrp import MotorEfforts, XRPBot
-
-bot = XRPBot()
-print("Virtual XRP ready")
-
-try:
-    bot.set_efforts(MotorEfforts(0.58, 0.52))
-    print("Driving with left=0.58, right=0.52")
-    sleep_ms(1800)
-finally:
-    bot.stop()
-
-print("Virtual run complete")
-`;
 const readableExtensions = new Set([
   ".csv",
   ".ini",
@@ -138,7 +108,7 @@ const courseRepositoryMarkers = new Set([
 export const defaultProjectTemplateId = DEFAULT_COURSE_PROJECT_TEMPLATE_ID;
 export const defaultProjectFolderName = "Expanding-Spiral";
 
-function defaultProject(): ProjectSnapshot {
+export function defaultProject(): ProjectSnapshot {
   const project = DEFAULT_COURSE_PROJECT;
   return {
     name: project.name ?? "Expanding spiral",
@@ -382,110 +352,26 @@ export async function isCourseRepositoryFolder(
   return false;
 }
 
-function migrateOriginalStageOneStarter(
-  project: ProjectSnapshot,
-): ProjectSnapshot {
-  const source = project.files["main.py"];
-  if (
-    source !== originalStageOneStarterSource &&
-    source !== earlyStageOneStarterSource
-  ) {
-    return project;
-  }
-  const currentStarterSource = STAGE_ONE_PROJECT.files["main.py"];
-  if (currentStarterSource === undefined) {
-    return project;
-  }
-  return {
-    ...project,
-    files: {
-      ...STAGE_ONE_PROJECT.files,
-      ...project.files,
-      "main.py": currentStarterSource,
-    },
-  };
-}
-
-function migratePreviousSpiralStarter(
-  project: ProjectSnapshot,
-): ProjectSnapshot {
-  const current = defaultProject();
-  const currentMain = current.files["main.py"];
-  if (!currentMain) return project;
-  const previousMain = currentMain
-    .replace(
-      '    "spiral_winding_turns_per_m",\n    1.2,\n    minimum=0.4,\n    maximum=2.0,',
-      '    "spiral_winding_turns_per_m",\n    0.8,\n    minimum=0.4,\n    maximum=1.2,',
-    )
-    .replace(
-      "try:\n    state = robot.start(Pose(0.0, 0.0, 0.0))",
-      'try:\n    print("Press and release USER to start the spiral demo")\n    state = robot.start(Pose(0.0, 0.0, 0.0))',
-    );
-  const projectPaths = Object.keys(project.files).sort();
-  const currentPaths = Object.keys(current.files).sort();
-  if (
-    project.name !== current.name ||
-    project.entrypoint !== current.entrypoint ||
-    projectPaths.length !== currentPaths.length ||
-    !projectPaths.every((path, index) => {
-      if (path !== currentPaths[index]) return false;
-      return (
-        project.files[path] ===
-        (path === "main.py" ? previousMain : current.files[path])
-      );
-    })
-  ) {
-    return project;
-  }
-  return current;
-}
-
-function migrateRecoveredProject(project: ProjectSnapshot): ProjectSnapshot {
-  return migratePreviousSpiralStarter(migrateOriginalStageOneStarter(project));
-}
-
 export function loadRecoveredProjectState(): ProjectRecoveryState {
   try {
-    const currentSaved = localStorage.getItem(projectRecoveryKey);
-    const saved =
-      currentSaved ?? localStorage.getItem(previousProjectRecoveryKey);
-    const migratingPrevious = currentSaved === null && saved !== null;
+    for (const key of obsoleteRecoveryKeys) localStorage.removeItem(key);
+    const saved = localStorage.getItem(projectRecoveryKey);
     if (saved) {
       const value = JSON.parse(saved) as unknown;
       if (isRecord(value) && "project" in value) {
         const project = recoveredProject(value.project);
         const preservedDraft = recoveredProject(value.preservedDraft);
         if (project) {
-          const recovered = {
-            project: migrateRecoveredProject(project),
-            ...(preservedDraft
-              ? { preservedDraft: migrateRecoveredProject(preservedDraft) }
-              : {}),
+          return {
+            project,
+            ...(preservedDraft ? { preservedDraft } : {}),
           };
-          if (migratingPrevious) {
-            storeRecoveredProject(recovered.project, recovered.preservedDraft);
-          }
-          return recovered;
         }
       }
       const project = recoveredProject(value);
       if (project) {
-        const recovered = { project: migrateRecoveredProject(project) };
-        if (migratingPrevious) {
-          storeRecoveredProject(recovered.project);
-        }
-        return recovered;
+        return { project };
       }
-    }
-    const legacySource = localStorage.getItem(legacyRecoveryKey);
-    if (legacySource !== null) {
-      return {
-        project: migrateOriginalStageOneStarter({
-          name: "Recovered project",
-          entrypoint: "main.py",
-          files: { "main.py": legacySource },
-        }),
-      };
     }
   } catch {
     return { project: defaultProject() };
@@ -510,6 +396,14 @@ export function storeRecoveredProject(
   } catch {
     // The in-memory project remains usable if browser recovery is unavailable.
     return false;
+  }
+}
+
+export function clearRecoveredProject(): void {
+  try {
+    localStorage.removeItem(projectRecoveryKey);
+  } catch {
+    // Recovery is best-effort and never replaces files in a Working folder.
   }
 }
 

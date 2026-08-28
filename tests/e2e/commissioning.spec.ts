@@ -19,6 +19,21 @@ const currentRelease = JSON.parse(
   ucsb_xrp: { version: string };
 };
 
+async function useTemporaryWorkingFolder(
+  page: import("@playwright/test").Page,
+  name: string,
+) {
+  await page.addInitScript((folderName) => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => {
+        const root = await navigator.storage.getDirectory();
+        return root.getDirectoryHandle(folderName, { create: true });
+      },
+    });
+  }, name);
+}
+
 test("keeps the compact landing actions clear at laptop-narrow width", async ({
   page,
 }) => {
@@ -55,9 +70,27 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
   ).toBe(true);
 });
 
+test("uses built-in projects as previews until a Working folder is selected", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+
+  await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(page.getByTestId("project-folder")).toHaveText("Preview");
+  await expect(page.getByTestId("project-save-state")).toHaveText(
+    "Read-only preview",
+  );
+  await expect(page.getByRole("button", { name: "Compile" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "New file…", exact: true }),
+  ).toBeDisabled();
+});
+
 test("keeps the commissioning steps readable without narrow-page overflow", async ({
   page,
 }) => {
+  await useTemporaryWorkingFolder(page, "narrow-test-work");
   await page.setViewportSize({ width: 375, height: 720 });
   await page.goto("/commission/");
 
@@ -79,7 +112,7 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
     .locator(".commission-steps")
     .evaluate((element) => element.getBoundingClientRect().height);
   expect(stepsHeight).toBeLessThan(120);
-  await page.getByRole("button", { name: "Continue without folder" }).click();
+  await page.getByRole("button", { name: "Choose Working folder" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
@@ -94,6 +127,7 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
 test("explains a cancelled XRP device selection without an error", async ({
   page,
 }) => {
+  await useTemporaryWorkingFolder(page, "cancelled-device-test-work");
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "serial", {
       configurable: true,
@@ -109,7 +143,7 @@ test("explains a cancelled XRP device selection without an error", async ({
     });
   });
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Continue without folder" }).click();
+  await page.getByRole("button", { name: "Choose Working folder" }).click();
   await expect(page.getByText(/No XRP was selected/i)).toHaveCount(0);
   await page.getByRole("button", { name: "Choose connected XRP" }).click();
 
@@ -126,6 +160,7 @@ test("explains a cancelled XRP device selection without an error", async ({
 test("reports a busy USB port without misdiagnosing the XRP firmware", async ({
   page,
 }) => {
+  await useTemporaryWorkingFolder(page, "busy-device-test-work");
   await page.addInitScript(() => {
     const port = {
       readable: null,
@@ -146,7 +181,7 @@ test("reports a busy USB port without misdiagnosing the XRP firmware", async ({
   });
 
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Continue without folder" }).click();
+  await page.getByRole("button", { name: "Choose Working folder" }).click();
   await page.getByRole("button", { name: "Use this XRP" }).click();
 
   await expect(
@@ -160,7 +195,7 @@ test("reports a busy USB port without misdiagnosing the XRP firmware", async ({
   ).toHaveCount(0);
 });
 
-test("commissioning can change Projects location without replacing the active project", async ({
+test("a new Working folder cannot inherit an earlier browser project", async ({
   page,
 }) => {
   await page.goto("/");
@@ -260,15 +295,27 @@ test("commissioning can change Projects location without replacing the active pr
   await page.goto("/commission/");
   await expect(
     page.getByRole("button", { name: "Use old-course" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Choose different folder" }).click();
-  await expect(
-    page.getByRole("button", { name: "Use new-course" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Use new-course" }).click();
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Choose Working folder" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
+  await page.goto("/ide/");
+  await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Expanding-Spiral",
+  );
+  await expect(
+    page.getByRole("button", { name: "Open project…", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "New project…", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
+  await page.reload();
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Expanding-Spiral",
+  );
 
   const retained = await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -283,43 +330,49 @@ test("commissioning can change Projects location without replacing the active pr
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
-    const workspace = await read("workspace-folder-v1");
-    const project = await read("active-project-folder-v2");
+    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const transaction = database.transaction("course-folders", "readonly");
+      const request = transaction.objectStore("course-folders").getAllKeys();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const workspace = await read("workspace-folder-capability-v1");
+    const legacyWorkspace = await read("workspace-folder-v1");
+    const legacyProject = await read("active-project-folder-v2");
     database.close();
     const root = await navigator.storage.getDirectory();
     const oldProject = await (
       await root.getDirectoryHandle("old-course")
     ).getDirectoryHandle("Old-Project");
     const oldMain = await (await oldProject.getFileHandle("main.py")).getFile();
-    let defaultProjectCreated = false;
-    try {
+    const newWorkspace = await root.getDirectoryHandle("new-course");
+    const defaultProject =
+      await newWorkspace.getDirectoryHandle("Expanding-Spiral");
+    const main = await (
+      await defaultProject.getFileHandle("main.py")
+    ).getFile();
+    const config = JSON.parse(
       await (
-        await root.getDirectoryHandle("new-course")
-      ).getDirectoryHandle("Expanding-Spiral");
-      defaultProjectCreated = true;
-    } catch (error) {
-      if (!(error instanceof DOMException) || error.name !== "NotFoundError") {
-        throw error;
-      }
-    }
-    const recovered = JSON.parse(
-      localStorage.getItem("ucsb-xrp-course-project-v2") ?? "null",
-    ) as { name?: string; project?: { name?: string } } | null;
+        await (await newWorkspace.getFileHandle(".ucsbxrp.json")).getFile()
+      ).text(),
+    ) as { activeProject?: string };
     return {
       workspace: workspace?.name,
-      project: project?.name,
+      keys,
+      legacyWorkspace: legacyWorkspace?.name,
+      legacyProject: legacyProject?.name,
       oldMain: await oldMain.text(),
-      recoveryName: recovered?.project?.name ?? recovered?.name,
-      defaultProjectCreated,
+      defaultProjectMain: await main.text(),
+      activeProject: config.activeProject,
     };
   });
-  expect(retained).toEqual({
-    workspace: "new-course",
-    project: "Old-Project",
-    oldMain: 'print("old project")\n',
-    recoveryName: "Old project",
-    defaultProjectCreated: false,
-  });
+  expect(retained.workspace).toBe("new-course");
+  expect(retained.keys).toEqual(["workspace-folder-capability-v1"]);
+  expect(retained.legacyWorkspace).toBeUndefined();
+  expect(retained.legacyProject).toBeUndefined();
+  expect(retained.oldMain).toBe('print("old project")\n');
+  expect(retained.defaultProjectMain).toContain("spiral_winding_turns_per_m");
+  expect(retained.activeProject).toBe("Expanding-Spiral");
 });
 
 test("commissions a new XRP from the public wizard and hands it to the IDE", async ({
@@ -731,7 +784,6 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       ),
     )
     .toContain("Write and read verified");
-  await page.getByRole("button", { name: "Use My XRP Projects" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
@@ -821,11 +873,6 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       localStorage.getItem("ucsb-xrp-robot-profile-v2"),
     ),
   ).toBeNull();
-  expect(
-    await page.evaluate(() =>
-      localStorage.getItem("ucsb-xrp-course-folder-ide-handoff-v1"),
-    ),
-  ).toBeNull();
   await page.evaluate(() =>
     (
       window as unknown as {
@@ -834,14 +881,12 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     ).__setUcsbServiceRobotId("4c91fae8f1775aa4"),
   );
   await page.getByRole("button", { name: "Check XRP again" }).click();
+  await expect(page.getByRole("heading", { name: "XRP ready" })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByText("Robot setup is complete")).toBeVisible();
+  await page.getByRole("button", { name: "Open IDE" }).click();
   await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        localStorage.getItem("ucsb-xrp-course-folder-ide-handoff-v1"),
-      ),
-    )
-    .toBeNull();
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -862,7 +907,9 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       },
     });
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Expanding-Spiral",
+  );
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -873,7 +920,30 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         ).__readUcsbTestCourseFile("Expanding-Spiral/main.py"),
       ),
     )
-    .toBe("");
+    .toContain("spiral_winding_turns_per_m");
+  await expect
+    .poll(() =>
+      page.evaluate(async () =>
+        JSON.parse(
+          await (
+            window as unknown as {
+              __readUcsbTestCourseFile: (path: string) => Promise<string>;
+            }
+          ).__readUcsbTestCourseFile(".ucsbxrp.json"),
+        ),
+      ),
+    )
+    .toMatchObject({
+      schemaVersion: 1,
+      activeProject: "Expanding-Spiral",
+      robot: {
+        id: "4c91fae8f1775aa4",
+        name: "ucsb-xrp-4c91fae8f1775aa4",
+        networkMode: "access_point",
+        ssid: "UCSB-XRP-4A21",
+        address: "192.168.4.1",
+      },
+    });
 
   await page.goto("/commission/");
   await page.getByRole("button", { name: "Use My XRP Projects" }).click();

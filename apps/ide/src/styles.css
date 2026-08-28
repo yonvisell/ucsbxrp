@@ -775,8 +775,7 @@
   margin-bottom: 0.55rem;
 }
 
-.settings-heading span,
-.dialog-kicker {
+.settings-heading span {
   color: var(--cyan);
   font-size: var(--font-xs);
   font-weight: 800;
@@ -1105,6 +1104,17 @@
   color: var(--muted);
   font-size: var(--font-sm);
   line-height: 1.45;
+}
+
+.project-chooser-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-chooser-empty .project-chooser-status {
+  flex: 1;
 }
 
 .project-chooser-error {
