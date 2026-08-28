@@ -9,9 +9,9 @@ history; they are not parallel plans. Detailed validation belongs in
 ## Current baseline
 
 - Browser source: current repository `HEAD` plus the active integrated stage.
-- Attached XRP: physically qualified on `2026.08-dev.37`, generation 18, from
-  source commit `073d888`.
-- Current course bundle: `2026.08-dev.38`; it accepts compatible robot runtimes
+- Attached XRP: physically qualified on `2026.08-dev.38`, generation 19, from
+  source commit `a69b478`.
+- Current course bundle: `2026.08-dev.39`; it accepts compatible robot runtimes
   from generation 36 onward, so application and course-material revisions do
   not force an unnecessary robot repair.
 - Development origin: the only supported local development instance is the

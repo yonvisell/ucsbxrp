@@ -640,6 +640,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 )
                 self.assertEqual(info["project"], reply["result"]["project"])
                 self.assertIn("project.prepare", info["capabilities"])
+                self.assertIn("project.run", info["capabilities"])
                 self.assertNotIn("project.sync", info["capabilities"])
 
                 with patch.object(self.service, "_stop_motors", return_value=None):
@@ -655,6 +656,56 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                     self.service._project_job[3],
                     ["package.helper"],
                 )
+
+    def test_run_can_prepare_and_start_one_project_atomically(self):
+        fake_vfs = FakeVfsModule()
+        project = {
+            "name": "Atomic run",
+            "entrypoint": "main.py",
+            "files": {
+                "main.py": "from helper import VALUE\nprint(VALUE)\n",
+                "helper.py": "VALUE = 11\n",
+            },
+        }
+        with tempfile.TemporaryDirectory() as project_root:
+            mount_a = str(Path(project_root, "course_ram_a"))
+            mount_b = str(Path(project_root, "course_ram_b"))
+            Path(mount_a).mkdir()
+            Path(mount_b).mkdir()
+            with (
+                patch.dict(sys.modules, {"vfs": fake_vfs}),
+                patch.object(
+                    self.service,
+                    "RAM_PROJECT_MOUNTS",
+                    {"a": mount_a, "b": mount_b},
+                ),
+                patch.object(self.service, "_stop_motors", return_value=None),
+            ):
+                response = self.service.run_project(
+                    types.SimpleNamespace(
+                        data={
+                            "requestId": "run-atomic",
+                            "project": project,
+                        }
+                    )
+                )
+                reply = json.loads(response.body.decode("utf-8"))
+
+                self.assertTrue(reply["ok"])
+                self.assertEqual(reply["result"]["checked"], 2)
+                self.assertEqual(
+                    reply["result"]["project"]["lifetime"],
+                    "boot",
+                )
+                self.assertEqual(self.service._active_project_path(), mount_a)
+                self.assertEqual(
+                    Path(mount_a, "helper.py").read_text(),
+                    "VALUE = 11\n",
+                )
+
+                asyncio.run(self.server.loop.tasks.pop())
+                self.assertEqual(self.service._project_job[0], mount_a)
+                self.assertEqual(self.service._project_job[3], ["helper"])
 
     def test_failed_prepare_retains_previous_active_ram_project(self):
         fake_vfs = FakeVfsModule()

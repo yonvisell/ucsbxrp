@@ -57,6 +57,13 @@ interface PrepareResult {
   project: PreparedProjectManifest;
 }
 
+interface RunResult {
+  detail: string;
+  runId: number;
+  checked?: number;
+  project?: PreparedProjectManifest;
+}
+
 interface PhysicalInfo {
   protocol: number;
   serviceVersion: string;
@@ -567,14 +574,24 @@ export class DirectPhysicalTargetClient implements TargetClient {
     let started = false;
     await this.pausePollingForCommand();
     try {
-      if (
+      const projectNeedsPreparing =
         !this.currentProject ||
         this.currentProject.stale ||
-        descriptor.revision !== this.currentProject.revision
+        descriptor.revision !== this.currentProject.revision;
+      if (
+        projectNeedsPreparing &&
+        this.info?.capabilities.includes("project.run")
       ) {
-        await this.prepareWhilePollingPaused(project, descriptor);
+        started = await this.prepareAndStartWhilePollingPaused(
+          project,
+          descriptor,
+        );
+      } else {
+        if (projectNeedsPreparing) {
+          await this.prepareWhilePollingPaused(project, descriptor);
+        }
+        started = await this.startCurrentProjectWhilePollingPaused();
       }
-      started = await this.startCurrentProjectWhilePollingPaused();
     } finally {
       this.resumePollingAfterCommand(started ? RUN_STARTUP_QUIET_MS : 0);
     }
@@ -732,13 +749,12 @@ export class DirectPhysicalTargetClient implements TargetClient {
       return false;
     }
 
-    // Leave the RP2350 service core quiet while its second core loads the
-    // project. A composite Prepare-and-Run operation keeps polling paused across
-    // both requests so telemetry cannot occupy the connection between them.
+    // Leave the XRP service quiet while its second core starts the already
+    // prepared project. Telemetry polling resumes after the startup quiet window.
     const previousState = this.currentState;
     this.emitStatus("loading", `Starting ${this.currentProject.entrypoint}…`);
     try {
-      const result = await this.command<{ detail: string; runId: number }>(
+      const result = await this.command<RunResult>(
         "run",
         {},
         {
@@ -756,6 +772,79 @@ export class DirectPhysicalTargetClient implements TargetClient {
       // The service records the start event. Use that retained entry as the
       // console source; the status below still updates the controls immediately.
       this.emitStatus("loading", result.detail);
+      return true;
+    } catch (error) {
+      if (
+        error instanceof PhysicalTargetError &&
+        (error.code === "network_error" || error.code === "timeout")
+      ) {
+        this.emitStatus("error", error.message);
+      } else {
+        this.emitStatus(previousState, `Run failed · ${errorDetail(error)}`);
+      }
+      throw error;
+    }
+  }
+
+  /** Compile, prepare, and start an edited project in one XRP request. */
+  private async prepareAndStartWhilePollingPaused(
+    project: CourseProject,
+    descriptor: Awaited<ReturnType<typeof describeProject>>,
+  ): Promise<boolean> {
+    if (this.currentState === "loading" || this.currentState === "running") {
+      this.emitConsole(
+        "system",
+        "Run request ignored · program already active",
+        { action: "run", phase: "result" },
+      );
+      return false;
+    }
+
+    const previousState = this.currentState;
+    this.emitStatus(
+      "loading",
+      `Compiling and starting ${descriptor.entrypoint}…`,
+    );
+    try {
+      const result = await this.command<RunResult>(
+        "run",
+        { project },
+        {
+          action: "run",
+          label: "Run",
+          detail: descriptor.name,
+        },
+        undefined,
+        true,
+      );
+      if (
+        result.project?.revision !== descriptor.revision ||
+        result.project.lifetime !== "boot"
+      ) {
+        throw new PhysicalTargetError(
+          "project_revision_mismatch",
+          "The XRP started a different project revision",
+        );
+      }
+      this.setCurrentProject({
+        ...descriptor,
+        revision: result.project.revision,
+        name: result.project.name ?? descriptor.name,
+        entrypoint: result.project.entrypoint ?? descriptor.entrypoint,
+        stale: false,
+      });
+      this.stagedProject = project;
+      const catalog = worldCatalogForProject(project);
+      this.emit({
+        type: "world",
+        catalog,
+        selectedWorldId: catalog.defaultWorldId,
+      });
+      if (result.runId !== this.lastRunId) {
+        this.lastSampleSeq = 0;
+      }
+      this.lastRunId = result.runId;
+      this.emitStatus("loading", `Starting ${descriptor.entrypoint}`);
       return true;
     } catch (error) {
       if (

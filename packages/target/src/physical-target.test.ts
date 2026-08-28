@@ -1777,6 +1777,66 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("compiles, prepares, and starts an edited project with one device request", async () => {
+    const projectRevision = (await describeProject(project)).revision;
+    const postPaths: string[] = [];
+    const postBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const path = String(input);
+        if (!init || init.method === "GET") {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            capabilities: [
+              "project.check",
+              "project.prepare",
+              "project.run",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        postPaths.push(path);
+        postBodies.push(body);
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: {
+            detail: "1 Python files compiled; starting main.py",
+            checked: 1,
+            runId: 9,
+            project: {
+              name: project.entrypoint,
+              entrypoint: project.entrypoint,
+              revision: projectRevision,
+              lifetime: "boot",
+            },
+          },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+
+    await target.connect();
+    await target.run(project);
+
+    expect(postPaths).toEqual(["http://192.168.7.30/api/v1/run"]);
+    expect(postBodies[0]).toMatchObject({ project });
+    expect(postBodies[0]).toHaveProperty("requestId");
+    target.disconnect();
+  });
+
   it("retries an interrupted Prepare reply with the same request before Run", async () => {
     const paths: string[] = [];
     const prepareRequestIds: string[] = [];

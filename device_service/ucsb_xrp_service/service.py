@@ -1243,6 +1243,7 @@ def info(request):
             "capabilities": [
                 "project.check",
                 "project.prepare",
+                "project.run",
                 "project.current",
                 "program.run",
                 "program.stop",
@@ -1389,7 +1390,17 @@ def run_project(request):
         try:
             if _thread_active or _launch_pending or _project_job is not None:
                 raise ProtocolError("target_busy", "a program is already running")
-            manifest = _read_manifest()
+            checked = None
+            requested_project = body.get("project")
+            if requested_project is not None:
+                # A changed browser project is compiled, staged, and started
+                # under one execution lock. This avoids a second HTTP request
+                # between Prepare and Run on the single-request XRP service.
+                project = validate_project(requested_project)
+                checked = _compile_project(project)
+                manifest = _prepare_ram_project(project)
+            else:
+                manifest = _read_manifest()
             if manifest is None:
                 raise ProtocolError(
                     "no_project", "prepare a project before running"
@@ -1432,7 +1443,14 @@ def run_project(request):
                     slot_path, entrypoint, entry_code, startup_modules, _run_id
                 )
             )
-            return {"detail": _detail, "runId": _run_id}
+            result = {"detail": _detail, "runId": _run_id}
+            if checked is not None:
+                result["detail"] = "{} Python files compiled; starting {}".format(
+                    checked, entrypoint
+                )
+                result["checked"] = checked
+                result["project"] = manifest
+            return result
         finally:
             if execution_lock is not None:
                 execution_lock.release()
