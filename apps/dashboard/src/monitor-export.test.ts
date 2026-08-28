@@ -41,6 +41,8 @@ describe("monitor exports", () => {
   const annotation: MonitorAnnotation = {
     id: "note-1",
     label: "turn & inspect",
+    source: "virtual",
+    seq: 5_000,
     tMs: 5_000,
     poseAvailable: true,
     xMm: 80,
@@ -53,6 +55,8 @@ describe("monitor exports", () => {
     ).toEqual({
       id: "virtual-5000-123",
       label: "turn begins",
+      source: "virtual",
+      seq: 5_000,
       tMs: 5_000,
       poseAvailable: true,
       xMm: 80,
@@ -86,9 +90,11 @@ describe("monitor exports", () => {
       },
     ]);
 
-    expect(csv).toContain("time_s,label,pose_available,x_mm,y_mm");
-    expect(csv).toContain("5,turn & inspect,1,80,40");
-    expect(csv).toContain('8,"stop, then ""inspect""",1,80,40');
+    expect(csv).toContain(
+      "source,sequence,time_s,label,pose_available,x_mm,y_mm",
+    );
+    expect(csv).toContain("virtual,5000,5,turn & inspect,1,80,40");
+    expect(csv).toContain('virtual,5000,8,"stop, then ""inspect""",1,80,40');
   });
 
   it("bounds long world replays and preserves real time for short ones", () => {

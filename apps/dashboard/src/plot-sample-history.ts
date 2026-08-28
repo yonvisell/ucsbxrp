@@ -60,16 +60,18 @@ export class PlotSampleHistory {
     }
   }
 
-  append(sample: TelemetrySample): void {
+  append(sample: TelemetrySample): boolean {
     const previous = this.latestSample;
     if (previous?.source === sample.source && previous.seq === sample.seq) {
-      return;
+      return false;
     }
+    let restarted = false;
     if (
       previous &&
       (previous.source !== sample.source || sample.seq < previous.seq)
     ) {
       this.clearRetainedSamples();
+      restarted = true;
     }
 
     if (this.samples.length < this.maximumSamples) {
@@ -86,6 +88,7 @@ export class PlotSampleHistory {
         this.publish(this.snapshot());
       });
     }
+    return restarted;
   }
 
   snapshot(): readonly TelemetrySample[] {

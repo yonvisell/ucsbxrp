@@ -78,6 +78,18 @@
     "final_wheel_speed_mm_s": [0.0, 0.0],
     "motor_supply_v": 6.3999324
   },
+  "monitor_annotation_and_idle_plot_check": {
+    "observed_at": "2026-08-27T20:19:00-0700",
+    "application_offline_version": "d0febcb7b2b30ce59b89",
+    "origin": "http://127.0.0.1:4174",
+    "motion_configuration": "wheels elevated; motor supply on",
+    "operation": "Monitor Run and Stop, followed by a note added to the completed wheel-speed plot",
+    "result": "passed",
+    "completed_run_plot_samples": 4,
+    "plot_samples_after_1_6_s_idle": 4,
+    "stationary_live_telemetry_rate_hz": 2.0,
+    "visible_annotation": "dashed vertical line and stop label appeared on each selected plot"
+  },
   "telemetry": {
     "course_loop_rate_hz": 50.0,
     "buffered_sample_interval_ms": 20,

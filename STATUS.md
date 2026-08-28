@@ -1829,3 +1829,17 @@ incorrect, and overbroad exception handling. The IDE now links
 `student_work.py` to tutorial-specific Guide or API material rather than one
 generic destination. Focused Python checks, a root production/offline build,
 and the five-tutorial Chrome compile/check/help workflow pass without motion.
+
+The Monitor annotation and stopped-run presentation defect is corrected.
+ECharts now includes its annotation-line component, notes bind when the student
+right-clicks to the exact retained telemetry source and sequence, and labels at
+the plot boundary remain inside the grid. Physical idle telemetry continues to
+update Live telemetry and its measured source rate, but no longer pushes a
+completed run or its notes out of the strip-chart window. Starting a manual
+recording while stopped intentionally follows and records those samples.
+
+Focused unit and Stable Chrome export/annotation workflows pass. A direct
+physical-XRP browser check on dev.40 confirmed Run/Stop, a fixed four-sample
+completed-run plot while fresh 2 Hz stationary telemetry continued, and a
+visible note line and label on both selected plots. The local integrated preview
+was replaced in place and remains at `http://127.0.0.1:4174/`.

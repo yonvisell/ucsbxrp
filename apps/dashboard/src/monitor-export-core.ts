@@ -3,6 +3,8 @@ import type { TelemetrySample } from "@ucsb-xrp/target";
 export interface MonitorAnnotation {
   id: string;
   label: string;
+  source: TelemetrySample["source"];
+  seq: number;
   tMs: number;
   poseAvailable: boolean;
   xMm: number;
@@ -18,11 +20,13 @@ function csvCell(value: string | number | boolean): string {
 export function monitorAnnotationsToCsv(
   annotations: readonly MonitorAnnotation[],
 ): string {
-  const header = "time_s,label,pose_available,x_mm,y_mm";
+  const header = "source,sequence,time_s,label,pose_available,x_mm,y_mm";
   const rows = [...annotations]
     .sort((left, right) => left.tMs - right.tMs)
     .map((annotation) =>
       [
+        annotation.source,
+        annotation.seq,
         annotation.tMs / 1_000,
         annotation.label,
         annotation.poseAvailable,
@@ -53,6 +57,8 @@ export function createMonitorAnnotation(
   return {
     id: `${nearest.source}-${nearest.seq}-${createdAtMs}`,
     label: cleanLabel,
+    source: nearest.source,
+    seq: nearest.seq,
     // Time and pose describe the same retained telemetry sample.
     tMs: nearest.tMs,
     poseAvailable: nearest.poseAvailable,

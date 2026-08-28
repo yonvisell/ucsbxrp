@@ -109,7 +109,9 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   const notesPath = await notesDownload.path();
   expect(notesPath).not.toBeNull();
   const notesCsv = await readFile(notesPath!, "utf8");
-  expect(notesCsv).toContain("time_s,label,pose_available,x_mm,y_mm");
+  expect(notesCsv).toContain(
+    "source,sequence,time_s,label,pose_available,x_mm,y_mm",
+  );
   expect(notesCsv).toContain("turn begins");
 
   const svgDownloadPromise = monitor.waitForEvent("download");
@@ -156,7 +158,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   ).toBeDisabled();
 });
 
-test("keeps an existing note when a new run starts", async ({
+test("clears an old note when the telemetry sequence restarts", async ({
   context,
   page: ide,
 }) => {
@@ -164,6 +166,22 @@ test("keeps an existing note when a new run starts", async ({
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
   await expect(monitor.getByTestId("wheel-speed-plot")).toBeVisible();
+
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect
+    .poll(async () =>
+      Number.parseInt(
+        (await monitor
+          .locator(".signal-plot-shell")
+          .first()
+          .getAttribute("data-sample-count")) ?? "0",
+        10,
+      ),
+    )
+    .toBeGreaterThan(2);
+  const stop = ide.getByRole("button", { name: "Stop", exact: true });
+  if (await stop.isVisible()) await stop.click();
+  await expect(ide.getByTestId("target-status")).toContainText("ready");
 
   await monitor
     .getByTestId("wheel-speed-plot")
@@ -180,7 +198,7 @@ test("keeps an existing note when a new run starts", async ({
   });
   await expect(
     monitor.getByRole("button", { name: "Hide notes · 1" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
 
 test("explains why world replay export is unavailable while recording", async ({

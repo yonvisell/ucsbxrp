@@ -59,12 +59,16 @@ history; they are not parallel plans. Detailed validation belongs in
 Live telemetry now reports its measured source rate from sample sequence and
 timestamps without adding robot traffic. Plot history covers at least 30
 seconds at the 50 Hz course-loop rate, the time window precedes signal choices,
-notes persist across runs and export with their time and pose, and visible notes
-remain in plot exports. The simulator and World view share a 15-degree HC-SR04
-fan with a 70 mm sensor origin. Monitor receives ordered retained telemetry in
-batches of at most 128 samples, while IDE receives no unused telemetry stream.
-A 10,000-sample reconstruction now requires 79 worker messages rather than
-10,000; all samples remain in order and appear exactly once.
+and each note binds to one source sample by source, sequence, and time. Its
+marker remains visible on the live plots and in plot exports. Completed-run
+plots stay fixed while stationary physical telemetry continues updating the
+Live telemetry values and source-rate display; an explicit manual recording
+also follows stopped telemetry. The simulator and World view share a 15-degree
+HC-SR04 fan with a 70 mm sensor origin. Monitor receives ordered retained
+telemetry in batches of at most 128 samples, while IDE receives no unused
+telemetry stream. A 10,000-sample reconstruction now requires 79 worker
+messages rather than 10,000; all samples remain in order and appear exactly
+once.
 
 ### 1. Ordinary student project and run workflow
 
@@ -167,12 +171,8 @@ unauthenticated command.
 
 ### Later usability refinements
 
-- Repair plot-note placement so **Add note** produces a visible vertical marker
-  and label at the selected retained sample. Decide explicitly whether plots
-  stop advancing when a program becomes idle. If continuous idle telemetry has
-  a demonstrated use, expose it as one compact opt-in control. Prefer one
-  telemetry export that includes notes over a separate notes-only CSV unless an
-  instructor workflow requires both.
+- Prefer one telemetry export that includes notes over a separate notes-only
+  CSV unless an instructor workflow requires both.
 - Replace **Run uses another IDE tab** with a literal explanation of which open
   project supplies the next IDE or Monitor run and how to switch it.
 - Expand troubleshooting for first XRP setup, Working-folder selection,

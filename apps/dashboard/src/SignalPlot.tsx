@@ -2,6 +2,7 @@ import { LineChart } from "echarts/charts";
 import {
   GridComponent,
   LegendComponent,
+  MarkLineComponent,
   TitleComponent,
   TooltipComponent,
 } from "echarts/components";
@@ -22,6 +23,7 @@ echarts.use([
   LineChart,
   GridComponent,
   LegendComponent,
+  MarkLineComponent,
   TitleComponent,
   TooltipComponent,
   CanvasRenderer,
@@ -288,7 +290,7 @@ export function signalPlotDataForDefinition(
 interface SignalPlotProps {
   annotations?: readonly MonitorAnnotation[];
   definition: SignalPlotDefinition;
-  onAddAnnotation?: (tMs: number, label: string) => void;
+  onAddAnnotation?: (sample: TelemetrySample, label: string) => void;
   onAnnotationDraftChange?: (plotId: string, active: boolean) => void;
   samples: readonly TelemetrySample[];
   showAnnotations?: boolean;
@@ -331,7 +333,7 @@ export function SignalPlot({
   const [noteDraft, setNoteDraft] = useState("");
   const [noteLocation, setNoteLocation] = useState<{
     left: number;
-    tMs: number;
+    sample: TelemetrySample;
   } | null>(null);
 
   useEffect(() => {
@@ -378,9 +380,20 @@ export function SignalPlot({
     const visibleAnnotations = showAnnotations
       ? annotations.filter(
           (annotation) =>
-            annotation.tMs >= startMs && annotation.tMs <= latestMs,
+            annotation.tMs >= startMs &&
+            annotation.tMs <= latestMs &&
+            samples.some(
+              (sample) =>
+                sample.source === annotation.source &&
+                sample.seq === annotation.seq,
+            ),
         )
       : [];
+    const plotWidthPx = Math.max(
+      1,
+      (elementRef.current?.clientWidth ?? 43) - 42,
+    );
+    const annotationEdgeInsetS = timeWindowS / plotWidthPx;
     chartRef.current?.setOption(
       {
         animation: false,
@@ -458,10 +471,17 @@ export function SignalPlot({
                     fontSize: 8,
                     formatter: "{b}",
                     position: "insideEndTop",
+                    rotate: 0,
                   },
                   data: visibleAnnotations.map((annotation) => ({
-                    name: `${(annotation.tMs / 1_000).toFixed(2)} s · ${annotation.label}`,
-                    xAxis: (annotation.tMs - latestMs) / 1_000,
+                    name: annotation.label,
+                    xAxis: Math.min(
+                      -annotationEdgeInsetS,
+                      Math.max(
+                        -timeWindowS + annotationEdgeInsetS,
+                        (annotation.tMs - latestMs) / 1_000,
+                      ),
+                    ),
                   })),
                 }
               : undefined,
@@ -494,12 +514,20 @@ export function SignalPlot({
       ),
     );
     const fraction = relative / width;
+    const requestedTimeMs =
+      latestMs + (-timeWindowS + fraction * timeWindowS) * 1_000;
+    const nearestSample = samples.reduce((nearest, candidate) =>
+      Math.abs(candidate.tMs - requestedTimeMs) <
+      Math.abs(nearest.tMs - requestedTimeMs)
+        ? candidate
+        : nearest,
+    );
     setNoteLocation({
       left: Math.min(
         Math.max(73, bounds.width - 73),
         Math.max(73, plotLeft + relative),
       ),
-      tMs: latestMs + (-timeWindowS + fraction * timeWindowS) * 1_000,
+      sample: nearestSample,
     });
     setNoteDraft("");
   };
@@ -507,7 +535,7 @@ export function SignalPlot({
   const saveNote = () => {
     const label = noteDraft.trim();
     if (!label || !noteLocation || !onAddAnnotation) return;
-    onAddAnnotation(noteLocation.tMs, label);
+    onAddAnnotation(noteLocation.sample, label);
     setNoteLocation(null);
     setNoteDraft("");
   };
@@ -523,10 +551,7 @@ export function SignalPlot({
         openNoteAt(event.clientX);
       }}
       onKeyDown={(event) => {
-        if (
-          (event.key === "Enter" || event.key.toLowerCase() === "n") &&
-          event.target === event.currentTarget
-        ) {
+        if (event.key === "Enter" && event.target === event.currentTarget) {
           event.preventDefault();
           openNoteAt();
         }
@@ -534,7 +559,7 @@ export function SignalPlot({
       ref={shellRef}
       role="group"
       tabIndex={onAddAnnotation && samples.length > 0 ? 0 : -1}
-      title="Right-click a time to add a note. Keyboard: focus the plot and press N."
+      title="Right-click a time to add a note."
     >
       <div
         className="signal-plot"

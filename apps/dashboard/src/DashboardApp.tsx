@@ -607,6 +607,7 @@ export function DashboardApp() {
   const runArchiveCountRef = useRef(0);
   const targetCommandCountRef = useRef(0);
   const annotationDraftIdsRef = useRef(new Set<string>());
+  const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
 
   projectBootstrapPendingRef.current = projectBootstrapPending;
 
@@ -872,7 +873,29 @@ export function DashboardApp() {
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
         setSample(event.sample);
-        plotSampleHistory.append(event.sample);
+        const rateSamples = telemetryRateSamplesRef.current;
+        const previousRateSample = rateSamples.at(-1);
+        if (
+          previousRateSample &&
+          (previousRateSample.source !== event.sample.source ||
+            event.sample.seq <= previousRateSample.seq)
+        ) {
+          rateSamples.length = 0;
+        }
+        rateSamples.push(event.sample);
+        if (rateSamples.length > 41) rateSamples.shift();
+
+        const followStripPlots =
+          runStartingRef.current ||
+          isActiveRunState(targetStateRef.current) ||
+          recorder.isRecording;
+        if (followStripPlots) {
+          const telemetryRestarted = plotSampleHistory.append(event.sample);
+          if (telemetryRestarted) {
+            annotationsRef.current = [];
+            setAnnotations([]);
+          }
+        }
         recorder.capture(event.sample);
         automaticRecorder.capture(event.sample);
         if (recorder.isRecording) {
@@ -958,6 +981,7 @@ export function DashboardApp() {
     targetStateRef.current = "connecting";
     setTargetState("connecting");
     setSample(null);
+    telemetryRateSamplesRef.current = [];
     plotSampleHistory.clear();
     annotationsRef.current = [];
     setAnnotations([]);
@@ -1254,8 +1278,12 @@ export function DashboardApp() {
     ),
   ];
 
-  const addAnnotation = (tMs: number, label: string) => {
-    const annotation = createMonitorAnnotation(plotSamples, tMs, label);
+  const addAnnotation = (sampleAtNote: TelemetrySample, label: string) => {
+    const annotation = createMonitorAnnotation(
+      [sampleAtNote],
+      sampleAtNote.tMs,
+      label,
+    );
     if (!annotation) return;
     annotationsRef.current = [...annotationsRef.current, annotation].slice(-24);
     setAnnotations(annotationsRef.current);
@@ -1443,9 +1471,8 @@ export function DashboardApp() {
     [target.kind],
   );
   const worldSample = sample?.poseAvailable ? sample : worldPreviewSample;
-  const telemetryRateHz = useMemo(
-    () => recentTelemetryRateHz(plotSamples),
-    [plotSamples],
+  const telemetryRateHz = recentTelemetryRateHz(
+    telemetryRateSamplesRef.current,
   );
   const capturedSampleCount = recordedSamples + droppedSamples;
   const observedRecordingRateHz =
