@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { seedWorkingFolder } from "./working-folder";
+
+test.beforeEach(async ({ page }) => {
+  await seedWorkingFolder(page, { folderName: "Workspace-Layout" });
+});
+
 async function expectShellFillsViewport(page: Page, selector: string) {
   const geometry = await page.locator(selector).evaluate((element) => {
     const bounds = element.getBoundingClientRect();

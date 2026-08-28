@@ -459,7 +459,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   expect(browserErrors).toEqual([]);
 });
 
-test("does not enable Run before the remembered disk project finishes restoring", async ({
+test("does not enable Run before the Working folder finishes opening", async ({
   context,
   page: ide,
 }) => {
@@ -475,7 +475,7 @@ test("does not enable Run before the remembered disk project finishes restoring"
   await expect(runButton(monitor)).toBeDisabled();
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
-    /saved project|opening|preparing/i,
+    /Choose a Working folder and create or open a project/i,
   );
 
   await ide.evaluate(() =>

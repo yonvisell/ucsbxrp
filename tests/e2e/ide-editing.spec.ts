@@ -1,8 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const recoveryKey = "ucsb-xrp-course-project-v2";
+import { seedWorkingFolder, type TestProject } from "./working-folder";
 
-async function replaceVisibleEditorSource(page: Page, source: string) {
+async function replaceVisibleEditorSource(
+  page: Page,
+  source: string,
+  folderName: string,
+  projectFolderName: string,
+) {
   const editor = page.getByRole("textbox", { name: "main.py editor" });
   await expect(page.getByTestId("python-editor")).toBeVisible();
   await editor.focus();
@@ -11,14 +16,17 @@ async function replaceVisibleEditorSource(page: Page, source: string) {
 
   await expect
     .poll(() =>
-      page.evaluate((key) => {
-        const saved = localStorage.getItem(key);
-        return saved
-          ? (JSON.parse(saved) as { files?: Record<string, string> }).files?.[
-              "main.py"
-            ]
-          : undefined;
-      }, recoveryKey),
+      page.evaluate(
+        async ({ folderName, projectFolderName }) => {
+          const root = await navigator.storage.getDirectory();
+          const workingFolder = await root.getDirectoryHandle(folderName);
+          const projectFolder =
+            await workingFolder.getDirectoryHandle(projectFolderName);
+          const main = await projectFolder.getFileHandle("main.py");
+          return (await main.getFile()).text();
+        },
+        { folderName, projectFolderName },
+      ),
     )
     .toBe(source);
 }
@@ -26,24 +34,20 @@ async function replaceVisibleEditorSource(page: Page, source: string) {
 test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   page,
 }) => {
-  await page.addInitScript(
-    ({ key, source }) => {
-      if (localStorage.getItem(key) === null) {
-        localStorage.setItem(
-          key,
-          JSON.stringify({
-            name: "Editor regression",
-            entrypoint: "main.py",
-            files: {
-              "main.py": source,
-              "README.md": "# Editor regression\n",
-            },
-          }),
-        );
-      }
+  const folderName = "IDE-Editing";
+  const projectFolderName = "Editor-Regression";
+  await seedWorkingFolder(page, {
+    folderName,
+    projectFolderName,
+    project: {
+      name: "Editor regression",
+      entrypoint: "main.py",
+      files: {
+        "main.py": 'print("Original program output")\n',
+        "README.md": "# Editor regression\n",
+      },
     },
-    { key: recoveryKey, source: 'print("Original program output")\n' },
-  );
+  });
 
   await page.goto("/ide/");
   await expect(page.getByRole("tab", { name: "main.py" })).toHaveAttribute(
@@ -52,7 +56,12 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   );
 
   const invalidSource = "def broken:";
-  await replaceVisibleEditorSource(page, invalidSource);
+  await replaceVisibleEditorSource(
+    page,
+    invalidSource,
+    folderName,
+    projectFolderName,
+  );
   await page.getByRole("button", { name: "Run", exact: true }).click();
 
   await expect(page.getByRole("log")).toContainText("Compilation failed");
@@ -66,7 +75,12 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   );
 
   const editedSource = 'print("Edited source ran")';
-  await replaceVisibleEditorSource(page, editedSource);
+  await replaceVisibleEditorSource(
+    page,
+    editedSource,
+    folderName,
+    projectFolderName,
+  );
   await page.getByRole("button", { name: "Run", exact: true }).click();
 
   await expect(page.getByRole("log")).toContainText("Edited source ran");
@@ -91,34 +105,15 @@ test("Monitor Run executes an IDE edit without waiting for stale publication", a
   context,
   page: ide,
 }) => {
-  await ide.addInitScript(
-    ({ key }) => {
-      localStorage.clear();
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          name: "Immediate Monitor run",
-          entrypoint: "main.py",
-          files: { "main.py": 'print("old source")\n' },
-        }),
-      );
-
-      // A former implementation published edits after 160 ms. Stretching that
-      // exact delay makes this test fail if Run correctness ever depends on it.
-      const originalSetTimeout = window.setTimeout.bind(window);
-      window.setTimeout = ((
-        handler: TimerHandler,
-        timeout: number = 0,
-        ...arguments_: any[]
-      ) =>
-        originalSetTimeout(
-          handler,
-          timeout === 160 ? 10_000 : timeout,
-          ...arguments_,
-        )) as typeof window.setTimeout;
+  await seedWorkingFolder(ide, {
+    folderName: "Immediate-Monitor-Run",
+    projectFolderName: "Immediate-Monitor-Run",
+    project: {
+      name: "Immediate Monitor run",
+      entrypoint: "main.py",
+      files: { "main.py": 'print("old source")\n' },
     },
-    { key: recoveryKey },
-  );
+  });
   await ide.goto("/ide/");
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -151,20 +146,19 @@ test("Monitor Run executes an IDE edit without waiting for stale publication", a
 test("opens an oversized folder but prevents compilation and virtual execution", async ({
   page,
 }) => {
-  await page.addInitScript((key) => {
-    const files: Record<string, string> = { "main.py": "print('not run')\n" };
-    for (let index = 0; index < 48; index += 1) {
-      files[`notes_${index}.txt`] = "";
-    }
-    localStorage.setItem(
-      key,
-      JSON.stringify({
-        name: "Oversized folder",
-        entrypoint: "main.py",
-        files,
-      }),
-    );
-  }, recoveryKey);
+  const oversizedProject: TestProject = {
+    name: "Oversized folder",
+    entrypoint: "main.py",
+    files: { "main.py": "print('not run')\n" },
+  };
+  for (let index = 0; index < 48; index += 1) {
+    oversizedProject.files[`notes_${index}.txt`] = "";
+  }
+  await seedWorkingFolder(page, {
+    folderName: "Oversized-Folder-Test",
+    projectFolderName: "Oversized-Folder",
+    project: oversizedProject,
+  });
 
   await page.goto("/ide/");
   await expect(
