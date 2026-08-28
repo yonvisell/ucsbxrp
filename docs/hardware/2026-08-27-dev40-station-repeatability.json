@@ -63,6 +63,21 @@
       "result": "passed"
     }
   ],
+  "follow_up_browser_smoke": {
+    "observed_at": "2026-08-27T20:08:41-0700",
+    "application_commit": "750ce2a",
+    "origin": "http://127.0.0.1:4174",
+    "motion_configuration": "wheels elevated; motor supply on",
+    "operation": "Monitor Run followed by Stop after the program had already completed at the ultrasonic obstacle guard",
+    "run_id": 4,
+    "project": "Expanding spiral",
+    "project_revision": "5b05c07d73c4fc5e76c99865f45e664038795637d40856700280f1b2c1b7e10a",
+    "result": "IDE and Monitor returned to ready; the terminal telemetry sample reported zero effort and zero wheel speed",
+    "final_encoder_counts": [4464, 9174],
+    "final_effort": [0.0, 0.0],
+    "final_wheel_speed_mm_s": [0.0, 0.0],
+    "motor_supply_v": 6.3999324
+  },
   "telemetry": {
     "course_loop_rate_hz": 50.0,
     "buffered_sample_interval_ms": 20,
