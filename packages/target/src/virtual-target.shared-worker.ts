@@ -98,7 +98,7 @@ function clearRuntimeState(): void {
   broadcast({ type: "runtime", state: runtimeState });
 }
 
-function telemetryEvent(): TargetEvent {
+function telemetryEvent(): Extract<TargetEvent, { type: "telemetry" }> {
   return {
     type: "telemetry",
     sample: virtualTelemetrySample(
@@ -408,14 +408,6 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     send(port, { type: "response", requestId: command.requestId, ok: true });
     send(port, {
       type: "event",
-      event: {
-        type: "status",
-        state: currentState,
-        detail: currentDetail,
-      },
-    });
-    send(port, {
-      type: "event",
       event: { type: "runtime", state: runtimeState },
     });
     send(port, {
@@ -431,11 +423,12 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       },
     });
     const role = command.role ?? (command.providesProject ? "ide" : "monitor");
-    const replayedTelemetry = events.setRole(port, role);
-    if (role === "monitor" && replayedTelemetry === 0) {
-      send(port, { type: "event", event: telemetryEvent() });
-    }
-    events.replayConsole(port);
+    events.setRole(port, role);
+    events.replayCurrentState(
+      port,
+      { type: "status", state: currentState, detail: currentDetail },
+      telemetryEvent(),
+    );
   } else if (command.type === "set-project-run-provider") {
     if (command.providesProject) {
       projectRunProvider.register(port, command.takeover === true);

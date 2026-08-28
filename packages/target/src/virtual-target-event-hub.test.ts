@@ -163,6 +163,8 @@ describe("virtual target event hub", () => {
     const monitor = new FakePort();
     hub.attach(monitor);
     hub.setRole(monitor, "monitor");
+    expect(telemetryEvents(monitor)).toHaveLength(0);
+    expect(hub.replayTelemetry(monitor)).toBe(3);
     expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
       1, 2, 3,
     ]);
@@ -208,9 +210,8 @@ describe("virtual target event hub", () => {
 
     const monitor = new FakePort();
     hub.attach(monitor);
-    expect(hub.setRole(monitor, "monitor")).toBe(
-      TARGET_TELEMETRY_HISTORY_LIMIT,
-    );
+    hub.setRole(monitor, "monitor");
+    expect(hub.replayTelemetry(monitor)).toBe(TARGET_TELEMETRY_HISTORY_LIMIT);
 
     const batches = monitor.messages.filter(
       (message) => message.type === "telemetry-batch",

@@ -45,10 +45,9 @@ export class VirtualTargetEventHub {
     this.deliveredTelemetry.set(port, new WeakSet());
   }
 
-  setRole(port: VirtualWorkerPort, role: TargetWorkerRole): number {
-    if (!this.ports.has(port)) return 0;
+  setRole(port: VirtualWorkerPort, role: TargetWorkerRole): void {
+    if (!this.ports.has(port)) return;
     this.roles.set(port, role);
-    return role === "monitor" ? this.replayTelemetry(port) : 0;
   }
 
   detach(port: VirtualWorkerPort): void {
@@ -75,6 +74,11 @@ export class VirtualTargetEventHub {
     if (event.type === "console") {
       if (event.eventId && this.retainedConsoleIds.has(event.eventId)) {
         return;
+      }
+      if (event.action === "run" && event.phase === "request") {
+        // Each runtime begins a new telemetry sequence. A late Monitor should
+        // restore this run, not combine it with earlier virtual runs.
+        this.telemetryHistory.clear();
       }
       if (event.eventId) {
         this.retainedConsoleIds.add(event.eventId);
@@ -158,6 +162,58 @@ export class VirtualTargetEventHub {
     for (const event of this.consoleHistory) {
       this.send(port, { type: "event", event });
     }
+  }
+
+  replayCurrentState(
+    port: VirtualWorkerPort,
+    status: Extract<TargetEvent, { type: "status" }>,
+    fallbackTelemetry: TelemetryEvent,
+  ): number {
+    let latestRunStart = -1;
+    for (let index = this.consoleHistory.length - 1; index >= 0; index -= 1) {
+      const event = this.consoleHistory[index];
+      if (event?.action === "run" && event.phase === "request") {
+        latestRunStart = index;
+        break;
+      }
+    }
+
+    if (latestRunStart >= 0) {
+      for (const event of this.consoleHistory.slice(0, latestRunStart)) {
+        this.send(port, {
+          type: "event",
+          event: { ...event, replayed: true },
+        });
+      }
+      for (const event of this.consoleHistory.slice(latestRunStart)) {
+        this.send(port, { type: "event", event });
+      }
+      const replayed = this.replayTelemetry(port);
+      if (this.roles.get(port) === "monitor" && replayed === 0) {
+        this.send(port, {
+          type: "telemetry-batch",
+          events: [fallbackTelemetry],
+        });
+      }
+      this.send(port, { type: "event", event: status });
+      return replayed;
+    }
+
+    this.send(port, { type: "event", event: status });
+    const replayed = this.replayTelemetry(port);
+    if (this.roles.get(port) === "monitor" && replayed === 0) {
+      this.send(port, {
+        type: "telemetry-batch",
+        events: [fallbackTelemetry],
+      });
+    }
+    for (const event of this.consoleHistory) {
+      this.send(port, {
+        type: "event",
+        event: { ...event, replayed: true },
+      });
+    }
+    return replayed;
   }
 
   replayTelemetry(port: VirtualWorkerPort): number {

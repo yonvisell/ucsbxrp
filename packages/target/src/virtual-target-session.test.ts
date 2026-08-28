@@ -206,7 +206,7 @@ describe("virtual target shared session", () => {
       (event): event is Extract<TargetEvent, { type: "telemetry" }> =>
         event.type === "telemetry",
     );
-    expect(replayedTelemetry.length).toBeGreaterThan(1);
+    expect(replayedTelemetry.length).toBeGreaterThan(0);
     expect(replayedTelemetry.every((event) => event.replayed === true)).toBe(
       true,
     );
