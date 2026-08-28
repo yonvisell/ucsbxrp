@@ -73,6 +73,14 @@ telemetry stream. A 10,000-sample reconstruction now requires 79 worker
 messages rather than 10,000; all samples remain in order and appear exactly
 once.
 
+IDE and Monitor now retain one completed run with the same boundary in both
+virtual and physical modes. A Monitor opened after completion reconstructs the
+Run request, only that run's samples, and its terminal state; a later run
+replaces rather than appends to the dataset. Physical stopped telemetry remains
+visible live but is not included in the completed run. The attached XRP
+reproduces a 2.65 s Straight Run as 111 samples over 2.7 s whether Run begins in
+IDE or Monitor, with all export controls available afterward.
+
 ### 1. Ordinary student project and run workflow
 
 The integrated native-Chrome workflow creates a named project, edits and

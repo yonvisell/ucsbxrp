@@ -2098,3 +2098,30 @@ reverified the robot identity and address, and returned to the same Straight
 Run Project in Physical XRP mode. This closes the prior factory-state and
 empty-folder qualification gap; a cold installed-app reopen on robot-hotspot
 Wi-Fi remains separate offline evidence.
+
+## Refinement 79: completed-run continuity across IDE and Monitor
+
+Opening Monitor after a completed run exposed the same event-order defect in
+both target workers: the terminal ready state could arrive before the retained
+Run boundary and telemetry. Monitor then displayed an active run with only an
+idle tail. Both workers now replay one run in causal order: its Run request,
+that run's telemetry, and then its terminal state. Starting a second run
+replaces the retained dataset instead of combining runs. The physical worker
+also stops retaining samples at the terminal state while continuing to send
+ordinary idle telemetry to an already-open Monitor.
+
+The physical service's final ready response contains a fresh stopped-hardware
+sample after all course-loop samples have been drained. The browser now closes
+the completed dataset before publishing that sample to Live telemetry. This
+keeps the stopped values current without extending the recorded duration.
+
+The final native-Chrome regression used the attached dev.41 XRP and the saved
+`1 · Straight Run` Project on Pink. A Run started in IDE completed in 2.65 s;
+Monitor opened afterward reconstructed 111 samples over 2.7 s, labeled the
+correct Project, and enabled CSV, SVG, PNG, and WebM export. Run pressed directly
+in Monitor then produced a new 111-sample, 2.7 s dataset and saved it to the
+same Project folder. The corresponding folder-backed virtual first-use journey
+creates Expanding Spiral, completes it in IDE, restores it as an exportable
+Monitor dataset, runs again from Monitor, and verifies that the second dataset
+replaces the first. Focused browser, target, API-reference, production-build,
+and generated-reference checks pass.
