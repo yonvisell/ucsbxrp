@@ -80,7 +80,7 @@ describe("physical target", () => {
     ).toEqual({ method: "GET" });
   });
 
-  it("assigns the tab role before the document local-network probe", async () => {
+  it("joins a healthy shared connection without a document network probe", async () => {
     const operations: string[] = [];
     const fetchMock = vi.fn(async () => {
       operations.push("fetch");
@@ -127,7 +127,70 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.7.30");
     try {
       await target.connect();
-      expect(operations).toEqual(["role", "fetch", "worker"]);
+      expect(operations).toEqual(["role", "worker"]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses a document network probe only after worker discovery is blocked", async () => {
+    const operations: string[] = [];
+    const fetchMock = vi.fn(async () => {
+      operations.push("fetch");
+      return response({ ok: true });
+    });
+
+    class FakeMessagePort {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      connectAttempts = 0;
+
+      start(): void {}
+
+      postMessage(command: { requestId?: string; type: string }): void {
+        if (command.type === "set-role") {
+          operations.push("role");
+          return;
+        }
+        if (command.type !== "connect" || command.requestId === undefined) {
+          return;
+        }
+        this.connectAttempts += 1;
+        operations.push(`worker-${this.connectAttempts}`);
+        const reply =
+          this.connectAttempts === 1
+            ? {
+                type: "response" as const,
+                requestId: command.requestId,
+                ok: false as const,
+                error: "Private network access is blocked",
+                errorCode: "network_error",
+              }
+            : {
+                type: "response" as const,
+                requestId: command.requestId,
+                ok: true as const,
+              };
+        queueMicrotask(() => this.onmessage?.({ data: reply } as MessageEvent));
+      }
+
+      close(): void {}
+    }
+
+    class FakeSharedWorker {
+      readonly port = new FakeMessagePort();
+    }
+
+    vi.stubGlobal("window", { location: { protocol: "https:" } });
+    vi.stubGlobal("location", { protocol: "https:" });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+
+    const target = new PhysicalTargetClient("192.168.7.30");
+    try {
+      await target.connect();
+      expect(operations).toEqual(["role", "worker-1", "fetch", "worker-2"]);
       expect(fetchMock).toHaveBeenCalledWith(
         "http://192.168.7.30/api/v1/info",
         expect.objectContaining({

@@ -884,7 +884,7 @@ describe("physical target coordinator", () => {
     });
   });
 
-  it("replaces a stale endpoint even when it remains a lower-priority candidate", async () => {
+  it("keeps a healthy verified endpoint when candidate priority changes", async () => {
     const targets: FakePhysicalTarget[] = [];
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
       const target = new FakePhysicalTarget(endpoint);
@@ -898,7 +898,7 @@ describe("physical target coordinator", () => {
       app,
       command({
         type: "connect",
-        endpoints: ["http://192.168.4.1"],
+        endpoints: ["http://192.168.4.1", "http://192.168.7.25"],
         requestId: "hotspot",
       }),
     );
@@ -914,12 +914,129 @@ describe("physical target coordinator", () => {
     );
     await vi.waitFor(() => expect(responses(app, "station")).toHaveLength(1));
 
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.disconnectCalls).toBe(0);
+    expect(events(app, "status").at(-1)).toMatchObject({
+      state: "ready",
+      detail: "http://192.168.4.1",
+    });
+  });
+
+  it("rediscovers the XRP after the retained connection enters an error state", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      targets.push(target);
+      return target;
+    });
+    const app = new FakePort();
+    coordinator.attach(app);
+
+    coordinator.handle(
+      app,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        requestId: "initial-connect",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(app, "initial-connect")).toHaveLength(1),
+    );
+
+    targets[0]?.emit({
+      type: "status",
+      state: "error",
+      detail: "The XRP stopped responding",
+    });
+    coordinator.handle(
+      app,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        requestId: "rediscover",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(app, "rediscover")).toHaveLength(1),
+    );
+
     expect(targets).toHaveLength(2);
     expect(targets[0]?.disconnectCalls).toBe(1);
+    expect(targets[1]?.connectCalls).toBe(1);
     expect(events(app, "status").at(-1)).toMatchObject({
       state: "ready",
       detail: "http://192.168.7.25",
     });
+  });
+
+  it("replays the complete shared state when a second tab joins", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      targets.push(target);
+      return target;
+    });
+    const ide = new FakePort();
+    coordinator.attach(ide);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        requestId: "ide-connect",
+        role: "ide",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect")).toHaveLength(1),
+    );
+
+    const runtimeEvent: TargetEvent = {
+      type: "runtime",
+      state: { revision: 3, parameters: [], watches: [], plots: [] },
+    };
+    const worldEvent: TargetEvent = {
+      type: "world",
+      catalog: { defaultWorldId: "arena", worlds: [] },
+      selectedWorldId: "arena",
+    };
+    targets[0]?.emit(runtimeEvent);
+    targets[0]?.emit(worldEvent);
+    targets[0]?.emit({ type: "telemetry", sample: telemetry(7) });
+
+    const monitor = new FakePort();
+    coordinator.attach(monitor);
+    coordinator.handle(monitor, command({ type: "set-role", role: "monitor" }));
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.4.1", "http://192.168.7.25"],
+        requestId: "monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect")).toHaveLength(1),
+    );
+
+    expect(targets).toHaveLength(1);
+    expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
+    expect(events(monitor, "project").at(-1)).toMatchObject({
+      type: "project",
+      project: expect.objectContaining({ revision: "revision-a" }),
+    });
+    expect(events(monitor, "runtime").at(-1)).toEqual(runtimeEvent);
+    expect(events(monitor, "world").at(-1)).toEqual(worldEvent);
+    expect(events(monitor, "console")).toContainEqual(
+      expect.objectContaining({ line: "Connected to http://192.168.7.25" }),
+    );
+    expect(
+      events(monitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([7]);
   });
 
   it("restores the shared state after one tab receives a command error", async () => {

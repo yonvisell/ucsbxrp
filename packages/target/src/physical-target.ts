@@ -1734,7 +1734,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v10" },
+          { type: "module", name: "ucsb-xrp-physical-target-v11" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1758,54 +1758,39 @@ export class PhysicalTargetClient implements TargetClient {
         return;
       }
     }
-    // Attach this tab before the document-level local-network probe. If that
-    // probe fails because the computer is on the wrong Wi-Fi, the tab still
-    // receives the authoritative state when the other app reconnects later.
-    try {
-      const reachableEndpoint = await this.primeLocalNetworkPermission();
-      if (reachableEndpoint) {
-        const selectedIndex =
-          this.candidateEndpoints.indexOf(reachableEndpoint);
-        if (selectedIndex > 0) {
-          const reordered = [
-            reachableEndpoint,
-            ...this.candidateEndpoints.filter(
-              (candidate) => candidate !== reachableEndpoint,
-            ),
-          ];
-          await this.request({
-            type: "connect",
-            endpoints: reordered,
-            discoveryTimeoutMs: this.discoveryTimeoutMs,
-            expectedRobotId: this.options.expectedRobotId,
-            providesProject: this.projectRunProvider !== null,
-            role: this.projectRunProvider !== null ? "ide" : "monitor",
-          });
-          return;
-        }
-      }
-    } catch (error) {
-      this.emit({
-        type: "console",
-        stream: "system",
-        line: `Connection failed · ${errorDetail(error)}`,
-        eventId: `physical-document-connect-${Date.now()}-${this.nextRequest}`,
-        timestampMs: Date.now(),
-        action: "connect",
-        phase: "error",
+    const connectWorker = (endpoints: readonly string[]) =>
+      this.request({
+        type: "connect",
+        endpoints,
+        discoveryTimeoutMs: this.discoveryTimeoutMs,
+        expectedRobotId: this.options.expectedRobotId,
+        providesProject: this.projectRunProvider !== null,
+        role: this.projectRunProvider !== null ? "ide" : "monitor",
       });
-      throw error;
+
+    // Join the shared connection first. A healthy IDE/Monitor peer can then
+    // restore this tab without a second document fetch or permission prompt.
+    try {
+      await connectWorker(this.candidateEndpoints);
+      return;
+    } catch (firstError) {
+      if (!this.shouldPrimeLocalNetworkPermission(firstError)) {
+        throw firstError;
+      }
     }
-    // Keep this port attached after a failed discovery. A retry from either
-    // tab can then restore one shared connection and one shared state stream.
-    await this.request({
-      type: "connect",
-      endpoints: this.candidateEndpoints,
-      discoveryTimeoutMs: this.discoveryTimeoutMs,
-      expectedRobotId: this.options.expectedRobotId,
-      providesProject: this.projectRunProvider !== null,
-      role: this.projectRunProvider !== null ? "ide" : "monitor",
-    });
+
+    // Chrome grants private-network access to a document, not to its worker.
+    // Only a failed worker discovery needs this one document-level probe.
+    const reachableEndpoint = await this.primeLocalNetworkPermission();
+    const endpoints = reachableEndpoint
+      ? [
+          reachableEndpoint,
+          ...this.candidateEndpoints.filter(
+            (candidate) => candidate !== reachableEndpoint,
+          ),
+        ]
+      : this.candidateEndpoints;
+    await connectWorker(endpoints);
   }
 
   disconnect(): void {
@@ -2009,6 +1994,19 @@ export class PhysicalTargetClient implements TargetClient {
     throw new PhysicalTargetError(
       "network_error",
       `${detail}. ${physicalConnectionRecovery(this.endpoint)}`,
+    );
+  }
+
+  private shouldPrimeLocalNetworkPermission(error: unknown): boolean {
+    return (
+      error instanceof PhysicalTargetError &&
+      (error.code === "network_error" || error.code === "timeout") &&
+      !this.localNetworkPermissionPrimed &&
+      typeof window !== "undefined" &&
+      window.location.protocol === "https:" &&
+      this.candidateEndpoints.some(
+        (endpoint) => new URL(endpoint).protocol === "http:",
+      )
     );
   }
 

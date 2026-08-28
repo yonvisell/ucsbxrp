@@ -271,10 +271,15 @@ export class PhysicalTargetCoordinator {
   ): Promise<boolean> {
     const normalizedExpectedRobotId =
       expectedRobotId?.trim().toLocaleLowerCase() || null;
+    const currentConnectionIsHealthy =
+      this.latestStatus.type === "status" &&
+      this.latestStatus.state !== "error" &&
+      this.latestStatus.state !== "disconnected";
     if (
       this.target &&
       this.targetEndpoint &&
-      endpoints[0] === this.targetEndpoint &&
+      endpoints.includes(this.targetEndpoint) &&
+      currentConnectionIsHealthy &&
       (!normalizedExpectedRobotId ||
         normalizedExpectedRobotId === this.targetExpectedRobotId)
     ) {
