@@ -5,10 +5,10 @@
       "id": "two-obstacles",
       "label": "Two obstacles",
       "bounds": {
-        "minimum_x_mm": -300,
-        "minimum_y_mm": -300,
-        "maximum_x_mm": 1000,
-        "maximum_y_mm": 1000
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
       "obstacles": [
@@ -23,9 +23,9 @@
         {
           "type": "wall",
           "minimum_x_mm": 250,
-          "minimum_y_mm": 650,
+          "minimum_y_mm": 520,
           "maximum_x_mm": 750,
-          "maximum_y_mm": 700,
+          "maximum_y_mm": 590,
           "label": "Second obstacle"
         }
       ],

@@ -163,9 +163,9 @@ describe("visual world editor model", () => {
       current,
       "mapped-route",
       { kind: "obstacle", index: 0 },
-      { maximum_x_mm: 1_500 },
+      { maximum_x_mm: 1_600 },
     );
-    expect(JSON.parse(outside).worlds[0].obstacles[0].maximum_x_mm).toBe(1_500);
+    expect(JSON.parse(outside).worlds[0].obstacles[0].maximum_x_mm).toBe(1_600);
     expect(() => parseWorldDocument(outside)).toThrow(
       "inside the world bounds",
     );
@@ -180,7 +180,7 @@ describe("visual world editor model", () => {
       current,
       "mapped-route",
       { kind: "initial_pose" },
-      { x_mm: 500, y_mm: 300 },
+      { x_mm: 0, y_mm: 0 },
     );
     const world = parseWorldDocument(overlapping).catalog.worlds[0]!;
     expect(worldEditorWarnings(world)).toEqual([

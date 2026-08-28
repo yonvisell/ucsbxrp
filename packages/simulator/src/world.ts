@@ -63,19 +63,22 @@ export interface WorldCatalog {
   worlds: readonly WorldDefinition[];
 }
 
-const defaultBounds: AxisAlignedRectangle = {
-  minimumXmm: -1200,
-  minimumYmm: -900,
-  maximumXmm: 1200,
-  maximumYmm: 900,
-};
+export const COURSE_ARENA_BOUNDS: Readonly<AxisAlignedRectangle> =
+  Object.freeze({
+    minimumXmm: -1524,
+    minimumYmm: -609.6,
+    maximumXmm: 1524,
+    maximumYmm: 609.6,
+  });
+
+const defaultBounds = COURSE_ARENA_BOUNDS;
 
 export const DEFAULT_WORLD_CATALOG: WorldCatalog = {
   defaultWorldId: "open",
   worlds: [
     {
       id: "open",
-      label: "Open field",
+      label: "Course arena",
       bounds: defaultBounds,
       initialPose: { xMm: 0, yMm: 0, headingRad: 0 },
       obstacles: [],

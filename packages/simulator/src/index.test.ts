@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  COURSE_ARENA_BOUNDS,
   XrpSimulator,
+  defaultWorld,
   parseWorldCatalog,
   simulatorConfigForScenario,
   simulatorConfigForWorld,
@@ -15,6 +17,17 @@ const allGeometryWorldSource = readFileSync(
 );
 
 describe("deterministic XRP planar simulator", () => {
+  it("uses the centered 10 ft by 4 ft course arena by default", () => {
+    expect(COURSE_ARENA_BOUNDS).toEqual({
+      minimumXmm: -1524,
+      minimumYmm: -609.6,
+      maximumXmm: 1524,
+      maximumYmm: 609.6,
+    });
+    expect(defaultWorld().label).toBe("Course arena");
+    expect(new XrpSimulator().config.worldBounds).toEqual(COURSE_ARENA_BOUNDS);
+  });
+
   it("repeats exactly for the same fixed-step input", () => {
     const run = () => {
       const simulator = new XrpSimulator();

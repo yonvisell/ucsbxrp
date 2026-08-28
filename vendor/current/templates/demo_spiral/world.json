@@ -3,12 +3,12 @@
   "worlds": [
     {
       "id": "open-field",
-      "label": "Open field",
+      "label": "Course arena",
       "bounds": {
-        "minimum_x_mm": -1200,
-        "minimum_y_mm": -900,
-        "maximum_x_mm": 1200,
-        "maximum_y_mm": 900
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
       "obstacles": [],
@@ -27,10 +27,10 @@
       "id": "obstacle-ahead",
       "label": "Obstacle ahead",
       "bounds": {
-        "minimum_x_mm": -1200,
-        "minimum_y_mm": -900,
-        "maximum_x_mm": 1200,
-        "maximum_y_mm": 900
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
       "obstacles": [

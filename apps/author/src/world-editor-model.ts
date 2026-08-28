@@ -1,4 +1,5 @@
 import {
+  COURSE_ARENA_BOUNDS,
   parseWorldCatalog,
   type WorldCatalog,
   type WorldDefinition,
@@ -245,10 +246,10 @@ export function addWorld(source: string): { source: string; worldId: string } {
       id: worldId,
       label: "New world",
       bounds: {
-        minimum_x_mm: -1000,
-        minimum_y_mm: -750,
-        maximum_x_mm: 1000,
-        maximum_y_mm: 750,
+        minimum_x_mm: COURSE_ARENA_BOUNDS.minimumXmm,
+        minimum_y_mm: COURSE_ARENA_BOUNDS.minimumYmm,
+        maximum_x_mm: COURSE_ARENA_BOUNDS.maximumXmm,
+        maximum_y_mm: COURSE_ARENA_BOUNDS.maximumYmm,
       },
       initial_pose: { x_mm: 0, y_mm: 0, heading_rad: 0 },
       obstacles: [],

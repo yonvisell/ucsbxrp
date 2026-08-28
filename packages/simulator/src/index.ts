@@ -1,11 +1,17 @@
 import {
+  COURSE_ARENA_BOUNDS,
   DEFAULT_WORLD_CATALOG,
   worldById,
   type AxisAlignedRectangle,
   type WorldDefinition,
 } from "./world";
 
-export { DEFAULT_WORLD_CATALOG, parseWorldCatalog, worldById } from "./world";
+export {
+  COURSE_ARENA_BOUNDS,
+  DEFAULT_WORLD_CATALOG,
+  parseWorldCatalog,
+  worldById,
+} from "./world";
 export type {
   AxisAlignedRectangle,
   WorldCatalog,
@@ -28,7 +34,7 @@ export const SIMULATION_SCENARIOS: Readonly<
     { label: string; obstacles: readonly AxisAlignedRectangle[] }
   >
 > = Object.freeze({
-  open: Object.freeze({ label: "Open field", obstacles: Object.freeze([]) }),
+  open: Object.freeze({ label: "Course arena", obstacles: Object.freeze([]) }),
   "delivery-gate-blocked": Object.freeze({
     label: "Delivery gate blocked",
     obstacles: Object.freeze([
@@ -116,12 +122,7 @@ export const DEFAULT_XRP_SIMULATOR_CONFIG: XrpSimulatorConfig = {
   maximumRangeMm: 2000,
   batteryV: 6.2,
   temperatureC: 27,
-  worldBounds: {
-    minimumXmm: -1200,
-    minimumYmm: -900,
-    maximumXmm: 1200,
-    maximumYmm: 900,
-  },
+  worldBounds: COURSE_ARENA_BOUNDS,
   obstacles: [],
 };
 
