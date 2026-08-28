@@ -72,11 +72,6 @@ const handleStoreName = "course-folders";
 // IndexedDB retains only the browser capability needed to reopen a directory.
 // Serializable project and robot state belongs in .ucsbxrp.json on disk.
 const workspaceFolderCapabilityKey = "workspace-folder-capability-v1";
-const obsoleteWorkspaceContextKey = "workspace-context-v2";
-const workingFolderKey = "working-folder";
-const projectFolderKey = "active-project-folder-v2";
-const previousProjectFolderKey = "project-folder-v1";
-const workspaceFolderKey = "workspace-folder-v1";
 export const workspaceManifestFile = ".ucsbxrp.json";
 
 export interface WorkspaceManifestRobot {
@@ -287,11 +282,6 @@ export async function replaceRememberedWorkspaceFolder(
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     store.put(handle, workspaceFolderCapabilityKey);
-    store.delete(obsoleteWorkspaceContextKey);
-    store.delete(workspaceFolderKey);
-    store.delete(projectFolderKey);
-    store.delete(previousProjectFolderKey);
-    store.delete(workingFolderKey);
     await completed;
     database.close();
     announceCourseFolderChanged();
@@ -310,10 +300,6 @@ export async function forgetWorkspaceAndProjectFolders(): Promise<boolean> {
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     store.delete(workspaceFolderCapabilityKey);
-    store.delete(obsoleteWorkspaceContextKey);
-    store.delete(workspaceFolderKey);
-    store.delete(projectFolderKey);
-    store.delete(previousProjectFolderKey);
     await completed;
     database.close();
     announceCourseFolderChanged();
@@ -370,11 +356,6 @@ async function loadWorkspaceCapability(): Promise<CourseDirectoryHandle | null> 
     const completed = transactionComplete(transaction);
     const store = transaction.objectStore(handleStoreName);
     const handle = await requestResult(store.get(workspaceFolderCapabilityKey));
-    store.delete(obsoleteWorkspaceContextKey);
-    store.delete(workspaceFolderKey);
-    store.delete(projectFolderKey);
-    store.delete(previousProjectFolderKey);
-    store.delete(workingFolderKey);
     await completed;
     database.close();
     return (handle as CourseDirectoryHandle | undefined) ?? null;

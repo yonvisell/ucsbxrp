@@ -8,7 +8,6 @@ import {
 } from "react";
 
 import {
-  DEFAULT_COURSE_PROJECT,
   DEFAULT_WORLD_CATALOG,
   PhysicalTargetClient,
   VirtualTargetClient,
@@ -51,6 +50,7 @@ import {
   type CourseDirectoryHandle,
   type CourseFileHandle,
 } from "../../shared/course-folder";
+import { readProjectFolder } from "../../ide/src/project-files";
 import {
   SIGNAL_PLOTS,
   SignalPlot,
@@ -1080,8 +1080,7 @@ export function DashboardApp() {
     !virtualRuntimePreparing &&
     !projectBootstrapPending &&
     (targetState === "ready" ||
-      (target.kind === "virtual" && targetState === "error")) &&
-    (projectProviderAvailable || target.kind === "virtual");
+      (target.kind === "virtual" && targetState === "error"));
 
   const runOrStop = async () => {
     const stopping = targetState === "running" || targetState === "loading";
@@ -1095,21 +1094,17 @@ export function DashboardApp() {
       } else {
         runStartingRef.current = true;
         setRunStarting(true);
-        try {
+        if (projectProviderAvailable) {
           await target.runCurrent();
-        } catch (error) {
-          if (
-            target.kind !== "virtual" ||
-            !(error instanceof Error) ||
-            (!error.message.includes("No project is ready") &&
-              !error.message.includes("No active IDE project"))
-          ) {
-            throw error;
+        } else {
+          const folder = autosaveFolderRef.current;
+          if (!folder) {
+            throw new Error(
+              "Choose a Working folder and project in the IDE before running.",
+            );
           }
-          setTargetDetail(
-            `Compiling ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}…`,
-          );
-          await target.run(DEFAULT_COURSE_PROJECT);
+          const opened = await readProjectFolder(folder);
+          await target.run(opened.project);
         }
       }
     } catch (error: unknown) {
@@ -1527,16 +1522,12 @@ export function DashboardApp() {
                         ? rememberedAutosaveFolder
                           ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
                           : "Choose a Working folder and create or open a project in the IDE before running."
-                      : !projectProviderAvailable && target.kind === "physical"
-                        ? "Open the IDE to choose the project for the physical XRP."
-                        : !projectProviderAvailable
-                          ? `Compile and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
-                          : currentProject?.stale
+                      : currentProject?.stale
                             ? `Compile and run the current IDE project: ${currentProject.name}.`
                             : currentProject
                               ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                              : target.kind === "virtual"
-                                ? `Compile and run ${DEFAULT_COURSE_PROJECT.name ?? "the default project"}.`
+                              : autosaveFolder
+                                ? `Compile and run ${autosaveFolder.name}.`
                                 : "Open a project in the IDE before Run."
             }
           >
