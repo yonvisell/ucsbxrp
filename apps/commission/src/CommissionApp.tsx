@@ -1669,8 +1669,8 @@ export function CommissionApp() {
               </button>
               <p className="wifi-instruction">
                 If Chrome asks to find and connect to devices on the local
-                network, choose <strong>Allow</strong>. The IDE opens when the
-                robot replies.
+                network, choose <strong>Allow</strong>. After the robot replies,
+                use <strong>Open IDE</strong> to continue.
               </p>
               <details className="connection-help">
                 <summary>Connection help</summary>

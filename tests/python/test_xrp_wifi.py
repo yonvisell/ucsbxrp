@@ -12,6 +12,10 @@ SPEC.loader.exec_module(XRP_WIFI)
 
 
 class XrpWifiTest(unittest.TestCase):
+    def test_cli_requires_an_explicit_network_mode(self):
+        with self.assertRaises(SystemExit):
+            XRP_WIFI.make_parser().parse_args([])
+
     def test_raw_repl_entry_interrupts_a_running_service_first(self):
         class Serial:
             def __init__(self):

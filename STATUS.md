@@ -1983,3 +1983,28 @@ Expanding spiral in **New project**, chooses an empty Working folder, and
 confirms that the requested Project is created once, opened, and recorded as
 the active Project in `.ucsbxrp.json`. Type checking, the production build, and
 that exact browser workflow pass.
+
+## Refinement 75: public first-use connection paths
+
+The deployed Pages wizard and IDE now have direct physical evidence for both
+supported network choices. Starting from the retained `live-pages-verify`
+Working folder, the public wizard verified the attached RP2350, retained the
+current course runtime, created and verified the named `UCSB-XRP-VISELL`
+hotspot, handed the saved physical target to the IDE, reconnected explicitly,
+and ran Expanding spiral. The physical XRP stopped on its range threshold and
+the public IDE displayed the final pose. The Mac then returned to Pink.
+
+The same deployed wizard was reopened from the IDE. Chrome recognized the
+previously approved controller without another device picker, the wizard
+retained Pink, verified `192.168.7.25`, and updated the same `.ucsbxrp.json`
+robot record to station mode. **Open IDE** restored Expanding spiral and the
+physical XRP completed another Run over Pink with its program output visible.
+The saved configuration, robot `/api/v1/info`, and active Project all agree on
+the robot identity, Pink route, course release `2026.08-dev.40`, and Project.
+
+This pass also exposed an ambiguity in the developer USB Wi-Fi helper: invoking
+it without `--mode` silently wrote a default hotspot profile. The command now
+requires an explicit `station` or `access_point` mode, so omission cannot change
+the robot. Its wording now describes configuration rather than inspection, and
+the setup page accurately states that **Open IDE** becomes available after the
+robot replies. The focused Wi-Fi-helper and commissioning tests pass.

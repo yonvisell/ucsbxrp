@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Configure and inspect the XRP's Wi-Fi profile over USB.
+"""Configure the XRP's Wi-Fi profile over USB.
 
 Station credentials are read from a local file, sent directly over the serial
 connection, and never printed. Access-point mode uses one fixed course password.
@@ -308,8 +308,8 @@ def make_parser():
     parser.add_argument(
         "--mode",
         choices=(MODE_ACCESS_POINT, MODE_STATION),
-        default=MODE_ACCESS_POINT,
-        help="robot hotspot (default) or an existing Wi-Fi network",
+        required=True,
+        help="robot hotspot or an existing Wi-Fi network",
     )
     parser.add_argument("--ssid", default="Pink")
     parser.add_argument("--hostname", default="ucsb-xrp")
