@@ -516,7 +516,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await guide.goto("/guide/");
   await expect(
     guide.getByRole("heading", {
-      name: "Physical XRP",
+      name: "Physical XRP setup and networks",
     }),
   ).toBeVisible();
   await expect(

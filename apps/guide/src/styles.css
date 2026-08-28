@@ -24,28 +24,15 @@
   top: calc(var(--course-header-height) + 20px);
   display: grid;
   align-self: start;
-  gap: 2px;
-}
-
-.guide-toc span {
-  margin-bottom: 4px;
-  color: var(--quiet);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.guide-toc .toc-group {
-  margin-top: 10px;
+  gap: 3px;
 }
 
 .guide-toc a {
   border-left: 2px solid transparent;
   padding: 4px 7px;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.3;
   text-decoration: none;
 }
 
@@ -79,8 +66,8 @@
   max-width: 700px;
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .guide-content > section:not(.guide-intro) {
@@ -112,15 +99,15 @@
 .guide-content h3 {
   margin: 1.1rem 0 0.4rem;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 680;
 }
 
 .guide-content p,
 .guide-content li {
   color: #39474f;
-  font-size: 12px;
-  line-height: 1.52;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .guide-content p {
@@ -140,7 +127,7 @@
   background: #edf0f1;
   color: #23343e;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.92em;
+  font-size: 0.94em;
 }
 
 .procedure {
@@ -264,6 +251,11 @@
   background: var(--line);
 }
 
+.project-catalog {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  scroll-margin-top: calc(var(--course-header-height) + 16px);
+}
+
 .timing-guidance {
   max-width: 760px;
   border-left: 3px solid var(--ucsb-blue);
@@ -274,7 +266,7 @@
 
 .timing-guidance > strong {
   color: #123d51;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .timing-guidance p {
@@ -323,10 +315,10 @@
 .course-diagram img,
 .project-structure-diagram img {
   display: block;
-  width: 100%;
-  max-height: 360px;
-  object-fit: contain;
-  object-position: left center;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 420px;
 }
 
 .course-diagram figcaption,
@@ -401,6 +393,17 @@ table {
   border-collapse: collapse;
 }
 
+.network-modes {
+  width: min(760px, 100%);
+  table-layout: fixed;
+}
+
+.network-modes th,
+.network-modes td {
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
 th,
 td {
   border-bottom: 1px solid var(--line);
@@ -455,6 +458,10 @@ kbd {
     gap: 7px;
     scroll-margin-top: calc(var(--course-header-height) + 22px);
   }
+
+  .project-catalog {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 500px) {
@@ -470,5 +477,55 @@ kbd {
   .component-overview-list > div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+
+  .network-modes thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .network-modes,
+  .network-modes tbody,
+  .network-modes tr,
+  .network-modes td {
+    display: block;
+    width: 100%;
+  }
+
+  .network-modes tr {
+    border-bottom: 1px solid var(--line);
+    padding: 7px 0;
+  }
+
+  .network-modes td {
+    border: 0;
+    padding: 3px 5px;
+  }
+
+  .network-modes td:first-child {
+    color: var(--ink);
+    font-weight: 680;
+  }
+
+  .network-modes td:nth-child(2)::before,
+  .network-modes td:nth-child(3)::before {
+    display: block;
+    margin-bottom: 1px;
+    color: var(--quiet);
+    font-size: 10px;
+    font-weight: 680;
+  }
+
+  .network-modes td:nth-child(2)::before {
+    content: "Computer connection";
+  }
+
+  .network-modes td:nth-child(3)::before {
+    content: "Internet and local access";
   }
 }

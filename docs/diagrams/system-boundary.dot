@@ -5,7 +5,7 @@ digraph SystemBoundary {
     fontname="Arial",
     nodesep=0.5,
     pad=0.08,
-    rankdir=LR,
+    rankdir=TB,
     ranksep=0.72,
     splines=polyline
   ];

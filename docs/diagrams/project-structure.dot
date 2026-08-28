@@ -2,10 +2,10 @@ digraph ProjectStructure {
   graph [
     bgcolor="transparent",
     fontname="Arial",
-    nodesep=0.45,
+    nodesep=0.52,
     pad=0.08,
-    rankdir=LR,
-    ranksep=0.62,
+    rankdir=TB,
+    ranksep=0.58,
     splines=polyline
   ];
   node [
@@ -29,7 +29,6 @@ digraph ProjectStructure {
   ];
 
   world [label="world.json\narena and task markers", color="#8d7440", fillcolor="#f8f5ed"];
-  loader [label="load_world()"];
   challenge [label="challenge.py\ntask values", color="#39736f", fillcolor="#f3f8f7"];
 
   config [label="robot_config.py\ngeometry and settings", color="#8d7440", fillcolor="#f8f5ed"];
@@ -41,8 +40,7 @@ digraph ProjectStructure {
   { rank=same; world; config; components; }
   { rank=same; challenge; setup; }
 
-  world -> loader;
-  loader -> challenge;
+  world -> challenge [label="task geometry"];
   challenge -> program [label="task values"];
   config -> setup [label="configuration"];
   components -> setup [label="component classes"];

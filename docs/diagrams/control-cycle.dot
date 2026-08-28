@@ -2,10 +2,10 @@ digraph ControlCycle {
   graph [
     bgcolor="transparent",
     fontname="Arial",
-    nodesep=0.38,
+    nodesep=0.5,
     pad=0.08,
     rankdir=TB,
-    ranksep=0.72,
+    ranksep=0.58,
     splines=polyline
   ];
   node [
@@ -28,32 +28,33 @@ digraph ControlCycle {
     penwidth=1.1
   ];
 
-  main [label="main.py or\nsupplied mission", color="#00588a", fillcolor="#eef4f7"];
-  robot [label="Robot.step()\norchestrates sample", color="#00588a", fillcolor="#eef4f7"];
-  target [label="Selected XRP target\nmotors and sensors", color="#8d7440", fillcolor="#f8f5ed"];
-
-  drive [label="DifferentialDrive*\nWheelSpeeds", color="#39736f", fillcolor="#f3f8f7"];
-  controller [label="WheelSpeedController*\nDriveCommand", color="#39736f", fillcolor="#f3f8f7"];
-  bot [label="XRPBot\ndevice boundary", color="#667984", fillcolor="#ffffff"];
-  sensor [label="SensorModel*\nMeasurements", color="#39736f", fillcolor="#f3f8f7"];
-  odometry [label="Odometry*\nPose", color="#39736f", fillcolor="#f3f8f7"];
+  program [label="main.py or supplied mission\ncoordinates the task", color="#00588a", fillcolor="#eef4f7"];
+  robot [label="Robot.step()\nsupplied sample coordinator", color="#00588a", fillcolor="#eef4f7"];
+  motion [label="Selected motion components\nDifferentialDrive\nWheelSpeedController", color="#39736f", fillcolor="#f3f8f7"];
+  bot_command [label="XRPBot\nsend motor command", color="#667984", fillcolor="#ffffff"];
+  bot_sample [label="XRPBot\nread sensor sample", color="#667984", fillcolor="#ffffff"];
+  target [label="Selected target\nVirtual or Physical XRP", color="#8d7440", fillcolor="#f8f5ed"];
+  measurement [label="Selected measurement components\nSensorModel\nOdometry", color="#39736f", fillcolor="#f3f8f7"];
   state [label="RobotState\nMeasurements + Pose", color="#667984", fillcolor="#ffffff"];
 
-  { rank=same; main; robot; drive; controller; }
-  { rank=same; target; bot; sensor; odometry; state; }
+  { rank=same; program; state; }
+  { rank=same; robot; measurement; }
+  { rank=same; motion; bot_sample; }
+  { rank=same; bot_command; target; }
 
-  main -> robot [label="MotionCommand"];
-  robot -> drive [label="calls component"];
-  drive -> controller [label="target wheel speeds"];
-  controller -> bot [label="motor command"];
-  target -> bot [label="motor output /\nsensor readings", dir=both];
-  bot -> sensor [label="RawSensors"];
-  sensor -> odometry [label="wheel increments"];
-  sensor -> state [label="Measurements"];
-  odometry -> state [label="Pose"];
-  state -> main [label="RobotState", constraint=false];
-  sensor -> controller [
-    label="latest measured wheel speeds\n(next step)",
+  program -> robot [label="MotionCommand"];
+  robot -> motion [label="calls"];
+  motion -> bot_command [label="motor effort"];
+  bot_command -> target [label="device command"];
+  state -> measurement [style=invis, weight=20];
+  measurement -> bot_sample [style=invis, weight=20];
+  bot_sample -> target [style=invis, weight=20];
+  target -> bot_sample [label="device readings", constraint=false];
+  bot_sample -> measurement [label="raw sample", constraint=false];
+  measurement -> state [label="estimates", constraint=false];
+  state -> program [label="RobotState", constraint=false];
+  measurement -> motion [
+    label="measured wheel-speed feedback",
     color="#006c64",
     fontcolor="#005f58",
     style=dashed,

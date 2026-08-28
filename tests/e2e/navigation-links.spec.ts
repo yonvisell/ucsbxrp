@@ -190,12 +190,17 @@ test("IDE and Monitor title bars use navigation rather than duplicate page names
   }
 });
 
-test("Guide presents the course workflow in explicit objective sections", async ({
+test("Guide states the complete first-use workflow and operating limits", async ({
   page,
 }) => {
   await page.goto("/guide/");
   await expect(page.getByRole("heading", { name: "Guide" })).toBeVisible();
   await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
+  await expect(page.locator(".guide-intro")).toContainText("Google Chrome");
+  await expect(page.locator(".guide-intro")).toContainText(
+    "Microsoft Edge is the supported Chromium alternative",
+  );
+  await expect(page.locator(".guide-toc span")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "IDE controls" }),
   ).toBeVisible();
@@ -212,33 +217,63 @@ test("Guide presents the course workflow in explicit objective sections", async 
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.locator("#projects")).toContainText("Challenges");
-  await expect(page.locator("#projects")).toContainText("Demos");
-  await expect(page.locator("#projects")).toContainText("Tutorial");
+  await expect(page.locator("#virtual-run")).toContainText(
+    "Compile and resolve any reported error, then select Run",
+  );
+  for (const command of ["Compile", "Run", "Stop", "Reset"]) {
+    await expect(page.locator("#virtual-run")).toContainText(command);
+  }
+  await expect(page.locator("#projects")).toContainText(
+    "Working folder is one parent folder",
+  );
+  await expect(page.locator("#projects")).toContainText("New project…");
+  await expect(page.locator("#projects")).toContainText("Open project…");
+  await expect(page.locator("#project-lists section")).toHaveCount(3);
+  await expect(page.locator("#project-lists")).toContainText(
+    "Challenge 5 · Delivery Mission",
+  );
+  await expect(page.locator("#project-lists")).toContainText(
+    "Tutorial 5 · Physical XRP Deployment",
+  );
+  await expect(page.locator("#project-lists")).toContainText(
+    "Demo · Expanding Spiral",
+  );
   await expect(
     page.locator("#project-structure .course-diagram"),
-  ).toContainText("wheel-speed feedback");
+  ).toContainText("selected DifferentialDrive and WheelSpeedController");
   await expect(
     page.locator("#project-structure .course-diagram img"),
   ).toHaveAttribute("src", "../diagrams/control-cycle.svg");
   await expect(page.locator("#project-structure svg")).toHaveCount(0);
-  await expect(page.locator("#virtual-run")).toContainText(
-    "sends the current project over the selected Wi-Fi connection",
+  await expect(page.locator("#components")).toContainText(
+    "This is not an IDE command",
   );
-  await expect(page.locator("#virtual-run")).toContainText(
-    "the Wi-Fi connection remains available for the next Run",
+  await expect(page.locator("#components")).toContainText(
+    "does not start or move either XRP",
   );
+  for (const result of ["PASS", "NOT IMPLEMENTED", "FAIL"]) {
+    await expect(page.locator("#components .result-key")).toContainText(result);
+  }
   await expect(page.locator("#physical-xrp")).toContainText(
-    "installs or repairs the UCSBXRP software",
+    "After setup, project transfer, Run, Stop, Reset, program output, and telemetry use Wi-Fi, not USB",
+  );
+  await expect(page.locator("#physical-xrp .network-modes")).toContainText(
+    "Robot hotspot",
+  );
+  await expect(page.locator("#physical-xrp .network-modes")).toContainText(
+    "Existing Wi-Fi (station mode)",
   );
   await expect(page.locator("#technical-overview")).not.toContainText(
     "Project storage on the XRP",
   );
   await expect(page.locator("#offline-use")).toContainText(
-    "Chrome can load the saved IDE, Monitor, virtual XRP, Guide, API reference, and setup page",
+    "operating-system launcher",
   );
   await expect(page.locator("#offline-use")).toContainText(
-    "Project files are ordinary files in that folder; Chrome does not store the course app there",
+    "same UCSBXRP web address in the same Chrome profile",
+  );
+  await expect(page.locator("#offline-use")).toContainText(
+    "A robot hotspot does not provide it",
   );
   await expect(page.locator("#github")).toContainText(
     "Use the cloned repository as the UCSBXRP Working folder",
@@ -249,6 +284,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
   await expect(page.locator("#monitor")).toContainText(
     "Runs started in either app write program output and target events to the IDE terminal",
   );
+  await expect(page.locator('a[href="../reference/"]')).not.toHaveCount(0);
 });
 
 test("API catalog renders coherent component requirements and linked types", async ({
@@ -506,23 +542,26 @@ test("Guide remains usable without horizontal page scrolling at phone width", as
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(bodyFontSize).toBeGreaterThanOrEqual(11.5);
-  expect(bodyFontSize).toBeLessThanOrEqual(12.5);
+  expect(bodyFontSize).toBeGreaterThanOrEqual(10.75);
+  expect(bodyFontSize).toBeLessThanOrEqual(11.25);
   const inlineCodeFontSize = await page
     .locator(".guide-content code")
     .first()
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(10.5);
+  expect(inlineCodeFontSize).toBeGreaterThanOrEqual(10.25);
   expect(inlineCodeFontSize).toBeLessThanOrEqual(bodyFontSize);
 
-  const flowsFit = await page
-    .locator(".course-flow")
-    .evaluateAll((flows) =>
-      flows.every((flow) => flow.scrollWidth <= flow.clientWidth + 1),
+  const diagramsFit = await page
+    .locator(".course-diagram img, .project-structure-diagram img")
+    .evaluateAll((images) =>
+      images.every((image) => {
+        const bounds = image.getBoundingClientRect();
+        return bounds.left >= -0.5 && bounds.right <= window.innerWidth + 0.5;
+      }),
     );
-  expect(flowsFit).toBe(true);
+  expect(diagramsFit).toBe(true);
 });
 
 test("Instructor reference remains readable at phone width", async ({

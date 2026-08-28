@@ -179,7 +179,7 @@ test("reloads the complete production course shell without a network", async ({
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
     guide.getByRole("heading", {
-      name: "Connect a physical XRP",
+      name: "Physical XRP setup and networks",
     }),
   ).toBeVisible();
   await expect(
@@ -187,7 +187,7 @@ test("reloads the complete production course shell without a network", async ({
   ).toBeVisible();
   await expect(
     guide.getByRole("heading", {
-      name: "Using UCSBXRP without internet",
+      name: "Offline use",
     }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);
