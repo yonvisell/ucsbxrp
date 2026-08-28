@@ -4,11 +4,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   COURSE_ARENA_BOUNDS,
+  XRP_CHASSIS_LENGTH_MM,
+  XRP_ULTRASONIC_FIELD_OF_VIEW_DEG,
+  XRP_ULTRASONIC_FIELD_OF_VIEW_RAD,
+  XRP_ULTRASONIC_RAY_COUNT,
+  XRP_ULTRASONIC_RAY_OFFSETS_RAD,
+  XRP_ULTRASONIC_SENSOR_OFFSET_MM,
   XrpSimulator,
   defaultWorld,
   parseWorldCatalog,
   simulatorConfigForScenario,
   simulatorConfigForWorld,
+  ultrasonicSensorOrigin,
 } from "./index";
 
 const allGeometryWorldSource = readFileSync(
@@ -135,6 +142,50 @@ describe("deterministic XRP planar simulator", () => {
     expect(simulator.state.rangeMm).toBeCloseTo(200, 9);
     simulator.reset({ xMm: 0, yMm: 0, headingRad: Math.PI / 2 });
     expect(simulator.state.rangeMm).toBeCloseTo(500, 9);
+  });
+
+  it("uses the shared HC-SR04 origin and 15-degree fan geometry", () => {
+    expect(XRP_ULTRASONIC_FIELD_OF_VIEW_DEG).toBe(15);
+    expect(XRP_ULTRASONIC_FIELD_OF_VIEW_RAD).toBeCloseTo(Math.PI / 12, 15);
+    expect(XRP_ULTRASONIC_RAY_COUNT).toBe(9);
+    expect(XRP_ULTRASONIC_RAY_OFFSETS_RAD).toHaveLength(9);
+    expect(XRP_ULTRASONIC_RAY_OFFSETS_RAD[0]).toBeCloseTo(-Math.PI / 24, 15);
+    expect(XRP_ULTRASONIC_RAY_OFFSETS_RAD[4]).toBe(0);
+    expect(XRP_ULTRASONIC_RAY_OFFSETS_RAD[8]).toBeCloseTo(Math.PI / 24, 15);
+    expect(XRP_CHASSIS_LENGTH_MM / 2 - XRP_ULTRASONIC_SENSOR_OFFSET_MM).toBe(
+      26.25,
+    );
+    const origin = ultrasonicSensorOrigin({
+      xMm: 10,
+      yMm: 20,
+      headingRad: Math.PI / 2,
+    });
+    expect(origin.xMm).toBeCloseTo(10, 12);
+    expect(origin.yMm).toBeCloseTo(90, 12);
+  });
+
+  it("detects the nearest obstacle inside the fan but off the center ray", () => {
+    const simulator = new XrpSimulator({
+      worldBounds: {
+        minimumXmm: -500,
+        minimumYmm: -500,
+        maximumXmm: 500,
+        maximumYmm: 500,
+      },
+      obstacles: [
+        {
+          minimumXmm: 270,
+          minimumYmm: 25,
+          maximumXmm: 300,
+          maximumYmm: 40,
+        },
+      ],
+    });
+
+    // The center ray at y=0 misses. The +7.5-degree ray reaches x=270 from
+    // the 70 mm sensor origin and intersects the obstacle's lower edge.
+    const expectedRangeMm = 200 / Math.cos(Math.PI / 24);
+    expect(simulator.state.rangeMm).toBeCloseTo(expectedRangeMm, 9);
   });
 
   it("prevents penetration while encoders continue to represent wheel travel", () => {

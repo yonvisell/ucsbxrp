@@ -4,6 +4,41 @@ type FrameCallback = (timestamp: number) => void;
 type ScheduleFrame = (callback: FrameCallback) => number;
 type CancelFrame = (frameId: number) => void;
 
+/** Estimate the source sample rate from recent device timestamps. */
+export function recentTelemetryRateHz(
+  samples: readonly TelemetrySample[],
+  maximumIntervals = 40,
+): number | null {
+  if (!Number.isInteger(maximumIntervals) || maximumIntervals < 1) {
+    throw new Error("maximumIntervals must be a positive integer");
+  }
+  const recent = samples.slice(-(maximumIntervals + 1));
+  const periodsMs: number[] = [];
+  for (let index = 1; index < recent.length; index += 1) {
+    const previous = recent[index - 1]!;
+    const current = recent[index]!;
+    const sequenceSteps = current.seq - previous.seq;
+    const elapsedMs = current.tMs - previous.tMs;
+    if (
+      current.source !== previous.source ||
+      sequenceSteps <= 0 ||
+      elapsedMs <= 0
+    ) {
+      continue;
+    }
+    const periodMs = elapsedMs / sequenceSteps;
+    if (Number.isFinite(periodMs) && periodMs > 0) periodsMs.push(periodMs);
+  }
+  if (periodsMs.length === 0) return null;
+  periodsMs.sort((left, right) => left - right);
+  const middle = Math.floor(periodsMs.length / 2);
+  const medianPeriodMs =
+    periodsMs.length % 2 === 0
+      ? (periodsMs[middle - 1]! + periodsMs[middle]!) / 2
+      : periodsMs[middle]!;
+  return 1_000 / medianPeriodMs;
+}
+
 /**
  * Retains the newest telemetry samples without moving the retained array for
  * every sample. React receives at most one ordered snapshot per display frame.

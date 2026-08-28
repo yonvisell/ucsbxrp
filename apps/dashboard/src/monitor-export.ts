@@ -15,6 +15,7 @@ import {
 export {
   createMonitorAnnotation,
   downloadBlob,
+  monitorAnnotationsToCsv,
   timestampedName,
   webmExportSupported,
 } from "./monitor-export-core";

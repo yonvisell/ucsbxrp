@@ -61,6 +61,7 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
       { message: "the recorder should receive the running target's samples" },
     )
     .toBeGreaterThan(3);
+  await expect(monitor.getByTestId("telemetry-rate")).toContainText("Hz");
 
   await monitor
     .getByTestId("wheel-speed-plot")
@@ -100,6 +101,16 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   );
   expect(rows.length).toBeGreaterThan(4);
   expect(rows[1]?.split(",")).toHaveLength(columns.length);
+
+  const notesDownloadPromise = monitor.waitForEvent("download");
+  await monitor.getByRole("button", { name: "Export notes CSV" }).click();
+  const notesDownload = await notesDownloadPromise;
+  expect(notesDownload.suggestedFilename()).toMatch(/^xrp-notes-.*\.csv$/);
+  const notesPath = await notesDownload.path();
+  expect(notesPath).not.toBeNull();
+  const notesCsv = await readFile(notesPath!, "utf8");
+  expect(notesCsv).toContain("time_s,label,pose_available,x_mm,y_mm");
+  expect(notesCsv).toContain("turn begins");
 
   const svgDownloadPromise = monitor.waitForEvent("download");
   await monitor.getByRole("button", { name: "Export plots as SVG" }).click();
@@ -143,6 +154,33 @@ test("records a bounded telemetry window and exports explicit CSV columns", asyn
   await expect(
     monitor.getByRole("button", { name: "Export telemetry CSV" }),
   ).toBeDisabled();
+});
+
+test("keeps an existing note when a new run starts", async ({
+  context,
+  page: ide,
+}) => {
+  await ide.goto("/ide/");
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await expect(monitor.getByTestId("wheel-speed-plot")).toBeVisible();
+
+  await monitor
+    .getByTestId("wheel-speed-plot")
+    .click({ button: "right", position: { x: 160, y: 60 } });
+  await monitor.getByLabel("Note label").fill("before run");
+  await monitor.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(
+    monitor.getByRole("button", { name: "Hide notes · 1" }),
+  ).toBeVisible();
+
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(monitor.getByTestId("target-status")).toContainText("running", {
+    timeout: 20_000,
+  });
+  await expect(
+    monitor.getByRole("button", { name: "Hide notes · 1" }),
+  ).toBeVisible();
 });
 
 test("explains why world replay export is unavailable while recording", async ({
@@ -311,12 +349,18 @@ test("selects plotted signals from the Monitor controls", async ({
   const sliderBox = await page
     .getByLabel("Strip chart time window")
     .boundingBox();
+  const firstSignalBox = await page
+    .getByRole("checkbox", { name: /Wheel speed/ })
+    .boundingBox();
   expect(controlsBox?.width).toBeGreaterThan(165);
   expect(controlsBox?.width).toBeLessThan(185);
   expect(dashboardBox?.x).toBeGreaterThanOrEqual(
     (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0) - 1,
   );
   expect(sliderBox?.height).toBeLessThanOrEqual(16);
+  expect((sliderBox?.y ?? 0) + (sliderBox?.height ?? 0)).toBeLessThanOrEqual(
+    firstSignalBox?.y ?? 0,
+  );
   const liveControlsBox = await page
     .locator(".live-controls-panel")
     .boundingBox();

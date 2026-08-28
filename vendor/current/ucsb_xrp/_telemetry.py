@@ -25,7 +25,9 @@ _publish_browser_state = (
     else getattr(_browser_bridge, "publish_course_state", None)
 )
 
-_BUFFER_SIZE = 32
+# Retain more than one second of the 50 Hz course loop. The browser pauses
+# telemetry briefly while starting a program, then drains this ring in batches.
+_BUFFER_SIZE = 64
 _latest = None
 _buffer = [None] * _BUFFER_SIZE
 _buffer_write_index = 0

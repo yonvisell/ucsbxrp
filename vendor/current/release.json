@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.08-dev.39",
-  "release_sequence": 39,
+  "release_id": "2026.08-dev.40",
+  "release_sequence": 40,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.4-draft",
@@ -40,7 +40,7 @@
     "version": "0.4.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
     "source_file_count": 16,
-    "source_sha256": "ec1465261c1de04395af37e18b4dc587ee6c972ea68f85fd7b7ec1780d095347",
+    "source_sha256": "9be50de465a5ecd8676218b4c7d0ac095823668c5d975b14b4c41500e40066d3",
     "reference_compiler": {
       "repository": "micropython/micropython",
       "tag": "v1.28.0",

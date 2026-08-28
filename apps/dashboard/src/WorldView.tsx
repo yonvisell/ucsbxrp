@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import {
+  XRP_CHASSIS_LENGTH_MM,
+  XRP_ULTRASONIC_FIELD_OF_VIEW_DEG,
+  XRP_ULTRASONIC_FIELD_OF_VIEW_RAD,
+  XRP_ULTRASONIC_SENSOR_OFFSET_MM,
+  ultrasonicSensorOrigin,
+} from "@ucsb-xrp/simulator";
+import {
   type TelemetrySample,
   type WorldCatalog,
   type WorldDefinition,
@@ -29,12 +36,43 @@ const MAJOR_GRID_MM = 500;
 
 // Official Open-STEM V1.3 chassis bounds and SparkFun controller drawing;
 // wheel geometry uses the measured course configuration.
-const XRP_CHASSIS_LENGTH_MM = 192.5;
 const XRP_CHASSIS_WIDTH_MM = 190.5;
 const XRP_CONTROLLER_LENGTH_MM = 63.5;
 const XRP_CONTROLLER_WIDTH_MM = 54;
 const XRP_TRACK_WIDTH_MM = 155;
 const XRP_WHEEL_DIAMETER_MM = 60;
+const RANGE_SECTOR_ARC_SEGMENTS = 16;
+
+interface RangeSectorVisual {
+  fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  group: THREE.Group;
+  outline: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+}
+
+function rangeSectorGeometry(rangeMm: number): {
+  fill: THREE.ShapeGeometry;
+  outline: THREE.BufferGeometry;
+} {
+  const halfAngleRad = XRP_ULTRASONIC_FIELD_OF_VIEW_RAD / 2;
+  const shape = new THREE.Shape();
+  const outlinePoints = [new THREE.Vector3(0, 0, 0)];
+  shape.moveTo(0, 0);
+  for (let index = 0; index <= RANGE_SECTOR_ARC_SEGMENTS; index += 1) {
+    const fraction = index / RANGE_SECTOR_ARC_SEGMENTS;
+    const angleRad =
+      -halfAngleRad + fraction * XRP_ULTRASONIC_FIELD_OF_VIEW_RAD;
+    const xMm = rangeMm * Math.cos(angleRad);
+    const yMm = rangeMm * Math.sin(angleRad);
+    shape.lineTo(xMm, yMm);
+    outlinePoints.push(new THREE.Vector3(xMm, yMm, 0));
+  }
+  shape.closePath();
+  outlinePoints.push(new THREE.Vector3(0, 0, 0));
+  return {
+    fill: new THREE.ShapeGeometry(shape),
+    outline: new THREE.BufferGeometry().setFromPoints(outlinePoints),
+  };
+}
 
 function addSegments(
   scene: THREE.Scene,
@@ -333,7 +371,7 @@ export function WorldView({
   const sceneRef = useRef<THREE.Scene | null>(null);
   const robotRef = useRef<THREE.Group | null>(null);
   const trailRef = useRef<THREE.Line | null>(null);
-  const rangeRef = useRef<THREE.Line | null>(null);
+  const rangeRef = useRef<RangeSectorVisual | null>(null);
   const annotationGroupRef = useRef<THREE.Group | null>(null);
   const resizeRef = useRef<(() => void) | null>(null);
   const trailPoints = useRef<THREE.Vector3[]>([]);
@@ -479,13 +517,36 @@ export function WorldView({
     scene.add(trail);
     trailRef.current = trail;
 
-    const range = new THREE.Line(
+    const rangeGroup = new THREE.Group();
+    rangeGroup.position.z = 3;
+    const rangeFill = new THREE.Mesh(
       new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({ color: "#765000" }),
+      new THREE.MeshBasicMaterial({
+        color: "#b98a29",
+        depthWrite: false,
+        opacity: 0.11,
+        side: THREE.DoubleSide,
+        transparent: true,
+      }),
     );
-    range.position.z = 3;
-    scene.add(range);
-    rangeRef.current = range;
+    rangeFill.renderOrder = 2;
+    const rangeOutline = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({
+        color: "#765000",
+        opacity: 0.68,
+        transparent: true,
+      }),
+    );
+    rangeOutline.position.z = 0.2;
+    rangeOutline.renderOrder = 3;
+    rangeGroup.add(rangeFill, rangeOutline);
+    scene.add(rangeGroup);
+    rangeRef.current = {
+      fill: rangeFill,
+      group: rangeGroup,
+      outline: rangeOutline,
+    };
 
     const annotationGroup = new THREE.Group();
     scene.add(annotationGroup);
@@ -606,23 +667,25 @@ export function WorldView({
       camera.lookAt(worldCenterX, worldCenterY, 0);
     }
 
-    range.geometry.dispose();
+    range.fill.geometry.dispose();
+    range.outline.geometry.dispose();
     if (sample.rangeMm === null) {
-      range.visible = false;
+      range.group.visible = false;
     } else {
-      range.visible = true;
-      const sensorX =
-        sample.xMm + (XRP_CHASSIS_LENGTH_MM / 2) * Math.cos(sample.headingRad);
-      const sensorY =
-        sample.yMm + (XRP_CHASSIS_LENGTH_MM / 2) * Math.sin(sample.headingRad);
-      range.geometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(sensorX, sensorY, 3),
-        new THREE.Vector3(
-          sensorX + sample.rangeMm * Math.cos(sample.headingRad),
-          sensorY + sample.rangeMm * Math.sin(sample.headingRad),
-          3,
-        ),
-      ]);
+      range.group.visible = true;
+      const origin = ultrasonicSensorOrigin(
+        {
+          xMm: sample.xMm,
+          yMm: sample.yMm,
+          headingRad: sample.headingRad,
+        },
+        XRP_ULTRASONIC_SENSOR_OFFSET_MM,
+      );
+      range.group.position.set(origin.xMm, origin.yMm, 3);
+      range.group.rotation.z = sample.headingRad;
+      const geometry = rangeSectorGeometry(sample.rangeMm);
+      range.fill.geometry = geometry.fill;
+      range.outline.geometry = geometry.outline;
     }
     resizeRef.current?.();
     renderer.render(scene, camera);
@@ -670,6 +733,8 @@ export function WorldView({
       data-arena-mm={`${worldWidthMm} × ${worldHeightMm}`}
       data-pose-state={sample.poseAvailable ? "published" : "centered-preview"}
       data-testid="world-view"
+      data-ultrasonic-field-of-view-deg={XRP_ULTRASONIC_FIELD_OF_VIEW_DEG}
+      data-ultrasonic-origin-offset-mm={XRP_ULTRASONIC_SENSOR_OFFSET_MM}
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
       ref={viewRef}
     >

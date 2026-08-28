@@ -63,12 +63,16 @@ import { WorldView } from "./WorldView";
 import {
   createMonitorAnnotation,
   downloadBlob,
+  monitorAnnotationsToCsv,
   timestampedName,
   webmExportSupported,
   type MonitorAnnotation,
 } from "./monitor-export-core";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
-import { PlotSampleHistory } from "./plot-sample-history";
+import {
+  PlotSampleHistory,
+  recentTelemetryRateHz,
+} from "./plot-sample-history";
 
 interface ConsoleEntry {
   id: string;
@@ -77,7 +81,7 @@ interface ConsoleEntry {
 }
 
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
-const maximumPlotSamples = 1_200;
+const maximumPlotSamples = 1_800;
 const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
 const loadMonitorExport = () => import("./monitor-export");
 const emptyRuntimeState: RuntimeState = {
@@ -572,7 +576,12 @@ export function DashboardApp() {
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
   const [exportReplayAfterStop, setExportReplayAfterStop] = useState(false);
   const [exportState, setExportState] = useState<
-    "idle" | "telemetry-csv" | "plots-svg" | "plots-png" | "world-webm"
+    | "idle"
+    | "telemetry-csv"
+    | "notes-csv"
+    | "plots-svg"
+    | "plots-png"
+    | "world-webm"
   >("idle");
   const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
@@ -879,8 +888,6 @@ export function DashboardApp() {
         targetStateRef.current = event.state;
         const nextRunActive = isActiveRunState(event.state);
         if (nextRunActive && !automaticRunActive.current) {
-          annotationsRef.current = [];
-          setAnnotations([]);
           automaticRunActive.current = true;
           automaticRunStartedAt.current = new Date().toISOString();
           automaticRunProject.current = currentProjectRef.current;
@@ -1100,8 +1107,6 @@ export function DashboardApp() {
 
   const startRecording = () => {
     recorder.start();
-    annotationsRef.current = [];
-    setAnnotations([]);
     recordingStartedAt.current = performance.now();
     setRecordingActive(true);
     setRecordedSamples(0);
@@ -1151,6 +1156,32 @@ export function DashboardApp() {
       if (!destination) return;
       const csv = telemetryRecordingToCsv(recorder.snapshot());
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      await destination.save(blob);
+      setExportDetail(`Saved ${destination.description}`);
+    } catch (error) {
+      setExportDetail(error instanceof Error ? error.message : String(error));
+    } finally {
+      exportActiveRef.current = false;
+      setExportState("idle");
+      retryPendingOfflineShellReload();
+    }
+  };
+
+  const exportNotes = async () => {
+    if (annotations.length === 0) return;
+    exportActiveRef.current = true;
+    setExportState("notes-csv");
+    try {
+      const fileName = timestampedName("xrp-notes", "csv");
+      const destination = await prepareExportDestination(
+        autosaveFolder,
+        fileName,
+        "text/csv",
+      );
+      if (!destination) return;
+      const blob = new Blob([monitorAnnotationsToCsv(annotations)], {
+        type: "text/csv;charset=utf-8",
+      });
       await destination.save(blob);
       setExportDetail(`Saved ${destination.description}`);
     } catch (error) {
@@ -1412,6 +1443,10 @@ export function DashboardApp() {
     [target.kind],
   );
   const worldSample = sample?.poseAvailable ? sample : worldPreviewSample;
+  const telemetryRateHz = useMemo(
+    () => recentTelemetryRateHz(plotSamples),
+    [plotSamples],
+  );
   const capturedSampleCount = recordedSamples + droppedSamples;
   const observedRecordingRateHz =
     recordingElapsedMs >= 500 && capturedSampleCount > 1
@@ -1585,6 +1620,27 @@ export function DashboardApp() {
                       Clear plots
                     </button>
                   </div>
+                  <label className="monitor-field time-window-field">
+                    <span>Time window</span>
+                    <span className="time-window-value">
+                      {monitorSettings.timeWindowS} s
+                    </span>
+                    <input
+                      aria-label="Strip chart time window"
+                      max="30"
+                      min="2"
+                      onChange={(event) =>
+                        setMonitorSettings((current) => ({
+                          ...current,
+                          timeWindowS: Number(event.target.value),
+                        }))
+                      }
+                      step="1"
+                      title="Set the amount of recent telemetry visible in each plot."
+                      type="range"
+                      value={monitorSettings.timeWindowS}
+                    />
+                  </label>
                   <div className="signal-choices">
                     {SIGNAL_PLOTS.map((plot) => (
                       <label
@@ -1624,27 +1680,6 @@ export function DashboardApp() {
                       </label>
                     ))}
                   </div>
-                  <label className="monitor-field time-window-field">
-                    <span>Time window</span>
-                    <span className="time-window-value">
-                      {monitorSettings.timeWindowS} s
-                    </span>
-                    <input
-                      aria-label="Strip chart time window"
-                      max="30"
-                      min="2"
-                      onChange={(event) =>
-                        setMonitorSettings((current) => ({
-                          ...current,
-                          timeWindowS: Number(event.target.value),
-                        }))
-                      }
-                      step="1"
-                      title="Set the amount of recent telemetry visible in each plot."
-                      type="range"
-                      value={monitorSettings.timeWindowS}
-                    />
-                  </label>
                 </section>
 
                 <section
@@ -1717,22 +1752,20 @@ export function DashboardApp() {
                   </label>
                   <div className="annotation-tools">
                     <span className="annotation-hint">
-                      Right-click a plot to mark a time. Keyboard: focus it and
-                      press N.
+                      Right-click a plot to add a note at that time.
                     </span>
-                    <button
-                      aria-pressed={annotationsVisible}
-                      className="annotation-visibility"
-                      disabled={annotations.length === 0}
-                      onClick={() =>
-                        setAnnotationsVisible((visible) => !visible)
-                      }
-                      title="Show or hide all current plot and world notes."
-                    >
-                      {annotations.length === 0
-                        ? "Notes · 0"
-                        : `${annotationsVisible ? "Hide" : "Show"} notes · ${annotations.length}`}
-                    </button>
+                    {annotations.length > 0 ? (
+                      <button
+                        aria-pressed={annotationsVisible}
+                        className="annotation-visibility"
+                        onClick={() =>
+                          setAnnotationsVisible((visible) => !visible)
+                        }
+                        title="Show or hide all current plot and world notes."
+                      >
+                        {`${annotationsVisible ? "Hide" : "Show"} notes · ${annotations.length}`}
+                      </button>
+                    ) : null}
                   </div>
                   <div className="export-section">
                     <h3>Export</h3>
@@ -1748,6 +1781,15 @@ export function DashboardApp() {
                         title="Save the recorded telemetry as a unit-labeled CSV file."
                       >
                         Export telemetry CSV
+                      </button>
+                      <button
+                        disabled={
+                          exportState !== "idle" || annotations.length === 0
+                        }
+                        onClick={() => void exportNotes()}
+                        title="Save plot and world notes as a compact CSV file."
+                      >
+                        Export notes CSV
                       </button>
                       <button
                         disabled={
@@ -2005,6 +2047,14 @@ export function DashboardApp() {
                       <dt>encoder counts L/R</dt>
                       <dd data-testid="encoder-counts">
                         {sample.leftEncoderCount} / {sample.rightEncoderCount}
+                      </dd>
+                    </div>
+                    <div title="Recent telemetry sample rate calculated from XRP or simulator timestamps.">
+                      <dt>telemetry sample rate</dt>
+                      <dd data-testid="telemetry-rate">
+                        {telemetryRateHz === null
+                          ? "—"
+                          : `${telemetryRateHz.toFixed(1)} Hz`}
                       </dd>
                     </div>
                   </dl>

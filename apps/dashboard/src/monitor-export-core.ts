@@ -9,6 +9,32 @@ export interface MonitorAnnotation {
   yMm: number;
 }
 
+function csvCell(value: string | number | boolean): string {
+  const text = typeof value === "boolean" ? (value ? "1" : "0") : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+/** Export plot and world notes as one small, analysis-ready table. */
+export function monitorAnnotationsToCsv(
+  annotations: readonly MonitorAnnotation[],
+): string {
+  const header = "time_s,label,pose_available,x_mm,y_mm";
+  const rows = [...annotations]
+    .sort((left, right) => left.tMs - right.tMs)
+    .map((annotation) =>
+      [
+        annotation.tMs / 1_000,
+        annotation.label,
+        annotation.poseAvailable,
+        annotation.poseAvailable ? annotation.xMm : "",
+        annotation.poseAvailable ? annotation.yMm : "",
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+  return `${header}\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
+}
+
 export function createMonitorAnnotation(
   samples: readonly TelemetrySample[],
   requestedTimeMs: number,

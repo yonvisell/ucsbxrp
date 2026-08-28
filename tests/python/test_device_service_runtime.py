@@ -1389,6 +1389,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             ),
             patch.object(course_telemetry, "state_snapshot", return_value=retained[-1], create=True),
             patch.object(self.service, "_read_hardware", return_value=hardware),
+            patch.object(self.service, "TELEMETRY_SAMPLE_BATCH_LIMIT", 8),
         ):
             first = json.loads(
                 self.service.telemetry(

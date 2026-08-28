@@ -5,6 +5,7 @@ import type { TelemetrySample } from "@ucsb-xrp/target";
 import {
   createMonitorAnnotation,
   createSignalPlotsSvg,
+  monitorAnnotationsToCsv,
   worldReplayPlan,
   type MonitorAnnotation,
 } from "./monitor-export";
@@ -72,6 +73,22 @@ describe("monitor exports", () => {
     expect(svg).toContain("5.00 s · turn &amp; inspect");
     expect(svg).toContain("<path");
     expect(svg).not.toContain("NaN");
+  });
+
+  it("exports notes as a compact CSV with escaped labels", () => {
+    const csv = monitorAnnotationsToCsv([
+      annotation,
+      {
+        ...annotation,
+        id: "note-2",
+        label: 'stop, then "inspect"',
+        tMs: 8_000,
+      },
+    ]);
+
+    expect(csv).toContain("time_s,label,pose_available,x_mm,y_mm");
+    expect(csv).toContain("5,turn & inspect,1,80,40");
+    expect(csv).toContain('8,"stop, then ""inspect""",1,80,40');
   });
 
   it("bounds long world replays and preserves real time for short ones", () => {

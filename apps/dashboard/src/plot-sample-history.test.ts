@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
-import { PlotSampleHistory } from "./plot-sample-history";
+import {
+  PlotSampleHistory,
+  recentTelemetryRateHz,
+} from "./plot-sample-history";
 
 function sample(seq: number, source: TelemetrySample["source"] = "virtual") {
-  return { seq, source } as TelemetrySample;
+  return { seq, source, tMs: seq * 20 } as TelemetrySample;
 }
 
 function harness(maximumSamples = 3) {
@@ -35,6 +38,19 @@ function harness(maximumSamples = 3) {
 }
 
 describe("PlotSampleHistory", () => {
+  it("estimates source rate from timestamps and sequence steps", () => {
+    expect(
+      recentTelemetryRateHz([sample(1), sample(2), sample(3)]),
+    ).toBeCloseTo(50);
+    expect(
+      recentTelemetryRateHz([
+        { ...sample(10), tMs: 1_000 },
+        { ...sample(15), tMs: 1_100 },
+      ]),
+    ).toBeCloseTo(50);
+    expect(recentTelemetryRateHz([sample(1)])).toBeNull();
+  });
+
   it("retains every sample and publishes only once per display frame", () => {
     const { flush, frames, history, published } = harness();
     history.append(sample(1));

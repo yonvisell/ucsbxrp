@@ -55,7 +55,9 @@ LAUNCH_AFTER_RESPONSE_MS = 80
 SERVICE_WATCHDOG_MS = 7000
 LOG_LIMIT = 160
 TELEMETRY_LOG_BATCH_LIMIT = 8
-TELEMETRY_SAMPLE_BATCH_LIMIT = 8
+# One response can drain nearly half of the 50 Hz course-loop ring. This keeps
+# local Wi-Fi request overhead from accumulating a backlog during short runs.
+TELEMETRY_SAMPLE_BATCH_LIMIT = 24
 STOP_GRACE_MS = 2500
 PROJECT_WORKER_IDLE_MS = 5
 PROJECT_WORKER_START_TIMEOUT_MS = 500

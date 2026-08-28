@@ -11,9 +11,9 @@ history; they are not parallel plans. Detailed validation belongs in
 - Browser source: current repository `HEAD` plus the active integrated stage.
 - Attached XRP: physically qualified on `2026.08-dev.38`, generation 19, from
   source commit `a69b478`.
-- Current course bundle: `2026.08-dev.39`. This release requires the dev.39
-  robot runtime because edited projects now compile, prepare, and start in one
-  reliable device transaction.
+- Current course bundle: `2026.08-dev.40`. It requires robot runtime dev.39 or
+  later for the atomic edited-project Run transaction; dev.40 also retains and
+  drains physical telemetry in larger bounded batches.
 - Development origin: the only supported local development instance is the
   cache-free Vite server at `http://127.0.0.1:4174/`.
 - The public GitHub Pages release remains unchanged during the local revision

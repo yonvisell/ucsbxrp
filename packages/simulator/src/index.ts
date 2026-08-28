@@ -26,6 +26,36 @@ export interface Pose2d {
   headingRad: number;
 }
 
+export interface Point2d {
+  xMm: number;
+  yMm: number;
+}
+
+// SparkFun XRP / HC-SR04 geometry, expressed in millimeters and radians.
+// The 70 mm acoustic origin is 26.25 mm behind the 192.5 mm chassis nose.
+export const XRP_CHASSIS_LENGTH_MM = 192.5;
+export const XRP_ULTRASONIC_SENSOR_OFFSET_MM = 70;
+export const XRP_ULTRASONIC_FIELD_OF_VIEW_DEG = 15;
+export const XRP_ULTRASONIC_FIELD_OF_VIEW_RAD = Math.PI / 12;
+export const XRP_ULTRASONIC_RAY_COUNT = 9;
+
+export const XRP_ULTRASONIC_RAY_OFFSETS_RAD: readonly number[] = Object.freeze(
+  Array.from({ length: XRP_ULTRASONIC_RAY_COUNT }, (_, index) => {
+    const fraction = index / (XRP_ULTRASONIC_RAY_COUNT - 1);
+    return (fraction - 0.5) * XRP_ULTRASONIC_FIELD_OF_VIEW_RAD;
+  }),
+);
+
+export function ultrasonicSensorOrigin(
+  pose: Pose2d,
+  offsetMm = XRP_ULTRASONIC_SENSOR_OFFSET_MM,
+): Point2d {
+  return {
+    xMm: pose.xMm + offsetMm * Math.cos(pose.headingRad),
+    yMm: pose.yMm + offsetMm * Math.sin(pose.headingRad),
+  };
+}
+
 export type SimulationScenario = string;
 
 export const SIMULATION_SCENARIOS: Readonly<
@@ -118,7 +148,7 @@ export const DEFAULT_XRP_SIMULATOR_CONFIG: XrpSimulatorConfig = {
   leftResponseScale: 1,
   rightResponseScale: 0.97,
   robotRadiusMm: 85,
-  rangeSensorOffsetMm: 70,
+  rangeSensorOffsetMm: XRP_ULTRASONIC_SENSOR_OFFSET_MM,
   maximumRangeMm: 2000,
   batteryV: 6.2,
   temperatureC: 27,
@@ -384,30 +414,37 @@ export class XrpSimulator {
 
   private updateRange(): void {
     const pose = this.currentState.pose;
-    const directionX = Math.cos(pose.headingRad);
-    const directionY = Math.sin(pose.headingRad);
-    const originX = pose.xMm + directionX * this.config.rangeSensorOffsetMm;
-    const originY = pose.yMm + directionY * this.config.rangeSensorOffsetMm;
-    const distances = this.config.obstacles
-      .map((obstacle) =>
-        rayRectangleDistance(
-          originX,
-          originY,
+    const origin = ultrasonicSensorOrigin(
+      pose,
+      this.config.rangeSensorOffsetMm,
+    );
+    const distances: number[] = [];
+    for (const offsetRad of XRP_ULTRASONIC_RAY_OFFSETS_RAD) {
+      const headingRad = pose.headingRad + offsetRad;
+      const directionX = Math.cos(headingRad);
+      const directionY = Math.sin(headingRad);
+      for (const obstacle of this.config.obstacles) {
+        const distance = rayRectangleDistance(
+          origin.xMm,
+          origin.yMm,
           directionX,
           directionY,
           obstacle,
-        ),
-      )
-      .filter((value): value is number => value !== null && value >= 0);
-    const boundaryDistance = rayRectangleDistance(
-      originX,
-      originY,
-      directionX,
-      directionY,
-      this.config.worldBounds,
-    );
-    if (boundaryDistance !== null) {
-      distances.push(boundaryDistance);
+        );
+        if (distance !== null && distance >= 0) {
+          distances.push(distance);
+        }
+      }
+      const boundaryDistance = rayRectangleDistance(
+        origin.xMm,
+        origin.yMm,
+        directionX,
+        directionY,
+        this.config.worldBounds,
+      );
+      if (boundaryDistance !== null && boundaryDistance >= 0) {
+        distances.push(boundaryDistance);
+      }
     }
     const closest = distances.length > 0 ? Math.min(...distances) : Infinity;
     this.currentState.rangeMm =
