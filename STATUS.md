@@ -1946,3 +1946,19 @@ The focused production-browser regression passed, and a subsequent physical
 IDE-started run was stored and labeled as `1 · Straight Run`; Reset created no
 empty run, and a Monitor-started repeat produced 112 samples and saved them to
 the correct Project folder.
+
+## Refinement 73: direct setup entry and literal component language
+
+Setup now proceeds directly to the USB step when Chrome already has read-write
+access to the saved Working folder. Selecting a new folder already advanced to
+USB; reopening setup no longer adds a second **Use folder** action. The folder
+remains visible in the setup progress panel, and **Back** still permits a
+deliberate folder change. Normal Chrome confirmed that `new_xrp` opens directly
+at **Connect the XRP by USB-C** with the previously approved RP2350 identified.
+
+The IDE's target description now reads, for example, **Program completed.
+Project ready.** rather than repeating “Project.” Guide and API copy names the
+component file, required method, or selected implementation directly instead
+of using ambiguous phrases such as “student method.” The API metadata label is
+now **Project file**. The production build, the current public-wizard handoff
+test, and the folder-picker/update boundary test pass.

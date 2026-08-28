@@ -337,9 +337,9 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is the current Working folder. Use it or choose a different folder.`,
+                `${rememberedFolder.name} is the Working folder. Connect the XRP by USB-C to continue.`,
               );
-              setStage("folder");
+              setStage("usb");
               return;
             } catch (folderError) {
               recordSetup(

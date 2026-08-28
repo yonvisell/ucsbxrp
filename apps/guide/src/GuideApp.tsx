@@ -168,11 +168,11 @@ export function GuideApp() {
             <p>
               When you are ready to continue, select the visible{" "}
               <strong>Continue to Challenge…</strong> action. The IDE creates a
-              separate project for the next challenge, copies the student
-              component files used in the current project, and preserves which
-              student implementations are selected. New component files begin
-              with the supplied implementation selected. The current project is
-              not changed.
+              separate project for the next challenge, copies the component
+              implementation files used in the current project, and preserves
+              which implementations are selected. New component files begin with
+              the supplied implementation selected. The current project is not
+              changed.
             </p>
             <div
               className="project-catalog"
@@ -266,7 +266,7 @@ export function GuideApp() {
                 <code>course_setup.py</code>
                 <span>
                   Constructs supplied services. In challenges, it also chooses
-                  the supplied or student version of each component.
+                  the supplied or Project implementation of each component.
                 </span>
               </div>
               <div>
@@ -284,7 +284,7 @@ export function GuideApp() {
                 </span>
               </div>
               <div>
-                <code>student component files</code>
+                <code>component implementation files</code>
                 <span>
                   Contain the course components you implement, such as
                   <code> sensor_model.py</code> or <code>odometry.py</code>.
@@ -343,24 +343,25 @@ export function GuideApp() {
           >
             <h3>Implement components</h3>
             <p>
-              Implementing a component means writing the required methods in its
-              named student Python file. This is not an IDE command. Read the
-              challenge README and the component&apos;s{" "}
-              <a href={componentReference}>API entry</a>, then replace each{" "}
-              <code>NotImplementedError</code> with your implementation. Keep
-              the supplied class name, method names, arguments, and return
-              types. A component may retain the state identified by its API
-              entry; do not add target-specific Virtual or Physical XRP code.
+              Implementing a component means completing the required methods in
+              its named Python file, such as <code>sensor_model.py</code>. This
+              is not an IDE command. Read the challenge README and the
+              component&apos;s <a href={componentReference}>API entry</a>, then
+              replace each <code>NotImplementedError</code> with your
+              implementation. Keep the supplied class name, method names,
+              arguments, and return types. A component may retain the state
+              identified by its API entry; do not add target-specific Virtual or
+              Physical XRP code.
             </p>
             <h3>Test the component</h3>
             <p>
               <strong>Compile</strong> checks the project structure and compiles
               each Python file without starting a target.{" "}
               <strong>Test components</strong> runs the supplied{" "}
-              <code>component_checks.py</code>, which calls student methods with
-              small stated examples. It does not start or move either XRP. Do
-              not edit the checks; use their expected and observed values to
-              revise the named student method.
+              <code>component_checks.py</code>, which calls each required method
+              with small stated examples. It does not start or move either XRP.
+              Do not edit the checks; use their expected and observed values to
+              revise the method named in the result.
             </p>
             <div className="result-key" aria-label="Component check results">
               <div>
@@ -383,7 +384,9 @@ export function GuideApp() {
               </div>
             </div>
             <ol className="procedure">
-              <li>Implement one method in its named student Python file.</li>
+              <li>
+                Implement one method in the component&apos;s named Python file.
+              </li>
               <li>
                 Select <strong>Test components</strong> and read every result in
                 Program output.
@@ -393,7 +396,7 @@ export function GuideApp() {
                 examples. Other components may still report NOT IMPLEMENTED.
               </li>
               <li>
-                In <code>course_setup.py</code>, select the student version of
+                In <code>course_setup.py</code>, select your implementation of
                 the component with its named <code>USE_STUDENT_*</code> setting.
               </li>
               <li>Run the complete challenge on the Virtual XRP.</li>
@@ -406,7 +409,7 @@ export function GuideApp() {
               project on the Virtual XRP after the component examples pass.
               Component roles, retained state, arguments, return values, and
               requirements are in the{" "}
-              <a href={componentReference}>student component reference</a>.
+              <a href={componentReference}>component API reference</a>.
             </p>
           </GuideSection>
 
@@ -526,9 +529,9 @@ export function GuideApp() {
               <div>
                 <dt>Odometry check (virtual)</dt>
                 <dd>
-                  Difference between student odometry and simulator truth.
-                  Simulator truth is not available to robot code or a physical
-                  XRP.
+                  Difference between the Project&apos;s odometry estimate and
+                  simulator truth. Simulator truth is not available to robot
+                  code or a physical XRP.
                 </dd>
               </div>
             </dl>
@@ -834,7 +837,7 @@ export function GuideApp() {
               </li>
               <li>
                 <strong>A component check says NOT IMPLEMENTED:</strong> open
-                the named student file and implement that method. NOT
+                the named component file and implement that method. NOT
                 IMPLEMENTED is distinct from FAIL, and it does not prevent
                 checks of other methods.
               </li>

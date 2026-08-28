@@ -927,7 +927,6 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     });
 
   await page.goto("/commission/");
-  await page.getByRole("button", { name: "Use My XRP Projects" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();

@@ -2886,7 +2886,7 @@ export function IdeApp({
     : syncDetail;
   const targetStatusTitle =
     target.kind === "physical"
-      ? `${targetDetail}${targetDetail.endsWith(".") ? "" : "."} Project ${physicalStatus}.`
+      ? `${targetDetail}${targetDetail.endsWith(".") ? "" : "."} ${physicalStatus.charAt(0).toUpperCase()}${physicalStatus.slice(1)}.`
       : targetDetail;
   const nextRunProjectName = project.name;
   const activeHelp = contextHelpForPath(activePath, project.templateId);

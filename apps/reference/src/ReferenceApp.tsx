@@ -88,7 +88,7 @@ function EntryReference({ entry }: { entry: ApiEntry }) {
         </div>
         {entry.projectFile && (
           <div>
-            <dt>Student file</dt>
+            <dt>Project file</dt>
             <dd>
               <code>{entry.projectFile}</code>
             </dd>

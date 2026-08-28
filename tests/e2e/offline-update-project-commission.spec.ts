@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const folderDatabaseName = "ucsb-xrp-course-tools-v1";
 const folderStoreName = "course-folders";
 const activeProjectFolderKey = "active-project-folder-v2";
-const workspaceFolderKey = "workspace-folder-v1";
+const workspaceFolderKey = "workspace-folder-capability-v1";
 const projectRecoveryKey = "ucsb-xrp-course-project-v2";
 
 interface StoredProject {
@@ -382,7 +382,7 @@ test("commissioning defers a course update until the folder picker and write che
   await reloaded;
 
   await expect(
-    page.getByRole("button", { name: "Use commission-workspace" }),
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
   await expect
     .poll(() => readRememberedFolderName(page, workspaceFolderKey))

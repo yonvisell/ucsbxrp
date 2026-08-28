@@ -2,7 +2,7 @@
 
 API version: `0.4.0-dev`.
 
-Robot runs the measured control cycle used throughout the course. Six replaceable classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Student implementations may use any algorithm that produces the required behavior stated here.
+Robot runs the measured control cycle used throughout the course. Six replaceable classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Your implementation of each class may use any algorithm that satisfies the required behavior stated here.
 
 ## Units and coordinate conventions
 
