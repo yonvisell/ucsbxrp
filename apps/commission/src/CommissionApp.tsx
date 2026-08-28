@@ -8,6 +8,10 @@ import {
 
 import { CourseHeader } from "../../shared/CourseHeader";
 import {
+  DiagnosticLogWriter,
+  diagnosticLogFileName,
+} from "../../shared/diagnostic-log";
+import {
   chooseWorkspaceFolder,
   courseFolderPermission,
   loadRememberedWorkspaceFolder,
@@ -59,9 +63,10 @@ import { commissionReloadIsSafe } from "./commission-release-reload";
 import {
   createSetupLogEntry,
   renderSetupLog,
-  saveSetupLog,
-  setupLogPath,
-  verifySetupLogFolder,
+  setupDiagnosticEvent,
+  setupSessionStartMessage,
+  verifySetupDiagnosticFolder,
+  type SetupDiagnosticRecord,
   type SetupLogEntry,
   type SetupLogLevel,
 } from "./setup-log";
@@ -151,6 +156,33 @@ function navigationDestinationName(destination: string): string {
   return "Home";
 }
 
+function newDiagnosticSessionId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `setup-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function browserDescription(): string {
+  const userAgentData = (
+    navigator as Navigator & {
+      userAgentData?: {
+        brands?: Array<{ brand: string; version: string }>;
+      };
+    }
+  ).userAgentData;
+  const brands = userAgentData?.brands
+    ?.filter(({ brand }) => !brand.toLocaleLowerCase().includes("not"))
+    .map(({ brand, version }) => `${brand} ${version}`)
+    .join(", ");
+  return brands || navigator.userAgent || "unknown";
+}
+
+function operatingSystemDescription(): string {
+  const platform = (
+    navigator as Navigator & { userAgentData?: { platform?: string } }
+  ).userAgentData?.platform;
+  return platform || navigator.platform || "unknown";
+}
+
 export function networkChoiceVisibility(
   profile: ExistingNetworkProfile | null,
 ): {
@@ -211,6 +243,7 @@ export function CommissionApp() {
   const [setupLogEntries, setSetupLogEntries] = useState<SetupLogEntry[]>([]);
   const [setupLogSaveError, setSetupLogSaveError] = useState("");
   const [setupLogCopied, setSetupLogCopied] = useState(false);
+  const [diagnosticLogReady, setDiagnosticLogReady] = useState(false);
   const [navigationDestination, setNavigationDestination] = useState("");
   const sessionRef = useRef<MicroPythonSession | null>(null);
   const portRef = useRef<SerialPortLike | null>(null);
@@ -223,7 +256,26 @@ export function CommissionApp() {
   const folderRef = useRef<CourseDirectoryHandle | null>(null);
   const manifestReleaseRef = useRef(courseRelease.release_id);
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
-  const setupLogWriteRef = useRef<Promise<void>>(Promise.resolve());
+  const setupDiagnosticEntriesRef = useRef<SetupDiagnosticRecord[]>([]);
+  const setupDiagnosticSequenceRef = useRef(0);
+  const diagnosticVerificationSequenceRef = useRef(0);
+  const diagnosticFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const diagnosticSessionIdRef = useRef<string | null>(null);
+  const diagnosticLogRef = useRef<DiagnosticLogWriter | null>(null);
+  if (!diagnosticSessionIdRef.current) {
+    diagnosticSessionIdRef.current = newDiagnosticSessionId();
+  }
+  if (!diagnosticLogRef.current) {
+    diagnosticLogRef.current = new DiagnosticLogWriter({
+      app: "Setup",
+      courseRelease: courseRelease.release_id,
+      sessionId: diagnosticSessionIdRef.current,
+      onWriteError: (logError) => {
+        setDiagnosticLogReady(false);
+        setSetupLogSaveError(logError.message);
+      },
+    });
+  }
   const folderInteractionCountRef = useRef(0);
   const serialInteractionCountRef = useRef(0);
 
@@ -267,25 +319,44 @@ export function CommissionApp() {
 
   const recordSetup = useCallback(
     (step: string, message: string, level: SetupLogLevel = "info") => {
-      const next = [
-        ...setupLogEntriesRef.current,
-        createSetupLogEntry(step, message, level),
-      ].slice(-160);
+      const entry = createSetupLogEntry(step, message, level);
+      const diagnosticRecord = {
+        entry,
+        eventId: `${diagnosticSessionIdRef.current}:setup:${setupDiagnosticSequenceRef.current++}`,
+      };
+      const next = [...setupLogEntriesRef.current, entry].slice(-160);
       setupLogEntriesRef.current = next;
+      setupDiagnosticEntriesRef.current = [
+        ...setupDiagnosticEntriesRef.current,
+        diagnosticRecord,
+      ].slice(-160);
       setSetupLogEntries(next);
-      const activeFolder = folderRef.current;
-      if (!activeFolder) return;
-      setupLogWriteRef.current = setupLogWriteRef.current
-        .catch(() => undefined)
-        .then(() =>
-          saveSetupLog(activeFolder, next, manifestReleaseRef.current),
-        )
-        .then(() => setSetupLogSaveError(""))
-        .catch((logError) => {
-          setSetupLogSaveError(
-            `The setup log could not be saved: ${errorDetail(logError)}`,
-          );
-        });
+      if (diagnosticFolderRef.current) {
+        diagnosticLogRef.current?.record(
+          setupDiagnosticEvent(diagnosticRecord),
+        );
+      }
+    },
+    [],
+  );
+
+  const bindDiagnosticFolder = useCallback(
+    async (selected: CourseDirectoryHandle) => {
+      const writer = diagnosticLogRef.current;
+      if (!writer) throw new Error("The diagnostic log is unavailable.");
+      setDiagnosticLogReady(false);
+      diagnosticFolderRef.current = null;
+      await writer.flush();
+      const verificationEventId = `${diagnosticSessionIdRef.current}:folder:${diagnosticVerificationSequenceRef.current++}`;
+      await verifySetupDiagnosticFolder(
+        writer,
+        selected,
+        setupDiagnosticEntriesRef.current,
+        verificationEventId,
+      );
+      diagnosticFolderRef.current = selected;
+      setDiagnosticLogReady(true);
+      setSetupLogSaveError("");
     },
     [],
   );
@@ -314,8 +385,23 @@ export function CommissionApp() {
               ? `app build ${offlineStatus.version.slice(0, 12)}`
               : "app build pending";
         recordSetup(
-          "Start",
-          `Loaded course release ${loadedManifest.releaseId} from ${appIdentity}.`,
+          "Session start",
+          setupSessionStartMessage({
+            build: appIdentity,
+            courseRelease: loadedManifest.releaseId,
+            browser: browserDescription(),
+            operatingSystem: operatingSystemDescription(),
+            capabilities: [
+              `language ${navigator.language || "unknown"}`,
+              `secure context ${window.isSecureContext ? "yes" : "no"}`,
+              `display mode ${window.matchMedia("(display-mode: standalone)").matches ? "installed app" : "browser tab"}`,
+              `folder access ${"showDirectoryPicker" in window ? "available" : "unavailable"}`,
+              `Web Serial ${supportsWebSerial() ? "available" : "unavailable"}`,
+              `Web Locks ${navigator.locks ? "available" : "unavailable"}`,
+              `service worker ${"serviceWorker" in navigator ? "available" : "unavailable"}`,
+              `service worker controller ${navigator.serviceWorker?.controller ? "active" : "none"}`,
+            ],
+          }),
         );
         if (rememberedFolder) {
           const permission = await courseFolderPermission(rememberedFolder);
@@ -327,11 +413,7 @@ export function CommissionApp() {
                 "Folder",
                 `Checking write access to ${rememberedFolder.name}.`,
               );
-              await verifySetupLogFolder(
-                rememberedFolder,
-                setupLogEntriesRef.current,
-                loadedManifest.releaseId,
-              );
+              await bindDiagnosticFolder(rememberedFolder);
               if (disposed) return;
               folderRef.current = rememberedFolder;
               setFolder(rememberedFolder);
@@ -391,7 +473,7 @@ export function CommissionApp() {
       sessionRef.current = null;
       void session?.resetAndClose();
     };
-  }, [manifestUrl, recordSetup]);
+  }, [bindDiagnosticFolder, manifestUrl, recordSetup]);
 
   const chooseFolder = useCallback(async () => {
     setError("");
@@ -401,11 +483,7 @@ export function CommissionApp() {
       await requireWorkingFolderParent(selected);
       await loadWorkspaceManifest(selected);
       recordSetup("Folder", `Checking write access to ${selected.name}.`);
-      await verifySetupLogFolder(
-        selected,
-        setupLogEntriesRef.current,
-        manifestReleaseRef.current,
-      );
+      await bindDiagnosticFolder(selected);
       const remembered = await replaceRememberedWorkspaceFolder(selected);
       if (!remembered.remembered) {
         throw new Error(
@@ -443,7 +521,12 @@ export function CommissionApp() {
     } finally {
       finishFolderInteraction();
     }
-  }, [beginFolderInteraction, finishFolderInteraction, recordSetup]);
+  }, [
+    beginFolderInteraction,
+    bindDiagnosticFolder,
+    finishFolderInteraction,
+    recordSetup,
+  ]);
 
   const continueWithFolder = useCallback(async () => {
     const selected = folderRef.current;
@@ -462,11 +545,7 @@ export function CommissionApp() {
           return;
         }
         recordSetup("Folder", `Checking write access to ${selected.name}.`);
-        await verifySetupLogFolder(
-          selected,
-          setupLogEntriesRef.current,
-          manifestReleaseRef.current,
-        );
+        await bindDiagnosticFolder(selected);
         const remembered = await replaceRememberedWorkspaceFolder(selected);
         if (!remembered.remembered) {
           throw new Error(`Chrome could not remember ${selected.name}.`);
@@ -491,6 +570,7 @@ export function CommissionApp() {
     }
   }, [
     beginFolderInteraction,
+    bindDiagnosticFolder,
     finishFolderInteraction,
     folderVerified,
     recordSetup,
@@ -1010,7 +1090,7 @@ export function CommissionApp() {
         "success",
       );
       setStage("complete");
-      await setupLogWriteRef.current.catch(() => undefined);
+      await diagnosticLogRef.current?.flush();
     } catch (probeError) {
       if (probeError instanceof WorkspaceManifestError) {
         const issue = probeError.message;
@@ -1143,6 +1223,7 @@ export function CommissionApp() {
       navigatingRef.current = true;
       setNavigationDestination(destinationName);
       setDetail(`Closing the USB connection and opening ${destinationName}…`);
+      await diagnosticLogRef.current?.flush();
       await closeUsbSession();
       window.location.assign(new URL(destination, window.location.href));
     },
@@ -1189,7 +1270,7 @@ export function CommissionApp() {
       });
     const unregister = registerOfflineShellBeforeReload(async () => {
       if (!currentActivity()) return false;
-      await setupLogWriteRef.current.catch(() => undefined);
+      await diagnosticLogRef.current?.flush();
       return currentActivity();
     });
     if (currentActivity()) retryPendingOfflineShellReload();
@@ -1202,6 +1283,14 @@ export function CommissionApp() {
     stage,
     wifiProbeEnabled,
   ]);
+
+  useEffect(() => {
+    const flushDiagnosticLog = () => {
+      void diagnosticLogRef.current?.flush();
+    };
+    window.addEventListener("pagehide", flushDiagnosticLog);
+    return () => window.removeEventListener("pagehide", flushDiagnosticLog);
+  }, []);
 
   const activeStep = workflowStep(stage);
   const progressPercent =
@@ -1331,9 +1420,9 @@ export function CommissionApp() {
               <p>
                 Choose one parent Working folder for your UCSBXRP work. Each
                 project gets its own named Project folder inside it; source, run
-                data, and automatic copies stay with that project. Setup logs
-                are saved directly in the Working folder. Chrome stores the
-                course apps separately.
+                data, and automatic copies stay with that project. The
+                cumulative troubleshooting log is saved directly in the Working
+                folder. Chrome stores the course apps separately.
               </p>
             </div>
           ) : null}
@@ -1729,9 +1818,9 @@ export function CommissionApp() {
               <small>
                 {setupLogEntries.length}{" "}
                 {setupLogEntries.length === 1 ? "event" : "events"} ·{" "}
-                {folder
-                  ? `saved to ${setupLogPath}`
-                  : "copy available; no folder selected"}
+                {folder && diagnosticLogReady
+                  ? `saved as ${diagnosticLogFileName}`
+                  : "copy available; log file not connected"}
               </small>
             </summary>
             <div className="setup-log-body">
@@ -1747,8 +1836,10 @@ export function CommissionApp() {
                 </button>
                 {setupLogSaveError ? (
                   <small role="alert">{setupLogSaveError}</small>
-                ) : folder ? (
-                  <small>Write and read access verified.</small>
+                ) : folder && diagnosticLogReady ? (
+                  <small>
+                    Saved as {diagnosticLogFileName} in the Working folder.
+                  </small>
                 ) : null}
               </div>
             </div>

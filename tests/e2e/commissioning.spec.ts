@@ -785,7 +785,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           window as unknown as {
             __readUcsbTestCourseFile: (path: string) => Promise<string>;
           }
-        ).__readUcsbTestCourseFile("UCSB_XRP_Autosaves/xrp-setup-latest.txt"),
+        ).__readUcsbTestCourseFile("UCSBXRP diagnostic log.txt"),
       ),
     )
     .toContain("Write and read verified");

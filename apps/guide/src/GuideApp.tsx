@@ -853,6 +853,14 @@ export function GuideApp() {
                 available offline. A new profile, another browser, cleared site
                 data, or a different address requires another online load.
               </li>
+              <li>
+                <strong>When you ask course staff for help:</strong> send the
+                <code> UCSBXRP diagnostic log.txt</code> file from the Working
+                folder and state the last action that failed. The file records
+                setup, connection, Compile, Run, Stop, Reset, and save or export
+                errors. It does not contain project source files or telemetry
+                samples.
+              </li>
             </ul>
             <div className="source-links">
               <a href="../reference/">UCSB XRP API reference</a>

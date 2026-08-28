@@ -119,9 +119,9 @@ Generation 1 is newest; generation 4 is oldest.
 - run-N.txt: program and service output from a monitored run
 - telemetry-N.csv: unit-labeled telemetry from the same run
 - run-N.json: target, project, time, and completion metadata
-- xrp-setup-latest.txt: latest robot setup and connection log
 
 Explicit CSV downloads are separate and are never rotated here.
+The cumulative UCSBXRP diagnostic log.txt file is in the Working folder itself.
 `;
 
 function isNotFound(error: unknown): boolean {

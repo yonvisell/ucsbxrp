@@ -1,95 +1,62 @@
 import { describe, expect, it } from "vitest";
 
-import { type CourseDirectoryHandle } from "../../shared/course-folder";
 import {
   createSetupLogEntry,
   renderSetupLog,
-  setupLogPath,
-  verifySetupLogFolder,
+  setupDiagnosticEvent,
+  setupSessionStartMessage,
 } from "./setup-log";
 
-class MemoryFileHandle {
-  readonly kind = "file" as const;
-
-  constructor(
-    readonly name: string,
-    private readonly path: string,
-    private readonly files: Map<string, string>,
-  ) {}
-
-  async getFile(): Promise<File> {
-    const content = this.files.get(this.path) ?? "";
-    return { text: async () => content } as File;
-  }
-
-  async createWritable() {
-    return {
-      write: async (content: string) => {
-        this.files.set(this.path, content);
-      },
-      close: async () => undefined,
-    };
-  }
-}
-
-class MemoryDirectoryHandle implements CourseDirectoryHandle {
-  readonly kind = "directory" as const;
-
-  constructor(
-    readonly name: string,
-    private readonly files: Map<string, string>,
-    private readonly prefix = "",
-  ) {}
-
-  async *entries(): AsyncIterableIterator<
-    [string, MemoryFileHandle | MemoryDirectoryHandle]
-  > {}
-
-  async getDirectoryHandle(name: string, options?: { create?: boolean }) {
-    const prefix = `${this.prefix}${name}/`;
-    if (
-      !options?.create &&
-      ![...this.files.keys()].some((path) => path.startsWith(prefix))
-    ) {
-      throw new DOMException("Directory not found", "NotFoundError");
-    }
-    return new MemoryDirectoryHandle(name, this.files, prefix);
-  }
-
-  async getFileHandle(name: string, options?: { create?: boolean }) {
-    const path = `${this.prefix}${name}`;
-    if (!options?.create && !this.files.has(path)) {
-      throw new DOMException("File not found", "NotFoundError");
-    }
-    return new MemoryFileHandle(name, path, this.files);
-  }
-
-  async removeEntry(name: string) {
-    this.files.delete(`${this.prefix}${name}`);
-  }
-}
-
 describe("commissioning setup log", () => {
-  it("writes and reads back the student-visible log", async () => {
-    const files = new Map<string, string>();
-    const root = new MemoryDirectoryHandle("XRP course", files);
-    const entries = [
-      createSetupLogEntry(
-        "Folder",
-        "Write access verified",
-        "success",
-        new Date("2026-08-07T12:00:00.000Z"),
-      ),
-    ];
-
-    await verifySetupLogFolder(root, entries, "2026.08-dev.8");
-
-    expect(files.get(setupLogPath)).toBe(
-      renderSetupLog(entries, "2026.08-dev.8"),
+  it("preserves the original setup timestamp and success level in diagnostics", () => {
+    const entry = createSetupLogEntry(
+      "Folder",
+      "Write access verified",
+      "success",
+      new Date("2026-08-07T12:00:00.000Z"),
     );
+
+    expect(
+      setupDiagnosticEvent({ entry, eventId: "session-1:setup:1" }),
+    ).toEqual({
+      event: "setup.folder",
+      eventId: "session-1:setup:1",
+      level: "info",
+      message:
+        "[2026-08-07T12:00:00.000Z] SUCCESS Folder: Write access verified",
+      terminal: false,
+    });
   });
 
-  it("keeps each entry on one readable line", () => {
+  it("creates one explicit session-start diagnostic with environment details", () => {
+    const entry = createSetupLogEntry(
+      "Session start",
+      setupSessionStartMessage({
+        build: "app build abc123",
+        courseRelease: "2026.08-dev.42",
+        browser: "Chromium 140",
+        operatingSystem: "macOS",
+        capabilities: [
+          "secure context yes",
+          "Web Serial available",
+          "service worker controller active",
+        ],
+      }),
+      "info",
+      new Date("2026-08-07T12:00:00.000Z"),
+    );
+    const event = setupDiagnosticEvent({ entry, eventId: "session-1:start" });
+
+    expect(event.event).toBe("session.start");
+    expect(event.message).toContain("Build: app build abc123");
+    expect(event.message).toContain("course: 2026.08-dev.42");
+    expect(event.message).toContain("browser: Chromium 140");
+    expect(event.message).toContain("OS: macOS");
+    expect(event.message).toContain("secure context yes");
+    expect(event.message).not.toContain("telemetry");
+  });
+
+  it("keeps each current-attempt entry on one readable line", () => {
     const entry = createSetupLogEntry(
       "XRP service",
       "No reply\nwithin   three seconds",
