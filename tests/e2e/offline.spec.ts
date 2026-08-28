@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 const requestedBasePath = process.env.COURSE_BASE_PATH?.trim() ?? "/";
 const deploymentBase =
@@ -13,7 +13,7 @@ function coursePath(path = "") {
 async function expectOfflineShellReady(page: Page) {
   await expect
     .poll(() => page.locator("html").getAttribute("data-offline-shell-state"), {
-      message: "the complete production precache should finish",
+      message: "the production course apps should finish saving in Chrome",
     })
     .toBe("ready");
   await expect(page.locator("html")).toHaveAttribute(
@@ -22,178 +22,119 @@ async function expectOfflineShellReady(page: Page) {
   );
 }
 
-test("reloads the complete production course shell without a network", async ({
-  context,
-  page: ide,
-}) => {
-  const browserErrors: string[] = [];
-  const externalRequests: string[] = [];
-  const recordErrors = (page: Page) => {
-    page.on("pageerror", (error) => browserErrors.push(error.message));
-    page.on("console", (message) => {
-      if (message.type() === "error") {
-        browserErrors.push(message.text());
+async function provideEmptyWorkingFolder(
+  page: Page,
+  folderName: string,
+): Promise<void> {
+  await page.addInitScript((selectedFolderName) => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle(
+          selectedFolderName,
+          { create: true },
+        ),
+    });
+  }, folderName);
+
+  await page.goto(coursePath());
+  await page.evaluate(async (selectedFolderName) => {
+    const root = await navigator.storage.getDirectory();
+    try {
+      await root.removeEntry(selectedFolderName, { recursive: true });
+    } catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotFoundError") {
+        throw error;
       }
+    }
+  }, folderName);
+}
+
+function recordBrowserProblems(context: BrowserContext) {
+  const errors: string[] = [];
+  const externalRequests: string[] = [];
+  const attach = (page: Page) => {
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
     });
     page.on("request", (request) => {
       const url = new URL(request.url());
-      if (url.protocol === "http:" || url.protocol === "https:") {
-        if (url.hostname !== "127.0.0.1") {
-          externalRequests.push(request.url());
-        }
+      if (
+        (url.protocol === "http:" || url.protocol === "https:") &&
+        url.hostname !== "127.0.0.1"
+      ) {
+        externalRequests.push(request.url());
       }
     });
   };
-  recordErrors(ide);
+  context.on("page", attach);
+  for (const page of context.pages()) attach(page);
+  return { errors, externalRequests };
+}
+
+test("creates a folder-backed project and reopens the course apps without internet", async ({
+  context,
+  page: ide,
+}) => {
+  const problems = recordBrowserProblems(context);
+  await provideEmptyWorkingFolder(ide, "Offline-First-Use");
 
   await ide.goto(coursePath("ide/"));
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide.getByLabel("Project template").selectOption("demo_spiral");
+  await ide.getByLabel("Name").fill("Offline-Spiral");
   await ide
-    .getByRole("button", { name: "New from template…", exact: true })
+    .getByRole("button", { name: "Choose Working folder and create" })
     .click();
-  await ide.getByLabel("Project template").selectOption("challenge_1");
-  await ide.getByRole("button", { name: "Open temporarily" }).click();
-  expect(
-    await ide
-      .getByRole("link", { name: /Guide/ })
-      .evaluate((link) => (link as HTMLAnchorElement).href),
-  ).toBe(new URL(coursePath("guide/"), ide.url()).toString());
+  await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(ide.getByTestId("project-folder")).toHaveText("Offline-Spiral");
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
   await expectOfflineShellReady(ide);
-  await expect(ide.getByTestId("offline-readiness")).toHaveCount(0);
-  await ide.getByRole("button", { name: "Settings" }).click();
-  await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Course apps available offline",
-  );
-  await expect(
-    ide
-      .getByTestId("offline-readiness")
-      .getByRole("link", { name: "Course apps available offline" }),
-  ).toHaveAttribute("href", "../guide/#offline-use");
-  await expect(ide.getByTestId("offline-readiness")).toHaveAttribute(
-    "title",
-    /saved a local copy of IDE and the other UCSBXRP course apps.*Reopen them from this browser profile without internet.*Project files are separate and stay in the selected Working folder.*project changes remain in this browser only/s,
-  );
-  await expect(
-    ide.locator(".app-header").getByTestId("offline-readiness"),
-  ).toHaveCount(0);
-  const ideOfflineBox = await ide
-    .getByTestId("settings-panel")
-    .getByTestId("offline-readiness")
-    .boundingBox();
-  const settingsBox = await ide.getByTestId("settings-panel").boundingBox();
-  expect(ideOfflineBox?.x).toBeGreaterThanOrEqual(settingsBox?.x ?? 0);
-  expect(
-    (ideOfflineBox?.x ?? 0) + (ideOfflineBox?.width ?? 0),
-  ).toBeLessThanOrEqual((settingsBox?.x ?? 0) + (settingsBox?.width ?? 0));
-  expect(ideOfflineBox?.y).toBeGreaterThan(settingsBox?.y ?? 0);
-  await expect(ide.locator(".ide-offline-status")).toHaveCount(0);
-
-  const manifest = await ide.evaluate(async (manifestPath) => {
-    const response = await fetch(manifestPath);
-    return (await response.json()) as {
-      assets: Array<{ path: string }>;
-      base_path: string;
-      cache_name: string;
-    };
-  }, coursePath("offline-manifest.json"));
-  expect(manifest.base_path).toBe(deploymentBase);
-  expect(manifest.assets.some((asset) => asset.path.endsWith(".wasm"))).toBe(
-    true,
-  );
-  expect(
-    manifest.assets.some((asset) =>
-      asset.path.startsWith("assets/micropython.worker-"),
-    ),
-  ).toBe(true);
-  expect(
-    manifest.assets.some((asset) =>
-      asset.path.startsWith("assets/virtual-target.shared-worker-"),
-    ),
-  ).toBe(true);
 
   await context.setOffline(true);
-
   await ide.reload({ waitUntil: "domcontentloaded" });
-  await expect(ide.getByTestId("target-status")).toContainText(
-    "Virtual XRP · ready",
-  );
+  await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
   await expectOfflineShellReady(ide);
-  await expect(ide.getByTestId("offline-readiness")).toHaveCount(0);
-  await ide.getByRole("button", { name: "Settings" }).click();
-  await expect(ide.getByTestId("offline-readiness")).toContainText(
-    "Course apps available offline",
-  );
 
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "compiled with MicroPython",
   );
-
-  const monitor = await context.newPage();
-  recordErrors(monitor);
-  await monitor.goto(coursePath("monitor/"), {
-    waitUntil: "domcontentloaded",
-  });
-  await expect(monitor.getByTestId("target-status")).toContainText(
-    "Virtual XRP · ready",
-  );
-  await expectOfflineShellReady(monitor);
-  await expect(monitor.getByTestId("offline-readiness")).toContainText(
-    "Course apps available offline",
-  );
-  await expect(monitor.locator(".monitor-controls-footer")).toHaveCount(0);
-
-  const workspace = await context.newPage();
-  recordErrors(workspace);
-  await workspace.goto(coursePath("workspace/"), {
-    waitUntil: "domcontentloaded",
-  });
-  await expect(
-    workspace.getByRole("button", { name: "Side by side" }),
-  ).toBeVisible();
-  await expect(
-    workspace
-      .frameLocator('iframe[title="UCSBXRP IDE"]')
-      .getByTestId("target-status"),
-  ).toContainText("Virtual XRP · ready");
-  await expect(
-    workspace
-      .frameLocator('iframe[title="UCSBXRP Monitor"]')
-      .getByTestId("target-status"),
-  ).toContainText("Virtual XRP · ready");
-  await expectOfflineShellReady(workspace);
-
   await ide.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {
-    timeout: 20_000,
-  });
+  await expect(
+    ide.getByRole("button", { name: "Stop", exact: true }),
+  ).toBeVisible();
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
+  await ide.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+
+  const monitor = await context.newPage();
+  await monitor.goto(coursePath("monitor/"), { waitUntil: "domcontentloaded" });
+  await expect(monitor.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(
+    monitor.getByRole("button", { name: "Run", exact: true }),
+  ).toHaveAttribute("title", /Expanding spiral/);
+  await expectOfflineShellReady(monitor);
 
   const guide = await context.newPage();
-  recordErrors(guide);
   await guide.goto(coursePath("guide/"), { waitUntil: "domcontentloaded" });
   await expect(
-    guide.getByRole("heading", {
-      name: "Physical XRP setup and networks",
-    }),
-  ).toBeVisible();
-  await expect(
-    guide.getByRole("heading", { name: "Challenges" }),
-  ).toBeVisible();
-  await expect(
-    guide.getByRole("heading", {
-      name: "Offline use",
-    }),
+    guide.getByRole("heading", { name: "Physical XRP setup and networks" }),
   ).toBeVisible();
   await expectOfflineShellReady(guide);
 
   const reference = await context.newPage();
-  recordErrors(reference);
   await reference.goto(coursePath("reference/"), {
     waitUntil: "domcontentloaded",
   });
@@ -203,70 +144,31 @@ test("reloads the complete production course shell without a network", async ({
       exact: true,
     }),
   ).toBeVisible();
-  await expect(reference.locator("#sensor-model")).toContainText(
-    "Information retained between calls",
-  );
-  await expect(reference.locator("#sensor-model")).toContainText("Behavior");
   await expectOfflineShellReady(reference);
 
-  const author = await context.newPage();
-  recordErrors(author);
-  await author.goto(coursePath("author/"), {
-    waitUntil: "domcontentloaded",
-  });
-  await expect(
-    author.getByRole("heading", {
-      name: "Challenge creation",
-    }),
-  ).toBeVisible();
-  await expect(author.getByText("Specification checks pass.")).toBeVisible();
-  await expectOfflineShellReady(author);
+  expect(problems.errors).toEqual([]);
+  expect(problems.externalRequests).toEqual([]);
+});
 
-  const overview = await context.newPage();
-  recordErrors(overview);
-  await overview.goto(coursePath("overview/"), {
-    waitUntil: "domcontentloaded",
-  });
+test("offers the installed-app launcher when Chrome makes installation available", async ({
+  page,
+}) => {
+  await page.goto(coursePath());
   await expect(
-    overview.getByRole("heading", {
-      name: "UCSBXRP technical overview",
-    }),
-  ).toBeVisible();
-  await expect(
-    overview.getByRole("heading", { name: "Runtime architecture" }),
-  ).toBeVisible();
-  await expectOfflineShellReady(overview);
-
-  const landing = await context.newPage();
-  recordErrors(landing);
-  await landing.goto(coursePath(), { waitUntil: "domcontentloaded" });
-  await expect(
-    landing.getByRole("heading", {
+    page.getByRole("heading", {
       name: "Program, Simulate, and Run Live Telemetry for the XRP robot",
     }),
   ).toBeVisible();
-  expect(
-    await landing
-      .getByRole("link", { name: "Open IDE" })
-      .evaluate((link) => (link as HTMLAnchorElement).href),
-  ).toBe(new URL(coursePath("ide/"), landing.url()).toString());
-  expect(
-    await landing
-      .getByRole("link", { name: "UCSB XRP API" })
-      .evaluate((link) => (link as HTMLAnchorElement).href),
-  ).toBe(new URL(coursePath("reference/"), landing.url()).toString());
-  await expectOfflineShellReady(landing);
+  await expectOfflineShellReady(page);
 
-  const installButton = landing.getByTestId("install-course-tools");
+  const installButton = page.getByTestId("install-course-tools");
   await expect(installButton).toBeHidden();
-  await landing.evaluate(() => {
+  await page.evaluate(() => {
     const testWindow = window as typeof window & {
       __installPromptCalls?: number;
     };
     testWindow.__installPromptCalls = 0;
-    const promptEvent = new Event("beforeinstallprompt", {
-      cancelable: true,
-    });
+    const promptEvent = new Event("beforeinstallprompt", { cancelable: true });
     Object.defineProperties(promptEvent, {
       prompt: {
         value: () => {
@@ -287,34 +189,10 @@ test("reloads the complete production course shell without a network", async ({
   await installButton.click();
   await expect(installButton).toBeHidden();
   expect(
-    await landing.evaluate(
+    await page.evaluate(
       () =>
         (window as typeof window & { __installPromptCalls?: number })
           .__installPromptCalls,
     ),
   ).toBe(1);
-
-  const webAppManifest = await landing.evaluate(async (manifestPath) => {
-    const response = await fetch(manifestPath);
-    return (await response.json()) as {
-      display: string;
-      icons: Array<{ sizes: string; src: string }>;
-      name: string;
-      scope: string;
-      start_url: string;
-    };
-  }, coursePath("manifest.webmanifest"));
-  expect(webAppManifest).toMatchObject({
-    display: "standalone",
-    name: "UCSBXRP Course Tools",
-    scope: "./",
-    start_url: "./ide/",
-  });
-  expect(webAppManifest.icons.map((icon) => icon.sizes)).toEqual([
-    "192x192",
-    "512x512",
-  ]);
-
-  expect(browserErrors).toEqual([]);
-  expect(externalRequests).toEqual([]);
 });

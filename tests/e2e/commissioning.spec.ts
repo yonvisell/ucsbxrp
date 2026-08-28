@@ -70,15 +70,15 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
   ).toBe(true);
 });
 
-test("uses built-in projects as previews until a Working folder is selected", async ({
+test("shows the built-in starter as read-only until a Working folder is selected", async ({
   page,
 }) => {
   await page.goto("/ide/");
 
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText("Preview");
+  await expect(page.getByTestId("project-folder")).toHaveText("Not selected");
   await expect(page.getByTestId("project-save-state")).toHaveText(
-    "Read-only preview",
+    "Working folder required",
   );
   await expect(page.getByRole("button", { name: "Compile" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
