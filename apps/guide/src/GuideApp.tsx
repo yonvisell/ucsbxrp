@@ -28,7 +28,7 @@ export function GuideApp() {
           <a href="#virtual-run">01 First virtual run</a>
           <a href="#projects">02 Projects and files</a>
           <a href="#project-structure">03 Python project structure</a>
-          <a href="#components">04 Implement and test a component</a>
+          <a href="#components">04 Implement and test a class</a>
           <a href="#physical-xrp">05 Physical XRP setup and networks</a>
           <a href="#monitor">06 Inspect and export run data</a>
           <a href="#offline-use">07 Offline use</a>
@@ -168,11 +168,11 @@ export function GuideApp() {
             <p>
               When you are ready to continue, select the visible{" "}
               <strong>Continue to Challenge…</strong> action. The IDE creates a
-              separate project for the next challenge, copies the component
-              implementation files used in the current project, and preserves
-              which implementations are selected. New component files begin with
-              the supplied implementation selected. The current project is not
-              changed.
+              separate project for the next challenge, copies the named
+              component project files used in the current project, and preserves
+              which class is selected in <code>course_setup.py</code>. Each
+              newly introduced component project file begins with its supplied
+              class selected. The current project is not changed.
             </p>
             <div
               className="project-catalog"
@@ -234,11 +234,13 @@ export function GuideApp() {
               <code>main.py</code> or the supplied mission passes one{" "}
               <code>MotionCommand</code> at a time to <code>Robot.step()</code>.{" "}
               <code>Robot</code> keeps samples at the configured interval, calls
-              the selected components, and returns the newest measurements and
-              odometry pose together in one <code>RobotState</code>.
+              the selected <code>DifferentialDrive</code>,{" "}
+              <code>WheelSpeedController</code>, <code>SensorModel</code>, and{" "}
+              <code>Odometry</code> classes, and returns the newest measurements
+              and odometry pose together in one <code>RobotState</code>.
             </p>
             <ControlCycleFlow />
-            <h3>Where project values and implementations come from</h3>
+            <h3>Where project values and selected classes come from</h3>
             <ProjectStructureFlow />
             <div className="project-files-summary">
               <div>
@@ -266,7 +268,8 @@ export function GuideApp() {
                 <code>course_setup.py</code>
                 <span>
                   Constructs supplied services. In challenges, it also chooses
-                  the supplied or Project implementation of each component.
+                  the supplied class or the class in each named component
+                  project file.
                 </span>
               </div>
               <div>
@@ -284,10 +287,10 @@ export function GuideApp() {
                 </span>
               </div>
               <div>
-                <code>component implementation files</code>
+                <code>component project files</code>
                 <span>
-                  Contain the course components you implement, such as
-                  <code> sensor_model.py</code> or <code>odometry.py</code>.
+                  Define the classes you implement, such as{" "}
+                  <code>sensor_model.py</code> or <code>odometry.py</code>.
                 </span>
               </div>
               <div>
@@ -339,21 +342,21 @@ export function GuideApp() {
           <GuideSection
             id="components"
             number="04"
-            title="Implement and test a component"
+            title="Implement and test a class"
           >
-            <h3>Implement components</h3>
+            <h3>Implement the class</h3>
             <p>
-              Implementing a component means completing the required methods in
-              its named Python file, such as <code>sensor_model.py</code>. This
-              is not an IDE command. Read the challenge README and the
-              component&apos;s <a href={componentReference}>API entry</a>, then
-              replace each <code>NotImplementedError</code> with your
-              implementation. Keep the supplied class name, method names,
-              arguments, and return types. A component may retain the state
-              identified by its API entry; do not add target-specific Virtual or
-              Physical XRP code.
+              Complete the required methods of the class in its named project
+              file, such as <code>SensorModel</code> in{" "}
+              <code>sensor_model.py</code>. This is not an IDE command. Read the
+              challenge README and the class&apos;s{" "}
+              <a href={componentReference}>API entry</a>, then replace each{" "}
+              <code>NotImplementedError</code> with method code. Keep the
+              supplied class name, method names, arguments, and return types.
+              The class may retain the state identified by its API entry; do not
+              add target-specific Virtual or Physical XRP code.
             </p>
-            <h3>Test the component</h3>
+            <h3>Test the class</h3>
             <p>
               <strong>Compile</strong> checks the project structure and compiles
               each Python file without starting a target.{" "}
@@ -385,31 +388,33 @@ export function GuideApp() {
             </div>
             <ol className="procedure">
               <li>
-                Implement one method in the component&apos;s named Python file.
+                Implement one method in the class&apos;s named project file.
               </li>
               <li>
                 Select <strong>Test components</strong> and read every result in
                 Program output.
               </li>
               <li>
-                Repeat until that component reports PASS for its supplied
-                examples. Other components may still report NOT IMPLEMENTED.
+                Repeat until the methods in that class report PASS for the
+                supplied examples. Methods in other project files may still
+                report NOT IMPLEMENTED.
               </li>
               <li>
-                In <code>course_setup.py</code>, select your implementation of
-                the component with its named <code>USE_STUDENT_*</code> setting.
+                In <code>course_setup.py</code>, set the corresponding{" "}
+                <code>USE_STUDENT_*</code> value to <code>True</code> to select
+                the class from that project file.
               </li>
               <li>Run the complete challenge on the Virtual XRP.</li>
             </ol>
             <p>
-              PASS applies only to the stated component examples. Component
-              checks do not establish correct timing, interaction among
-              components, or completion of the challenge. A NOT IMPLEMENTED
-              result does not prevent checks of other methods. Run the complete
-              project on the Virtual XRP after the component examples pass.
-              Component roles, retained state, arguments, return values, and
-              requirements are in the{" "}
-              <a href={componentReference}>component API reference</a>.
+              PASS applies only to the stated method examples. These checks do
+              not establish correct timing, interaction among classes, or
+              completion of the challenge. A NOT IMPLEMENTED result does not
+              prevent checks of other methods. Run the complete project on the
+              Virtual XRP after the method examples pass. Each class&apos;s
+              purpose, retained state, arguments, return values, and required
+              behavior are in the{" "}
+              <a href={componentReference}>class API reference</a>.
             </p>
           </GuideSection>
 
@@ -884,13 +889,13 @@ export function GuideApp() {
               project.
             </p>
             <SystemBoundaryFlow />
-            <h3>Components you implement</h3>
+            <h3>Classes you implement</h3>
             <p>
-              The components form a sequence from sensor interpretation through
-              motor control, pose estimation, navigation, and route planning.
-              Each link opens the corresponding API entry, including its method
-              signatures, arguments, return values, retained state, and required
-              behavior.
+              The six classes perform sensor interpretation, motor control,
+              differential-drive conversion, pose estimation, navigation, and
+              route planning. Each link opens the corresponding API entry,
+              including its method signatures, arguments, return values,
+              retained state, and required behavior.
             </p>
             <dl className="component-overview-list">
               {componentEntries.map((component) => (

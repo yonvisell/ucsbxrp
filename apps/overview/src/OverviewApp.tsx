@@ -54,18 +54,19 @@ export function OverviewApp() {
               the virtual XRP or the physical RP2350 XRP. The browser
               applications edit and transfer projects, host the virtual target,
               display telemetry, and commission the physical robot. Robot
-              behavior and course algorithms remain in Python; browser code does
-              not implement navigation, odometry, mapping, or planning on behalf
-              of student code.
+              behavior and course algorithms remain in the project&apos;s Python
+              classes and <code>main.py</code>; browser code does not implement
+              navigation, odometry, mapping, or planning for those classes.
             </p>
-            <CodeFlow>{`student project -> ucsb_xrp course interfaces -> target-specific XRPBot
+            <CodeFlow>{`project files -> ucsb_xrp course interfaces -> target-specific XRPBot
                                              |-> simulated XRPLib and planar plant
                                              +-> physical XRPLib and XRP hardware`}</CodeFlow>
             <p>
               The simulator supplies motor response, encoder counts, range
               readings, button state, collision geometry, and ground-truth pose.
               Ground truth is used for virtual evaluation and rendering; it is
-              not substituted for student odometry.
+              not substituted for the <code>Pose</code> returned by{" "}
+              <code>Odometry</code>.
             </p>
           </section>
 
@@ -76,7 +77,7 @@ export function OverviewApp() {
                 <tr>
                   <th>Challenge</th>
                   <th>Robot task</th>
-                  <th>New student implementation</th>
+                  <th>New class or method to implement</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,9 +131,9 @@ export function OverviewApp() {
               </tbody>
             </table>
             <p>
-              Each challenge retains the components developed previously. A
-              Boolean selector in <code>course_setup.py</code> chooses the
-              supplied or student implementation of each component
+              Each challenge retains the classes developed previously. A Boolean
+              selector in <code>course_setup.py</code> chooses the supplied
+              class or the class in the corresponding project file
               independently, permitting isolated testing and staged integration.
             </p>
           </section>
@@ -243,9 +244,9 @@ Pose -----------------------------> NavigationController ------+
               Supplied services are <code>XRPBot</code>, <code>Robot</code>,{" "}
               <code>StraightLineController</code>, <code>ArenaMap</code>,{" "}
               <code>OccupancyGrid</code>, and <code>DeliveryMission</code>.
-              Their public behavior is defined by the API reference. Reference
-              implementations are replaceable course source. Public interfaces
-              and stated challenge requirements, rather than private
+              Their public behavior is defined by the API reference. Supplied
+              class implementations are replaceable course source. Public
+              interfaces and stated challenge requirements, rather than private
               implementation choices, define required behavior.
             </p>
           </section>
@@ -265,8 +266,8 @@ Pose -----------------------------> NavigationController ------+
                     <code>README.md</code>
                   </td>
                   <td>
-                    Task, student responsibilities, supplied parts, program
-                    flow, evidence, and work sequence.
+                    Task, classes and methods to implement, supplied parts,
+                    program flow, evidence, and work sequence.
                   </td>
                 </tr>
                 <tr>
@@ -310,8 +311,8 @@ Pose -----------------------------> NavigationController ------+
                     <code>course_setup.py</code>
                   </td>
                   <td>
-                    Independent reference/student selectors and construction
-                    functions.
+                    Independent selectors for supplied classes and classes in
+                    the named project files, plus construction functions.
                   </td>
                 </tr>
                 <tr>
@@ -319,20 +320,21 @@ Pose -----------------------------> NavigationController ------+
                     <code>component_checks.py</code>
                   </td>
                   <td>
-                    Software checks that isolate student component behavior
-                    without moving a robot. Results are PASS, NOT IMPLEMENTED,
-                    or FAIL. A run stops with an error only when a check reports
-                    FAIL; NOT IMPLEMENTED identifies required code that remains
-                    to be written.
+                    Software checks that call the required methods in each
+                    component project file without moving a robot. Results are
+                    PASS, NOT IMPLEMENTED, or FAIL. A run stops with an error
+                    only when a check reports FAIL; NOT IMPLEMENTED identifies a
+                    required method that remains to be written.
                   </td>
                 </tr>
                 <tr>
+                  <td>Component project files</td>
                   <td>
-                    <code>*_controller.py</code> and component files
-                  </td>
-                  <td>
-                    Student implementations with the public component
-                    interfaces.
+                    <code>SensorModel</code>, <code>WheelSpeedController</code>,{" "}
+                    <code>DifferentialDrive</code>, <code>Odometry</code>,{" "}
+                    <code>NavigationController</code>, and{" "}
+                    <code>GridPlanner</code> classes that implement the methods
+                    defined by their base classes.
                   </td>
                 </tr>
               </tbody>
@@ -369,9 +371,9 @@ Pose -----------------------------> NavigationController ------+
               </dd>
               <dt>Guide and API reference</dt>
               <dd>
-                Provide student operating guidance and precise Python interface
-                documentation. The present page and challenge authoring tool are
-                instructor-facing.
+                Provide operating guidance for students and precise Python
+                interface documentation. The present page and challenge
+                authoring tool are instructor-facing.
               </dd>
             </dl>
             <p>
@@ -448,13 +450,14 @@ Pose -----------------------------> NavigationController ------+
               Programs may declare bounded numeric, Boolean, or enumerated live
               parameters through <code>ucsb_xrp.live</code>. Pending changes are
               applied together at a sample boundary. <code>live.watch()</code>{" "}
-              publishes named values and <code>live.plot()</code> adds a
-              student-defined plot signal; neither requires students to
-              implement transport code.
+              publishes named values and <code>live.plot()</code> adds a plot
+              signal declared by the project; the project does not implement
+              telemetry transport.
             </p>
             <p>
               Virtual telemetry distinguishes commanded values, measured
-              encoder-based values, student odometry, and simulator truth.
+              encoder-based values, the <code>Pose</code> returned by the
+              selected <code>Odometry</code> class, and simulator truth.
               Physical telemetry omits simulator truth. Instructors should
               preserve the source of each signal when adding plots or evaluation
               measures.
@@ -510,10 +513,10 @@ Pose -----------------------------> NavigationController ------+
               checks its structure, component metadata, paths, Python syntax,
               world data, and required README sections. README wording does not
               define the component boundary. The instructor then reviews the
-              generated files, runs the supplied implementation, enables each
-              assessed student component independently, and verifies that
-              representative defects fail the intended component check.
-              Publication is a separate command after those checks pass.
+              generated files, runs the supplied classes, enables the class in
+              each assessed project file independently, and verifies that
+              representative defects fail the intended method check. Publication
+              is a separate command after those checks pass.
             </p>
           </section>
 
@@ -521,9 +524,9 @@ Pose -----------------------------> NavigationController ------+
             <h2>Release, offline operation, and validation</h2>
             <p>
               <code>vendor/current</code> is the versioned course release. It
-              contains the student library, compiled reference modules, firmware
-              and service bundle, project catalog, challenges, demos, tutorial,
-              and release metadata. A production build generates
+              contains the MicroPython library, compiled supplied classes,
+              firmware and service bundle, project catalog, challenges, demos,
+              tutorial, and release metadata. A production build generates
               content-addressed browser assets, a commissioning manifest with
               hashes, and an offline manifest.
             </p>

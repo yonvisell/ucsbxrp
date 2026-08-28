@@ -92,8 +92,8 @@ robot_config.py
 
 sensor_model.py, wheel_speed_controller.py, differential_drive.py,
 odometry.py, navigation_controller.py, grid_planner.py
-    Each file contains the component implementation named by the file. Early
-    challenges include only the components introduced so far.
+    Each file defines the class named by the file. Early challenges include
+    only the classes introduced so far.
 
 course_setup.py
     Selects the supplied class or the class in the named project file for each
@@ -134,9 +134,9 @@ geometry; the Python task, virtual XRP, and Monitor do not maintain separate
 coordinates.
 
 
-SUPPLIED AND PROJECT IMPLEMENTATIONS
+SELECTING THE SUPPLIED OR PROJECT-FILE CLASS
 
-Each of the six component classes has a supplied implementation and a class in
+Each of the six components has a supplied class and a class in
 the corresponding project file. Both classes have the same public methods.
 Code obtains the selected class from course_setup.py, so the rest of the
 program is unchanged when a selection changes.
@@ -150,8 +150,8 @@ course_setup.py contains one explicit Boolean per component:
     USE_STUDENT_NAVIGATION_CONTROLLER = False
     USE_STUDENT_GRID_PLANNER = False
 
-False selects the supplied implementation and True selects the class in the
-named project file. The file initially selects all supplied implementations;
+False selects the supplied class and True selects the class in the named
+project file. The file initially selects all supplied classes;
 change one named flag at a time after the corresponding class passes its
 software tests. Early challenge projects contain only the flags for components
 introduced so far.
@@ -162,7 +162,7 @@ PHYSICAL XRP SETUP AND PROJECT RUNS
 Use the browser's XRP setup/repair page over USB-C to install or repair the
 persistent course runtime and to configure the robot's Wi-Fi profile. This
 runtime includes MicroPython, XRPLib, the UCSB-XRP library, supplied component
-implementations, and the robot service.
+classes, and the robot service.
 
 After setup, an IDE Run uses the selected local Wi-Fi connection. It checks the
 project structure, compiles every Python file, sends the project to the XRP,
@@ -214,7 +214,7 @@ therefore use sleep_ms; all sampled challenge control uses Robot's clock.
 STARTING AND STOPPING ROBOT
 
 make_robot() constructs Robot with the selected SensorModel,
-WheelSpeedController, DifferentialDrive, and Odometry implementations.
+WheelSpeedController, DifferentialDrive, and Odometry classes.
 
 Robot.start(initial_pose) resets the encoders and component state and returns
 the first RobotState. An IDE-managed Run begins immediately because selecting
@@ -459,7 +459,7 @@ when no usable reading is returned.
 
 Collect Measurements.range_mm from the requested samples, then call
 robot.estimate_range(samples, minimum_usable). Robot delegates the calculation
-to its selected SensorModel implementation. The method accepts a sequence
+to its selected SensorModel class. The method accepts a sequence
 containing numeric ranges and None values and returns one range estimate, or
 None when too few usable samples are present.
 
@@ -558,13 +558,13 @@ NavigationConfig contains:
 - heading tolerance; and
 - the heading error at which forward travel returns to turning.
 
-Component implementations read these named fields. Numerical values are not
-repeated inside the implementation methods.
+The selected classes read these named fields. Numerical values are not repeated
+inside their methods.
 
 
-TESTING A COMPONENT IMPLEMENTATION
+TESTING A CLASS YOU IMPLEMENT
 
-Each component can be tested without running a complete mission:
+Each class can be tested without running a complete mission:
 
 - SensorModel uses recorded RawSensors sequences and range samples.
 - WheelSpeedController uses target and measured WheelSpeeds.

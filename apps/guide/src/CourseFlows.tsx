@@ -32,8 +32,8 @@ export function ControlCycleFlow() {
 export function ProjectStructureFlow() {
   return (
     <CourseDiagram
-      alt="Project structure: world.json provides task geometry to challenge.py, which provides named task settings to the program. robot_config.py and component implementation files provide robot settings and selected implementations to course_setup.py, which constructs services for the program."
-      caption="Task values reach the program through world.json and challenge.py. Robot configuration and selected component implementations reach it through robot_config.py and course_setup.py."
+      alt="Project structure: world.json provides task geometry to challenge.py, which provides named task settings to the program. robot_config.py provides robot settings. Named component project files provide the classes selected by course_setup.py, which constructs services for the program."
+      caption="Task values reach the program through world.json and challenge.py. Robot configuration and the classes selected from named component project files reach it through robot_config.py and course_setup.py."
       className="project-structure-diagram"
       source="../diagrams/project-structure.svg"
     />

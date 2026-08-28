@@ -2,7 +2,7 @@
 
 API version: `0.4.0-dev`.
 
-Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Your implementation of each class may use any algorithm that satisfies the required behavior stated here.
+Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.
 
 ## Units and coordinate conventions
 
@@ -12,9 +12,9 @@ Each call to Robot.step() performs one control-loop update: it converts a Motion
 - A DriveCommand is dimensionless and each wheel command is within -1.0 to 1.0.
 - World +x is the reference forward direction and world +y points left. Positive wheel speed means forward wheel motion.
 
-## Components you implement
+## Classes you implement
 
-You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and DeliveryMission call the appropriate methods, so the rest of the project does not change when course_setup.py selects your implementation.
+You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and DeliveryMission call the appropriate methods, so the rest of the project does not change when course_setup.py selects the class from that project file.
 
 ### `SensorModel`
 

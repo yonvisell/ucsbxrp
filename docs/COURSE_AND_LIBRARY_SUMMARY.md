@@ -43,9 +43,10 @@ The physical work uses three continuing environments: an open lane for
 Straight Run, one marked open floor area for Turn and Return and Waypoint
 Courier, and one shared mapped arena for Mapped Route and Delivery Mission.
 
-## What students implement
+## Classes and methods students implement
 
-Six components have interchangeable supplied and project implementations:
+Each of these classes has a supplied version and a version in its named project
+file:
 
 - `SensorModel`
 - `WheelSpeedController`
@@ -54,15 +55,15 @@ Six components have interchangeable supplied and project implementations:
 - `NavigationController`
 - `GridPlanner`
 
-Each project implementation has the same public methods and return types as its
-supplied counterpart. Project templates inherit the corresponding base class
-from `ucsb_xrp.student_api`. In `course_setup.py`, one named
-`USE_STUDENT_*` Boolean independently selects each component. A flag starts as
-`False` for the supplied implementation and changes to `True` only after that
-component implementation passes its software tests. Early challenge projects
-include only the flags for components introduced so far.
+The class in each component project file has the same public methods and return
+types as its supplied counterpart. Project templates inherit the corresponding
+base class from `ucsb_xrp.student_api`. In `course_setup.py`, one named
+`USE_STUDENT_*` Boolean independently selects each class. A flag starts as
+`False` for the supplied class and changes to `True` only after the class in
+that project file passes its software tests. Early challenge projects include
+only the flags for classes introduced so far.
 
-Each component implementation has a literal file: `sensor_model.py`,
+Each class you implement has a literal file: `sensor_model.py`,
 `wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
 `navigation_controller.py`, or `grid_planner.py`. A challenge project includes
 only the components introduced so far. Robot-specific measurements and
