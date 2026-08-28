@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import authoringInstructionsUrl from "../../../docs/INSTRUCTOR_CHALLENGE_AUTHORING.md?url";
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
 import { CourseHeader } from "../../shared/CourseHeader";
-import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import {
   registerOfflineShellBeforeReload,
   retryPendingOfflineShellReload,
@@ -433,12 +432,6 @@ export function AuthorApp() {
               specification when you are ready to retain or publish it. This
               page does not modify the repository or student catalog.
             </p>
-          </div>
-          <div className="author-intro-status">
-            <OfflineReadiness
-              appName="the challenge editor"
-              pendingUpdateDetail="A newer UCSBXRP course release is saved in Chrome. Download the checked specification or restore the built-in example; the challenge editor will then reopen on the new release."
-            />
           </div>
         </header>
 

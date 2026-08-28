@@ -62,9 +62,10 @@ export function GuideApp() {
           <GuideSection id="virtual-run" number="01" title="First virtual run">
             <ol className="procedure">
               <li>
-                Open the <a href="../ide/">IDE</a>. Leave the target set to{" "}
-                <strong>Virtual XRP</strong>. The Expanding spiral project is
-                ready to run.
+                Open the <a href="../ide/">IDE</a>. If prompted, choose the
+                Working folder where your team will keep its projects. Leave the
+                target set to <strong>Virtual XRP</strong>. A new empty Working
+                folder receives the Expanding spiral project.
               </li>
               <li>
                 Select <strong>Run</strong>. Run compiles the project when
@@ -88,24 +89,25 @@ export function GuideApp() {
                 robot.
               </li>
               <li>
-                <strong>Draw with Virtual XRP</strong> — define objects and a
-                command sequence while supplied course services run the virtual
-                robot.
+                <strong>Virtual XRP drawing</strong> — define typed objects and
+                a command sequence, then use the virtual robot to draw the
+                result.
               </li>
               <li>
-                <strong>UCSBXRP robot programs</strong> — write the finite{" "}
-                <code>Robot.start()</code>, <code>step()</code>, and{" "}
-                <code>stop()</code> sequence used by the challenges.
+                <strong>Sampled robot programs</strong> — read a{" "}
+                <code>RobotState</code>, calculate mean wheel position, and
+                write a finite <code>Robot.start()</code>, <code>step()</code>,
+                and <code>stop()</code> sequence.
               </li>
               <li>
-                <strong>Behavior and telemetry</strong> — use measured state to
-                choose motion and publish live controls, watched values, and
-                plot signals in Monitor.
+                <strong>Behavior, controls, and telemetry</strong> — use
+                measured state to choose motion and publish live controls,
+                watched values, and plot signals in Monitor.
               </li>
               <li>
-                <strong>Physical XRP preflight</strong> — rehearse with the
-                Virtual XRP, then collect a fixed-duration zero-motion sensor
-                record from a commissioned physical XRP.
+                <strong>Physical XRP deployment</strong> — rehearse with the
+                Virtual XRP, then deploy a stationary measurement program to a
+                commissioned physical XRP.
               </li>
             </ol>
             <p>
@@ -162,14 +164,13 @@ export function GuideApp() {
               <span>└─ TeamDelivery/</span>
             </div>
             <p>
-              Select <strong>New project…</strong>, choose a template, and enter
-              a project name. The IDE creates a named project folder inside the
-              Working folder and opens it. If folder access is unavailable, you
-              can continue without a folder and save the project later. Select{" "}
-              <strong>Open project…</strong> to open an existing project folder.
-              Edits to an open project save automatically. The selected-file
-              menu can rename, duplicate, or delete that file, or set a Python
-              file as the program entry point.
+              Select <strong>New project…</strong>, choose a challenge, demo, or
+              tutorial, and enter the project name. The IDE creates its folder
+              inside the Working folder and opens it. Select{" "}
+              <strong>Open project…</strong> to choose another project already
+              in that Working folder. Edits save automatically. The
+              selected-file menu can rename, duplicate, or delete a file, or
+              make a Python file the program entry point.
             </p>
             <p>
               When you are ready to continue, select the visible{" "}
@@ -230,32 +231,31 @@ export function GuideApp() {
                     without moving either robot.
                   </li>
                   <li>
-                    <strong>2. Draw with Virtual XRP</strong> — use a class,
+                    <strong>2. Virtual XRP drawing</strong> — use a class,
                     lists, and loops to draw a route in the World view.
                   </li>
                   <li>
-                    <strong>3. UCSBXRP robot programs</strong> — use the sampled{" "}
-                    <code>Robot.start()</code>, <code>step()</code>, and
-                    <code>stop()</code> sequence and inspect robot state.
+                    <strong>3. Sampled robot programs</strong> — calculate mean
+                    wheel position from <code>RobotState</code>, then use the
+                    sampled <code>start()</code>, <code>step()</code>, and{" "}
+                    <code>stop()</code> sequence.
                   </li>
                   <li>
-                    <strong>4. Behavior and telemetry</strong> — implement a
-                    state-based behavior and expose live controls, watched
-                    values, and plot signals.
+                    <strong>4. Behavior, controls, and telemetry</strong> —
+                    implement a state-based behavior and expose live controls,
+                    watched values, and plot signals.
                   </li>
                   <li>
-                    <strong>5. Physical XRP preflight</strong> — rehearse on the
-                    Virtual XRP, then collect stationary sensor data from a
-                    commissioned physical XRP.
+                    <strong>5. Physical XRP deployment</strong> — rehearse on
+                    the Virtual XRP, then deploy a stationary measurement
+                    program to a commissioned physical XRP.
                   </li>
                 </ul>
               </section>
             </div>
             <div className="callout">
-              Work that is not saved to a project folder is stored only in this
-              browser and can be lost if its site data is cleared. Choose a
-              Working folder to store each project as ordinary files on the
-              computer.
+              The IDE and Monitor use the selected Working folder for project
+              files, run data, exports, and the robot connection setting.
             </div>
           </GuideSection>
 
@@ -474,8 +474,8 @@ export function GuideApp() {
               </li>
               <li>
                 Follow the final Wi-Fi instruction shown on the setup page. The
-                page verifies the connection and then opens the IDE in Physical
-                XRP mode.
+                page verifies robot identity and current state, then displays a
+                completion message. Select <strong>Open IDE</strong> when ready.
               </li>
             </ol>
             <p>
@@ -570,8 +570,9 @@ export function GuideApp() {
             <h3>First online load</h3>
             <ol className="procedure">
               <li>
-                Open UCSBXRP while the computer has internet access and wait for{" "}
-                <strong>Course apps available offline</strong>.
+                Open the UCSBXRP home page while the computer has internet
+                access, then open the IDE and Monitor once. Chrome saves the
+                course application files automatically.
               </li>
               <li>
                 Choose a Working folder in the IDE. Project files are ordinary
@@ -624,16 +625,15 @@ export function GuideApp() {
                     GitHub pull, push, and web pages require internet access.
                   </li>
                   <li>
-                    Project changes that are not saved to a project folder exist
-                    only in this site&apos;s browser data. Save the project in a
-                    Working folder before relying on it offline.
+                    The IDE and Monitor require access to the selected Working
+                    folder for project editing, execution, run archives, and
+                    exports.
                   </li>
                   <li>
                     Clearing this site&apos;s browser data removes the saved
-                    course apps, settings, project changes held only by the
-                    browser, and remembered folder access. It does not remove
-                    project files in the Working folder; select that folder
-                    again to restore access.
+                    course apps and remembered folder access. It does not remove
+                    project files or <code>.ucsbxrp.json</code> in the Working
+                    folder; select that folder again to restore access.
                   </li>
                 </ul>
               </section>

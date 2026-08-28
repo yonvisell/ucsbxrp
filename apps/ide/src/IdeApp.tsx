@@ -28,7 +28,6 @@ import {
   type CourseProjectKind,
 } from "@ucsb-xrp/target";
 
-import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
 import { isEmbeddedApplication } from "../../shared/embedded-application";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
@@ -302,11 +301,15 @@ function openingPathForNewProject(project: ProjectSnapshot): string {
     : project.entrypoint;
 }
 
-function newProjectPrefersVirtual(project: ProjectSnapshot): boolean {
+function isTutorialProject(project: ProjectSnapshot): boolean {
   return COURSE_PROJECT_TEMPLATES.some(
     (template) =>
       template.id === project.templateId && template.kind === "tutorial",
   );
+}
+
+function newProjectPrefersVirtual(project: ProjectSnapshot): boolean {
+  return isTutorialProject(project);
 }
 
 function checkFileForProject(project: ProjectSnapshot): string | null {
@@ -385,6 +388,9 @@ export function IdeApp({
   const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
   const [markdownPreviewOpen, setMarkdownPreviewOpen] = useState(
     initialProject.entrypoint.endsWith(".md"),
+  );
+  const [tutorialInstructionsOpen, setTutorialInstructionsOpen] = useState(
+    isTutorialProject(initialProject),
   );
   const [workingFolder, setWorkingFolder] =
     useState<CourseDirectoryHandle | null>(null);
@@ -869,6 +875,10 @@ export function IdeApp({
       },
     ]);
   }, [project.name, project.templateId, projectSessionReady]);
+
+  useEffect(() => {
+    setTutorialInstructionsOpen(isTutorialProject(project));
+  }, [project.name, project.templateId]);
 
   useEffect(() => {
     let disposed = false;
@@ -2815,7 +2825,7 @@ export function IdeApp({
           : "Connected · changes save automatically"
       : rememberedFolder && rememberedFolderCanAttach
         ? `${rememberedFolder.name} · reconnect to resume saving`
-        : "Read-only preview. Create or open a project to edit and run.";
+        : "Choose a Working folder, then create or open a project.";
   const projectStorageSummary = projectFolderConflict
     ? "Review folder changes"
     : workingFolder
@@ -2826,7 +2836,7 @@ export function IdeApp({
           : "Saved"
       : rememberedFolder && rememberedFolderCanAttach
         ? "Reconnect to save"
-        : "Read-only preview";
+        : "Working folder required";
   const workingFolderName =
     workspaceFolder?.name ?? rememberedWorkspaceFolder?.name ?? null;
   const workingFolderAccessSummary =
@@ -2877,6 +2887,10 @@ export function IdeApp({
         ? DEFAULT_COURSE_PROJECT.name
         : "No project selected";
   const activeHelp = contextHelpForPath(activePath, project.templateId);
+  const tutorialInstructionsAvailable =
+    isTutorialProject(project) &&
+    activePath !== "README.md" &&
+    typeof project.files["README.md"] === "string";
   const pendingTemplate = pendingProject?.templateId
     ? COURSE_PROJECT_TEMPLATES.find(
         (template) => template.id === pendingProject.templateId,
@@ -2944,7 +2958,9 @@ export function IdeApp({
             value={targetPreference.kind}
           >
             <option value="virtual">Virtual XRP</option>
-            <option value="physical">Physical XRP</option>
+            <option disabled={!targetPreference.robotId} value="physical">
+              Physical XRP
+            </option>
           </select>
           <button
             disabled={!workingFolder || !canCommand || isRunning}
@@ -3059,7 +3075,7 @@ export function IdeApp({
                 <div className="project-location">
                   <span>Folder</span>
                   <strong data-testid="project-folder">
-                    {workingFolder ? workingFolder.name : "Preview"}
+                    {workingFolder ? workingFolder.name : "Not selected"}
                   </strong>
                 </div>
                 <small
@@ -3077,15 +3093,15 @@ export function IdeApp({
                 >
                   <span>
                     {projectProviderAvailable
-                      ? "Run uses another IDE tab"
-                      : "Run has no IDE project"}
+                      ? "Another IDE tab currently controls Run"
+                      : "Select this project for Run"}
                   </span>
                   <button
                     disabled={!isConnected}
                     onClick={useThisProjectForRun}
                     title="Use this tab's current project for the next IDE or Monitor Run."
                   >
-                    Use for Run + Monitor
+                    Use this tab
                   </button>
                 </div>
               ) : null}
@@ -3407,41 +3423,78 @@ export function IdeApp({
                   {activeHelp.label} ↗
                 </a>
               ) : null}
+              {tutorialInstructionsAvailable ? (
+                <button
+                  aria-pressed={tutorialInstructionsOpen}
+                  className={`tutorial-instructions-toggle ${tutorialInstructionsOpen ? "active" : ""}`}
+                  onClick={() => setTutorialInstructionsOpen((open) => !open)}
+                  title="Show the tutorial instructions beside the current Python file."
+                >
+                  Instructions
+                </button>
+              ) : null}
             </div>
-            <div className="editor-frame" data-testid="python-editor">
-              {activePath.endsWith(".md") && markdownPreviewOpen ? (
-                <MarkdownPreview
-                  onOpenProjectFile={openFile}
-                  projectPaths={projectPathSet}
-                  source={project.files[activePath] ?? ""}
-                />
-              ) : (
-                <Editor
-                  language={editorLanguage(activePath)}
-                  onChange={(value) => updateActiveFile(value ?? "")}
-                  options={{
-                    ariaLabel: `${activePath} editor`,
-                    automaticLayout: true,
-                    detectIndentation: false,
-                    fontFamily: "SFMono-Regular, Consolas, monospace",
-                    fontSize: settings.editorFontSize,
-                    insertSpaces: true,
-                    lineHeight: Math.round(settings.editorFontSize * 1.65),
-                    minimap: { enabled: settings.minimap },
-                    padding: { top: 5 },
-                    readOnly: !workingFolder,
-                    renderLineHighlight: "gutter",
-                    scrollBeyondLastLine: false,
-                    stickyScroll: { enabled: false },
-                    tabFocusMode: false,
-                    tabSize: settings.tabSize,
-                    wordWrap: settings.wordWrap,
-                  }}
-                  path={activePath}
-                  theme="vs"
-                  value={project.files[activePath] ?? ""}
-                />
-              )}
+            <div
+              className={`editor-frame ${tutorialInstructionsAvailable && tutorialInstructionsOpen ? "tutorial-split" : ""}`}
+              data-testid="python-editor"
+            >
+              <div className="editor-primary">
+                {activePath.endsWith(".md") && markdownPreviewOpen ? (
+                  <MarkdownPreview
+                    onOpenProjectFile={openFile}
+                    projectPaths={projectPathSet}
+                    source={project.files[activePath] ?? ""}
+                  />
+                ) : (
+                  <Editor
+                    language={editorLanguage(activePath)}
+                    onChange={(value) => updateActiveFile(value ?? "")}
+                    options={{
+                      ariaLabel: `${activePath} editor`,
+                      automaticLayout: true,
+                      detectIndentation: false,
+                      fontFamily: "SFMono-Regular, Consolas, monospace",
+                      fontSize: settings.editorFontSize,
+                      insertSpaces: true,
+                      lineHeight: Math.round(settings.editorFontSize * 1.65),
+                      minimap: { enabled: settings.minimap },
+                      padding: { top: 5 },
+                      readOnly: !workingFolder,
+                      renderLineHighlight: "gutter",
+                      scrollBeyondLastLine: false,
+                      stickyScroll: { enabled: false },
+                      tabFocusMode: false,
+                      tabSize: settings.tabSize,
+                      wordWrap: settings.wordWrap,
+                    }}
+                    path={activePath}
+                    theme="vs"
+                    value={project.files[activePath] ?? ""}
+                  />
+                )}
+              </div>
+              {tutorialInstructionsAvailable && tutorialInstructionsOpen ? (
+                <aside
+                  aria-label="Tutorial instructions"
+                  className="tutorial-instructions"
+                >
+                  <div className="tutorial-instructions-heading">
+                    <strong>Instructions</strong>
+                    <button
+                      aria-label="Close tutorial instructions"
+                      onClick={() => setTutorialInstructionsOpen(false)}
+                      title="Close tutorial instructions."
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <MarkdownPreview
+                    onOpenProjectFile={openFile}
+                    projectPaths={projectPathSet}
+                    source={project.files["README.md"] ?? ""}
+                  />
+                </aside>
+              ) : null}
             </div>
           </div>
 
@@ -3829,10 +3882,6 @@ export function IdeApp({
               copy; the next Run loads it again from the IDE.
             </p>
           </section>
-          <section className="settings-note offline-settings-note">
-            <h3>Offline access</h3>
-            <OfflineReadiness appName="IDE" />
-          </section>
           <section className="settings-note shortcuts-note">
             <h3>Shortcuts</h3>
             <dl>
@@ -4077,29 +4126,10 @@ export function IdeApp({
                   ? `Saves in ${workspaceFolder ? `${workspaceFolder.name}/` : "the Working folder/"}${newProjectDraft || "project"}`
                   : "Choose an item above.")}
             </small>
-            {projectCreationPurpose === "new-project" &&
-            pendingProject &&
-            !workspaceFolder ? (
-              <p className="dialog-context browser-project-note">
-                Preview opens read-only. Choose a Working folder to edit or run
-                it.
-              </p>
-            ) : null}
             <div className="dialog-actions">
               <button onClick={cancelProjectCreation} type="button">
                 Cancel
               </button>
-              {projectCreationPurpose === "new-project" &&
-              pendingProject &&
-              !workspaceFolder ? (
-                <button
-                  onClick={() => void createTemporaryPendingProject()}
-                  title="Preview this built-in project without creating files."
-                  type="button"
-                >
-                  Preview
-                </button>
-              ) : null}
               <button
                 className="primary-button"
                 disabled={

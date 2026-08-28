@@ -39,7 +39,7 @@ export function targetPreferenceFromWorkspaceManifest(
 ): RobotProfile {
   const kind = selectedTarget(manifest);
   const robot = manifest?.robot;
-  if (!robot) return { ...DEFAULT_TARGET_PREFERENCE, kind };
+  if (!robot) return DEFAULT_TARGET_PREFERENCE;
 
   const hostname = robot.name
     .trim()

@@ -6,7 +6,6 @@ import {
   targetPreferenceForCommissionedRobot,
 } from "@ucsb-xrp/target";
 
-import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { CourseHeader } from "../../shared/CourseHeader";
 import {
   chooseWorkspaceFolder,
@@ -1231,7 +1230,6 @@ export function CommissionApp() {
             </div>
           ))}
           <div className="commission-offline">
-            <OfflineReadiness appName="Setup" />
             {folder ? <small>Working folder: {folder.name}</small> : null}
           </div>
         </aside>

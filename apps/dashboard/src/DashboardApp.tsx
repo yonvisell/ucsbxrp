@@ -26,7 +26,6 @@ import {
   type RuntimeState,
 } from "@ucsb-xrp/target";
 
-import { OfflineReadiness } from "../../shared/OfflineReadiness";
 import { AppNavigation } from "../../shared/AppNavigation";
 import { isEmbeddedApplication } from "../../shared/embedded-application";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
@@ -1583,10 +1582,6 @@ export function DashboardApp() {
               Reconnect
             </button>
           ) : null}
-          <OfflineReadiness
-            appName="Monitor"
-            pendingUpdateDetail="A newer UCSBXRP release is ready. Finish the current run or export, then clear the displayed run; Monitor will reopen on the new release."
-          />
         </div>
       </header>
 
@@ -1621,8 +1616,12 @@ export function DashboardApp() {
                         ? "Run and telemetry use Wi-Fi, not USB. Join the UCSB-XRP hotspot. The Monitor remains available while this computer is connected to the robot hotspot."
                         : "Run and telemetry use Wi-Fi, not USB. Connect this computer to the same local Wi-Fi as the XRP."}
                     </p>
-                    <a href="../ide/" target="_blank" rel="noopener noreferrer">
-                      Connection settings in IDE ↗
+                    <a
+                      href="../commission/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Set up or repair XRP ↗
                     </a>
                   </div>
                 ) : null}

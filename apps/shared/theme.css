@@ -288,8 +288,8 @@ button:disabled {
 }
 
 .target-select {
-  width: 108px;
-  min-width: 108px;
+  width: 116px;
+  min-width: 116px;
   border: 1px solid var(--line-bright);
   height: 19px;
   border-radius: 3px;
@@ -781,8 +781,8 @@ input[type="range"]:disabled {
   }
 
   .target-select {
-    width: 108px;
-    min-width: 108px;
+    width: 116px;
+    min-width: 116px;
     padding-left: 3px;
   }
 
