@@ -913,6 +913,20 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setProjectProviderActive(false);
     projectProviderActiveRef.current = false;
     target.setProjectRunProvider(provideProjectRunSnapshot);
+    diagnosticLog.record({
+      event: "target.connect-requested",
+      message: JSON.stringify(
+        targetPreference.kind === "physical"
+          ? {
+              target: "physical",
+              mode: targetPreference.physicalConnection,
+              candidateAddresses: physicalEndpointCandidates(targetPreference),
+              expectedRobotId: targetPreference.robotId ?? null,
+              lastObservedNetwork: targetPreference.lastObservedNetwork ?? null,
+            }
+          : { target: "virtual" },
+      ),
+    });
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "status") {
         diagnosticLog.record({

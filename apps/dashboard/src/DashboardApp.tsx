@@ -33,14 +33,17 @@ import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import { useTargetPreference } from "../../shared/use-target-preference";
 import {
+  readOfflineShellStatus,
   registerOfflineShellBeforeReload,
   retryPendingOfflineShellReload,
   virtualRunNeedsPreparation,
 } from "../../shared/offline-shell";
+import { DiagnosticLogWriter } from "../../shared/diagnostic-log";
 import {
   courseFolderPermission,
   autosaveDirectoryName,
   loadRememberedProjectFolder,
+  loadRememberedWorkspaceFolder,
   requestCourseFolderPermission,
   subscribeCourseFolderChanged,
   withCourseFolderWriteLock,
@@ -76,6 +79,7 @@ import {
   PlotSampleHistory,
   recentTelemetryRateHz,
 } from "./plot-sample-history";
+import courseRelease from "../../../vendor/current/release.json";
 
 interface ConsoleEntry {
   id: string;
@@ -125,6 +129,37 @@ const emptyRuntimeState: RuntimeState = {
   watches: [],
   plots: [],
 };
+
+function monitorSessionSummary(): string {
+  const offline = readOfflineShellStatus();
+  const navigatorWithData = navigator as Navigator & {
+    userAgentData?: { platform?: string };
+    serial?: unknown;
+    locks?: unknown;
+  };
+  return JSON.stringify({
+    appBuild:
+      offline.state === "development"
+        ? "local-development"
+        : (offline.version ?? offline.state),
+    route: window.location.pathname,
+    browser: navigator.userAgent,
+    platform: navigatorWithData.userAgentData?.platform ?? navigator.platform,
+    language: navigator.language,
+    displayMode: window.matchMedia("(display-mode: standalone)").matches
+      ? "installed-app"
+      : "browser-tab",
+    online: navigator.onLine,
+    capabilities: {
+      fileSystemAccess: "showDirectoryPicker" in window,
+      secureContext: window.isSecureContext,
+      serviceWorker: "serviceWorker" in navigator,
+      serviceWorkerController: Boolean(navigator.serviceWorker?.controller),
+      webLocks: Boolean(navigatorWithData.locks),
+      webSerial: Boolean(navigatorWithData.serial),
+    },
+  });
+}
 
 function isActiveRunState(state: TargetRunState): boolean {
   return state === "loading" || state === "running";
@@ -619,8 +654,10 @@ export function DashboardApp() {
   const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const activeRunFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const latestRunFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const diagnosticFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const autosaveFolderRemembered = useRef(false);
   const currentProjectRef = useRef<SynchronizedProject | null>(null);
+  const projectProviderAvailableRef = useRef(false);
   const annotationsRef = useRef<MonitorAnnotation[]>([]);
   const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
   const targetStateRef = useRef<TargetRunState>("disconnected");
@@ -636,6 +673,20 @@ export function DashboardApp() {
   const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
   const nextRunIdRef = useRef(1);
   const observedRunRequestIdsRef = useRef(new Set<string>());
+  const diagnosticWriteErrorShownRef = useRef(false);
+  const diagnosticLog = useMemo(
+    () =>
+      new DiagnosticLogWriter({
+        app: "Monitor",
+        courseRelease: courseRelease.release_id,
+        onWriteError: (error) => {
+          if (diagnosticWriteErrorShownRef.current) return;
+          diagnosticWriteErrorShownRef.current = true;
+          setRunAutosaveDetail(error.message);
+        },
+      }),
+    [],
+  );
 
   const beginTargetCommand = useCallback(() => {
     targetCommandCountRef.current += 1;
@@ -701,16 +752,89 @@ export function DashboardApp() {
   }, [annotations]);
 
   useEffect(() => {
+    const recordWindowError = (event: ErrorEvent) => {
+      diagnosticLog.record({
+        event: "window.error",
+        level: "error",
+        terminal: true,
+        message:
+          event.error instanceof Error
+            ? `${event.error.message}\n${event.error.stack ?? ""}`
+            : event.message,
+      });
+    };
+    const recordUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      diagnosticLog.record({
+        event: "window.unhandled-rejection",
+        level: "error",
+        terminal: true,
+        message:
+          reason instanceof Error
+            ? `${reason.message}\n${reason.stack ?? ""}`
+            : String(reason),
+      });
+    };
+    const flushBeforeLeaving = () => void diagnosticLog.flush();
+    window.addEventListener("error", recordWindowError);
+    window.addEventListener("unhandledrejection", recordUnhandledRejection);
+    window.addEventListener("pagehide", flushBeforeLeaving);
+    return () => {
+      window.removeEventListener("error", recordWindowError);
+      window.removeEventListener(
+        "unhandledrejection",
+        recordUnhandledRejection,
+      );
+      window.removeEventListener("pagehide", flushBeforeLeaving);
+    };
+  }, [diagnosticLog]);
+
+  useEffect(() => {
     let disposed = false;
     let refreshRevision = 0;
     const refreshFolder = async (preserveUnrememberedFolder = false) => {
       beginFolderInteraction();
       try {
         const revision = ++refreshRevision;
-        const folder = await loadRememberedProjectFolder();
+        const workspace = await loadRememberedWorkspaceFolder();
         if (disposed || revision !== refreshRevision) {
           return;
         }
+        const workspacePermission = workspace
+          ? await courseFolderPermission(workspace)
+          : "denied";
+        if (disposed || revision !== refreshRevision) return;
+        if (workspace && workspacePermission === "granted") {
+          if (diagnosticFolderRef.current !== workspace) {
+            diagnosticFolderRef.current = workspace;
+            diagnosticWriteErrorShownRef.current = false;
+            diagnosticLog.attachWorkingFolder(workspace);
+            diagnosticLog.record({
+              event: "session.start",
+              message: monitorSessionSummary(),
+              terminal: true,
+            });
+            diagnosticLog.record({
+              event: "working-folder.connected",
+              message: `Working folder ${workspace.name} is writable.`,
+            });
+          }
+        } else {
+          diagnosticFolderRef.current = null;
+          diagnosticLog.detachWorkingFolder();
+        }
+        if (workspace && workspacePermission !== "granted") {
+          autosaveFolderRemembered.current = false;
+          autosaveFolderRef.current = null;
+          setRememberedAutosaveFolder(null);
+          setAutosaveFolder(null);
+          setRunAutosaveDetail(
+            `Open the IDE to reconnect Working folder ${workspace.name}.`,
+          );
+          return;
+        }
+        const folder = workspace ? await loadRememberedProjectFolder() : null;
+        if (disposed || revision !== refreshRevision) return;
         if (folder === null) {
           if (preserveUnrememberedFolder && !autosaveFolderRemembered.current) {
             return;
@@ -750,12 +874,30 @@ export function DashboardApp() {
             `Reconnect project folder ${folder.name} to resume run saving.`,
           );
         }
+      } catch (error: unknown) {
+        if (disposed) return;
+        const detail = error instanceof Error ? error.message : String(error);
+        autosaveFolderRemembered.current = false;
+        autosaveFolderRef.current = null;
+        setRememberedAutosaveFolder(null);
+        setAutosaveFolder(null);
+        setRunAutosaveDetail(
+          `Open the IDE to reconnect the Working folder. ${detail}`,
+        );
+        diagnosticLog.record({
+          event: "working-folder.open-failed",
+          level: "error",
+          terminal: true,
+          message: detail,
+        });
       } finally {
         finishFolderInteraction();
       }
     };
     const folderChanged = () => {
       const sharedFolderCanChange = autosaveFolderRemembered.current;
+      diagnosticFolderRef.current = null;
+      diagnosticLog.detachWorkingFolder();
       if (sharedFolderCanChange) {
         // Stop writes immediately; loading the replacement handle is asynchronous.
         autosaveFolderRef.current = null;
@@ -768,8 +910,9 @@ export function DashboardApp() {
     return () => {
       disposed = true;
       unsubscribe();
+      void diagnosticLog.flush();
     };
-  }, [beginFolderInteraction, finishFolderInteraction]);
+  }, [beginFolderInteraction, diagnosticLog, finishFolderInteraction]);
 
   const archiveCompletedRun = useCallback(
     (run: MonitorRunDataset, folder: CourseDirectoryHandle | null) => {
@@ -778,6 +921,11 @@ export function DashboardApp() {
         setRunAutosaveDetail(
           "Run data was not saved; reconnect the Project folder in the IDE.",
         );
+        diagnosticLog.record({
+          event: "run.archive-skipped",
+          level: "warning",
+          message: `Run ${run.id} was not saved because no Project folder was available.`,
+        });
         return;
       }
 
@@ -840,11 +988,23 @@ export function DashboardApp() {
               ? `Saved automatically to ${folder.name}.`
               : "Not saved because the project folder changed.",
           );
+          diagnosticLog.record({
+            event: saved ? "run.archive-saved" : "run.archive-skipped",
+            level: saved ? "info" : "warning",
+            message: saved
+              ? `Run ${run.id} was saved to Project folder ${folder.name}.`
+              : `Run ${run.id} was not saved because the Project folder changed.`,
+          });
         })
         .catch((error: unknown) => {
-          setRunAutosaveDetail(
-            `Run save failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          const detail = error instanceof Error ? error.message : String(error);
+          setRunAutosaveDetail(`Run save failed: ${detail}`);
+          diagnosticLog.record({
+            event: "run.archive-failed",
+            level: "error",
+            terminal: true,
+            message: `Run ${run.id} could not be saved: ${detail}`,
+          });
         })
         .finally(() => {
           runArchiveCountRef.current = Math.max(
@@ -854,7 +1014,7 @@ export function DashboardApp() {
           retryPendingOfflineShellReload();
         });
     },
-    [],
+    [diagnosticLog],
   );
 
   const finishActiveRun = useCallback(
@@ -873,10 +1033,32 @@ export function DashboardApp() {
       annotationsRef.current = [...run.annotations];
       setAnnotations([...run.annotations]);
       setPlotSamples(run.recording.samples);
+      diagnosticLog.record({
+        event: "run.finished",
+        eventId: `run-finished:${run.id}`,
+        terminal: true,
+        level: finalState === "error" ? "error" : "info",
+        message: JSON.stringify({
+          runId: run.id,
+          target: run.target,
+          project: run.project?.name ?? null,
+          world: run.worldId,
+          result: finalState,
+          detail: finalDetail,
+          durationMs: Math.max(
+            0,
+            Date.parse(run.finishedAt) - Date.parse(run.startedAt),
+          ),
+          samples: run.recording.samples.length,
+          droppedSamples: run.recording.droppedSamples,
+          programOutputLines: run.output.length,
+          notes: run.annotations.length,
+        }),
+      });
       archiveCompletedRun(run, runFolder);
       return run;
     },
-    [archiveCompletedRun, runDatasetController],
+    [archiveCompletedRun, diagnosticLog, runDatasetController],
   );
 
   const beginRunDataset = useCallback(
@@ -909,9 +1091,19 @@ export function DashboardApp() {
           ? `Will save automatically to ${autosaveFolderRef.current.name}.`
           : "Run data will not be saved; reconnect the Project folder in the IDE.",
       );
+      diagnosticLog.record({
+        event: "run.started",
+        eventId: `run-started:${runId}`,
+        message: JSON.stringify({
+          runId,
+          target: source,
+          project: currentProjectRef.current?.name ?? null,
+          world: selectedWorld.id,
+        }),
+      });
       return runId;
     },
-    [plotSampleHistory, runDatasetController],
+    [diagnosticLog, plotSampleHistory, runDatasetController],
   );
 
   const updateSavedRunAnnotations = useCallback((run: MonitorRunDataset) => {
@@ -954,7 +1146,22 @@ export function DashboardApp() {
     setProgramPlotVisibility({});
     setRuntimeDrafts({});
     setRuntimeUpdateError("");
+    projectProviderAvailableRef.current = false;
     nextConsoleId.current = 1;
+    diagnosticLog.record({
+      event: "target.connect-requested",
+      message: JSON.stringify(
+        targetPreference.kind === "physical"
+          ? {
+              target: "physical",
+              mode: targetPreference.physicalConnection,
+              candidateAddresses: physicalEndpointCandidates(targetPreference),
+              expectedRobotId: targetPreference.robotId ?? null,
+              lastObservedNetwork: targetPreference.lastObservedNetwork ?? null,
+            }
+          : { target: "virtual" },
+      ),
+    });
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
         setSample(event.sample);
@@ -992,10 +1199,37 @@ export function DashboardApp() {
         }
         setTargetState(event.state);
         setTargetDetail(event.detail);
+        if (!projectProviderAvailableRef.current) {
+          diagnosticLog.record({
+            event: "target.status",
+            level: event.state === "error" ? "error" : "info",
+            terminal: event.state === "error",
+            message: JSON.stringify({
+              target: target.kind,
+              state: event.state,
+              detail: event.detail,
+            }),
+          });
+        }
       } else if (event.type === "physical-network") {
         updateTargetPreference((current) =>
           targetPreferenceForPhysicalNetwork(current, event),
         );
+        if (!projectProviderAvailableRef.current) {
+          diagnosticLog.record({
+            event: "target.network",
+            terminal: true,
+            message: JSON.stringify({
+              mode: event.mode,
+              address: event.address,
+              ssid: event.ssid ?? null,
+              requestedMode: event.requestedMode ?? null,
+              fallback: event.fallback ?? false,
+              robotId: event.robotId ?? null,
+              hostname: event.hostname ?? null,
+            }),
+          });
+        }
       } else if (event.type === "project") {
         const projectChanged =
           currentProjectRef.current?.revision !== event.project?.revision;
@@ -1013,7 +1247,17 @@ export function DashboardApp() {
           runDatasetController.acceptProject(event.project);
         }
         setCurrentProject(event.project);
+        if (projectChanged && !projectProviderAvailableRef.current) {
+          diagnosticLog.record({
+            event: "project.active",
+            message: JSON.stringify({
+              name: event.project?.name ?? null,
+              revision: event.project?.revision ?? null,
+            }),
+          });
+        }
       } else if (event.type === "project-provider") {
+        projectProviderAvailableRef.current = event.available;
         setProjectProviderAvailable(event.available);
       } else if (event.type === "runtime") {
         setRuntimeState(event.state);
@@ -1032,6 +1276,28 @@ export function DashboardApp() {
         setWorldCatalog(event.catalog);
         setSelectedWorldId(event.selectedWorldId);
       } else if (event.type === "console") {
+        if (!projectProviderAvailableRef.current) {
+          diagnosticLog.record({
+            event: "target.console",
+            eventId: event.eventId,
+            requestId: event.requestId,
+            replayed: event.replayed,
+            level:
+              event.stream === "stderr" || event.phase === "error"
+                ? "error"
+                : "info",
+            terminal: event.phase === "error" || event.phase === "result",
+            message: JSON.stringify({
+              target: target.kind,
+              stream: event.stream,
+              line: event.line,
+              action: event.action ?? null,
+              phase: event.phase ?? null,
+              timestampMs: event.timestampMs ?? null,
+              targetTimeMs: event.targetTimeMs ?? null,
+            }),
+          });
+        }
         if (
           event.action === "run" &&
           event.phase === "request" &&
@@ -1075,11 +1341,16 @@ export function DashboardApp() {
         await target.connect();
       } catch (error: unknown) {
         if (!disposed) {
+          const detail = error instanceof Error ? error.message : String(error);
           targetStateRef.current = "error";
           setTargetState("error");
-          setTargetDetail(
-            error instanceof Error ? error.message : String(error),
-          );
+          setTargetDetail(detail);
+          diagnosticLog.record({
+            event: "target.connect-failed",
+            level: "error",
+            terminal: true,
+            message: `${target.kind} XRP connection failed: ${detail}`,
+          });
         }
       } finally {
         finishTargetCommand();
@@ -1095,11 +1366,13 @@ export function DashboardApp() {
       }
       runtimeUpdateTimers.current.clear();
       plotSampleHistory.clear(false);
+      projectProviderAvailableRef.current = false;
       target.disconnect();
     };
   }, [
     beginTargetCommand,
     beginRunDataset,
+    diagnosticLog,
     finishActiveRun,
     finishTargetCommand,
     plotSampleHistory,
@@ -1116,9 +1389,16 @@ export function DashboardApp() {
     try {
       await target.reset();
     } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
       targetStateRef.current = "error";
       setTargetState("error");
-      setTargetDetail(error instanceof Error ? error.message : String(error));
+      setTargetDetail(detail);
+      diagnosticLog.record({
+        event: "target.reset-failed",
+        level: "error",
+        terminal: true,
+        message: `${target.kind} XRP reset failed: ${detail}`,
+      });
     } finally {
       finishTargetCommand();
     }
@@ -1163,6 +1443,12 @@ export function DashboardApp() {
       targetStateRef.current = "error";
       setTargetState("error");
       setTargetDetail(detail);
+      diagnosticLog.record({
+        event: "target.run-command-failed",
+        level: "error",
+        terminal: true,
+        message: `${target.kind} XRP Run command failed: ${detail}`,
+      });
     } finally {
       runStartingRef.current = false;
       setRunStarting(false);
@@ -1178,9 +1464,16 @@ export function DashboardApp() {
     try {
       await target.setSimulationScenario?.(nextWorldId);
     } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
       targetStateRef.current = "error";
       setTargetState("error");
-      setTargetDetail(error instanceof Error ? error.message : String(error));
+      setTargetDetail(detail);
+      diagnosticLog.record({
+        event: "world.change-failed",
+        level: "error",
+        terminal: true,
+        message: `World change to ${nextWorldId} failed: ${detail}`,
+      });
     } finally {
       finishTargetCommand();
     }
@@ -1199,17 +1492,31 @@ export function DashboardApp() {
         setRunAutosaveDetail(
           `Folder access was not granted. Run data remains in this browser session.`,
         );
+        diagnosticLog.record({
+          event: "project-folder.reconnect-denied",
+          level: "warning",
+          message: `Project folder ${rememberedAutosaveFolder.name} was not reconnected.`,
+        });
         return;
       }
       setAutosaveFolder(rememberedAutosaveFolder);
       setRunAutosaveDetail(
         `Runs save automatically to ${rememberedAutosaveFolder.name}.`,
       );
+      diagnosticLog.record({
+        event: "project-folder.reconnected",
+        message: `Project folder ${rememberedAutosaveFolder.name} is writable.`,
+      });
     } catch (error: unknown) {
       if (!wasCancelled(error)) {
-        setRunAutosaveDetail(
-          `Folder reconnection failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        const detail = error instanceof Error ? error.message : String(error);
+        setRunAutosaveDetail(`Folder reconnection failed: ${detail}`);
+        diagnosticLog.record({
+          event: "project-folder.reconnect-failed",
+          level: "error",
+          terminal: true,
+          message: `Project folder reconnection failed: ${detail}`,
+        });
       }
     } finally {
       finishFolderInteraction();
@@ -1239,13 +1546,31 @@ export function DashboardApp() {
         fileName,
         "text/csv",
       );
-      if (!destination) return;
+      if (!destination) {
+        diagnosticLog.record({
+          event: "export.cancelled",
+          message: "Telemetry and notes CSV export was cancelled.",
+        });
+        return;
+      }
       const csv = monitorRunToCsv(latestRun.recording, latestRun.annotations);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       await destination.save(blob);
       setExportDetail(`Saved ${destination.description}`);
-    } catch (error) {
-      setExportDetail(error instanceof Error ? error.message : String(error));
+      diagnosticLog.record({
+        event: "export.saved",
+        terminal: true,
+        message: `Telemetry and notes CSV saved to ${destination.description}.`,
+      });
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setExportDetail(detail);
+      diagnosticLog.record({
+        event: "export.failed",
+        level: "error",
+        terminal: true,
+        message: `Telemetry and notes CSV export failed: ${detail}`,
+      });
     } finally {
       exportActiveRef.current = false;
       setExportState("idle");
@@ -1267,9 +1592,14 @@ export function DashboardApp() {
         return next;
       });
     } catch (error: unknown) {
-      setRuntimeUpdateError(
-        error instanceof Error ? error.message : String(error),
-      );
+      const detail = error instanceof Error ? error.message : String(error);
+      setRuntimeUpdateError(detail);
+      diagnosticLog.record({
+        event: "runtime-parameter.update-failed",
+        level: "error",
+        terminal: true,
+        message: `Live control ${name} could not be updated: ${detail}`,
+      });
       setRuntimeDrafts((current) => {
         const next = { ...current };
         delete next[name];
@@ -1336,7 +1666,13 @@ export function DashboardApp() {
     : (latestRun?.recording.samples ?? plotSamples);
 
   const exportPlots = async (format: "svg" | "png") => {
-    if (visiblePlots.length === 0 || displayedRunSamples.length === 0) return;
+    if (
+      activeRunId !== null ||
+      latestRun === null ||
+      visiblePlots.length === 0 ||
+      latestRun.recording.samples.length === 0
+    )
+      return;
     const nextState = format === "svg" ? "plots-svg" : "plots-png";
     exportActiveRef.current = true;
     setExportState(nextState);
@@ -1347,11 +1683,17 @@ export function DashboardApp() {
         fileName,
         format === "svg" ? "image/svg+xml" : "image/png",
       );
-      if (!destination) return;
+      if (!destination) {
+        diagnosticLog.record({
+          event: "export.cancelled",
+          message: `${format.toUpperCase()} plot export was cancelled.`,
+        });
+        return;
+      }
       setExportDetail(`Preparing ${format.toUpperCase()}…`);
       const { createSignalPlotsSvg, svgToPng } = await loadMonitorExport();
       const svg = createSignalPlotsSvg(
-        displayedRunSamples,
+        latestRun.recording.samples,
         visiblePlots,
         monitorSettings.timeWindowS,
         annotationsVisible ? annotations : [],
@@ -1364,8 +1706,20 @@ export function DashboardApp() {
       }
       await destination.save(blob);
       setExportDetail(`Saved ${destination.description}`);
-    } catch (error) {
-      setExportDetail(error instanceof Error ? error.message : String(error));
+      diagnosticLog.record({
+        event: "export.saved",
+        terminal: true,
+        message: `${format.toUpperCase()} plots saved to ${destination.description}.`,
+      });
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setExportDetail(detail);
+      diagnosticLog.record({
+        event: "export.failed",
+        level: "error",
+        terminal: true,
+        message: `${format.toUpperCase()} plot export failed: ${detail}`,
+      });
     } finally {
       exportActiveRef.current = false;
       setExportState("idle");
@@ -1384,7 +1738,13 @@ export function DashboardApp() {
         fileName,
         "video/webm",
       );
-      if (!destination) return;
+      if (!destination) {
+        diagnosticLog.record({
+          event: "export.cancelled",
+          message: "World animation export was cancelled.",
+        });
+        return;
+      }
       setExportDetail("Preparing world animation…");
       const { createWorldReplayWebm } = await loadMonitorExport();
       let shownProgress = -1;
@@ -1402,8 +1762,20 @@ export function DashboardApp() {
       });
       await destination.save(blob);
       setExportDetail(`Saved ${destination.description}`);
-    } catch (error) {
-      setExportDetail(error instanceof Error ? error.message : String(error));
+      diagnosticLog.record({
+        event: "export.saved",
+        terminal: true,
+        message: `World animation saved to ${destination.description}.`,
+      });
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setExportDetail(detail);
+      diagnosticLog.record({
+        event: "export.failed",
+        level: "error",
+        terminal: true,
+        message: `World animation export failed: ${detail}`,
+      });
     } finally {
       exportActiveRef.current = false;
       setExportState("idle");
@@ -1817,7 +2189,9 @@ export function DashboardApp() {
                       <button
                         disabled={
                           exportState !== "idle" ||
-                          displayedRunSamples.length === 0 ||
+                          activeRunId !== null ||
+                          latestRun === null ||
+                          latestRun.recording.samples.length === 0 ||
                           visiblePlots.length === 0
                         }
                         onClick={() => void exportPlots("svg")}
@@ -1828,7 +2202,9 @@ export function DashboardApp() {
                       <button
                         disabled={
                           exportState !== "idle" ||
-                          displayedRunSamples.length === 0 ||
+                          activeRunId !== null ||
+                          latestRun === null ||
+                          latestRun.recording.samples.length === 0 ||
                           visiblePlots.length === 0
                         }
                         onClick={() => void exportPlots("png")}

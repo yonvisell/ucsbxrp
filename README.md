@@ -147,7 +147,7 @@ Open **Open wizard for XRP initial set up or repair** on the landing page, or
 **Set up or repair XRP** in IDE Settings, using current desktop Chrome or Edge
 on Windows or macOS. The wizard:
 
-1. optionally selects a Working folder for named Project folders and setup logs,
+1. selects a Working folder for named Project folders and troubleshooting logs,
    and waits for the complete offline web release;
 2. selects the USB-C XRP through the browser's device picker;
 3. checks the RP2350 controller, MicroPython 1.28.0, XRPLib, course library,
@@ -172,16 +172,16 @@ available in the wizard and later from IDE Settings; credentials pass directly
 to the XRP over USB and are not stored by the web application.
 
 Selecting a Working folder performs a real write-and-read check and creates
-`UCSB_XRP_Autosaves/xrp-setup-latest.txt`. The collapsed **Setup log** records
-the controller check, changed-file count, reset, and each robot-service probe;
-it never records the Wi-Fi password. The Working folder can be chosen later in
-the IDE;
-the visible log remains copyable meanwhile. **Verify robot connection** begins
-after USB installation and reset. Existing-Wi-Fi mode can verify without
-changing the computer's network; hotspot mode requires joining the network
-shown by the wizard. Allow this site to access the local network when Chrome
-asks. On macOS, Chrome must also be enabled under **System Settings → Privacy &
-Security → Local Network**.
+`UCSBXRP diagnostic log.txt` in that folder. Setup, IDE, and Monitor append
+environment details, operations, connection state, program/service errors, and
+run summaries to this one bounded troubleshooting file. It does not contain
+Wi-Fi passwords, credentials, project source, or telemetry measurements. The
+collapsed **Setup log** shows the current setup attempt and remains copyable.
+**Verify robot connection** begins after USB installation and reset.
+Existing-Wi-Fi mode can verify without changing the computer's network; hotspot
+mode requires joining the network shown by the wizard. Allow this site to
+access the local network when Chrome asks. On macOS, Chrome must also be enabled
+under **System Settings → Privacy & Security → Local Network**.
 
 The commissioning handoff remembers the Working folder but does not import its
 contents as a project. In a new browser, the built-in expanding-spiral demo

@@ -175,6 +175,22 @@ export async function readWorkspaceManifest<T = unknown>(
   }, folderName);
 }
 
+export async function readWorkspaceTextFile(
+  page: Page,
+  fileName: string,
+  folderName = "UCSBXRP-Test-Work",
+): Promise<string> {
+  return page.evaluate(
+    async ({ folderName, fileName }) => {
+      const root = await navigator.storage.getDirectory();
+      const workspace = await root.getDirectoryHandle(folderName);
+      const handle = await workspace.getFileHandle(fileName);
+      return (await handle.getFile()).text();
+    },
+    { folderName, fileName },
+  );
+}
+
 export async function replaceWorkspaceProject(
   page: Page,
   project: TestProject,

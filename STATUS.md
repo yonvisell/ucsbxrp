@@ -2150,3 +2150,37 @@ The complete fast release gate also passes: formatting, 248 Python tests,
 MicroPython source/reference-bytecode parity, 376 browser-library unit tests,
 type checking, the production build, and the 322-file offline package. The
 republished full browser job remains the final check for this refinement.
+
+## Refinement 81: one cumulative troubleshooting log
+
+Setup, IDE, and Monitor now append to one bounded `UCSBXRP diagnostic log.txt`
+file in the Working folder. The file records the course and application build,
+browser and operating-system details, relevant browser capabilities,
+commissioning progress, the physical network and addresses attempted and
+observed, Project operations, compile/flash/run transitions, service and error
+output, run summaries, exports, and browser failures. It does not store Wi-Fi
+passwords, credentials, source files, or telemetry measurements. Completed-run
+telemetry remains in the separate Project CSV archive.
+
+The setup wizard retains its collapsed current-attempt view and **Copy log**,
+then replays that attempt into the cumulative file when the student selects a
+Working folder. Setup writes and reads a new record before proceeding. The IDE
+names the file in Settings; the Guide explains where it is and what to send to
+an instructor. Writes from concurrent IDE and Monitor tabs are serialized,
+batched, and capped at 1 MiB; the oldest whole records are removed when the cap
+is reached. No fallback configuration or browser-state record was added.
+
+A cross-computer review also found and corrected three first-use defects. The
+Monitor now checks permission on the retained Working folder before reading its
+manifest, so a browser restart presents a reconnect action instead of an
+unhandled file error. Plot export is limited to a completed run and cannot mix
+an active run with the preceding Project folder. Finally, the setup identity
+and state requests have independent timeouts; the browser's one-time local
+network permission prompt can no longer consume the state request's deadline.
+
+The fast release gate passes: formatting, 248 Python tests, MicroPython
+source/reference-bytecode parity, 385 browser-library unit tests, type checking,
+the production build, and the 322-file offline package. The focused Setup, IDE,
+and Monitor browser workflows pass, including delayed local-network approval,
+restart-time folder permission, shared-log output, and exclusion of raw
+telemetry values.

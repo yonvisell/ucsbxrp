@@ -112,8 +112,48 @@ class XrpServiceProbeError extends Error {
   }
 }
 
-const WIFI_PROBE_TIMEOUT_MS = 1_000;
+class XrpServiceProbeTimeoutError extends Error {
+  constructor(
+    requestName: string,
+    readonly timeoutMs: number,
+  ) {
+    super(
+      `No response to the XRP ${requestName} request within ${timeoutMs / 1_000} seconds.`,
+    );
+    this.name = "XrpServiceProbeTimeoutError";
+  }
+}
+
+const WIFI_INFO_PROBE_TIMEOUT_MS = 5_000;
+const WIFI_STATE_PROBE_TIMEOUT_MS = 1_000;
 const WIFI_PROBE_INTERVAL_MS = 1_250;
+
+async function fetchXrpService(
+  endpoint: string,
+  path: string,
+  requestName: string,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(
+      `${endpoint}${path}`,
+      localNetworkRequestInit(endpoint, {
+        cache: "no-store",
+        method: "GET",
+        signal: controller.signal,
+      }),
+    );
+  } catch (error: unknown) {
+    if (controller.signal.aborted) {
+      throw new XrpServiceProbeTimeoutError(requestName, timeoutMs);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -339,6 +379,41 @@ export function CommissionApp() {
     },
     [],
   );
+
+  useEffect(() => {
+    const recordWindowError = (event: ErrorEvent) => {
+      const detail =
+        event.error instanceof Error
+          ? `${event.error.message}${event.error.stack ? `\n${event.error.stack}` : ""}`
+          : event.message;
+      recordSetup(
+        "Application",
+        `Unexpected browser error: ${detail}`,
+        "error",
+      );
+    };
+    const recordUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const detail =
+        reason instanceof Error
+          ? `${reason.message}${reason.stack ? `\n${reason.stack}` : ""}`
+          : String(reason);
+      recordSetup(
+        "Application",
+        `Unexpected browser task failure: ${detail}`,
+        "error",
+      );
+    };
+    window.addEventListener("error", recordWindowError);
+    window.addEventListener("unhandledrejection", recordUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", recordWindowError);
+      window.removeEventListener(
+        "unhandledrejection",
+        recordUnhandledRejection,
+      );
+    };
+  }, [recordSetup]);
 
   const bindDiagnosticFolder = useCallback(
     async (selected: CourseDirectoryHandle) => {
@@ -988,19 +1063,12 @@ export function CommissionApp() {
     wifiAttemptRef.current = attempt;
     setWifiAttempts(attempt);
     const endpoint = `http://${result.network.address}`;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(
-      () => controller.abort(),
-      WIFI_PROBE_TIMEOUT_MS,
-    );
     try {
-      const response = await fetch(
-        `${endpoint}/api/v1/info`,
-        localNetworkRequestInit(endpoint, {
-          cache: "no-store",
-          method: "GET",
-          signal: controller.signal,
-        }),
+      const response = await fetchXrpService(
+        endpoint,
+        "/api/v1/info",
+        "identity",
+        WIFI_INFO_PROBE_TIMEOUT_MS,
       );
       if (!response.ok) {
         throw new XrpServiceProbeError(
@@ -1040,13 +1108,11 @@ export function CommissionApp() {
           "The XRP started with an outdated network name. Reconnect it by USB-C and run repair again.",
         );
       }
-      const stateResponse = await fetch(
-        `${endpoint}/api/v1/state?afterLogSeq=0`,
-        localNetworkRequestInit(endpoint, {
-          cache: "no-store",
-          method: "GET",
-          signal: controller.signal,
-        }),
+      const stateResponse = await fetchXrpService(
+        endpoint,
+        "/api/v1/state?afterLogSeq=0",
+        "state",
+        WIFI_STATE_PROBE_TIMEOUT_MS,
       );
       if (!stateResponse.ok) {
         throw new XrpServiceProbeError(
@@ -1101,11 +1167,14 @@ export function CommissionApp() {
         return;
       }
       const serviceFailure = probeError instanceof XrpServiceProbeError;
-      const issue = wasCancelled(probeError)
-        ? "No response within one second."
-        : serviceFailure
+      const issue =
+        probeError instanceof XrpServiceProbeTimeoutError
           ? probeError.message
-          : `Chrome could not reach the XRP (${errorDetail(probeError)}).`;
+          : wasCancelled(probeError)
+            ? "The XRP connection check was cancelled."
+            : serviceFailure
+              ? probeError.message
+              : `The browser could not reach the XRP (${errorDetail(probeError)}).`;
       setWifiIssue(issue);
       setWifiNeedsRepair(serviceFailure);
       if (serviceFailure) setWifiProbeEnabled(false);
@@ -1124,7 +1193,6 @@ export function CommissionApp() {
         );
       }
     } finally {
-      clearTimeout(timeout);
       wifiCheckInFlightRef.current = false;
       setCheckingWifi(false);
     }
@@ -1765,7 +1833,7 @@ export function CommissionApp() {
                         : `Check XRP on ${result.network.ssid}`}
               </button>
               <p className="wifi-instruction">
-                If Chrome asks to find and connect to devices on the local
+                If the browser asks to find and connect to devices on the local
                 network, choose <strong>Allow</strong>. After the robot replies,
                 use <strong>Open IDE</strong> to continue.
               </p>
@@ -1777,8 +1845,8 @@ export function CommissionApp() {
                     already finished.
                   </li>
                   <li>
-                    In Chrome's site settings for this page, allow local network
-                    access.
+                    In this browser's site settings for this page, allow local
+                    network access.
                   </li>
                   <li>
                     On macOS, Chrome must also be enabled under System Settings

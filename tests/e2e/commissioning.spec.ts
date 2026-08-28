@@ -708,6 +708,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     const originalFetch = window.fetch.bind(window);
     let serviceProbeCount = 0;
     let serviceRobotId = "0000000000000000";
+    let serviceResponseDelayMs = 0;
     Object.defineProperty(window, "__ucsbServiceProbeCount", {
       configurable: true,
       get: () => serviceProbeCount,
@@ -716,6 +717,12 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       configurable: true,
       value: (robotId: string) => {
         serviceRobotId = robotId;
+      },
+    });
+    Object.defineProperty(window, "__setUcsbServiceResponseDelay", {
+      configurable: true,
+      value: (milliseconds: number) => {
+        serviceResponseDelayMs = milliseconds;
       },
     });
     window.fetch = async (input, init) => {
@@ -729,6 +736,11 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         serviceProbeCount += 1;
         if (serviceProbeCount < 3) {
           throw new TypeError("computer has not joined the XRP hotspot yet");
+        }
+        if (serviceResponseDelayMs > 0) {
+          const delay = serviceResponseDelayMs;
+          serviceResponseDelayMs = 0;
+          await new Promise((resolve) => window.setTimeout(resolve, delay));
         }
         const runtimeManifest = files.get(
           "/course_runtime/slots/a/runtime-manifest.json",
@@ -879,6 +891,13 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         __setUcsbServiceRobotId: (robotId: string) => void;
       }
     ).__setUcsbServiceRobotId("4c91fae8f1775aa4"),
+  );
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        __setUcsbServiceResponseDelay: (milliseconds: number) => void;
+      }
+    ).__setUcsbServiceResponseDelay(1_200),
   );
   await page.getByRole("button", { name: "Check XRP again" }).click();
   await expect(page.getByRole("heading", { name: "XRP ready" })).toBeVisible({

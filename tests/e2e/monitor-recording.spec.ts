@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { readWorkspaceExports, seedWorkingFolder } from "./working-folder";
+import {
+  readWorkspaceExports,
+  readWorkspaceTextFile,
+  seedWorkingFolder,
+} from "./working-folder";
 
 const monitorWorkspace = "Monitor-Recording";
 
@@ -82,6 +86,30 @@ test("keeps one completed run ready for notes and every export", async ({
   await expect(monitor.getByTestId("recording-count")).toContainText(
     "Expanding spiral ·",
   );
+  await expect(
+    monitor.getByRole("button", { name: "Export plots as SVG" }),
+  ).toBeEnabled();
+
+  await expect
+    .poll(
+      async () =>
+        readWorkspaceTextFile(
+          monitor,
+          "UCSBXRP diagnostic log.txt",
+          monitorWorkspace,
+        ).catch(() => ""),
+      { message: "Monitor should append its completed-run summary" },
+    )
+    .toContain('event="run.finished"');
+  const diagnosticLog = await readWorkspaceTextFile(
+    monitor,
+    "UCSBXRP diagnostic log.txt",
+    monitorWorkspace,
+  );
+  expect(diagnosticLog).toContain('app="Monitor"');
+  expect(diagnosticLog).toContain('event="run.started"');
+  expect(diagnosticLog).not.toContain('event="telemetry.sample"');
+  expect(diagnosticLog).not.toContain('"leftEffort"');
 
   await monitor.getByRole("button", { name: "Export run data as CSV" }).click();
   await expect(
@@ -147,6 +175,36 @@ test("keeps one completed run ready for notes and every export", async ({
   await expect(
     monitor.getByRole("button", { name: "Export run data as CSV" }),
   ).toBeDisabled();
+});
+
+test("directs a restarted browser to reconnect folder access without an unhandled error", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    Object.defineProperty(
+      FileSystemDirectoryHandle.prototype,
+      "queryPermission",
+      {
+        configurable: true,
+        value: async () => "prompt",
+      },
+    );
+  });
+
+  await page.goto("/monitor/");
+
+  await expect(
+    page.getByText(/Reconnect (?:Working|project) folder/i),
+  ).toBeVisible();
+  await expect(
+    page.locator(".app-header").getByRole("button", {
+      name: "Run",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  expect(pageErrors).toEqual([]);
 });
 
 test("records and labels a run started from the IDE", async ({
