@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+import { seedWorkingFolder } from "./working-folder";
+
 test("landing page exposes the instructor tools as compact text links", async ({
   page,
 }) => {
@@ -425,6 +427,9 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
       value: undefined,
     });
   });
+  await seedWorkingFolder(author, {
+    folderName: "Instructor-Authoring-Work",
+  });
   await author.goto("/author/");
   await author.getByLabel("Starting challenge").selectOption("challenge_1");
   await author
@@ -494,6 +499,12 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
       exact: true,
     }),
   ).toBeVisible();
+  await ide.keyboard.press("ControlOrMeta+S");
+  await expect(
+    ide.getByRole("heading", { name: "Save project" }),
+  ).toBeVisible();
+  await ide.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
 

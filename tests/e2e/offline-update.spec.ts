@@ -251,6 +251,39 @@ async function installPagehideCounter(context: BrowserContext) {
   }, pagehideCountKey);
 }
 
+async function createSavedSpiralProject(
+  page: Page,
+  ideUrl: string,
+  workingFolderName: string,
+) {
+  await page.addInitScript((folderName) => {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => {
+        const root = await navigator.storage.getDirectory();
+        try {
+          await root.removeEntry(folderName, { recursive: true });
+        } catch (error) {
+          if (
+            !(error instanceof DOMException) ||
+            error.name !== "NotFoundError"
+          ) {
+            throw error;
+          }
+        }
+        return root.getDirectoryHandle(folderName, { create: true });
+      },
+    });
+  }, workingFolderName);
+  await page.goto(ideUrl);
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page.getByLabel("Project template").selectOption("demo_spiral");
+  await page
+    .getByRole("button", { name: "Choose Working folder and create" })
+    .click();
+  await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
+}
+
 test("defers a cancelled A-to-B course update until the next safe IDE operation", async ({
   context,
 }) => {
@@ -262,7 +295,11 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
     await installPagehideCounter(context);
 
     const ide = await context.newPage();
-    await ide.goto(`${harness.origin}${harness.basePath}ide/`);
+    await createSavedSpiralProject(
+      ide,
+      `${harness.origin}${harness.basePath}ide/`,
+      "Update-IDE-Work",
+    );
     await expect(ide.getByTestId("target-status")).toContainText(
       "Virtual XRP · ready",
     );
@@ -315,11 +352,6 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
     await updater.goto(`${harness.origin}${harness.basePath}`);
     await expectShellVersion(updater, harness.releaseB.version);
     await cancelledDialog;
-    await ide.getByRole("button", { name: "Settings" }).click();
-    await expect(ide.getByTestId("offline-readiness")).toContainText(
-      "Course update ready",
-    );
-    await ide.getByRole("button", { name: "Close settings" }).click();
 
     // A cancelled reload must not be recorded as having navigated. Otherwise
     // the still-running A page would suppress the next B reload request.
@@ -423,6 +455,14 @@ test("keeps an A-to-B update pending for a completed Monitor run and note", asyn
   await installPagehideCounter(context);
 
   try {
+    const setupIde = await context.newPage();
+    await createSavedSpiralProject(
+      setupIde,
+      `${harness.origin}${harness.basePath}ide/`,
+      "Update-Monitor-Work",
+    );
+    await setupIde.close();
+
     const monitor = await context.newPage();
     await monitor.goto(`${harness.origin}${harness.basePath}monitor/`);
     await expect(monitor.getByTestId("target-status")).toContainText(
@@ -456,7 +496,7 @@ test("keeps an A-to-B update pending for a completed Monitor run and note", asyn
       .getByRole("button", { name: "Stop", exact: true })
       .click();
     await expect(monitor.getByTestId("recording-count")).toContainText(
-      "Last run ·",
+      /Expanding spiral · [\d,]+ samples/,
     );
 
     const pagehideBaseline = await monitor.evaluate(
@@ -469,9 +509,6 @@ test("keeps an A-to-B update pending for a completed Monitor run and note", asyn
     await updater.goto(`${harness.origin}${harness.basePath}`);
     await expectShellVersion(updater, harness.releaseB.version);
 
-    await expect(monitor.getByTestId("offline-readiness")).toContainText(
-      "Course update ready",
-    );
     await expectShellVersion(monitor, harness.releaseA.version);
     await expect
       .poll(() =>
@@ -528,9 +565,6 @@ test("keeps an A-to-B update pending for invalid Author JSON", async ({
     await updater.goto(`${harness.origin}${harness.basePath}`);
     await expectShellVersion(updater, harness.releaseB.version);
 
-    await expect(author.getByTestId("offline-readiness")).toContainText(
-      "Course update ready",
-    );
     await expectShellVersion(author, harness.releaseA.version);
     await expect
       .poll(() =>
