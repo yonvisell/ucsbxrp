@@ -188,6 +188,18 @@ def _begin_station(config, network_module, watchdog):
         _interface_id(network_module, "IF_STA", "STA_IF")
     )
     wlan.active(True)
+    # RP2 Wi-Fi power saving can leave a station reporting "connected" while
+    # incoming HTTP requests stall. The XRP is an interactive robot, so a
+    # responsive link is more useful here than the small radio-power saving.
+    pm_none = getattr(getattr(network_module, "WLAN", None), "PM_NONE", None)
+    if pm_none is None:
+        pm_none = getattr(network_module, "PM_NONE", None)
+    if pm_none is not None:
+        try:
+            wlan.config(pm=pm_none)
+        except Exception:
+            # Older supported firmware may not expose this setting.
+            pass
     if wlan.isconnected():
         try:
             current_ssid = wlan.config("ssid")

@@ -95,6 +95,7 @@ class FakeNetwork:
     STAT_NO_AP_FOUND = -2
     STAT_WRONG_PASSWORD = -3
     STAT_CONNECT_FAIL = -1
+    PM_NONE = 16
     WLAN = FakeWlan
 
     def __init__(self, station_connects=True):
@@ -175,6 +176,7 @@ class DeviceNetworkingTest(unittest.TestCase):
         self.assertEqual(
             fake_network.interfaces[0].connected_with, ("Pink", "secret")
         )
+        self.assertIn(("config", {"pm": fake_network.PM_NONE}), fake_network.interfaces[0].events)
         self.assertNotIn("password", result)
         self.assertGreater(watchdog.feeds, 0)
 
