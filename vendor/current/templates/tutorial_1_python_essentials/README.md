@@ -139,7 +139,7 @@ requiring exact equality.
   `Robot.start()`, `Robot.step()`, and `Robot.stop()` program structure.
 - Tutorial 4 introduces named behavior states, live parameters, watched values,
   and plot signals driven by measured robot state.
-- Tutorial 5 rehearses virtually, then deploys the same bounded zero-motion
+- Tutorial 5 rehearses virtually, then deploys the same fixed-duration zero-motion
   telemetry preflight to a physical XRP.
 
 Each tutorial keeps the exercise code in `student_work.py` and checks it with

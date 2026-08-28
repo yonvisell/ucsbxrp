@@ -16,6 +16,7 @@ import type {
   PhysicalWorkerCommand,
   PhysicalWorkerMessage,
 } from "./physical-worker-protocol";
+import type { TargetWorkerRole } from "./worker-protocol";
 import { describeProject } from "./project-identity";
 import { worldCatalogForProject } from "./project-world";
 import {
@@ -1774,6 +1775,7 @@ export class PhysicalTargetClient implements TargetClient {
             discoveryTimeoutMs: this.discoveryTimeoutMs,
             expectedRobotId: this.options.expectedRobotId,
             providesProject: this.projectRunProvider !== null,
+            role: this.projectRunProvider !== null ? "ide" : "monitor",
           });
           return;
         }
@@ -1798,6 +1800,7 @@ export class PhysicalTargetClient implements TargetClient {
       discoveryTimeoutMs: this.discoveryTimeoutMs,
       expectedRobotId: this.options.expectedRobotId,
       providesProject: this.projectRunProvider !== null,
+      role: this.projectRunProvider !== null ? "ide" : "monitor",
     });
   }
 
@@ -2009,6 +2012,7 @@ export class PhysicalTargetClient implements TargetClient {
           discoveryTimeoutMs: number;
           expectedRobotId?: string;
           providesProject: boolean;
+          role: TargetWorkerRole;
         }
       | { type: "check"; project: CourseProject }
       | { type: "prepare"; project: CourseProject }
@@ -2057,6 +2061,12 @@ export class PhysicalTargetClient implements TargetClient {
           requestId: message.requestId,
           error: errorDetail(error),
         } satisfies PhysicalWorkerCommand);
+      }
+      return;
+    }
+    if (message.type === "telemetry-batch") {
+      for (const event of message.events) {
+        this.emit(event);
       }
       return;
     }

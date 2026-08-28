@@ -4,6 +4,45 @@ Last updated: 2026-08-27
 
 ## Current result
 
+Refinement 69 integrates the student-workflow, documentation, authoring, and
+browser-performance work on the dev.40 physical baseline. The IDE now has one
+literal folder model: a Working folder contains named Project folders;
+**Open project…**, **New from template…**, and **Save to folder…** are grouped
+with the current folder state. Cancelled or denied pickers and invalid
+repository roots preserve the current project, and repository files cannot be
+mistaken for project files.
+
+The live production IDE uses one viewport-sized grid from the page through the
+workspace, editor stack, editor frame, and Monaco canvas. The same loaded page
+was resized through 760×620, 980×760, 1100×700, and 1450×900; every layer
+matched the viewport in both directions with zero document overflow, while the
+collapsed output drawer remained 27 pixels high. Only the immutable build at
+port 4174 was running during that measurement.
+
+The Guide lists all five tutorials and explains the installed web application,
+browser draft, Working folder, and Project folders separately. API constructors
+now document parameters and exceptions, project README files use literal
+student-facing language, and the instructor author can start from a genuinely
+blank Challenge 1 specification rather than inheriting hidden example data.
+Student templates use ordinary `#` comments rather than triple-quoted
+commentary.
+
+Target workers now identify IDE and Monitor ports. Monitor receives live and
+retained telemetry in ordered batches of at most 128 samples; IDE receives no
+unused high-rate stream. A 10,000-sample reconstruction uses 79 worker messages
+instead of 10,000, a 99.21% reduction, while retaining exact order and one copy
+of every sample.
+
+The integrated software result passes formatting, the production and 268-file
+offline builds, 379 TypeScript tests, 29 focused Python starter/tutorial tests,
+and 58 selected production-Chrome workflows. Those workflows cover project
+creation/open/save/autosave and repository rejection; Monitor recording,
+annotations, plots, and export; instructor world/challenge authoring and a
+generated stopping-response run; all five tutorials; all challenges and demos;
+Monitor-first Run; and the complete virtual multi-file path. Three obsolete
+wording expectations were corrected and rerun; no product defect was hidden by
+those changes.
+
 Refinement 68 qualifies dev.40 on the attached RP2350 XRP in native Chrome.
 The USB wizard retained the Pink station profile, installed the changed runtime,
 verified robot identity at `192.168.7.25`, and completed a second repair with

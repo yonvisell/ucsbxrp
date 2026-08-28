@@ -230,7 +230,7 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   );
   await expect(dashboard.getByTestId("world-view")).toHaveAttribute(
     "data-arena-mm",
-    "2400 × 1800",
+    "3048 × 1219.2",
   );
   await expect(
     dashboard.getByText(/Major grid lines and values are labeled/),
@@ -375,8 +375,12 @@ test("edits a multi-file project and completes the virtual XRP workflow", async 
   await expect(dashboard.getByTestId("x-mm")).toHaveText("0.0 mm");
   await expect(dashboard.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 
-  await ide.getByRole("button", { name: "Save project…", exact: true }).click();
-  await expect(ide.getByRole("dialog")).toContainText("Create a named folder");
+  await ide
+    .getByRole("button", { name: "Save to folder…", exact: true })
+    .click();
+  await expect(ide.getByRole("dialog")).toContainText(
+    "Create a named Project folder",
+  );
   await ide.getByLabel("Project folder name").fill("virtual-browser-check");
   await ide
     .getByRole("button", {

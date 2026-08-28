@@ -193,8 +193,11 @@ function responses(port: FakePort, requestId: string) {
 
 function events(port: FakePort, type: TargetEvent["type"]): TargetEvent[] {
   return port.messages
-    .filter((message) => message.type === "event")
-    .map((message) => message.event)
+    .flatMap((message) => {
+      if (message.type === "event") return [message.event];
+      if (message.type === "telemetry-batch") return [...message.events];
+      return [];
+    })
     .filter((event) => event.type === type);
 }
 
@@ -978,6 +981,7 @@ describe("physical target coordinator", () => {
         type: "connect",
         endpoint: "http://192.168.4.1",
         requestId: "ide-connect-history",
+        role: "ide",
       }),
     );
     await vi.waitFor(() =>
@@ -993,7 +997,7 @@ describe("physical target coordinator", () => {
       events(monitor, "telemetry").map(
         (event) => event.type === "telemetry" && event.sample.seq,
       ),
-    ).toEqual([1, 2, 3]);
+    ).toEqual([]);
     target.emit({ type: "telemetry", sample: telemetry(4) });
 
     coordinator.handle(
@@ -1002,6 +1006,7 @@ describe("physical target coordinator", () => {
         type: "connect",
         endpoint: "http://192.168.4.1",
         requestId: "monitor-connect-history",
+        role: "monitor",
       }),
     );
     await vi.waitFor(() =>
@@ -1014,6 +1019,7 @@ describe("physical target coordinator", () => {
         type: "connect",
         endpoint: "http://192.168.4.1",
         requestId: "monitor-reconnect-history",
+        role: "monitor",
       }),
     );
     await vi.waitFor(() =>
@@ -1025,5 +1031,6 @@ describe("physical target coordinator", () => {
         (event) => event.type === "telemetry" && event.sample.seq,
       ),
     ).toEqual([1, 2, 3, 4, 5]);
+    expect(events(ide, "telemetry")).toHaveLength(0);
   });
 });

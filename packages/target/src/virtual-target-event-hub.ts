@@ -1,4 +1,5 @@
 import type { TargetWorkerMessage } from "./worker-protocol";
+import type { TargetWorkerRole } from "./worker-protocol";
 import {
   TelemetryEventHistory,
   type TelemetryEvent,
@@ -13,6 +14,7 @@ export interface VirtualWorkerPort {
 type ConsoleEvent = Extract<TargetEvent, { type: "console" }>;
 
 export const VIRTUAL_CONSOLE_HISTORY_LIMIT = 2_000;
+export const TELEMETRY_REPLAY_BATCH_SIZE = 128;
 
 /**
  * Broadcasts one virtual-target session to every attached app tab.
@@ -23,6 +25,7 @@ export const VIRTUAL_CONSOLE_HISTORY_LIMIT = 2_000;
  */
 export class VirtualTargetEventHub {
   private readonly ports = new Set<VirtualWorkerPort>();
+  private readonly roles = new Map<VirtualWorkerPort, TargetWorkerRole>();
   private readonly deliveredConsoleIds = new Map<
     VirtualWorkerPort,
     { ids: Set<string>; order: string[] }
@@ -40,11 +43,17 @@ export class VirtualTargetEventHub {
     this.ports.add(port);
     this.deliveredConsoleIds.set(port, { ids: new Set(), order: [] });
     this.deliveredTelemetry.set(port, new WeakSet());
-    this.replayTelemetry(port);
+  }
+
+  setRole(port: VirtualWorkerPort, role: TargetWorkerRole): number {
+    if (!this.ports.has(port)) return 0;
+    this.roles.set(port, role);
+    return role === "monitor" ? this.replayTelemetry(port) : 0;
   }
 
   detach(port: VirtualWorkerPort): void {
     this.ports.delete(port);
+    this.roles.delete(port);
     this.deliveredConsoleIds.delete(port);
     this.deliveredTelemetry.delete(port);
     port.close();
@@ -92,7 +101,21 @@ export class VirtualTargetEventHub {
   }
 
   send(port: VirtualWorkerPort, message: TargetWorkerMessage): void {
+    if (message.type === "telemetry-batch") {
+      if (this.roles.get(port) !== "monitor") return;
+      const delivered = this.deliveredTelemetry.get(port);
+      const pending = message.events.filter((event) => !delivered?.has(event));
+      if (pending.length === 0) return;
+      try {
+        port.postMessage({ type: "telemetry-batch", events: pending });
+        for (const event of pending) delivered?.add(event);
+      } catch {
+        // A closing tab must not interrupt the shared virtual session.
+      }
+      return;
+    }
     if (message.type === "event" && message.event.type === "telemetry") {
+      if (this.roles.get(port) !== "monitor") return;
       const delivered = this.deliveredTelemetry.get(port);
       if (delivered?.has(message.event)) return;
       try {
@@ -138,11 +161,21 @@ export class VirtualTargetEventHub {
   }
 
   replayTelemetry(port: VirtualWorkerPort): number {
+    if (this.roles.get(port) !== "monitor") return 0;
     let replayed = 0;
+    let batch: TelemetryEvent[] = [];
     for (const event of this.telemetryHistory.chronological()) {
       const delivered = this.deliveredTelemetry.get(port);
-      if (!delivered?.has(event)) replayed += 1;
-      this.send(port, { type: "event", event });
+      if (delivered?.has(event)) continue;
+      batch.push(event);
+      replayed += 1;
+      if (batch.length === TELEMETRY_REPLAY_BATCH_SIZE) {
+        this.send(port, { type: "telemetry-batch", events: batch });
+        batch = [];
+      }
+    }
+    if (batch.length > 0) {
+      this.send(port, { type: "telemetry-batch", events: batch });
     }
     return replayed;
   }

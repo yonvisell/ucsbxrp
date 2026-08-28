@@ -9,6 +9,7 @@ import type {
   ProjectRunSnapshotRequest,
   ProjectRunSnapshotResponse,
 } from "./project-run-provider";
+import type { TargetWorkerRole, WorkerTelemetryEvent } from "./worker-protocol";
 
 export type PhysicalWorkerCommand =
   | {
@@ -19,6 +20,7 @@ export type PhysicalWorkerCommand =
       discoveryTimeoutMs?: number;
       expectedRobotId?: string;
       providesProject?: boolean;
+      role?: TargetWorkerRole;
     }
   | { type: "disconnect" }
   | {
@@ -48,6 +50,7 @@ export type PhysicalWorkerCommand =
 
 export type PhysicalWorkerMessage =
   | { type: "event"; event: TargetEvent }
+  | { type: "telemetry-batch"; events: readonly WorkerTelemetryEvent[] }
   | ProjectRunSnapshotRequest
   | {
       type: "response";

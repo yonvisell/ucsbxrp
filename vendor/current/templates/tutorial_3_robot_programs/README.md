@@ -38,7 +38,7 @@ Place `robot.start(...)` and the sampled loop inside `try`, then call
 `robot.stop()` in `finally` so the stop occurs after normal completion and
 after an unexpected start or step error.
 
-## Exercise: write one bounded sampled program
+## Exercise: write one finite sampled program
 
 Complete `run_robot_program(robot)` in
 [`student_work.py`](student_work.py). It must:
@@ -98,8 +98,8 @@ rule.
    comparable trajectories from the same initial pose.
 
 `main.py` runs the same exercise check before it constructs the robot. Your
-`run_robot_program()` function owns the final `robot.stop()` call, including
-when `robot.step()` raises an unexpected error.
+`run_robot_program()` is responsible for the final `robot.stop()` call,
+including when `robot.step()` raises an unexpected error.
 
 `RobotState.pose` is the current odometry estimate. `RobotState.measurements`
 contains the current sample time, wheel positions and speeds, wheel increments,

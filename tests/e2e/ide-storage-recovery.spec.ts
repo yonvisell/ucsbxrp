@@ -253,9 +253,7 @@ test("does not restore a remembered repository as a student project", async ({
   await ide.goto("/ide/");
 
   await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(ide.getByTestId("project-folder")).toHaveText("Not created");
   await expect(
     ide.getByRole("button", { name: /Open AGENTS\.md/ }),
   ).toHaveCount(0);
@@ -358,15 +356,13 @@ test("offers to reconnect a remembered project instead of creating a duplicate f
 
   await ide.goto("/ide/");
 
-  await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(ide.getByTestId("project-folder")).toHaveText("Not created");
   await expect(
     ide.getByRole("button", { name: "Reconnect project folder…" }),
   ).toBeVisible();
-  await expect(ide.getByRole("button", { name: "Save project…" })).toHaveCount(
-    0,
-  );
+  await expect(
+    ide.getByRole("button", { name: "Save to folder…" }),
+  ).toHaveCount(0);
 
   await ide.getByRole("button", { name: "Reconnect project folder…" }).click();
   await expect(ide.getByTestId("project-folder")).toHaveText(
@@ -380,11 +376,13 @@ test("asks before opening a template as a browser-only project", async ({
   await installRememberedFolders(ide, { workspacePermission: "prompt" });
   await ide.goto("/ide/");
 
-  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
 
   await expect(
-    ide.getByRole("heading", { name: "Create a project" }),
+    ide.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
   await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect
@@ -403,7 +401,7 @@ test("asks before opening a template as a browser-only project", async ({
     )
     .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
 
-  await ide.getByRole("button", { name: "Continue without a folder" }).click();
+  await ide.getByRole("button", { name: "Open temporarily" }).click();
   await expect(
     ide.getByRole("button", {
       name: "Open main.py (main file)",
@@ -509,9 +507,11 @@ test("denied Working-folder access does not fall through to a picker", async ({
     .toMatchObject({ permissionRequestCount: 0, pickerCount: 0 });
   await ide.getByRole("button", { name: "Reconnect Working folder…" }).click();
   await expect(
-    ide.getByText(
-      "Access to xrp_test_2 was not granted. The current project is unchanged.",
-    ),
+    ide
+      .getByRole("dialog", { name: "Open a project" })
+      .getByText(
+        "Access to the Working folder xrp_test_2 was not granted. The current project is unchanged. Reconnect it or choose a different Working folder in Settings.",
+      ),
   ).toBeVisible();
   await expect
     .poll(() =>
@@ -537,7 +537,9 @@ test("New reconnects a remembered Working folder before creating", async ({
   await ide.goto("/ide/");
 
   const currentProject = await ide.getByTestId("project-name").textContent();
-  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
   await ide
     .getByRole("button", { name: "Choose Working folder and create…" })

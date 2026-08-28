@@ -1,11 +1,12 @@
 # UCSB XRP course tools
 
 This repository contains the `ucsb_xrp` MicroPython library, supplied reference
-bytecode, five challenge projects, two demos, four guided Python and MicroPython
-tutorial projects, a browser
-IDE, the XRP Monitor, a repeatable physics-based virtual XRP, and the on-robot
-service used to run the same projects on a
-SparkFun RP2350 XRP.
+bytecode, five challenge projects, two demos, five guided Python and MicroPython
+tutorial projects, a browser IDE, the XRP Monitor, a repeatable physics-based
+virtual XRP, and the on-robot
+service used to run the same projects on a SparkFun RP2350 XRP. The five
+tutorial projects progress from Python fundamentals to physical-XRP
+preparation.
 
 ## Open the applications
 
@@ -30,7 +31,7 @@ npm run dev
 - Getting started: `http://127.0.0.1:5173/guide/`
 - UCSB XRP API: `http://127.0.0.1:5173/reference/`
 
-The IDE starts with the expanding-spiral demo. **Create from template**
+The IDE starts with the expanding-spiral demo. **New from template…**
 creates any of the five challenges, two sensor-driven robot demos, or a staged
 MicroPython tutorial as an ordinary editable project. The demos cover
 obstacle-triggered turning and an expanding spiral with two live parameters.
@@ -43,7 +44,7 @@ each named `USE_STUDENT_*` switch independently.
 
 A **Working folder** is the parent folder for UCSBXRP work. Each **Current
 project** is stored in one named **Project folder** inside it. After the IDE has
-access to a Working folder, **Create from template** asks for the Project folder
+access to a Working folder, **New from template…** asks for the Project folder
 name, creates that folder, and writes the template immediately. **Open project**
 resumes an existing folder. Source edits then save automatically after a short
 pause; Command/Ctrl+S forces an immediate write.

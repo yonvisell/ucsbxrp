@@ -2,6 +2,7 @@ import type {
   RuntimeWorkerMessage,
   TargetWorkerCommand,
   TargetWorkerMessage,
+  TargetWorkerRole,
 } from "./worker-protocol";
 import type { SimulationScenario, WorldDefinition } from "@ucsb-xrp/simulator";
 import type {
@@ -120,6 +121,7 @@ export class VirtualTargetClient implements TargetClient {
     await this.request({
       type: "connect",
       providesProject: this.projectRunProvider !== null,
+      role: this.projectRunProvider !== null ? "ide" : "monitor",
     });
   }
 
@@ -436,7 +438,11 @@ export class VirtualTargetClient implements TargetClient {
 
   private request(
     command:
-      | { type: "connect"; providesProject: boolean }
+      | {
+          type: "connect";
+          providesProject: boolean;
+          role: TargetWorkerRole;
+        }
       | {
           type: "prepare-run";
           project?: CourseProject;
@@ -497,6 +503,12 @@ export class VirtualTargetClient implements TargetClient {
           requestId: message.requestId,
           error: errorDetail(error),
         } satisfies TargetWorkerCommand);
+      }
+      return;
+    }
+    if (message.type === "telemetry-batch") {
+      for (const event of message.events) {
+        this.emit(event);
       }
       return;
     }

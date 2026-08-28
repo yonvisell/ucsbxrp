@@ -963,7 +963,7 @@ class CourseStarterTests(unittest.TestCase):
                     )
                     for responsibility in (
                         "wheel-speed estimates based on recent encoder samples",
-                        "bounded left and right motor commands",
+                        "motor commands within the configured limits",
                         "target wheel speeds",
                         "estimated `Pose`",
                         "next `MotionCommand`",

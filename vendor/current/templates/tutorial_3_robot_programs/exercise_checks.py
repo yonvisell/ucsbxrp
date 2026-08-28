@@ -6,7 +6,7 @@ from student_work import run_robot_program
 
 
 class _RecordingRobot:
-    # Record course-interface calls without constructing or moving a robot.
+    # Record Robot method calls without constructing or moving a robot.
 
     def __init__(self, fail_at_step=None, fail_on_start=False):
         self.start_poses = []

@@ -862,9 +862,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       },
     });
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
   await expect
     .poll(() =>
       page.evaluate(() =>

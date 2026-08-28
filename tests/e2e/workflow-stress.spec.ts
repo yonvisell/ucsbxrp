@@ -429,9 +429,11 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
 
   // Changing projects marks the retained target stale. Monitor Run owns the
   // required compilation and must start the newly opened project, not the old one.
-  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await ide.getByLabel("Project template").selectOption("demo_obstacle_turn");
-  await ide.getByRole("button", { name: "Continue without a folder" }).click();
+  await ide.getByRole("button", { name: "Open temporarily" }).click();
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,
@@ -474,9 +476,7 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await expect(ide.getByTestId("project-name")).toHaveText(
     "Obstacle, left, obstacle",
   );
-  await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(ide.getByTestId("project-folder")).toHaveText("Not created");
   await expect(runButton(monitor)).toHaveAttribute(
     "title",
     /Obstacle, left, obstacle/,

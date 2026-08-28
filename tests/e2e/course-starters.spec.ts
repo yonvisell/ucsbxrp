@@ -8,24 +8,24 @@ const starters = [
 ];
 
 async function openTemplateInBrowser(page: Page, templateId: string) {
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page.getByLabel("Project template").selectOption(templateId);
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Continue without a folder" }).click();
+  await page.getByRole("button", { name: "Open temporarily" }).click();
 }
 
 test("opens the spiral demo by default in a new browser", async ({ page }) => {
   await page.goto("/ide/");
 
   await expect(
-    page.getByRole("button", { name: "New project…", exact: true }),
+    page.getByRole("button", { name: "New from template…", exact: true }),
   ).toBeVisible();
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
   await expect(
     page.getByRole("button", { name: "Open main.py (main file)" }),
   ).toBeVisible();
@@ -180,7 +180,7 @@ test("runs with declared live defaults if isolation disappears", async ({
   );
   await expect
     .poll(() => page.locator("html").getAttribute("data-offline-shell-state"))
-    .toBe("ready");
+    .toMatch(/^(ready|development)$/);
   await page.evaluate(() => {
     Object.defineProperty(globalThis, "crossOriginIsolated", {
       configurable: true,

@@ -31,7 +31,7 @@ SPIRAL_EXPANSION_MM = 1500.0
 MAX_TRAVEL_MM = 3500.0
 
 def run_spiral():
-    # Run the bounded spiral and return its result text and final state.
+    # Run the spiral to its travel limit and return its result text and final state.
     robot = make_robot(ROBOT_CONFIG)
     result = "Spiral travel limit reached"
     try:

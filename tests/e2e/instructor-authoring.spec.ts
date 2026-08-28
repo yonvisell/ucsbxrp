@@ -87,7 +87,7 @@ test("specification editor validates and downloads the complete curriculum examp
       "Student implementation 2 needs a complete localizer.py project-file override.",
     ),
   ).toBeVisible();
-  await page.getByText("Optional project-file overrides").click();
+  await page.getByText("Project-file overrides · 1 file").click();
   const overrideEditor = page.getByLabel("Project file overrides as JSON");
   const originalOverrideSource = await overrideEditor.inputValue();
   const overrides = JSON.parse(originalOverrideSource) as Record<
@@ -116,9 +116,17 @@ test("specification editor validates and downloads the complete curriculum examp
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toBe("challenge_6.challenge.json");
 
-  await page
-    .getByRole("button", { name: "Start a blank specification" })
-    .click();
+  await page.getByRole("button", { name: "Start a new specification" }).click();
+  await expect(page.getByLabel("Starting challenge")).toHaveValue(
+    "challenge_1",
+  );
+  await expect(
+    page.getByLabel("Supplied files and services — name | use"),
+  ).toHaveValue("");
+  await expect(
+    page.getByLabel("Program sequence — one step per line"),
+  ).toHaveValue("");
+  await expect(page.getByLabel("World to edit")).toHaveValue("straight-run");
   await expect(page.getByText(/item\(s\) require attention/)).toBeVisible();
   await expect(
     page.getByText("Title must be one nonempty line."),
@@ -458,7 +466,7 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
     .fill(
       "challenge.py loads the initial pose and travel distance from world.json.\nStraightLineController requests forward motion from the measured wheel travel.\nRobot uses the selected SensorModel and WheelSpeedController in each measured sample.\nThe loop stops at the finish distance and main.py reports wheel travel and elapsed time.",
     );
-  await author.getByText("Optional project-file overrides").click();
+  await author.getByText("Project-file overrides · 1 file").click();
   await author.getByLabel("Project file overrides as JSON").fill("{}");
   await expect(
     author.getByText(

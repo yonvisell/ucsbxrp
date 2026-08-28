@@ -7,28 +7,27 @@ physical-robot results are distinct evidence.
 
 ## Current evidence baseline
 
-The physical baseline is robot runtime release `2026.08-dev.36`, generation 17,
-whose retained record names source commit `5d217ed`. The complete production
-Chrome baseline was committed as `82e4266`; responsive geometry was committed as
-`5e80f3f`. The identities are kept separate because application, course-content,
-and robot-runtime changes have different validation boundaries.
+The physical baseline is robot runtime release `2026.08-dev.40`, generation 23,
+whose retained record names source commit `0b301cd`. Application, course-content,
+and robot-runtime identities remain separate because a browser-only revision
+does not by itself require reinstalling a compatible robot runtime.
 
 Together, those retained baselines provide the following evidence:
 
 | Boundary | Current evidence |
 | --- | --- |
-| Python and MicroPython | 224 Python tests plus source, service, and exact `.mpy` import/behavior proofs |
-| Browser packages | 345 TypeScript tests, formatting, type checking, production build, and verification of the 231-file offline shell |
-| Production Chrome | 92 Stable Chrome workflows on `http://127.0.0.1:4174`; the opt-in physical-motion case was run separately |
-| Responsive applications | 26 focused production workflows covering short, wide, narrow, tall, phone-width, physical-error, navigation, recording, export, reconnect, Stop, and Reset states |
-| Physical station workflow | Two raised-wheel runs on the attached RP2350; the strengthened run passed in 30.1 seconds with Run/Stop from both apps, course Reset and rerun, motor effort, both encoders, both wheel distances, sensors, path, plots, logs, and final zero drive |
-| USB installation and service | Dev.36 installed as runtime generation 17; exact RAM-project preparation, stdout, telemetry, cooperative Stop, repeated immediate Run, course Reset, and post-Reset Run passed on `Pink` |
+| Python and MicroPython | 237 Python tests plus source, service, and exact `.mpy` import/behavior proofs at the dev.40 physical stage; the current course-content revision adds 29 focused starter/tutorial passes |
+| Browser packages | 379 TypeScript tests, formatting, production build, and verification of the 268-file offline shell |
+| Production Chrome | 58 selected end-to-end workflows cover project storage, Monitor recording/export, instructor authoring, all course projects, and the complete virtual path |
+| Responsive applications | The same loaded IDE was measured at 760×620, 980×760, 1100×700, and 1450×900; the application, workspace, editor, and Monaco canvas filled the viewport with no document overflow in either resize direction |
+| Physical station workflow | Dev.40 completed USB repair, two projects, Run/Stop from IDE and Monitor, course Reset and rerun, edited-project Run, motor effort, encoders, wheel distance, sensors, ordered logs, 50 Hz telemetry without retained-sample gaps, and final zero drive |
+| USB installation and service | Dev.40 installed as runtime generation 23; a second repair changed zero files and preserved the verified `Pink` station profile and robot identity |
 
 The physical record is
-`docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
-It does not prove the dev.36 native Web Serial wizard, hotspot handoff, deployed
-Pages origin, floor motion, every physical challenge, multiple nearby robots,
-or Windows/Edge and Chromebook behavior.
+`docs/hardware/2026-08-27-dev40-station-repeatability.json`. It does not prove a
+factory-state first-use installation, the current hotspot/offline-return path,
+floor motion, every physical challenge, multiple nearby robots, or Windows/Edge
+and Chromebook behavior.
 
 Any change after this baseline receives focused checks immediately. The full
 gate is rerun at the next committed stage boundary; an uncommitted focused pass

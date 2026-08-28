@@ -1,4 +1,4 @@
-# Collect and report a bounded zero-motion physical-XRP preflight.
+# Collect and report a fixed-duration zero-motion physical-XRP preflight.
 
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks

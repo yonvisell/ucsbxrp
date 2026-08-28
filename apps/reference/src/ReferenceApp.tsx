@@ -344,16 +344,16 @@ export function ReferenceApp() {
               Each challenge identifies the components to implement. A student
               class inherits the matching base class below and is selected in{" "}
               <code>course_setup.py</code>. The base class defines how{" "}
-              <code>Robot</code> or mission code calls the component. It fixes
-              the accepted inputs, returned values, and required externally
-              visible behavior while leaving the internal calculation to the
-              implementation.
+              <code>Robot</code> or mission code calls the component: the method
+              names, argument types, return types, and required results. Your
+              subclass provides the calculation inside those methods.
             </p>
             <p>
-              The component summaries below state the physical quantity passed
-              across each boundary. Method tables give argument and return
-              types, units, and required behavior. A normalized motor command is
-              dimensionless; grid cells use integer row and column indices.
+              Each summary first identifies the component&apos;s purpose and the
+              information it keeps between calls. Method tables then give
+              arguments, return values, units, exceptions, and required
+              behavior. A normalized motor command is dimensionless; grid cells
+              use integer row and column indices.
             </p>
             <div className="component-summary">
               {components.map(([id, name]) => (
@@ -373,18 +373,19 @@ export function ReferenceApp() {
             description="Converts raw encoder, time, range, and USER-button readings into physical measurements. Wheel position and increments are unsmoothed signed conversions of encoder-count differences. Wheel speed is estimated from recent samples so individual encoder-count steps are not reported as instantaneous physical speed changes."
             state="After reset(), the component keeps the encoder and time origins, the previous sample, total wheel positions, and any state used by its wheel-speed estimator."
             constructor="SensorModel(config: RobotConfig)"
+            constructorParameters={[
+              {
+                name: "config",
+                type: "RobotConfig",
+                description:
+                  "Robot geometry, encoder signs, sample period, and wheel-speed estimator response. The class stores it as the read-only config property.",
+              },
+            ]}
+            constructorErrors={[
+              "TypeError if config is not a RobotConfig value.",
+            ]}
             example={componentExamples.sensorModel}
           >
-            <PropertyTable
-              rows={[
-                {
-                  name: "config",
-                  type: "RobotConfig",
-                  description:
-                    "Read-only robot geometry, signs, sample period, and estimator setting supplied to the constructor.",
-                },
-              ]}
-            />
             <ApiMethod
               name="reset"
               signature="SensorModel.reset(raw: RawSensors) -> Measurements"
@@ -477,18 +478,19 @@ export function ReferenceApp() {
             description="At each Robot sample, the controller receives requested left and right wheel speeds from DifferentialDrive and measured wheel-speed estimates from SensorModel. SensorModel calculates those estimates from recent encoder samples. The controller compares each request with its estimate and calculates a normalized motor command. Robot writes that command to the motors."
             state="An implementation may keep controller memory between samples. reset() must return that state to its initial condition before every run."
             constructor="WheelSpeedController(config: RobotConfig)"
+            constructorParameters={[
+              {
+                name: "config",
+                type: "RobotConfig",
+                description:
+                  "Motor calibration, feedback gain, deadband commands, and command limit. The class stores it as the read-only config property.",
+              },
+            ]}
+            constructorErrors={[
+              "TypeError if config is not a RobotConfig value.",
+            ]}
             example={componentExamples.wheelController}
           >
-            <PropertyTable
-              rows={[
-                {
-                  name: "config",
-                  type: "RobotConfig",
-                  description:
-                    "Read-only feedforward calibration, feedback gain, deadband commands, and final command limit.",
-                },
-              ]}
-            />
             <ApiMethod
               name="reset"
               signature="WheelSpeedController.reset() -> None"
@@ -537,18 +539,19 @@ export function ReferenceApp() {
             description="Converts forward speed and turn rate for the robot body into requested left and right wheel speeds."
             state="Each calculation is independent. No value from an earlier call is required."
             constructor="DifferentialDrive(config: RobotConfig)"
+            constructorParameters={[
+              {
+                name: "config",
+                type: "RobotConfig",
+                description:
+                  "Robot configuration containing track_width_mm. The class stores it as the read-only config property.",
+              },
+            ]}
+            constructorErrors={[
+              "TypeError if config is not a RobotConfig value.",
+            ]}
             example={componentExamples.differentialDrive}
           >
-            <PropertyTable
-              rows={[
-                {
-                  name: "config",
-                  type: "RobotConfig",
-                  description:
-                    "Read-only robot configuration; wheel_speeds() uses track_width_mm.",
-                },
-              ]}
-            />
             <ApiMethod
               name="wheel_speeds"
               signature="DifferentialDrive.wheel_speeds(command: MotionCommand) -> WheelSpeeds"
@@ -579,16 +582,21 @@ export function ReferenceApp() {
             description="Estimates the robot pose from measured left and right wheel-distance increments. The virtual robot does not provide simulator ground truth to this component."
             state="After reset(), pose stores the latest estimated x position, y position, and heading."
             constructor="Odometry(config: RobotConfig)"
+            constructorParameters={[
+              {
+                name: "config",
+                type: "RobotConfig",
+                description:
+                  "Robot configuration containing track_width_mm. The class stores it as the read-only config property.",
+              },
+            ]}
+            constructorErrors={[
+              "TypeError if config is not a RobotConfig value.",
+            ]}
             example={componentExamples.odometry}
           >
             <PropertyTable
               rows={[
-                {
-                  name: "config",
-                  type: "RobotConfig",
-                  description:
-                    "Read-only robot configuration; update() uses track_width_mm.",
-                },
                 {
                   name: "pose",
                   type: "Pose",
@@ -660,18 +668,19 @@ export function ReferenceApp() {
             description="Generates forward-speed and turn-rate commands that visit an ordered sequence of world-coordinate goals. A goal may require position only or position followed by a final heading."
             state="The component keeps the goal sequence, the active goal, and any turn, drive, or alignment mode used by the implementation."
             constructor="NavigationController(config: NavigationConfig)"
+            constructorParameters={[
+              {
+                name: "config",
+                type: "NavigationConfig",
+                description:
+                  "Speeds, position and heading tolerances, and heading thresholds. The class stores it as the read-only config property.",
+              },
+            ]}
+            constructorErrors={[
+              "TypeError if config is not a NavigationConfig value.",
+            ]}
             example={componentExamples.navigation}
           >
-            <PropertyTable
-              rows={[
-                {
-                  name: "config",
-                  type: "NavigationConfig",
-                  description:
-                    "Read-only speeds, tolerances, and heading thresholds.",
-                },
-              ]}
-            />
             <ApiMethod
               name="start"
               signature="NavigationController.start(goals: sequence[NavigationGoal]) -> None"
@@ -1352,8 +1361,9 @@ export function ReferenceApp() {
                 program; the remaining properties describe the control shown in
                 the Monitor.
               </p>
-              <h4>Properties</h4>
+              <h4>Read-only properties</h4>
               <ParameterTable
+                firstColumnLabel="Property"
                 rows={[
                   {
                     name: "value",
@@ -1414,7 +1424,7 @@ export function ReferenceApp() {
               signature={
                 'live.number(name, default, minimum, maximum, step, unit="", label=None) -> LiveParameter'
               }
-              description="Create a bounded numerical slider. The range need not contain an exact integer number of steps; values are clipped and snapped to the nearest valid step."
+              description="Create a numerical control with minimum and maximum values. The range need not contain an exact integer number of steps; values are clipped and snapped to the nearest valid step."
               parameters={[
                 {
                   name: "name",
@@ -3063,6 +3073,8 @@ function ComponentSection({
   base,
   children,
   constructor,
+  constructorErrors = [],
+  constructorParameters = [],
   description,
   example,
   file,
@@ -3073,6 +3085,8 @@ function ComponentSection({
   base: string;
   children: ReactNode;
   constructor: string;
+  constructorErrors?: string[];
+  constructorParameters?: Parameter[];
   description: string;
   example: string;
   file: string;
@@ -3100,15 +3114,23 @@ function ComponentSection({
       </p>
       <h3>Constructor</h3>
       <code className="class-signature">{constructor}</code>
-      {name === "GridPlanner" ? (
-        <p>
-          <code>GridPlanner()</code> takes no arguments.
-        </p>
+      {constructorParameters.length > 0 ? (
+        <>
+          <h4>Parameters</h4>
+          <ParameterTable rows={constructorParameters} />
+        </>
       ) : (
-        <p className="exception-line">
-          <strong>Raises:</strong> <code>TypeError</code> if <code>config</code>{" "}
-          is not the required configuration type.
-        </p>
+        <p>This constructor takes no arguments.</p>
+      )}
+      {constructorErrors.length > 0 && (
+        <>
+          <h4>Exceptions</h4>
+          <ul className="exception-line">
+            {constructorErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </>
       )}
       {children}
       <CodeExample code={example} title={name + " example"} />
@@ -3155,7 +3177,7 @@ function ClassReference({
       {properties.length > 0 && (
         <>
           <h4>Read-only properties</h4>
-          <ParameterTable rows={properties} />
+          <ParameterTable firstColumnLabel="Property" rows={properties} />
         </>
       )}
       {children}
@@ -3292,7 +3314,7 @@ function RecordReference({
       <h3>{name}</h3>
       <p>{purpose}</p>
       <code className="method-signature">{signature}</code>
-      <ParameterTable rows={fields} />
+      <ParameterTable firstColumnLabel="Field" rows={fields} />
       {note && <p>{note}</p>}
       <p className="exception-line">
         <strong>Raises:</strong> {exceptions}
@@ -3315,11 +3337,17 @@ function referenceName(symbolOrSignature: string) {
   return (symbolOrSignature.split("(", 1)[0] ?? symbolOrSignature).trim();
 }
 
-function ParameterTable({ rows }: { rows: Parameter[] }) {
+function ParameterTable({
+  firstColumnLabel = "Parameter",
+  rows,
+}: {
+  firstColumnLabel?: string;
+  rows: Parameter[];
+}) {
   return (
     <div className="parameter-table" role="table">
       <div className="parameter-head" role="row">
-        <span role="columnheader">Parameter or property</span>
+        <span role="columnheader">{firstColumnLabel}</span>
         <span role="columnheader">Type</span>
         <span role="columnheader">Default</span>
         <span role="columnheader">Units</span>
@@ -3327,7 +3355,7 @@ function ParameterTable({ rows }: { rows: Parameter[] }) {
       </div>
       {rows.map((row) => (
         <div className="parameter-row" key={row.name} role="row">
-          <code data-label="Name" role="cell">
+          <code data-label={firstColumnLabel} role="cell">
             {row.name}
           </code>
           <span data-label="Type" role="cell">
@@ -3351,8 +3379,8 @@ function ParameterTable({ rows }: { rows: Parameter[] }) {
 function PropertyTable({ rows }: { rows: Parameter[] }) {
   return (
     <>
-      <h3>Properties</h3>
-      <ParameterTable rows={rows} />
+      <h3>Read-only properties</h3>
+      <ParameterTable firstColumnLabel="Property" rows={rows} />
     </>
   );
 }

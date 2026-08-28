@@ -3,7 +3,8 @@
 This final tutorial carries one checked UCSBXRP project from the Virtual XRP to
 a physical XRP. The run requests only `STOP_COMMAND`, so it samples encoders,
 range, and button state without requesting motion. Edit only `student_work.py`.
-The supplied runner owns the bounded sample loop and final stop.
+The supplied `main.py` runs a fixed number of samples and always sends the final
+stop command.
 
 ## Exercise: summarize stationary evidence
 
@@ -50,24 +51,25 @@ not request motion, but keep **Stop** accessible throughout the run.
    **Setup and repair**, connect USB-C, install or repair the course runtime, and
    choose either the robot hotspot or an existing Wi-Fi network. Continue only
    after the setup page verifies the XRP service and opens the IDE handoff.
-2. Return to this Tutorial 5 project. Select **Physical XRP** and the verified
-   network route. If using the robot hotspot, first join that XRP network from
-   the computer's Wi-Fi menu.
+2. Return to this Tutorial 5 project. Select **Physical XRP** and the Wi-Fi
+   connection configured by the setup wizard. If using the robot hotspot,
+   first join that XRP network from the computer's Wi-Fi menu.
 3. Open Monitor. Confirm that the physical target is connected, then select
    **Compile** and **Run**. Press and release the physical XRP **USER** button
-   during the approximately 2.5-second run. Run prepares the exact current
-   project in temporary controller RAM before starting it.
+   during the approximately 2.5-second run. Run sends the current project to
+   the XRP and starts it.
 4. Confirm that Program output reaches `Zero-motion preflight complete`,
    Monitor identifies physical data, the drive command remains
    `0.00 / 0.00`, and encoder, range, and button fields update.
-5. Select **Reset**, then **Run** once more. Reset retains the prepared project,
-   so an unchanged project can run again without setup or repair.
+5. Select **Reset**, then **Run** once more. An unchanged project should run
+   again without repeating setup or repair.
 6. Save the Program output or a short Monitor recording when the instructor
    requests deployment evidence.
 
-If the physical target does not connect, stop at the failing phase: USB setup,
-computer network selection, service connection, project compilation, or Run.
-Do not infer that a Virtual XRP pass proves the physical connection.
+If the physical target does not connect, use the message in System log to check
+USB setup, computer Wi-Fi selection, robot connection, project compilation, and
+Run in that order. A Virtual XRP pass checks the project but does not check the
+physical connection.
 
 ## Why there is no explicit delay
 

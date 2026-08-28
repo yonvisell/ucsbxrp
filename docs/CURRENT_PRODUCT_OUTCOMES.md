@@ -59,22 +59,24 @@ timestamps without adding robot traffic. Plot history covers at least 30
 seconds at the 50 Hz course-loop rate, the time window precedes signal choices,
 notes persist across runs and export with their time and pose, and visible notes
 remain in plot exports. The simulator and World view share a 15-degree HC-SR04
-fan with a 70 mm sensor origin. Per-channel transport subscriptions remain
-deferred unless measurement shows telemetry transport to be a bottleneck.
+fan with a 70 mm sensor origin. Monitor receives ordered retained telemetry in
+batches of at most 128 samples, while IDE receives no unused telemetry stream.
+A 10,000-sample reconstruction now requires 79 worker messages rather than
+10,000; all samples remain in order and appear exactly once.
 
 ### 1. Ordinary student project and run workflow
 
-Complete one native-Chrome walkthrough from a fresh browser state: understand
-the Working-folder prompt, create a named project, edit and autosave, reopen it,
-switch projects twice, use Compile/Run/Stop/Reset/rerun, and inspect persistent
-Program output and System log. Cancellation or denied folder permission must
-leave the current project unchanged and explain the next action. The interface
-must not expose repository files, recurse through the Working folder, or ask
-where a site may save without first explaining the Working-folder choice.
+The integrated native-Chrome workflow creates a named project, edits and
+autosaves it, reopens and switches projects, and uses
+Compile/Run/Stop/Reset/rerun with persistent Program output and System log.
+Cancellation, denied folder permission, and an invalid repository root leave
+the current project unchanged and explain what happened. Repository files are
+not exposed and the IDE does not recurse through a Working folder.
 
-The current real-window Chrome build fills both restored and expanded windows.
-Keep the output area as a compact drawer and continue to judge proportions and
-actual resizing, not only overflow tests. System and setup logs identify the
+The current production build fills both restored and expanded windows. On one
+loaded page, the application, workspace, Monaco editor, and canvas match four
+different viewport sizes in both directions with no document overflow. The
+output area remains a compact drawer. System and setup logs identify the
 application build and course release without another visible status badge.
 
 ### 2. Current-release setup, repair, and robot operation
@@ -121,12 +123,12 @@ the default world for demos and challenges. Tutorials that do not use a physical
 XRP may use a purpose-specific world. Increase the challenge author's world
 canvas enough for practical editing at ordinary laptop sizes.
 
-Review the project command model as one workflow: Open Project selects a valid
-project inside the Working folder; New Project creates a named child folder;
-autosave owns ordinary persistence. Resolve the remaining redundant or unclear
-controls together rather than renaming them independently. Determine from the
-actual check path whether the student command should be called **Compile**;
-if so, change the UI, logs, Guide, and API consistently.
+The project command model is now one workflow: **Open project…** selects a valid
+Project folder, **New from template…** creates a named child project, **Save to
+folder…** gives an intentional browser draft a native folder, and autosave owns
+ordinary persistence after that. The student command is **Compile** because it
+compiles every Python source file without running the robot; the UI and Guide
+use that term consistently.
 
 ### 4. Update behavior and release identity
 
@@ -143,19 +145,23 @@ identity so the IDE can offer a correction without replacing student work.
 
 ### 5. Focused refactor and measured performance
 
-After the browser and robot journeys pass on one committed baseline, extract a
-single project-persistence controller from `IdeApp`. It should own the active
-Project-folder session, serialized write queue, autosave, deletions, external
-edit conflicts, and update-safe flush. Rename inverted internal folder terms to
-literal `workingFolder` and `projectFolder`, then remove only helpers proven
-unused.
+Do not begin a broad app split solely for performance. The largest bundles are
+the intentionally embedded Monaco and plotting libraries, while the robot has
+ample measured heap and holds its 50 Hz loop. Extract project-persistence code
+from `IdeApp` only when that area next changes and the extraction removes real
+duplication.
 
-Measure before changing behavior. The first low-risk candidate is the Web
-Serial byte queue, which currently shifts individual bytes. Profile full-folder
-saves, target-worker replay, cache verification, browser startup, bundle size,
-and RP2350 heap/loop timing before optimizing them. Preserve command
-serialization, idempotent replies, transactional runtime slots, leases,
-watchdogs, and robot-identity checks.
+The first measured improvement is complete: role-aware target workers and
+batched history reconstruction cut 10,000-sample replay dispatches by 99.21%.
+The Web Serial byte queue remains a contained later candidate if large replies
+are observed. Preserve command serialization, idempotent replies, transactional
+runtime slots, leases, watchdogs, and robot-identity checks.
+
+Before several robots share one classroom LAN, add a per-robot pairing token
+created during USB setup and required for state-changing service requests. The
+current robot identity check prevents the UCSBXRP app from selecting the wrong
+robot, but it does not prevent another page on the same LAN from sending an
+unauthenticated command.
 
 ## Deferred empirical work
 

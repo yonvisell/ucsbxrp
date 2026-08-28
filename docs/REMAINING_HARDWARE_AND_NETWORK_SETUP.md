@@ -30,17 +30,16 @@ different network, or repair an interrupted installation.
 ## Current development robot
 
 The strongest retained raised-wheel evidence is for robot runtime
-`2026.08-dev.36`, generation 17, on Pink. Run and Stop from both IDE and
-Monitor, Reset and rerun, motor effort, both encoders and wheel distances,
-sensors, pose, path, plots, logs, and final zero drive were observed. The exact
-record is
-`docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
+`2026.08-dev.40`, generation 23, on Pink. Native Chrome completed USB repair,
+verified robot identity, ran two projects from IDE and Monitor, stopped, reset,
+reran, applied an edited project, and observed motor effort, both encoders,
+wheel distance, sensors, pose, plots, ordered logs, 50 Hz telemetry, and final
+zero drive. The exact record is
+`docs/hardware/2026-08-27-dev40-station-repeatability.json`.
 
-The active browser/course bundle is `2026.08-dev.40`; the attached XRP must use
-robot runtime dev.39 or later because edited projects are compiled, prepared,
-and started in one device transaction. Its native USB wizard, station
-lifecycle, and hotspot lifecycle still require the focused current-release repeat described in
-`docs/CURRENT_PRODUCT_OUTCOMES.md`.
+The remaining setup work is a factory-state first-use run and one current
+hotspot/offline-return cycle. The station workflow does not need another broad
+repeat unless the robot runtime changes.
 
 ## Remaining floor-dependent work
 

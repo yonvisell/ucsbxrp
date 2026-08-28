@@ -29,9 +29,9 @@ Implement these two classes:
   by the speed estimate.
 - `WheelSpeedController` in
   [`wheel_speed_controller.py`](wheel_speed_controller.py) compares requested
-  and measured wheel speeds and returns a bounded `DriveCommand` for each
-  motor. A zero wheel-speed request must produce an exact zero command for that
-  wheel.
+  and measured wheel speeds and returns a `DriveCommand` limited to the
+  configured range for each motor. A zero wheel-speed request must produce an
+  exact zero command for that wheel.
 
 For this challenge, implement `SensorModel.reset()` and `SensorModel.update()`.
 Leave `estimate_range()` unchanged; Challenge 5 introduces that method.

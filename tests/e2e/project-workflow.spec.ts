@@ -56,15 +56,23 @@ test("groups folder actions separately from file creation and import", async ({
 }) => {
   await page.goto("/ide/");
 
+  await expect(
+    page.getByText("Project folder:", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
+  await expect(page.getByTestId("project-save-state")).toHaveText(
+    "Changes stay in this browser until saved to a Project folder",
+  );
+
   const projectActions = page.getByRole("group", { name: "Project actions" });
   await expect(
     projectActions.getByRole("button", { name: "Open project…" }),
   ).toBeVisible();
   await expect(
-    projectActions.getByRole("button", { name: "New project…" }),
+    projectActions.getByRole("button", { name: "New from template…" }),
   ).toBeVisible();
   await expect(
-    projectActions.getByRole("button", { name: "Save project…" }),
+    projectActions.getByRole("button", { name: "Save to folder…" }),
   ).toBeVisible();
 
   const fileActions = page.getByRole("group", {
@@ -139,7 +147,7 @@ test("Open project lists project folders inside the selected Working folder", as
 
   const dialog = page.getByRole("dialog", { name: "Open a project" });
   await expect(dialog).toContainText(
-    "First choose the parent Working folder that contains your Project folders.",
+    "A Working folder is the parent folder for your UCSBXRP work. Each project is one named Project folder directly inside it.",
   );
   expect(
     await page.evaluate(
@@ -368,7 +376,7 @@ test("lists direct projects in the remembered Working folder and opens one witho
 
   const dialog = page.getByRole("dialog", { name: "Open a project" });
   await expect(dialog).toContainText(
-    "The IDE opens it with read-write access and saves changes to its folder automatically.",
+    "listed-projects is the Working folder. Choose one named Project folder directly inside it. Changes save to the selected Project folder automatically.",
   );
   await expect(
     dialog.getByRole("button", {
@@ -418,26 +426,29 @@ test("requires an explicit storage choice for a new project", async ({
     .getByTestId("project-folder")
     .textContent();
 
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page
     .getByLabel("Project template")
     .selectOption("micropython_tutorial");
 
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Opening temporarily creates no folder."),
   ).toBeVisible();
   await expect(page.getByTestId("project-folder")).toHaveText(
     originalProject ?? "",
   );
-  await page.getByRole("button", { name: "Continue without a folder" }).click();
+  await page.getByRole("button", { name: "Open temporarily" }).click();
   await expect(
     page.getByRole("button", {
       name: "Open main.py (main file)",
     }),
   ).toBeVisible();
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
 });
 
 test("cancelling Working folder selection leaves the current project unchanged", async ({
@@ -472,7 +483,9 @@ test("cancelling Working folder selection leaves the current project unchanged",
   ).toBeVisible();
   await openDialog.getByRole("button", { name: "Cancel" }).click();
 
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page
     .getByLabel("Project template")
     .selectOption("micropython_tutorial");
@@ -490,11 +503,48 @@ test("cancelling Working folder selection leaves the current project unchanged",
   ).toBeVisible();
 });
 
+test("rejects the course repository as a Working folder without exposing its files", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  const originalName = await page.getByTestId("project-name").textContent();
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const repository = await root.getDirectoryHandle("course-repository", {
+      create: true,
+    });
+    for (const name of ["AGENTS.md", "PROJECT_CONTEXT.md"]) {
+      const file = await repository.getFileHandle(name, { create: true });
+      const writable = await file.createWritable();
+      await writable.write("course software\n");
+      await writable.close();
+    }
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => repository,
+    });
+  });
+
+  await page.getByRole("button", { name: "Open project…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Open a project" });
+  await dialog.getByRole("button", { name: "Choose Working folder…" }).click();
+
+  await expect(dialog).toContainText(
+    "Choose a Working folder for student projects, not the UCSBXRP course software repository.",
+  );
+  await expect(page.getByTestId("project-name")).toHaveText(originalName ?? "");
+  await expect(
+    page.getByRole("button", { name: /Open AGENTS\.md/ }),
+  ).toHaveCount(0);
+});
+
 test("exposes the previous unsaved browser draft after creating a folder-backed project", async ({
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page
     .getByLabel("Project template")
     .selectOption("micropython_tutorial");
@@ -504,15 +554,13 @@ test("exposes the previous unsaved browser draft after creating a folder-backed 
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const previous = page.getByRole("button", {
-    name: "Open previous unsaved project · Expanding spiral",
+    name: "Open previous browser project · Expanding spiral",
   });
   await expect(previous).toBeVisible();
   await previous.click();
 
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
   await expect(previous).toHaveCount(0);
 });
 
@@ -520,7 +568,7 @@ test("does not retain an identical draft when saving the current project", async
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByRole("button", { name: "Save project…" }).click();
+  await page.getByRole("button", { name: "Save to folder…" }).click();
   await page
     .getByRole("button", { name: "Choose Working folder and save…" })
     .click();
@@ -529,7 +577,7 @@ test("does not retain an identical draft when saving the current project", async
     "./Expanding-spiral",
   );
   await expect(
-    page.getByRole("button", { name: /Open previous unsaved project/ }),
+    page.getByRole("button", { name: /Open previous browser project/ }),
   ).toHaveCount(0);
 });
 
@@ -740,16 +788,20 @@ test("creates the next challenge project and carries forward only earlier studen
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page.getByLabel("Project template").selectOption("challenge_1");
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Choose Working folder and create…" })
     .click();
 
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page.getByLabel("Project template").selectOption("challenge_2");
   await expect(page.getByLabel("Project template")).toHaveValue("challenge_2");
   await expect(
@@ -772,7 +824,7 @@ test("creates the next challenge project and carries forward only earlier studen
   await next.click();
 
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
   await expect(page.getByLabel("Project template")).toHaveCount(0);
   await expect(
@@ -813,14 +865,14 @@ test("continues to the next challenge after saving a browser draft once", async 
   page,
 }) => {
   await page.goto("/ide/");
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page.getByLabel("Project template").selectOption("challenge_1");
-  await page.getByRole("button", { name: "Continue without a folder" }).click();
+  await page.getByRole("button", { name: "Open temporarily" }).click();
 
   await expect(page.getByTestId("project-name")).toHaveText("1 · Straight Run");
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
 
   await page
     .getByRole("button", {
@@ -828,14 +880,14 @@ test("continues to the next challenge after saving a browser draft once", async 
     })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Save project" }),
+    page.getByRole("heading", { name: "Save to a Project folder" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Choose Working folder and save…" })
     .click();
 
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
   await expect(
     page.getByText(/carries sensor_model\.py, wheel_speed_controller\.py/),
@@ -850,11 +902,11 @@ test("continues to the next challenge after saving a browser draft once", async 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(
     page.getByRole("button", {
-      name: "Open previous unsaved project · Expanding spiral",
+      name: "Open previous browser project · Expanding spiral",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Open previous unsaved project · 1/ }),
+    page.getByRole("button", { name: /Open previous browser project · 1/ }),
   ).toHaveCount(0);
 });
 
@@ -868,30 +920,30 @@ test("continues between browser drafts when folder access is unavailable", async
       value: undefined,
     });
   });
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page.getByLabel("Project template").selectOption("challenge_1");
-  await page.getByRole("button", { name: "Create without a folder" }).click();
+  await page.getByRole("button", { name: "Create in browser" }).click();
 
   await page
     .getByRole("button", {
       name: "Continue to Challenge 2 · Turn and Return…",
     })
     .click();
-  await page.getByRole("button", { name: "Keep without a folder" }).click();
+  await page.getByRole("button", { name: "Keep in browser" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
   await expect(
     page.getByText(/carries sensor_model\.py, wheel_speed_controller\.py/),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Create without a folder" }).click();
+  await page.getByRole("button", { name: "Create in browser" }).click();
   await expect(page.getByTestId("project-name")).toHaveText(
     "2 · Turn and Return",
   );
-  await expect(page.getByTestId("project-folder")).toHaveText(
-    "Not saved to a folder",
-  );
+  await expect(page.getByTestId("project-folder")).toHaveText("Not created");
 });
 
 test("imports text files without overwriting an existing project file", async ({
@@ -956,9 +1008,11 @@ test("Monitor compiles and runs the project currently open in the IDE", async ({
     "Virtual XRP · ready",
   );
 
-  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await ide.getByLabel("Project template").selectOption("micropython_tutorial");
-  await ide.getByRole("button", { name: "Continue without a folder" }).click();
+  await ide.getByRole("button", { name: "Open temporarily" }).click();
   await expect(
     ide.getByRole("button", {
       name: "Open main.py (main file)",

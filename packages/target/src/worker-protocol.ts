@@ -31,8 +31,16 @@ export interface CourseTelemetryState {
   targetRightWheelSpeedMmS: number | null;
 }
 
+export type TargetWorkerRole = "ide" | "monitor";
+export type WorkerTelemetryEvent = Extract<TargetEvent, { type: "telemetry" }>;
+
 export type TargetWorkerCommand =
-  | { type: "connect"; requestId: string; providesProject?: boolean }
+  | {
+      type: "connect";
+      requestId: string;
+      providesProject?: boolean;
+      role?: TargetWorkerRole;
+    }
   | { type: "disconnect" }
   | {
       type: "set-project-run-provider";
@@ -86,6 +94,7 @@ export type TargetWorkerCommand =
 
 export type TargetWorkerMessage =
   | { type: "event"; event: TargetEvent }
+  | { type: "telemetry-batch"; events: readonly WorkerTelemetryEvent[] }
   | ProjectRunSnapshotRequest
   | { type: "terminate-runtime"; runId: number }
   | {

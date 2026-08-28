@@ -89,7 +89,7 @@ export function GuideApp() {
                 robot.
               </li>
               <li>
-                <strong>UCSBXRP robot programs</strong> — write the bounded{" "}
+                <strong>UCSBXRP robot programs</strong> — write the finite{" "}
                 <code>Robot.start()</code>, <code>step()</code>, and{" "}
                 <code>stop()</code> sequence used by the challenges.
               </li>
@@ -100,8 +100,8 @@ export function GuideApp() {
               </li>
               <li>
                 <strong>Physical XRP preflight</strong> — rehearse with the
-                Virtual XRP, then collect a bounded zero-motion sensor record
-                from a commissioned physical XRP.
+                Virtual XRP, then collect a fixed-duration zero-motion sensor
+                record from a commissioned physical XRP.
               </li>
             </ol>
             <p>
@@ -239,6 +239,11 @@ export function GuideApp() {
                     state-based behavior and expose live controls, watched
                     values, and plot signals.
                   </li>
+                  <li>
+                    <strong>5. Physical XRP preflight</strong> — rehearse on the
+                    Virtual XRP, then collect stationary sensor data from a
+                    commissioned physical XRP.
+                  </li>
                 </ul>
               </section>
             </div>
@@ -272,8 +277,8 @@ export function GuideApp() {
               <div>
                 <code>challenge.py</code>
                 <span>
-                  Loads world-owned task values and defines non-geometric task
-                  settings.
+                  Reads task geometry from <code>world.json</code> and defines
+                  the other named settings used by the program.
                 </span>
               </div>
               <div>
@@ -538,6 +543,12 @@ export function GuideApp() {
             number="07"
             title="Using UCSBXRP without internet"
           >
+            <p>
+              UCSBXRP is a progressive web app (PWA): after one complete online
+              load, Chrome keeps the course application files in its own browser
+              storage. This stored copy is separate from the Working folder,
+              which contains project source, recordings, and exports.
+            </p>
             <h3>First online load</h3>
             <ol className="procedure">
               <li>

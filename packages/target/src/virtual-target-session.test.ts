@@ -164,7 +164,7 @@ describe("virtual target shared session", () => {
     ).toMatchObject({
       project: { name: "Shared virtual project", stale: false },
     });
-    expect(ideEvents.some((event) => event.type === "telemetry")).toBe(true);
+    expect(ideEvents.some((event) => event.type === "telemetry")).toBe(false);
 
     const firstRunStart = monitorEvents.length;
     await monitor.runCurrent();
@@ -202,6 +202,7 @@ describe("virtual target shared session", () => {
     expect(
       lateEvents.filter((event) => event.type === "status").at(-1),
     ).toMatchObject({ state: "ready" });
+    expect(lateEvents.some((event) => event.type === "telemetry")).toBe(true);
     const replayedConsole = lateEvents.filter(
       (event): event is Extract<TargetEvent, { type: "console" }> =>
         event.type === "console",

@@ -430,7 +430,9 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         selectedWorldId: currentScenario,
       },
     });
-    if (events.replayTelemetry(port) === 0) {
+    const role = command.role ?? (command.providesProject ? "ide" : "monitor");
+    const replayedTelemetry = events.setRole(port, role);
+    if (role === "monitor" && replayedTelemetry === 0) {
       send(port, { type: "event", event: telemetryEvent() });
     }
     events.replayConsole(port);

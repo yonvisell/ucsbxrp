@@ -295,16 +295,18 @@ test("an IDE update waits for Create Project and reopens the created folder", as
     "./prior-create-project",
   );
 
-  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await page
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await page.getByLabel("Project template").selectOption("challenge_1");
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
   await page.getByLabel("Project folder name").fill("Created-During-Update");
 
   await announceCourseUpdate(page, "test-release-create-project");
   await expect(
-    page.getByRole("heading", { name: "Create a project" }),
+    page.getByRole("heading", { name: "Create from a template" }),
   ).toBeVisible();
 
   const reloaded = page.waitForEvent("load");

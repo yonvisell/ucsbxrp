@@ -91,17 +91,30 @@ const componentDefaults: ChallengeComponentSpec[] = [
 function clonedExample(): ChallengeSpec {
   return JSON.parse(exampleSource) as ChallengeSpec;
 }
+
+function starterWorld(sourceId: string): Record<string, unknown> | null {
+  const matchingEntry = Object.entries(starterWorldSources).find(([path]) =>
+    path.includes(`/starters/${sourceId}/world.json`),
+  );
+  return matchingEntry
+    ? (JSON.parse(matchingEntry[1]) as Record<string, unknown>)
+    : null;
+}
+
 function blankSpec(): ChallengeSpec {
-  const value = clonedExample();
   return {
-    ...value,
+    schema_version: 1,
+    source_id: "challenge_1",
     id: "challenge_6",
     title: "",
     summary: "",
     objective: "",
     student_implementations: [],
+    supplied_files: [],
+    program_flow: "",
     evidence: [],
     work_sequence: [],
+    world: starterWorld("challenge_1") ?? exampleSpec.world,
     files: {},
   };
 }
@@ -189,6 +202,7 @@ export function AuthorApp() {
 
   const filename = specificationFilename(currentSpec.spec);
   const command = authoringCommand(filename);
+  const overrideCount = Object.keys(currentSpec.spec.files ?? {}).length;
   currentSpecificationRef.current = currentDraftFingerprint;
 
   useEffect(
@@ -275,20 +289,12 @@ export function AuthorApp() {
   }
 
   function loadStartingWorld() {
-    const matchingEntry = Object.entries(starterWorldSources).find(([path]) =>
-      path.includes(`/starters/${spec.source_id}/world.json`),
-    );
-    if (!matchingEntry) {
+    const world = starterWorld(spec.source_id);
+    if (!world) {
       setMessage(`No example world is available for ${spec.source_id}.`);
       return;
     }
-    setWorldSource(
-      JSON.stringify(
-        JSON.parse(matchingEntry[1]) as Record<string, unknown>,
-        null,
-        2,
-      ),
-    );
+    setWorldSource(JSON.stringify(world, null, 2));
     setMessage(`Loaded the ${spec.source_id} example world.`);
   }
 
@@ -463,7 +469,7 @@ export function AuthorApp() {
             Load working slalom example
           </button>
           <button type="button" onClick={() => replaceExample(blankSpec())}>
-            Start a blank specification
+            Start a new specification
           </button>
         </div>
 
@@ -740,7 +746,14 @@ export function AuthorApp() {
               <WorldEditor source={worldSource} onChange={setWorldSource} />
             </div>
             <details>
-              <summary>Optional project-file overrides</summary>
+              <summary>
+                Project-file overrides · {overrideCount || "none"}
+                {overrideCount === 1
+                  ? " file"
+                  : overrideCount > 1
+                    ? " files"
+                    : ""}
+              </summary>
               <p>
                 Leave this as <code>{"{}"}</code> to retain the copied working
                 code. To change the mission structure, map project-relative file

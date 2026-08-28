@@ -55,9 +55,9 @@ UCSBXRP passes related values in records with named fields. `Pose` contains
 the initial robot state. Your `DrawingSegment.command()` method must return a
 `MotionCommand` containing the segment's two command values.
 
-A record carries one complete value across an interface. A data object retains
-state and provides operations through methods. Neither determines robot timing
-or touches hardware by itself.
+A record groups named values so one function can pass them to another. A data
+object stores values between method calls and provides operations through its
+methods. Neither determines robot timing or touches hardware by itself.
 
 First complete `DrawingSegment.__init__`, then complete `command()`.
 
@@ -87,9 +87,9 @@ the supplied positive turn rate, and the supplied sample count. Reject a turn
 rate that is zero or negative.
 
 This is the inheritance pattern used later by course component classes: a
-small subclass preserves an established interface and supplies the
-course-specific behavior. It is not a reason to create a class for every
-function or value.
+small subclass has the methods and stored fields defined by its base class and
+adds the course-specific calculation. It is not a reason to create a class for
+every function or value.
 
 ## Exercise 3: build a square drawing
 

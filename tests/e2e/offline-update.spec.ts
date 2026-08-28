@@ -522,7 +522,7 @@ test("keeps an A-to-B update pending for invalid Author JSON", async ({
     await author.goto(`${harness.origin}${harness.basePath}author/`);
     await expectShellVersion(author, harness.releaseA.version);
 
-    await author.getByText("Optional project-file overrides").click();
+    await author.getByText("Project-file overrides · 1 file").click();
     await author.getByLabel("Project file overrides as JSON").fill("{");
     await expect(author.getByText(/^Project file overrides:/)).toBeVisible();
 

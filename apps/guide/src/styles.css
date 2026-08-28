@@ -183,6 +183,10 @@
   font-size: 11px;
 }
 
+.tutorial-path li:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .tutorial-path strong {
   color: var(--ink);
 }

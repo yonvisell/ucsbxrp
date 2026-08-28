@@ -225,12 +225,13 @@ an optional fleet interface to the same exact release file set.
 ## Current implementation note
 
 No contradiction was found among the three active `v2_` documents. The current
-browser/device bundle is `2026.08-dev.36`. That release is installed on the
-attached RP2350 and has passed exact RAM-project preparation, repeated Run,
+browser/device bundle is `2026.08-dev.40`. That release is installed on the
+attached RP2350 and has passed native Web Serial repair, identity-checked Pink
+station handoff, exact RAM-project preparation, two projects, repeated Run,
 cooperative Stop and Reset, program-output capture, 50 Hz telemetry, and
-raised-wheel motor and encoder tests over a local Wi-Fi network. These results
-do not constitute physical floor calibration, hotspot repetition, or an
-end-to-end qualification of the browser's Web Serial commissioning path.
+raised-wheel motor and encoder tests. These results do not constitute physical
+floor calibration, factory-state first-use qualification, or a current hotspot
+and offline-return cycle.
 
 Reference algorithms remain revisable; course outcomes, units, component
 responsibilities, and the concise student workflow are the compatibility

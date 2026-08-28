@@ -7,24 +7,24 @@ completed work and retained evidence; it is not the plan. The three active
 
 ## Current baseline
 
-Robot runtime release `2026.08-dev.36`, generation 17, is the physical baseline.
-Its retained raised-wheel record names source commit `5d217ed`. The complete
-production Chrome baseline was committed as `82e4266`; responsive application
-geometry was then committed as `5e80f3f`. These identities are separate because
-web and course-material changes do not necessarily change the robot runtime.
-The retained evidence is summarized at the top of `STATUS.md` and in
-`docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
+Robot runtime release `2026.08-dev.40`, generation 23, is the physical baseline.
+Its retained raised-wheel record names source commit `0b301cd`. Browser and
+course-material changes do not require reinstalling that runtime unless the
+service, protocol, public API, or installed library becomes incompatible. The
+retained evidence is summarized at the top of `STATUS.md` and in
+`docs/hardware/2026-08-27-dev40-station-repeatability.json`.
 
-The active browser/course bundle is `2026.08-dev.37`. It accepts compatible
-robot runtimes from generation 36 onward; its higher release identity does not
-by itself require repairing a dev.36 robot.
+The active browser/course bundle is also `2026.08-dev.40`. It requires a robot
+runtime from release sequence 39 onward for the atomic edited-project Run
+transaction.
 
 The baseline includes:
 
 - one MicroPython project and public `ucsb_xrp` API for virtual and physical
   targets;
-- five challenge starters, two robot demos, and four active tutorial projects
-  covering Python, virtual drawing, sampled robot programs, and telemetry;
+- five challenge starters, two robot demos, and five active tutorial projects
+  covering Python, virtual drawing, sampled robot programs, telemetry, and
+  physical-XRP preparation;
 - folder-backed projects with browser-draft fallback, automatic saves, output,
   telemetry, and conflict detection;
 - shared IDE/Monitor project ownership, Run/Stop/Reset state, program output,
@@ -60,31 +60,29 @@ Those remain empirical work rather than inferred passes.
   end-to-end workflow pass. Update `STATUS.md` and material design documents at
   that boundary.
 
-## Active stage — Student workspace and application coherence
+## Active work — Integrated browser release
 
 Status: in progress.
 
-Make the IDE and Monitor behave like one compact course workspace rather than a
-collection of implementation controls.
+Finish one coherent browser release rather than extending isolated surfaces.
 
-- Preserve the completed viewport-bound short, wide, narrow, and tall layouts
-  while revising project actions and application state.
-- Organize project-level, file-level, challenge-progression, and storage actions
-  by the object they affect. Keep uncommon recovery and storage controls in
-  Settings.
-- Remove repeated project, target, save, and recovery status text. Give every
-  command a literal action label, including connection recovery.
-- Keep one visible source of truth for the active project, main file, target,
-  validation state, prepared robot project, and program state.
-- Explain the Working-folder choice before opening the system directory picker;
-  cancellation or denied permission must preserve the current project.
-- Exercise project creation, Open project, Save to folder, file operations,
-  challenge progression, multiple IDE tabs, Monitor-only virtual Run, and
-  physical-error recovery after the interface changes.
+- Keep one server on port 4174 and one immutable production bundle. The IDE,
+  Monitor, editor canvas, and embedded workspace must fill and react to the
+  actual viewport in both resize directions.
+- Use one literal folder model: a Working folder contains named Project folders.
+  Keep project commands together, autosave folder-backed work, and preserve the
+  current project after a cancelled or denied picker.
+- Retain the completed Guide/API/tutorial revisions, rendered project READMEs,
+  clean instructor specification, visual world editor, and direct contextual
+  reference links.
+- Deliver telemetry history to Monitor in ordered batches; do not send the IDE
+  a high-rate stream that it does not display.
+- Commit the integrated source, publish the same build to GitHub Pages, and
+  inspect the deployed applications separately from the local server.
 
-Usable result: a new student can identify the current project, edit its files,
-create or open another project, and run it without learning the application's
-storage implementation.
+Outcome: a new student can open or create a project, edit and run it, inspect
+telemetry, and find the relevant instructions without learning browser-storage
+internals or encountering a layout that depends on the initial window size.
 
 ## Next stage — Student materials and course-project consistency
 

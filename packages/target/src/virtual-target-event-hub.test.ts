@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  TELEMETRY_REPLAY_BATCH_SIZE,
   VIRTUAL_CONSOLE_HISTORY_LIMIT,
   VirtualTargetEventHub,
   type VirtualWorkerPort,
 } from "./virtual-target-event-hub";
 import type { TargetWorkerMessage } from "./worker-protocol";
-import type { TelemetrySample } from "./types";
+import { TARGET_TELEMETRY_HISTORY_LIMIT } from "./telemetry-event-history";
+import type { TargetEvent, TelemetrySample } from "./types";
 
 class FakePort implements VirtualWorkerPort {
   readonly messages: TargetWorkerMessage[] = [];
@@ -21,18 +23,20 @@ class FakePort implements VirtualWorkerPort {
   }
 }
 
+function targetEvents(port: FakePort): TargetEvent[] {
+  return port.messages.flatMap((message) => {
+    if (message.type === "event") return [message.event];
+    if (message.type === "telemetry-batch") return [...message.events];
+    return [];
+  });
+}
+
 function consoleEvents(port: FakePort) {
-  return port.messages
-    .filter((message) => message.type === "event")
-    .map((message) => message.event)
-    .filter((event) => event.type === "console");
+  return targetEvents(port).filter((event) => event.type === "console");
 }
 
 function telemetryEvents(port: FakePort) {
-  return port.messages
-    .filter((message) => message.type === "event")
-    .map((message) => message.event)
-    .filter((event) => event.type === "telemetry");
+  return targetEvents(port).filter((event) => event.type === "telemetry");
 }
 
 function sample(seq: number): TelemetrySample {
@@ -158,6 +162,7 @@ describe("virtual target event hub", () => {
 
     const monitor = new FakePort();
     hub.attach(monitor);
+    hub.setRole(monitor, "monitor");
     expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
       1, 2, 3,
     ]);
@@ -169,5 +174,60 @@ describe("virtual target event hub", () => {
     expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
       1, 2, 3, 4, 5,
     ]);
+  });
+
+  it("sends telemetry only to Monitor while preserving shared status and console events", () => {
+    const hub = new VirtualTargetEventHub();
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    hub.attach(ide);
+    hub.attach(monitor);
+    hub.setRole(ide, "ide");
+    hub.setRole(monitor, "monitor");
+
+    hub.broadcast({ type: "telemetry", sample: sample(1) });
+    hub.broadcast({ type: "console", stream: "system", line: "running" });
+    hub.broadcast({ type: "status", state: "running", detail: "Running" });
+
+    expect(telemetryEvents(ide)).toHaveLength(0);
+    expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual([
+      1,
+    ]);
+    expect(consoleEvents(ide).at(-1)?.line).toBe("running");
+    expect(targetEvents(ide).at(-1)).toMatchObject({
+      type: "status",
+      state: "running",
+    });
+  });
+
+  it("replays 10,000 samples in bounded batches with exact order", () => {
+    const hub = new VirtualTargetEventHub();
+    for (let seq = 1; seq <= TARGET_TELEMETRY_HISTORY_LIMIT; seq += 1) {
+      hub.broadcast({ type: "telemetry", sample: sample(seq) });
+    }
+
+    const monitor = new FakePort();
+    hub.attach(monitor);
+    expect(hub.setRole(monitor, "monitor")).toBe(
+      TARGET_TELEMETRY_HISTORY_LIMIT,
+    );
+
+    const batches = monitor.messages.filter(
+      (message) => message.type === "telemetry-batch",
+    );
+    expect(batches).toHaveLength(
+      Math.ceil(TARGET_TELEMETRY_HISTORY_LIMIT / TELEMETRY_REPLAY_BATCH_SIZE),
+    );
+    expect(
+      batches.every(
+        (message) => message.events.length <= TELEMETRY_REPLAY_BATCH_SIZE,
+      ),
+    ).toBe(true);
+    expect(telemetryEvents(monitor).map((event) => event.sample.seq)).toEqual(
+      Array.from(
+        { length: TARGET_TELEMETRY_HISTORY_LIMIT },
+        (_, index) => index + 1,
+      ),
+    );
   });
 });

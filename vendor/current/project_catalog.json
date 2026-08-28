@@ -247,7 +247,7 @@
     "source": "templates/tutorial_3_robot_programs",
     "label": "Tutorial 3 · UCSBXRP Robot Programs",
     "short_label": "Tutorial 3 · Robot programs",
-    "summary": "Learn the UCSBXRP project files and write a bounded sampled robot program without an added delay.",
+    "summary": "Learn the UCSBXRP project files and write a finite sampled robot program without an added delay.",
     "entrypoint": "main.py",
     "published": true
   },
@@ -267,7 +267,7 @@
     "source": "templates/tutorial_5_physical_preflight",
     "label": "Tutorial 5 · Physical XRP Preflight",
     "short_label": "Tutorial 5 · Physical preflight",
-    "summary": "Rehearse virtually, then deploy a bounded zero-motion telemetry preflight to a physical XRP.",
+    "summary": "Rehearse virtually, then deploy a fixed-duration zero-motion telemetry preflight to a physical XRP.",
     "entrypoint": "main.py",
     "published": true
   }

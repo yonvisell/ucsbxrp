@@ -1101,7 +1101,7 @@ describe("physical target", () => {
 
       expect(fetchMock).not.toHaveBeenCalled();
       expect(posted.at(-1)).toEqual(
-        expect.objectContaining({ type: "connect" }),
+        expect.objectContaining({ type: "connect", role: "monitor" }),
       );
       await vi.advanceTimersByTimeAsync(100);
       expect(port.close).not.toHaveBeenCalled();

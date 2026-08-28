@@ -21,7 +21,7 @@ The first part of [`student_work.py`](student_work.py) declares five controls:
 
 Each returned control has a `.value` property. The Monitor can update this
 value while the program runs. The identifier, default, limits, units, and label
-form the control's interface; leave them unchanged until the exercises pass.
+fully define the control; leave them unchanged until the exercises pass.
 
 This complete example declares a different live setting and reports a measured
 wheel difference:
@@ -59,8 +59,9 @@ Complete `next_phase(phase, range_mm, stop_distance_mm, turn_complete)`.
 - `DONE` remains `DONE`.
 - An unknown phase or nonpositive stop distance raises `ValueError`.
 
-The three phase names are mutually exclusive. Keeping the transition rule in a
-pure function makes it testable with explicit inputs before the robot runs.
+The three phase names are mutually exclusive. This function depends only on
+its arguments, so the checks can test each transition with explicit inputs
+before the robot runs.
 
 ## Exercise 2: motion for each phase
 
@@ -105,9 +106,9 @@ Telemetry reports the program; it must not determine the control command.
    an engineering conclusion; Program output is intended for occasional
    milestones and errors, not one print per sample.
 
-`main.py` runs the exercise checks before constructing the robot. The supplied
-runner owns `robot.stop()` in a `finally` block, so your three functions only
-decide, command, and report.
+`main.py` runs the exercise checks before constructing the robot. Its supplied
+runner always calls `robot.stop()` from a `finally` block, so your three
+functions only decide, command, and report.
 
 `Robot.step()` maintains the sample schedule and publishes the standard robot
 telemetry. Do not add `sleep_ms()` to this sampled loop. The additional delay

@@ -13,7 +13,7 @@ def run_tutorial():
         return None
 
     robot = make_robot(ROBOT_CONFIG)
-    # The checked student function owns its final stop, including error paths.
+    # The checked student function must stop the robot, including after an error.
     final_state = run_robot_program(robot)
     print("Tutorial 3 run complete")
     print("final_pose:", final_state.pose)

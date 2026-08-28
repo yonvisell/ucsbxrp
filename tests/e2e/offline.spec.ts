@@ -50,9 +50,11 @@ test("reloads the complete production course shell without a network", async ({
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
-  await ide.getByRole("button", { name: "New project…", exact: true }).click();
+  await ide
+    .getByRole("button", { name: "New from template…", exact: true })
+    .click();
   await ide.getByLabel("Project template").selectOption("challenge_1");
-  await ide.getByRole("button", { name: "Continue without a folder" }).click();
+  await ide.getByRole("button", { name: "Open temporarily" }).click();
   expect(
     await ide
       .getByRole("link", { name: /Guide/ })

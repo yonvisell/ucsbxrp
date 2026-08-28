@@ -8,6 +8,7 @@ import {
 } from "./telemetry-event-history";
 import { ProjectRunProviderBroker } from "./project-run-provider";
 import type { TargetClient, TargetEvent } from "./types";
+import type { TargetWorkerRole, WorkerTelemetryEvent } from "./worker-protocol";
 
 export interface PhysicalWorkerPort {
   postMessage(message: PhysicalWorkerMessage): void;
@@ -22,6 +23,7 @@ type PhysicalTargetFactory = (
 type ConsoleEvent = Extract<TargetEvent, { type: "console" }>;
 
 const CONSOLE_HISTORY_LIMIT = 2_000;
+export const PHYSICAL_TELEMETRY_REPLAY_BATCH_SIZE = 128;
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -49,6 +51,7 @@ function errorCode(error: unknown): string | undefined {
  */
 export class PhysicalTargetCoordinator {
   private readonly ports = new Set<PhysicalWorkerPort>();
+  private readonly roles = new Map<PhysicalWorkerPort, TargetWorkerRole>();
   private readonly deliveredConsoleIds = new Map<
     PhysicalWorkerPort,
     { ids: Set<string>; order: string[] }
@@ -86,9 +89,6 @@ export class PhysicalTargetCoordinator {
     this.ports.add(port);
     this.deliveredConsoleIds.set(port, { ids: new Set(), order: [] });
     this.deliveredTelemetry.set(port, new WeakSet());
-    for (const event of this.telemetryHistory.chronological()) {
-      this.send(port, { type: "event", event });
-    }
     this.sendProjectProviderState(port);
   }
 
@@ -123,6 +123,12 @@ export class PhysicalTargetCoordinator {
       this.projectRunProvider.register(port);
       this.publishProjectProviderState();
     }
+    if (command.type === "connect") {
+      this.roles.set(
+        port,
+        command.role ?? (command.providesProject ? "ide" : "monitor"),
+      );
+    }
     const operation = this.commandQueue.then(async () => {
       if (!this.ports.has(port)) {
         return;
@@ -135,6 +141,7 @@ export class PhysicalTargetCoordinator {
   private detach(port: PhysicalWorkerPort): void {
     const providerChanged = this.projectRunProvider.unregister(port);
     this.ports.delete(port);
+    this.roles.delete(port);
     this.deliveredConsoleIds.delete(port);
     this.deliveredTelemetry.delete(port);
     port.close();
@@ -386,16 +393,28 @@ export class PhysicalTargetCoordinator {
     if (this.latestWorld) {
       this.send(port, { type: "event", event: this.latestWorld });
     }
-    for (const event of this.telemetryHistory.chronological()) {
-      this.send(port, { type: "event", event });
-    }
+    this.replayTelemetry(port);
     for (const event of this.consoleHistory) {
       this.send(port, { type: "event", event });
     }
   }
 
   private send(port: PhysicalWorkerPort, message: PhysicalWorkerMessage): void {
+    if (message.type === "telemetry-batch") {
+      if (this.roles.get(port) !== "monitor") return;
+      const delivered = this.deliveredTelemetry.get(port);
+      const pending = message.events.filter((event) => !delivered?.has(event));
+      if (pending.length === 0) return;
+      try {
+        port.postMessage({ type: "telemetry-batch", events: pending });
+        for (const event of pending) delivered?.add(event);
+      } catch {
+        // A closing tab must not interrupt the shared physical session.
+      }
+      return;
+    }
     if (message.type === "event" && message.event.type === "telemetry") {
+      if (this.roles.get(port) !== "monitor") return;
       const delivered = this.deliveredTelemetry.get(port);
       if (delivered?.has(message.event)) return;
       try {
@@ -432,5 +451,25 @@ export class PhysicalTargetCoordinator {
       // A tab can close while a target request is finishing. The remaining
       // ports and the physical operation must continue unaffected.
     }
+  }
+
+  private replayTelemetry(port: PhysicalWorkerPort): number {
+    if (this.roles.get(port) !== "monitor") return 0;
+    let replayed = 0;
+    let batch: WorkerTelemetryEvent[] = [];
+    for (const event of this.telemetryHistory.chronological()) {
+      const delivered = this.deliveredTelemetry.get(port);
+      if (delivered?.has(event)) continue;
+      batch.push(event);
+      replayed += 1;
+      if (batch.length === PHYSICAL_TELEMETRY_REPLAY_BATCH_SIZE) {
+        this.send(port, { type: "telemetry-batch", events: batch });
+        batch = [];
+      }
+    }
+    if (batch.length > 0) {
+      this.send(port, { type: "telemetry-batch", events: batch });
+    }
+    return replayed;
   }
 }

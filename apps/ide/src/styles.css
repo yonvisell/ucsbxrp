@@ -68,7 +68,7 @@
 
 .project-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 3px;
   padding: 3px;
 }
@@ -79,10 +79,6 @@
   padding: 2px;
   font-size: var(--font-sm);
   white-space: nowrap;
-}
-
-.project-actions .project-storage-action {
-  grid-column: 1 / -1;
 }
 
 .file-create-actions {
@@ -186,12 +182,28 @@
 }
 
 .project-location {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
   color: var(--muted);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: var(--font-xs);
+  line-height: 1.3;
+}
+
+.project-location > span {
+  flex: 0 0 auto;
+}
+
+.project-location > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-weight: 650;
   overflow-wrap: anywhere;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-save-state {
@@ -1009,6 +1021,11 @@
   color: var(--muted);
   font-size: 0.7rem;
   line-height: 1.5;
+}
+
+.browser-project-note {
+  border-left: 2px solid var(--line-bright);
+  padding-left: 0.5rem;
 }
 
 .template-guidance {
