@@ -105,6 +105,11 @@ import {
   projectRevisionIdentity,
   projectRevisionIsReloadable,
 } from "./ide-release-reload";
+import {
+  compilationIsFresh,
+  forgetCompilation,
+  rememberCompilation,
+} from "./compilation-freshness";
 
 interface ConsoleEntry {
   id: string;
@@ -536,6 +541,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     [],
   );
   const initializedProjectEffect = useRef(false);
+  const announcedProjectRevisionRef = useRef<{
+    target: TargetClient;
+    identity: string;
+  } | null>(null);
   const projectRef = useRef(project);
   const projectSessionRef = useRef(projectSession);
   const preservedBrowserDraftRef = useRef<ProjectSnapshot | undefined>(
@@ -998,10 +1007,19 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             terminal: event.phase === "result" || event.phase === "error",
           });
         }
-        if (event.action === "validate" && event.phase === "result") {
+        if (
+          event.action === "validate" &&
+          event.phase === "result" &&
+          !event.replayed
+        ) {
           setCheckOk(true);
           setCheckDetail(event.line.replace(/^Compilation passed ·\s*/, ""));
-        } else if (event.action === "validate" && event.phase === "error") {
+        } else if (
+          event.action === "validate" &&
+          event.phase === "error" &&
+          !event.replayed
+        ) {
+          forgetCompilation(window.sessionStorage);
           setCheckOk(false);
           setCheckDetail(event.line.replace(/^Compilation failed ·\s*/, ""));
         }
@@ -1082,10 +1100,26 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     projectRef.current = project;
     projectVersion.current += 1;
     if (initializedProjectEffect.current) {
+      const version = projectVersion.current;
+      let disposed = false;
       setCheckOk(null);
       setCheckDetail("Files changed since the last code check.");
       setSyncOk(null);
       setSyncDetail("Files changed; Run will load the updated project.");
+      void projectContentDigest(project)
+        .then((contentDigest) => {
+          if (disposed || projectVersion.current !== version) return;
+          if (!compilationIsFresh(window.sessionStorage, contentDigest)) return;
+          setCheckOk(true);
+          setCheckDetail(
+            "Compilation passed earlier in this browser tab; the Project files are unchanged.",
+          );
+          setSyncDetail("Run will use the unchanged current Project.");
+        })
+        .catch(() => undefined);
+      return () => {
+        disposed = true;
+      };
     } else {
       initializedProjectEffect.current = true;
     }
@@ -1114,6 +1148,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   useEffect(() => {
     if (!projectSessionReady) return;
     if (!projectProviderActive) return;
+    const identity = `${projectSession.projectId}:${projectSession.revision}`;
+    const previous = announcedProjectRevisionRef.current;
+    announcedProjectRevisionRef.current = { target, identity };
+    if (
+      previous === null ||
+      (previous.target === target && previous.identity === identity)
+    ) {
+      return;
+    }
     target.markProjectChanged({
       projectId: projectSession.projectId,
       revision: projectSession.revision,
@@ -1478,11 +1521,29 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setCheckDetail(
       "Checking project structure and compiling Python files with MicroPython…",
     );
+    const checkedIdentity = {
+      projectId: projectSessionRef.current.projectId,
+      revision: projectSessionRef.current.revision,
+    };
     try {
-      const result = await target.check(projectRef.current);
+      const checkedProject = projectRef.current;
+      const [result, contentDigest] = await Promise.all([
+        target.check(checkedProject),
+        projectContentDigest(checkedProject),
+      ]);
       setCheckOk(result.ok);
       setCheckDetail(result.detail);
+      if (
+        result.ok &&
+        projectSessionRef.current.projectId === checkedIdentity.projectId &&
+        projectSessionRef.current.revision === checkedIdentity.revision
+      ) {
+        rememberCompilation(window.sessionStorage, contentDigest);
+      } else if (!result.ok) {
+        forgetCompilation(window.sessionStorage);
+      }
     } catch (error) {
+      forgetCompilation(window.sessionStorage);
       setCheckOk(false);
       setCheckDetail(errorDetail(error));
     } finally {
@@ -1616,9 +1677,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       return;
     }
     beginTargetCommand();
+    const checkedIdentity = {
+      projectId: projectSessionRef.current.projectId,
+      revision: projectSessionRef.current.revision,
+    };
     setOutputPanelOpen(true);
     setConsoleTab("output");
     try {
+      const contentDigest = await projectContentDigest(projectToRun);
       if (checkOk !== true) {
         setCheckOk(null);
         setCheckDetail(
@@ -1626,6 +1692,12 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         );
       }
       await target.run(projectToRun);
+      if (
+        projectSessionRef.current.projectId === checkedIdentity.projectId &&
+        projectSessionRef.current.revision === checkedIdentity.revision
+      ) {
+        rememberCompilation(window.sessionStorage, contentDigest);
+      }
       if (target.kind === "physical") {
         setCheckOk(true);
         setCheckDetail(
@@ -1637,6 +1709,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         );
       }
     } catch (error) {
+      forgetCompilation(window.sessionStorage);
       const detail = errorDetail(error);
       setTargetState("error");
       setTargetDetail(detail);
@@ -3193,21 +3266,22 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <select
             aria-label="Run on"
             className="target-select"
-            disabled={
-              !projectProviderActive ||
-              isRunning ||
-              targetState === "connecting"
-            }
-            onChange={(event) =>
+            disabled={!workingFolder || isRunning}
+            onChange={(event) => {
+              if (!projectProviderActive) useThisIde();
               updateTargetPreference((current) => ({
                 ...current,
                 kind: event.target.value as TargetKind,
-              }))
-            }
+              }));
+            }}
             title={
-              isRunning
-                ? "Stop the current program before changing XRP."
-                : "Choose whether Run uses the simulator or the configured physical XRP."
+              !workingFolder
+                ? "Choose a Working folder before selecting an XRP."
+                : isRunning
+                  ? "Stop the current program before changing XRP."
+                  : !projectProviderActive
+                    ? "Choose the XRP target. Changing it makes this IDE control Run."
+                    : "Choose whether Run uses the simulator or the configured physical XRP."
             }
             value={targetPreference.kind}
           >

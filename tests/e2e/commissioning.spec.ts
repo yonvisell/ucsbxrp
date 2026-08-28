@@ -116,12 +116,51 @@ test("keeps the commissioning steps readable without narrow-page overflow", asyn
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Back" }).click();
+  await page
+    .locator(".commission-navigation")
+    .getByRole("button", { name: "Change Working folder" })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Choose a Working folder" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Exit setup" }).click();
   await expect(page).toHaveURL(/\/$/);
+});
+
+test("keeps a verified remembered Working folder visible before step 2", async ({
+  page,
+}) => {
+  await useTemporaryWorkingFolder(page, "Remembered-Setup-Work");
+  await page.goto("/commission/");
+  await page.getByRole("button", { name: "Choose Working folder" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Choose a Working folder" }),
+  ).toBeVisible();
+  await expect(page.getByText(/new write\/read check passed/i)).toBeVisible();
+  await expect(
+    page.getByText(/setup wrote a new log record.*and read it back/i),
+  ).toBeVisible();
+  await page.getByText("Setup log", { exact: true }).click();
+  await expect(page.getByLabel("Setup log")).toContainText(
+    "Write and read verified in Remembered-Setup-Work",
+  );
+
+  await page.getByRole("button", { name: "Use Remembered-Setup-Work" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await page
+    .locator(".commission-offline")
+    .getByRole("button", { name: "Change Working folder" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Choose a Working folder" }),
+  ).toBeVisible();
 });
 
 test("explains a cancelled XRP device selection without an error", async ({
@@ -817,7 +856,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await page.getByLabel("Network name").fill("Course network");
   await page.getByLabel("Wi-Fi password").fill("short");
   await expect(
-    page.getByRole("button", { name: "Install or repair course software" }),
+    page.getByRole("button", { name: "Install or repair software on XRP" }),
   ).toBeDisabled();
   await expect(page.getByText(/at least 8 characters/)).toBeVisible();
   await page.getByLabel("Keep UCSB-XRP-4A21").check();
@@ -830,7 +869,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   ).toBeVisible();
   await hotspotName.fill("");
   await page
-    .getByRole("button", { name: "Install or repair course software" })
+    .getByRole("button", { name: "Install or repair software on XRP" })
     .click();
 
   await expect(
@@ -845,7 +884,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     page.getByRole("heading", { name: "Choose the robot network" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Install or repair course software" })
+    .getByRole("button", { name: "Install or repair software on XRP" })
     .click();
 
   await expect(
@@ -951,6 +990,11 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     });
 
   await page.goto("/commission/");
+  await expect(
+    page.getByRole("heading", { name: "Choose a Working folder" }),
+  ).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Write access verified");
+  await page.getByRole("button", { name: "Use My XRP Projects" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
   ).toBeVisible();

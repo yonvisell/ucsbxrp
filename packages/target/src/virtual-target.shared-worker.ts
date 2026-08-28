@@ -180,10 +180,17 @@ function stageProject(
   project: CourseProject,
   descriptor: SynchronizedProject,
 ): void {
+  const retainedProjectIsExact =
+    currentProjectDescriptor?.revision === descriptor.revision &&
+    currentProjectDescriptor.name === descriptor.name &&
+    currentProjectDescriptor.entrypoint === descriptor.entrypoint;
   const worldFileChanged =
     currentProject?.files["world.json"] !== project.files["world.json"];
   currentProject = project;
-  currentProjectDescriptor = { ...descriptor, stale: true };
+  currentProjectDescriptor = {
+    ...descriptor,
+    stale: !retainedProjectIsExact,
+  };
   broadcast({ type: "project", project: currentProjectDescriptor });
   if (!worldFileChanged) return;
 

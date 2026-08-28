@@ -119,6 +119,48 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   ).toContainText("Edited source ran");
 });
 
+test("keeps an unchanged compilation current across a Guide round trip", async ({
+  page,
+}) => {
+  await seedWorkingFolder(page, { folderName: "Compilation-Round-Trip" });
+  await page.goto("/ide/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await page.getByRole("button", { name: "Compile", exact: true }).click();
+  await expect(page.getByTestId("check-result")).toContainText(
+    /compiled with MicroPython/i,
+  );
+  const compilationMarker = await page.evaluate(() =>
+    sessionStorage.getItem("ucsb-xrp-ide-compiled-digest-v1"),
+  );
+  expect(compilationMarker).not.toBeNull();
+
+  await page
+    .getByRole("navigation", { name: "Course applications" })
+    .getByRole("link", { name: "Guide", exact: true })
+    .click();
+  await page
+    .getByRole("navigation", { name: "Course applications" })
+    .getByRole("link", { name: "IDE", exact: true })
+    .click();
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("ucsb-xrp-ide-compiled-digest-v1"),
+    ),
+  ).toBe(compilationMarker);
+
+  const ide = page.frameLocator('iframe[title="UCSBXRP IDE"]');
+  await ide.getByRole("button", { name: "Expand output" }).click();
+  await ide.getByRole("tab", { name: "Status", exact: true }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
+    /compiled with MicroPython|passed earlier in this browser tab/i,
+  );
+  await expect(ide.getByTestId("check-result")).not.toContainText(
+    /files changed|not been compiled/i,
+  );
+});
+
 test("writes IDE troubleshooting events only to the Working folder log", async ({
   page,
 }) => {

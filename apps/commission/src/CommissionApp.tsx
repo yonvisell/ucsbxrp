@@ -499,9 +499,9 @@ export function CommissionApp() {
                 "success",
               );
               setDetail(
-                `${rememberedFolder.name} is the Working folder. Connect the XRP by USB-C to continue.`,
+                `Chrome already had access to ${rememberedFolder.name}, and a new write/read check passed. Use it or choose a different Working folder.`,
               );
-              setStage("usb");
+              setStage("folder");
               return;
             } catch (folderError) {
               recordSetup(
@@ -1259,18 +1259,28 @@ export function CommissionApp() {
     }
   }, []);
 
+  const changeWorkingFolder = useCallback(async () => {
+    setError("");
+    await closeUsbSession();
+    setExistingNetwork(null);
+    setInspectedRobotId("");
+    setAuthorizedPort(null);
+    setResult(null);
+    setDetail(
+      folderRef.current
+        ? `${folderRef.current.name} passed its write check. Use it or choose a different Working folder.`
+        : "Choose a Working folder to continue.",
+    );
+    setStage("folder");
+  }, [closeUsbSession]);
+
   const goBack = useCallback(async () => {
     if (stage === "loading" || stage === "installing" || stage === "complete")
       return;
     setError("");
     if (stage === "folder") return;
     if (stage === "usb") {
-      setStage("folder");
-      setDetail(
-        folderRef.current
-          ? `${folderRef.current.name} is the current Working folder. Use it or choose a different folder.`
-          : "Choose a Working folder to continue.",
-      );
+      await changeWorkingFolder();
       return;
     }
     if (stage === "wifi") {
@@ -1282,7 +1292,7 @@ export function CommissionApp() {
     setAuthorizedPort(null);
     setStage("usb");
     setDetail("Select the connected XRP to repeat the USB check.");
-  }, [closeUsbSession, returnToUsb, stage]);
+  }, [changeWorkingFolder, closeUsbSession, returnToUsb, stage]);
 
   const exitSetup = useCallback(
     async (destination: string) => {
@@ -1417,7 +1427,21 @@ export function CommissionApp() {
             </div>
           ))}
           <div className="commission-offline">
-            {folder ? <small>Working folder: {folder.name}</small> : null}
+            {folder ? (
+              <small>
+                Working folder: {folder.name}
+                {folderVerified ? " · write access verified" : ""}
+              </small>
+            ) : null}
+            {activeStep === 2 ? (
+              <button
+                className="commission-change-folder"
+                onClick={() => void changeWorkingFolder()}
+                type="button"
+              >
+                Change Working folder
+              </button>
+            ) : null}
           </div>
         </aside>
 
@@ -1492,6 +1516,13 @@ export function CommissionApp() {
                 cumulative troubleshooting log is saved directly in the Working
                 folder. Chrome stores the course apps separately.
               </p>
+              {folder ? (
+                <p className="folder-access-result" role="status">
+                  {folderVerified
+                    ? `Write access verified: setup wrote a new log record to ${folder.name} and read it back. Chrome may not show a permission prompt when this site already has access.`
+                    : `Chrome must grant write access to ${folder.name} before setup can continue.`}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -1671,8 +1702,13 @@ export function CommissionApp() {
                 }
                 onClick={beginCommissioning}
               >
-                Install or repair course software
+                Install or repair software on XRP
               </button>
+              <small>
+                Updates the connected XRP controller. The Working folder keeps
+                your Projects and setup log; course software is not installed
+                there.
+              </small>
             </div>
           ) : null}
 
@@ -1925,7 +1961,11 @@ export function CommissionApp() {
                   onClick={() => void goBack()}
                   type="button"
                 >
-                  {stage === "wifi" ? "Repair again by USB" : "Back"}
+                  {stage === "wifi"
+                    ? "Repair again by USB"
+                    : stage === "usb"
+                      ? "Change Working folder"
+                      : "Back"}
                 </button>
               ) : null}
               <button

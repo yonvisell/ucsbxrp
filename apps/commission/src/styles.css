@@ -93,6 +93,18 @@
   white-space: nowrap;
 }
 
+.commission-change-folder {
+  justify-self: start;
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--cyan-deep);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .commission-panel {
   min-height: 470px;
   border: 1px solid var(--line);
@@ -161,6 +173,12 @@
   color: var(--quiet);
   font-size: var(--font-sm);
   line-height: 1.5;
+}
+
+.commission-actions p.folder-access-result {
+  border-left: 3px solid var(--cyan-deep);
+  padding-left: 10px;
+  color: var(--ink);
 }
 
 .recognized-xrp {

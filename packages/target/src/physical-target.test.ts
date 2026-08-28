@@ -1354,6 +1354,58 @@ describe("physical target", () => {
     }
   });
 
+  it("counts request time toward the physical telemetry cadence", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).includes("/api/v1/telemetry")) {
+        telemetryRequests += 1;
+        await new Promise((resolve) => setTimeout(resolve, 90));
+        return response({
+          bootId: "boot-a",
+          state: "running",
+          detail: "Running main.py",
+          runId: 1,
+          logs: [],
+        });
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-a",
+        robotName: "xrp-test",
+        address: "192.168.7.30",
+        project: null,
+        capabilities: [
+          "project.check",
+          "project.prepare",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      activePollIntervalMs: 125,
+      fetch: fetchMock as typeof fetch,
+    });
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+      await vi.advanceTimersByTimeAsync(124);
+      expect(telemetryRequests).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(telemetryRequests).toBe(2);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("emits a physical telemetry batch in sequence order without duplicates", async () => {
     vi.useFakeTimers();
     const requestedUrls: string[] = [];

@@ -108,9 +108,14 @@ test("commissioning finishes its Working-folder choice before applying an app up
   await reloaded;
 
   await expect(
-    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+    page.getByRole("heading", { name: "Choose a Working folder" }),
   ).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Write access verified");
   await expect
     .poll(() => readRememberedWorkingFolderName(page))
     .toBe("commission-workspace");
+  await page.getByRole("button", { name: "Use commission-workspace" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
 });

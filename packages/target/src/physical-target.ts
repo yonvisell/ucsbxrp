@@ -1237,6 +1237,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (!this.connected || this.reconnecting) {
       return;
     }
+    const startedAtMs = Date.now();
     const generation = this.pollGeneration;
     const controller = new AbortController();
     this.pollAbortController = controller;
@@ -1265,13 +1266,12 @@ export class DirectPhysicalTargetClient implements TargetClient {
       this.consecutivePollFailures = 0;
       this.consumeState(state);
       const hasBacklog = state.moreLogs === true || state.moreSamples === true;
-      this.schedulePoll(
-        hasBacklog
-          ? 0
-          : state.state === "running"
-            ? this.activePollIntervalMs
-            : this.pollIntervalMs,
-      );
+      const cadenceMs =
+        state.state === "running"
+          ? this.activePollIntervalMs
+          : this.pollIntervalMs;
+      const elapsedMs = Math.max(0, Date.now() - startedAtMs);
+      this.schedulePoll(hasBacklog ? 0 : Math.max(0, cadenceMs - elapsedMs));
     } catch (error) {
       if (
         this.connected &&
