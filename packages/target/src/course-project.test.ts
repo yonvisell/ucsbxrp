@@ -23,7 +23,7 @@ describe("course starter catalog", () => {
       expect(starter.project.files["main.py"]).toBeTruthy();
       expect(starter.project.files["README.md"]).toContain("Challenge");
       expect(starter.project.files["component_checks.py"]).toContain(
-        "does not run either robot",
+        "without starting either robot",
       );
       expect(starter.project.files["component_checks.py"]).toContain(
         "run_component_checks",

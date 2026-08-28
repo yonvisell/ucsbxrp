@@ -1962,3 +1962,7 @@ component file, required method, or selected implementation directly instead
 of using ambiguous phrases such as “student method.” The API metadata label is
 now **Project file**. The production build, the current public-wizard handoff
 test, and the folder-picker/update boundary test pass.
+
+The publication gate also passes: formatting, 247 Python tests, MicroPython
+1.28 source/reference-bytecode parity, 382 browser-library unit tests, the
+production build, and all 267 offline payload files.
