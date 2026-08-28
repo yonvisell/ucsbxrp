@@ -149,6 +149,13 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
 test("combined workspace shares Run and adapts between split and narrow layouts", async ({
   page,
 }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (["error", "warning"].includes(message.type())) {
+      browserErrors.push(message.text());
+    }
+  });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/workspace/?mode=split");
 
@@ -232,6 +239,7 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   await page.keyboard.press("End");
   await expect(idePane).toBeVisible();
   await expect(monitorPane).toBeHidden();
+  expect(browserErrors).toEqual([]);
 });
 
 test("workspace opens in IDE mode unless the user selects another layout", async ({

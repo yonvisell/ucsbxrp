@@ -335,6 +335,7 @@ export function SignalPlot({
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const noteInputRef = useRef<HTMLInputElement>(null);
+  const [chartGeneration, setChartGeneration] = useState(0);
   const [compactLayout, setCompactLayout] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteLocation, setNoteLocation] = useState<{
@@ -355,27 +356,40 @@ export function SignalPlot({
   }, [definition.id, noteLocation, onAnnotationDraftChange]);
 
   useEffect(() => {
-    if (!elementRef.current) {
+    const element = elementRef.current;
+    if (!element) {
       return;
     }
-    const chart = echarts.init(elementRef.current, undefined, {
-      devicePixelRatio: Math.min(window.devicePixelRatio, 2),
-      renderer: "canvas",
-    });
-    chartRef.current = chart;
+    let chart: echarts.ECharts | null = null;
     const resize = () => {
-      const compact = elementRef.current!.clientWidth < 420;
-      elementRef.current!.dataset.compactLayout = compact ? "true" : "false";
+      if (
+        !element.isConnected ||
+        element.clientWidth === 0 ||
+        element.clientHeight === 0
+      ) {
+        return;
+      }
+      if (!chart) {
+        chart = echarts.init(element, undefined, {
+          devicePixelRatio: Math.min(window.devicePixelRatio, 2),
+          renderer: "canvas",
+        });
+        chartRef.current = chart;
+        setChartGeneration((generation) => generation + 1);
+      }
+      if (chart.isDisposed()) return;
+      const compact = element.clientWidth < 420;
+      element.dataset.compactLayout = compact ? "true" : "false";
       setCompactLayout((current) => (current === compact ? current : compact));
       chart.resize();
     };
     const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(elementRef.current);
+    resizeObserver.observe(element);
     resize();
     return () => {
       resizeObserver.disconnect();
-      chart.dispose();
-      chartRef.current = null;
+      chart?.dispose();
+      if (chartRef.current === chart) chartRef.current = null;
     };
   }, []);
 
@@ -487,6 +501,7 @@ export function SignalPlot({
     );
   }, [
     annotations,
+    chartGeneration,
     compactLayout,
     definition,
     samples,

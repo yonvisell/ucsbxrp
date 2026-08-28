@@ -848,9 +848,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       const browserNeedsRecovery =
         projectSessionHasUnsavedChanges(browser) &&
         !isDefaultProject(browser.project);
+      let browserDraftPreserved = false;
       if (result.reason === "folder-conflict") {
         if (browserNeedsRecovery) {
           preserveBrowserDraft(snapshotForProjectSession(browser));
+          browserDraftPreserved = true;
         }
         setProjectPanelOpen(true);
         setProjectFolderConflict({
@@ -862,8 +864,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       }
       if (result.preserveBrowserDraft && browserNeedsRecovery) {
         preserveBrowserDraft(snapshotForProjectSession(browser));
+        browserDraftPreserved = true;
       }
-      return { folder, result };
+      return {
+        folder,
+        result: {
+          ...result,
+          preserveBrowserDraft: browserDraftPreserved,
+        },
+      };
     },
     [preserveBrowserDraft],
   );

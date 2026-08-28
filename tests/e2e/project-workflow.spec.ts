@@ -179,6 +179,8 @@ test("Open project lists only direct UCSBXRP projects and remembers the selectio
     .click();
   await expect(page.getByTestId("project-name")).toHaveText("Beta turn");
   await expect(page.getByTestId("project-folder")).toHaveText("beta-folder");
+  await page.getByRole("tab", { name: "Status" }).click();
+  await expect(page.getByRole("tabpanel")).not.toContainText("Unsaved copy");
   expect(
     await readWorkspaceManifest<{ activeProject: string }>(
       page,

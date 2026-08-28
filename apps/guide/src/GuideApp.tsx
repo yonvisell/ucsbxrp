@@ -595,17 +595,18 @@ export function GuideApp() {
                 the IDE. The IDE, Monitor, Guide, API reference, virtual XRP,
                 and setup page are already included; they do not need to be
                 opened separately. The Working folder also receives an
-                <code>Open UCSBXRP.html</code> launcher.
+                operating-system launcher named <code>Open UCSBXRP.html</code>.
               </li>
             </ol>
             <h3>Reopen without internet</h3>
             <ol className="procedure">
               <li>
-                Open the bookmark in the same Chrome profile on the same
-                computer. The ordinary browser tab works after Chrome has been
-                closed and while the computer has no internet connection. A
-                search result or a different web address still requires
-                internet. You may instead double-click
+                Open the same UCSBXRP web address in the same Chrome profile on
+                the same computer, normally through the bookmark. The ordinary
+                browser tab works after Chrome has been closed and while the
+                computer has no internet connection. A search result or a
+                different web address still requires internet. You may instead
+                double-click
                 <code>Open UCSBXRP.html</code> in the Working folder.
               </li>
               <li>

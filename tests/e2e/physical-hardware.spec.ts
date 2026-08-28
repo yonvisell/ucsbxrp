@@ -397,7 +397,12 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     // requiring it to remain one byte-for-byte prefix of the rendered log.
     expect(systemLogBeforeWorkflow).toContain("Connected to");
     expect(ordinaryWorkflowLog).toContain("Connected to");
-    expect(ordinaryWorkflowLog).toContain("UCSBXRP app build");
+    expect(ordinaryWorkflowLog).toMatch(
+      /UCSBXRP (?:app build \S+|local development) · course /,
+    );
+    expect(ordinaryWorkflowLog).toContain(
+      `course ${initialInfo.courseRelease}`,
+    );
     expectOrdered(ordinaryWorkflowLog, [
       "Run requested",
       "Run · 1 Python files compiled; starting main.py",

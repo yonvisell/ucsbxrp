@@ -905,9 +905,14 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   });
   await expect(page.getByText("Robot setup is complete")).toBeVisible();
   await page.getByRole("button", { name: "Open IDE" }).click();
-  await expect(page).toHaveURL(/\/ide\/$/, { timeout: 10_000 });
-  await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(page.getByTestId("project-folder")).toHaveText(
+  await expect(page).toHaveURL(/\/workspace\/\?mode=ide$/, {
+    timeout: 10_000,
+  });
+  const ideFrame = page.frameLocator('iframe[title="UCSBXRP IDE"]');
+  await expect(ideFrame.getByTestId("project-name")).toHaveText(
+    "Expanding spiral",
+  );
+  await expect(ideFrame.getByTestId("project-folder")).toHaveText(
     "Expanding-Spiral",
   );
   await expect
