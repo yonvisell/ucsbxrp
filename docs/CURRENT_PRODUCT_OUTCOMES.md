@@ -16,8 +16,9 @@ history; they are not parallel plans. Detailed validation belongs in
   runtime dev.39 or later for the atomic edited-project Run transaction.
 - Development origin: the only supported local development instance is the
   cache-free Vite server at `http://127.0.0.1:4174/`.
-- The public GitHub Pages release remains unchanged during the local revision
-  sequence.
+- The public GitHub Pages release is built from repository commit `2f0f586` and
+  serves application bundle `0944a850789e7889e9a0` with course release
+  `2026.08-dev.41`.
 
 ## Strongest current outcomes
 
