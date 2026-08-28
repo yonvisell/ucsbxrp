@@ -1309,11 +1309,13 @@ def telemetry(request):
             0.0,
             0.0,
         )
-    elif more_samples:
-        # Drain retained motion samples before publishing the final stopped
-        # sample. Otherwise its newer sequence would make the browser skip the
-        # remaining page and close a recording before all retained data arrives.
+    elif samples:
+        # A run can finish after the retained page is read but before this
+        # response is assembled. Return only course-loop samples and force one
+        # more poll; that poll drains any tail samples before it appends the
+        # newer stationary sample.
         sample = samples[-1]
+        value["moreSamples"] = True
     else:
         # Preserve any final course-loop samples not yet collected, then end
         # the batch with a fresh stopped sample. A newly opened Monitor must

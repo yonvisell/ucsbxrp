@@ -1405,6 +1405,13 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                     )
                 ).body.decode("utf-8")
             )
+            third = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "10", "afterSampleSeq": "10"}
+                    )
+                ).body.decode("utf-8")
+            )
 
         self.assertEqual([item["seq"] for item in first["logs"]], list(range(1, 9)))
         self.assertEqual([item["seq"] for item in first["samples"]], list(range(1, 9)))
@@ -1413,10 +1420,12 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(first["sample"]["seq"], 8)
 
         self.assertEqual([item["seq"] for item in second["logs"]], [9, 10])
-        self.assertEqual([item["seq"] for item in second["samples"]], [9, 10, 11])
+        self.assertEqual([item["seq"] for item in second["samples"]], [9, 10])
         self.assertFalse(second["moreLogs"])
-        self.assertFalse(second["moreSamples"])
-        self.assertEqual(second["sample"]["seq"], 11)
+        self.assertTrue(second["moreSamples"])
+        self.assertEqual(second["sample"]["seq"], 10)
+        self.assertEqual(third["samples"][0]["seq"], 11)
+        self.assertFalse(third["moreSamples"])
 
         full_state = json.loads(
             self.service.state(
@@ -1503,7 +1512,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["sample"], result["samples"][0])
         self.assertEqual(result["sample"]["rangeMm"], 300.0)
 
-    def test_ready_telemetry_ends_a_retained_batch_with_a_fresh_stopped_sample(self):
+    def test_ready_telemetry_drains_retained_samples_before_the_stopped_sample(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
         retained = {
             "sampleSeq": 8,
@@ -1537,11 +1546,12 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         }
         self.service._sample_seq = 8
         self.service._thread_active = False
+        retained_reads = iter(((retained,), ()))
         with (
             patch.object(
                 course_telemetry,
                 "buffered_state_snapshots",
-                return_value=(retained,),
+                side_effect=lambda _after: next(retained_reads),
                 create=True,
             ),
             patch.object(
@@ -1549,17 +1559,26 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             ),
             patch.object(self.service, "_read_hardware", return_value=hardware),
         ):
-            response = self.service.telemetry(
+            retained_response = self.service.telemetry(
                 types.SimpleNamespace(
                     query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                 )
             )
+            stopped_response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={"afterLogSeq": "0", "afterSampleSeq": "8"}
+                )
+            )
 
-        result = json.loads(response.body.decode("utf-8"))
-        self.assertEqual([item["seq"] for item in result["samples"]], [8, 9])
-        self.assertEqual(result["sample"], result["samples"][-1])
-        self.assertEqual(result["sample"]["leftWheelSpeedMmS"], 0.0)
-        self.assertEqual(result["sample"]["rightWheelSpeedMmS"], 0.0)
+        retained_result = json.loads(retained_response.body.decode("utf-8"))
+        self.assertEqual([item["seq"] for item in retained_result["samples"]], [8])
+        self.assertTrue(retained_result["moreSamples"])
+        stopped_result = json.loads(stopped_response.body.decode("utf-8"))
+        self.assertEqual([item["seq"] for item in stopped_result["samples"]], [9])
+        self.assertFalse(stopped_result["moreSamples"])
+        self.assertEqual(stopped_result["sample"], stopped_result["samples"][-1])
+        self.assertEqual(stopped_result["sample"]["leftWheelSpeedMmS"], 0.0)
+        self.assertEqual(stopped_result["sample"]["rightWheelSpeedMmS"], 0.0)
 
     def test_wifi_connection_uses_the_shared_profile_and_feeds_watchdog(self):
         class Watchdog:
