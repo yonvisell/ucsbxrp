@@ -47,14 +47,8 @@
       "batteryV": 6.3896784,
       "leftPulseCountDelta": 264,
       "rightPulseCountDelta": 168,
-      "pairedCountDelta": [
-        293,
-        181
-      ],
-      "finalEffort": [
-        0.0,
-        0.0
-      ]
+      "pairedCountDelta": [293, 181],
+      "finalEffort": [0.0, 0.0]
     },
     "integratedMotionWorkflow": {
       "productAssertions": "pass",
@@ -77,9 +71,6 @@
   },
   "cleanup": {
     "project": "Expanding spiral",
-    "motorEffort": [
-      0.0,
-      0.0
-    ]
+    "motorEffort": [0.0, 0.0]
   }
 }

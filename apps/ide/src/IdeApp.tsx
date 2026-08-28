@@ -2216,7 +2216,10 @@ export function IdeApp({
           projectCreationPurpose !== "save-current" &&
           newProjectPrefersVirtual(pendingProject)
         ) {
-          updateTargetPreference((current) => ({ ...current, kind: "virtual" }));
+          updateTargetPreference((current) => ({
+            ...current,
+            kind: "virtual",
+          }));
         }
         const openingPath =
           projectCreationPurpose !== "save-current"
@@ -3890,8 +3893,8 @@ export function IdeApp({
                 </p>
                 {pendingTemplate.kind === "tutorial" ? (
                   <p className="dialog-context">
-                    The tutorial opens with the Virtual XRP selected. Tutorial
-                    5 explains when to switch to a physical XRP.
+                    The tutorial opens with the Virtual XRP selected. Tutorial 5
+                    explains when to switch to a physical XRP.
                   </p>
                 ) : null}
                 {pendingTemplatePredecessor ? (
