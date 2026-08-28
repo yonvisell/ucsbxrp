@@ -199,7 +199,7 @@ test("reloads the complete production course shell without a network", async ({
   });
   await expect(
     reference.getByRole("heading", {
-      name: "API reference",
+      name: "UCSB XRP API reference",
       exact: true,
     }),
   ).toBeVisible();

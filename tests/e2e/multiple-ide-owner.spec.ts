@@ -231,7 +231,7 @@ test("an explicit IDE owns Run across tabs and releases it when closed", async (
   const status = firstIde.locator(".status-grid");
   await expect(status).toContainText("Expanding spiral · Virtual XRP");
   await expect(status).toContainText("Compilation");
-  await expect(status).toContainText("Not run");
+  await expect(status).toContainText("Passed");
   await expect(status).not.toContainText(
     /revision|another IDE|built-in default/,
   );

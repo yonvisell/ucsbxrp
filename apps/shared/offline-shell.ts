@@ -123,8 +123,11 @@ export function isLocalPreviewHostname(hostname: string): boolean {
 }
 
 function installsOfflineShellOnThisOrigin(): boolean {
+  // Automated production previews exercise the deployed offline path. An
+  // ordinary local preview stays cache-free so source changes appear at once.
   return (
-    import.meta.env.PROD && !isLocalPreviewHostname(window.location.hostname)
+    import.meta.env.PROD &&
+    (!isLocalPreviewHostname(window.location.hostname) || navigator.webdriver)
   );
 }
 

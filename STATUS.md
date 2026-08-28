@@ -43,6 +43,17 @@ Monitor-first Run; and the complete virtual multi-file path. Three obsolete
 wording expectations were corrected and rerun; no product defect was hidden by
 those changes.
 
+The first GitHub deployment run then exercised 109 browser workflows and found
+one additional product defect: a late Monitor received all retained telemetry
+but its World view kept only the final path point because React delivered the
+latest sample before the retained-history frame. World view now reconstructs
+the missing trail from that ordered history. The same run exposed obsolete
+status wording in two tests and seven offline tests that still treated the
+intentionally cache-free localhost preview as a deployed origin. Automated
+production previews now exercise the deployed service-worker path while an
+ordinary local preview remains cache-free. Focused reruns of all eleven failed
+cases pass before the deployment is retried.
+
 Refinement 68 qualifies dev.40 on the attached RP2350 XRP in native Chrome.
 The USB wizard retained the Pink station profile, installed the changed runtime,
 verified robot identity at `192.168.7.25`, and completed a second repair with

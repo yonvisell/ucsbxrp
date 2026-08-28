@@ -623,10 +623,23 @@ export function WorldView({
     if (!robot || !trail || !range || !camera || !renderer || !scene) {
       return;
     }
-    if (sample.seq !== lastSequence.current) {
+    const retainedTrailLength = Math.min(samples.length, 1_200);
+    const latestHistoricalSample = samples.at(-1);
+    const retainedHistoryEndsAtCurrentSample =
+      latestHistoricalSample?.source === sample.source &&
+      latestHistoricalSample.seq === sample.seq;
+    const retainedHistoryHasMissingTrailPoints =
+      retainedHistoryEndsAtCurrentSample &&
+      trailPoints.current.length < retainedTrailLength;
+    if (
+      sample.seq !== lastSequence.current ||
+      retainedHistoryHasMissingTrailPoints
+    ) {
       const missedRenderedSamples =
         samples.length > 1 &&
-        (lastSequence.current < 0 || sample.seq !== lastSequence.current + 1);
+        (lastSequence.current < 0 ||
+          sample.seq !== lastSequence.current + 1 ||
+          retainedHistoryHasMissingTrailPoints);
       if (missedRenderedSamples) {
         trailPoints.current = samples
           .slice(-1_200)

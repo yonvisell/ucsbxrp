@@ -16,6 +16,7 @@ import {
   VirtualTargetClient,
   createNextChallengeProject,
   nextChallengeTemplate,
+  portableProjectError,
   physicalEndpointCandidates,
   targetPreferenceForConfiguredNetwork,
   targetPreferenceForPhysicalNetwork,
@@ -1216,6 +1217,24 @@ export function IdeApp({
 
   const runTarget = useCallback(async () => {
     if (!canRunProject || isRunning || virtualRuntimePreparing) {
+      return;
+    }
+    const projectError = portableProjectError(project);
+    if (projectError) {
+      setOutputPanelOpen(true);
+      setConsoleTab("details");
+      setCheckOk(false);
+      setCheckDetail(projectError.message);
+      setConsoleEntries((entries) => [
+        ...entries.slice(-(maximumSessionLogEntries - 1)),
+        {
+          id: `ide-local-${nextConsoleId.current++}`,
+          category: "service",
+          stream: "stderr",
+          line: `Compilation failed · ${projectError.message}`,
+          timestampMs: Date.now(),
+        },
+      ]);
       return;
     }
     beginTargetCommand();

@@ -292,10 +292,12 @@ until the program publishes the applied snapshot.
 The UI depends only on this interface. Target-specific details—workers for the
 virtual XRP and a single shared HTTP poller for the physical XRP—stay inside
 their clients. A physical-target `SharedWorker` serializes the device
-connection and broadcasts status, telemetry, and output to IDE and Monitor;
-tests and browsers without `SharedWorker` use the same direct client as a
-fallback. Only failure to construct the browser worker selects that fallback;
-a robot discovery error is returned without opening a duplicate connection.
+connection and broadcasts status and output to IDE and Monitor. Monitor ports
+also receive live telemetry and retained history in ordered batches; IDE ports
+do not receive the high-rate telemetry stream they do not display. Tests and
+browsers without `SharedWorker` use the same direct client as a fallback. Only
+failure to construct the browser worker selects that fallback; a robot
+discovery error is returned without opening a duplicate connection.
 Selected target and endpoint are shared between applications through one
 versioned browser RobotProfile. It stores the commissioned `robotId`, the
 explicitly selected network, separate station and hotspot routes, and the last
@@ -310,7 +312,7 @@ does not belong in a student project folder or Git repository.
 A `SharedWorker` maintains the target state shared by IDE and Monitor tabs:
 
 - project world catalog, selected world, and latest plant state;
-- target status, console history, and telemetry fan-out;
+- target status, console history, and role-aware telemetry delivery;
 - the current complete project and its public revision descriptor;
 - active run identity and owner lease; and
 - cross-tab stop/reset and runtime termination.

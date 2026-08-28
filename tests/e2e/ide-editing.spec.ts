@@ -178,7 +178,9 @@ test("opens an oversized folder but prevents compilation and virtual execution",
   await expect(page.getByTestId("check-result")).toContainText("at most 48");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
+  await page.getByRole("tab", { name: /System log/ }).click();
   await expect(page.getByRole("log")).toContainText("Compilation failed");
+  await page.getByRole("tab", { name: /Program output/ }).click();
   await expect(page.getByRole("log")).not.toContainText("not run");
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
