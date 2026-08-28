@@ -1032,7 +1032,11 @@ export function DashboardApp() {
         setWorldCatalog(event.catalog);
         setSelectedWorldId(event.selectedWorldId);
       } else if (event.type === "console") {
-        if (event.action === "run" && event.phase === "request") {
+        if (
+          event.action === "run" &&
+          event.phase === "request" &&
+          event.replayed !== true
+        ) {
           const requestIdentity = event.requestId ?? event.eventId;
           const observed = observedRunRequestIdsRef.current;
           if (!requestIdentity || !observed.has(requestIdentity)) {

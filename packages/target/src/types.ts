@@ -81,6 +81,8 @@ export interface TargetConsoleMetadata {
   eventId?: string;
   timestampMs?: number;
   targetTimeMs?: number;
+  /** True when the coordinator is restoring an earlier console line. */
+  replayed?: boolean;
   action?:
     | "connect"
     | "validate"

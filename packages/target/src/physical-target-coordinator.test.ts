@@ -437,6 +437,109 @@ describe("physical target coordinator", () => {
     expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
   });
 
+  it("replays only the latest completed run in causal order to a late Monitor", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    coordinator.attach(ide);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "ide-connect",
+        role: "ide",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect")).toHaveLength(1),
+    );
+
+    for (const run of [1, 2]) {
+      target.emit({
+        type: "console",
+        stream: "system",
+        line: `Starting run ${run}`,
+        action: "run",
+        phase: "request",
+        requestId: `run-${run}`,
+        eventId: `run-${run}-request`,
+      });
+      const sampleCount = run === 1 ? 3 : 7;
+      for (let seq = 1; seq <= sampleCount; seq += 1) {
+        target.emit({ type: "telemetry", sample: telemetry(seq) });
+      }
+      target.emit({
+        type: "console",
+        stream: "stdout",
+        line: `Run ${run} complete`,
+        action: "run",
+        phase: "output",
+        requestId: `run-${run}`,
+        eventId: `run-${run}-output`,
+      });
+      target.emit({
+        type: "status",
+        state: "ready",
+        detail: `Run ${run} completed`,
+      });
+    }
+
+    const monitor = new FakePort();
+    coordinator.attach(monitor);
+    coordinator.handle(monitor, command({ type: "set-role", role: "monitor" }));
+    expect(events(monitor, "telemetry")).toHaveLength(0);
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect")).toHaveLength(1),
+    );
+
+    const replay = monitor.messages.flatMap((message): TargetEvent[] => {
+      if (message.type === "event") return [message.event];
+      if (message.type === "telemetry-batch") return [...message.events];
+      return [];
+    });
+    const olderRunRequest = replay.find(
+      (event) => event.type === "console" && event.requestId === "run-1",
+    );
+    expect(olderRunRequest).toMatchObject({ replayed: true });
+
+    const latestRunRequestIndex = replay.findIndex(
+      (event) => event.type === "console" && event.requestId === "run-2",
+    );
+    const firstTelemetryIndex = replay.findIndex(
+      (event) => event.type === "telemetry",
+    );
+    const terminalStatusIndex = replay.findIndex(
+      (event, index) =>
+        index > firstTelemetryIndex &&
+        event.type === "status" &&
+        event.state === "ready",
+    );
+    expect(latestRunRequestIndex).toBeGreaterThanOrEqual(0);
+    expect(firstTelemetryIndex).toBeGreaterThan(latestRunRequestIndex);
+    expect(terminalStatusIndex).toBeGreaterThan(firstTelemetryIndex);
+    expect(
+      replay
+        .filter(
+          (event): event is Extract<TargetEvent, { type: "telemetry" }> =>
+            event.type === "telemetry",
+        )
+        .map((event) => event.sample.seq),
+    ).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
   it("serializes two-tab commands and permits another run after completion", async () => {
     let target!: FakePhysicalTarget;
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
@@ -1122,7 +1225,7 @@ describe("physical target coordinator", () => {
       events(monitor, "telemetry").map(
         (event) => event.type === "telemetry" && event.sample.seq,
       ),
-    ).toEqual([1, 2, 3, 4]);
+    ).toEqual([]);
 
     coordinator.handle(
       monitor,
@@ -1136,6 +1239,11 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(monitor, "monitor-connect-history")).toHaveLength(1),
     );
+    expect(
+      events(monitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1, 2, 3, 4]);
     target.emit({ type: "telemetry", sample: telemetry(5) });
     coordinator.handle(
       monitor,

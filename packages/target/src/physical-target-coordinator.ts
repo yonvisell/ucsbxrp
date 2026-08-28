@@ -95,7 +95,6 @@ export class PhysicalTargetCoordinator {
   handle(port: PhysicalWorkerPort, command: PhysicalWorkerCommand): void {
     if (command.type === "set-role") {
       this.roles.set(port, command.role);
-      if (command.role === "monitor") this.replayTelemetry(port);
       return;
     }
     if (command.type === "disconnect") {
@@ -379,6 +378,11 @@ export class PhysicalTargetCoordinator {
       if (event.eventId && this.retainedConsoleIds.has(event.eventId)) {
         return;
       }
+      if (event.action === "run" && event.phase === "request") {
+        // A physical run restarts the device telemetry sequence. Retaining
+        // only this run prevents a late Monitor from combining separate runs.
+        this.telemetryHistory.clear();
+      }
       if (event.eventId) {
         this.retainedConsoleIds.add(event.eventId);
       }
@@ -396,7 +400,6 @@ export class PhysicalTargetCoordinator {
   }
 
   private sendCurrentState(port: PhysicalWorkerPort): void {
-    this.send(port, { type: "event", event: this.latestStatus });
     this.send(port, { type: "event", event: this.latestProject });
     if (this.latestRuntime) {
       this.send(port, { type: "event", event: this.latestRuntime });
@@ -404,9 +407,41 @@ export class PhysicalTargetCoordinator {
     if (this.latestWorld) {
       this.send(port, { type: "event", event: this.latestWorld });
     }
+
+    let latestRunStart = -1;
+    for (let index = this.consoleHistory.length - 1; index >= 0; index -= 1) {
+      const event = this.consoleHistory[index];
+      if (event?.action === "run" && event.phase === "request") {
+        latestRunStart = index;
+        break;
+      }
+    }
+
+    if (latestRunStart >= 0) {
+      // Earlier console lines remain available without reopening their old
+      // run boundaries. The latest Run request, its telemetry, and the final
+      // status are then replayed in the same causal order as a live run.
+      for (const event of this.consoleHistory.slice(0, latestRunStart)) {
+        this.send(port, {
+          type: "event",
+          event: { ...event, replayed: true },
+        });
+      }
+      for (const event of this.consoleHistory.slice(latestRunStart)) {
+        this.send(port, { type: "event", event });
+      }
+      this.replayTelemetry(port);
+      this.send(port, { type: "event", event: this.latestStatus });
+      return;
+    }
+
+    this.send(port, { type: "event", event: this.latestStatus });
     this.replayTelemetry(port);
     for (const event of this.consoleHistory) {
-      this.send(port, { type: "event", event });
+      this.send(port, {
+        type: "event",
+        event: { ...event, replayed: true },
+      });
     }
   }
 
