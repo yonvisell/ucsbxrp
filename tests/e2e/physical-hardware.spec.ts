@@ -135,16 +135,27 @@ async function robotLogsAfter(
   endpoint: string,
   afterLogSeq: number,
 ): Promise<Array<{ seq: number; stream: string; line: string }>> {
-  const response = await request.get(
-    `${endpoint}/api/v1/state?afterLogSeq=${afterLogSeq}`,
-    { timeout: 3_000 },
-  );
-  expect(response.ok()).toBe(true);
-  return (
-    (await response.json()) as {
-      logs: Array<{ seq: number; stream: string; line: string }>;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await request.get(
+        `${endpoint}/api/v1/state?afterLogSeq=${afterLogSeq}`,
+        { timeout: 3_000 },
+      );
+      expect(response.ok()).toBe(true);
+      return (
+        (await response.json()) as {
+          logs: Array<{ seq: number; stream: string; line: string }>;
+        }
+      ).logs;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
     }
-  ).logs;
+  }
+  throw lastError;
 }
 
 async function robotCommand(
@@ -388,10 +399,9 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     expect(ordinaryWorkflowLog).toContain("Connected to");
     expect(ordinaryWorkflowLog).toContain("UCSBXRP app build");
     expectOrdered(ordinaryWorkflowLog, [
-      "Prepare requested",
-      "Prepare · Project prepared",
       "Run requested",
-      "Run · Starting main.py",
+      "Run · 1 Python files compiled; starting main.py",
+      "Starting main.py",
       "Running main.py",
       "Stop requested",
       "Stop · Stopping program",
@@ -544,10 +554,9 @@ test("IDE and Monitor complete the bounded physical XRP workflow", async ({
     const systemLog = await ide.getByRole("log").innerText();
     if (motionAllowed) {
       expectOrdered(systemLog, [
-        "Prepare requested · Bounded physical motion proof",
-        "Prepare · Project prepared",
         "Run requested · Bounded physical motion proof",
-        "Run · Starting main.py",
+        "Run · 3 Python files compiled; starting main.py",
+        "Starting main.py",
         "Running main.py",
       ]);
       expect(systemLog).toContain("Stop requested");

@@ -2184,3 +2184,21 @@ the production build, and the 322-file offline package. The focused Setup, IDE,
 and Monitor browser workflows pass, including delayed local-network approval,
 restart-time folder permission, shared-log output, and exclusion of raw
 telemetry values.
+
+The complete Stable Chrome pass exercised 89 workflows: 87 passed in the main
+run, the attached-hardware workflow was intentionally skipped there, and one
+late-Monitor check received exactly 10 samples at an arbitrary `>10` test
+boundary. The retained run, project label, exports, and replacement behavior
+were correct; the boundary is now inclusive and its focused rerun passes.
+
+The attached dev.41 XRP then passed the full bounded physical browser workflow
+on Pink at `192.168.7.25`. IDE and Monitor connected to the same robot, compiled
+and ran a zero-output service probe in both command directions, stopped and
+reset without rebooting the XRP, preserved the complete System log, and ran the
+elevated-wheel motion project. Monitor observed nonzero motor command, changing
+wheel distance and encoder counts, range, supply voltage, IMU temperature,
+published pose, world path, and signal history. The final motor command was
+zero, no device traceback was present, and cleanup restored Expanding spiral in
+RAM with the robot ready on Pink. A direct diagnostic-state read in the physical
+test now retries only an immediate reset connection; it does not add delay to
+the course applications.

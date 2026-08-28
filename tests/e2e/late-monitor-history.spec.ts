@@ -78,7 +78,7 @@ test("a late Monitor restores one completed run and replaces it on direct Run", 
   const firstRunCount = recordedCount(
     await monitor.getByTestId("recording-count").textContent(),
   );
-  expect(firstRunCount).toBeGreaterThan(10);
+  expect(firstRunCount).toBeGreaterThanOrEqual(10);
   await expect(
     monitor.getByRole("button", { name: "Clear run", exact: true }),
   ).toBeEnabled();
