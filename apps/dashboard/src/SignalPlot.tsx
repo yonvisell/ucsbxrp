@@ -1,6 +1,7 @@
 import { LineChart } from "echarts/charts";
 import {
   GridComponent,
+  LegendComponent,
   MarkLineComponent,
   TitleComponent,
   TooltipComponent,
@@ -27,6 +28,7 @@ import type { MonitorAnnotation } from "./monitor-export";
 echarts.use([
   LineChart,
   GridComponent,
+  LegendComponent,
   MarkLineComponent,
   TitleComponent,
   TooltipComponent,
