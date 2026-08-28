@@ -10,13 +10,7 @@ export interface PhysicalNetworkObservation {
   observedAtMs: number;
 }
 
-/**
- * One browser-local record owns the selected target and the known robot.
- *
- * The selected network is user intent. A verified connection on that station
- * network refreshes its route, while a hotspot or fallback observation never
- * replaces it. `lastObservedNetwork` retains the evidence shown to the user.
- */
+/** Runtime view of the robot record stored in the Working-folder manifest. */
 export interface RobotProfile {
   schemaVersion: 2;
   kind: TargetKind;
@@ -29,8 +23,6 @@ export interface RobotProfile {
   lastObservedNetwork?: PhysicalNetworkObservation;
 }
 
-export const TARGET_PREFERENCE_KEY = "ucsb-xrp-robot-profile-v2";
-export const LEGACY_TARGET_PREFERENCE_KEY = "ucsb-xrp-target-v1";
 export const XRP_ACCESS_POINT_ENDPOINT = "http://192.168.4.1";
 export const XRP_LOCAL_ENDPOINT = "http://ucsb-xrp.local";
 
@@ -70,88 +62,6 @@ function normalizedHostname(value: unknown): string | undefined {
   return hostname;
 }
 
-function normalizeObservation(
-  value: unknown,
-): PhysicalNetworkObservation | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const candidate = value as Partial<PhysicalNetworkObservation>;
-  const mode = physicalMode(candidate.mode);
-  const address = nonemptyString(candidate.address);
-  const observedAtMs = candidate.observedAtMs;
-  if (
-    !mode ||
-    !address ||
-    typeof observedAtMs !== "number" ||
-    !Number.isFinite(observedAtMs)
-  ) {
-    return undefined;
-  }
-  const requestedMode = physicalMode(candidate.requestedMode);
-  const ssid = nonemptyString(candidate.ssid);
-  return {
-    mode,
-    address,
-    ...(ssid ? { ssid } : {}),
-    ...(requestedMode ? { requestedMode } : {}),
-    ...(typeof candidate.fallback === "boolean"
-      ? { fallback: candidate.fallback }
-      : {}),
-    observedAtMs,
-  };
-}
-
-function normalizeProfile(value: unknown): RobotProfile | null {
-  if (typeof value !== "object" || value === null) return null;
-  const candidate = value as Partial<RobotProfile>;
-  if (candidate.schemaVersion !== 2) return null;
-  const stationEndpoint = nonemptyString(candidate.stationEndpoint);
-  if (!stationEndpoint) return null;
-  const observation = normalizeObservation(candidate.lastObservedNetwork);
-  const robotId = normalizedRobotId(candidate.robotId);
-  const hostname = normalizedHostname(candidate.hostname);
-  return {
-    schemaVersion: 2,
-    kind: candidate.kind === "physical" ? "physical" : "virtual",
-    physicalConnection:
-      physicalMode(candidate.physicalConnection) ??
-      DEFAULT_TARGET_PREFERENCE.physicalConnection,
-    stationEndpoint,
-    // The course hotspot has one fixed route. Ignore drift in stored data.
-    accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
-    ...(robotId ? { robotId } : {}),
-    ...(hostname ? { hostname } : {}),
-    ...(observation ? { lastObservedNetwork: observation } : {}),
-  };
-}
-
-function migrateLegacyPreference(value: unknown): RobotProfile | null {
-  if (typeof value !== "object" || value === null) return null;
-  const candidate = value as {
-    kind?: unknown;
-    physicalConnection?: unknown;
-    physicalEndpoint?: unknown;
-  };
-  const storedEndpoint = nonemptyString(candidate.physicalEndpoint);
-  const connection =
-    physicalMode(candidate.physicalConnection) ??
-    (storedEndpoint ? "station" : DEFAULT_TARGET_PREFERENCE.physicalConnection);
-
-  // Some v1 AP records still carry the last station address, while later v1
-  // records replaced it with 192.168.4.1. Preserve a distinct station value
-  // whenever the old record contains one; otherwise use hostname discovery.
-  const stationEndpoint =
-    storedEndpoint && storedEndpoint !== XRP_ACCESS_POINT_ENDPOINT
-      ? storedEndpoint
-      : XRP_LOCAL_ENDPOINT;
-  return {
-    schemaVersion: 2,
-    kind: candidate.kind === "physical" ? "physical" : "virtual",
-    physicalConnection: connection,
-    stationEndpoint,
-    accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
-  };
-}
-
 export function physicalEndpointCandidates(
   value: RobotProfile,
 ): readonly string[] {
@@ -165,7 +75,9 @@ export function physicalEndpointCandidates(
   const hostnameEndpoint = value.hostname
     ? `http://${value.hostname}.local`
     : XRP_LOCAL_ENDPOINT;
-  return [...new Set([value.stationEndpoint, hostnameEndpoint])];
+  // The identity-specific hostname survives DHCP address changes. Keep the
+  // last verified address as a direct fallback on the same network.
+  return [...new Set([hostnameEndpoint, value.stationEndpoint])];
 }
 
 /** Apply an explicit IDE or commissioning network choice. */
@@ -309,32 +221,4 @@ export function targetPreferenceForCommissionedRobot(
   // requested station join fell back to the robot hotspot, the next IDE must
   // use that hotspot route instead of the unreachable requested station.
   return { ...observed, physicalConnection: result.mode };
-}
-
-export function loadTargetPreference(): RobotProfile {
-  try {
-    const current = normalizeProfile(
-      JSON.parse(localStorage.getItem(TARGET_PREFERENCE_KEY) ?? "null"),
-    );
-    if (current) return current;
-
-    const legacy = migrateLegacyPreference(
-      JSON.parse(localStorage.getItem(LEGACY_TARGET_PREFERENCE_KEY) ?? "null"),
-    );
-    if (!legacy) return DEFAULT_TARGET_PREFERENCE;
-    // Keep the v1 record intact so returning to an older app build remains
-    // possible. All current tabs use the independent v2 profile from now on.
-    localStorage.setItem(TARGET_PREFERENCE_KEY, JSON.stringify(legacy));
-    return legacy;
-  } catch {
-    return DEFAULT_TARGET_PREFERENCE;
-  }
-}
-
-export function storeTargetPreference(value: RobotProfile): void {
-  const normalized = normalizeProfile(value);
-  if (!normalized) {
-    throw new Error("Robot profile is incomplete");
-  }
-  localStorage.setItem(TARGET_PREFERENCE_KEY, JSON.stringify(normalized));
 }

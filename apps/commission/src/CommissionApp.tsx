@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import courseRelease from "../../../vendor/current/release.json";
 
 import {
-  loadTargetPreference,
   localNetworkRequestInit,
-  storeTargetPreference,
   targetPreferenceForCommissionedRobot,
 } from "@ucsb-xrp/target";
 
@@ -16,9 +14,9 @@ import {
   loadRememberedWorkspaceFolder,
   replaceRememberedWorkspaceFolder,
   requestCourseFolderPermission,
-  updateWorkspaceManifest,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
+import { updateWorkspaceTargetPreference } from "../../shared/workspace-target-preference";
 import {
   readOfflineShellStatus,
   registerOfflineShellBeforeReload,
@@ -88,8 +86,13 @@ interface PhysicalInfo {
   runtimeManifestSha256?: string;
   courseApiRevision?: string;
   robotId?: string;
+  bootId: string;
   robotName: string;
   address: string;
+}
+
+interface PhysicalStateProbe {
+  bootId: string;
 }
 
 class XrpServiceProbeError extends Error {
@@ -936,36 +939,53 @@ export function CommissionApp() {
           "The XRP started with an outdated network name. Reconnect it by USB-C and run repair again.",
         );
       }
-      const preference = targetPreferenceForCommissionedRobot(
-        loadTargetPreference(),
-        {
-          robotId: verifiedRobotId,
-          hostname: info.robotName,
-          requestedMode: result.network.requested_mode,
-          mode: result.network.mode,
-          address: `http://${result.network.address}`,
-          ssid: result.network.ssid,
-          fallback: result.network.fallback,
-        },
+      const stateResponse = await fetch(
+        `${endpoint}/api/v1/state?afterLogSeq=0`,
+        localNetworkRequestInit(endpoint, {
+          cache: "no-store",
+          method: "GET",
+          signal: controller.signal,
+        }),
       );
-      storeTargetPreference(preference);
-      if (folderRef.current) {
-        await updateWorkspaceManifest(folderRef.current, {
-          robot: {
-            id: verifiedRobotId,
-            name: info.robotName,
-            networkMode: result.network.mode,
-            ssid: result.network.ssid,
-            address: result.network.address,
-          },
-        });
+      if (!stateResponse.ok) {
+        throw new XrpServiceProbeError(
+          "http",
+          `The XRP state service replied with HTTP ${stateResponse.status}.`,
+        );
       }
+      const state = (await stateResponse.json()) as PhysicalStateProbe;
+      if (!state.bootId || state.bootId !== info.bootId) {
+        throw new XrpServiceProbeError(
+          "version",
+          "The XRP restarted during its connection check. Try the connection check again.",
+        );
+      }
+      const verifiedAddress = info.address?.trim() || result.network.address;
+      const workspace = folderRef.current;
+      if (!workspace) {
+        throw new Error(
+          "Choose a Working folder before commissioning the XRP.",
+        );
+      }
+      await updateWorkspaceTargetPreference(
+        (current) =>
+          targetPreferenceForCommissionedRobot(current, {
+            robotId: verifiedRobotId,
+            hostname: info.robotName,
+            requestedMode: result.network.requested_mode,
+            mode: result.network.mode,
+            address: `http://${verifiedAddress}`,
+            ssid: result.network.ssid,
+            fallback: result.network.fallback,
+          }),
+        workspace,
+      );
       setWifiIssue("");
       setWifiNeedsRepair(false);
       setDetail(`${info.robotName} is commissioned and ready.`);
       recordSetup(
         "XRP connection",
-        `Verified ${info.robotName} at ${result.network.address} on attempt ${attempt}.`,
+        `Verified ${info.robotName} at ${verifiedAddress} on attempt ${attempt}.`,
         "success",
       );
       setStage("complete");

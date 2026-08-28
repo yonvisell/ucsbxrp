@@ -63,12 +63,8 @@ export type {
 } from "./course-project";
 export {
   DEFAULT_TARGET_PREFERENCE,
-  LEGACY_TARGET_PREFERENCE_KEY,
-  TARGET_PREFERENCE_KEY,
   XRP_ACCESS_POINT_ENDPOINT,
-  loadTargetPreference,
   physicalEndpointCandidates,
-  storeTargetPreference,
   targetPreferenceForCommissionedRobot,
   targetPreferenceForConfiguredNetwork,
   targetPreferenceForPhysicalNetwork,

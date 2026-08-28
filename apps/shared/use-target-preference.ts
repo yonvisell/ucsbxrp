@@ -1,37 +1,47 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { DEFAULT_TARGET_PREFERENCE, type RobotProfile } from "@ucsb-xrp/target";
+
+import { subscribeCourseFolderChanged } from "./course-folder";
 import {
-  loadTargetPreference,
-  storeTargetPreference,
-  TARGET_PREFERENCE_KEY,
-  type RobotProfile,
-} from "@ucsb-xrp/target";
+  loadWorkspaceTargetPreference,
+  updateWorkspaceTargetPreference,
+} from "./workspace-target-preference";
 
 type RobotProfileUpdate = (current: RobotProfile) => RobotProfile;
 
-/**
- * Keep IDE and Monitor on one explicitly selected robot connection.
- *
- * localStorage is the small browser-local configuration file. Apps read it;
- * only a user selection or a verified robot response writes a replacement.
- */
+/** Keep IDE and Monitor aligned with the Working-folder robot record. */
 export function useTargetPreference() {
-  const [preference, setPreference] = useState(loadTargetPreference);
+  const [preference, setPreference] = useState(DEFAULT_TARGET_PREFERENCE);
+  const revisionRef = useRef(0);
 
   const updatePreference = useCallback((update: RobotProfileUpdate) => {
-    const next = update(loadTargetPreference());
-    storeTargetPreference(next);
-    setPreference(next);
+    setPreference((current) => update(current));
+    const revision = ++revisionRef.current;
+    void updateWorkspaceTargetPreference(update)
+      .then((saved) => {
+        if (revision === revisionRef.current) setPreference(saved);
+      })
+      .catch(() => {
+        if (revision !== revisionRef.current) return;
+        void loadWorkspaceTargetPreference().then(setPreference);
+      });
   }, []);
 
   useEffect(() => {
-    const readSharedPreference = (event: StorageEvent) => {
-      if (event.key === TARGET_PREFERENCE_KEY) {
-        setPreference(loadTargetPreference());
-      }
+    let disposed = false;
+    const readSharedPreference = async () => {
+      const loaded = await loadWorkspaceTargetPreference();
+      if (!disposed) setPreference(loaded);
     };
-    window.addEventListener("storage", readSharedPreference);
-    return () => window.removeEventListener("storage", readSharedPreference);
+    void readSharedPreference();
+    const unsubscribe = subscribeCourseFolderChanged(() => {
+      void readSharedPreference();
+    });
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
   }, []);
 
   return [preference, updatePreference] as const;

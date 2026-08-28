@@ -40,11 +40,11 @@ import {
 } from "../../shared/offline-shell";
 import { useProjectBootstrapPending } from "../../shared/use-project-bootstrap";
 import {
-  courseFolderChangedKey,
   courseFolderPermission,
   autosaveDirectoryName,
   loadRememberedProjectFolder,
   requestCourseFolderPermission,
+  subscribeCourseFolderChanged,
   withCourseFolderWriteLock,
   writeCourseFile,
   writeCourseTextFile,
@@ -740,23 +740,21 @@ export function DashboardApp() {
         finishFolderInteraction();
       }
     };
-    const folderChanged = (event: StorageEvent) => {
-      if (event.key === courseFolderChangedKey) {
-        const sharedFolderCanChange = autosaveFolderRemembered.current;
-        if (sharedFolderCanChange) {
-          // Stop writes immediately; loading the replacement handle is asynchronous.
-          autosaveFolderEpoch.current += 1;
-          autosaveFolderRef.current = null;
-          setAutosaveFolder(null);
-        }
-        void refreshFolder(!sharedFolderCanChange);
+    const folderChanged = () => {
+      const sharedFolderCanChange = autosaveFolderRemembered.current;
+      if (sharedFolderCanChange) {
+        // Stop writes immediately; loading the replacement handle is asynchronous.
+        autosaveFolderEpoch.current += 1;
+        autosaveFolderRef.current = null;
+        setAutosaveFolder(null);
       }
+      void refreshFolder(!sharedFolderCanChange);
     };
     void refreshFolder();
-    window.addEventListener("storage", folderChanged);
+    const unsubscribe = subscribeCourseFolderChanged(folderChanged);
     return () => {
       disposed = true;
-      window.removeEventListener("storage", folderChanged);
+      unsubscribe();
     };
   }, [beginFolderInteraction, finishFolderInteraction]);
 

@@ -1,14 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_TARGET_PREFERENCE,
-  LEGACY_TARGET_PREFERENCE_KEY,
-  TARGET_PREFERENCE_KEY,
   XRP_ACCESS_POINT_ENDPOINT,
   XRP_LOCAL_ENDPOINT,
-  loadTargetPreference,
   physicalEndpointCandidates,
-  storeTargetPreference,
   targetPreferenceForCommissionedRobot,
   targetPreferenceForConfiguredNetwork,
   targetPreferenceForPhysicalNetwork,
@@ -27,23 +23,7 @@ function stationProfile(): RobotProfile {
 }
 
 describe("shared robot profile", () => {
-  beforeEach(() => {
-    const values = new Map<string, string>();
-    Object.defineProperty(globalThis, "localStorage", {
-      configurable: true,
-      value: {
-        clear: () => values.clear(),
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-      },
-    });
-  });
-
-  it("defaults to the virtual XRP with distinct station and hotspot routes", () => {
-    expect(loadTargetPreference()).toEqual(DEFAULT_TARGET_PREFERENCE);
-  });
-
-  it("round trips robot identity, configured routes, and the last observation", () => {
+  it("normalizes robot identity and refreshes the verified station route", () => {
     const profile = targetPreferenceForPhysicalNetwork(stationProfile(), {
       mode: "station",
       address: "http://192.168.7.31",
@@ -54,8 +34,6 @@ describe("shared robot profile", () => {
       hostname: "UCSB-XRP-ROBOT-A",
       observedAtMs: 42,
     });
-    storeTargetPreference(profile);
-    expect(loadTargetPreference()).toEqual(profile);
     expect(profile.stationEndpoint).toBe("http://192.168.7.31");
     expect(profile.hostname).toBe("ucsb-xrp-robot-a");
   });
@@ -73,16 +51,16 @@ describe("shared robot profile", () => {
 
     expect(refreshed.stationEndpoint).toBe("http://192.168.7.44");
     expect(physicalEndpointCandidates(refreshed)).toEqual([
-      "http://192.168.7.44",
       XRP_LOCAL_ENDPOINT,
+      "http://192.168.7.44",
     ]);
   });
 
   it("uses only the route for the explicitly selected network", () => {
     const station = stationProfile();
     expect(physicalEndpointCandidates(station)).toEqual([
-      "http://192.168.7.30",
       XRP_LOCAL_ENDPOINT,
+      "http://192.168.7.30",
     ]);
 
     const hotspot = targetPreferenceForConfiguredNetwork(station, {
@@ -134,8 +112,8 @@ describe("shared robot profile", () => {
       },
     });
     expect(physicalEndpointCandidates(observed)).toEqual([
-      "http://192.168.7.30",
       XRP_LOCAL_ENDPOINT,
+      "http://192.168.7.30",
     ]);
   });
 
@@ -182,8 +160,8 @@ describe("shared robot profile", () => {
       accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
     });
     expect(physicalEndpointCandidates(commissioned)).toEqual([
-      "http://192.168.7.25",
       "http://ucsb-xrp-4c91fae8f1775aa4.local",
+      "http://192.168.7.25",
     ]);
   });
 
@@ -207,52 +185,5 @@ describe("shared robot profile", () => {
     expect(physicalEndpointCandidates(commissioned)).toEqual([
       XRP_ACCESS_POINT_ENDPOINT,
     ]);
-  });
-
-  it("migrates a v1 station record without deleting or changing it", () => {
-    const legacy = JSON.stringify({
-      kind: "physical",
-      physicalEndpoint: "http://192.168.7.34",
-    });
-    localStorage.setItem(LEGACY_TARGET_PREFERENCE_KEY, legacy);
-
-    expect(loadTargetPreference()).toEqual({
-      schemaVersion: 2,
-      kind: "physical",
-      physicalConnection: "station",
-      stationEndpoint: "http://192.168.7.34",
-      accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
-    });
-    expect(localStorage.getItem(LEGACY_TARGET_PREFERENCE_KEY)).toBe(legacy);
-    expect(
-      JSON.parse(localStorage.getItem(TARGET_PREFERENCE_KEY)!),
-    ).toMatchObject({
-      schemaVersion: 2,
-      stationEndpoint: "http://192.168.7.34",
-    });
-  });
-
-  it("preserves a distinct station address carried by a v1 AP record", () => {
-    localStorage.setItem(
-      LEGACY_TARGET_PREFERENCE_KEY,
-      JSON.stringify({
-        kind: "physical",
-        physicalConnection: "access_point",
-        physicalEndpoint: "http://192.168.7.34",
-      }),
-    );
-    expect(loadTargetPreference()).toMatchObject({
-      physicalConnection: "access_point",
-      stationEndpoint: "http://192.168.7.34",
-      accessPointEndpoint: XRP_ACCESS_POINT_ENDPOINT,
-    });
-  });
-
-  it("repairs invalid stored values", () => {
-    localStorage.setItem(
-      TARGET_PREFERENCE_KEY,
-      JSON.stringify({ schemaVersion: 2, kind: "unknown" }),
-    );
-    expect(loadTargetPreference()).toEqual(DEFAULT_TARGET_PREFERENCE);
   });
 });

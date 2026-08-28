@@ -895,6 +895,29 @@
   line-height: 1.4;
 }
 
+.xrp-connection-summary {
+  display: grid;
+  gap: 0.24rem;
+  margin: 0.35rem 0 0.5rem;
+  font-size: var(--font-sm);
+}
+
+.xrp-connection-summary div {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr);
+  gap: 0.35rem;
+}
+
+.xrp-connection-summary dt {
+  color: var(--quiet);
+}
+
+.xrp-connection-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .xrp-wifi-settings .setting-row {
   border-top: 0;
   padding: 0.38rem 0 0.5rem;

@@ -18,13 +18,11 @@ import {
   nextChallengeTemplate,
   portableProjectError,
   physicalEndpointCandidates,
-  targetPreferenceForConfiguredNetwork,
   targetPreferenceForPhysicalNetwork,
   testCourseProjectComponents,
   type TargetClient,
   type TargetEvent,
   type TargetKind,
-  type PhysicalConnectionMode,
   type TargetRunState,
   type SynchronizedProject,
   type CourseProjectKind,
@@ -465,10 +463,6 @@ export function IdeApp({
   const [pathDraft, setPathDraft] = useState("");
   const [pathOperationError, setPathOperationError] = useState("");
   const [fileActionsOpen, setFileActionsOpen] = useState(false);
-  const [addressDraftActive, setAddressDraftActive] = useState(false);
-  const [stationAddressDraft, setStationAddressDraft] = useState(
-    targetPreference.stationEndpoint,
-  );
   const [deletePath, setDeletePath] = useState<string | null>(null);
   const nextConsoleId = useRef(1);
   const initializedProjectEffect = useRef(false);
@@ -602,28 +596,9 @@ export function IdeApp({
     setFolderInteractionRevision((current) => current + 1);
   }, []);
 
-  const commitStationAddressDraft = useCallback(() => {
-    if (addressDraftActive) {
-      updateTargetPreference((current) =>
-        targetPreferenceForConfiguredNetwork(current, {
-          mode: "station",
-          stationAddress: stationAddressDraft,
-        }),
-      );
-    }
-    setAddressDraftActive(false);
-  }, [addressDraftActive, stationAddressDraft, updateTargetPreference]);
-
   const closeSettings = useCallback(() => {
-    commitStationAddressDraft();
     setSettingsOpen(false);
-  }, [commitStationAddressDraft]);
-
-  useEffect(() => {
-    if (!addressDraftActive) {
-      setStationAddressDraft(targetPreference.stationEndpoint);
-    }
-  }, [addressDraftActive, targetPreference.stationEndpoint]);
+  }, []);
 
   useEffect(() => {
     const input = importInputRef.current;
@@ -2022,8 +1997,7 @@ export function IdeApp({
               newProjectOpen ||
               projectChooserOpen ||
               newFileOpen ||
-              pathOperation !== null ||
-              addressDraftActive,
+              pathOperation !== null,
             folderInteractionActive: folderInteractionCountRef.current > 0,
             folderSaveActive: folderSaveStateRef.current === "saving",
           });
@@ -2135,7 +2109,6 @@ export function IdeApp({
         );
       }),
     [
-      addressDraftActive,
       newFileOpen,
       newProjectOpen,
       pathOperation,
@@ -2159,13 +2132,11 @@ export function IdeApp({
       !newProjectOpen &&
       !newFileOpen &&
       pathOperation === null &&
-      !addressDraftActive &&
       folderInteractionCountRef.current === 0
     ) {
       retryPendingOfflineShellReload();
     }
   }, [
-    addressDraftActive,
     componentCheckRunning,
     folderDirty,
     folderInteractionRevision,
@@ -3725,66 +3696,39 @@ export function IdeApp({
           </section>
           {targetPreference.kind === "physical" ? (
             <fieldset className="xrp-wifi-settings">
-              <legend>XRP Wi-Fi</legend>
+              <legend>Physical XRP</legend>
               <p className="xrp-wifi-summary">
-                Project flashing, controls, and telemetry use Wi-Fi. USB handles
-                firmware, setup, repair, and changes to the network stored on
-                the XRP.
+                Run and telemetry use the network verified during XRP setup.
               </p>
-              <label className="setting-row">
-                <span>Network</span>
-                <select
-                  aria-label="Network"
-                  aria-describedby="physical-connection-help"
-                  onChange={(event) =>
-                    updateTargetPreference((current) =>
-                      targetPreferenceForConfiguredNetwork(current, {
-                        mode: event.target.value as PhysicalConnectionMode,
-                      }),
-                    )
-                  }
-                  value={targetPreference.physicalConnection}
-                >
-                  <option value="access_point">Robot hotspot</option>
-                  <option value="station">Existing Wi-Fi</option>
-                </select>
-                <small id="physical-connection-help">
-                  {targetPreference.physicalConnection === "access_point"
-                    ? "Join the UCSB-XRP network shown during USB setup; the robot is at 192.168.4.1."
-                    : "Use the same local Wi-Fi network as the XRP."}
-                </small>
-              </label>
-              {targetPreference.physicalConnection === "station" ? (
-                <label className="setting-row">
-                  <span>XRP address</span>
-                  <input
-                    aria-label="XRP address"
-                    aria-describedby="physical-address-help"
-                    onBlur={commitStationAddressDraft}
-                    onChange={(event) => {
-                      setAddressDraftActive(true);
-                      setStationAddressDraft(event.target.value);
-                    }}
-                    onFocus={() => setAddressDraftActive(true)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                    }}
-                    spellCheck={false}
-                    type="url"
-                    value={stationAddressDraft}
-                  />
-                  <small id="physical-address-help">
-                    USB setup reports this address. Monitor uses the same
-                    setting.
-                  </small>
-                </label>
-              ) : null}
+              <dl className="xrp-connection-summary">
+                <div>
+                  <dt>Robot</dt>
+                  <dd>{targetPreference.hostname ?? "Not commissioned"}</dd>
+                </div>
+                <div>
+                  <dt>Network</dt>
+                  <dd>
+                    {targetPreference.lastObservedNetwork?.ssid ||
+                      (targetPreference.physicalConnection === "access_point"
+                        ? "Robot hotspot"
+                        : "Local Wi-Fi")}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Address</dt>
+                  <dd>
+                    {targetPreference.physicalConnection === "access_point"
+                      ? targetPreference.accessPointEndpoint
+                      : targetPreference.stationEndpoint}
+                  </dd>
+                </div>
+              </dl>
               <a
                 className="commission-settings-link"
                 href="../commission/"
-                title="Install, update, repair, or change the XRP network over USB-C."
+                title="Install, repair, or change this XRP network over USB-C."
               >
-                Set up or repair XRP ↗
+                Set up, repair, or change network ↗
               </a>
             </fieldset>
           ) : null}

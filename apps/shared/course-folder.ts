@@ -37,17 +37,33 @@ export interface RotatingTextEntry {
 
 export const autosaveDirectoryName = "UCSB_XRP_Autosaves";
 export const autosaveGenerations = 4;
-export const courseFolderChangedKey = "ucsb-xrp-course-folder-changed-v1";
+export const courseFolderChangedEvent = "ucsb-xrp-working-folder-changed";
+const courseFolderChannelName = "ucsb-xrp-working-folder";
 
 function announceCourseFolderChanged(): void {
-  try {
-    // The storage event reaches other tabs. Remove the nonce immediately so
-    // it is an event signal, not a second configuration record.
-    localStorage.setItem(courseFolderChangedKey, crypto.randomUUID());
-    localStorage.removeItem(courseFolderChangedKey);
-  } catch {
-    // The on-disk Working-folder configuration remains authoritative.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(courseFolderChangedEvent));
   }
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel(courseFolderChannelName);
+    channel.postMessage("changed");
+    channel.close();
+  }
+}
+
+/** Listen for a Working-folder or manifest change in this or another tab. */
+export function subscribeCourseFolderChanged(listener: () => void): () => void {
+  const localListener = () => listener();
+  window.addEventListener(courseFolderChangedEvent, localListener);
+  const channel =
+    typeof BroadcastChannel === "undefined"
+      ? null
+      : new BroadcastChannel(courseFolderChannelName);
+  if (channel) channel.onmessage = listener;
+  return () => {
+    window.removeEventListener(courseFolderChangedEvent, localListener);
+    channel?.close();
+  };
 }
 
 const databaseName = "ucsb-xrp-course-tools-v1";
@@ -71,11 +87,19 @@ export interface WorkspaceManifestRobot {
   address: string;
 }
 
+export type WorkspaceSettingValue =
+  | string
+  | number
+  | boolean
+  | null
+  | WorkspaceSettingValue[]
+  | { [key: string]: WorkspaceSettingValue };
+
 export interface WorkspaceManifest {
   schemaVersion: 1;
   activeProject: string | null;
   robot?: WorkspaceManifestRobot;
-  settings?: Record<string, string | number | boolean | null>;
+  settings?: Record<string, WorkspaceSettingValue>;
 }
 const autosaveReadme = `UCSB XRP automatic copies
 
@@ -316,7 +340,6 @@ export async function rememberProjectFolder(
       activeProject: handle.name,
     });
     if (!updated) return false;
-    announceCourseFolderChanged();
     return true;
   } catch {
     return false;
@@ -331,7 +354,6 @@ export async function forgetProjectFolder(): Promise<boolean> {
       activeProject: null,
     });
     if (!updated) return false;
-    announceCourseFolderChanged();
     return true;
   } catch {
     return false;
@@ -392,33 +414,57 @@ export async function updateWorkspaceManifest(
   update: {
     activeProject?: string | null;
     robot?: WorkspaceManifestRobot;
-    settings?: Record<string, string | number | boolean | null>;
+    settings?: Record<string, WorkspaceSettingValue>;
   },
 ): Promise<boolean> {
-  try {
-    const previous = await loadWorkspaceManifest(workspace);
-    const next: WorkspaceManifest = {
-      schemaVersion: 1,
+  return (
+    (await mutateWorkspaceManifest(workspace, (previous) => ({
+      ...previous,
       activeProject:
         update.activeProject !== undefined
           ? update.activeProject
-          : (previous?.activeProject ?? null),
-      ...((update.robot ?? previous?.robot)
-        ? { robot: update.robot ?? previous!.robot }
+          : previous.activeProject,
+      ...((update.robot ?? previous.robot)
+        ? { robot: update.robot ?? previous.robot }
         : {}),
-      ...((update.settings ?? previous?.settings)
-        ? { settings: update.settings ?? previous!.settings }
+      ...((update.settings ?? previous.settings)
+        ? {
+            settings: {
+              ...(previous.settings ?? {}),
+              ...(update.settings ?? {}),
+            },
+          }
         : {}),
-    };
-    const file = await workspace.getFileHandle(workspaceManifestFile, {
-      create: true,
+    }))) !== null
+  );
+}
+
+/**
+ * Read, change, and replace the sole on-disk app configuration atomically.
+ * A waiting tab rereads the file after earlier writes complete.
+ */
+export async function mutateWorkspaceManifest(
+  workspace: CourseDirectoryHandle,
+  transform: (current: WorkspaceManifest) => WorkspaceManifest,
+): Promise<WorkspaceManifest | null> {
+  try {
+    return await withCourseFolderWriteLock("config", async () => {
+      const previous = (await loadWorkspaceManifest(workspace)) ?? {
+        schemaVersion: 1 as const,
+        activeProject: null,
+      };
+      const next = transform(previous);
+      const file = await workspace.getFileHandle(workspaceManifestFile, {
+        create: true,
+      });
+      const writable = await file.createWritable();
+      await writable.write(`${JSON.stringify(next, null, 2)}\n`);
+      await writable.close();
+      announceCourseFolderChanged();
+      return next;
     });
-    const writable = await file.createWritable();
-    await writable.write(`${JSON.stringify(next, null, 2)}\n`);
-    await writable.close();
-    return true;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -443,7 +489,7 @@ export async function loadRememberedProjectFolder(): Promise<CourseDirectoryHand
 }
 
 export async function withCourseFolderWriteLock<T>(
-  area: "project" | "run" | "setup",
+  area: "project" | "run" | "setup" | "config",
   operation: () => Promise<T>,
 ): Promise<T> {
   if (typeof navigator !== "undefined" && navigator.locks) {
