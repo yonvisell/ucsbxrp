@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SERVICE_SOURCE = ROOT / "device_service"
 COURSE_SOURCE = ROOT / "vendor/current/ucsb_xrp"
 REFERENCE_SOURCE = ROOT / "vendor/current/reference_mpy/ucsb_xrp_reference"
+XRPLIB_SOURCE = ROOT / "vendor/current/xrplib"
 RELEASE_PATH = ROOT / "vendor/current/release.json"
 BOOTSTRAP_SOURCE = ROOT / "device_service"
 EXPECTED_VID = 0x1B4F
@@ -144,6 +145,9 @@ def bootstrap_files():
 def runtime_files():
     """Return runtime paths relative to a slot, never absolute device paths."""
     files = {}
+    for package in ("XRPLib", "phew"):
+        for path in sorted((XRPLIB_SOURCE / package).glob("*.py")):
+            files["lib/{}/{}".format(package, path.name)] = path
     for path in sorted((SERVICE_SOURCE / "ucsb_xrp_service").glob("*.py")):
         files["lib/ucsb_xrp_service/" + path.name] = path
     for path in sorted(COURSE_SOURCE.glob("*.py")):

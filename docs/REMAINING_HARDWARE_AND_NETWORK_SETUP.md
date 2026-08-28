@@ -30,19 +30,19 @@ different network, or repair an interrupted installation.
 
 ## Current development robot
 
-The strongest retained raised-wheel evidence is for robot runtime
-`2026.08-dev.40`, generation 26, on Pink. Native Chrome completed USB repair,
-verified robot identity, ran two projects from IDE and Monitor, stopped, reset,
-reran, applied an edited project, and observed motor effort, both encoders,
-wheel distance, sensors, pose, plots, ordered logs, 50 Hz telemetry, and final
-zero drive. The exact record is
-`docs/hardware/2026-08-27-dev40-station-repeatability.json`.
+The strongest retained raised-wheel first-use evidence is for robot runtime
+`2026.08-dev.41`, generation 1, on Pink. Starting with an empty robot filesystem,
+official SparkFun/WPILib firmware, and an empty Working folder, native Chrome
+installed firmware, XRPLib, and course software; verified robot identity;
+created two Projects; ran from IDE and Monitor; and observed motors, encoders,
+wheel distance, sensors, pose, program output, plots, and retained telemetry.
+The exact record is
+`docs/hardware/2026-08-28-dev41-clean-factory-first-use.json`.
 
 The current public hotspot and Pink paths both pass. The remaining setup work is
-one first-use rehearsal after a full flash erase and one cold offline reopen of
-the installed app while the computer is connected only to the robot hotspot.
-The station workflow does not need another broad repeat unless the robot runtime
-changes.
+one cold installed-app reopen while the computer is connected only to the robot
+hotspot. The factory-state station workflow does not need another broad repeat
+unless the robot runtime changes.
 
 ## Remaining floor-dependent work
 

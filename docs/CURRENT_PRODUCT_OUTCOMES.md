@@ -9,11 +9,11 @@ history; they are not parallel plans. Detailed validation belongs in
 ## Current baseline
 
 - Browser source: current repository `HEAD` plus the active integrated stage.
-- Attached XRP: physically qualified on `2026.08-dev.40`, generation 26, from
-  source commit `0b301cd`.
-- Current course bundle: `2026.08-dev.40`. It requires robot runtime dev.39 or
-  later for the atomic edited-project Run transaction; dev.40 also retains and
-  drains physical telemetry in larger bounded batches.
+- Attached XRP: physically qualified on `2026.08-dev.41`, generation 1, after
+  an empty-filesystem installation from official SparkFun/WPILib firmware.
+- Current course bundle: `2026.08-dev.41`. It includes the pinned XRPLib and
+  `phew` runtime dependencies needed by a factory-new XRP. It requires robot
+  runtime dev.39 or later for the atomic edited-project Run transaction.
 - Development origin: the only supported local development instance is the
   cache-free Vite server at `http://127.0.0.1:4174/`.
 - The public GitHub Pages release remains unchanged during the local revision
@@ -33,7 +33,7 @@ history; they are not parallel plans. Detailed validation belongs in
 - Straight Run, Expanding Spiral, and the physical command path have current-release,
   raised-wheel evidence for Run, Stop, Reset, rerun, project edits, motor
   effort, encoders, wheel distance, sensor data, pose, plots, logs, and final
-  zero drive on dev.40.
+  zero drive on dev.41.
 - The five active tutorial projects progress from Python fundamentals—including
   narrow handling of expected input errors—through Virtual XRP drawing, the
   sampled robot program, telemetry, and a physical-XRP preflight. Each has
@@ -90,9 +90,10 @@ application build and course release without another visible status badge.
 
 ### 2. Current-release setup, repair, and robot operation
 
-Current dev.40 native Web Serial setup and idempotent repair pass on Pink,
-including zero changed files, explicit network verification, robot-identity
-verification, explicit completion before Open IDE, two projects,
+Current dev.41 native Web Serial setup and idempotent repair pass on Pink,
+including an actually erased filesystem, the official factory firmware,
+installation of XRPLib and the course runtime, zero changed files on repeat,
+explicit network and robot-identity verification, two projects,
 Run/Stop/Reset/rerun, shared
 IDE/Monitor state, 50 Hz course telemetry without retained-sample gaps, and
 complete logs. The current release also passes a public custom-hotspot cycle,
@@ -102,13 +103,13 @@ for the installed-app path. Retain cancellation and retry coverage in the
 simulated commissioning suite.
 
 The official SparkFun/WPILib `v2.1.0` firmware-to-course-firmware path now
-passes locally through USB selection, firmware installation, dev.40 runtime
-installation, Pink verification, IDE handoff, physical motor command, encoder
-observation, program output, and automatic stop. That rehearsal retained the
-existing MicroPython filesystem and an existing Working folder. Before release,
-repeat it after a full flash erase and with an empty Working folder, then
-recommission once. This is the primary first-use case; simulated browser tests
-remain supporting evidence.
+passes locally from an empty robot filesystem and empty Working folder. Setup
+installs course firmware, XRPLib, `phew`, and the course runtime, verifies Pink,
+creates Expanding Spiral, hands the verified physical target to the IDE, and
+then creates and runs Straight Run. Repeating setup changes no installed files,
+retains the Working folder and active Project, and rechecks the robot service.
+This is the primary first-use case; simulated browser tests remain supporting
+evidence.
 
 ### 3. Course-project clarity and consistency
 

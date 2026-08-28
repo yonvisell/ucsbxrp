@@ -1191,6 +1191,7 @@ export async function installFirmware(options: {
   manifest: CommissioningManifest;
   manifestUrl: URL;
   fetch?: typeof fetch;
+  writeWaitMs?: number;
   closeWaitMs?: number;
 }): Promise<void> {
   const firmware = options.manifest.micropython.firmware;
@@ -1203,11 +1204,23 @@ export async function installFirmware(options: {
     create: true,
   });
   const writable = await handle.createWritable();
-  await writable.write(data);
-  // A complete UF2 write makes the RP2350 reboot and remove its temporary
-  // volume. On macOS that can leave Chrome's close() promise pending even
-  // though the new USB device is already present. The caller verifies that
-  // re-enumerated device before continuing setup.
+  // A complete UF2 transfer makes the RP2350 reboot and remove its temporary
+  // volume. Depending on the macOS/Chrome version, either write() or close()
+  // can remain pending after that expected removal. The caller accepts the
+  // transfer only after the MicroPython USB device reappears and is inspected.
+  const writeOutcome = writable.write(data).then(
+    () => ({ state: "written" as const }),
+    (error: unknown) => ({ state: "error" as const, error }),
+  );
+  const writeResult = await Promise.race([
+    writeOutcome,
+    wait(options.writeWaitMs ?? 1_500).then(() => ({
+      state: "pending" as const,
+    })),
+  ]);
+  if (writeResult.state === "error") throw writeResult.error;
+  if (writeResult.state === "pending") return;
+
   const closeOutcome = writable.close().then(
     () => ({ state: "closed" as const }),
     (error: unknown) => ({ state: "error" as const, error }),

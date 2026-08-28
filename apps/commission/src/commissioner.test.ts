@@ -781,6 +781,33 @@ describe("browser XRP commissioning", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("continues when the RP2350 removes its UF2 volume during write", async () => {
+    let closeCalled = false;
+    const volume = {
+      name: "RP2350",
+      getFileHandle: async () => ({
+        createWritable: async () => ({
+          write: async () => new Promise<void>(() => undefined),
+          close: async () => {
+            closeCalled = true;
+          },
+        }),
+      }),
+    };
+
+    await expect(
+      installFirmware({
+        volume,
+        manifest: manifest(),
+        manifestUrl,
+        fetch: (async () =>
+          new Response(Uint8Array.of(1, 2, 3, 4))) as typeof fetch,
+        writeWaitMs: 0,
+      }),
+    ).resolves.toBeUndefined();
+    expect(closeCalled).toBe(false);
+  });
+
   it("rejects a firmware image that differs from the release digest", async () => {
     const volume = {
       name: "RP2350",

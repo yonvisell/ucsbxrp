@@ -229,13 +229,14 @@ an optional fleet interface to the same exact release file set.
 ## Current implementation note
 
 No contradiction was found among the three active `v2_` documents. The current
-browser/device bundle is `2026.08-dev.40`. That release is installed on the
-attached RP2350 and has passed native Web Serial repair, identity-checked Pink
-station handoff, exact RAM-project preparation, two projects, repeated Run,
-cooperative Stop and Reset, program-output capture, 50 Hz telemetry, and
-raised-wheel motor and encoder tests. These results do not constitute physical
-floor calibration, factory-state first-use qualification, or a current hotspot
-and offline-return cycle.
+browser/device bundle is `2026.08-dev.41`. That release includes a pinned,
+unmodified XRPLib and its `phew` dependency. It was installed on an erased
+RP2350 restored to official SparkFun/WPILib firmware, using an empty Working
+folder. Native Chrome then verified Pink, created the default and a second
+Project, ran both from IDE and Monitor, retained program output and physical
+telemetry, and repeated setup without changing installed files or Project
+selection. These results do not constitute physical floor calibration or a
+cold installed-app reopen on the robot hotspot.
 
 Reference algorithms remain revisable; course outcomes, units, component
 responsibilities, and the concise student workflow are the compatibility

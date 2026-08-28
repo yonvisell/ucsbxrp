@@ -99,6 +99,9 @@ class InstallXrpServiceTest(unittest.TestCase):
 
         self.assertEqual(set(boot), {"/main.py", "/course_boot.py"})
         self.assertEqual(list(boot), ["/course_boot.py", "/main.py"])
+        self.assertIn("lib/XRPLib/board.py", runtime)
+        self.assertIn("lib/XRPLib/encoded_motor.py", runtime)
+        self.assertIn("lib/phew/server.py", runtime)
         self.assertIn("lib/ucsb_xrp_service/service.py", runtime)
         self.assertIn("lib/ucsb_xrp/__init__.py", runtime)
         self.assertIn("lib/ucsb_xrp_reference/__init__.mpy", runtime)
@@ -112,8 +115,8 @@ class InstallXrpServiceTest(unittest.TestCase):
     def test_runtime_manifest_is_canonical_and_complete(self):
         manifest = INSTALLER.runtime_manifest()
         data = INSTALLER.canonical_json_bytes(manifest)
-        self.assertEqual(manifest["releaseId"], "2026.08-dev.40")
-        self.assertEqual(manifest["releaseSequence"], 40)
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.41")
+        self.assertEqual(manifest["releaseSequence"], 41)
         self.assertEqual(manifest["compatibility"]["protocolVersion"], 1)
         self.assertTrue(data.endswith(b"\n"))
         self.assertNotIn(b" ", data)
@@ -188,7 +191,7 @@ class InstallXrpServiceTest(unittest.TestCase):
         activation = result["activation"]
         self.assertEqual(activation["generation"], 1)
         self.assertEqual(activation["slot"], "a")
-        self.assertEqual(activation["releaseSequence"], 40)
+        self.assertEqual(activation["releaseSequence"], 41)
         active_path = "/course_runtime/active.0.json"
         self.assertEqual(json.loads(transport.files[active_path]), activation)
         manifest_path = "/course_runtime/slots/a/runtime-manifest.json"
@@ -370,14 +373,14 @@ class InstallXrpServiceTest(unittest.TestCase):
         self.assertLess(address_index, reset_index)
 
     def test_installer_rejects_a_newer_valid_runtime_before_staging(self):
-        manifest_data = b'{"releaseId":"2026.08-dev.41"}\n'
+        manifest_data = b'{"releaseId":"2026.08-dev.42"}\n'
         digest = hashlib.sha256(manifest_data).hexdigest()
         record = {
             "schemaVersion": 1,
             "generation": 8,
             "slot": "a",
-            "releaseId": "2026.08-dev.41",
-            "releaseSequence": 41,
+            "releaseId": "2026.08-dev.42",
+            "releaseSequence": 42,
             "runtimeManifestSha256": digest,
         }
         transport = MemoryTransport(

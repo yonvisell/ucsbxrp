@@ -2064,3 +2064,37 @@ presenting a disabled control without a next action.
 The focused commissioning, folder, target-preference, Monitor-reload, and
 Project-file checks pass (84 tests), and the production build passes. The next
 physical gate remains a genuinely erased XRP plus an empty Working folder.
+
+## Refinement 78: complete factory-state first use
+
+The attached RP2350 filesystem was erased, verified empty, and restored with
+the official SparkFun/WPILib XRP firmware before setup began. The browser then
+used a new empty Working folder. This exposed the material dependency that the
+previous partially clean rehearsal had hidden: the factory firmware does not
+include XRPLib. The course release now installs a pinned, unmodified XRPLib and
+its required `phew` package with the course runtime. Upstream source, revision,
+license, and exact files are retained under `vendor/current/xrplib/`.
+
+The firmware transfer also reproduced a macOS Chrome boundary in which the
+RP2350 removes its boot volume while the browser's `write()` promise remains
+pending. Both the write and close waits are now bounded; setup proceeds only
+after Chrome detects the re-enumerated MicroPython controller and verifies the
+installed files over its serial connection. Immediate write errors still stop
+the installation.
+
+Release `2026.08-dev.41`, runtime generation 1, was installed on the empty
+filesystem and verified at `192.168.7.25` on Pink. The empty Working folder
+received `.ucsbxrp.json` and the default Expanding Spiral Project without
+showing repository files. The default Project ran on the physical XRP and
+stopped at the measured ultrasonic threshold. A second Project, `1 · Straight
+Run`, was then created through the IDE and completed twice: once from IDE and
+once from Monitor. The two runs retained 111 and 110 telemetry samples with no
+drops and reported mean wheel travel of 1002.7 mm and 1001.1 mm for a 1000 mm
+request. Both ended ready with zero drive.
+
+Finally, the same setup action was repeated without changing the robot or
+Working folder. It verified 0 changed and 55 unchanged files, retained Pink,
+reverified the robot identity and address, and returned to the same Straight
+Run Project in Physical XRP mode. This closes the prior factory-state and
+empty-folder qualification gap; a cold installed-app reopen on robot-hotspot
+Wi-Fi remains separate offline evidence.
