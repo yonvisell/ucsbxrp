@@ -2,8 +2,10 @@ export interface CourseFileHandle {
   readonly kind: "file";
   readonly name: string;
   getFile(): Promise<File>;
-  createWritable(): Promise<{
+  createWritable(options?: { keepExistingData?: boolean }): Promise<{
     write(data: string | Blob): Promise<void>;
+    seek?(position: number): Promise<void>;
+    abort?(): Promise<void>;
     close(): Promise<void>;
   }>;
 }
@@ -592,7 +594,7 @@ export async function loadRememberedProjectFolder(): Promise<CourseDirectoryHand
 }
 
 export async function withCourseFolderWriteLock<T>(
-  area: "project" | "run" | "setup" | "config",
+  area: "project" | "run" | "setup" | "config" | "diagnostic",
   operation: () => Promise<T>,
 ): Promise<T> {
   if (typeof navigator !== "undefined" && navigator.locks) {
