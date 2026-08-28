@@ -111,6 +111,23 @@ export function initialOfflineShellState(
   return supported ? "installing" : "unsupported";
 }
 
+export function isLocalPreviewHostname(hostname: string): boolean {
+  const value = hostname.trim().toLocaleLowerCase();
+  return (
+    value === "127.0.0.1" ||
+    value === "localhost" ||
+    value === "::1" ||
+    value === "[::1]" ||
+    value.endsWith(".localhost")
+  );
+}
+
+function installsOfflineShellOnThisOrigin(): boolean {
+  return (
+    import.meta.env.PROD && !isLocalPreviewHostname(window.location.hostname)
+  );
+}
+
 export function offlineShellUpdateNeedsReload(
   previousVersion: string | null,
   currentVersion: string,
@@ -290,7 +307,7 @@ export function readOfflineShellStatus(): OfflineShellStatus {
     state: knownStates.includes(state as OfflineShellState)
       ? (state as OfflineShellState)
       : initialOfflineShellState(
-          import.meta.env.PROD,
+          installsOfflineShellOnThisOrigin(),
           "serviceWorker" in navigator &&
             "caches" in window &&
             window.isSecureContext,
@@ -531,7 +548,7 @@ export function registerOfflineShell(
     "caches" in window &&
     window.isSecureContext;
   const initialState = initialOfflineShellState(
-    import.meta.env.PROD,
+    installsOfflineShellOnThisOrigin(),
     supported,
   );
   publishState(initialState);

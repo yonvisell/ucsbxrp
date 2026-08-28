@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   initialOfflineShellState,
+  isLocalPreviewHostname,
   offlineShellAssetsNeedReload,
   offlineShellIsolationNeedsReload,
   offlineShellUpdateNeedsReload,
@@ -19,6 +20,13 @@ describe("offline shell mode", () => {
 
   it("attempts installation only in a supported production build", () => {
     expect(initialOfflineShellState(true, true)).toBe("installing");
+  });
+
+  it("keeps local preview origins outside the production PWA cache", () => {
+    expect(isLocalPreviewHostname("127.0.0.1")).toBe(true);
+    expect(isLocalPreviewHostname("localhost")).toBe(true);
+    expect(isLocalPreviewHostname("workshop.localhost")).toBe(true);
+    expect(isLocalPreviewHostname("yonvisell.github.io")).toBe(false);
   });
 
   it("reloads each existing tab once when a newer release is signaled", () => {
