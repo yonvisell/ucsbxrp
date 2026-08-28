@@ -1,4 +1,4 @@
-"""Choose one implementation of each component and assemble the Challenge 2 robot."""
+# Choose one implementation of each component and assemble the Challenge 2 robot.
 
 from differential_drive import DifferentialDrive as StudentDifferentialDrive
 from odometry import Odometry as StudentOdometry

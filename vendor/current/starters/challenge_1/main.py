@@ -1,4 +1,4 @@
-"""Challenge 1: drive the requested straight-line distance."""
+# Challenge 1: drive the requested straight-line distance.
 
 from challenge import INITIAL_POSE, TARGET_TIME_S, TRAVEL_DISTANCE_MM
 from course_setup import make_robot
@@ -7,7 +7,7 @@ from ucsb_xrp import StraightLineController, elapsed_time_s
 
 
 def run_challenge():
-    """Run the measured straight-line task and return the final RobotState."""
+    # Run the measured straight-line task and return the final RobotState.
     robot = make_robot(ROBOT_CONFIG)
     straight = StraightLineController(STRAIGHT_CONFIG)
     try:
@@ -33,6 +33,7 @@ def run_challenge():
         print("target_time_s:", TARGET_TIME_S)
         print("measured_elapsed_time_s:", measured_elapsed_time_s)
         return state
+    # Always stop the motors, including when an error ends the program.
     finally:
         robot.stop()
 

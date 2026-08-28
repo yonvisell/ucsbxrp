@@ -1,4 +1,4 @@
-"""Observation and delivery task for Challenge 5."""
+# Observation and delivery task for Challenge 5.
 
 from ucsb_xrp import DeliveryTask, load_world
 

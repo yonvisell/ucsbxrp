@@ -1,4 +1,4 @@
-"""Values derived from this project's Turn and Return world."""
+# Values derived from this project's Turn and Return world.
 
 from ucsb_xrp import distance_to_goal, load_world
 

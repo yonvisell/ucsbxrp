@@ -1,4 +1,4 @@
-"""Select supplied or student Challenge 1 components."""
+# Select supplied or student Challenge 1 components.
 
 from sensor_model import SensorModel as StudentSensorModel
 from ucsb_xrp import Robot, XRPBot

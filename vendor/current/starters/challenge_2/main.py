@@ -1,4 +1,4 @@
-"""Challenge 2: drive out, turn around, and return."""
+# Challenge 2: drive out, turn around, and return.
 
 from challenge import (
     FINAL_HEADING_RAD,
@@ -13,7 +13,7 @@ from ucsb_xrp import MotionCommand, StraightLineController, wrap_angle_rad
 
 
 def drive_straight(robot, state, distance_mm):
-    """Drive one measured distance and return the updated RobotState."""
+    # Drive one measured distance and return the updated RobotState.
     controller = StraightLineController(NAVIGATION_CONFIG)
     controller.start(state.measurements, distance_mm)
     while not controller.is_complete():
@@ -22,7 +22,7 @@ def drive_straight(robot, state, distance_mm):
 
 
 def turn_to_heading(robot, state, target_heading_rad):
-    """Turn in place toward one world heading and return the updated state."""
+    # Turn in place toward one world heading and return the updated state.
     heading_error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
     while abs(heading_error) > NAVIGATION_CONFIG.heading_tolerance_rad:
         turn_rate = (
@@ -36,7 +36,7 @@ def turn_to_heading(robot, state, target_heading_rad):
 
 
 def run_challenge():
-    """Run the out-turn-return sequence and return the final RobotState."""
+    # Run the out-turn-return sequence and return the final RobotState.
     robot = make_robot(ROBOT_CONFIG)
     try:
         state = robot.start(INITIAL_POSE)
@@ -47,6 +47,7 @@ def run_challenge():
         print("Challenge 2 complete")
         print("final_pose:", state.pose)
         return state
+    # Always stop the motors, including when an error ends the program.
     finally:
         robot.stop()
 

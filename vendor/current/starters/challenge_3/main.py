@@ -1,4 +1,4 @@
-"""Challenge 3: follow the ordered world-coordinate route."""
+# Challenge 3: follow the ordered world-coordinate route.
 
 from challenge import INITIAL_POSE, ROUTE
 from course_setup import make_navigation_controller, make_robot
@@ -6,7 +6,7 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 
 
 def run_challenge():
-    """Follow the ordered route and return the final RobotState."""
+    # Follow the ordered route and return the final RobotState.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
@@ -17,6 +17,7 @@ def run_challenge():
         print("Challenge 3 complete")
         print("final_pose:", state.pose)
         return state
+    # Always stop the motors, including when an error ends the program.
     finally:
         robot.stop()
 

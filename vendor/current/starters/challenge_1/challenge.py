@@ -1,4 +1,4 @@
-"""Values that define this Straight Run task."""
+# Values that define this Straight Run task.
 
 from ucsb_xrp import distance_to_goal, load_world
 

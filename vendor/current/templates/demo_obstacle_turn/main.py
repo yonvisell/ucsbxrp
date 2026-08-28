@@ -50,7 +50,7 @@ MAX_FORWARD_TRAVEL_MM = 1100.0
 MAX_TURN_STEPS = 300
 
 def drive_until_close(robot, state):
-    """Drive until range or travel ends this phase; return the latest state."""
+    # Drive until the range or travel limit ends this phase.
     start_pose = state.pose
     range_samples = []
     live.watch("phase", "driving")
@@ -75,7 +75,7 @@ def drive_until_close(robot, state):
 
 
 def turn_quarter_turn(robot, state):
-    """Turn approximately 90 degrees and return the latest state."""
+    # Turn approximately 90 degrees and return the latest state.
     direction = 1.0 if TURN_DIRECTION.value == "left" else -1.0
     target_heading = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
     live.watch("phase", "turning " + TURN_DIRECTION.value)
@@ -89,7 +89,7 @@ def turn_quarter_turn(robot, state):
 
 
 def run_demo():
-    """Run both approaches and the intervening turn."""
+    # Run both approaches and the intervening turn.
     robot = make_robot(ROBOT_CONFIG)
     try:
         state = robot.start(Pose(0.0, 0.0, 0.0))
@@ -101,6 +101,7 @@ def run_demo():
         print("Obstacle-turn demo complete")
         print("final_pose:", state.pose)
         return state
+    # Always stop the motors, including when an error ends the program.
     finally:
         robot.stop()
 

@@ -1,13 +1,9 @@
-"""Check the Challenge 2 student-owned component classes without moving a robot.
-
-Select Test components in the IDE. PASS means an example produced its expected
-result. NOT IMPLEMENTED means a method still raises NotImplementedError. FAIL
-names the behavior and received result to inspect.
-
-The imports below are the classes in this project. The supplied checker calls
-each class with small labeled input examples and prints the expected and
-observed values.
-"""
+# Check the Challenge 2 student-owned component classes without moving the robot.
+# In the IDE, select Test components. PASS means the example returned the
+# expected result. NOT IMPLEMENTED identifies a method you still need to write.
+# FAIL prints the expected and observed values for you to compare.
+# The imports below are the classes from this project that will be checked.
+# The checker supplies labeled input examples; it does not run either robot.
 
 from differential_drive import DifferentialDrive
 from odometry import Odometry

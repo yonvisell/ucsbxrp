@@ -1,4 +1,4 @@
-"""Dimensioned map and route for Challenge 4: Mapped Route."""
+# Dimensioned map and route for Challenge 4: Mapped Route.
 
 from ucsb_xrp import load_world
 

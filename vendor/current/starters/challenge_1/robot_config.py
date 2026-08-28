@@ -1,4 +1,4 @@
-"""Settings shared by Challenge 1 programs for one XRP robot."""
+# Settings shared by Challenge 1 programs for one XRP robot.
 
 from ucsb_xrp import NavigationConfig, RobotConfig
 

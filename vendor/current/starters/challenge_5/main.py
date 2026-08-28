@@ -1,4 +1,4 @@
-"""Challenge 5: observe the gate, plan, and complete the delivery."""
+# Challenge 5: observe the gate, plan, and complete the delivery.
 
 from challenge import DELIVERY_TASK
 from course_setup import make_grid_planner, make_navigation_controller, make_robot
@@ -7,7 +7,7 @@ from ucsb_xrp import DeliveryMission
 
 
 def run_challenge():
-    """Run the observed-map delivery and return its final RobotState."""
+    # Run the observed-map delivery and return its final RobotState.
     mission = DeliveryMission(
         DELIVERY_TASK,
         make_navigation_controller(NAVIGATION_CONFIG),

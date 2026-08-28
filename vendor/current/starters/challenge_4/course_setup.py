@@ -1,4 +1,4 @@
-"""Choose one implementation of each component and assemble Challenge 4."""
+# Choose one implementation of each component and assemble Challenge 4.
 
 from differential_drive import DifferentialDrive as StudentDifferentialDrive
 from grid_planner import GridPlanner as StudentGridPlanner

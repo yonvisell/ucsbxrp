@@ -1,4 +1,4 @@
-"""Robot and navigation settings shared by Challenge 3 programs."""
+# Robot and navigation settings shared by Challenge 3 programs.
 
 from ucsb_xrp import NavigationConfig, RobotConfig
 

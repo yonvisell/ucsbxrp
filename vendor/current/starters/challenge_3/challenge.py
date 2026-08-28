@@ -1,4 +1,4 @@
-"""World-coordinate route for Challenge 3: Waypoint Courier."""
+# World-coordinate route for Challenge 3: Waypoint Courier.
 
 from ucsb_xrp import load_world
 

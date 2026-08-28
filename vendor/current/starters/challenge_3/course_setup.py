@@ -1,4 +1,4 @@
-"""Choose one implementation of each component and assemble Challenge 3."""
+# Choose one implementation of each component and assemble Challenge 3.
 
 from differential_drive import DifferentialDrive as StudentDifferentialDrive
 from navigation_controller import (
