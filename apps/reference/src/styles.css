@@ -29,6 +29,21 @@
   overflow-y: auto;
 }
 
+.toc-section {
+  display: grid;
+  gap: 1px;
+  margin-bottom: 9px;
+}
+
+.reference-toc .toc-section > .toc-group {
+  margin-bottom: 2px;
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
 .reference-toc > span {
   margin-bottom: 4px;
   color: var(--quiet);
@@ -148,6 +163,78 @@
   font-weight: 750;
   letter-spacing: 0.035em;
   text-transform: uppercase;
+}
+
+.reference-content h5 {
+  margin: 9px 0 3px;
+  color: #253b48;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.entry-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entry-heading h3 {
+  margin: 1px 0 0;
+}
+
+.entry-kind {
+  color: var(--quiet) !important;
+  font-size: 10px !important;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.entry-heading > code {
+  color: var(--quiet);
+  font-size: 10px;
+}
+
+.entry-purpose {
+  color: var(--ink) !important;
+}
+
+.component-base,
+.import-line {
+  color: var(--muted) !important;
+}
+
+.info-block > p {
+  margin: 3px 0 7px;
+}
+
+.compact-list {
+  max-width: 800px;
+  margin: 4px 0 9px;
+  padding-left: 1.2rem;
+}
+
+.compact-list li {
+  margin: 2px 0;
+}
+
+.type-expression {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.type-expression a {
+  color: #005f58;
+  font: inherit;
+}
+
+.anchor-alias {
+  display: block;
+  height: 0;
+  scroll-margin-top: 44px;
 }
 
 .api-procedure {

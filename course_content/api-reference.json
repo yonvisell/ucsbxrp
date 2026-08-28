@@ -1,0 +1,2255 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": "0.4.0-dev",
+  "title": "UCSB XRP API reference",
+  "introduction": "This reference describes the Python classes, values, and functions that a course project may use. The supplied reference components are working examples; students may use a different algorithm when it satisfies the stated behavior.",
+  "publicModules": {
+    "ucsb_xrp": [
+      "ArenaMap",
+      "DeliveryMission",
+      "DeliveryTask",
+      "DifferentialDriveBase",
+      "DriveCommand",
+      "GridCell",
+      "GridPath",
+      "GridPlannerBase",
+      "NavigationConfig",
+      "NavigationControllerBase",
+      "RobotConfig",
+      "OccupancyGrid",
+      "OdometryBase",
+      "Rectangle",
+      "Measurements",
+      "MotionCommand",
+      "MotorEfforts",
+      "NavigationGoal",
+      "Pose",
+      "ProjectWorld",
+      "RawSensors",
+      "Robot",
+      "RobotState",
+      "SensorModelBase",
+      "STOP_COMMAND",
+      "StraightLineController",
+      "WheelSpeeds",
+      "WheelSpeedControllerBase",
+      "XRPBot",
+      "bearing_to_goal",
+      "clamp",
+      "distance_to_goal",
+      "elapsed_time_s",
+      "wrap_angle_rad",
+      "live",
+      "load_world"
+    ],
+    "ucsb_xrp.live": [
+      "LiveParameter",
+      "apply_updates",
+      "choice",
+      "number",
+      "plot",
+      "toggle",
+      "watch"
+    ]
+  },
+  "conventions": [
+    "Distances, positions, wheel travel, and range use millimeters (mm).",
+    "Linear and wheel speeds use millimeters per second (mm/s). Device timestamps use integer milliseconds; calculated elapsed time uses seconds.",
+    "Angles use radians and turn rates use radians per second. Positive heading and turn rate are counterclockwise.",
+    "A DriveCommand is dimensionless and each wheel command is within -1.0 to 1.0.",
+    "World +x is the reference forward direction and world +y points left. Positive wheel speed means forward wheel motion."
+  ],
+  "sections": [
+    {
+      "id": "components",
+      "title": "Components you implement",
+      "introduction": "Each student component inherits the corresponding base class from ucsb_xrp.student_api. The base constructor checks the configuration and stores the same object as the read-only self.config property. Robot or supplied mission code calls the methods below; the project class supplies their calculations.",
+      "entries": [
+        {
+          "id": "sensor-model",
+          "name": "SensorModel",
+          "symbols": ["SensorModel", "SensorModelBase"],
+          "kind": "student component",
+          "projectFile": "sensor_model.py",
+          "baseClass": "SensorModelBase",
+          "configType": "RobotConfig",
+          "purpose": "Convert direct XRP sensor readings into measured wheel motion, wheel-speed estimates, range, and USER-button state.",
+          "state": "After reset(), retain the encoder and time origins, the preceding sample, elapsed-time information, and the recent samples or equivalent state used to estimate wheel speed. Total wheel positions are calculated relative to the reset origins; they do not need separate accumulated position state.",
+          "relevantConfigFields": [
+            "sample_period_ms",
+            "wheel_diameter_mm",
+            "encoder_counts_per_revolution",
+            "left_encoder_sign",
+            "right_encoder_sign",
+            "wheel_speed_filter_time_constant_ms"
+          ],
+          "signature": "class SensorModel(SensorModelBase)",
+          "methods": [
+            {
+              "id": "method-sensor-model-reset",
+              "name": "reset",
+              "signature": "reset(raw: RawSensors) -> Measurements",
+              "summary": "Establish the encoder and time origins for a new run.",
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": "RawSensors",
+                  "description": "First hardware sample after Robot resets the encoders."
+                }
+              ],
+              "returns": {
+                "type": "Measurements",
+                "description": "A measurement at raw.time_ms with zero positions, increments, speeds, and dt_s, while preserving raw.range_mm and raw.button_pressed."
+              },
+              "exceptions": ["TypeError if raw is not a RawSensors value."],
+              "requiredBehavior": [
+                "Prepare update() to process the next chronological sample.",
+                "Reset all wheel-speed estimator history so the first reported speeds are zero."
+              ]
+            },
+            {
+              "id": "method-sensor-model-update",
+              "name": "update",
+              "signature": "update(raw: RawSensors) -> Measurements",
+              "summary": "Convert the next hardware sample into physical measurements.",
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": "RawSensors",
+                  "description": "Next encoder, device-time, range, and USER-button sample."
+                }
+              ],
+              "returns": {
+                "type": "Measurements",
+                "description": "Cumulative wheel positions from the reset origins, the latest unsmoothed wheel increments, regularized wheel-speed estimates, elapsed time, range, and button state."
+              },
+              "exceptions": [
+                "RuntimeError if reset() has not been called.",
+                "TypeError if raw is not a RawSensors value."
+              ],
+              "requiredBehavior": [
+                "Apply the configured encoder signs, wheel diameter, and encoder counts per revolution.",
+                "Calculate dt_s from consecutive device timestamps with elapsed_time_s().",
+                "Do not smooth left_increment_mm or right_increment_mm; odometry uses the measured increments.",
+                "Estimate wheel speed from recent samples or an equivalent regularized estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.",
+                "If no positive time has elapsed, report dt_s as zero without dividing by zero; positions and increments still follow the new encoder counts.",
+                "Preserve raw.range_mm and raw.button_pressed in the returned Measurements."
+              ]
+            },
+            {
+              "id": "method-sensor-model-estimate-range",
+              "name": "estimate_range",
+              "signature": "estimate_range(samples, minimum_usable: int) -> float | None",
+              "summary": "Combine repeated ultrasonic readings while rejecting unusable values.",
+              "parameters": [
+                {
+                  "name": "samples",
+                  "type": "sequence[float | None]",
+                  "units": "mm",
+                  "description": "Range readings to combine."
+                },
+                {
+                  "name": "minimum_usable",
+                  "type": "int",
+                  "description": "Minimum number of usable readings required; must be at least 1."
+                }
+              ],
+              "returns": {
+                "type": "float | None",
+                "description": "Median of the finite, positive, non-Boolean readings, or None when too few usable readings remain."
+              },
+              "exceptions": [
+                "TypeError if minimum_usable is not an integer or samples cannot be iterated.",
+                "ValueError if minimum_usable is less than 1."
+              ]
+            }
+          ],
+          "example": {
+            "title": "Measure one encoder update",
+            "code": "from robot_config import ROBOT_CONFIG\nfrom sensor_model import SensorModel\nfrom ucsb_xrp import RawSensors\n\nmodel = SensorModel(ROBOT_CONFIG)\nmodel.reset(RawSensors(0, 0, 0, None, False))\nmeasurement = model.update(RawSensors(20, 4, 5, None, False))\nprint(measurement.left_increment_mm)\nprint(measurement.left_speed_mm_s)"
+          }
+        },
+        {
+          "id": "wheel-speed-controller",
+          "name": "WheelSpeedController",
+          "symbols": ["WheelSpeedController", "WheelSpeedControllerBase"],
+          "kind": "student component",
+          "projectFile": "wheel_speed_controller.py",
+          "baseClass": "WheelSpeedControllerBase",
+          "configType": "RobotConfig",
+          "purpose": "Calculate bounded left and right motor commands from requested wheel speeds and measured wheel-speed estimates.",
+          "state": "An implementation may retain controller state between samples. reset() must return that state to its initial condition before each run.",
+          "relevantConfigFields": [
+            "left_start_command",
+            "right_start_command",
+            "left_speed_command_gain",
+            "right_speed_command_gain",
+            "wheel_speed_kp",
+            "max_drive_command"
+          ],
+          "signature": "class WheelSpeedController(WheelSpeedControllerBase)",
+          "methods": [
+            {
+              "id": "method-wheel-speed-controller-reset",
+              "name": "reset",
+              "signature": "reset() -> None",
+              "summary": "Prepare controller state for a new run.",
+              "returns": { "type": "None", "description": "No value." }
+            },
+            {
+              "id": "method-wheel-speed-controller-update",
+              "name": "update",
+              "signature": "update(target: WheelSpeeds, measured: WheelSpeeds) -> DriveCommand",
+              "summary": "Calculate the next motor command for both wheels.",
+              "parameters": [
+                {
+                  "name": "target",
+                  "type": "WheelSpeeds",
+                  "units": "mm/s",
+                  "description": "Requested left and right wheel speeds from DifferentialDrive."
+                },
+                {
+                  "name": "measured",
+                  "type": "WheelSpeeds",
+                  "units": "mm/s",
+                  "description": "Latest regularized wheel-speed estimates from SensorModel."
+                }
+              ],
+              "returns": {
+                "type": "DriveCommand",
+                "description": "Normalized left and right motor commands bounded by config.max_drive_command."
+              },
+              "exceptions": [
+                "TypeError if target or measured is not a WheelSpeeds value."
+              ],
+              "requiredBehavior": [
+                "Return an exact zero command for a wheel whose requested speed is zero.",
+                "Keep each command within plus or minus config.max_drive_command.",
+                "For a nonzero requested speed, a larger speed error in the requested direction must produce a stronger command than a smaller error under the same conditions."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "differential-drive",
+          "name": "DifferentialDrive",
+          "symbols": ["DifferentialDrive", "DifferentialDriveBase"],
+          "kind": "student component",
+          "projectFile": "differential_drive.py",
+          "baseClass": "DifferentialDriveBase",
+          "configType": "RobotConfig",
+          "purpose": "Convert requested robot forward speed and turn rate into target left and right wheel speeds.",
+          "state": "Each calculation is independent; the component does not need to retain state between calls.",
+          "relevantConfigFields": ["track_width_mm"],
+          "signature": "class DifferentialDrive(DifferentialDriveBase)",
+          "methods": [
+            {
+              "id": "method-differential-drive-wheel-speeds",
+              "name": "wheel_speeds",
+              "signature": "wheel_speeds(command: MotionCommand) -> WheelSpeeds",
+              "summary": "Calculate target wheel speeds for one body-motion request.",
+              "parameters": [
+                {
+                  "name": "command",
+                  "type": "MotionCommand",
+                  "description": "Requested forward speed and counterclockwise turn rate."
+                }
+              ],
+              "returns": {
+                "type": "WheelSpeeds",
+                "description": "Target left and right wheel speeds in mm/s."
+              },
+              "exceptions": [
+                "TypeError if command is not a MotionCommand value."
+              ],
+              "requiredBehavior": [
+                "For track width b, forward speed v, and turn rate omega, return left speed v - omega*b/2 and right speed v + omega*b/2.",
+                "Positive turn rate therefore requests a faster right wheel than left wheel."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "odometry",
+          "name": "Odometry",
+          "symbols": ["Odometry", "OdometryBase"],
+          "kind": "student component",
+          "projectFile": "odometry.py",
+          "baseClass": "OdometryBase",
+          "configType": "RobotConfig",
+          "purpose": "Update the estimated world position and heading from measured left and right wheel travel.",
+          "state": "After reset(), retain the latest Pose. Simulator ground-truth position is not an input.",
+          "relevantConfigFields": ["track_width_mm"],
+          "signature": "class Odometry(OdometryBase)",
+          "properties": [
+            {
+              "name": "pose",
+              "type": "Pose",
+              "description": "Latest estimated pose; available after reset()."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-odometry-reset",
+              "name": "reset",
+              "signature": "reset(initial_pose: Pose) -> Pose",
+              "summary": "Set the pose for a new run.",
+              "parameters": [
+                {
+                  "name": "initial_pose",
+                  "type": "Pose",
+                  "description": "Known starting position and heading."
+                }
+              ],
+              "returns": {
+                "type": "Pose",
+                "description": "The established initial pose."
+              },
+              "exceptions": ["TypeError if initial_pose is not a Pose value."]
+            },
+            {
+              "id": "method-odometry-update",
+              "name": "update",
+              "signature": "update(left_increment_mm: float, right_increment_mm: float) -> Pose",
+              "summary": "Integrate one differential-drive wheel-travel increment.",
+              "parameters": [
+                {
+                  "name": "left_increment_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Signed left-wheel travel since the preceding sample."
+                },
+                {
+                  "name": "right_increment_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Signed right-wheel travel since the preceding sample."
+                }
+              ],
+              "returns": {
+                "type": "Pose",
+                "description": "Updated pose with heading wrapped to [-pi, pi)."
+              },
+              "exceptions": [
+                "RuntimeError if reset() has not been called.",
+                "TypeError for Boolean or nonnumeric increments."
+              ],
+              "requiredBehavior": [
+                "Use d=(left_increment_mm+right_increment_mm)/2 and dtheta=(right_increment_mm-left_increment_mm)/track_width_mm.",
+                "For dtheta equal to zero, translate by d at the current heading.",
+                "For nonzero dtheta, integrate the exact constant-curvature arc: radius=d/dtheta, dx=radius*(sin(theta+dtheta)-sin(theta)), and dy=-radius*(cos(theta+dtheta)-cos(theta)).",
+                "Retain and return the new pose."
+              ]
+            }
+          ]
+        },
+        {
+          "id": "navigation-controller",
+          "name": "NavigationController",
+          "symbols": ["NavigationController", "NavigationControllerBase"],
+          "kind": "student component",
+          "projectFile": "navigation_controller.py",
+          "baseClass": "NavigationControllerBase",
+          "configType": "NavigationConfig",
+          "purpose": "Generate motion commands that visit an ordered sequence of world-coordinate goals.",
+          "state": "Retain the ordered goals, the active goal, completion state, and any turn/drive/realignment phase used by the implementation.",
+          "signature": "class NavigationController(NavigationControllerBase)",
+          "methods": [
+            {
+              "id": "method-navigation-controller-start",
+              "name": "start",
+              "signature": "start(goals: sequence[NavigationGoal]) -> None",
+              "summary": "Store an ordered goal sequence and begin navigation.",
+              "parameters": [
+                {
+                  "name": "goals",
+                  "type": "sequence[NavigationGoal]",
+                  "description": "Tuple or list of navigation goals in visit order; it may be empty."
+                }
+              ],
+              "returns": { "type": "None", "description": "No value." },
+              "requiredBehavior": [
+                "An empty goal sequence is immediately complete; current_goal() returns None and update() returns STOP_COMMAND."
+              ]
+            },
+            {
+              "id": "method-navigation-controller-update",
+              "name": "update",
+              "signature": "update(pose: Pose) -> MotionCommand",
+              "summary": "Calculate the next motion request from the latest odometry pose.",
+              "parameters": [
+                {
+                  "name": "pose",
+                  "type": "Pose",
+                  "description": "Current odometry estimate."
+                }
+              ],
+              "returns": {
+                "type": "MotionCommand",
+                "description": "Forward-speed and turn-rate request for the next Robot step."
+              },
+              "requiredBehavior": [
+                "Use wrap-safe heading errors.",
+                "Turn toward a goal before driving forward when the heading error is large.",
+                "Use approach speed within config.slowdown_distance_mm of the goal and realign if the heading error grows beyond config.realign_heading_rad.",
+                "Visit goals in their supplied order. A goal with heading_rad=None requires position only; a numerical final heading must also be reached.",
+                "After all goals are complete, return STOP_COMMAND."
+              ]
+            },
+            {
+              "id": "method-navigation-controller-current-goal",
+              "name": "current_goal",
+              "signature": "current_goal() -> NavigationGoal | None",
+              "summary": "Return the active goal, or None after completion.",
+              "returns": {
+                "type": "NavigationGoal | None",
+                "description": "Current goal or None."
+              }
+            },
+            {
+              "id": "method-navigation-controller-is-complete",
+              "name": "is_complete",
+              "signature": "is_complete() -> bool",
+              "summary": "Report whether every required position and heading is complete.",
+              "returns": {
+                "type": "bool",
+                "description": "True only after the complete goal sequence has been reached."
+              }
+            }
+          ]
+        },
+        {
+          "id": "grid-planner",
+          "name": "GridPlanner",
+          "symbols": ["GridPlanner", "GridPlannerBase"],
+          "kind": "student component",
+          "projectFile": "grid_planner.py",
+          "baseClass": "GridPlannerBase",
+          "purpose": "Find a connected route through free cells in an occupancy grid.",
+          "state": "Search state may remain local to each plan() call.",
+          "signature": "class GridPlanner(GridPlannerBase)",
+          "methods": [
+            {
+              "id": "method-grid-planner-plan",
+              "name": "plan",
+              "signature": "plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> GridPath | None",
+              "summary": "Find a valid connected route from the start cell to the goal cell.",
+              "parameters": [
+                {
+                  "name": "grid",
+                  "type": "OccupancyGrid",
+                  "description": "Map of free and blocked cells."
+                },
+                {
+                  "name": "start",
+                  "type": "GridCell | None",
+                  "description": "Starting cell, or None when the position lies outside the grid."
+                },
+                {
+                  "name": "goal",
+                  "type": "GridCell | None",
+                  "description": "Destination cell, or None when the position lies outside the grid."
+                }
+              ],
+              "returns": {
+                "type": "GridPath | None",
+                "description": "A route including both endpoints, or None when an endpoint is unavailable or blocked or no route exists."
+              },
+              "requiredBehavior": [
+                "Use only free cells and move between cells that share a horizontal or vertical edge.",
+                "Any route that connects the endpoints through free edge-adjacent cells is accepted."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "robot-services",
+      "title": "Robot services",
+      "introduction": "Use Robot for ordinary course programs. It assembles the selected components into the timed robot control cycle.",
+      "entries": [
+        {
+          "id": "robot",
+          "name": "Robot",
+          "symbols": ["Robot"],
+          "kind": "supplied class",
+          "import": "from ucsb_xrp import Robot",
+          "purpose": "Run the timed measurement, motor-control, odometry, telemetry, and live-parameter cycle.",
+          "state": "Retains the selected components, latest RobotState, next absolute sample deadline, and latest timing overrun. Projects normally obtain a configured instance with make_robot(ROBOT_CONFIG).",
+          "signature": "Robot(config, bot, sensor_model, wheel_controller, differential_drive, odometry)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Timing, geometry, calibration, gains, and limits."
+            },
+            {
+              "name": "bot",
+              "type": "XRPBot",
+              "description": "Physical or simulated hardware boundary."
+            },
+            {
+              "name": "sensor_model",
+              "type": "SensorModel",
+              "description": "Selected sensor interpretation component."
+            },
+            {
+              "name": "wheel_controller",
+              "type": "WheelSpeedController",
+              "description": "Selected wheel-speed controller."
+            },
+            {
+              "name": "differential_drive",
+              "type": "DifferentialDrive",
+              "description": "Selected body-to-wheel conversion component."
+            },
+            {
+              "name": "odometry",
+              "type": "Odometry",
+              "description": "Selected pose-estimation component."
+            }
+          ],
+          "properties": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Robot configuration supplied at construction."
+            },
+            {
+              "name": "state",
+              "type": "RobotState",
+              "description": "Latest state; raises RuntimeError before start()."
+            },
+            {
+              "name": "last_overrun_ms",
+              "type": "int",
+              "units": "ms",
+              "description": "Amount by which the latest calculation exceeded its sample deadline, or zero."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-robot-start",
+              "name": "start",
+              "signature": "start(initial_pose: Pose) -> RobotState",
+              "summary": "Reset encoders and components and begin a run.",
+              "parameters": [
+                {
+                  "name": "initial_pose",
+                  "type": "Pose",
+                  "description": "Known starting pose."
+                }
+              ],
+              "returns": {
+                "type": "RobotState",
+                "description": "Initial zero-travel measurement and pose."
+              },
+              "requiredBehavior": [
+                "An IDE-managed Run begins immediately. A project launched directly on the XRP waits for the USER button."
+              ]
+            },
+            {
+              "id": "method-robot-step",
+              "name": "step",
+              "signature": "step(command: MotionCommand, read_range: bool = False) -> RobotState",
+              "summary": "Execute one complete robot control cycle.",
+              "parameters": [
+                {
+                  "name": "command",
+                  "type": "MotionCommand",
+                  "description": "Requested body motion."
+                },
+                {
+                  "name": "read_range",
+                  "type": "bool",
+                  "default": "False",
+                  "description": "Request an ultrasonic reading for this sample."
+                }
+              ],
+              "returns": {
+                "type": "RobotState",
+                "description": "New measurements and odometry pose."
+              },
+              "requiredBehavior": [
+                "Stops the motors before re-raising an exception from the cycle.",
+                "Maintains the configured absolute sample schedule; do not add sleep_ms() inside the control loop."
+              ]
+            },
+            {
+              "id": "method-robot-estimate-range",
+              "name": "estimate_range",
+              "signature": "estimate_range(samples, minimum_usable: int) -> float | None",
+              "summary": "Use the selected SensorModel to combine range readings.",
+              "parameters": [
+                {
+                  "name": "samples",
+                  "type": "sequence[float | None]",
+                  "units": "mm",
+                  "description": "Range readings to combine."
+                },
+                {
+                  "name": "minimum_usable",
+                  "type": "int",
+                  "description": "Minimum number of usable readings required."
+                }
+              ],
+              "returns": {
+                "type": "float | None",
+                "description": "Range estimate in mm, or None."
+              }
+            },
+            {
+              "id": "method-robot-stop",
+              "name": "stop",
+              "signature": "stop() -> None",
+              "summary": "Stop both motors and publish a zero drive command.",
+              "returns": { "type": "None", "description": "No value." }
+            }
+          ]
+        },
+        {
+          "id": "straight-line-controller",
+          "name": "StraightLineController",
+          "symbols": ["StraightLineController"],
+          "kind": "supplied class",
+          "import": "from ucsb_xrp import StraightLineController",
+          "purpose": "Request cruise, approach, or zero forward speed from measured mean wheel travel.",
+          "state": "Retains the starting mean wheel position, requested distance, and completion state.",
+          "signature": "StraightLineController(config: NavigationConfig)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "NavigationConfig",
+              "description": "Cruise and approach speeds, slowdown distance, and position tolerance."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-straight-line-controller-start",
+              "name": "start",
+              "signature": "start(measurements: Measurements, distance_mm: float) -> None",
+              "summary": "Begin a nonnegative forward move from the current mean wheel position.",
+              "parameters": [
+                {
+                  "name": "measurements",
+                  "type": "Measurements",
+                  "description": "Measurements at the beginning of the move."
+                },
+                {
+                  "name": "distance_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Requested nonnegative forward travel."
+                }
+              ],
+              "returns": { "type": "None", "description": "No value." }
+            },
+            {
+              "id": "method-straight-line-controller-update",
+              "name": "update",
+              "signature": "update(measurements: Measurements) -> MotionCommand",
+              "summary": "Return cruise, approach, or stop command from remaining distance.",
+              "parameters": [
+                {
+                  "name": "measurements",
+                  "type": "Measurements",
+                  "description": "Latest measured wheel positions."
+                }
+              ],
+              "returns": {
+                "type": "MotionCommand",
+                "description": "Next straight-line motion request."
+              }
+            },
+            {
+              "id": "method-straight-line-controller-is-complete",
+              "name": "is_complete",
+              "signature": "is_complete() -> bool",
+              "summary": "Report whether the distance is within the position tolerance.",
+              "returns": { "type": "bool", "description": "Completion state." }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-types",
+      "title": "Data types",
+      "introduction": "These validated values carry information between components. Their public fields are read-only.",
+      "entries": [
+        {
+          "id": "record-raw-sensors",
+          "name": "RawSensors",
+          "symbols": ["RawSensors"],
+          "kind": "value record",
+          "purpose": "Store one direct hardware sample.",
+          "signature": "RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)",
+          "properties": [
+            {
+              "name": "time_ms",
+              "type": "int",
+              "units": "ms",
+              "description": "Device timestamp."
+            },
+            {
+              "name": "left_encoder_count",
+              "type": "int",
+              "units": "count",
+              "description": "Left encoder count relative to the latest reset."
+            },
+            {
+              "name": "right_encoder_count",
+              "type": "int",
+              "units": "count",
+              "description": "Right encoder count relative to the latest reset."
+            },
+            {
+              "name": "range_mm",
+              "type": "float | None",
+              "units": "mm",
+              "description": "Ultrasonic range, or None when unavailable or not requested."
+            },
+            {
+              "name": "button_pressed",
+              "type": "bool",
+              "description": "Current USER-button state."
+            }
+          ]
+        },
+        {
+          "id": "record-measurements",
+          "name": "Measurements",
+          "symbols": ["Measurements"],
+          "kind": "value record",
+          "purpose": "Store sensor-derived motion and range values for one sample.",
+          "signature": "Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)",
+          "properties": [
+            {
+              "name": "time_ms",
+              "type": "int",
+              "units": "ms",
+              "description": "Device timestamp."
+            },
+            {
+              "name": "dt_s",
+              "type": "float",
+              "units": "s",
+              "description": "Elapsed time from the preceding sample."
+            },
+            {
+              "name": "left_position_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Cumulative left-wheel travel since reset."
+            },
+            {
+              "name": "right_position_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Cumulative right-wheel travel since reset."
+            },
+            {
+              "name": "left_increment_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Unsmoothed left-wheel travel since the preceding sample."
+            },
+            {
+              "name": "right_increment_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Unsmoothed right-wheel travel since the preceding sample."
+            },
+            {
+              "name": "left_speed_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Regularized left-wheel speed estimate."
+            },
+            {
+              "name": "right_speed_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Regularized right-wheel speed estimate."
+            },
+            {
+              "name": "range_mm",
+              "type": "float | None",
+              "units": "mm",
+              "description": "Range reading or None."
+            },
+            {
+              "name": "button_pressed",
+              "type": "bool",
+              "description": "USER-button state."
+            },
+            {
+              "name": "wheel_speeds",
+              "type": "WheelSpeeds",
+              "description": "Left and right speed estimates as one value."
+            }
+          ]
+        },
+        {
+          "id": "record-wheel-speeds",
+          "name": "WheelSpeeds",
+          "symbols": ["WheelSpeeds"],
+          "kind": "value record",
+          "purpose": "Store left and right wheel speeds.",
+          "signature": "WheelSpeeds(left_mm_s, right_mm_s)",
+          "properties": [
+            {
+              "name": "left_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Left-wheel speed."
+            },
+            {
+              "name": "right_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Right-wheel speed."
+            }
+          ]
+        },
+        {
+          "id": "record-motion-command",
+          "name": "MotionCommand",
+          "symbols": ["MotionCommand"],
+          "kind": "value record",
+          "purpose": "Store requested robot-body motion.",
+          "signature": "MotionCommand(forward_speed_mm_s, turn_rate_rad_s)",
+          "properties": [
+            {
+              "name": "forward_speed_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Requested forward speed."
+            },
+            {
+              "name": "turn_rate_rad_s",
+              "type": "float",
+              "units": "rad/s",
+              "description": "Requested counterclockwise turn rate."
+            }
+          ]
+        },
+        {
+          "id": "record-drive-command",
+          "name": "DriveCommand",
+          "symbols": ["DriveCommand", "MotorEfforts"],
+          "kind": "value record",
+          "purpose": "Store normalized left and right motor commands before hardware sign conversion.",
+          "signature": "DriveCommand(left, right)",
+          "properties": [
+            {
+              "name": "left",
+              "type": "float",
+              "description": "Left command in [-1.0, 1.0]."
+            },
+            {
+              "name": "right",
+              "type": "float",
+              "description": "Right command in [-1.0, 1.0]."
+            }
+          ],
+          "notes": [
+            "MotorEfforts is a compatibility name for the same type. Use DriveCommand in new code."
+          ]
+        },
+        {
+          "id": "record-pose",
+          "name": "Pose",
+          "symbols": ["Pose"],
+          "kind": "value record",
+          "purpose": "Store estimated position and heading in world coordinates.",
+          "signature": "Pose(x_mm, y_mm, heading_rad)",
+          "properties": [
+            {
+              "name": "x_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "World x position."
+            },
+            {
+              "name": "y_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "World y position."
+            },
+            {
+              "name": "heading_rad",
+              "type": "float",
+              "units": "rad",
+              "description": "Heading wrapped to [-pi, pi)."
+            }
+          ]
+        },
+        {
+          "id": "record-robot-state",
+          "name": "RobotState",
+          "symbols": ["RobotState"],
+          "kind": "value record",
+          "purpose": "Pair the measurements and odometry pose returned by one robot sample.",
+          "signature": "RobotState(measurements: Measurements, pose: Pose)",
+          "properties": [
+            {
+              "name": "measurements",
+              "type": "Measurements",
+              "description": "Sensor-derived values."
+            },
+            {
+              "name": "pose",
+              "type": "Pose",
+              "description": "Odometry estimate."
+            }
+          ]
+        },
+        {
+          "id": "record-navigation-goal",
+          "name": "NavigationGoal",
+          "symbols": ["NavigationGoal"],
+          "kind": "value record",
+          "purpose": "Store a destination position and optional required heading.",
+          "signature": "NavigationGoal(x_mm, y_mm, heading_rad=None)",
+          "properties": [
+            {
+              "name": "x_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Destination x position."
+            },
+            {
+              "name": "y_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Destination y position."
+            },
+            {
+              "name": "heading_rad",
+              "type": "float | None",
+              "units": "rad",
+              "description": "Required final heading, or None for position only."
+            }
+          ]
+        },
+        {
+          "id": "record-grid-cell",
+          "name": "GridCell",
+          "symbols": ["GridCell"],
+          "kind": "value record",
+          "purpose": "Store one integer occupancy-grid coordinate.",
+          "signature": "GridCell(column, row)",
+          "properties": [
+            {
+              "name": "column",
+              "type": "int",
+              "description": "Column increasing with world x."
+            },
+            {
+              "name": "row",
+              "type": "int",
+              "description": "Row increasing with world y."
+            }
+          ]
+        },
+        {
+          "id": "record-grid-path",
+          "name": "GridPath",
+          "symbols": ["GridPath"],
+          "kind": "value record",
+          "purpose": "Store an ordered route of edge-adjacent grid cells.",
+          "signature": "GridPath(cells)",
+          "properties": [
+            {
+              "name": "cells",
+              "type": "tuple[GridCell, ...]",
+              "description": "Nonempty route of horizontally or vertically adjacent cells."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-grid-path-to-goals",
+              "name": "to_goals",
+              "signature": "to_goals(grid: OccupancyGrid, final_heading_rad: float | None = None) -> tuple[NavigationGoal, ...]",
+              "summary": "Convert the route to compact goals at turns and the final cell.",
+              "parameters": [
+                {
+                  "name": "grid",
+                  "type": "OccupancyGrid",
+                  "description": "Grid used to convert cell centers to world coordinates."
+                },
+                {
+                  "name": "final_heading_rad",
+                  "type": "float | None",
+                  "default": "None",
+                  "units": "rad",
+                  "description": "Optional heading required at the final goal."
+                }
+              ],
+              "returns": {
+                "type": "tuple[NavigationGoal, ...]",
+                "description": "World-coordinate navigation goals."
+              }
+            }
+          ]
+        },
+        {
+          "id": "constant-stop-command",
+          "name": "STOP_COMMAND",
+          "symbols": ["STOP_COMMAND"],
+          "kind": "constant",
+          "purpose": "Shared zero-motion request.",
+          "signature": "STOP_COMMAND = MotionCommand(0.0, 0.0)"
+        }
+      ]
+    },
+    {
+      "id": "configuration",
+      "title": "Configuration",
+      "introduction": "Configuration records validate their values at construction and then expose read-only fields. Construct a new record in robot_config.py when a setting changes.",
+      "entries": [
+        {
+          "id": "class-robot-config",
+          "name": "RobotConfig",
+          "symbols": ["RobotConfig"],
+          "kind": "configuration record",
+          "purpose": "Store robot timing, geometry, signs, motor calibration, wheel-speed estimator response, feedback gain, and command limit.",
+          "signature": "RobotConfig(sample_period_ms=20, wheel_diameter_mm=60.0, encoder_counts_per_revolution=585.0, track_width_mm=155.0, left_motor_sign=1, right_motor_sign=1, left_encoder_sign=1, right_encoder_sign=1, left_start_command=0.0, right_start_command=0.0, left_speed_command_gain=0.0, right_speed_command_gain=0.0, wheel_speed_filter_time_constant_ms=80.0, wheel_speed_kp=0.0, max_drive_command=1.0)",
+          "properties": [
+            {
+              "name": "sample_period_ms",
+              "type": "int",
+              "default": "20",
+              "units": "ms",
+              "description": "Robot sample period; at least 1."
+            },
+            {
+              "name": "wheel_diameter_mm",
+              "type": "float",
+              "default": "60.0",
+              "units": "mm",
+              "description": "Measured wheel diameter; positive."
+            },
+            {
+              "name": "encoder_counts_per_revolution",
+              "type": "float",
+              "default": "585.0",
+              "units": "count/rev",
+              "description": "Encoder counts for one wheel revolution; positive."
+            },
+            {
+              "name": "track_width_mm",
+              "type": "float",
+              "default": "155.0",
+              "units": "mm",
+              "description": "Effective separation between wheel paths used by drive and odometry calculations; positive."
+            },
+            {
+              "name": "left_motor_sign",
+              "type": "int",
+              "default": "1",
+              "description": "+1 or -1 so positive logical command drives the left wheel forward."
+            },
+            {
+              "name": "right_motor_sign",
+              "type": "int",
+              "default": "1",
+              "description": "+1 or -1 so positive logical command drives the right wheel forward."
+            },
+            {
+              "name": "left_encoder_sign",
+              "type": "int",
+              "default": "1",
+              "description": "+1 or -1 so forward left-wheel travel is positive."
+            },
+            {
+              "name": "right_encoder_sign",
+              "type": "int",
+              "default": "1",
+              "description": "+1 or -1 so forward right-wheel travel is positive."
+            },
+            {
+              "name": "left_start_command",
+              "type": "float",
+              "default": "0.0",
+              "description": "Nonnegative left command used to overcome motor deadband."
+            },
+            {
+              "name": "right_start_command",
+              "type": "float",
+              "default": "0.0",
+              "description": "Nonnegative right command used to overcome motor deadband."
+            },
+            {
+              "name": "left_speed_command_gain",
+              "type": "float",
+              "default": "0.0",
+              "units": "s/mm",
+              "description": "Left feedforward command per requested wheel speed."
+            },
+            {
+              "name": "right_speed_command_gain",
+              "type": "float",
+              "default": "0.0",
+              "units": "s/mm",
+              "description": "Right feedforward command per requested wheel speed."
+            },
+            {
+              "name": "wheel_speed_filter_time_constant_ms",
+              "type": "float",
+              "default": "80.0",
+              "units": "ms",
+              "description": "Response time of the encoder-derived wheel-speed estimate; zero disables regularization."
+            },
+            {
+              "name": "wheel_speed_kp",
+              "type": "float",
+              "default": "0.0",
+              "units": "s/mm",
+              "description": "Proportional motor-command correction per wheel-speed error."
+            },
+            {
+              "name": "max_drive_command",
+              "type": "float",
+              "default": "1.0",
+              "description": "Final absolute command limit in [0.0, 1.0]."
+            }
+          ],
+          "notes": [
+            "For compatibility with projects created before API 0.3, the implementation also accepts the older argument names ending in _effort. New projects should use the names above."
+          ]
+        },
+        {
+          "id": "class-navigation-config",
+          "name": "NavigationConfig",
+          "symbols": ["NavigationConfig"],
+          "kind": "configuration record",
+          "purpose": "Store speeds, distances, angular rates, and tolerances used by supplied straight-line and student navigation controllers.",
+          "signature": "NavigationConfig(cruise_speed_mm_s, approach_speed_mm_s, slowdown_distance_mm, turn_rate_rad_s, position_tolerance_mm, heading_tolerance_rad, realign_heading_rad)",
+          "properties": [
+            {
+              "name": "cruise_speed_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Normal forward speed; positive."
+            },
+            {
+              "name": "approach_speed_mm_s",
+              "type": "float",
+              "units": "mm/s",
+              "description": "Reduced speed near a goal; positive and no greater than cruise speed."
+            },
+            {
+              "name": "slowdown_distance_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Distance at which approach speed begins; positive."
+            },
+            {
+              "name": "turn_rate_rad_s",
+              "type": "float",
+              "units": "rad/s",
+              "description": "Magnitude of turning command; positive."
+            },
+            {
+              "name": "position_tolerance_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Nonnegative accepted position error."
+            },
+            {
+              "name": "heading_tolerance_rad",
+              "type": "float",
+              "units": "rad",
+              "description": "Nonnegative accepted heading error."
+            },
+            {
+              "name": "realign_heading_rad",
+              "type": "float",
+              "units": "rad",
+              "description": "Heading-error magnitude that triggers realignment; no smaller than heading tolerance."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "live",
+      "title": "Live controls and telemetry values",
+      "introduction": "Import ucsb_xrp.live to create compact controls and publish selected program values to the Monitor. Declare controls once, then read each LiveParameter.value during the robot loop. Robot applies pending changes at sample boundaries.",
+      "entries": [
+        {
+          "id": "module-live",
+          "name": "ucsb_xrp.live",
+          "symbols": ["live"],
+          "kind": "module",
+          "purpose": "Create Monitor controls and publish selected program values."
+        },
+        {
+          "id": "class-live-parameter",
+          "name": "LiveParameter",
+          "symbols": ["LiveParameter"],
+          "kind": "value object",
+          "purpose": "Represent one Monitor control and the value currently applied to the program.",
+          "properties": [
+            {
+              "name": "value",
+              "type": "float | bool | str",
+              "description": "Value currently applied to the program; read it but do not assign to it."
+            },
+            {
+              "name": "name",
+              "type": "str",
+              "description": "Python-style identifier."
+            },
+            {
+              "name": "label",
+              "type": "str",
+              "description": "Short Monitor label."
+            },
+            {
+              "name": "kind",
+              "type": "str",
+              "description": "number, toggle, or choice."
+            },
+            {
+              "name": "unit",
+              "type": "str",
+              "description": "Displayed unit or empty string."
+            },
+            {
+              "name": "minimum",
+              "type": "float | None",
+              "description": "Numeric slider lower bound."
+            },
+            {
+              "name": "maximum",
+              "type": "float | None",
+              "description": "Numeric slider upper bound."
+            },
+            {
+              "name": "step",
+              "type": "float | None",
+              "description": "Numeric slider increment."
+            },
+            {
+              "name": "options",
+              "type": "tuple[str, ...]",
+              "description": "Choice values, or an empty tuple."
+            }
+          ]
+        },
+        {
+          "id": "function-live-number",
+          "name": "live.number",
+          "symbols": ["number"],
+          "kind": "function",
+          "purpose": "Declare a bounded numeric slider.",
+          "signature": "live.number(name, default, minimum, maximum, step, unit='', label=None) -> LiveParameter",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "str",
+              "description": "Unique Python-style identifier, at most 32 characters."
+            },
+            {
+              "name": "default",
+              "type": "float",
+              "description": "Initial applied value."
+            },
+            {
+              "name": "minimum",
+              "type": "float",
+              "description": "Inclusive lower bound."
+            },
+            {
+              "name": "maximum",
+              "type": "float",
+              "description": "Inclusive upper bound."
+            },
+            {
+              "name": "step",
+              "type": "float",
+              "description": "Positive slider increment."
+            },
+            {
+              "name": "unit",
+              "type": "str",
+              "default": "''",
+              "description": "Short displayed unit."
+            },
+            {
+              "name": "label",
+              "type": "str | None",
+              "default": "None",
+              "description": "Displayed label; derived from name when omitted."
+            }
+          ],
+          "returns": {
+            "type": "LiveParameter",
+            "description": "Numeric control."
+          },
+          "requiredBehavior": [
+            "maximum must exceed minimum; step must be positive and no larger than the range; default must lie inside the inclusive bounds.",
+            "The range does not need to contain an exact whole number of steps. The applied value is the nearest available step within the bounds."
+          ]
+        },
+        {
+          "id": "function-live-toggle",
+          "name": "live.toggle",
+          "symbols": ["toggle"],
+          "kind": "function",
+          "purpose": "Declare an on/off control.",
+          "signature": "live.toggle(name, default, label=None) -> LiveParameter",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "str",
+              "description": "Unique Python-style identifier."
+            },
+            {
+              "name": "default",
+              "type": "bool",
+              "description": "Initial applied state."
+            },
+            {
+              "name": "label",
+              "type": "str | None",
+              "default": "None",
+              "description": "Displayed label; derived from name when omitted."
+            }
+          ],
+          "returns": {
+            "type": "LiveParameter",
+            "description": "Boolean control."
+          }
+        },
+        {
+          "id": "function-live-choice",
+          "name": "live.choice",
+          "symbols": ["choice"],
+          "kind": "function",
+          "purpose": "Declare a control with two to six string choices.",
+          "signature": "live.choice(name, default, options, label=None) -> LiveParameter",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "str",
+              "description": "Unique Python-style identifier."
+            },
+            {
+              "name": "default",
+              "type": "str",
+              "description": "Initial applied choice; it must appear in options."
+            },
+            {
+              "name": "options",
+              "type": "sequence[str]",
+              "description": "Two to six unique choices."
+            },
+            {
+              "name": "label",
+              "type": "str | None",
+              "default": "None",
+              "description": "Displayed label; derived from name when omitted."
+            }
+          ],
+          "returns": {
+            "type": "LiveParameter",
+            "description": "Choice control."
+          }
+        },
+        {
+          "id": "function-live-watch",
+          "name": "live.watch",
+          "symbols": ["watch"],
+          "kind": "function",
+          "purpose": "Publish the latest number, Boolean, or short string as a named live value.",
+          "signature": "live.watch(name, value, unit='', label=None) -> None",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "str",
+              "description": "Unique Python-style identifier."
+            },
+            {
+              "name": "value",
+              "type": "float | bool | str",
+              "description": "Finite number, Boolean, or string of at most 64 characters."
+            },
+            {
+              "name": "unit",
+              "type": "str",
+              "default": "''",
+              "description": "Short displayed unit."
+            },
+            {
+              "name": "label",
+              "type": "str | None",
+              "default": "None",
+              "description": "Displayed label; derived from name when omitted."
+            }
+          ],
+          "returns": { "type": "None", "description": "No value." }
+        },
+        {
+          "id": "function-live-plot",
+          "name": "live.plot",
+          "symbols": ["plot"],
+          "kind": "function",
+          "purpose": "Publish a finite numeric value as an optional Monitor strip-plot signal.",
+          "signature": "live.plot(name, value, unit='', label=None) -> None",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "str",
+              "description": "Unique Python-style identifier."
+            },
+            {
+              "name": "value",
+              "type": "float",
+              "description": "Finite numeric value for the current sample."
+            },
+            {
+              "name": "unit",
+              "type": "str",
+              "default": "''",
+              "description": "Short displayed unit."
+            },
+            {
+              "name": "label",
+              "type": "str | None",
+              "default": "None",
+              "description": "Displayed label; derived from name when omitted."
+            }
+          ],
+          "returns": { "type": "None", "description": "No value." }
+        },
+        {
+          "id": "function-live-apply-updates",
+          "name": "live.apply_updates",
+          "symbols": ["apply_updates"],
+          "kind": "function",
+          "purpose": "Apply the latest Monitor control values at one program boundary.",
+          "signature": "live.apply_updates() -> bool",
+          "returns": {
+            "type": "bool",
+            "description": "True if at least one applied value changed."
+          },
+          "notes": [
+            "Robot.start() and Robot.step() call this automatically. Call it directly only in a program that does not use Robot."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "worlds-maps-missions",
+      "title": "Worlds, maps, routes, and missions",
+      "entries": [
+        {
+          "id": "class-project-world",
+          "name": "ProjectWorld",
+          "symbols": ["ProjectWorld"],
+          "kind": "supplied class",
+          "purpose": "Provide one validated world from the project's world.json file.",
+          "properties": [
+            { "name": "id", "type": "str", "description": "World identifier." },
+            { "name": "label", "type": "str", "description": "Display name." },
+            {
+              "name": "bounds_mm",
+              "type": "tuple[float, float, float, float]",
+              "units": "mm",
+              "description": "World bounds."
+            },
+            {
+              "name": "initial_pose",
+              "type": "Pose",
+              "description": "Configured start pose."
+            },
+            {
+              "name": "feature_names",
+              "type": "tuple[str, ...]",
+              "description": "Named changeable obstacle features."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-project-world-arena-map",
+              "name": "arena_map",
+              "signature": "arena_map(blocked_features=()) -> ArenaMap",
+              "summary": "Build an arena map with selected features blocked.",
+              "parameters": [
+                {
+                  "name": "blocked_features",
+                  "type": "sequence[str]",
+                  "default": "()",
+                  "description": "Feature names that should act as obstacles."
+                }
+              ],
+              "returns": { "type": "ArenaMap", "description": "Validated map." }
+            },
+            {
+              "id": "method-project-world-waypoint",
+              "name": "waypoint",
+              "signature": "waypoint(name: str) -> NavigationGoal",
+              "summary": "Return one named waypoint.",
+              "parameters": [
+                {
+                  "name": "name",
+                  "type": "str",
+                  "description": "Waypoint name from world.json."
+                }
+              ],
+              "returns": {
+                "type": "NavigationGoal",
+                "description": "Waypoint goal."
+              }
+            },
+            {
+              "id": "method-project-world-waypoints",
+              "name": "waypoints",
+              "signature": "waypoints() -> tuple[NavigationGoal, ...]",
+              "summary": "Return all waypoints in file order.",
+              "returns": {
+                "type": "tuple[NavigationGoal, ...]",
+                "description": "Waypoint sequence."
+              }
+            }
+          ]
+        },
+        {
+          "id": "function-load-world",
+          "name": "load_world",
+          "symbols": ["load_world"],
+          "kind": "function",
+          "purpose": "Load the default or named world from a project JSON file.",
+          "signature": "load_world(path='world.json', world_id=None) -> ProjectWorld",
+          "parameters": [
+            {
+              "name": "path",
+              "type": "str",
+              "default": "'world.json'",
+              "description": "Project world file."
+            },
+            {
+              "name": "world_id",
+              "type": "str | None",
+              "default": "None",
+              "description": "World identifier; None selects default_world."
+            }
+          ],
+          "returns": {
+            "type": "ProjectWorld",
+            "description": "Selected validated world."
+          }
+        },
+        {
+          "id": "class-rectangle",
+          "name": "Rectangle",
+          "symbols": ["Rectangle"],
+          "kind": "value record",
+          "purpose": "Represent a closed axis-aligned rectangle in world millimeters.",
+          "signature": "Rectangle(minimum_x_mm, minimum_y_mm, maximum_x_mm, maximum_y_mm)",
+          "properties": [
+            {
+              "name": "minimum_x_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Minimum x boundary."
+            },
+            {
+              "name": "minimum_y_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Minimum y boundary."
+            },
+            {
+              "name": "maximum_x_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Maximum x boundary; greater than minimum_x_mm."
+            },
+            {
+              "name": "maximum_y_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Maximum y boundary; greater than minimum_y_mm."
+            },
+            {
+              "name": "bounds_mm",
+              "type": "tuple[float, float, float, float]",
+              "units": "mm",
+              "description": "Minimum and maximum x and y bounds."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-rectangle-contains",
+              "name": "contains",
+              "signature": "contains(x_mm, y_mm, margin_mm=0.0) -> bool",
+              "summary": "Test whether a point lies inside bounds expanded by margin_mm.",
+              "parameters": [
+                {
+                  "name": "x_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Point x coordinate."
+                },
+                {
+                  "name": "y_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Point y coordinate."
+                },
+                {
+                  "name": "margin_mm",
+                  "type": "float",
+                  "default": "0.0",
+                  "units": "mm",
+                  "description": "Nonnegative outward expansion."
+                }
+              ],
+              "returns": {
+                "type": "bool",
+                "description": "Containment result."
+              }
+            }
+          ]
+        },
+        {
+          "id": "class-arena-map",
+          "name": "ArenaMap",
+          "symbols": ["ArenaMap"],
+          "kind": "supplied class",
+          "purpose": "Represent rectangular arena bounds, fixed obstacles, and named changeable obstacle features.",
+          "signature": "ArenaMap(bounds_mm, obstacles=(), features=None, blocked_features=())",
+          "parameters": [
+            {
+              "name": "bounds_mm",
+              "type": "Rectangle | sequence[float]",
+              "units": "mm",
+              "description": "Arena bounds as a Rectangle or four-number bounds."
+            },
+            {
+              "name": "obstacles",
+              "type": "sequence[Rectangle]",
+              "default": "()",
+              "description": "Fixed obstacles."
+            },
+            {
+              "name": "features",
+              "type": "dict[str, Rectangle] | None",
+              "default": "None",
+              "description": "Named changeable rectangles."
+            },
+            {
+              "name": "blocked_features",
+              "type": "sequence[str]",
+              "default": "()",
+              "description": "Feature names initially treated as obstacles."
+            }
+          ],
+          "properties": [
+            {
+              "name": "bounds_mm",
+              "type": "tuple[float, float, float, float]",
+              "units": "mm",
+              "description": "Arena bounds."
+            },
+            {
+              "name": "obstacles",
+              "type": "tuple[Rectangle, ...]",
+              "description": "Fixed obstacles."
+            },
+            {
+              "name": "feature_names",
+              "type": "tuple[str, ...]",
+              "description": "Named features."
+            },
+            {
+              "name": "blocked_features",
+              "type": "tuple[str, ...]",
+              "description": "Features currently treated as obstacles."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-arena-map-feature-bounds",
+              "name": "feature_bounds",
+              "signature": "feature_bounds(name: str) -> tuple[float, float, float, float]",
+              "summary": "Return one feature's bounds.",
+              "parameters": [
+                {
+                  "name": "name",
+                  "type": "str",
+                  "description": "Known feature name."
+                }
+              ],
+              "returns": {
+                "type": "tuple[float, float, float, float]",
+                "description": "Feature bounds in millimeters."
+              }
+            },
+            {
+              "id": "method-arena-map-contains",
+              "name": "contains",
+              "signature": "contains(x_mm, y_mm) -> bool",
+              "summary": "Test whether a point lies inside the arena.",
+              "parameters": [
+                {
+                  "name": "x_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Point x coordinate."
+                },
+                {
+                  "name": "y_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Point y coordinate."
+                }
+              ],
+              "returns": {
+                "type": "bool",
+                "description": "True inside or on the arena boundary."
+              }
+            },
+            {
+              "id": "method-arena-map-is-free",
+              "name": "is_free",
+              "signature": "is_free(x_mm, y_mm, clearance_mm=0.0) -> bool",
+              "summary": "Test arena and obstacle clearance.",
+              "parameters": [
+                {
+                  "name": "x_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Point x coordinate."
+                },
+                {
+                  "name": "y_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "Point y coordinate."
+                },
+                {
+                  "name": "clearance_mm",
+                  "type": "float",
+                  "default": "0.0",
+                  "units": "mm",
+                  "description": "Required nonnegative distance from walls and obstacles."
+                }
+              ],
+              "returns": {
+                "type": "bool",
+                "description": "True when the point satisfies the requested clearance."
+              }
+            },
+            {
+              "id": "method-arena-map-with-feature-blocked",
+              "name": "with_feature_blocked",
+              "signature": "with_feature_blocked(name: str, blocked: bool) -> ArenaMap",
+              "summary": "Return a new map with one feature's blocked state changed.",
+              "parameters": [
+                {
+                  "name": "name",
+                  "type": "str",
+                  "description": "Known feature name."
+                },
+                {
+                  "name": "blocked",
+                  "type": "bool",
+                  "description": "Whether the feature should act as an obstacle."
+                }
+              ],
+              "returns": {
+                "type": "ArenaMap",
+                "description": "New immutable map."
+              }
+            }
+          ]
+        },
+        {
+          "id": "class-occupancy-grid",
+          "name": "OccupancyGrid",
+          "symbols": ["OccupancyGrid"],
+          "kind": "supplied class",
+          "purpose": "Sample an ArenaMap into uniform free and blocked cells.",
+          "signature": "OccupancyGrid.from_arena(arena: ArenaMap, resolution_mm: float, clearance_mm: float = 0.0) -> OccupancyGrid",
+          "parameters": [
+            {
+              "name": "arena",
+              "type": "ArenaMap",
+              "description": "Arena geometry to sample."
+            },
+            {
+              "name": "resolution_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Positive square-cell size."
+            },
+            {
+              "name": "clearance_mm",
+              "type": "float",
+              "default": "0.0",
+              "units": "mm",
+              "description": "Nonnegative obstacle and wall clearance."
+            }
+          ],
+          "properties": [
+            {
+              "name": "resolution_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Cell size."
+            },
+            {
+              "name": "origin_x_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Grid minimum x."
+            },
+            {
+              "name": "origin_y_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Grid minimum y."
+            },
+            {
+              "name": "column_count",
+              "type": "int",
+              "description": "Number of columns."
+            },
+            {
+              "name": "row_count",
+              "type": "int",
+              "description": "Number of rows."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-occupancy-grid-world-to-cell",
+              "name": "world_to_cell",
+              "signature": "world_to_cell(x_mm, y_mm) -> GridCell | None",
+              "summary": "Convert a world point to a cell or None outside the grid.",
+              "parameters": [
+                {
+                  "name": "x_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "World x coordinate."
+                },
+                {
+                  "name": "y_mm",
+                  "type": "float",
+                  "units": "mm",
+                  "description": "World y coordinate."
+                }
+              ],
+              "returns": {
+                "type": "GridCell | None",
+                "description": "Containing cell, or None outside the grid."
+              }
+            },
+            {
+              "id": "method-occupancy-grid-cell-center",
+              "name": "cell_center",
+              "signature": "cell_center(cell: GridCell) -> tuple[float, float]",
+              "summary": "Return a cell center in world millimeters.",
+              "parameters": [
+                {
+                  "name": "cell",
+                  "type": "GridCell",
+                  "description": "Cell inside the grid."
+                }
+              ],
+              "returns": {
+                "type": "tuple[float, float]",
+                "description": "World x and y coordinates in millimeters."
+              }
+            },
+            {
+              "id": "method-occupancy-grid-contains",
+              "name": "contains",
+              "signature": "contains(cell: GridCell) -> bool",
+              "summary": "Test whether a cell is inside the grid.",
+              "parameters": [
+                {
+                  "name": "cell",
+                  "type": "GridCell",
+                  "description": "Cell to test."
+                }
+              ],
+              "returns": {
+                "type": "bool",
+                "description": "True when row and column are in bounds."
+              }
+            },
+            {
+              "id": "method-occupancy-grid-is-blocked",
+              "name": "is_blocked",
+              "signature": "is_blocked(cell: GridCell) -> bool",
+              "summary": "Report blocked state; cells outside the grid are blocked.",
+              "parameters": [
+                {
+                  "name": "cell",
+                  "type": "GridCell",
+                  "description": "Cell to test."
+                }
+              ],
+              "returns": { "type": "bool", "description": "Blocked state." }
+            },
+            {
+              "id": "method-occupancy-grid-neighbors",
+              "name": "neighbors",
+              "signature": "neighbors(cell: GridCell) -> tuple[GridCell, ...]",
+              "summary": "Return free cells sharing a horizontal or vertical edge.",
+              "parameters": [
+                {
+                  "name": "cell",
+                  "type": "GridCell",
+                  "description": "Reference cell."
+                }
+              ],
+              "returns": {
+                "type": "tuple[GridCell, ...]",
+                "description": "Free edge-adjacent cells in deterministic order."
+              }
+            }
+          ],
+          "notes": [
+            "For direct software tests, the full constructor accepts resolution_mm, origin_x_mm, origin_y_mm, column_count, row_count, and row-major blocked values. Course projects normally use from_arena()."
+          ]
+        },
+        {
+          "id": "record-delivery-task",
+          "name": "DeliveryTask",
+          "symbols": ["DeliveryTask"],
+          "kind": "value record",
+          "purpose": "Store the fixed values needed for one supplied delivery mission.",
+          "signature": "DeliveryTask(initial_pose, arena, grid_resolution_mm, clearance_mm, destination, observed_feature_name, range_sample_count, minimum_usable_range_count, blocked_range_threshold_mm, assume_blocked_without_range)",
+          "properties": [
+            {
+              "name": "initial_pose",
+              "type": "Pose",
+              "description": "Robot pose at mission start."
+            },
+            {
+              "name": "arena",
+              "type": "ArenaMap",
+              "description": "Arena before the observed feature is classified."
+            },
+            {
+              "name": "grid_resolution_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Positive occupancy-grid cell size."
+            },
+            {
+              "name": "clearance_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Nonnegative planning clearance."
+            },
+            {
+              "name": "destination",
+              "type": "NavigationGoal",
+              "description": "Delivery destination and optional final heading."
+            },
+            {
+              "name": "observed_feature_name",
+              "type": "str",
+              "description": "Arena feature classified by the range observation."
+            },
+            {
+              "name": "range_sample_count",
+              "type": "int",
+              "description": "Positive number of range samples to collect."
+            },
+            {
+              "name": "minimum_usable_range_count",
+              "type": "int",
+              "description": "Positive minimum usable readings, no greater than range_sample_count."
+            },
+            {
+              "name": "blocked_range_threshold_mm",
+              "type": "float",
+              "units": "mm",
+              "description": "Positive range at or below which the observed feature is treated as blocked."
+            },
+            {
+              "name": "assume_blocked_without_range",
+              "type": "bool",
+              "description": "Blocked state used when no range estimate is available."
+            }
+          ]
+        },
+        {
+          "id": "class-delivery-mission",
+          "name": "DeliveryMission",
+          "symbols": ["DeliveryMission"],
+          "kind": "supplied class",
+          "purpose": "Perform range observation, map update, route planning, and navigation for a DeliveryTask.",
+          "signature": "DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)",
+          "parameters": [
+            {
+              "name": "task",
+              "type": "DeliveryTask",
+              "description": "Mission settings."
+            },
+            {
+              "name": "navigation",
+              "type": "NavigationController",
+              "description": "Selected navigation component."
+            },
+            {
+              "name": "planner",
+              "type": "GridPlanner",
+              "description": "Selected grid-planning component."
+            }
+          ],
+          "properties": [
+            {
+              "name": "task",
+              "type": "DeliveryTask",
+              "description": "Mission definition."
+            },
+            {
+              "name": "result",
+              "type": "str | None",
+              "description": "delivered, no_path, or None before completion."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-delivery-mission-run",
+              "name": "run",
+              "signature": "run(robot: Robot) -> RobotState",
+              "summary": "Run the supplied delivery sequence and always attempt robot.stop().",
+              "parameters": [
+                {
+                  "name": "robot",
+                  "type": "Robot",
+                  "description": "Assembled robot service."
+                }
+              ],
+              "returns": {
+                "type": "RobotState",
+                "description": "Last robot state."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hardware-math",
+      "title": "Low-level XRP access and numerical functions",
+      "entries": [
+        {
+          "id": "class-xrpbot",
+          "name": "XRPBot",
+          "symbols": ["XRPBot"],
+          "kind": "supplied class",
+          "purpose": "Read XRPLib devices and apply bounded, signed drive commands. Ordinary projects should use Robot instead.",
+          "signature": "XRPBot(config: RobotConfig)",
+          "parameters": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Motor signs, encoder signs, and final command limit."
+            }
+          ],
+          "properties": [
+            {
+              "name": "config",
+              "type": "RobotConfig",
+              "description": "Hardware configuration."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-xrpbot-read",
+              "name": "read",
+              "signature": "read(include_range: bool = False) -> RawSensors",
+              "summary": "Read encoders, time, button state, and optionally range.",
+              "parameters": [
+                {
+                  "name": "include_range",
+                  "type": "bool",
+                  "default": "False",
+                  "description": "Read the ultrasonic sensor on this sample."
+                }
+              ],
+              "returns": {
+                "type": "RawSensors",
+                "description": "Direct hardware sample."
+              }
+            },
+            {
+              "id": "method-xrpbot-reset-encoders",
+              "name": "reset_encoders",
+              "signature": "reset_encoders() -> None",
+              "summary": "Use current hardware counts as the session zero.",
+              "returns": { "type": "None", "description": "No value." }
+            },
+            {
+              "id": "method-xrpbot-wait-for-button",
+              "name": "wait_for_button",
+              "signature": "wait_for_button() -> None",
+              "summary": "Wait for the XRP USER button.",
+              "returns": { "type": "None", "description": "No value." }
+            },
+            {
+              "id": "method-xrpbot-set-drive",
+              "name": "set_drive",
+              "signature": "set_drive(command: DriveCommand) -> None",
+              "summary": "Apply one normalized motor command after configured signs and limits.",
+              "parameters": [
+                {
+                  "name": "command",
+                  "type": "DriveCommand",
+                  "description": "Logical left and right motor commands."
+                }
+              ],
+              "returns": { "type": "None", "description": "No value." }
+            },
+            {
+              "id": "method-xrpbot-stop",
+              "name": "stop",
+              "signature": "stop() -> None",
+              "summary": "Attempt to stop both motors.",
+              "returns": { "type": "None", "description": "No value." }
+            }
+          ],
+          "notes": ["set_efforts() is a compatibility alias for set_drive()."]
+        },
+        {
+          "id": "function-clamp",
+          "name": "clamp",
+          "symbols": ["clamp"],
+          "kind": "function",
+          "purpose": "Limit a numeric value to an inclusive interval.",
+          "signature": "clamp(value, lower, upper) -> float",
+          "parameters": [
+            {
+              "name": "value",
+              "type": "float",
+              "description": "Value to limit."
+            },
+            {
+              "name": "lower",
+              "type": "float",
+              "description": "Inclusive lower bound."
+            },
+            {
+              "name": "upper",
+              "type": "float",
+              "description": "Inclusive upper bound; not less than lower."
+            }
+          ],
+          "returns": {
+            "type": "float",
+            "description": "value limited to [lower, upper]."
+          }
+        },
+        {
+          "id": "function-elapsed-time-s",
+          "name": "elapsed_time_s",
+          "symbols": ["elapsed_time_s"],
+          "kind": "function",
+          "purpose": "Calculate a MicroPython-tick-safe elapsed interval in seconds.",
+          "signature": "elapsed_time_s(later_ms: int, earlier_ms: int) -> float",
+          "parameters": [
+            {
+              "name": "later_ms",
+              "type": "int",
+              "units": "ms",
+              "description": "Later device timestamp."
+            },
+            {
+              "name": "earlier_ms",
+              "type": "int",
+              "units": "ms",
+              "description": "Earlier device timestamp."
+            }
+          ],
+          "returns": {
+            "type": "float",
+            "description": "Wrap-safe elapsed time in seconds."
+          }
+        },
+        {
+          "id": "function-wrap-angle-rad",
+          "name": "wrap_angle_rad",
+          "symbols": ["wrap_angle_rad"],
+          "kind": "function",
+          "purpose": "Return the equivalent angle in [-pi, pi).",
+          "signature": "wrap_angle_rad(angle_rad: float) -> float",
+          "parameters": [
+            {
+              "name": "angle_rad",
+              "type": "float",
+              "units": "rad",
+              "description": "Angle to wrap."
+            }
+          ],
+          "returns": {
+            "type": "float",
+            "description": "Equivalent angle in [-pi, pi)."
+          }
+        },
+        {
+          "id": "function-distance-to-goal",
+          "name": "distance_to_goal",
+          "symbols": ["distance_to_goal"],
+          "kind": "function",
+          "purpose": "Calculate planar distance from a pose to a navigation goal in millimeters.",
+          "signature": "distance_to_goal(pose: Pose, goal: NavigationGoal) -> float",
+          "parameters": [
+            {
+              "name": "pose",
+              "type": "Pose",
+              "description": "Current world pose."
+            },
+            {
+              "name": "goal",
+              "type": "NavigationGoal",
+              "description": "Destination position."
+            }
+          ],
+          "returns": {
+            "type": "float",
+            "description": "Euclidean position error in millimeters."
+          }
+        },
+        {
+          "id": "function-bearing-to-goal",
+          "name": "bearing_to_goal",
+          "symbols": ["bearing_to_goal"],
+          "kind": "function",
+          "purpose": "Calculate wrapped world-frame bearing from a pose to a navigation goal.",
+          "signature": "bearing_to_goal(pose: Pose, goal: NavigationGoal) -> float",
+          "parameters": [
+            {
+              "name": "pose",
+              "type": "Pose",
+              "description": "Current world pose."
+            },
+            {
+              "name": "goal",
+              "type": "NavigationGoal",
+              "description": "Destination position."
+            }
+          ],
+          "returns": {
+            "type": "float",
+            "description": "World-frame bearing in [-pi, pi) radians."
+          }
+        }
+      ]
+    }
+  ]
+}

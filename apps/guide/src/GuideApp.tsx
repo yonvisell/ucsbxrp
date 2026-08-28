@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import apiCatalog from "../../../course_content/api-reference.json";
 import { CourseHeader } from "../../shared/CourseHeader";
 import { useHashTarget } from "../../shared/useHashTarget";
 import {
@@ -8,7 +9,10 @@ import {
   SystemBoundaryFlow,
 } from "./CourseFlows";
 
-const componentReference = "../reference/#student-components";
+const componentReference = "../reference/#components";
+const componentEntries =
+  apiCatalog.sections.find((section) => section.id === "components")?.entries ??
+  [];
 
 export function GuideApp() {
   useHashTarget();
@@ -24,10 +28,10 @@ export function GuideApp() {
           <a href="#projects">02 Projects and files</a>
           <span className="toc-group">Develop</span>
           <a href="#project-structure">03 Python project structure</a>
-          <a href="#components">04 Implement and test components</a>
+          <a href="#components">04 Implement and test a component</a>
           <span className="toc-group">Run and measure</span>
           <a href="#physical-xrp">05 Connect a physical XRP</a>
-          <a href="#monitor">06 Record and export telemetry</a>
+          <a href="#monitor">06 Inspect and export run data</a>
           <span className="toc-group">Store and troubleshoot</span>
           <a href="#offline-use">07 Using UCSBXRP without internet</a>
           <a href="#github">08 Team version control</a>
@@ -372,18 +376,28 @@ export function GuideApp() {
           <GuideSection
             id="components"
             number="04"
-            title="Implement and test components"
+            title="Implement and test a component"
           >
+            <h3>Implement a component</h3>
             <p>
               A challenge provides one named Python file for each component you
-              implement. The README explains what each component must do and
-              which earlier components are carried into the project.{" "}
+              implement. Read the challenge README for the task and the named
+              component section in the{" "}
+              <a href={componentReference}>API reference</a> for its inputs,
+              return values, retained information, and required behavior. The
+              starter class already inherits the correct base class. Replace
+              each <code>NotImplementedError</code> with your calculation; do
+              not rename the class or its public methods.
+            </p>
+            <h3>Test the component</h3>
+            <p>
               <strong>Compile</strong> checks the project structure and compiles
-              every Python file without running the robot.{" "}
-              <strong>Test components</strong> runs focused examples without
-              moving the virtual or physical XRP. Each example states its inputs
-              and expected result before showing PASS, NOT IMPLEMENTED, or FAIL.
-              Do not edit the supplied <code>component_checks.py</code>.
+              each Python file without running it.{" "}
+              <strong>Test components</strong> then calls the student methods
+              with stated example inputs. These checks do not move the virtual
+              or physical XRP. Read the expected result shown for a failed
+              example, revise the named method, and run the checks again. Do not
+              edit the supplied <code>component_checks.py</code>.
             </p>
             <div className="result-key" aria-label="Component check results">
               <div>
@@ -475,14 +489,14 @@ export function GuideApp() {
           <GuideSection
             id="monitor"
             number="06"
-            title="Record and export telemetry"
+            title="Inspect and export run data"
           >
             <p>
               The Monitor shows the world view, live telemetry, program-defined
-              controls and values, signal plots, and recording and export tools.
-              IDE and Monitor use the same selected target and Run/Stop state.
-              Runs started in either app write program output and target events
-              to the IDE terminal.
+              controls and values, signal plots, and export tools. IDE and
+              Monitor use the same selected target and Run/Stop state. Runs
+              started in either app write program output and target events to
+              the IDE terminal.
             </p>
             <dl className="term-list">
               <div>
@@ -520,20 +534,24 @@ export function GuideApp() {
               A program can add controls with <code>ucsb_xrp.live</code>.{" "}
               <code>live.watch()</code> shows the latest named value;{" "}
               <code>live.plot()</code> adds a named numerical signal to the Plot
-              signals list. These displays show the current run. Record
-              telemetry when you need a saved time history.
+              signals list. Each Run automatically creates one run dataset from
+              its telemetry and notes. While the program is active, the plots
+              show that run as it develops. When it stops or completes, Monitor
+              retains the completed run for inspection and export.
             </p>
             <ol className="procedure">
               <li>
-                Select <strong>Start recording</strong> before the interval you
-                want to save.
+                Run the project. No separate recording action is required.
               </li>
               <li>
-                Select <strong>Stop recording</strong> when that interval ends.
+                If useful, right-click a strip plot and add a short note at the
+                selected time. Notes belong to the displayed run.
               </li>
               <li>
-                Then export telemetry as CSV, selected plots as SVG or PNG, or
-                the recorded world replay as WebM.
+                Export the displayed run as a telemetry-and-notes CSV, export
+                the visible plots as SVG or PNG, or export the world animation
+                as WebM. Every export uses the same displayed run; animation
+                export does not run the robot again.
               </li>
             </ol>
           </GuideSection>
@@ -799,77 +817,25 @@ export function GuideApp() {
               project.
             </p>
             <SystemBoundaryFlow />
-            <h3>Student components</h3>
+            <h3>Components you implement</h3>
+            <p>
+              The components form a sequence from sensor interpretation through
+              motor control, pose estimation, navigation, and route planning.
+              The links below use the same descriptions as the definitive API
+              catalog; each API entry gives the full signatures and required
+              behavior.
+            </p>
             <dl className="component-overview-list">
-              <div>
-                <dt>
-                  <a href="../reference/#sensor-model">SensorModel</a>
-                </dt>
-                <dd>
-                  Converts raw encoder, time, range, and button readings into
-                  wheel travel and recent wheel-speed estimates. It keeps the
-                  encoder reference and samples needed for speed estimation.
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  <a href="../reference/#wheel-speed-controller">
-                    WheelSpeedController
-                  </a>
-                </dt>
-                <dd>
-                  Compares requested wheel speeds with SensorModel&apos;s
-                  measured wheel-speed estimates and returns limited left and
-                  right motor commands. An implementation may retain controller
-                  state between samples.
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  <a href="../reference/#differential-drive">
-                    DifferentialDrive
-                  </a>
-                </dt>
-                <dd>
-                  Uses the effective track width to convert requested forward
-                  speed and turn rate into target left and right wheel speeds.
-                  The effective value is refined from measured turns and need
-                  not equal the ruler-measured chassis spacing. The component
-                  retains no state between calls.
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  <a href="../reference/#odometry">Odometry</a>
-                </dt>
-                <dd>
-                  Updates the estimated position and heading from the signed,
-                  encoder-derived wheel travel in each sample. It retains the
-                  current pose.
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  <a href="../reference/#navigation-controller">
-                    NavigationController
-                  </a>
-                </dt>
-                <dd>
-                  Uses the current odometry pose and active goal to request
-                  forward and turning motion. It retains the route progress and
-                  current operating phase.
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  <a href="../reference/#grid-planner">GridPlanner</a>
-                </dt>
-                <dd>
-                  Builds a route through free cells in a project map. Each{" "}
-                  <code>plan()</code> call solves the supplied start-to-goal
-                  request independently.
-                </dd>
-              </div>
+              {componentEntries.map((component) => (
+                <div key={component.id}>
+                  <dt>
+                    <a href={`../reference/#${component.id}`}>
+                      {component.name}
+                    </a>
+                  </dt>
+                  <dd>{component.purpose}</dd>
+                </div>
+              ))}
             </dl>
             <h3>Virtual and physical targets</h3>
             <table>

@@ -205,7 +205,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Implement and test components" }),
+    page.getByRole("heading", { name: "Implement and test a component" }),
   ).toBeVisible();
   await expect(
     page.getByText("Do not add sleep_ms() to a loop that calls Robot.step().", {
@@ -251,7 +251,7 @@ test("Guide presents the course workflow in explicit objective sections", async 
   );
 });
 
-test("API class entries contain signatures, parameters, defaults, returns, exceptions, and examples", async ({
+test("API catalog renders coherent component requirements and linked types", async ({
   page,
 }) => {
   await page.goto("/reference/#sensor-model");
@@ -261,7 +261,7 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
   await expect(page.locator(".brand").first()).toHaveText("UCSBXRP");
   const section = page.locator("#sensor-model");
   await expect(section).toContainText("Base class SensorModelBase");
-  await expect(section).toContainText("class SensorModel(SensorModelBase):");
+  await expect(section).toContainText("class SensorModel(SensorModelBase)");
   await expect(
     section.getByRole("heading", { name: "update()" }),
   ).toBeVisible();
@@ -274,17 +274,29 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
   await expect(
     section.getByText("Exceptions", { exact: true }).first(),
   ).toBeVisible();
+  await expect(section).toContainText(
+    "Total wheel positions are calculated relative to the reset origins",
+  );
   await expect(
-    section.getByRole("heading", { name: "SensorModel example" }),
-  ).toBeVisible();
-  await expect(section).toContainText("left speed (mm/s)");
+    section.locator('a[href="#record-raw-sensors"]').first(),
+  ).toHaveText("RawSensors");
+  await expect(
+    section.locator('a[href="#class-robot-config"]').first(),
+  ).toHaveText("RobotConfig");
 
   await page.goto("/reference/#wheel-speed-controller");
   await expect(page.locator("#wheel-speed-controller")).toContainText(
-    "requested left and right wheel speeds from DifferentialDrive",
+    "larger speed error in the requested direction",
   );
-  await expect(page.locator("#wheel-speed-controller")).toContainText(
-    "measured wheel-speed estimates from SensorModel",
+
+  await page.goto("/reference/#odometry");
+  await expect(page.locator("#odometry")).toContainText(
+    "exact constant-curvature arc",
+  );
+
+  await page.goto("/reference/#navigation-controller");
+  await expect(page.locator("#navigation-controller")).toContainText(
+    "Turn toward a goal before driving forward",
   );
 
   await page.goto("/reference/#grid-planner");
@@ -293,9 +305,11 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
     "Find a valid connected route from the start cell to the goal cell.",
   );
   await expect(gridPlanner).toContainText(
-    "A minimum-length route is not required",
+    "Any route that connects the endpoints through free edge-adjacent cells is accepted",
   );
-  await expect(gridPlanner).not.toContainText("Find a minimum-length route");
+  await expect(gridPlanner).not.toContainText(
+    "minimum-length route is not required",
+  );
 
   await page.goto("/reference/#configuration");
   const configuration = page.locator("#configuration");
@@ -306,105 +320,46 @@ test("API class entries contain signatures, parameters, defaults, returns, excep
     "wheel_speed_filter_time_constant_ms",
   );
   await expect(configuration).toContainText("80.0");
-
-  await page.goto("/reference/#robot");
-  const robot = page.locator("#robot");
-  await expect(robot).toContainText("Information retained between calls:");
-  await expect(robot).toContainText("the next absolute sample deadline");
-
-  await page.goto("/reference/#missions");
-  const missions = page.locator("#missions");
-  await expect(missions).toContainText(
-    "the starting mean wheel position, requested distance, and completion state",
-  );
-  await expect(missions).toContainText(
-    "result is None before and during run()",
-  );
-
-  await page.goto("/reference/#xrpbot");
-  const xrpbot = page.locator("#xrpbot");
-  await expect(xrpbot).toContainText(
-    "sensor reads and motor commands used by Robot",
-  );
-  await expect(xrpbot).toContainText(
-    "Encoder positions and motor output belong to those devices",
-  );
-
-  await page.goto("/reference/#maps");
-  const occupancyGrid = page
-    .locator("#maps .class-reference")
-    .filter({ has: page.getByRole("heading", { name: "OccupancyGrid" }) });
-  await expect(
-    occupancyGrid.getByRole("heading", {
-      name: "OccupancyGrid.from_arena()",
-    }),
-  ).toBeVisible();
-  await expect(occupancyGrid).toContainText("clearance_mm");
-  await expect(occupancyGrid).toContainText("0.0");
-  await expect(occupancyGrid).toContainText("OccupancyGrid");
-  await expect(occupancyGrid).toContainText(
-    "ValueError if resolution_mm is not positive",
-  );
-
-  await page.goto("/reference/#missions");
-  const deliveryMission = page
-    .locator("#missions .class-reference")
-    .filter({ has: page.getByRole("heading", { name: "DeliveryMission" }) });
-  await expect(
-    deliveryMission.getByRole("heading", { name: "run()" }),
-  ).toBeVisible();
-  await expect(deliveryMission).toContainText("RobotState");
-  await expect(deliveryMission).toContainText("robot.stop() is attempted");
-  await expect(
-    page.getByRole("heading", { name: "Run the supplied delivery sequence" }),
-  ).toBeVisible();
 });
 
-test("API symbols provide stable contextual anchors and current runnable examples", async ({
+test("API catalog provides stable unique anchors for contextual navigation", async ({
   page,
 }) => {
   await page.goto("/reference/#method-sensor-model-update");
 
   await expect(page.locator("#method-sensor-model-update")).toContainText(
-    "SensorModel.update(raw: RawSensors) -> Measurements",
+    "update(raw: RawSensors) -> Measurements",
   );
   await expect(page.locator("#record-raw-sensors")).toContainText(
-    "Stores one direct hardware sample",
+    "Store one direct hardware sample",
   );
   await expect(page.locator("#class-live-parameter")).toContainText(
-    "Value currently applied to the program",
+    "value currently applied to the program",
   );
   await expect(page.locator("#class-live-parameter")).toContainText("options");
   await expect(page.locator("#function-live-number")).toContainText(
-    "Inclusive lower bound",
+    "range does not need to contain an exact whole number of steps",
   );
 
   const gridPathMethod = page.locator("#method-grid-path-to-goals");
-  await expect(gridPathMethod).toContainText("GridPath.to_goals");
-  await expect(gridPathMethod).not.toContainText(
-    "TypeError if grid is not OccupancyGrid",
-  );
+  await expect(gridPathMethod).toContainText("to_goals(grid: OccupancyGrid");
+  await expect(
+    gridPathMethod.locator('a[href="#class-occupancy-grid"]'),
+  ).toHaveText("OccupancyGrid");
 
-  const liveExample = page
-    .locator("#live .code-example")
-    .filter({ hasText: "wheel_speed_error_mm_s" });
-  await expect(liveExample).toContainText("target_speed_mm_s = 120.0");
-  await expect(liveExample).toContainText("measured_speed_mm_s = 105.0");
+  await expect(page.locator("#records")).toHaveCount(1);
+  await expect(page.locator("#maps")).toHaveCount(1);
+  await expect(page.locator("#missions")).toHaveCount(1);
 
-  const worldExample = page
-    .locator("#worlds .code-example")
-    .filter({ hasText: "Challenge 5" });
-  await expect(worldExample).toContainText('blocked_features=("center_gate",)');
-  await expect(worldExample).toContainText('world.waypoint("destination")');
-
-  const combinedNames = await page
-    .locator(".parameter-row > code:first-child")
-    .evaluateAll((cells) =>
-      cells
-        .map((cell) => cell.textContent ?? "")
-        .filter((name) => name.includes(",")),
+  const linkedTypeTargets = await page
+    .locator(".type-expression a")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href") ?? ""),
     );
-  expect(combinedNames).toEqual([]);
+  for (const target of new Set(linkedTypeTargets)) {
+    expect(target.startsWith("#")).toBe(true);
+    await expect(page.locator(target)).toHaveCount(1);
+  }
 
   const duplicateIds = await page.locator("[id]").evaluateAll((elements) => {
     const counts = new Map<string, number>();

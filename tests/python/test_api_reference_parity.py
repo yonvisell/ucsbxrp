@@ -1,27 +1,30 @@
 import ast
-import os
+import json
 from pathlib import Path
 import re
 import subprocess
-import sys
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
+CATALOG_PATH = ROOT / "course_content/api-reference.json"
 
 
-class ApiReferenceParityTests(unittest.TestCase):
-    def _run_course_snippet(self, source, working_directory=ROOT):
-        environment = os.environ.copy()
-        environment["PYTHONPATH"] = str(ROOT / "vendor/current")
-        return subprocess.run(
-            [sys.executable, "-c", source],
-            cwd=working_directory,
-            env=environment,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+class ApiCatalogIntegrityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        cls.entries = [
+            entry
+            for section in cls.catalog["sections"]
+            for entry in section["entries"]
+        ]
+        cls.entries_by_id = {entry["id"]: entry for entry in cls.entries}
+        cls.symbol_anchors = {
+            symbol: entry["id"]
+            for entry in cls.entries
+            for symbol in entry["symbols"]
+        }
 
     def _public_names(self, relative_path):
         module = ast.parse((ROOT / relative_path).read_text(encoding="utf-8"))
@@ -32,139 +35,284 @@ class ApiReferenceParityTests(unittest.TestCase):
                 isinstance(target, ast.Name) and target.id == "__all__"
                 for target in statement.targets
             ):
-                return ast.literal_eval(statement.value)
+                return list(ast.literal_eval(statement.value))
         self.fail("{} must define __all__".format(relative_path))
 
-    def _assert_names_are_documented(self, path, names):
-        reference = (ROOT / path).read_text(encoding="utf-8")
-        missing = [
-            name
-            for name in names
-            if re.search(
-                r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])",
-                reference,
+    def _class(self, relative_path, name):
+        module = ast.parse((ROOT / relative_path).read_text(encoding="utf-8"))
+        return next(
+            node
+            for node in module.body
+            if isinstance(node, ast.ClassDef) and node.name == name
+        )
+
+    @staticmethod
+    def _method_arguments(method):
+        return [argument.arg for argument in method.args.args if argument.arg != "self"]
+
+    @staticmethod
+    def _catalog_signature_arguments(signature):
+        declaration = "def {}:\n    pass\n".format(signature)
+        method = ast.parse(declaration).body[0]
+        return [argument.arg for argument in method.args.args]
+
+    @staticmethod
+    def _catalog_call_arguments(signature):
+        opening = signature.index("(")
+        declaration = "def documented{}:\n    pass\n".format(signature[opening:])
+        method = ast.parse(declaration).body[0]
+        return [argument.arg for argument in method.args.args]
+
+    def test_catalog_is_the_exact_public_export_inventory(self):
+        actual_modules = {
+            "ucsb_xrp": self._public_names("vendor/current/ucsb_xrp/__init__.py"),
+            "ucsb_xrp.live": self._public_names("vendor/current/ucsb_xrp/live.py"),
+        }
+        self.assertEqual(self.catalog["publicModules"], actual_modules)
+        for module_name, names in actual_modules.items():
+            with self.subTest(module=module_name):
+                missing = [name for name in names if name not in self.symbol_anchors]
+                self.assertEqual(missing, [])
+
+    def test_catalog_ids_are_unique_and_type_links_resolve(self):
+        ids = [section["id"] for section in self.catalog["sections"]]
+        ids.extend(entry["id"] for entry in self.entries)
+        ids.extend(
+            method["id"]
+            for entry in self.entries
+            for method in entry.get("methods", [])
+        )
+        self.assertEqual(len(ids), len(set(ids)))
+
+        builtins = {
+            "None",
+            "bool",
+            "float",
+            "int",
+            "list",
+            "sequence",
+            "str",
+            "tuple",
+        }
+        unresolved = []
+        type_values = []
+        for entry in self.entries:
+            for value in entry.get("properties", []):
+                type_values.append((entry["id"], value["type"]))
+            if entry.get("returns"):
+                type_values.append((entry["id"], entry["returns"]["type"]))
+            for method in entry.get("methods", []):
+                for value in method.get("parameters", []):
+                    type_values.append((method["id"], value["type"]))
+                if method.get("returns"):
+                    type_values.append((method["id"], method["returns"]["type"]))
+
+        for owner, type_value in type_values:
+            for token in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", type_value):
+                if token in builtins or token in self.symbol_anchors:
+                    continue
+                if token[0].isupper():
+                    unresolved.append((owner, token))
+        self.assertEqual(unresolved, [])
+
+    def test_student_component_signatures_match_the_base_classes(self):
+        component_specs = {
+            "sensor-model": "SensorModelBase",
+            "wheel-speed-controller": "WheelSpeedControllerBase",
+            "differential-drive": "DifferentialDriveBase",
+            "odometry": "OdometryBase",
+            "navigation-controller": "NavigationControllerBase",
+            "grid-planner": "GridPlannerBase",
+        }
+        for entry_id, base_name in component_specs.items():
+            with self.subTest(component=entry_id):
+                entry = self.entries_by_id[entry_id]
+                self.assertEqual(entry["baseClass"], base_name)
+                base = self._class("vendor/current/ucsb_xrp/student_api.py", base_name)
+                actual_methods = {
+                    node.name: self._method_arguments(node)
+                    for node in base.body
+                    if isinstance(node, ast.FunctionDef)
+                    and not node.name.startswith("_")
+                    and not any(
+                        isinstance(decorator, ast.Name)
+                        and decorator.id == "property"
+                        for decorator in node.decorator_list
+                    )
+                }
+                documented_methods = {
+                    method["name"]: self._catalog_signature_arguments(
+                        method["signature"]
+                    )
+                    for method in entry["methods"]
+                }
+                self.assertEqual(documented_methods, actual_methods)
+
+                actual_properties = {
+                    node.name
+                    for node in base.body
+                    if isinstance(node, ast.FunctionDef)
+                    and any(
+                        isinstance(decorator, ast.Name)
+                        and decorator.id == "property"
+                        for decorator in node.decorator_list
+                    )
+                }
+                actual_properties.discard("config")
+                documented_properties = {
+                    value["name"] for value in entry.get("properties", [])
+                }
+                self.assertEqual(documented_properties, actual_properties)
+
+    def test_configuration_fields_and_effective_defaults_match_code(self):
+        robot_config = self._class("vendor/current/ucsb_xrp/config.py", "RobotConfig")
+        field_names = ast.literal_eval(
+            next(
+                statement.value
+                for statement in robot_config.body
+                if isinstance(statement, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "_field_names"
+                    for target in statement.targets
+                )
             )
-            is None
-        ]
-        self.assertEqual(missing, [], "Add every public name to {}".format(path))
-
-    def test_every_public_course_symbol_is_named_in_the_student_reference(self):
-        public_names = self._public_names("vendor/current/ucsb_xrp/__init__.py")
-
-        self._assert_names_are_documented(
-            "apps/reference/src/ReferenceApp.tsx", public_names
         )
-        self._assert_names_are_documented("USER_REFERENCE.md", public_names)
-        self._assert_names_are_documented(
-            "v2_03_ucsb_xrp_api_reference.txt", public_names
-        )
-
-    def test_live_module_public_functions_are_named_in_each_api_reference(self):
-        public_names = self._public_names("vendor/current/ucsb_xrp/live.py")
-        for path in (
-            "apps/reference/src/ReferenceApp.tsx",
-            "USER_REFERENCE.md",
-            "v2_03_ucsb_xrp_api_reference.txt",
-        ):
-            with self.subTest(path=path):
-                self._assert_names_are_documented(path, public_names)
-
-    def test_active_api_documents_the_actual_component_import_boundary(self):
-        reference = (ROOT / "v2_03_ucsb_xrp_api_reference.txt").read_text(
-            encoding="utf-8"
-        )
-        for component in (
-            "SensorModel",
-            "WheelSpeedController",
-            "DifferentialDrive",
-            "Odometry",
-            "NavigationController",
-            "GridPlanner",
-        ):
-            with self.subTest(component=component):
-                self.assertNotIn("from ucsb_xrp import " + component, reference)
-                self.assertIn(component + "Base", reference)
-
-        normalized = " ".join(reference.split())
-        self.assertIn(
-            "the range does not need to contain an exact whole number of steps",
-            normalized.lower(),
+        documented = self.entries_by_id["class-robot-config"]["properties"]
+        self.assertEqual([value["name"] for value in documented], list(field_names))
+        expected_defaults = {
+            "sample_period_ms": "20",
+            "wheel_diameter_mm": "60.0",
+            "encoder_counts_per_revolution": "585.0",
+            "track_width_mm": "155.0",
+            "left_motor_sign": "1",
+            "right_motor_sign": "1",
+            "left_encoder_sign": "1",
+            "right_encoder_sign": "1",
+            "left_start_command": "0.0",
+            "right_start_command": "0.0",
+            "left_speed_command_gain": "0.0",
+            "right_speed_command_gain": "0.0",
+            "wheel_speed_filter_time_constant_ms": "80.0",
+            "wheel_speed_kp": "0.0",
+            "max_drive_command": "1.0",
+        }
+        self.assertEqual(
+            {value["name"]: value["default"] for value in documented},
+            expected_defaults,
         )
 
-    def test_active_guide_covers_project_worlds_live_plots_and_speed_filtering(self):
-        guide = (ROOT / "v2_02_ucsb_xrp_library_user_guide.txt").read_text(
-            encoding="utf-8"
+        navigation_config = self._class(
+            "vendor/current/ucsb_xrp/config.py", "NavigationConfig"
         )
-        for name in (
-            "ProjectWorld",
-            "load_world",
-            "world.json",
-            "live.plot",
-            "wheel-speed estimator response time",
-        ):
-            with self.subTest(name=name):
-                self.assertIn(name, guide)
-
-    def test_corrected_web_reference_examples_execute_in_their_named_context(self):
-        self._run_course_snippet(
-            """
-from ucsb_xrp import live
-
-cruise_speed = live.number(
-    "cruise_speed_mm_s", 120.0, 60.0, 220.0, 10.0,
-    unit="mm/s", label="Cruise speed",
-)
-target_speed_mm_s = 120.0
-measured_speed_mm_s = 105.0
-live.plot(
-    "wheel_speed_error_mm_s",
-    target_speed_mm_s - measured_speed_mm_s,
-    unit="mm/s",
-)
-assert cruise_speed.value == 120.0
-"""
+        navigation_fields = ast.literal_eval(
+            next(
+                statement.value
+                for statement in navigation_config.body
+                if isinstance(statement, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "_field_names"
+                    for target in statement.targets
+                )
+            )
+        )
+        self.assertEqual(
+            [
+                value["name"]
+                for value in self.entries_by_id["class-navigation-config"][
+                    "properties"
+                ]
+            ],
+            list(navigation_fields),
         )
 
-        challenge_five = ROOT / "vendor/current/starters/challenge_5"
-        self._run_course_snippet(
-            """
-from ucsb_xrp import load_world
+    def test_robot_record_and_live_signatures_match_the_implementation(self):
+        robot = self._class("vendor/current/ucsb_xrp/robot.py", "Robot")
+        actual_robot_methods = {
+            node.name: self._method_arguments(node)
+            for node in robot.body
+            if isinstance(node, ast.FunctionDef)
+            and not node.name.startswith("_")
+            and not any(
+                isinstance(decorator, ast.Name) and decorator.id == "property"
+                for decorator in node.decorator_list
+            )
+        }
+        documented_robot_methods = {
+            method["name"]: self._catalog_signature_arguments(method["signature"])
+            for method in self.entries_by_id["robot"]["methods"]
+        }
+        self.assertEqual(documented_robot_methods, actual_robot_methods)
 
-world = load_world()
-start_pose = world.initial_pose
-arena = world.arena_map(blocked_features=("center_gate",))
-destination = world.waypoint("destination")
-assert start_pose is not None
-assert arena.blocked_features == ("center_gate",)
-assert destination is not None
-""",
-            challenge_five,
+        record_entries = {
+            "RawSensors": "record-raw-sensors",
+            "Measurements": "record-measurements",
+            "WheelSpeeds": "record-wheel-speeds",
+            "MotionCommand": "record-motion-command",
+            "DriveCommand": "record-drive-command",
+            "Pose": "record-pose",
+            "RobotState": "record-robot-state",
+            "NavigationGoal": "record-navigation-goal",
+            "GridCell": "record-grid-cell",
+            "GridPath": "record-grid-path",
+        }
+        for class_name, entry_id in record_entries.items():
+            with self.subTest(record=class_name):
+                record = self._class("vendor/current/ucsb_xrp/records.py", class_name)
+                constructor = next(
+                    node
+                    for node in record.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+                )
+                self.assertEqual(
+                    self._catalog_call_arguments(
+                        self.entries_by_id[entry_id]["signature"]
+                    ),
+                    self._method_arguments(constructor),
+                )
+
+        live_module = ast.parse(
+            (ROOT / "vendor/current/ucsb_xrp/live.py").read_text(encoding="utf-8")
+        )
+        live_functions = {
+            node.name: self._method_arguments(node)
+            for node in live_module.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name in self.catalog["publicModules"]["ucsb_xrp.live"]
+        }
+        live_entries = {
+            symbol: entry
+            for entry in self.entries
+            for symbol in entry["symbols"]
+            if symbol in live_functions
+        }
+        documented_live_functions = {
+            name: self._catalog_signature_arguments(
+                entry["signature"].removeprefix("live.")
+            )
+            for name, entry in live_entries.items()
+        }
+        self.assertEqual(documented_live_functions, live_functions)
+
+    def test_generated_reference_files_are_current(self):
+        subprocess.run(
+            ["node", "scripts/render-api-reference.mjs", "--check"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
         )
 
-    def test_web_reference_uses_current_names_and_unambiguous_argument_rows(self):
-        reference = (ROOT / "apps/reference/src/ReferenceApp.tsx").read_text(
-            encoding="utf-8"
-        )
-        self.assertNotIn("target_mm_s - measured_mm_s", reference)
-        self.assertIn('blocked_features=("center_gate",)', reference)
-        self.assertIn('world.waypoint("destination")', reference)
-        self.assertNotRegex(reference, r'name: "[^"]+, [^"]+"')
-
-        grid_path_entry = reference.split(
-            'name="GridPath.to_goals"', 1
-        )[1].split("/>", 1)[0]
-        self.assertNotIn(
-            "TypeError if grid is not OccupancyGrid", grid_path_entry
-        )
-        for signature in (
-            "SensorModel.update(raw: RawSensors)",
-            "Robot.step(command: MotionCommand",
-            "GridPath.to_goals(grid: OccupancyGrid",
-            "OccupancyGrid.world_to_cell(x_mm: float",
-            "XRPBot.read(include_range: bool",
-        ):
-            with self.subTest(signature=signature):
-                self.assertIn(signature, reference)
+    def test_catalog_contains_the_component_behaviors_used_by_checks(self):
+        wheel_text = json.dumps(self.entries_by_id["wheel-speed-controller"])
+        odometry_text = json.dumps(self.entries_by_id["odometry"])
+        navigation_text = json.dumps(self.entries_by_id["navigation-controller"])
+        planner_text = json.dumps(self.entries_by_id["grid-planner"])
+        self.assertIn("larger speed error", wheel_text)
+        self.assertIn("exact constant-curvature arc", odometry_text)
+        self.assertIn("Turn toward a goal before driving", navigation_text)
+        self.assertIn("realign", navigation_text)
+        self.assertIn("Any route that connects", planner_text)
+        self.assertNotIn("minimum-length route is not required", planner_text.lower())
 
 
 if __name__ == "__main__":
