@@ -1445,7 +1445,7 @@ describe("physical target", () => {
     }
   });
 
-  it("drains bounded telemetry pages before publishing the terminal state", async () => {
+  it("closes a completed run before publishing the fresh stopped sample", async () => {
     vi.useFakeTimers();
     const requestedUrls: string[] = [];
     const replies = [
@@ -1466,8 +1466,22 @@ describe("physical target", () => {
         detail: "Program completed",
         runId: 1,
         logs: [{ seq: 2, stream: "stdout", line: "final page" }],
-        samples: [physicalSample(2)],
-        sample: physicalSample(2),
+        samples: [
+          {
+            ...physicalSample(2, 6_800),
+            leftEffort: 0,
+            rightEffort: 0,
+            leftWheelSpeedMmS: 0,
+            rightWheelSpeedMmS: 0,
+          },
+        ],
+        sample: {
+          ...physicalSample(2, 6_800),
+          leftEffort: 0,
+          rightEffort: 0,
+          leftWheelSpeedMmS: 0,
+          rightWheelSpeedMmS: 0,
+        },
         moreLogs: false,
         moreSamples: false,
       },
@@ -1532,6 +1546,19 @@ describe("physical target", () => {
       ).toEqual([
         { type: "status", state: "ready", detail: "Program completed" },
       ]);
+      expect(
+        events
+          .filter(
+            (event) =>
+              event.type === "telemetry" ||
+              (event.type === "status" && event.state === "ready"),
+          )
+          .map((event) =>
+            event.type === "telemetry"
+              ? `sample:${event.sample.seq}`
+              : "status:ready",
+          ),
+      ).toEqual(["sample:1", "status:ready", "sample:2"]);
     } finally {
       target.disconnect();
       vi.useRealTimers();
@@ -1718,6 +1745,7 @@ describe("physical target", () => {
 
     try {
       await target.connect();
+      events.length = 0;
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(10);
 
@@ -1726,6 +1754,19 @@ describe("physical target", () => {
           .filter((event) => event.type === "telemetry")
           .map((event) => event.sample.seq),
       ).toEqual([1, 2]);
+      expect(
+        events
+          .filter(
+            (event) =>
+              event.type === "telemetry" ||
+              (event.type === "status" && event.state === "ready"),
+          )
+          .map((event) =>
+            event.type === "telemetry"
+              ? `sample:${event.sample.seq}`
+              : "status:ready",
+          ),
+      ).toEqual(["sample:1", "status:ready", "sample:2"]);
     } finally {
       target.disconnect();
       vi.useRealTimers();

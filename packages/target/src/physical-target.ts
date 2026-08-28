@@ -1321,6 +1321,16 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.lastRunId = state.runId;
     this.consumeProjectManifest(state.project);
     this.consumeRuntimeState(state.runtimeJson);
+    const nextState =
+      state.state === "error" &&
+      state.detail.toLowerCase().includes("program stopped after an exception")
+        ? "ready"
+        : state.state;
+    const terminalCurrentSample =
+      state.samples !== undefined &&
+      state.moreSamples === false &&
+      (nextState === "ready" || nextState === "error");
+    let orderedSamples: TelemetrySample[] = [];
     if (state.samples === undefined) {
       // Services released before telemetry batching return one fresh sample
       // per request and ignore afterSampleSeq. Preserve that behavior.
@@ -1329,31 +1339,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.lastSampleSeq = state.sample.seq;
       }
     } else {
-      const ordered = [...state.samples].sort(
+      orderedSamples = [...state.samples].sort(
         (left, right) => left.seq - right.seq,
       );
-      for (const sample of ordered) {
-        if (
-          !Number.isSafeInteger(sample.seq) ||
-          sample.seq <= this.lastSampleSeq
-        ) {
-          continue;
-        }
-        if (this.lastSampleSeq > 0 && sample.seq > this.lastSampleSeq + 1) {
-          const firstMissing = this.lastSampleSeq + 1;
-          const lastMissing = sample.seq - 1;
-          this.emitConsole(
-            "system",
-            `Telemetry gap · ${lastMissing - firstMissing + 1} sample${lastMissing === firstMissing ? "" : "s"} unavailable`,
-            {
-              action: "telemetry",
-              phase: "error",
-              eventId: `${state.bootId}:sample-gap:${firstMissing}-${lastMissing}`,
-            },
-          );
-        }
-        this.emitTelemetry(sample);
-        this.lastSampleSeq = sample.seq;
+      if (!terminalCurrentSample) {
+        this.publishBatchedSamples(state.bootId, orderedSamples);
       }
     }
     const orderedLogs = [...state.logs].sort(
@@ -1386,16 +1376,58 @@ export class DirectPhysicalTargetClient implements TargetClient {
     // Deliver all output from a finishing poll before the ready/error status.
     // The Monitor can then archive the complete run rather than closing its
     // capture immediately before the final stdout or traceback arrives.
-    const nextState =
-      state.state === "error" &&
-      state.detail.toLowerCase().includes("program stopped after an exception")
-        ? "ready"
-        : state.state;
     const terminalBacklog =
       (nextState === "ready" || nextState === "error") &&
       (state.moreLogs === true || state.moreSamples === true);
     if (!terminalBacklog) {
       this.emitStatus(nextState, state.detail);
+      if (terminalCurrentSample) {
+        // The current service appends one fresh stopped-hardware sample after
+        // all retained course-loop samples have been drained. Close the run
+        // before publishing that sample so it updates live telemetry without
+        // extending the completed recording.
+        this.publishBatchedSamples(state.bootId, orderedSamples);
+      }
+    } else if (terminalCurrentSample) {
+      // A log backlog can outlive the retained course samples. Do not attach
+      // an intermediate stopped sample to the run while those logs drain.
+      const latestSequence = orderedSamples.at(-1)?.seq;
+      if (
+        latestSequence !== undefined &&
+        Number.isSafeInteger(latestSequence) &&
+        latestSequence > this.lastSampleSeq
+      ) {
+        this.lastSampleSeq = latestSequence;
+      }
+    }
+  }
+
+  private publishBatchedSamples(
+    bootId: string,
+    samples: readonly TelemetrySample[],
+  ): void {
+    for (const sample of samples) {
+      if (
+        !Number.isSafeInteger(sample.seq) ||
+        sample.seq <= this.lastSampleSeq
+      ) {
+        continue;
+      }
+      if (this.lastSampleSeq > 0 && sample.seq > this.lastSampleSeq + 1) {
+        const firstMissing = this.lastSampleSeq + 1;
+        const lastMissing = sample.seq - 1;
+        this.emitConsole(
+          "system",
+          `Telemetry gap · ${lastMissing - firstMissing + 1} sample${lastMissing === firstMissing ? "" : "s"} unavailable`,
+          {
+            action: "telemetry",
+            phase: "error",
+            eventId: `${bootId}:sample-gap:${firstMissing}-${lastMissing}`,
+          },
+        );
+      }
+      this.emitTelemetry(sample);
+      this.lastSampleSeq = sample.seq;
     }
   }
 
