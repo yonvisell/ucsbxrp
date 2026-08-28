@@ -12,7 +12,7 @@
     "bootstrap_version": 1
   },
   "compatibility": {
-    "minimum_robot_release_sequence": 36
+    "minimum_robot_release_sequence": 39
   },
   "controller": {
     "id": "sparkfun-xrp-controller-rp2350",

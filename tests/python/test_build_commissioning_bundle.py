@@ -43,7 +43,7 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
                 "protocolVersion": 1,
                 "protocolRevision": 2,
                 "bootstrapVersion": 1,
-                "minimumRobotReleaseSequence": 36,
+                "minimumRobotReleaseSequence": 39,
             },
         )
         self.assertEqual(

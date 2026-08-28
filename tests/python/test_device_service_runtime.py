@@ -703,9 +703,48 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                     "VALUE = 11\n",
                 )
 
+                replay = self.service.run_project(
+                    types.SimpleNamespace(
+                        data={
+                            "requestId": "run-atomic",
+                            "project": project,
+                        }
+                    )
+                )
+                self.assertEqual(replay.body, response.body)
+                self.assertEqual(len(self.server.loop.tasks), 1)
+
                 asyncio.run(self.server.loop.tasks.pop())
                 self.assertEqual(self.service._project_job[0], mount_a)
                 self.assertEqual(self.service._project_job[3], ["helper"])
+
+    def test_atomic_run_compile_failure_keeps_the_current_project(self):
+        retained = {
+            "name": "Retained",
+            "entrypoint": "main.py",
+            "revision": "retained-revision",
+        }
+        self.service._active_ram_manifest = retained
+
+        response = self.service.run_project(
+            types.SimpleNamespace(
+                data={
+                    "requestId": "run-invalid",
+                    "project": {
+                        "name": "Invalid",
+                        "entrypoint": "main.py",
+                        "files": {"main.py": "if True print('broken')\n"},
+                    },
+                }
+            )
+        )
+        reply = json.loads(response.body.decode("utf-8"))
+
+        self.assertFalse(reply["ok"])
+        self.assertEqual(reply["error"]["code"], "syntax_error")
+        self.assertEqual(self.service._run_id, 0)
+        self.assertEqual(self.service._active_ram_manifest, retained)
+        self.assertEqual(self.server.loop.tasks, [])
 
     def test_failed_prepare_retains_previous_active_ram_project(self):
         fake_vfs = FakeVfsModule()

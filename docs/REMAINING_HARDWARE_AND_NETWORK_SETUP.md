@@ -36,10 +36,10 @@ sensors, pose, path, plots, logs, and final zero drive were observed. The exact
 record is
 `docs/hardware/2026-08-27-dev36-final-physical-browser-validation.json`.
 
-The active browser/course bundle is `2026.08-dev.39`. It accepts compatible
-robot runtimes from generation 36 onward, so this application revision does not
-force a repair. Its native USB wizard, station lifecycle, and hotspot lifecycle
-still require the focused current-release repeat described in
+The active browser/course bundle is `2026.08-dev.39`; the attached XRP must use
+the same current robot runtime because edited projects are compiled, prepared,
+and started in one device transaction. Its native USB wizard, station
+lifecycle, and hotspot lifecycle still require the focused current-release repeat described in
 `docs/CURRENT_PRODUCT_OUTCOMES.md`.
 
 ## Remaining floor-dependent work

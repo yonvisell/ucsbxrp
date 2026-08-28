@@ -185,6 +185,7 @@ describe("physical target", () => {
             capabilities: [
               "project.check",
               "project.prepare",
+              "project.run",
               "program.run",
               "program.stop",
               "target.reset",
@@ -690,6 +691,7 @@ describe("physical target", () => {
             capabilities: [
               "project.check",
               "project.prepare",
+              "project.run",
               "program.run",
               "program.stop",
               "target.reset",
@@ -760,6 +762,7 @@ describe("physical target", () => {
             capabilities: [
               "project.check",
               "project.prepare",
+              "project.run",
               "program.run",
               "program.stop",
               "target.reset",
@@ -773,19 +776,17 @@ describe("physical target", () => {
           protocol: 1,
           requestId: body.requestId,
           ok: true,
-          result:
-            postCount === 1
-              ? {
-                  detail: "Project prepared",
-                  checked: 1,
-                  project: {
-                    name: changed.name,
-                    entrypoint: changed.entrypoint,
-                    revision: changedRevision,
-                    lifetime: "boot",
-                  },
-                }
-              : { detail: "Running main.py", runId: 3 },
+          result: {
+            detail: "1 Python files compiled; starting main.py",
+            checked: 1,
+            runId: 3,
+            project: {
+              name: changed.name,
+              entrypoint: changed.entrypoint,
+              revision: changedRevision,
+              lifetime: "boot",
+            },
+          },
         });
       },
     );
@@ -799,7 +800,7 @@ describe("physical target", () => {
     await target.connect();
     await target.markProjectStale(changed);
     await target.runCurrent();
-    expect(postCount).toBe(2);
+    expect(postCount).toBe(1);
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "project",
@@ -809,7 +810,7 @@ describe("physical target", () => {
     expect(events).toContainEqual({
       type: "status",
       state: "loading",
-      detail: "Running main.py",
+      detail: "Starting main.py",
     });
     expect(events).not.toContainEqual({
       type: "console",
@@ -1837,63 +1838,24 @@ describe("physical target", () => {
     target.disconnect();
   });
 
-  it("retries an interrupted Prepare reply with the same request before Run", async () => {
-    const paths: string[] = [];
-    const prepareRequestIds: string[] = [];
-    let prepareAttempts = 0;
-    const projectRevision = (await describeProject(project)).revision;
+  it("requires current course software before running an edited project", async () => {
     const fetchMock = vi.fn(
-      async (input: URL | RequestInfo, init?: RequestInit) => {
-        const path = String(input);
-        paths.push(path);
-        if (!init || init.method === "GET") {
-          return response({
-            protocol: 1,
-            serviceVersion: CURRENT_COURSE_RELEASE,
-            courseRelease: CURRENT_COURSE_RELEASE,
-            bootId: "boot-a",
-            robotName: "xrp-test",
-            address: "192.168.7.30",
-            capabilities: [
-              "project.check",
-              "project.prepare",
-              "program.run",
-              "program.stop",
-              "target.reset",
-              "telemetry.poll",
-            ],
-          });
-        }
-        const body = JSON.parse(String(init.body)) as { requestId: string };
-        if (path.endsWith("/api/v1/prepare")) {
-          prepareRequestIds.push(body.requestId);
-          prepareAttempts += 1;
-          if (prepareAttempts === 1) {
-            throw new TypeError("Prepare reply was interrupted");
-          }
-          return response({
-            protocol: 1,
-            requestId: body.requestId,
-            ok: true,
-            result: {
-              detail: "Project prepared",
-              checked: 1,
-              project: {
-                name: project.entrypoint,
-                entrypoint: project.entrypoint,
-                revision: projectRevision,
-                lifetime: "boot",
-              },
-            },
-          });
-        }
-        return response({
+      async (_input: URL | RequestInfo, _init?: RequestInit) =>
+        response({
           protocol: 1,
-          requestId: body.requestId,
-          ok: true,
-          result: { detail: "Running main.py", runId: 5 },
-        });
-      },
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        }),
     );
     const target = new DirectPhysicalTargetClient("192.168.7.30", {
       fetch: fetchMock as typeof fetch,
@@ -1901,192 +1863,13 @@ describe("physical target", () => {
     });
 
     await target.connect();
-    await target.run(project);
-
-    expect(prepareRequestIds).toHaveLength(2);
-    expect(prepareRequestIds[0]).toBe(prepareRequestIds[1]);
+    await expect(target.run(project)).rejects.toMatchObject({
+      code: "capability_mismatch",
+      message: expect.stringContaining("Set up or Repair"),
+    });
     expect(
-      paths.filter((path) => path.endsWith("/api/v1/prepare")),
-    ).toHaveLength(2);
-    expect(paths.some((path) => path.endsWith("/api/v1/sync"))).toBe(false);
-    expect(paths.at(-1)).toBe("http://192.168.7.30/api/v1/run");
-    target.disconnect();
-  });
-
-  it("continues to Run when /info proves an interrupted Prepare completed", async () => {
-    const changed = {
-      ...project,
-      name: "Edited project",
-      files: { "main.py": "print('edited')\n" },
-    };
-    const changedRevision = (await describeProject(changed)).revision;
-    let infoRequests = 0;
-    let prepareAttempts = 0;
-    let runAttempts = 0;
-    const fetchMock = vi.fn(
-      async (input: URL | RequestInfo, init?: RequestInit) => {
-        const path = String(input);
-        if (path.endsWith("/api/v1/info")) {
-          infoRequests += 1;
-          return response({
-            protocol: 1,
-            serviceVersion: CURRENT_COURSE_RELEASE,
-            courseRelease: CURRENT_COURSE_RELEASE,
-            bootId: "boot-a",
-            robotName: "xrp-test",
-            address: "192.168.7.30",
-            project:
-              infoRequests === 1
-                ? null
-                : {
-                    name: changed.name,
-                    entrypoint: changed.entrypoint,
-                    revision: changedRevision,
-                  },
-            capabilities: [
-              "project.check",
-              "project.prepare",
-              "program.run",
-              "program.stop",
-              "target.reset",
-              "telemetry.poll",
-            ],
-          });
-        }
-        const body = JSON.parse(String(init?.body)) as { requestId: string };
-        if (path.endsWith("/api/v1/prepare")) {
-          prepareAttempts += 1;
-          throw new TypeError("Prepare reply was lost");
-        }
-        runAttempts += 1;
-        return response({
-          protocol: 1,
-          requestId: body.requestId,
-          ok: true,
-          result: { detail: "Running main.py", runId: 6 },
-        });
-      },
-    );
-    const target = new DirectPhysicalTargetClient("192.168.7.30", {
-      fetch: fetchMock as typeof fetch,
-      pollIntervalMs: 60_000,
-    });
-    const events: TargetEvent[] = [];
-    target.subscribe((event) => events.push(event));
-
-    await target.connect();
-    await target.run(changed);
-
-    expect(prepareAttempts).toBe(2);
-    expect(infoRequests).toBe(2);
-    expect(runAttempts).toBe(1);
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        type: "console",
-        line: `Prepare verified · ${changed.name} is ready in XRP memory`,
-        action: "prepare",
-      }),
-    );
-    target.disconnect();
-  });
-
-  it("rejects stale /info after both Prepare replies, then accepts later telemetry", async () => {
-    const changed = {
-      ...project,
-      name: "Edited project",
-      files: { "main.py": "print('edited')\n" },
-    };
-    const changedRevision = (await describeProject(changed)).revision;
-    const oldRevision = "old-project-revision";
-    let prepareAttempts = 0;
-    let runAttempts = 0;
-    let deviceShowsChangedProject = false;
-    const fetchMock = vi.fn(
-      async (input: URL | RequestInfo, init?: RequestInit) => {
-        const path = String(input);
-        if (path.endsWith("/api/v1/info")) {
-          return response({
-            protocol: 1,
-            serviceVersion: CURRENT_COURSE_RELEASE,
-            courseRelease: CURRENT_COURSE_RELEASE,
-            bootId: "boot-a",
-            robotName: "xrp-test",
-            address: "192.168.7.30",
-            project: {
-              name: "Old project",
-              entrypoint: "main.py",
-              revision: oldRevision,
-            },
-            capabilities: [
-              "project.check",
-              "project.prepare",
-              "program.run",
-              "program.stop",
-              "target.reset",
-              "telemetry.poll",
-            ],
-          });
-        }
-        if (path.includes("/api/v1/telemetry")) {
-          return response({
-            bootId: "boot-a",
-            state: "ready",
-            detail: "Physical XRP ready",
-            runId: 0,
-            project: {
-              name: deviceShowsChangedProject ? changed.name : "Old project",
-              entrypoint: changed.entrypoint,
-              revision: deviceShowsChangedProject
-                ? changedRevision
-                : oldRevision,
-            },
-            logs: [],
-            samples: [],
-          });
-        }
-        const body = JSON.parse(String(init?.body)) as { requestId: string };
-        if (path.endsWith("/api/v1/prepare")) {
-          prepareAttempts += 1;
-          if (prepareAttempts === 2) {
-            deviceShowsChangedProject = true;
-          }
-          throw new TypeError("Prepare reply was lost");
-        }
-        runAttempts += 1;
-        return response({
-          protocol: 1,
-          requestId: body.requestId,
-          ok: true,
-          result: { detail: "Running main.py", runId: 6 },
-        });
-      },
-    );
-    const target = new DirectPhysicalTargetClient("192.168.7.30", {
-      fetch: fetchMock as typeof fetch,
-      pollIntervalMs: 10,
-    });
-    const events: TargetEvent[] = [];
-    target.subscribe((event) => events.push(event));
-
-    await target.connect();
-    await expect(target.run(changed)).rejects.toMatchObject({
-      code: "network_error",
-    });
-    await vi.waitFor(() =>
-      expect(events).toContainEqual({
-        type: "project",
-        project: {
-          name: changed.name,
-          entrypoint: changed.entrypoint,
-          revision: changedRevision,
-          stale: false,
-        },
-      }),
-    );
-    await target.runCurrent();
-
-    expect(prepareAttempts).toBe(2);
-    expect(runAttempts).toBe(1);
+      fetchMock.mock.calls.every(([, init]) => !init || init.method === "GET"),
+    ).toBe(true);
     target.disconnect();
   });
 

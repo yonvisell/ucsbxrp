@@ -578,18 +578,18 @@ export class DirectPhysicalTargetClient implements TargetClient {
         !this.currentProject ||
         this.currentProject.stale ||
         descriptor.revision !== this.currentProject.revision;
-      if (
-        projectNeedsPreparing &&
-        this.info?.capabilities.includes("project.run")
-      ) {
+      if (projectNeedsPreparing) {
+        if (!this.info?.capabilities.includes("project.run")) {
+          throw new PhysicalTargetError(
+            "capability_mismatch",
+            "This XRP needs the current course software before it can run edited projects reliably. Open Set up or Repair, update the XRP, then reconnect.",
+          );
+        }
         started = await this.prepareAndStartWhilePollingPaused(
           project,
           descriptor,
         );
       } else {
-        if (projectNeedsPreparing) {
-          await this.prepareWhilePollingPaused(project, descriptor);
-        }
         started = await this.startCurrentProjectWhilePollingPaused();
       }
     } finally {
