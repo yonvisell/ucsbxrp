@@ -45,28 +45,28 @@ class TelemetryBufferTest(unittest.TestCase):
         _telemetry.clear_state()
 
     def test_retains_a_bounded_ordered_set_of_immutable_step_snapshots(self):
-        ticks = iter(range(1_000, 2_380, 20))
+        ticks = iter(range(1_000, 3_020, 20))
         _telemetry._ticks_ms = lambda: next(ticks)
 
-        for value in range(1, 70):
+        for value in range(1, 102):
             _telemetry.publish_state(robot_state(value))
 
         retained = _telemetry.buffered_state_snapshots()
-        self.assertEqual(len(retained), 64)
-        self.assertEqual([item["sampleSeq"] for item in retained], list(range(6, 70)))
+        self.assertEqual(len(retained), 96)
+        self.assertEqual([item["sampleSeq"] for item in retained], list(range(6, 102)))
         self.assertEqual(
             [item["sampleTimeMs"] for item in retained],
-            list(range(100, 1_380, 20)),
+            list(range(100, 2_020, 20)),
         )
         self.assertEqual(
-            [item["sampleSeq"] for item in _telemetry.buffered_state_snapshots(66)],
-            [67, 68, 69],
+            [item["sampleSeq"] for item in _telemetry.buffered_state_snapshots(98)],
+            [99, 100, 101],
         )
 
         public_copy = _telemetry.state_snapshot()
         public_copy["xMm"] = 999
-        self.assertEqual(_telemetry.state_snapshot()["xMm"], 69)
-        self.assertEqual(retained[-1]["xMm"], 69)
+        self.assertEqual(_telemetry.state_snapshot()["xMm"], 101)
+        self.assertEqual(retained[-1]["xMm"], 101)
 
     def test_mirrors_raw_hardware_and_drive_without_mutating_public_copy(self):
         raw = RawSensors(120, 14, -11, 340.0, True)
