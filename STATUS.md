@@ -2125,3 +2125,28 @@ creates Expanding Spiral, completes it in IDE, restores it as an exportable
 Monitor dataset, runs again from Monitor, and verifies that the second dataset
 replaces the first. Focused browser, target, API-reference, production-build,
 and generated-reference checks pass.
+
+## Refinement 80: release-harness alignment and plot legend correction
+
+The public dev.41 deployment completed its build and Pages publication, while
+the full hosted browser job reported 70 passing and 16 failing workflows. The
+failures were inspected from the authenticated job log rather than interpreted
+as product evidence by count. Fifteen retained obsolete assumptions from the
+removed browser-project model, older Guide/API wording, or pre-initialization
+layout measurement. Those workflows now create actual Working folders and
+Project folders, read autosaved files from disk, wait for the initialized IDE,
+and retain the substantive update, authoring, recording, network-recovery, and
+responsive-layout checks.
+
+The repeated virtual workflow also exposed one product defect: `SignalPlot`
+configured an ECharts legend without registering `LegendComponent`, which
+reported console errors during ordinary plotting. The component is now
+registered directly. No console warning is suppressed and no fallback storage
+or recovery path was added.
+
+The three focused groups pass 16/16 current-copy and layout workflows, 18/18
+folder-backed IDE/Monitor workflows, and 10/10 update and authoring workflows.
+The complete fast release gate also passes: formatting, 248 Python tests,
+MicroPython source/reference-bytecode parity, 376 browser-library unit tests,
+type checking, the production build, and the 322-file offline package. The
+republished full browser job remains the final check for this refinement.
