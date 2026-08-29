@@ -1169,18 +1169,26 @@ export function DashboardApp() {
     [archiveCompletedRun, diagnosticLog, runDatasetController],
   );
 
-  const clearDisplayedRun = useCallback(() => {
-    runDatasetController.clear();
-    setActiveRunId(null);
-    setLatestRun(null);
-    setActiveRunWorldBackfill(null);
-    latestRunFolderRef.current = null;
-    monitorVisualHistory.clearHistory();
-    annotationsRef.current = [];
-    setAnnotations([]);
-    setExportDetail("");
-    retryPendingOfflineShellReload();
-  }, [monitorVisualHistory, runDatasetController]);
+  const clearDisplayedRun = useCallback(
+    (options?: { clearLiveTelemetry?: boolean }) => {
+      runDatasetController.clear();
+      setActiveRunId(null);
+      setLatestRun(null);
+      setActiveRunWorldBackfill(null);
+      latestRunFolderRef.current = null;
+      if (options?.clearLiveTelemetry) {
+        telemetryRateSamplesRef.current = [];
+        monitorVisualHistory.clearAll();
+      } else {
+        monitorVisualHistory.clearHistory();
+      }
+      annotationsRef.current = [];
+      setAnnotations([]);
+      setExportDetail("");
+      retryPendingOfflineShellReload();
+    },
+    [monitorVisualHistory, runDatasetController],
+  );
 
   const beginRunDataset = useCallback(
     (
@@ -1470,7 +1478,7 @@ export function DashboardApp() {
           event.replayed !== true
         ) {
           finishActiveRun("ready", "Run ended by Reset");
-          clearDisplayedRun();
+          clearDisplayedRun({ clearLiveTelemetry: true });
         }
         if (!projectProviderAvailableRef.current) {
           diagnosticLog.record({
@@ -2265,7 +2273,7 @@ export function DashboardApp() {
                     <h2 id="signal-controls-title">Plot signals</h2>
                     <button
                       disabled={activeRunId !== null || latestRun === null}
-                      onClick={clearDisplayedRun}
+                      onClick={() => clearDisplayedRun()}
                       title="Clear the completed run, plots, and notes. Saved files are not deleted."
                     >
                       Clear run

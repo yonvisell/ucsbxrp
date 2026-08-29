@@ -2742,6 +2742,101 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("restarts the telemetry cursor when Reset starts a new sample epoch", async () => {
+    const telemetryRequests: string[] = [];
+    const resetSample = {
+      ...physicalSample(1, 20),
+      poseAvailable: false,
+      leftEffort: 0,
+      rightEffort: 0,
+      leftWheelSpeedMmS: 0,
+      rightWheelSpeedMmS: 0,
+    };
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/info")) {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            capabilities: [
+              "project.check",
+              "project.prepare",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+              "logs.poll",
+            ],
+          });
+        }
+        if (url.includes("/api/v1/state")) {
+          return response({
+            bootId: "boot-a",
+            state: "ready",
+            detail: "Physical XRP ready",
+            runId: 3,
+            logs: [],
+            sample: physicalSample(12, 240),
+          });
+        }
+        if (url.includes("/api/v1/telemetry")) {
+          telemetryRequests.push(url);
+          return response({
+            bootId: "boot-a",
+            state: "ready",
+            detail: "Program state reset",
+            runId: 3,
+            logs: [],
+            samples: [resetSample],
+            moreSamples: false,
+          });
+        }
+        const body = JSON.parse(String(init?.body)) as { requestId: string };
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result: { detail: "Program state reset", reconnecting: false },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "telemetry",
+        sample: expect.objectContaining({ seq: 12, poseAvailable: true }),
+      }),
+    );
+    events.length = 0;
+
+    await target.reset();
+    await vi.waitFor(() => expect(telemetryRequests).toHaveLength(1));
+    expect(telemetryRequests[0]).toContain(
+      "afterLogSeq=0&afterSampleSeq=0&runId=3",
+    );
+    await vi.waitFor(() =>
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "telemetry",
+          sample: expect.objectContaining({ seq: 1, poseAvailable: false }),
+        }),
+      ),
+    );
+    target.disconnect();
+  });
+
   it("accepts an already-stopped reply without entering recovery", async () => {
     let telemetryRequests = 0;
     const fetchMock = vi.fn(

@@ -27,6 +27,8 @@ let reachable = false;
 let serviceState: "ready" | "running" = "ready";
 let rejectedCommand: "stop" | "reset" | null = null;
 let serviceSampleSeq = 0;
+let resetTelemetryEpoch = false;
+let readySamplePending = false;
 
 async function seedPhysicalWorkspace(
   page: import("@playwright/test").Page,
@@ -105,8 +107,14 @@ test.beforeAll(async () => {
         );
         return;
       }
-      if (command === "stop" || command === "reset") {
+      if (command === "stop") {
         serviceState = "ready";
+      }
+      if (command === "reset") {
+        serviceState = "ready";
+        serviceSampleSeq = 0;
+        resetTelemetryEpoch = true;
+        readySamplePending = true;
       }
       response.writeHead(200, responseHeaders);
       response.end(
@@ -127,13 +135,15 @@ test.beforeAll(async () => {
       return;
     }
     const infoRequest = url.pathname.endsWith("/info");
+    const publishReadySample =
+      !infoRequest && serviceState === "ready" && readySamplePending;
     const nextSample =
-      !infoRequest && serviceState === "running"
+      !infoRequest && (serviceState === "running" || publishReadySample)
         ? {
             tMs: (serviceSampleSeq + 1) * 40,
             seq: (serviceSampleSeq += 1),
             source: "physical",
-            poseAvailable: true,
+            poseAvailable: serviceState === "running",
             xMm: serviceSampleSeq * 5,
             yMm: 0,
             headingRad: 0,
@@ -153,6 +163,7 @@ test.beforeAll(async () => {
             sensorError: null,
           }
         : null;
+    if (publishReadySample) readySamplePending = false;
     const body = infoRequest
       ? {
           ...common,
@@ -181,7 +192,7 @@ test.beforeAll(async () => {
             serviceState === "running"
               ? "Running main.py"
               : "Physical XRP ready",
-          runId: serviceState === "running" ? 1 : 0,
+          runId: serviceState === "running" || resetTelemetryEpoch ? 1 : 0,
           logs: [],
           samples: nextSample ? [nextSample] : [],
           moreSamples: false,
@@ -374,6 +385,8 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
   reachable = true;
   serviceState = "running";
   serviceSampleSeq = 0;
+  resetTelemetryEpoch = false;
+  readySamplePending = false;
   rejectedCommand = null;
   try {
     await seedPhysicalWorkspace(ide);
@@ -405,8 +418,17 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
       "data-path-point-count",
       "0",
     );
+    await expect(
+      monitor.getByText("Preview · no published pose", { exact: true }),
+    ).toBeVisible();
+    await expect(monitor.getByText("odometry x", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(monitor.getByTestId("range-mm")).toHaveText("300.0 mm");
   } finally {
     serviceState = "ready";
     serviceSampleSeq = 0;
+    resetTelemetryEpoch = false;
+    readySamplePending = false;
   }
 });
