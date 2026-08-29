@@ -471,6 +471,14 @@ function validWorkspaceManifest(value: unknown): value is WorkspaceManifest {
 export async function loadWorkspaceManifest(
   workspace: CourseDirectoryHandle,
 ): Promise<WorkspaceManifest | null> {
+  return withCourseFolderWriteLock("config", () =>
+    loadWorkspaceManifestUnlocked(workspace),
+  );
+}
+
+async function loadWorkspaceManifestUnlocked(
+  workspace: CourseDirectoryHandle,
+): Promise<WorkspaceManifest | null> {
   const result = await readWorkspaceManifest(workspace);
   if (result.status === "missing") return null;
   if (result.status === "valid") return result.manifest;

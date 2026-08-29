@@ -145,6 +145,9 @@ test("two open Monitors save one copy of the same run", async ({
   await expect(secondMonitor.getByTestId("recording-count")).toContainText(
     "Expanding spiral ·",
   );
+  await expect(firstMonitor.getByTestId("run-autosave-status")).toHaveText(
+    "Saved automatically to Expanding-Spiral.",
+  );
 
   const autosaveNames = await firstMonitor.evaluate(async (selectedFolder) => {
     const root = await navigator.storage.getDirectory();

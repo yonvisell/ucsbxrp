@@ -168,10 +168,15 @@ export async function readWorkspaceManifest<T = unknown>(
   folderName = "UCSBXRP-Test-Work",
 ): Promise<T> {
   return page.evaluate(async (name) => {
-    const root = await navigator.storage.getDirectory();
-    const workspace = await root.getDirectoryHandle(name);
-    const handle = await workspace.getFileHandle(".ucsbxrp.json");
-    return JSON.parse(await (await handle.getFile()).text()) as T;
+    const read = async () => {
+      const root = await navigator.storage.getDirectory();
+      const workspace = await root.getDirectoryHandle(name);
+      const handle = await workspace.getFileHandle(".ucsbxrp.json");
+      return JSON.parse(await (await handle.getFile()).text()) as T;
+    };
+    return navigator.locks
+      ? navigator.locks.request("ucsb-xrp-config-folder-write", read)
+      : read();
   }, folderName);
 }
 

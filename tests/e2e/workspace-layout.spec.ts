@@ -164,6 +164,9 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   await expect(ideFrame.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await expect(
+    ideFrame.getByRole("button", { name: "Run", exact: true }),
+  ).toBeEnabled();
   await expect(monitorFrame.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -195,7 +198,7 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
     name: "Run",
     exact: true,
   });
-  await expect(monitorRun).toBeEnabled({ timeout: 20_000 });
+  await expect(monitorRun).toBeEnabled();
   await monitorRun.click();
   await ideFrame.getByRole("tab", { name: "System log" }).click();
   await expect(ideFrame.getByRole("log")).toContainText(
