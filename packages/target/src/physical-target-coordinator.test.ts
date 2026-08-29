@@ -38,6 +38,7 @@ class FakePhysicalTarget implements TargetClient {
   readonly kind = "physical" as const;
   readonly listeners = new Set<(event: TargetEvent) => void>();
   connectError: Error | null = null;
+  connectGate: Promise<void> | null = null;
   connectCalls = 0;
   disconnectCalls = 0;
   runCalls = 0;
@@ -57,6 +58,7 @@ class FakePhysicalTarget implements TargetClient {
       state: "connecting",
       detail: `Connecting to ${this.endpoint}`,
     });
+    if (this.connectGate) await this.connectGate;
     if (this.connectError) {
       this.emit({
         type: "status",
@@ -1322,6 +1324,150 @@ describe("physical target coordinator", () => {
       state: "ready",
       detail: "http://192.168.7.25",
     });
+  });
+
+  it("retains and coalesces a wake signal until the existing target reports error", async () => {
+    let releaseRecovery: (() => void) | undefined;
+    const recoveryGate = new Promise<void>((resolve) => {
+      releaseRecovery = resolve;
+    });
+    const attempts: Array<{
+      endpoint: string;
+      timeoutMs?: number;
+      expectedRobotId?: string;
+    }> = [];
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator(
+      (endpoint, timeoutMs, expectedRobotId) => {
+        attempts.push({ endpoint, timeoutMs, expectedRobotId });
+        const target = new FakePhysicalTarget(endpoint);
+        if (targets.length === 1) target.connectGate = recoveryGate;
+        targets.push(target);
+        return target;
+      },
+    );
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        discoveryTimeoutMs: 1_250,
+        expectedRobotId: "ROBOT-A",
+        requestId: "initial-connect",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "initial-connect")).toHaveLength(1),
+    );
+
+    targets[0]?.emit({
+      type: "status",
+      state: "running",
+      detail: "Running main.py",
+    });
+    coordinator.handle(ide, command({ type: "resume", reason: "focus" }));
+    coordinator.handle(monitor, command({ type: "resume", reason: "online" }));
+    await Promise.resolve();
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.disconnectCalls).toBe(0);
+    expect(events(ide, "status").at(-1)).toMatchObject({ state: "running" });
+
+    targets[0]?.emit({
+      type: "status",
+      state: "connecting",
+      detail: "Telemetry was interrupted; reconnecting to the XRP…",
+    });
+    await Promise.resolve();
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.disconnectCalls).toBe(0);
+
+    targets[0]?.emit({
+      type: "status",
+      state: "error",
+      detail: "The XRP stopped responding",
+    });
+    await vi.waitFor(() => expect(targets).toHaveLength(2));
+    coordinator.handle(monitor, command({ type: "resume", reason: "online" }));
+    coordinator.handle(ide, command({ type: "resume", reason: "focus" }));
+    releaseRecovery?.();
+    await vi.waitFor(() =>
+      expect(events(ide, "status").at(-1)).toMatchObject({ state: "ready" }),
+    );
+
+    expect(targets).toHaveLength(2);
+    expect(attempts).toEqual([
+      {
+        endpoint: "http://192.168.7.25",
+        timeoutMs: 1_250,
+        expectedRobotId: "robot-a",
+      },
+      {
+        endpoint: "http://192.168.7.25",
+        timeoutMs: 1_250,
+        expectedRobotId: "robot-a",
+      },
+    ]);
+    expect(events(monitor, "status").at(-1)).toMatchObject({ state: "ready" });
+  });
+
+  it("uses one failed wake attempt and leaves manual connect able to retry", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      if (targets.length === 1 || targets.length === 2) {
+        target.connectError = new Error(`unavailable at ${endpoint}`);
+      }
+      targets.push(target);
+      return target;
+    });
+    const app = new FakePort();
+    coordinator.attach(app);
+
+    coordinator.handle(
+      app,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        requestId: "initial-connect",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(app, "initial-connect")).toHaveLength(1),
+    );
+    targets[0]?.emit({
+      type: "status",
+      state: "error",
+      detail: "The XRP stopped responding",
+    });
+
+    coordinator.handle(app, command({ type: "resume", reason: "pageshow" }));
+    await vi.waitFor(() => {
+      expect(targets).toHaveLength(3);
+      expect(events(app, "status").at(-1)).toMatchObject({ state: "error" });
+    });
+
+    coordinator.handle(app, command({ type: "resume", reason: "focus" }));
+    coordinator.handle(
+      app,
+      command({
+        type: "connect",
+        endpoints: ["http://192.168.7.25", "http://192.168.4.1"],
+        requestId: "manual-retry",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(app, "manual-retry")).toEqual([
+        expect.objectContaining({ ok: true }),
+      ]),
+    );
+
+    expect(targets).toHaveLength(4);
+    expect(events(app, "status").at(-1)).toMatchObject({ state: "ready" });
   });
 
   it("replays the complete shared state when a second tab joins", async () => {

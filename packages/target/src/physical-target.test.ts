@@ -960,6 +960,81 @@ describe("physical target", () => {
     }
   });
 
+  it("keeps one edited IDE project notice while an empty target is polled", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).includes("/api/v1/telemetry")) {
+        return response({
+          bootId: "boot-a",
+          state: "ready",
+          detail: "Physical XRP ready",
+          runId: 0,
+          project: null,
+          logs: [],
+          samples: [],
+        });
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-a",
+        robotName: "xrp-test",
+        address: "192.168.7.30",
+        project: null,
+        capabilities: [
+          "project.check",
+          "project.prepare",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 10,
+    });
+    const projects: Array<Extract<TargetEvent, { type: "project" }>> = [];
+    target.subscribe((event) => {
+      if (event.type === "project") projects.push(event);
+    });
+
+    try {
+      await target.connect();
+      projects.length = 0;
+      target.markProjectChanged({
+        projectId: "project-1",
+        revision: 2,
+        name: "Edited project",
+        entrypoint: "main.py",
+      });
+      target.markProjectChanged({
+        projectId: "project-1",
+        revision: 3,
+        name: "Edited project",
+        entrypoint: "main.py",
+      });
+      await vi.advanceTimersByTimeAsync(40);
+
+      expect(projects).toEqual([
+        {
+          type: "project",
+          project: {
+            name: "Edited project",
+            entrypoint: "main.py",
+            revision: "ide:project-1:2",
+            stale: true,
+          },
+        },
+      ]);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not start polling after disconnecting during discovery", async () => {
     let resolveDiscovery: ((value: Response) => void) | undefined;
     const fetchMock = vi.fn(
@@ -1184,6 +1259,102 @@ describe("physical target", () => {
     }
   });
 
+  it("forwards qualifying lifecycle events before an error and removes them on disconnect", async () => {
+    const posted: Array<{ type: string; reason?: string; requestId?: string }> =
+      [];
+    const port = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      start: vi.fn(),
+      close: vi.fn(),
+      postMessage(message: {
+        type: string;
+        reason?: string;
+        requestId?: string;
+      }) {
+        posted.push(message);
+        if (message.type === "connect" && message.requestId) {
+          queueMicrotask(() =>
+            this.onmessage?.({
+              data: {
+                type: "response",
+                requestId: message.requestId,
+                ok: true,
+              },
+            } as MessageEvent),
+          );
+        }
+      },
+    };
+    class FakeSharedWorker {
+      readonly port = port;
+    }
+    const fakeWindow = Object.assign(new EventTarget(), {
+      location: { protocol: "https:" },
+    });
+    const fakeDocument = Object.assign(new EventTarget(), {
+      visibilityState: "visible" as DocumentVisibilityState,
+    });
+    const fakeNavigator = { onLine: true };
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", fakeDocument);
+    vi.stubGlobal("navigator", fakeNavigator);
+
+    const target = new PhysicalTargetClient("192.168.7.30");
+    try {
+      await target.connect();
+      port.onmessage?.({
+        data: {
+          type: "event",
+          event: {
+            type: "status",
+            state: "ready",
+            detail: "XRP ready",
+          },
+        },
+      } as MessageEvent);
+      fakeWindow.dispatchEvent(new Event("focus"));
+      const ordinaryPageShow = new Event("pageshow");
+      Object.defineProperty(ordinaryPageShow, "persisted", { value: false });
+      fakeWindow.dispatchEvent(ordinaryPageShow);
+      const restoredPageShow = new Event("pageshow");
+      Object.defineProperty(restoredPageShow, "persisted", { value: true });
+      fakeWindow.dispatchEvent(restoredPageShow);
+
+      fakeDocument.visibilityState = "hidden";
+      fakeDocument.dispatchEvent(new Event("visibilitychange"));
+      fakeWindow.dispatchEvent(new Event("online"));
+      fakeDocument.visibilityState = "visible";
+      fakeDocument.dispatchEvent(new Event("visibilitychange"));
+      fakeWindow.dispatchEvent(new Event("focus"));
+
+      fakeNavigator.onLine = false;
+      fakeWindow.dispatchEvent(new Event("focus"));
+      fakeNavigator.onLine = true;
+      fakeWindow.dispatchEvent(new Event("online"));
+
+      expect(
+        posted
+          .filter((message) => message.type === "resume")
+          .map((message) => message.reason),
+      ).toEqual(["focus", "pageshow", "visibilitychange", "focus", "online"]);
+
+      target.disconnect();
+      const postDisconnectCount = posted.length;
+      fakeWindow.dispatchEvent(restoredPageShow);
+      fakeWindow.dispatchEvent(new Event("focus"));
+      fakeWindow.dispatchEvent(new Event("online"));
+      fakeDocument.visibilityState = "hidden";
+      fakeDocument.dispatchEvent(new Event("visibilitychange"));
+      fakeDocument.visibilityState = "visible";
+      fakeDocument.dispatchEvent(new Event("visibilitychange"));
+      expect(posted).toHaveLength(postDisconnectCount);
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("invokes the browser fetch function with its global receiver", async () => {
     const originalFetch = globalThis.fetch;
     let observedReceiver: unknown;
@@ -1339,7 +1510,7 @@ describe("physical target", () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(telemetryRequests).toBe(1);
 
-      await vi.advanceTimersByTimeAsync(124);
+      await vi.advanceTimersByTimeAsync(19);
       expect(telemetryRequests).toBe(1);
       await vi.advanceTimersByTimeAsync(1);
       expect(telemetryRequests).toBe(2);

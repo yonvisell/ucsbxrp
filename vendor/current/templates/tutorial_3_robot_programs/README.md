@@ -1,19 +1,20 @@
 # Tutorial 3: sampled robot programs
 
-Write one finite Virtual XRP program using the same `Robot.start()`,
+Run and modify one finite Virtual XRP program using the same `Robot.start()`,
 `Robot.step()`, and `Robot.stop()` structure used by the course challenges. The
 program requests straight motion for a fixed number of samples; it does not
 solve a distance-control challenge.
 
-Use the **Virtual XRP**. Edit only `student_work.py`; the supplied files assemble
-the robot, check the exercises, and run your completed program.
+Use the **Virtual XRP**. Open Monitor and select **Run** first. The supplied
+program travels approximately 300 mm in the course arena, prints its final pose,
+and stops. Then edit only `student_work.py`.
 
 ## Project modules
 
 This is a complete UCSBXRP project:
 
 - `main.py` is the entrypoint and calls your functions;
-- `student_work.py` contains the two exercises;
+- `student_work.py` contains the two runnable examples;
 - `exercise_checks.py` substitutes a software robot and checks method calls;
 - `course_setup.py` assembles the supplied components;
 - `robot_config.py` contains robot timing, geometry, calibration, and limits;
@@ -22,9 +23,9 @@ This is a complete UCSBXRP project:
 Imports connect these modules. `main.py` does not copy your functions; it loads
 them with `from student_work import ...`.
 
-## Exercise 1: read a RobotState record
+## Walkthrough 1: read a RobotState record
 
-Complete `mean_wheel_position_mm(state: RobotState) -> float`. Return the
+`mean_wheel_position_mm(state: RobotState) -> float` returns the
 arithmetic mean of the latest left and right wheel positions:
 
 ```python
@@ -38,9 +39,9 @@ mean_mm = (
 fields does not acquire another sample. The next `Robot.step(...)` call produces
 the next state.
 
-## Exercise 2: run a finite sampled motion
+## Walkthrough 2: run a finite sampled motion
 
-Complete:
+Read and trace:
 
 ```python
 def run_robot_program(
@@ -80,17 +81,15 @@ measured response and total motion.
 
 ## Check and run
 
-1. Complete `mean_wheel_position_mm` and select **Check exercises**.
-2. Complete `run_robot_program` and check again. The checker uses a software
-   robot; it does not move either XRP.
-3. Open Monitor and select **Run** with the Virtual XRP selected.
-4. Confirm an approximately straight path, increasing mean wheel position, and
-   a zero final drive command.
-5. Reset and repeat. A fixed program in the same virtual world should produce a
-   comparable trajectory.
+1. Open Monitor and select **Run** with the Virtual XRP selected.
+2. Confirm an approximately 300 mm straight path, increasing mean wheel
+   position, printed final pose, and a zero final drive command.
+3. Change `FORWARD_SPEED_MM_S` or `SAMPLE_COUNT` in `main.py`, predict the new
+   distance, then select **Check examples**, reset, and rerun.
+4. Restore the supplied value and repeat once. The same program in the same
+   virtual world should produce a comparable trajectory.
 
-`PASS` confirms the required result or call sequence. `NOT COMPLETED` means a
-placeholder remains. `INCORRECT` identifies the first differing value or robot
-method call.
+`PASS` confirms the required result or call sequence. If an experiment breaks
+the example, the first differing value or robot method call is identified.
 
 Continue with **Tutorial 4: Behavior, controls, and telemetry** after this run.

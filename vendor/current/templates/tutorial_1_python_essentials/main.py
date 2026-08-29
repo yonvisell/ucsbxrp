@@ -20,4 +20,4 @@ if run_exercise_checks():
     )
     print("Tutorial 1 complete")
 else:
-    print("Complete the remaining functions in student_work.py")
+    print("Restore the runnable examples in student_work.py")

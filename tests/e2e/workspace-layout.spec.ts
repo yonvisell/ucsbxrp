@@ -167,6 +167,10 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   await expect(monitorFrame.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await expect(monitorFrame.locator(".app-shell")).toHaveAttribute(
+    "data-monitor-surface",
+    "active",
+  );
   await expectShellFillsViewport(page, ".workspace-app");
   await expect(ideFrame.locator(".brand")).toBeHidden();
   await expect(monitorFrame.locator(".brand")).toBeHidden();
@@ -230,6 +234,17 @@ test("combined workspace shares Run and adapts between split and narrow layouts"
   await page.getByRole("button", { name: "IDE", exact: true }).click();
   await expect(idePane).toBeVisible();
   await expect(monitorPane).toBeHidden();
+  await expect(monitorFrame.locator(".app-shell")).toHaveAttribute(
+    "data-monitor-surface",
+    "paused",
+  );
+
+  await page.getByRole("button", { name: "Monitor", exact: true }).click();
+  await expect(monitorFrame.locator(".app-shell")).toHaveAttribute(
+    "data-monitor-surface",
+    "active",
+  );
+  await page.getByRole("button", { name: "IDE", exact: true }).click();
 
   await page.getByRole("button", { name: "Stacked" }).click();
   const stackedSeparator = page.getByRole("separator", {
@@ -246,7 +261,12 @@ test("workspace opens in IDE mode unless the user selects another layout", async
   page,
 }) => {
   await page.goto("/workspace/");
+  const monitorFrame = page.frameLocator('iframe[title="UCSBXRP Monitor"]');
   await expect(page.getByRole("region", { name: "IDE pane" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Monitor pane" })).toBeHidden();
+  await expect(monitorFrame.locator(".app-shell")).toHaveAttribute(
+    "data-monitor-surface",
+    "paused",
+  );
   await expect(page).toHaveURL(/mode=ide/);
 });

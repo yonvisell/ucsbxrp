@@ -192,6 +192,10 @@ const RUN_STARTUP_QUIET_MS = 500;
 const RESET_RECONNECT_TIMEOUT_MS = 18_000;
 const POLL_FAILURES_BEFORE_ERROR = 2;
 const POLL_RECOVERY_DELAY_MS = 900;
+// Match the course's default 20 ms sample period. Request duration is counted
+// toward this cadence, so a slower XRP naturally limits the rate without
+// accumulating requests or adding another delay after each response.
+const ACTIVE_TELEMETRY_POLL_MS = 20;
 
 interface CommandActivity {
   action: NonNullable<TargetConsoleMetadata["action"]>;
@@ -325,7 +329,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
       options.fetch ?? ((input, init) => globalThis.fetch(input, init));
     this.pollIntervalMs = options.pollIntervalMs ?? 250;
     this.activePollIntervalMs =
-      options.activePollIntervalMs ?? options.pollIntervalMs ?? 125;
+      options.activePollIntervalMs ??
+      options.pollIntervalMs ??
+      ACTIVE_TELEMETRY_POLL_MS;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.connectTimeoutMs = options.discoveryTimeoutMs ?? this.requestTimeoutMs;
     this.expectedRobotId = normalizedRobotId(options.expectedRobotId);
@@ -894,13 +900,22 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   markProjectChanged(project: ProjectRevisionNotice): void {
+    const editorPrefix = `ide:${project.projectId}:`;
+    if (
+      this.currentProject?.stale &&
+      this.currentProject.revision.startsWith(editorPrefix) &&
+      this.currentProject.name === project.name &&
+      this.currentProject.entrypoint === project.entrypoint
+    ) {
+      return;
+    }
     this.setCurrentProject({
       name: project.name,
       entrypoint: project.entrypoint,
       // This is an IDE revision, not the content digest still reported by the
       // XRP. Keeping the two identities distinct prevents the next telemetry
       // poll from making an edited project appear ready again.
-      revision: `ide:${project.projectId}:${project.revision}`,
+      revision: `${editorPrefix}${project.revision}`,
       stale: true,
     });
   }
@@ -1623,6 +1638,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
       return;
     }
     if (manifest === null) {
+      // An editor revision is the current browser authority until that exact
+      // content is prepared. A target with no retained project must not erase
+      // the stale editor notice on every telemetry poll.
+      if (this.currentProject?.stale) return;
       this.setCurrentProject(null);
       return;
     }
@@ -1731,6 +1750,7 @@ export class PhysicalTargetClient implements TargetClient {
   private nextRequest = 1;
   private localNetworkPermissionPrimed = false;
   private pageLifecycleObserved = false;
+  private pageWasHidden = false;
   private readonly candidateEndpoints: readonly string[];
   private readonly discoveryTimeoutMs: number;
   private readonly directMode: boolean;
@@ -1765,7 +1785,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v11" },
+          { type: "module", name: "ucsb-xrp-physical-target-v12" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -2154,6 +2174,49 @@ export class PhysicalTargetClient implements TargetClient {
 
   private readonly releaseOnBeforeUnload = (): void => this.disconnect();
 
+  private readonly resumeOnPageShow = (event: PageTransitionEvent): void => {
+    if (event.persisted) this.requestResumeRecovery("pageshow");
+  };
+
+  private readonly resumeOnVisibilityChange = (): void => {
+    if (document.visibilityState === "hidden") {
+      this.pageWasHidden = true;
+      return;
+    }
+    if (!this.pageWasHidden) return;
+    this.pageWasHidden = false;
+    this.requestResumeRecovery("visibilitychange");
+  };
+
+  private readonly resumeOnOnline = (): void => {
+    if (this.pageIsVisible()) this.requestResumeRecovery("online");
+  };
+
+  private readonly resumeOnFocus = (): void => {
+    if (this.pageIsVisible()) this.requestResumeRecovery("focus");
+  };
+
+  private pageIsVisible(): boolean {
+    return (
+      typeof document === "undefined" || document.visibilityState !== "hidden"
+    );
+  }
+
+  private requestResumeRecovery(
+    reason: Extract<PhysicalWorkerCommand, { type: "resume" }>["reason"],
+  ): void {
+    if (
+      !this.worker ||
+      (typeof navigator !== "undefined" && navigator.onLine === false)
+    ) {
+      return;
+    }
+    this.worker.port.postMessage({
+      type: "resume",
+      reason,
+    } satisfies PhysicalWorkerCommand);
+  }
+
   private observePageLifecycle(): void {
     if (
       this.pageLifecycleObserved ||
@@ -2163,6 +2226,19 @@ export class PhysicalTargetClient implements TargetClient {
       return;
     window.addEventListener("pagehide", this.releaseOnPageHide);
     window.addEventListener("beforeunload", this.releaseOnBeforeUnload);
+    window.addEventListener("pageshow", this.resumeOnPageShow);
+    window.addEventListener("online", this.resumeOnOnline);
+    window.addEventListener("focus", this.resumeOnFocus);
+    if (
+      typeof document !== "undefined" &&
+      typeof document.addEventListener === "function"
+    ) {
+      this.pageWasHidden = document.visibilityState === "hidden";
+      document.addEventListener(
+        "visibilitychange",
+        this.resumeOnVisibilityChange,
+      );
+    }
     this.pageLifecycleObserved = true;
   }
 
@@ -2175,6 +2251,19 @@ export class PhysicalTargetClient implements TargetClient {
       return;
     window.removeEventListener("pagehide", this.releaseOnPageHide);
     window.removeEventListener("beforeunload", this.releaseOnBeforeUnload);
+    window.removeEventListener("pageshow", this.resumeOnPageShow);
+    window.removeEventListener("online", this.resumeOnOnline);
+    window.removeEventListener("focus", this.resumeOnFocus);
+    if (
+      typeof document !== "undefined" &&
+      typeof document.removeEventListener === "function"
+    ) {
+      document.removeEventListener(
+        "visibilitychange",
+        this.resumeOnVisibilityChange,
+      );
+    }
+    this.pageWasHidden = false;
     this.pageLifecycleObserved = false;
   }
 

@@ -53,6 +53,22 @@ interface WriteRequest {
   applyDeletionsWhenSuperseded: boolean;
 }
 
+interface PreparedWriteRequest {
+  request: WriteRequest;
+  deletedPaths: Set<string>;
+  savedProject: ReturnType<typeof snapshotForProjectSession>;
+}
+
+interface PendingAutomaticWrite {
+  prepared: PreparedWriteRequest;
+  resolve(outcome: ProjectFolderPersistenceOutcome): void;
+  reject(reason: unknown): void;
+}
+
+interface AutomaticWriteSlot {
+  pending: PendingAutomaticWrite | null;
+}
+
 /**
  * Serializes writes to the active Project folder and keeps the saved revision
  * and pending deletions consistent with the exact snapshot written to disk.
@@ -62,6 +78,7 @@ export class ProjectFolderPersistenceController {
   private writeQueue: Promise<void> = Promise.resolve();
   private writeEpoch = 0;
   private pendingDeletions = new Set<string>();
+  private pendingAutomaticWriteSlot: AutomaticWriteSlot | null = null;
   private conflictHandler: (conflict: ProjectFolderConflictError) => void =
     () => undefined;
 
@@ -84,6 +101,7 @@ export class ProjectFolderPersistenceController {
   }
 
   cancelPendingWrites(): void {
+    this.cancelPendingAutomaticWrite();
     this.writeEpoch += 1;
   }
 
@@ -119,7 +137,7 @@ export class ProjectFolderPersistenceController {
     projectVersion: number,
   ): Promise<ProjectFolderPersistenceOutcome> {
     const writeEpoch = this.writeEpoch;
-    return this.enqueue({
+    return this.enqueueAutomatically({
       folder,
       session,
       writeEpoch,
@@ -185,6 +203,7 @@ export class ProjectFolderPersistenceController {
   }
 
   private beginExclusiveWrite(): number {
+    this.cancelPendingAutomaticWrite();
     this.writeEpoch += 1;
     return this.writeEpoch;
   }
@@ -211,10 +230,76 @@ export class ProjectFolderPersistenceController {
   private enqueue(
     request: WriteRequest,
   ): Promise<ProjectFolderPersistenceOutcome> {
-    const deletedPaths = new Set(this.pendingDeletions);
-    const savedProject = snapshotForProjectSession(request.session);
-    const queued = this.writeQueue.then(async () => {
-      if (!(await request.beforeWrite())) return null;
+    const prepared = this.prepareWrite(request);
+    const queued = this.writeQueue.then(() => this.performWrite(prepared));
+    this.writeQueue = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queued;
+  }
+
+  private enqueueAutomatically(
+    request: WriteRequest,
+  ): Promise<ProjectFolderPersistenceOutcome> {
+    const prepared = this.prepareWrite(request);
+    return new Promise((resolve, reject) => {
+      const pending = { prepared, resolve, reject };
+      const existingSlot = this.pendingAutomaticWriteSlot;
+      if (existingSlot) {
+        // Keep only the newest snapshot until this queue position starts. This
+        // coalesces edit bursts without imposing a timer or delaying an idle save.
+        existingSlot.pending?.resolve({ status: "cancelled" });
+        existingSlot.pending = pending;
+        return;
+      }
+
+      const slot: AutomaticWriteSlot = { pending };
+      this.pendingAutomaticWriteSlot = slot;
+      const queued = this.writeQueue.then(async () => {
+        if (this.pendingAutomaticWriteSlot === slot) {
+          this.pendingAutomaticWriteSlot = null;
+        }
+        const latest = slot.pending;
+        slot.pending = null;
+        if (!latest) return;
+        try {
+          latest.resolve(await this.performWrite(latest.prepared));
+        } catch (error) {
+          latest.reject(error);
+        }
+      });
+      this.writeQueue = queued.then(
+        () => undefined,
+        () => undefined,
+      );
+    });
+  }
+
+  private cancelPendingAutomaticWrite(): void {
+    const slot = this.pendingAutomaticWriteSlot;
+    if (!slot) return;
+    this.pendingAutomaticWriteSlot = null;
+    slot.pending?.resolve({ status: "cancelled" });
+    slot.pending = null;
+  }
+
+  private prepareWrite(request: WriteRequest): PreparedWriteRequest {
+    return {
+      request,
+      deletedPaths: new Set(this.pendingDeletions),
+      savedProject: snapshotForProjectSession(request.session),
+    };
+  }
+
+  private async performWrite(
+    prepared: PreparedWriteRequest,
+  ): Promise<ProjectFolderPersistenceOutcome> {
+    const { request, deletedPaths, savedProject } = prepared;
+    try {
+      if (!(await request.beforeWrite())) {
+        return this.finishWrite(request, deletedPaths, null);
+      }
       if (
         request.requirePermission &&
         (await this.permission(request.folder)) !== "granted"
@@ -224,26 +309,25 @@ export class ProjectFolderPersistenceController {
           "NotAllowedError",
         );
       }
-      return this.save(request.folder, savedProject, deletedPaths, {
-        ...(request.expectedBaseDigest
-          ? { expectedBaseDigest: request.expectedBaseDigest }
-          : {}),
-      });
-    });
-    this.writeQueue = queued.then(
-      () => undefined,
-      () => undefined,
-    );
-    return queued
-      .then((result) => this.finishWrite(request, deletedPaths, result))
-      .catch((error: unknown) => {
-        if (error instanceof ProjectFolderConflictError) {
-          this.cancelPendingWrites();
-          this.conflictHandler(error);
-          return { status: "conflict" } as const;
-        }
-        throw error;
-      });
+      const result = await this.save(
+        request.folder,
+        savedProject,
+        deletedPaths,
+        {
+          ...(request.expectedBaseDigest
+            ? { expectedBaseDigest: request.expectedBaseDigest }
+            : {}),
+        },
+      );
+      return this.finishWrite(request, deletedPaths, result);
+    } catch (error) {
+      if (error instanceof ProjectFolderConflictError) {
+        this.cancelPendingWrites();
+        this.conflictHandler(error);
+        return { status: "conflict" };
+      }
+      throw error;
+    }
   }
 
   private finishWrite(

@@ -32,6 +32,7 @@ import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import { useTargetPreference } from "../../shared/use-target-preference";
+import { useWorkspaceSurfaceActive } from "../../shared/workspace-visibility";
 import {
   readOfflineShellStatus,
   registerOfflineShellBeforeReload,
@@ -77,7 +78,8 @@ import {
 } from "./monitor-run-dataset";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
 import {
-  PlotSampleHistory,
+  MonitorVisualHistory,
+  type MonitorVisualSnapshot,
   recentTelemetryRateHz,
 } from "./plot-sample-history";
 import courseRelease from "../../../vendor/current/release.json";
@@ -136,6 +138,21 @@ const emptyRuntimeState: RuntimeState = {
   watches: [],
   plots: [],
 };
+
+function sameRuntimePlotDescriptors(
+  left: RuntimeState["plots"],
+  right: RuntimeState["plots"],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (plot, index) =>
+        plot.name === right[index]?.name &&
+        plot.label === right[index]?.label &&
+        plot.unit === right[index]?.unit,
+    )
+  );
+}
 
 function monitorSessionSummary(): string {
   const offline = readOfflineShellStatus();
@@ -532,6 +549,9 @@ function centeredWorldPreview(
 
 export function DashboardApp() {
   const embeddedApplication = isEmbeddedApplication();
+  const monitorSurfaceActive = useWorkspaceSurfaceActive("monitor");
+  const monitorSurfaceActiveRef = useRef(monitorSurfaceActive);
+  monitorSurfaceActiveRef.current = monitorSurfaceActive;
   const [
     targetPreference,
     updateTargetPreference,
@@ -607,20 +627,25 @@ export function DashboardApp() {
     () => new MonitorRunDatasetController(30_000),
     [],
   );
-  const [sample, setSample] = useState<TelemetrySample | null>(null);
-  const [plotSamples, setPlotSamples] = useState<readonly TelemetrySample[]>(
-    [],
-  );
-  const plotSampleHistory = useMemo(
+  const [visualSnapshot, setVisualSnapshot] = useState<MonitorVisualSnapshot>({
+    sample: null,
+    samples: [],
+  });
+  const monitorVisualHistory = useMemo(
     () =>
-      new PlotSampleHistory(
+      new MonitorVisualHistory(
         maximumPlotSamples,
-        setPlotSamples,
+        setVisualSnapshot,
         (callback) => window.requestAnimationFrame(callback),
         (frameId) => window.cancelAnimationFrame(frameId),
       ),
     [],
   );
+  const sample = visualSnapshot.sample;
+  const plotSamples = visualSnapshot.samples;
+  const [activeRunWorldBackfill, setActiveRunWorldBackfill] = useState<
+    readonly TelemetrySample[] | null
+  >(null);
   const [targetState, setTargetState] =
     useState<TargetRunState>("disconnected");
   const [targetDetail, setTargetDetail] = useState("Not connected");
@@ -673,6 +698,7 @@ export function DashboardApp() {
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
+  const latestRuntimeStateRef = useRef<RuntimeState>(emptyRuntimeState);
   const folderInteractionCountRef = useRef(0);
   const runArchiveCountRef = useRef(0);
   const targetCommandCountRef = useRef(0);
@@ -695,6 +721,43 @@ export function DashboardApp() {
       }),
     [],
   );
+
+  const publishRuntimeState = useCallback((state: RuntimeState) => {
+    setRuntimeState(state);
+    if (state.plots.length > 0) {
+      setAvailableProgramPlots((current) =>
+        sameRuntimePlotDescriptors(current, state.plots)
+          ? current
+          : state.plots,
+      );
+      setProgramPlotVisibility((current) => {
+        const next = Object.fromEntries(
+          state.plots.map((plot) => [plot.name, current[plot.name] ?? false]),
+        );
+        return Object.keys(next).length === Object.keys(current).length &&
+          Object.entries(next).every(
+            ([name, visible]) => current[name] === visible,
+          )
+          ? current
+          : next;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    monitorVisualHistory.setActive(monitorSurfaceActive);
+    if (monitorSurfaceActive) {
+      setActiveRunWorldBackfill(
+        runDatasetController.activeRecordingSnapshot()?.samples ?? null,
+      );
+      publishRuntimeState(latestRuntimeStateRef.current);
+    }
+  }, [
+    monitorSurfaceActive,
+    monitorVisualHistory,
+    publishRuntimeState,
+    runDatasetController,
+  ]);
 
   const beginTargetCommand = useCallback(() => {
     targetCommandCountRef.current += 1;
@@ -783,17 +846,53 @@ export function DashboardApp() {
             : String(reason),
       });
     };
-    const flushBeforeLeaving = () => void diagnosticLog.flush();
+    const lifecycleMessage = (event: Event) =>
+      JSON.stringify({
+        type: event.type,
+        visibility: document.visibilityState,
+        online: navigator.onLine,
+        persisted:
+          "persisted" in event &&
+          typeof (event as PageTransitionEvent).persisted === "boolean"
+            ? (event as PageTransitionEvent).persisted
+            : null,
+      });
+    const recordLifecycle = (event: Event) => {
+      const hidden =
+        event.type === "pagehide" ||
+        (event.type === "visibilitychange" && document.hidden);
+      diagnosticLog.record({
+        event: `application.${event.type}`,
+        message: lifecycleMessage(event),
+        level: event.type === "offline" ? "warning" : "info",
+        terminal:
+          hidden ||
+          event.type === "pageshow" ||
+          event.type === "online" ||
+          event.type === "offline",
+      });
+      if (event.type === "pagehide") void diagnosticLog.flush();
+    };
     window.addEventListener("error", recordWindowError);
     window.addEventListener("unhandledrejection", recordUnhandledRejection);
-    window.addEventListener("pagehide", flushBeforeLeaving);
+    window.addEventListener("pagehide", recordLifecycle);
+    window.addEventListener("pageshow", recordLifecycle);
+    window.addEventListener("online", recordLifecycle);
+    window.addEventListener("offline", recordLifecycle);
+    window.addEventListener("focus", recordLifecycle);
+    document.addEventListener("visibilitychange", recordLifecycle);
     return () => {
       window.removeEventListener("error", recordWindowError);
       window.removeEventListener(
         "unhandledrejection",
         recordUnhandledRejection,
       );
-      window.removeEventListener("pagehide", flushBeforeLeaving);
+      window.removeEventListener("pagehide", recordLifecycle);
+      window.removeEventListener("pageshow", recordLifecycle);
+      window.removeEventListener("online", recordLifecycle);
+      window.removeEventListener("offline", recordLifecycle);
+      window.removeEventListener("focus", recordLifecycle);
+      document.removeEventListener("visibilitychange", recordLifecycle);
     };
   }, [diagnosticLog]);
 
@@ -1038,9 +1137,9 @@ export function DashboardApp() {
       latestRunFolderRef.current = runFolder;
       setActiveRunId(null);
       setLatestRun(run);
+      setActiveRunWorldBackfill(null);
       annotationsRef.current = [...run.annotations];
       setAnnotations([...run.annotations]);
-      setPlotSamples(run.recording.samples);
       diagnosticLog.record({
         event: "run.finished",
         eventId: `run-finished:${run.id}`,
@@ -1073,13 +1172,14 @@ export function DashboardApp() {
     runDatasetController.clear();
     setActiveRunId(null);
     setLatestRun(null);
+    setActiveRunWorldBackfill(null);
     latestRunFolderRef.current = null;
-    plotSampleHistory.clear();
+    monitorVisualHistory.clearHistory();
     annotationsRef.current = [];
     setAnnotations([]);
     setExportDetail("");
     retryPendingOfflineShellReload();
-  }, [plotSampleHistory, runDatasetController]);
+  }, [monitorVisualHistory, runDatasetController]);
 
   const beginRunDataset = useCallback(
     (
@@ -1106,7 +1206,8 @@ export function DashboardApp() {
       });
       activeRunFolderRef.current = autosaveFolderRef.current;
       setActiveRunId(runId);
-      plotSampleHistory.clear();
+      setActiveRunWorldBackfill(null);
+      monitorVisualHistory.clearHistory();
       annotationsRef.current = [];
       setAnnotations([]);
       setExportDetail("");
@@ -1129,7 +1230,7 @@ export function DashboardApp() {
       }
       return runId;
     },
-    [diagnosticLog, plotSampleHistory, runDatasetController],
+    [diagnosticLog, monitorVisualHistory, runDatasetController],
   );
 
   const updateSavedRunAnnotations = useCallback((run: MonitorRunDataset) => {
@@ -1167,6 +1268,7 @@ export function DashboardApp() {
     }
     setActiveRunId(null);
     setCurrentProject(null);
+    latestRuntimeStateRef.current = emptyRuntimeState;
     setRuntimeState(emptyRuntimeState);
     setAvailableProgramPlots([]);
     setProgramPlotVisibility({});
@@ -1190,7 +1292,6 @@ export function DashboardApp() {
     });
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
-        setSample(event.sample);
         const rateSamples = telemetryRateSamplesRef.current;
         const previousRateSample = rateSamples.at(-1);
         if (
@@ -1208,8 +1309,11 @@ export function DashboardApp() {
         }
 
         const capturedByRun = runDatasetController.capture(event.sample);
+        const telemetryRestarted = monitorVisualHistory.append(
+          event.sample,
+          capturedByRun,
+        );
         if (capturedByRun) {
-          const telemetryRestarted = plotSampleHistory.append(event.sample);
           if (telemetryRestarted && !runDatasetController.isActive) {
             annotationsRef.current = [];
             setAnnotations([]);
@@ -1281,6 +1385,7 @@ export function DashboardApp() {
           currentProjectRef.current?.revision !== event.project?.revision;
         currentProjectRef.current = event.project;
         if (projectChanged) {
+          latestRuntimeStateRef.current = emptyRuntimeState;
           setRuntimeState(emptyRuntimeState);
           setAvailableProgramPlots([]);
           setProgramPlotVisibility({});
@@ -1306,17 +1411,9 @@ export function DashboardApp() {
         projectProviderAvailableRef.current = event.available;
         setProjectProviderAvailable(event.available);
       } else if (event.type === "runtime") {
-        setRuntimeState(event.state);
-        if (event.state.plots.length > 0) {
-          setAvailableProgramPlots(event.state.plots);
-          setProgramPlotVisibility((current) =>
-            Object.fromEntries(
-              event.state.plots.map((plot) => [
-                plot.name,
-                current[plot.name] ?? false,
-              ]),
-            ),
-          );
+        latestRuntimeStateRef.current = event.state;
+        if (monitorSurfaceActiveRef.current) {
+          publishRuntimeState(event.state);
         }
       } else if (event.type === "world") {
         setWorldCatalog(event.catalog);
@@ -1368,8 +1465,7 @@ export function DashboardApp() {
             setLatestRun(restored);
             annotationsRef.current = [];
             setAnnotations([]);
-            plotSampleHistory.clear(false);
-            setPlotSamples(restored.recording.samples);
+            monitorVisualHistory.clearHistory();
             setRunAutosaveDetail(
               "Showing the most recent XRP run; it was not saved again.",
             );
@@ -1451,9 +1547,8 @@ export function DashboardApp() {
     beginTargetCommand();
     targetStateRef.current = "connecting";
     setTargetState("connecting");
-    setSample(null);
     telemetryRateSamplesRef.current = [];
-    plotSampleHistory.clear();
+    monitorVisualHistory.clearAll();
     currentProjectRef.current = null;
     setProjectProviderAvailable(false);
     let disposed = false;
@@ -1486,7 +1581,7 @@ export function DashboardApp() {
         clearTimeout(timer);
       }
       runtimeUpdateTimers.current.clear();
-      plotSampleHistory.clear(false);
+      monitorVisualHistory.clearAll(false);
       projectProviderAvailableRef.current = false;
       replayedRunRef.current = null;
       target.disconnect();
@@ -1498,7 +1593,8 @@ export function DashboardApp() {
     diagnosticLog,
     finishActiveRun,
     finishTargetCommand,
-    plotSampleHistory,
+    monitorVisualHistory,
+    publishRuntimeState,
     runDatasetController,
     target,
     targetPreferenceError,
@@ -1506,8 +1602,6 @@ export function DashboardApp() {
   ]);
 
   const reset = async () => {
-    finishActiveRun("ready", "Run ended by Reset");
-    setExportDetail("");
     beginTargetCommand();
     try {
       await target.reset();
@@ -1745,8 +1839,9 @@ export function DashboardApp() {
     );
   };
 
-  const programPlotDefinitions = availableProgramPlots.map(
-    runtimePlotDefinition,
+  const programPlotDefinitions = useMemo(
+    () => availableProgramPlots.map(runtimePlotDefinition),
+    [availableProgramPlots],
   );
   const visiblePlots: SignalPlotDefinition[] = [
     ...SIGNAL_PLOTS.filter((plot) => monitorSettings.plots[plot.id]),
@@ -1775,6 +1870,7 @@ export function DashboardApp() {
   const displayedRunSamples = activeRunId
     ? plotSamples
     : (latestRun?.recording.samples ?? plotSamples);
+  const displayedRunHistorySource = activeRunId ?? latestRun?.recording ?? null;
 
   const exportPlots = async (format: "svg" | "png") => {
     if (
@@ -2032,9 +2128,14 @@ export function DashboardApp() {
     (autosaveFolder
       ? `${autosaveFolder.name} loads on Run`
       : "No project selected");
+  const physicalConnectionFailed =
+    target.kind === "physical" && targetState === "error";
 
   return (
-    <div className={`app-shell ${embeddedApplication ? "embedded-app" : ""}`}>
+    <div
+      className={`app-shell ${embeddedApplication ? "embedded-app" : ""} ${physicalConnectionFailed ? "monitor-recovery-visible" : ""}`}
+      data-monitor-surface={monitorSurfaceActive ? "active" : "paused"}
+    >
       <header className="app-header">
         <div className="brand" aria-label="UCSBXRP">
           <span className="brand-mark">UCSB</span>
@@ -2102,18 +2203,27 @@ export function DashboardApp() {
               {targetState} · {projectStatusLabel}
             </span>
           </div>
-          {target.kind === "physical" && targetState === "error" ? (
-            <button
-              aria-label="Reconnect XRP"
-              className="quiet-button target-retry-button"
-              onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
-              title="Try the configured XRP Wi-Fi connection again."
-            >
-              Reconnect
-            </button>
-          ) : null}
         </div>
       </header>
+
+      {physicalConnectionFailed ? (
+        <section className="monitor-connection-recovery" role="alert">
+          <div>
+            <strong>Physical XRP connection lost</strong>
+            <span>{targetDetail}</span>
+          </div>
+          <button
+            className="primary-button"
+            onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+            type="button"
+          >
+            Reconnect XRP
+          </button>
+          <a href="../commission/" target="_blank" rel="noopener noreferrer">
+            Set up or repair XRP ↗
+          </a>
+        </section>
+      ) : null}
 
       <div
         className={`monitor-workspace ${controlsOpen ? "controls-open" : "controls-collapsed"}`}
@@ -2138,7 +2248,7 @@ export function DashboardApp() {
                 </button>
               </div>
               <div className="monitor-controls-scroll">
-                {target.kind === "physical" && targetState === "error" ? (
+                {physicalConnectionFailed ? (
                   <div className="target-recovery" role="alert">
                     <strong>XRP not reachable</strong>
                     <p>
@@ -2367,8 +2477,11 @@ export function DashboardApp() {
           <div className="dashboard-region top-region" style={topRegionStyle}>
             <section className="world-panel dashboard-pane">
               <WorldView
+                active={monitorSurfaceActive}
                 annotations={annotations}
                 catalog={worldCatalog}
+                historyBackfill={activeRunWorldBackfill}
+                historySource={displayedRunHistorySource}
                 onWorldChange={
                   target.kind === "virtual"
                     ? (nextWorldId) => void changeWorld(nextWorldId)
@@ -2610,6 +2723,7 @@ export function DashboardApp() {
                   {visiblePlots.map((plot) => (
                     <section className="strip-chart" key={plot.id}>
                       <SignalPlot
+                        active={monitorSurfaceActive}
                         annotations={annotations}
                         definition={plot}
                         onAddAnnotation={

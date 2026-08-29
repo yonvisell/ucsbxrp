@@ -145,6 +145,21 @@ class TutorialPositivePathTests(unittest.TestCase):
                 self.assertNotIn("NOT COMPLETED", output.getvalue())
                 self.assertNotIn("INCORRECT", output.getvalue())
 
+    def test_shipped_tutorial_examples_are_runnable_before_any_edit(self):
+        for directory_name, _solution_factory in self.tutorials:
+            tutorial = TEMPLATES / directory_name
+            output = io.StringIO()
+            with self.subTest(tutorial=directory_name), _project_imports(
+                tutorial, {}
+            ), contextlib.redirect_stdout(output):
+                checks = runpy.run_path(
+                    str(tutorial / "exercise_checks.py"),
+                    run_name=directory_name + "_shipped_checks",
+                )
+                self.assertTrue(checks["run_exercise_checks"]())
+                self.assertNotIn("NOT COMPLETED", output.getvalue())
+                self.assertNotIn("INCORRECT", output.getvalue())
+
     def test_positive_virtual_runners_finish_bounded_and_stopped(self):
         for directory_name, solution_factory in self.tutorials[1:]:
             tutorial = TEMPLATES / directory_name
@@ -168,7 +183,12 @@ class TutorialPositivePathTests(unittest.TestCase):
 
             self.assertGreater(len(robot.step_calls), 0)
             self.assertLessEqual(len(robot.step_calls), 500)
-            self.assertLess(robot.path_length_mm, 1000.0)
+            maximum_path_mm = (
+                1400.0
+                if directory_name == "tutorial_2_virtual_drawing"
+                else 1000.0
+            )
+            self.assertLess(robot.path_length_mm, maximum_path_mm)
             expected_stop_count = (
                 2 if directory_name == "tutorial_5_physical_preflight" else 1
             )

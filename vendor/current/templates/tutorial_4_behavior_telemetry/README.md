@@ -1,10 +1,11 @@
 # Tutorial 4: behavior, controls, and telemetry
 
-Implement a small measured behavior, expose parameters that can be adjusted
-during a run, and publish internal values to Monitor. The Virtual XRP approaches
-a wall, turns approximately 90 degrees, and stops.
+Run a complete measured behavior, adjust it during a later run, and inspect its
+internal values in Monitor. The Virtual XRP approaches a wall, turns
+approximately 90 degrees, and stops.
 
-Use the **Virtual XRP** and open Monitor before running. Edit only
+Use the **Virtual XRP** and open Monitor before running. First observe the
+supplied baseline without editing. Then change one live control or edit only
 `student_work.py`. The sampled loop and final stop remain supplied in `main.py`.
 
 ## Program phases
@@ -19,9 +20,9 @@ This is a finite-state machine: the current phase and new measurements determine
 the next phase. Separating the phase transition from the motor command makes
 each decision testable with explicit inputs.
 
-## Exercise 1: phase transitions
+## Walkthrough 1: phase transitions
 
-Complete:
+Read:
 
 ```python
 def next_phase(
@@ -47,9 +48,10 @@ Required results:
 Raise `ValueError` for an unknown phase or a nonpositive stop distance. Check
 `range_mm is not None` before comparing it with a distance.
 
-## Exercise 2: motion command for each phase
+## Walkthrough 2: motion command for each phase
 
-Complete `command_for_phase(...) -> MotionCommand`.
+Read `command_for_phase(...) -> MotionCommand` and identify the three returned
+commands.
 
 - `APPROACH` returns positive forward speed and zero turn rate.
 - `TURN` returns zero forward speed and positive turn rate for `"left"`, or
@@ -86,9 +88,9 @@ network handling or timing logic.
 These adjustments last for the current run. Values that define a saved robot
 or assignment remain in `robot_config.py` or the project task file.
 
-## Exercise 3: watch values and plot signals
+## Walkthrough 3: watch values and plot signals
 
-Complete `publish_telemetry(state, phase) -> None`.
+Read `publish_telemetry(state, phase) -> None` while the baseline runs.
 
 Publish two current values with `live.watch(...)`:
 
@@ -109,11 +111,11 @@ Monitor recording is the appropriate source for complete time histories.
 
 ## Check and run
 
-1. Complete one exercise in `student_work.py` and select **Check exercises**.
-2. Resolve the reported `NOT COMPLETED` or `INCORRECT` result before continuing.
-3. Open Monitor and select **Run** with the Virtual XRP selected.
-4. Observe the approach, range threshold, turn, and final stop.
-5. Change one live control and repeat from Reset. Compare the path and plots.
+1. Open Monitor and select **Run** with the Virtual XRP selected.
+2. Observe the approach, range threshold, phase watch, turn, and final stop.
+3. Change one live control and repeat from Reset. Compare the path and plots.
+4. Trace that visible change through `next_phase`, `command_for_phase`, or
+   `publish_telemetry`, then select **Check examples**.
 
 The supplied loop calls `Robot.step()` at the measured sample rate and always
 calls `robot.stop()` in `finally`. Do not add `sleep()` or `sleep_ms()`.

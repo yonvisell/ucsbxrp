@@ -1,6 +1,10 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
+import {
+  parseWorkspaceSurfaceReadyMessage,
+  workspaceSurfaceVisibilityMessage,
+} from "../../shared/workspace-visibility";
 
 type WorkspaceMode = "split" | "ide" | "monitor";
 
@@ -22,6 +26,8 @@ export function WorkspaceApp() {
   const [mode, setModeState] = useState<WorkspaceMode>(initialMode);
   const [wide, setWide] = useState(initiallyWide);
   const [splitPercent, setSplitPercent] = useState(50);
+  const monitorFrameRef = useRef<HTMLIFrameElement>(null);
+  const monitorVisible = mode === "split" || mode === "monitor";
 
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -37,6 +43,33 @@ export function WorkspaceApp() {
     url.searchParams.set("mode", mode);
     window.history.replaceState(null, "", url);
   }, [mode]);
+
+  useEffect(() => {
+    monitorFrameRef.current?.contentWindow?.postMessage(
+      workspaceSurfaceVisibilityMessage("monitor", monitorVisible),
+      window.location.origin,
+    );
+  }, [monitorVisible]);
+
+  useEffect(() => {
+    const respondToMonitorReady = (event: MessageEvent<unknown>) => {
+      const monitorWindow = monitorFrameRef.current?.contentWindow;
+      if (
+        !monitorWindow ||
+        event.source !== monitorWindow ||
+        event.origin !== window.location.origin ||
+        parseWorkspaceSurfaceReadyMessage(event.data)?.surface !== "monitor"
+      ) {
+        return;
+      }
+      monitorWindow.postMessage(
+        workspaceSurfaceVisibilityMessage("monitor", monitorVisible),
+        window.location.origin,
+      );
+    };
+    window.addEventListener("message", respondToMonitorReady);
+    return () => window.removeEventListener("message", respondToMonitorReady);
+  }, [monitorVisible]);
 
   const splitStyle: CSSProperties = wide
     ? {
@@ -129,7 +162,17 @@ export function WorkspaceApp() {
           aria-label="Monitor pane"
           className="workspace-pane monitor-pane"
         >
-          <iframe src="../monitor/?embedded=1" title="UCSBXRP Monitor" />
+          <iframe
+            onLoad={() =>
+              monitorFrameRef.current?.contentWindow?.postMessage(
+                workspaceSurfaceVisibilityMessage("monitor", monitorVisible),
+                window.location.origin,
+              )
+            }
+            ref={monitorFrameRef}
+            src="../monitor/?embedded=1"
+            title="UCSBXRP Monitor"
+          />
         </section>
       </main>
     </div>

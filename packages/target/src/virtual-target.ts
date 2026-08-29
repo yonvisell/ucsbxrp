@@ -23,6 +23,11 @@ import {
 } from "./project-validation";
 import { MAX_RUNTIME_PARAMETERS } from "./runtime-controls";
 import type { RuntimeParameterValue } from "./types";
+import {
+  BROWSER_SYNTAX_CHECK_TIMEOUT_MS,
+  startCourseProjectSyntaxCheck,
+  type CourseProjectSyntaxCheckHandle,
+} from "./browser-syntax-check";
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -47,7 +52,11 @@ export async function testCourseProjectComponents(
 ): Promise<CheckResult> {
   const portabilityError = portableProjectError(project);
   if (portabilityError) {
-    return { ok: false, detail: portabilityError.message, output: [] };
+    return {
+      ok: false,
+      detail: portabilityError.message,
+      output: [],
+    };
   }
   return new Promise((resolve, reject) => {
     const worker = new Worker(
@@ -65,7 +74,7 @@ export async function testCourseProjectComponents(
     const timeout = setTimeout(() => {
       finish();
       reject(new Error("Component checks timed out"));
-    }, 20_000);
+    }, BROWSER_SYNTAX_CHECK_TIMEOUT_MS);
     worker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
       const message = event.data;
       if (message.type === "console") {
@@ -74,8 +83,14 @@ export async function testCourseProjectComponents(
         finish();
         resolve({ ok: true, detail: message.detail, output });
       } else if (message.type === "error") {
+        const diagnostics = message.diagnostics ?? [];
         finish();
-        resolve({ ok: false, detail: message.detail, output });
+        resolve({
+          ok: false,
+          detail: message.detail,
+          ...(diagnostics.length > 0 ? { diagnostics } : {}),
+          output,
+        });
       }
     };
     worker.onerror = (event) => {
@@ -91,7 +106,7 @@ export class VirtualTargetClient implements TargetClient {
   private worker: SharedWorker | null = null;
   private runtimeWorker: Worker | null = null;
   private activeRunId: number | null = null;
-  private readonly checkWorkers = new Set<Worker>();
+  private readonly syntaxChecks = new Set<CourseProjectSyntaxCheckHandle>();
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private readonly pending = new Map<string, PendingRequest>();
   private nextRequest = 1;
@@ -137,10 +152,10 @@ export class VirtualTargetClient implements TargetClient {
       } satisfies TargetWorkerCommand);
     }
     this.terminateRuntime();
-    for (const checker of this.checkWorkers) {
-      checker.terminate();
+    for (const check of this.syntaxChecks) {
+      check.cancel("Virtual target disconnected");
     }
-    this.checkWorkers.clear();
+    this.syntaxChecks.clear();
     this.worker.port.postMessage({
       type: "disconnect",
     } satisfies TargetWorkerCommand);
@@ -195,7 +210,10 @@ export class VirtualTargetClient implements TargetClient {
     });
     const portabilityError = portableProjectError(project);
     if (portabilityError) {
-      const result = { ok: false, detail: portabilityError.message };
+      const result: CheckResult = {
+        ok: false,
+        detail: portabilityError.message,
+      };
       this.publishConsole({
         type: "console",
         stream: "system",
@@ -207,42 +225,14 @@ export class VirtualTargetClient implements TargetClient {
       return result;
     }
     try {
-      const result = await new Promise<CheckResult>((resolve, reject) => {
-        let checker: Worker;
-        try {
-          checker = this.createMicroPythonWorker("ucsb-xrp-micropython-check");
-        } catch (error) {
-          reject(new Error(errorDetail(error)));
-          return;
-        }
-        this.checkWorkers.add(checker);
-        const finish = () => {
-          clearTimeout(timeout);
-          checker.terminate();
-          this.checkWorkers.delete(checker);
-        };
-        const timeout = setTimeout(() => {
-          finish();
-          reject(new Error("MicroPython project check timed out"));
-        }, 20_000);
-        checker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
-          const message = event.data;
-          if (message.type === "check-complete") {
-            finish();
-            resolve({ ok: true, detail: message.detail });
-          } else if (message.type === "error") {
-            finish();
-            resolve({ ok: false, detail: message.detail });
-          }
-        };
-        checker.onerror = (event) => {
-          finish();
-          reject(
-            new Error(event.message || "MicroPython project checker failed"),
-          );
-        };
-        checker.postMessage({ mode: "check", project });
-      });
+      const syntaxCheck = startCourseProjectSyntaxCheck(project);
+      this.syntaxChecks.add(syntaxCheck);
+      let result: CheckResult;
+      try {
+        result = await syntaxCheck.result;
+      } finally {
+        this.syntaxChecks.delete(syntaxCheck);
+      }
       this.publishConsole({
         type: "console",
         stream: "system",

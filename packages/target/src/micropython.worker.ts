@@ -9,7 +9,10 @@ import {
 } from "@ucsb-xrp/simulator";
 
 import { COURSE_PACKAGE_FILES, COURSE_REFERENCE_FILES } from "./course-python";
-import { studentFacingMicroPythonError } from "./micropython-error";
+import {
+  parseMicroPythonDiagnostics,
+  studentFacingMicroPythonError,
+} from "./micropython-error";
 import { prepareProject } from "./project-validation";
 import { MAX_RUNTIME_PARAMETERS, parseRuntimeState } from "./runtime-controls";
 import { SIMULATED_XRPLIB_FILES } from "./simulated-python";
@@ -47,6 +50,16 @@ function errorDetail(error: unknown): string {
   return studentFacingMicroPythonError(String(error));
 }
 
+function microPythonErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("type" in error)) {
+    return undefined;
+  }
+  const type = error.type;
+  return typeof type === "string" && type.trim().length > 0
+    ? type.trim()
+    : undefined;
+}
+
 function telemetryNumber(value: unknown): number | null {
   if (value === null || value === undefined) {
     return null;
@@ -79,6 +92,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
     liveValuesAreShared ? Atomics.load(liveValues, slot) : liveValues[slot]!;
   const liveSlots = new Map<string, number>();
   let programStarted = false;
+  let diagnosticProjectPaths: string[] = [];
   const postSimulatorState = () =>
     post({ type: "simulator-state", state: simulator.state });
   const advanceSimulator = (requestedElapsedMs?: number) => {
@@ -281,6 +295,7 @@ xrp_sim_bridge.set_runtime_version(
 
     const project = prepareProject(event.data.project);
     const projectPaths = project.pythonPaths.map((path) => `/project/${path}`);
+    diagnosticProjectPaths = project.pythonPaths;
     runtime.FS.mkdir("/project");
     createdDirectories.add("/project");
     for (const [path, content] of project.files) {
@@ -299,12 +314,14 @@ for __ucsb_path in __ucsb_check_paths:
       post({
         type: "check-complete",
         detail: `${projectPaths.length} Python file${projectPaths.length === 1 ? "" : "s"} compiled with MicroPython ${runtimeVersion}`,
+        diagnostics: [],
       });
       return;
     }
 
     if (event.data.mode === "test") {
       const entrypoint = project.entrypoint;
+      programStarted = true;
       runtime.runPython(`
 import sys
 import os
@@ -331,6 +348,7 @@ exec(
     post({
       type: "compile-complete",
       detail: `${projectPaths.length} Python file${projectPaths.length === 1 ? "" : "s"} compiled with MicroPython ${runtimeVersion}`,
+      diagnostics: [],
     });
 
     postSimulatorState();
@@ -380,10 +398,17 @@ exec(
   } catch (error) {
     simulator.stop();
     postSimulatorState();
+    const detail = errorDetail(error);
+    const phase = programStarted ? "runtime" : "compile";
     post({
       type: "error",
-      detail: errorDetail(error),
+      detail,
       stage: programStarted ? "run" : "compile",
+      diagnostics: parseMicroPythonDiagnostics(detail, {
+        phase,
+        code: microPythonErrorCode(error),
+        projectPaths: diagnosticProjectPaths,
+      }),
     });
   }
 };

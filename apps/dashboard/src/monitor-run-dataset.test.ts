@@ -107,6 +107,28 @@ describe("Monitor run dataset", () => {
     expect(controller.currentAnnotations()).toEqual([]);
   });
 
+  it("provides one bounded active snapshot when a hidden World becomes visible", () => {
+    const controller = new MonitorRunDatasetController(5);
+    controller.begin({
+      id: "long-run",
+      target: "virtual",
+      project: null,
+      worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
+      startedAt: "start",
+    });
+    for (let sequence = 1; sequence <= 7; sequence += 1) {
+      controller.capture(sample("virtual", sequence));
+    }
+
+    expect(
+      controller.activeRecordingSnapshot()?.samples.map((value) => value.seq),
+    ).toEqual([3, 4, 5, 6, 7]);
+
+    controller.complete("ready", "done", "finish");
+    expect(controller.activeRecordingSnapshot()).toBeNull();
+  });
+
   it("keeps a note added after completion with the displayed run", () => {
     const controller = new MonitorRunDatasetController();
     controller.begin({

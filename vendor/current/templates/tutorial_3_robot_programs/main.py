@@ -6,13 +6,13 @@ from robot_config import ROBOT_CONFIG
 from student_work import mean_wheel_position_mm, run_robot_program
 
 
-FORWARD_SPEED_MM_S = 80.0
-SAMPLE_COUNT = 30
+FORWARD_SPEED_MM_S = 200.0
+SAMPLE_COUNT = 75
 
 
 def run_tutorial():
     if not run_exercise_checks():
-        print("Complete the remaining exercises in student_work.py")
+        print("Restore the runnable example before starting the robot")
         return None
 
     final_state = run_robot_program(

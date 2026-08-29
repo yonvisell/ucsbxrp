@@ -1,12 +1,13 @@
 # Tutorial 2: Virtual XRP drawing
 
-Describe a square as a sequence of motion segments, then run it on the Virtual
-XRP. The path in Monitor is the drawing. This tutorial introduces Python
-modules and classes, then shows the small form of inheritance used by course
-components.
+Run a supplied square described as a sequence of motion segments. The path in
+Monitor is the drawing. Then change one dimension and rerun it. This tutorial
+introduces Python modules and classes through working code, including the small
+form of inheritance used by course components.
 
-Use the **Virtual XRP**. Edit only `student_work.py`. Its comments contain the
-required values and one concrete example beside each exercise.
+Use the **Virtual XRP**. Open Monitor and select **Run** before editing; the
+approximately 300 mm square should be unmistakable in the course arena. Edit
+only `student_work.py` after observing that baseline.
 
 ## The files used in this project
 
@@ -44,9 +45,9 @@ class DistanceGoal:
 object. Values stored as `self.name` and `self.target_mm` remain available to
 its other methods.
 
-## Exercise 1: define a motion-segment class
+## Walkthrough 1: a motion-segment class
 
-Complete `DrawingSegment.__init__` and `DrawingSegment.command`.
+Read `DrawingSegment.__init__` and `DrawingSegment.command`.
 
 ```python
 segment = DrawingSegment("side 1", 100.0, 0.0, 35)
@@ -68,9 +69,9 @@ self.turn_rate_rad_s)`. `MotionCommand` is a UCSBXRP record with named fields. A
 record carries data between parts of the program. A `DrawingSegment` also
 retains how many samples should use that command.
 
-## Exercise 2: inheritance used for a specialized segment
+## Walkthrough 2: inheritance used for a specialized segment
 
-Complete `TurnSegment.__init__`.
+Read `TurnSegment.__init__`, which specializes the supplied working class.
 
 ```python
 turn = TurnSegment("corner 1", 1.6, 49)
@@ -90,23 +91,23 @@ the required calculation. Inheritance is useful here because the specialized
 object is still a `DrawingSegment`; it is not required for ordinary helper
 functions.
 
-## Exercise 3: build an ordered drawing
+## Experiment: build an ordered drawing
 
-Complete `build_drawing(...)`. Return a list or tuple containing eight segments:
-four straight sides alternating with four left turns. Use a `for` loop that
-adds one side and one corner during each of four iterations.
+`build_drawing(...)` returns eight segments: four straight sides alternating
+with four left turns. After the baseline run, change the loop or one named
+constant in `main.py` to draw a rectangle or three-sided path. Make one change
+at a time so the result is legible.
 
 Use the values passed through the function parameters. The checks use more than
 one square size, so fixed numerical replacements are not correct.
 
 ## Check and run
 
-1. Open `student_work.py` and complete Exercise 1.
-2. Select **Check exercises** and correct any `NOT COMPLETED` or `INCORRECT`
-   result.
-3. Complete Exercises 2 and 3, checking after each change.
-4. Open Monitor, reset the Virtual XRP, and select **Run**.
-5. Confirm four sides, four left turns, and a zero final motor command.
+1. Open Monitor, reset the Virtual XRP, and select **Run**.
+2. Confirm four visible sides, four left turns, and a zero final motor command.
+3. Read `build_drawing(...)` and predict the order of segment names.
+4. Change one side or turn value, select **Check examples**, reset, and rerun.
+5. Compare the new path with your prediction, then restore the square.
 
 `main.py` uses a nested loop: the outer loop visits each segment, and the inner
 loop calls `Robot.step(...)` for `segment.steps` samples. `Robot.step()` already

@@ -236,7 +236,14 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
     "title",
     /Run and telemetry use Wi-Fi\. The computer and XRP must use the network selected during Set up or Repair\./,
   );
-  await expect(ide.getByRole("button", { name: "Compile" })).toBeDisabled();
+  await expect(ide.getByRole("button", { name: "Compile" })).toBeEnabled();
+  await ide.getByRole("button", { name: "Compile" }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
+    /compiled with MicroPython/i,
+  );
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Physical XRP · error",
+  );
   await expect(
     ide.getByRole("button", { name: "Run", exact: true }),
   ).toBeDisabled();

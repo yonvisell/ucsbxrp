@@ -63,10 +63,17 @@
         <a href="./author/">challenge creation wizard</a>
       </nav>
     </main>
+    <footer class="landing-release" aria-label="Current UCSBXRP release">
+      Release <span id="landing-release-id"></span>
+    </footer>
     <script type="module">
       import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
+      import courseRelease from "/vendor/current/release.json";
 
       registerOfflineShell();
+
+      document.querySelector("#landing-release-id").textContent =
+        courseRelease.release_id;
 
       const browserSupport = document.querySelector("#landing-browser-support");
       const supportsCourseApps =

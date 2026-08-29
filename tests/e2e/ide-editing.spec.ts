@@ -82,7 +82,14 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   );
   await page.getByRole("button", { name: "Run", exact: true }).click();
 
-  await expect(page.getByRole("log")).toContainText("Compilation failed");
+  await expect(
+    page.getByRole("tab", { name: /Problems \(1\)/ }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toContainText("main.py:1:1");
+  await expect(page.getByRole("tabpanel")).toContainText(/syntax/i);
+  await expect(page.locator(".squiggly-error")).toHaveCount(1);
+  await page.getByText("Raw compiler output").click();
+  await expect(page.getByRole("tabpanel")).toContainText("main.py");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
   await expect(page.getByTestId("check-result")).toContainText(

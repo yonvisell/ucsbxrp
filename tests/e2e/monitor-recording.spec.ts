@@ -31,6 +31,20 @@ async function visiblePlotHeights(page: Page): Promise<Record<string, number>> {
     );
 }
 
+async function readRunAutosave(page: Page, fileName: string): Promise<string> {
+  return page.evaluate(
+    async ({ folderName, fileName }) => {
+      const root = await navigator.storage.getDirectory();
+      const workspace = await root.getDirectoryHandle(folderName);
+      const project = await workspace.getDirectoryHandle("Expanding-Spiral");
+      const autosaves = await project.getDirectoryHandle("UCSB_XRP_Autosaves");
+      const file = await autosaves.getFileHandle(fileName);
+      return (await file.getFile()).text();
+    },
+    { folderName: monitorWorkspace, fileName },
+  );
+}
+
 test("keeps one completed run ready for notes and every export", async ({
   context,
   page: ide,
@@ -352,7 +366,7 @@ test("collects a run automatically and explains animation availability", async (
   await expect(animation).toBeEnabled();
 });
 
-test("reset and rerun begin a new world path without a connector", async ({
+test("active reset archives the run before clearing its world path", async ({
   page,
 }) => {
   await page.goto("/monitor/");
@@ -367,15 +381,21 @@ test("reset and rerun begin a new world path without a connector", async ({
     .toBeGreaterThan(3);
   await page
     .locator(".app-header")
-    .getByRole("button", { name: "Stop", exact: true })
-    .click();
-  await expect(page.getByTestId("recording-count")).toContainText(
-    "Expanding spiral ·",
-  );
-  await page
-    .locator(".app-header")
     .getByRole("button", { name: "Reset", exact: true })
     .click();
+  await expect(page.getByTestId("world-view")).toHaveAttribute(
+    "data-path-point-count",
+    "0",
+  );
+  await expect(page.getByTestId("run-autosave-status")).toHaveText(
+    "Saved automatically to Expanding-Spiral.",
+  );
+  const archivedCsv = await readRunAutosave(page, "telemetry-1.csv");
+  const rows = archivedCsv.trim().split("\n");
+  const columns = rows[0]!.split(",");
+  const xColumn = columns.indexOf("x_mm");
+  expect(xColumn).toBeGreaterThanOrEqual(0);
+  expect(Number(rows.at(-1)!.split(",")[xColumn])).toBeGreaterThan(0);
   await page
     .locator(".app-header")
     .getByRole("button", { name: "Run", exact: true })

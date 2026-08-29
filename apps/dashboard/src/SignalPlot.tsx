@@ -294,6 +294,7 @@ export function signalPlotDataForDefinition(
 }
 
 interface SignalPlotProps {
+  active?: boolean;
   annotations?: readonly MonitorAnnotation[];
   definition: SignalPlotDefinition;
   onAddAnnotation?: (sample: TelemetrySample, label: string) => void;
@@ -323,6 +324,7 @@ export function signalXAxis(timeWindowS: number) {
 }
 
 export function SignalPlot({
+  active = true,
   annotations = [],
   definition,
   onAddAnnotation,
@@ -356,6 +358,7 @@ export function SignalPlot({
   }, [definition.id, noteLocation, onAnnotationDraftChange]);
 
   useEffect(() => {
+    if (!active) return;
     const element = elementRef.current;
     if (!element) {
       return;
@@ -391,9 +394,10 @@ export function SignalPlot({
       chart?.dispose();
       if (chartRef.current === chart) chartRef.current = null;
     };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
+    if (!active) return;
     const data = signalPlotDataForDefinition(samples, definition, timeWindowS);
     const latestMs = samples.at(-1)?.tMs ?? 0;
     const startMs = latestMs - timeWindowS * 1_000;
@@ -500,6 +504,7 @@ export function SignalPlot({
       { notMerge: true, lazyUpdate: true },
     );
   }, [
+    active,
     annotations,
     chartGeneration,
     compactLayout,

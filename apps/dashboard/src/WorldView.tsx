@@ -20,10 +20,16 @@ import {
   worldMarkerLabelPosition,
   worldMarkerVisualStyle,
 } from "./world-marker-visual";
+import { WorldTrailGeometry } from "./world-trail-geometry";
+
+export { worldTrailSegmentPoints } from "./world-trail-geometry";
 
 interface WorldViewProps {
+  active?: boolean;
   annotations?: readonly MonitorAnnotation[];
   catalog: WorldCatalog;
+  historyBackfill?: readonly TelemetrySample[] | null;
+  historySource?: object | string | null;
   onWorldChange?: (worldId: string) => void;
   sample: TelemetrySample;
   samples?: readonly TelemetrySample[];
@@ -67,31 +73,6 @@ export function fittedWorldViewSpans(
   const requiredHeight = bounds.maximumYmm - bounds.minimumYmm + marginMm * 2;
   const verticalMm = Math.max(requiredHeight, requiredWidth / aspect);
   return { horizontalMm: verticalMm * aspect, verticalMm };
-}
-
-/** Build independent path segments so a reset or source change cannot join poses. */
-export function worldTrailSegmentPoints(
-  samples: readonly TelemetrySample[],
-): THREE.Vector3[] {
-  const points: THREE.Vector3[] = [];
-  for (let index = 1; index < samples.length; index += 1) {
-    const previous = samples[index - 1]!;
-    const current = samples[index]!;
-    if (
-      !previous.poseAvailable ||
-      !current.poseAvailable ||
-      previous.source !== current.source ||
-      current.seq <= previous.seq ||
-      current.tMs < previous.tMs
-    ) {
-      continue;
-    }
-    points.push(
-      new THREE.Vector3(previous.xMm, previous.yMm, 1),
-      new THREE.Vector3(current.xMm, current.yMm, 1),
-    );
-  }
-  return points;
 }
 
 function rangeSectorGeometry(rangeMm: number): {
@@ -403,8 +384,11 @@ function disposeObject(object: THREE.Object3D): void {
 }
 
 export function WorldView({
+  active = true,
   annotations = [],
   catalog,
+  historyBackfill = null,
+  historySource = null,
   onWorldChange,
   sample,
   samples = [],
@@ -419,18 +403,25 @@ export function WorldView({
   const worldHeightMm = world.bounds.maximumYmm - world.bounds.minimumYmm;
   const worldCenterX = (world.bounds.minimumXmm + world.bounds.maximumXmm) / 2;
   const worldCenterY = (world.bounds.minimumYmm + world.bounds.maximumYmm) / 2;
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const viewRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const robotRef = useRef<THREE.Group | null>(null);
-  const trailRef = useRef<THREE.LineSegments | null>(null);
+  const trailGeometryRef = useRef<WorldTrailGeometry | null>(null);
+  const trailHistoryBackfillRef = useRef<readonly TelemetrySample[] | null>(
+    null,
+  );
+  const trailHistorySourceRef = useRef<object | string | null>(null);
   const rangeRef = useRef<RangeSectorVisual | null>(null);
   const annotationGroupRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<MapControls | null>(null);
   const resizeRef = useRef<(() => void) | null>(null);
   const renderRef = useRef<(() => void) | null>(null);
+  const cancelRenderRef = useRef<(() => void) | null>(null);
   const fitWorldRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -562,13 +553,15 @@ export function WorldView({
     }
 
     robotRef.current = addRobotModel(scene);
+    const trailGeometry = new WorldTrailGeometry();
     const trail = new THREE.LineSegments(
-      new THREE.BufferGeometry(),
+      trailGeometry.geometry,
       new THREE.LineBasicMaterial({ color: "#006c64" }),
     );
+    trail.frustumCulled = false;
     trail.position.z = 1;
     scene.add(trail);
-    trailRef.current = trail;
+    trailGeometryRef.current = trailGeometry;
 
     const rangeGroup = new THREE.Group();
     rangeGroup.position.z = 3;
@@ -639,10 +632,25 @@ export function WorldView({
       }
       renderer.render(scene, camera);
     };
-    renderRef.current = render;
-    controls.addEventListener("change", render);
+    let pendingRenderFrame: number | null = null;
+    const cancelRender = () => {
+      if (pendingRenderFrame === null) return;
+      window.cancelAnimationFrame(pendingRenderFrame);
+      pendingRenderFrame = null;
+    };
+    const requestRender = () => {
+      if (!activeRef.current || pendingRenderFrame !== null) return;
+      pendingRenderFrame = window.requestAnimationFrame(() => {
+        pendingRenderFrame = null;
+        if (activeRef.current) render();
+      });
+    };
+    renderRef.current = requestRender;
+    cancelRenderRef.current = cancelRender;
+    controls.addEventListener("change", requestRender);
 
     const resize = () => {
+      if (!activeRef.current) return;
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
       const spans = fittedWorldViewSpans(world.bounds, width, height);
@@ -657,7 +665,7 @@ export function WorldView({
           spans.horizontalMm.toFixed(1);
         viewRef.current.dataset.verticalSpanMm = spans.verticalMm.toFixed(1);
       }
-      render();
+      requestRender();
     };
     resizeRef.current = resize;
     fitWorldRef.current = () => {
@@ -675,7 +683,8 @@ export function WorldView({
 
     return () => {
       resizeObserver.disconnect();
-      controls.removeEventListener("change", render);
+      cancelRender();
+      controls.removeEventListener("change", requestRender);
       controls.dispose();
       scene.traverse((object) => {
         const disposable = object as THREE.Mesh | THREE.Line;
@@ -693,46 +702,61 @@ export function WorldView({
       rendererRef.current = null;
       sceneRef.current = null;
       robotRef.current = null;
-      trailRef.current = null;
+      trailGeometryRef.current = null;
       rangeRef.current = null;
       annotationGroupRef.current = null;
       controlsRef.current = null;
       resizeRef.current = null;
       renderRef.current = null;
+      cancelRenderRef.current = null;
       fitWorldRef.current = null;
     };
   }, [world, worldCenterX, worldCenterY, worldHeightMm, worldWidthMm]);
 
   useEffect(() => {
-    const robot = robotRef.current;
-    const trail = trailRef.current;
-    const range = rangeRef.current;
-    const renderer = rendererRef.current;
-    const scene = sceneRef.current;
-    if (!robot || !trail || !range || !renderer || !scene) {
-      return;
+    if (active) {
+      resizeRef.current?.();
+      renderRef.current?.();
+    } else {
+      cancelRenderRef.current?.();
     }
-    const trailSegments = worldTrailSegmentPoints(samples);
-    trail.geometry.dispose();
-    trail.geometry = new THREE.BufferGeometry().setFromPoints(trailSegments);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    const trailGeometry = trailGeometryRef.current;
+    if (!trailGeometry) return;
+    const backfillChanged =
+      historyBackfill !== null &&
+      trailHistoryBackfillRef.current !== historyBackfill;
+    let update;
+    if (backfillChanged) {
+      update = trailGeometry.update(historyBackfill, true);
+      trailHistoryBackfillRef.current = historyBackfill;
+    } else {
+      const historySourceChanged =
+        trailHistorySourceRef.current !== historySource;
+      update = trailGeometry.update(samples, historySourceChanged);
+    }
+    trailHistorySourceRef.current = historySource;
     if (viewRef.current) {
       viewRef.current.dataset.pathPointCount = String(
-        samples.filter((historical) => historical.poseAvailable).length,
+        trailGeometry.posePointCount,
       );
       viewRef.current.dataset.pathSegmentCount = String(
-        trailSegments.length / 2,
+        trailGeometry.segmentCount,
       );
-      let maximumSegmentMm = 0;
-      for (let index = 0; index < trailSegments.length; index += 2) {
-        maximumSegmentMm = Math.max(
-          maximumSegmentMm,
-          trailSegments[index]!.distanceTo(trailSegments[index + 1]!),
-        );
-      }
       viewRef.current.dataset.pathMaximumSegmentMm =
-        maximumSegmentMm.toFixed(3);
+        trailGeometry.maximumSegmentMm.toFixed(3);
     }
+    if (update.changed) renderRef.current?.();
+  }, [active, historyBackfill, historySource, samples, world]);
 
+  useEffect(() => {
+    if (!active) return;
+    const robot = robotRef.current;
+    const range = rangeRef.current;
+    if (!robot || !range) return;
     robot.position.set(sample.xMm, sample.yMm, 0);
     robot.rotation.z = sample.headingRad;
 
@@ -757,14 +781,12 @@ export function WorldView({
       range.outline.geometry = geometry.outline;
     }
     renderRef.current?.();
-  }, [sample, samples]);
+  }, [active, sample, world]);
 
   useEffect(() => {
+    if (!active) return;
     const group = annotationGroupRef.current;
-    const renderer = rendererRef.current;
-    const scene = sceneRef.current;
-    const camera = cameraRef.current;
-    if (!group || !renderer || !scene || !camera) return;
+    if (!group) return;
     for (const child of [...group.children]) {
       disposeObject(child);
       group.remove(child);
@@ -790,8 +812,8 @@ export function WorldView({
         group.add(label);
       }
     }
-    renderer.render(scene, camera);
-  }, [annotations, showAnnotations, world]);
+    renderRef.current?.();
+  }, [active, annotations, showAnnotations, world]);
 
   return (
     <div

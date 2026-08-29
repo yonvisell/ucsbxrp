@@ -1,14 +1,14 @@
 {
-  "default_world": "drawing-floor",
+  "default_world": "course-arena-drawing",
   "worlds": [
     {
-      "id": "drawing-floor",
-      "label": "Drawing floor",
+      "id": "course-arena-drawing",
+      "label": "Course arena · drawing",
       "bounds": {
-        "minimum_x_mm": -350,
-        "minimum_y_mm": -350,
-        "maximum_x_mm": 650,
-        "maximum_y_mm": 650
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
       "obstacles": [],

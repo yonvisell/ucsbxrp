@@ -9,6 +9,10 @@ import {
   type ProjectSession,
 } from "./project-session";
 
+type SaveProjectFolder = NonNullable<
+  ConstructorParameters<typeof ProjectFolderPersistenceController>[0]["save"]
+>;
+
 const folder = {
   kind: "directory",
   name: "spiral-lab",
@@ -76,10 +80,12 @@ describe("ProjectFolderPersistenceController", () => {
     let releaseFirst!: () => void;
     let active = 0;
     let maximumActive = 0;
-    const save = vi.fn(async () => {
+    let saveNumber = 0;
+    const save = vi.fn<SaveProjectFolder>(async () => {
+      saveNumber += 1;
       active += 1;
       maximumActive = Math.max(maximumActive, active);
-      if (save.mock.calls.length === 1) {
+      if (saveNumber === 1) {
         await new Promise<void>((resolve) => {
           releaseFirst = resolve;
         });
@@ -189,6 +195,77 @@ describe("ProjectFolderPersistenceController", () => {
 
     expect(outcome).toEqual({ status: "cancelled" });
     expect(harness.save).not.toHaveBeenCalled();
+  });
+
+  it("coalesces an edit burst behind a slow write without losing the newest revision", async () => {
+    let releaseFirst!: () => void;
+    let active = 0;
+    let maximumActive = 0;
+    let saveNumber = 0;
+    const save = vi.fn<SaveProjectFolder>(async () => {
+      saveNumber += 1;
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      if (saveNumber === 1) {
+        await new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        });
+      }
+      active -= 1;
+      return {
+        changed: true,
+        removedFiles: 0,
+        contentDigest: `${saveNumber}`.repeat(64),
+      };
+    });
+    const harness = setup({ save });
+
+    const first = harness.controller.saveAutomatically(
+      folder,
+      harness.session,
+      1,
+    );
+    await vi.waitFor(() => expect(save).toHaveBeenCalledOnce());
+
+    const queueEdit = (content: string, version: number) => {
+      const next = updateProjectSession(
+        harness.session,
+        {
+          ...harness.session.project,
+          files: {
+            ...harness.session.project.files,
+            "main.py": content,
+          },
+        },
+        100 + version,
+      );
+      harness.setSession(next);
+      harness.setProjectVersion(version);
+      return harness.controller.saveAutomatically(folder, next, version);
+    };
+
+    const supersededSecond = queueEdit("print('two')\n", 2);
+    const supersededThird = queueEdit("print('three')\n", 3);
+    const latest = queueEdit("print('latest')\n", 4);
+
+    await expect(supersededSecond).resolves.toEqual({ status: "cancelled" });
+    await expect(supersededThird).resolves.toEqual({ status: "cancelled" });
+    expect(save).toHaveBeenCalledOnce();
+
+    releaseFirst();
+    const [firstOutcome, latestOutcome] = await Promise.all([first, latest]);
+
+    expect(firstOutcome).toMatchObject({
+      status: "saved",
+      exactRevision: false,
+    });
+    expect(latestOutcome).toMatchObject({
+      status: "saved",
+      exactRevision: true,
+    });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]?.[1].files["main.py"]).toBe("print('latest')\n");
+    expect(maximumActive).toBe(1);
   });
 
   it("requires folder permission for autosave and pre-update writes", async () => {

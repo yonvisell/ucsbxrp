@@ -625,8 +625,6 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         runId: stoppedRunId,
       });
     }
-    simulatorState = simulator.reset(currentWorld.initialPose);
-    broadcast(telemetryEvent());
     broadcast({
       type: "console",
       stream: "system",
@@ -635,6 +633,11 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       phase: "result",
       requestId: command.requestId,
     });
+    // Reset is the recording boundary. Publish its successful result before
+    // the new origin sample so Monitors archive only pre-Reset run data and
+    // then render the cleared course state as the start of no run.
+    simulatorState = simulator.reset(currentWorld.initialPose);
+    broadcast(telemetryEvent());
     status("ready", "Virtual XRP reset");
     send(port, { type: "response", requestId: command.requestId, ok: true });
   }

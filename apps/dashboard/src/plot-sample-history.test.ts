@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
 import {
-  PlotSampleHistory,
+  MonitorVisualHistory,
+  type MonitorVisualSnapshot,
   recentTelemetryRateHz,
 } from "./plot-sample-history";
 
@@ -12,13 +13,13 @@ function sample(seq: number, source: TelemetrySample["source"] = "virtual") {
 }
 
 function harness(maximumSamples = 3) {
-  const published: (readonly TelemetrySample[])[] = [];
+  const published: MonitorVisualSnapshot[] = [];
   const frames = new Map<number, (timestamp: number) => void>();
   const cancelled: number[] = [];
   let nextFrame = 1;
-  const history = new PlotSampleHistory(
+  const history = new MonitorVisualHistory(
     maximumSamples,
-    (samples) => published.push(samples),
+    (snapshot) => published.push(snapshot),
     (callback) => {
       const id = nextFrame++;
       frames.set(id, callback);
@@ -53,53 +54,79 @@ describe("PlotSampleHistory", () => {
 
   it("retains every sample and publishes only once per display frame", () => {
     const { flush, frames, history, published } = harness();
-    history.append(sample(1));
-    history.append(sample(2));
-    history.append(sample(3));
+    history.append(sample(1), true);
+    history.append(sample(2), true);
+    history.append(sample(3), true);
 
     expect(frames.size).toBe(1);
     expect(published).toEqual([]);
     flush();
-    expect(published.map((values) => values.map(({ seq }) => seq))).toEqual([
-      [1, 2, 3],
-    ]);
+    expect(published.at(-1)?.sample?.seq).toBe(3);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1, 2, 3]);
   });
 
   it("preserves chronological order after the fixed buffer wraps", () => {
     const { flush, history, published } = harness();
-    for (let seq = 1; seq <= 5; seq += 1) history.append(sample(seq));
+    for (let seq = 1; seq <= 5; seq += 1) history.append(sample(seq), true);
     flush();
 
-    expect(history.snapshot().map(({ seq }) => seq)).toEqual([3, 4, 5]);
-    expect(published.at(-1)?.map(({ seq }) => seq)).toEqual([3, 4, 5]);
+    expect(history.snapshot().samples.map(({ seq }) => seq)).toEqual([3, 4, 5]);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([3, 4, 5]);
   });
 
   it("starts a new history when the source or sequence epoch changes", () => {
     const { flush, history, published } = harness();
-    history.append(sample(8));
-    history.append(sample(9));
-    history.append(sample(1));
+    history.append(sample(8), true);
+    history.append(sample(9), true);
+    history.append(sample(1), true);
     flush();
-    expect(published.at(-1)?.map(({ seq }) => seq)).toEqual([1]);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1]);
 
-    history.append(sample(2, "physical"));
+    history.append(sample(2, "physical"), true);
     flush();
-    expect(published.at(-1)?.map(({ seq, source }) => [seq, source])).toEqual([
-      [2, "physical"],
-    ]);
+    expect(
+      published.at(-1)?.samples.map(({ seq, source }) => [seq, source]),
+    ).toEqual([[2, "physical"]]);
   });
 
-  it("ignores duplicate samples and clear cancels pending publication", () => {
+  it("keeps latest-only samples out of retained run history", () => {
+    const { flush, history, published } = harness();
+    history.append(sample(1), false);
+    history.append(sample(2), false);
+    flush();
+
+    expect(published.at(-1)?.sample?.seq).toBe(2);
+    expect(published.at(-1)?.samples).toEqual([]);
+  });
+
+  it("retains hidden samples and publishes one current snapshot on resume", () => {
+    const { flush, frames, history, published } = harness();
+    history.setActive(false);
+    history.append(sample(1), true);
+    history.append(sample(2), true);
+    expect(frames.size).toBe(0);
+    expect(published).toEqual([]);
+
+    history.setActive(true);
+    expect(frames.size).toBe(1);
+    flush();
+    expect(published.at(-1)?.sample?.seq).toBe(2);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1, 2]);
+  });
+
+  it("clear cancels a pending publication without clearing the latest value", () => {
     const { cancelled, flush, frames, history, published } = harness();
-    history.append(sample(1));
-    history.append(sample(1));
+    history.append(sample(1), true);
+    history.append(sample(1), true);
     expect(frames.size).toBe(1);
 
-    history.clear();
+    history.clearHistory();
     expect(cancelled).toEqual([1]);
-    expect(history.snapshot()).toEqual([]);
-    expect(published).toEqual([[]]);
+    expect(history.snapshot().samples).toEqual([]);
+    expect(history.snapshot().sample?.seq).toBe(1);
+    expect(published.at(-1)?.samples).toEqual([]);
+    expect(published.at(-1)?.sample?.seq).toBe(1);
     flush();
-    expect(published).toEqual([[]]);
+    expect(published).toHaveLength(1);
   });
 });

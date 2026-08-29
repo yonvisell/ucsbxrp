@@ -40,14 +40,17 @@ The IDE is the programming surface. It provides:
   sensor-driven obstacle-turn and expanding-spiral demos, and a staged
   MicroPython tutorial; an empty Working folder receives an editable Expanding
   Spiral project;
-- local Monaco workers and MicroPython compilation;
+- local Monaco workers, course-API completion/hover/signature/definition help,
+  and exact-release MicroPython compilation;
 - explicit **Compile**, one stateful Run/Stop control, and Reset; physical Run
   loads the exact current project into controller RAM before starting it;
 - virtual/physical target selection, robot-hotspot/existing-Wi-Fi selection,
   and an existing-Wi-Fi address setting;
 - a flat white layout with compact collapsible project, settings, and
   output regions, literal file names, and concise hover/focus help; and
-- separate concise Status, Program output, and compilation/service System log.
+- separate concise Status, Problems, Program output, and compilation/service
+  System log. Compiler failures retain their raw output while also producing
+  clickable file/line/column entries and Monaco markers.
 
 Project state is represented as `{name, entrypoint, files}` at every execution
 boundary. The entrypoint, file paths, and file contents produce one SHA-256
@@ -89,8 +92,9 @@ An active Project therefore cannot exist independently of its Working folder.
 Selecting another Working folder resolves that folder's own configuration and
 never carries an earlier active Project with it. If folder permission does not
 survive, one explicit Reconnect gesture restores it.
-Folder writes are debounced, serialized, and revision/epoch checked so an older
-queued snapshot cannot overwrite a newer edit or explicit save. Before
+Folder writes enter one serialized, revision/epoch-checked persistence queue
+without a fixed debounce delay. Superseded queued snapshots are coalesced so an
+older edit cannot overwrite a newer edit or explicit save. Before
 overwriting source, the previous complete project is rotated through four JSON
 generations in the project's `UCSB_XRP_Autosaves`.
 Each project also has a stable project ID, monotonic content revision, saved
@@ -102,6 +106,12 @@ only for exceptional unsaved work; earlier browser project/configuration keys
 are ignored rather than migrated. The selected folder files remain
 authoritative. Monitor derives the same active Project through the Working
 folder configuration for run archives.
+
+Successful compilation has one ephemeral authority: the SHA-256 digest of the
+exact Project bytes in the current browser tab. Run compares the current bytes
+to that digest and compiles when they differ; navigation between Guide and IDE
+does not invent a file-change event or use an elapsed-time heuristic. This
+digest is execution metadata, not a second Project or folder state.
 
 The project catalog is declarative. The instructor authoring command copies the
 closest working challenge into a draft, registers it with `published: false`,
@@ -208,6 +218,17 @@ canvas; it does not mutate the live Three.js world or the running target. The
 output is real time for recordings up to 20 seconds and bounded to 20 seconds
 for longer data by an explicit playback-rate label. No telemetry or media is
 sent off-device.
+
+Every source telemetry sample enters the bounded recorder in order. Visible
+React state is published at most once per animation frame, and the Three.js
+trail appends into one reusable geometry rather than rebuilding the complete
+path for each sample. A Monitor iframe hidden by the Workspace remains
+connected and records the run, but pauses chart, Three.js, resize, and runtime
+control rendering until its pane becomes visible. Reactivation backfills the
+bounded active recording once, so a long hidden interval does not erase the
+earlier live trail. A successful Reset is an explicit recording boundary: the
+pre-Reset run is completed and archived, the displayed history is cleared, and
+only then may the reset-state sample appear.
 
 ### Guide and visual system
 
@@ -371,8 +392,10 @@ by the device. Each boot has an identifier, so clients reset log cursors when
 sequence numbers restart. The client uses request deadlines, bounded polling,
 one shared connection, and short repeated discovery probes after an intentional
 reboot; an in-flight telemetry timeout cannot replace the reconnecting status.
-The shared client requests active-run telemetry every 125 ms and returns to
-250 ms when idle. The XRP buffers the 50 Hz course samples and retained output,
+The shared client requests active-run telemetry on the course's 20 ms sample
+cadence and returns to 250 ms when idle. Request duration counts toward the
+cadence, so a slower response reduces the request rate instead of accumulating
+work. The XRP buffers the 50 Hz course samples and retained output,
 then returns them in small cursor-ordered pages. A client requests the next
 page immediately while a backlog remains and publishes a terminal state only
 after that backlog is drained. This bounds the single HTTP response that a
@@ -380,6 +403,13 @@ Run, Stop, Reset, or parameter command may have to wait behind. The ring is
 finite; if Wi-Fi throughput cannot carry every retained sample, the sequence
 gap remains explicit in the log and recording metadata. Neither HTTP polling
 nor such an observation gap changes the on-robot control loop.
+
+Browser page lifecycle events are logged with visibility and online state. On
+return from sleep, back-forward cache, or a network transition, one coalesced
+resume signal is retained until the next physical health outcome. A healthy
+outcome consumes it; an error triggers one identity-checked rediscovery using
+the commissioned routes. No periodic reconnect loop is added, and an explicit
+**Reconnect XRP** remains available in both IDE and Monitor.
 
 The project transfer manifest includes the same content revision calculated by
 the browser. A transfer builds an inactive RAM-backed FAT volume and becomes
@@ -551,7 +581,10 @@ the target protocol or student workflow.
 ## 9. Student checks and explicit telemetry evidence
 
 IDE **Compile** checks project structure and compiles every Python file without
-running either robot; it does not claim algorithmic correctness. Challenge
+running either robot, even when a selected physical XRP is temporarily
+unreachable; it does not claim algorithmic correctness. The browser compiler
+is the release's actual MicroPython runtime, not a CPython approximation.
+Challenge
 projects separately include `component_checks.py` and a
 **Test components** action. These small repeatable checks execute in an
 isolated MicroPython worker without commanding either target. PASS, NOT
@@ -610,6 +643,9 @@ tutorial, then presents virtual execution, Working-folder storage, component
 tests, physical setup, Monitor evidence, code roles, offline use, GitHub, and
 troubleshooting in that order. It avoids internal deployment vocabulary and
 defines each student-visible storage or target term where it first appears.
+Each tutorial ships as a complete runnable example that produces program or
+Monitor output before asking the student to alter one bounded behavior; its
+checks explain regressions but are not blank-filling gates.
 
 The separately built `UCSB XRP API` page is the detailed code reference. Every
 student component entry states its purpose, source and base class, state between

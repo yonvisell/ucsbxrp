@@ -26,7 +26,7 @@ MAX_STEPS = 500
 
 def run_behavior():
     if not run_exercise_checks():
-        print("Complete the remaining exercises in student_work.py")
+        print("Restore the runnable example before starting the robot")
         return None
 
     robot = make_robot(ROBOT_CONFIG)

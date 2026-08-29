@@ -26,9 +26,36 @@ export interface ProjectRevisionNotice {
   entrypoint: string;
 }
 
+export interface PythonDiagnosticPosition {
+  /** One-based source line. */
+  line: number;
+  /** One-based source column. */
+  column: number;
+}
+
+/**
+ * A source diagnostic produced by the exact MicroPython runtime used by a
+ * target. `raw` retains the bounded student-facing compiler or traceback text
+ * so a richer presentation never replaces the original evidence.
+ */
+export interface PythonDiagnostic {
+  source: "micropython" | "course-symbols";
+  phase: "compile" | "runtime";
+  severity: "error" | "warning" | "info";
+  code?: string;
+  message: string;
+  /** Portable project path, without the worker's `/project/` prefix. */
+  path?: string;
+  start?: PythonDiagnosticPosition;
+  end?: PythonDiagnosticPosition;
+  raw: string[];
+}
+
 export interface CheckResult {
   ok: boolean;
   detail: string;
+  /** Additive for compatibility with targets that return only `detail`. */
+  diagnostics?: PythonDiagnostic[];
   output?: string[];
 }
 

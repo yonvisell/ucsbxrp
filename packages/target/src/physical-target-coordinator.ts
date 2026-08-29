@@ -22,6 +22,12 @@ type PhysicalTargetFactory = (
 ) => TargetClient;
 type ConsoleEvent = Extract<TargetEvent, { type: "console" }>;
 
+interface PhysicalConnectionRequest {
+  endpoints: readonly string[];
+  discoveryTimeoutMs: number;
+  expectedRobotId?: string;
+}
+
 const CONSOLE_HISTORY_LIMIT = 2_000;
 export const PHYSICAL_TELEMETRY_REPLAY_BATCH_SIZE = 128;
 
@@ -78,6 +84,9 @@ export class PhysicalTargetCoordinator {
   private targetEndpoint: string | null = null;
   private targetExpectedRobotId: string | null = null;
   private connection: Promise<void> | null = null;
+  private lastConnectionRequest: PhysicalConnectionRequest | null = null;
+  private resumeRecoveryArmedTarget: TargetClient | null = null;
+  private resumeRecovery: Promise<void> | null = null;
   private commandQueue: Promise<void> = Promise.resolve();
   private workerEventSequence = 0;
   private latestStatus: TargetEvent = {
@@ -132,6 +141,10 @@ export class PhysicalTargetCoordinator {
       this.commandQueue = operation.catch(() => undefined);
       return;
     }
+    if (command.type === "resume") {
+      this.armResumeRecovery(port);
+      return;
+    }
     if (command.type === "connect" && command.providesProject) {
       this.projectRunProvider.register(port);
       this.publishProjectProviderState();
@@ -170,7 +183,71 @@ export class PhysicalTargetCoordinator {
     this.targetEndpoint = null;
     this.targetExpectedRobotId = null;
     this.connection = null;
+    this.lastConnectionRequest = null;
+    this.resumeRecoveryArmedTarget = null;
+    this.resumeRecovery = null;
     this.clearRetainedState();
+  }
+
+  private armResumeRecovery(port: PhysicalWorkerPort): void {
+    const target = this.target;
+    if (!this.ports.has(port) || !target || !this.lastConnectionRequest) {
+      return;
+    }
+    this.resumeRecoveryArmedTarget = target;
+    this.startArmedResumeRecovery();
+  }
+
+  private startArmedResumeRecovery(): void {
+    const target = this.resumeRecoveryArmedTarget;
+    const connectionRequest = this.lastConnectionRequest;
+    if (
+      this.resumeRecovery ||
+      !target ||
+      this.target !== target ||
+      !connectionRequest ||
+      this.latestStatus.type !== "status" ||
+      this.latestStatus.state !== "error"
+    ) {
+      return;
+    }
+    this.resumeRecoveryArmedTarget = null;
+    const operation = this.commandQueue.then(async () => {
+      if (
+        this.ports.size === 0 ||
+        this.target !== target ||
+        this.lastConnectionRequest !== connectionRequest ||
+        this.latestStatus.type !== "status" ||
+        this.latestStatus.state !== "error"
+      ) {
+        return;
+      }
+      this.broadcast({
+        type: "status",
+        state: "connecting",
+        detail: "Checking the XRP after the browser resumed",
+      });
+      try {
+        await this.connectTarget(
+          connectionRequest.endpoints,
+          connectionRequest.discoveryTimeoutMs,
+          connectionRequest.expectedRobotId,
+          true,
+        );
+      } catch (error) {
+        this.broadcast({
+          type: "status",
+          state: "error",
+          detail: errorDetail(error),
+        });
+      }
+    });
+    this.resumeRecovery = operation;
+    this.commandQueue = operation.finally(() => {
+      if (this.resumeRecovery === operation) {
+        this.resumeRecovery = null;
+      }
+    });
   }
 
   private async execute(
@@ -179,6 +256,7 @@ export class PhysicalTargetCoordinator {
       PhysicalWorkerCommand,
       | { type: "set-role" }
       | { type: "disconnect" }
+      | { type: "resume" }
       | { type: "set-project-run-provider" }
       | { type: "project-run-snapshot" }
       | { type: "mark-project-changed" }
@@ -186,11 +264,22 @@ export class PhysicalTargetCoordinator {
   ): Promise<void> {
     try {
       if (command.type === "connect") {
+        const connectionRequest: PhysicalConnectionRequest = {
+          endpoints: [
+            ...(command.endpoints ??
+              (command.endpoint ? [command.endpoint] : [])),
+          ],
+          discoveryTimeoutMs: command.discoveryTimeoutMs ?? 1_000,
+          ...(command.expectedRobotId === undefined
+            ? {}
+            : { expectedRobotId: command.expectedRobotId }),
+        };
         const replayRequired = await this.connectTarget(
-          command.endpoints ?? (command.endpoint ? [command.endpoint] : []),
-          command.discoveryTimeoutMs ?? 1_000,
-          command.expectedRobotId,
+          connectionRequest.endpoints,
+          connectionRequest.discoveryTimeoutMs,
+          connectionRequest.expectedRobotId,
         );
+        this.lastConnectionRequest = connectionRequest;
         this.send(port, {
           type: "response",
           requestId: command.requestId,
@@ -279,6 +368,7 @@ export class PhysicalTargetCoordinator {
     endpoints: readonly string[],
     discoveryTimeoutMs: number,
     expectedRobotId?: string,
+    forceRediscovery = false,
   ): Promise<boolean> {
     const normalizedExpectedRobotId =
       expectedRobotId?.trim().toLocaleLowerCase() || null;
@@ -291,6 +381,7 @@ export class PhysicalTargetCoordinator {
       this.targetEndpoint &&
       endpoints.includes(this.targetEndpoint) &&
       currentConnectionIsHealthy &&
+      !forceRediscovery &&
       (!normalizedExpectedRobotId ||
         normalizedExpectedRobotId === this.targetExpectedRobotId)
     ) {
@@ -302,6 +393,7 @@ export class PhysicalTargetCoordinator {
     }
 
     this.target?.disconnect();
+    this.resumeRecoveryArmedTarget = null;
     this.target = null;
     this.targetEndpoint = null;
     this.targetExpectedRobotId = null;
@@ -391,6 +483,9 @@ export class PhysicalTargetCoordinator {
         : rawEvent;
     if (event.type === "status") {
       this.latestStatus = event;
+      if (event.state === "error") {
+        this.startArmedResumeRecovery();
+      }
       if (
         this.retainingRunTelemetry &&
         event.state !== "loading" &&

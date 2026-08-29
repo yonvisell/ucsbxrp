@@ -48,7 +48,7 @@ def mean_wheel_position_mm(state):
 
 def run_preflight():
     if not run_exercise_checks():
-        print("Complete preflight_report before running the XRP")
+        print("Restore the runnable report example before running the XRP")
         return None
 
     robot = make_robot(ROBOT_CONFIG)

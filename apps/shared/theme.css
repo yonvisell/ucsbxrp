@@ -656,6 +656,19 @@ input[type="radio"] {
   color: var(--quiet);
 }
 
+.landing-release {
+  position: fixed;
+  right: 0.55rem;
+  bottom: 0.4rem;
+  margin: 0;
+  color: var(--quiet);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

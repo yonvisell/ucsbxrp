@@ -45,6 +45,9 @@ test("keeps the compact landing actions clear at laptop-narrow width", async ({
       name: "Program, Simulate, and Run Live Telemetry for the XRP robot",
     }),
   ).toBeVisible();
+  await expect(
+    page.getByText(`Release ${currentRelease.release_id}`, { exact: true }),
+  ).toBeVisible();
   const landingGap = await page.evaluate(() => {
     const header = document.querySelector(".landing-header")!;
     const hero = document.querySelector(".landing-shell > .eyebrow")!;

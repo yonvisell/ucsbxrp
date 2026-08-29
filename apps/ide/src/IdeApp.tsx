@@ -1,4 +1,4 @@
-import Editor from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import {
   type ChangeEvent,
   type FormEvent,
@@ -14,6 +14,7 @@ import {
   DEFAULT_COURSE_PROJECT,
   PhysicalTargetClient,
   VirtualTargetClient,
+  checkCourseProjectSyntax,
   createNextChallengeProject,
   nextChallengeTemplate,
   portableProjectError,
@@ -26,6 +27,7 @@ import {
   type TargetRunState,
   type SynchronizedProject,
   type CourseProjectKind,
+  type PythonDiagnostic,
 } from "@ucsb-xrp/target";
 
 import { AppNavigation } from "../../shared/AppNavigation";
@@ -48,6 +50,7 @@ import {
 import courseRelease from "../../../vendor/current/release.json";
 import type { AuthorDraftProject } from "../../shared/author-draft-handoff";
 import { MarkdownPreview } from "./MarkdownPreview";
+import { setCoursePythonProjectContext } from "./course-python-language";
 import {
   chooseWorkspaceFolder,
   courseFolderPermission,
@@ -119,6 +122,8 @@ interface ConsoleEntry {
   timestampMs?: number;
 }
 
+type ConsoleTab = "status" | "problems" | "output" | "details";
+
 interface IdeSettings {
   editorFontSize: number;
   consoleFontSize: number;
@@ -151,6 +156,34 @@ function formatConsoleTime(timestampMs: number | undefined): string {
     second: "2-digit",
     hour12: false,
   });
+}
+
+function diagnosticLocation(diagnostic: PythonDiagnostic): string {
+  if (!diagnostic.path) return "Project";
+  if (!diagnostic.start) return diagnostic.path;
+  return `${diagnostic.path}:${diagnostic.start.line}:${diagnostic.start.column}`;
+}
+
+function consoleSourceLocation(
+  line: string,
+): { path: string; line: number; column: number } | null {
+  const traceback = line.match(
+    /^\s*File\s+["'](?:\/project\/|project\/)?([^"']+\.py)["'],\s*line\s+(\d+)/,
+  );
+  const compact = line.match(
+    /^(?:\/project\/|project\/)?([^:\s]+\.py):(\d+)(?::(\d+))?:/,
+  );
+  const match = traceback ?? compact;
+  if (!match) return null;
+  const sourceLine = Number.parseInt(match[2] ?? "", 10);
+  const sourceColumn = Number.parseInt(match[3] ?? "1", 10);
+  if (!Number.isSafeInteger(sourceLine) || sourceLine < 1) return null;
+  return {
+    path: match[1]!,
+    line: sourceLine,
+    column:
+      Number.isSafeInteger(sourceColumn) && sourceColumn > 0 ? sourceColumn : 1,
+  };
 }
 const defaultSettings: IdeSettings = {
   editorFontSize: 9,
@@ -463,14 +496,16 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     "The current project has not been compiled.",
   );
   const [checkOk, setCheckOk] = useState<boolean | null>(null);
+  const [pythonDiagnostics, setPythonDiagnostics] = useState<
+    PythonDiagnostic[]
+  >([]);
+  const [projectCommandActive, setProjectCommandActive] = useState(false);
   const [syncDetail, setSyncDetail] = useState(
     "Run will load the current project into XRP memory.",
   );
   const [syncOk, setSyncOk] = useState<boolean | null>(null);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
-  const [consoleTab, setConsoleTab] = useState<"status" | "output" | "details">(
-    "output",
-  );
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>("output");
   const [outputPanelOpen, setOutputPanelOpen] = useState(false);
   const [projectPanelOpen, setProjectPanelOpen] = useState(
     initiallyShowProjectPanel,
@@ -555,6 +590,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const settingsDrawerRef = useRef<HTMLElement | null>(null);
   const fileActionsRef = useRef<HTMLDivElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const pendingEditorLocationRef = useRef<{
+    path: string;
+    line: number;
+    column: number;
+  } | null>(null);
   const projectVersion = useRef(0);
   const displayedProjectKey = useRef(
     `${initialProject.templateId ?? "custom"}:${initialProject.name}`,
@@ -610,6 +652,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const targetStateRef = useRef<TargetRunState>("disconnected");
   const projectProviderActiveRef = useRef(false);
   const targetCommandCountRef = useRef(0);
+  const projectCommandActiveRef = useRef(false);
   const componentCheckRunningRef = useRef(false);
   const folderInteractionCountRef = useRef(0);
   const folderSaveStateRef = useRef(folderSaveState);
@@ -685,17 +728,53 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         }),
       });
     };
-    const flushBeforeLeaving = () => void diagnosticLog.flush();
+    const lifecycleMessage = (event: Event) =>
+      JSON.stringify({
+        type: event.type,
+        visibility: document.visibilityState,
+        online: navigator.onLine,
+        persisted:
+          "persisted" in event &&
+          typeof (event as PageTransitionEvent).persisted === "boolean"
+            ? (event as PageTransitionEvent).persisted
+            : null,
+      });
+    const recordLifecycle = (event: Event) => {
+      const hidden =
+        event.type === "pagehide" ||
+        (event.type === "visibilitychange" && document.hidden);
+      diagnosticLog.record({
+        event: `application.${event.type}`,
+        message: lifecycleMessage(event),
+        level: event.type === "offline" ? "warning" : "info",
+        terminal:
+          hidden ||
+          event.type === "pageshow" ||
+          event.type === "online" ||
+          event.type === "offline",
+      });
+      if (event.type === "pagehide") void diagnosticLog.flush();
+    };
     window.addEventListener("error", recordWindowError);
     window.addEventListener("unhandledrejection", recordUnhandledRejection);
-    window.addEventListener("pagehide", flushBeforeLeaving);
+    window.addEventListener("pagehide", recordLifecycle);
+    window.addEventListener("pageshow", recordLifecycle);
+    window.addEventListener("online", recordLifecycle);
+    window.addEventListener("offline", recordLifecycle);
+    window.addEventListener("focus", recordLifecycle);
+    document.addEventListener("visibilitychange", recordLifecycle);
     return () => {
       window.removeEventListener("error", recordWindowError);
       window.removeEventListener(
         "unhandledrejection",
         recordUnhandledRejection,
       );
-      window.removeEventListener("pagehide", flushBeforeLeaving);
+      window.removeEventListener("pagehide", recordLifecycle);
+      window.removeEventListener("pageshow", recordLifecycle);
+      window.removeEventListener("online", recordLifecycle);
+      window.removeEventListener("offline", recordLifecycle);
+      window.removeEventListener("focus", recordLifecycle);
+      document.removeEventListener("visibilitychange", recordLifecycle);
     };
   }, [diagnosticLog]);
 
@@ -764,6 +843,20 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     );
     retryPendingOfflineShellReload();
   }, []);
+
+  const beginProjectCommand = useCallback((): boolean => {
+    if (projectCommandActiveRef.current) return false;
+    projectCommandActiveRef.current = true;
+    setProjectCommandActive(true);
+    beginTargetCommand();
+    return true;
+  }, [beginTargetCommand]);
+
+  const finishProjectCommand = useCallback(() => {
+    projectCommandActiveRef.current = false;
+    setProjectCommandActive(false);
+    finishTargetCommand();
+  }, [finishTargetCommand]);
 
   const beginFolderInteraction = useCallback(() => {
     folderInteractionCountRef.current += 1;
@@ -1007,22 +1100,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             terminal: event.phase === "result" || event.phase === "error",
           });
         }
-        if (
-          event.action === "validate" &&
-          event.phase === "result" &&
-          !event.replayed
-        ) {
-          setCheckOk(true);
-          setCheckDetail(event.line.replace(/^Compilation passed ·\s*/, ""));
-        } else if (
-          event.action === "validate" &&
-          event.phase === "error" &&
-          !event.replayed
-        ) {
-          forgetCompilation(window.sessionStorage);
-          setCheckOk(false);
-          setCheckDetail(event.line.replace(/^Compilation failed ·\s*/, ""));
-        }
         const id = event.eventId ?? `ide-target-${nextConsoleId.current++}`;
         setConsoleEntries((entries) => {
           if (entries.some((entry) => entry.id === id)) {
@@ -1104,6 +1181,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       let disposed = false;
       setCheckOk(null);
       setCheckDetail("Files changed since the last code check.");
+      setPythonDiagnostics([]);
       setSyncOk(null);
       setSyncDetail("Files changed; Run will load the updated project.");
       void projectContentDigest(project)
@@ -1447,6 +1525,94 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setActivePath(path);
   }, []);
 
+  const openEditorLocation = useCallback(
+    (location: { path: string; line: number; column: number }) => {
+      if (location.path === activePath && editorRef.current) {
+        pendingEditorLocationRef.current = null;
+        editorRef.current.setPosition({
+          lineNumber: location.line,
+          column: location.column,
+        });
+        editorRef.current.revealLineInCenter(location.line);
+        editorRef.current.focus();
+        return;
+      }
+      pendingEditorLocationRef.current = location;
+      openFile(location.path);
+    },
+    [activePath, openFile],
+  );
+
+  useEffect(() => {
+    setCoursePythonProjectContext({
+      projectId: projectSession.projectId,
+      files: project.files,
+      openLocation: openEditorLocation,
+    });
+    return () => setCoursePythonProjectContext(null);
+  }, [openEditorLocation, project.files, projectSession.projectId]);
+
+  const mountEditor = useCallback<OnMount>((editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    const location = pendingEditorLocationRef.current;
+    if (!location) return;
+    pendingEditorLocationRef.current = null;
+    editor.setPosition({
+      lineNumber: location.line,
+      column: location.column,
+    });
+    editor.revealLineInCenter(location.line);
+    editor.focus();
+  }, []);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    const model = editor?.getModel();
+    if (!editor || !monaco || !model) return;
+    if (!activePath.endsWith(".py")) {
+      monaco.editor.setModelMarkers(model, "ucsb-xrp-compile", []);
+      return;
+    }
+    const markers = pythonDiagnostics
+      .filter(
+        (diagnostic) =>
+          diagnostic.phase === "compile" && diagnostic.path === activePath,
+      )
+      .map((diagnostic) => {
+        const start = model.validatePosition({
+          lineNumber: diagnostic.start?.line ?? 1,
+          column: diagnostic.start?.column ?? 1,
+        });
+        const requestedEnd = model.validatePosition({
+          lineNumber: diagnostic.end?.line ?? start.lineNumber,
+          column: diagnostic.end?.column ?? start.column + 1,
+        });
+        return {
+          severity:
+            diagnostic.severity === "warning"
+              ? monaco.MarkerSeverity.Warning
+              : diagnostic.severity === "info"
+                ? monaco.MarkerSeverity.Info
+                : monaco.MarkerSeverity.Error,
+          message: diagnostic.message,
+          source: "MicroPython",
+          code: diagnostic.code,
+          startLineNumber: start.lineNumber,
+          startColumn: start.column,
+          endLineNumber: requestedEnd.lineNumber,
+          endColumn: Math.max(
+            requestedEnd.column,
+            requestedEnd.lineNumber === start.lineNumber
+              ? start.column + 1
+              : requestedEnd.column,
+          ),
+        };
+      });
+    monaco.editor.setModelMarkers(model, "ucsb-xrp-compile", markers);
+  }, [activePath, pythonDiagnostics]);
+
   useEffect(() => {
     setMarkdownPreviewOpen(activePath.endsWith(".md"));
   }, [activePath]);
@@ -1512,10 +1678,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   );
 
   const validateCode = useCallback(async () => {
-    if (!workingFolder || !canCommand || isRunning) {
+    if (!workingFolder || isRunning || !beginProjectCommand()) {
       return;
     }
-    beginTargetCommand();
     setOutputPanelOpen(true);
     setConsoleTab("status");
     setCheckDetail(
@@ -1527,12 +1692,73 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     };
     try {
       const checkedProject = projectRef.current;
-      const [result, contentDigest] = await Promise.all([
-        target.check(checkedProject),
+      const [browserResult, contentDigest] = await Promise.all([
+        checkCourseProjectSyntax(checkedProject),
         projectContentDigest(checkedProject),
       ]);
+      let result = browserResult;
+      if (
+        browserResult.ok &&
+        target.kind === "physical" &&
+        canCommand &&
+        projectProviderActiveRef.current
+      ) {
+        const deviceResult = await target.check(checkedProject);
+        result = {
+          ...deviceResult,
+          diagnostics:
+            deviceResult.diagnostics ?? browserResult.diagnostics ?? [],
+        };
+      } else if (browserResult.ok && target.kind === "physical") {
+        result = {
+          ...browserResult,
+          detail: `${browserResult.detail}. The XRP is not connected to this IDE; device validation will run on Run.`,
+        };
+      }
+      if (
+        projectSessionRef.current.projectId !== checkedIdentity.projectId ||
+        projectSessionRef.current.revision !== checkedIdentity.revision
+      ) {
+        setCheckOk(null);
+        setCheckDetail(
+          "Files changed while Compile was running. Compile the current revision again.",
+        );
+        return;
+      }
+      const diagnostics = result.diagnostics ?? [];
+      const firstDiagnostic = diagnostics[0];
+      setPythonDiagnostics(diagnostics);
       setCheckOk(result.ok);
-      setCheckDetail(result.detail);
+      setCheckDetail(
+        result.ok || !firstDiagnostic
+          ? result.detail
+          : `First compiler error · ${diagnosticLocation(firstDiagnostic)} · ${firstDiagnostic.message}`,
+      );
+      diagnosticLog.record({
+        event: result.ok ? "project.compile-passed" : "project.compile-failed",
+        message: JSON.stringify({
+          detail: result.detail,
+          diagnostics: diagnostics.map((diagnostic) => ({
+            code: diagnostic.code ?? null,
+            message: diagnostic.message,
+            path: diagnostic.path ?? null,
+            line: diagnostic.start?.line ?? null,
+            column: diagnostic.start?.column ?? null,
+          })),
+        }),
+        level: result.ok ? "info" : "error",
+        terminal: true,
+      });
+      setConsoleEntries((entries) => [
+        ...entries.slice(-(maximumSessionLogEntries - 1)),
+        {
+          id: `ide-local-${nextConsoleId.current++}`,
+          category: "service",
+          stream: result.ok ? "system" : "stderr",
+          line: `${result.ok ? "Compilation passed" : "Compilation failed"} · ${result.detail}`,
+          timestampMs: Date.now(),
+        },
+      ]);
       if (
         result.ok &&
         projectSessionRef.current.projectId === checkedIdentity.projectId &&
@@ -1541,20 +1767,30 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         rememberCompilation(window.sessionStorage, contentDigest);
       } else if (!result.ok) {
         forgetCompilation(window.sessionStorage);
+        setConsoleTab("problems");
+        if (firstDiagnostic?.path && firstDiagnostic.start) {
+          openEditorLocation({
+            path: firstDiagnostic.path,
+            line: firstDiagnostic.start.line,
+            column: firstDiagnostic.start.column,
+          });
+        }
       }
     } catch (error) {
-      forgetCompilation(window.sessionStorage);
+      setPythonDiagnostics([]);
       setCheckOk(false);
       setCheckDetail(errorDetail(error));
     } finally {
-      finishTargetCommand();
+      finishProjectCommand();
       retryPendingOfflineShellReload();
     }
   }, [
-    beginTargetCommand,
+    beginProjectCommand,
     canCommand,
-    finishTargetCommand,
+    diagnosticLog,
+    finishProjectCommand,
     isRunning,
+    openEditorLocation,
     target,
     workingFolder,
   ]);
@@ -1569,7 +1805,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setConsoleTab("output");
     setOperationDetail(
       checkingExercises
-        ? "Checking tutorial exercises without starting a robot…"
+        ? "Checking the runnable tutorial examples without starting a robot…"
         : "Running hardware-free component checks…",
     );
     try {
@@ -1578,7 +1814,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         entrypoint: projectCheckFile,
       });
       const completionDetail = checkingExercises
-        ? result.detail.replace(/^Component checks/, "Exercise checks")
+        ? result.detail.replace(/^Component checks/, "Example checks")
         : result.detail;
       const incompleteComponents =
         !checkingExercises &&
@@ -1615,10 +1851,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           ? "Component checks finished; implement the listed methods, then test again."
           : result.ok
             ? checkingExercises
-              ? "Exercise checks finished; review the results below."
+              ? "Example checks finished; review the results below."
               : "Component checks finished; review PASS and NOT IMPLEMENTED results below."
             : checkingExercises
-              ? "One or more exercises are incomplete or incorrect; review Program output."
+              ? "One or more tutorial examples changed incompatibly; review Program output."
               : "One or more component checks failed; review Program output.",
       );
     } catch (error) {
@@ -1676,7 +1912,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       ]);
       return;
     }
-    beginTargetCommand();
+    if (!beginProjectCommand()) return;
     const checkedIdentity = {
       projectId: projectSessionRef.current.projectId,
       revision: projectSessionRef.current.revision,
@@ -1685,11 +1921,55 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setConsoleTab("output");
     try {
       const contentDigest = await projectContentDigest(projectToRun);
-      if (checkOk !== true) {
+      if (!compilationIsFresh(window.sessionStorage, contentDigest)) {
         setCheckOk(null);
         setCheckDetail(
           "Run is checking the project and compiling its Python files…",
         );
+        const result = await checkCourseProjectSyntax(projectToRun);
+        if (
+          projectSessionRef.current.projectId !== checkedIdentity.projectId ||
+          projectSessionRef.current.revision !== checkedIdentity.revision
+        ) {
+          setCheckOk(null);
+          setCheckDetail(
+            "Files changed while Run was checking them. Run the current revision again.",
+          );
+          return;
+        }
+        const diagnostics = result.diagnostics ?? [];
+        setPythonDiagnostics(diagnostics);
+        if (!result.ok) {
+          forgetCompilation(window.sessionStorage);
+          const firstDiagnostic = diagnostics[0];
+          setCheckOk(false);
+          setCheckDetail(
+            firstDiagnostic
+              ? `First compiler error · ${diagnosticLocation(firstDiagnostic)} · ${firstDiagnostic.message}`
+              : result.detail,
+          );
+          setConsoleEntries((entries) => [
+            ...entries.slice(-(maximumSessionLogEntries - 1)),
+            {
+              id: `ide-local-${nextConsoleId.current++}`,
+              category: "service",
+              stream: "stderr",
+              line: `Compilation failed · ${result.detail}`,
+              timestampMs: Date.now(),
+            },
+          ]);
+          setConsoleTab("problems");
+          if (firstDiagnostic?.path && firstDiagnostic.start) {
+            openEditorLocation({
+              path: firstDiagnostic.path,
+              line: firstDiagnostic.start.line,
+              column: firstDiagnostic.start.column,
+            });
+          }
+          return;
+        }
+        setCheckOk(true);
+        setCheckDetail(result.detail);
       }
       await target.run(projectToRun);
       if (
@@ -1709,7 +1989,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         );
       }
     } catch (error) {
-      forgetCompilation(window.sessionStorage);
       const detail = errorDetail(error);
       setTargetState("error");
       setTargetDetail(detail);
@@ -1723,15 +2002,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         },
       ]);
     } finally {
-      finishTargetCommand();
+      finishProjectCommand();
       retryPendingOfflineShellReload();
     }
   }, [
-    beginTargetCommand,
+    beginProjectCommand,
     canRunProject,
-    checkOk,
-    finishTargetCommand,
+    finishProjectCommand,
     isRunning,
+    openEditorLocation,
     target,
     virtualRuntimePreparing,
     workingFolder,
@@ -1767,7 +2046,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   }, [beginTargetCommand, finishTargetCommand, isRunning, target]);
 
   const resetTarget = useCallback(async () => {
-    if (!isConnected) {
+    if (!isConnected || (projectCommandActiveRef.current && !isRunning)) {
       return;
     }
     beginTargetCommand();
@@ -1793,7 +2072,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       finishTargetCommand();
       retryPendingOfflineShellReload();
     }
-  }, [beginTargetCommand, finishTargetCommand, isConnected, target]);
+  }, [beginTargetCommand, finishTargetCommand, isConnected, isRunning, target]);
 
   const attachWorkingFolder = useCallback(
     async (folder: CourseDirectoryHandle) => {
@@ -2248,39 +2527,32 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     const folder = workingFolder;
     const sessionToSave = projectSession;
     const version = projectVersion.current;
-    setFolderSaveState("pending");
-    const timer = window.setTimeout(() => {
-      setFolderSaveState("saving");
-      void projectFolderPersistence
-        .saveAutomatically(folder, sessionToSave, version)
-        .then((outcome) => {
-          if (outcome.status !== "saved") return;
-          publishProjectSession(outcome.session);
-          if (!outcome.exactRevision) {
-            setFolderSaveState("pending");
-            return;
-          }
-          folderDirtyRef.current = false;
-          setFolderDirty(false);
-          setFolderSaveState("current");
-          setOperationDetail(`Saved changes in ${folder.name}.`);
-          retryPendingOfflineShellReload();
-        })
-        .catch((error: unknown) => {
-          if (
-            error instanceof DOMException &&
-            error.name === "NotAllowedError"
-          ) {
-            setWorkingFolder(null);
-            setRememberedFolder(folder);
-            setFolderSaveState("permission");
-          } else {
-            setFolderSaveState("error");
-          }
-          setOperationDetail(errorDetail(error));
-        });
-    }, 900);
-    return () => window.clearTimeout(timer);
+    setFolderSaveState("saving");
+    void projectFolderPersistence
+      .saveAutomatically(folder, sessionToSave, version)
+      .then((outcome) => {
+        if (outcome.status !== "saved") return;
+        publishProjectSession(outcome.session);
+        if (!outcome.exactRevision) {
+          setFolderSaveState("pending");
+          return;
+        }
+        folderDirtyRef.current = false;
+        setFolderDirty(false);
+        setFolderSaveState("current");
+        setOperationDetail(`Saved changes in ${folder.name}.`);
+        retryPendingOfflineShellReload();
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "NotAllowedError") {
+          setWorkingFolder(null);
+          setRememberedFolder(folder);
+          setFolderSaveState("permission");
+        } else {
+          setFolderSaveState("error");
+        }
+        setOperationDetail(errorDetail(error));
+      });
   }, [
     folderDirty,
     projectSession,
@@ -3266,7 +3538,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <select
             aria-label="Run on"
             className="target-select"
-            disabled={!workingFolder || isRunning}
+            disabled={!workingFolder || isRunning || projectCommandActive}
             onChange={(event) => {
               if (!projectProviderActive) useThisIde();
               updateTargetPreference((current) => ({
@@ -3277,11 +3549,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             title={
               !workingFolder
                 ? "Choose a Working folder before selecting an XRP."
-                : isRunning
-                  ? "Stop the current program before changing XRP."
-                  : !projectProviderActive
-                    ? "Choose the XRP target. Changing it makes this IDE control Run."
-                    : "Choose whether Run uses the simulator or the configured physical XRP."
+                : projectCommandActive
+                  ? "Wait for the current Compile or Run request to finish."
+                  : isRunning
+                    ? "Stop the current program before changing XRP."
+                    : !projectProviderActive
+                      ? "Choose the XRP target. Changing it makes this IDE control Run."
+                      : "Choose whether Run uses the simulator or the configured physical XRP."
             }
             value={targetPreference.kind}
           >
@@ -3291,14 +3565,16 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             </option>
           </select>
           <button
-            disabled={!workingFolder || !canCommand || isRunning}
+            disabled={!workingFolder || isRunning || projectCommandActive}
             onClick={validateCode}
             title={
               !workingFolder
                 ? "Choose a Working folder and create or open a project before compiling."
-                : target.kind === "physical" && targetState === "error"
-                  ? targetDetail
-                  : "Check project structure and compile all Python files without running the robot (⌘/Ctrl+Shift+Enter)"
+                : projectCommandActive
+                  ? "The current Compile or Run request is still in progress."
+                  : target.kind === "physical" && targetState === "error"
+                    ? "Compile locally with the browser's MicroPython runtime; reconnect the XRP before Run."
+                    : "Check project structure and compile all Python files without running the robot (⌘/Ctrl+Shift+Enter)"
             }
           >
             Compile
@@ -3308,19 +3584,24 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             className={`command-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
             disabled={
               !isRunning &&
-              (!workingFolder || !canRunProject || virtualRuntimePreparing)
+              (!workingFolder ||
+                !canRunProject ||
+                virtualRuntimePreparing ||
+                projectCommandActive)
             }
             onClick={isRunning ? stopProgram : runTarget}
             title={
               isRunning
                 ? "Stop the running program."
-                : virtualRuntimePreparing
-                  ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                  : !workingFolder
-                    ? "Choose a Working folder and create or open a project before running."
-                    : target.kind === "physical" && targetState === "error"
-                      ? targetDetail
-                      : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+                : projectCommandActive
+                  ? "The current Compile or Run request is still in progress."
+                  : virtualRuntimePreparing
+                    ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
+                    : !workingFolder
+                      ? "Choose a Working folder and create or open a project before running."
+                      : target.kind === "physical" && targetState === "error"
+                        ? targetDetail
+                        : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
             <RunStopIcon running={isRunning} />
@@ -3331,7 +3612,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <button
             aria-label="Reset"
             className="header-icon-button"
-            disabled={!projectProviderActive || !isConnected}
+            disabled={
+              !projectProviderActive ||
+              !isConnected ||
+              (projectCommandActive && !isRunning)
+            }
             onClick={resetTarget}
             title="Stop the program and restore the selected XRP to its initial course state."
           >
@@ -3365,16 +3650,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 : `${target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} · ${targetState}${target.kind === "physical" ? ` · ${physicalStatus}` : ""}`}
             </span>
           </div>
-          {target.kind === "physical" && targetState === "error" ? (
-            <button
-              aria-label="Reconnect XRP"
-              className="quiet-button target-retry-button"
-              onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
-              title="Try the configured XRP Wi-Fi connection again."
-            >
-              Reconnect
-            </button>
-          ) : null}
           <button
             aria-expanded={settingsOpen}
             className="quiet-button settings-button"
@@ -3388,6 +3663,26 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           </button>
         </div>
       </header>
+
+      {target.kind === "physical" && targetState === "error" ? (
+        <section className="connection-recovery" role="alert">
+          <div>
+            <strong>Physical XRP connection lost</strong>
+            <span>
+              {targetDetail} The IDE retries automatically when this page
+              returns after sleep or the network comes back.
+            </span>
+          </div>
+          <button
+            className="primary-button"
+            onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+            type="button"
+          >
+            Reconnect XRP
+          </button>
+          <a href="../commission/">Set up or repair…</a>
+        </section>
+      ) : null}
 
       <main
         className={`ide-workspace ${projectPanelOpen ? "" : "project-collapsed"}`}
@@ -3599,16 +3894,16 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       onClick={() => void testComponents()}
                       title={
                         checkingExercises
-                          ? "Check the tutorial exercises without starting either robot. PASS, NOT COMPLETED, and INCORRECT results appear in Program output."
+                          ? "Check the runnable tutorial examples without starting either robot. Results appear in Program output."
                           : "Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
                       }
                     >
                       {componentCheckRunning
                         ? checkingExercises
-                          ? "Checking exercises…"
+                          ? "Checking examples…"
                           : "Testing components…"
                         : checkingExercises
-                          ? "Check exercises"
+                          ? "Check examples"
                           : "Test components"}
                     </button>
                   ) : null}
@@ -3765,6 +4060,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   <Editor
                     key={`${projectSession.projectId}:${activePath}`}
                     language={editorLanguage(activePath)}
+                    onMount={mountEditor}
                     onChange={(value) => updateActiveFile(value ?? "")}
                     options={{
                       ariaLabel: `${activePath} editor`,
@@ -3864,6 +4160,21 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   Status
                 </button>
                 <button
+                  aria-selected={consoleTab === "problems"}
+                  className={consoleTab === "problems" ? "active" : ""}
+                  onClick={() => {
+                    setConsoleTab("problems");
+                    setOutputPanelOpen(true);
+                  }}
+                  role="tab"
+                  title="Show compiler diagnostics. Select a problem to open its exact source location."
+                >
+                  Problems
+                  {pythonDiagnostics.length > 0
+                    ? ` (${pythonDiagnostics.length})`
+                    : ""}
+                </button>
+                <button
                   aria-selected={consoleTab === "output"}
                   className={consoleTab === "output" ? "active" : ""}
                   onClick={() => {
@@ -3893,7 +4204,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 </button>
               </div>
               <div className="console-actions">
-                {outputPanelOpen && consoleTab !== "status" ? (
+                {outputPanelOpen &&
+                (consoleTab === "output" || consoleTab === "details") ? (
                   <button
                     className="clear-output"
                     disabled={visibleConsoleEntries.length === 0}
@@ -3983,6 +4295,60 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   </div>
                 ) : null}
               </div>
+            ) : outputPanelOpen && consoleTab === "problems" ? (
+              <div className="problems-panel" role="tabpanel">
+                {pythonDiagnostics.length === 0 ? (
+                  <span className="console-placeholder">
+                    Compile the current files to list exact Python source
+                    problems here.
+                  </span>
+                ) : (
+                  <>
+                    <ol className="problem-list">
+                      {pythonDiagnostics.map((diagnostic, index) => (
+                        <li
+                          key={`${diagnostic.path ?? "project"}:${diagnostic.start?.line ?? 0}:${diagnostic.start?.column ?? 0}:${index}`}
+                        >
+                          <button
+                            disabled={!diagnostic.path}
+                            onClick={() => {
+                              if (!diagnostic.path) return;
+                              openEditorLocation({
+                                path: diagnostic.path,
+                                line: diagnostic.start?.line ?? 1,
+                                column: diagnostic.start?.column ?? 1,
+                              });
+                            }}
+                            title={
+                              diagnostic.path
+                                ? `Open ${diagnosticLocation(diagnostic)}`
+                                : "The compiler did not provide a source location."
+                            }
+                            type="button"
+                          >
+                            <span>{diagnosticLocation(diagnostic)}</span>
+                            <strong>{diagnostic.message}</strong>
+                            <small>
+                              {index === 0 ? "First compiler error" : "Error"}
+                              {diagnostic.code
+                                ? ` · ${diagnostic.code}`
+                                : " · MicroPython"}
+                            </small>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                    <details className="compiler-raw-output">
+                      <summary>Raw compiler output</summary>
+                      <pre>
+                        {pythonDiagnostics
+                          .flatMap((diagnostic) => diagnostic.raw)
+                          .join("\n")}
+                      </pre>
+                    </details>
+                  </>
+                )}
+              </div>
             ) : outputPanelOpen ? (
               <div
                 className="console-output"
@@ -4019,7 +4385,21 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                             ? "•"
                             : "›"}
                       </span>
-                      <span>{entry.line}</span>
+                      {(() => {
+                        const location = consoleSourceLocation(entry.line);
+                        return location && projectPathSet.has(location.path) ? (
+                          <button
+                            className="console-source-link"
+                            onClick={() => openEditorLocation(location)}
+                            title={`Open ${location.path}:${location.line}`}
+                            type="button"
+                          >
+                            {entry.line}
+                          </button>
+                        ) : (
+                          <span>{entry.line}</span>
+                        );
+                      })()}
                     </div>
                   ))
                 )}

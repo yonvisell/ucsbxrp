@@ -7,6 +7,7 @@ import type {
 import type {
   CourseProject,
   ProjectRevisionNotice,
+  PythonDiagnostic,
   RuntimeParameterValue,
   RuntimeState,
   SynchronizedProject,
@@ -132,12 +133,20 @@ export interface RuntimeWorkerRequest {
 
 export type RuntimeWorkerMessage =
   | { type: "runtime-ready"; version: string }
-  | { type: "compile-complete"; detail: string }
+  | {
+      type: "compile-complete";
+      detail: string;
+      diagnostics?: PythonDiagnostic[];
+    }
   | { type: "effort"; side: "left" | "right"; effort: number }
   | { type: "simulator-state"; state: XrpSimulatorState }
   | { type: "course-state"; state: CourseTelemetryState }
   | { type: "console"; stream: "stdout" | "stderr"; line: string }
-  | { type: "check-complete"; detail: string }
+  | {
+      type: "check-complete";
+      detail: string;
+      diagnostics?: PythonDiagnostic[];
+    }
   | { type: "test-complete"; detail: string }
   | { type: "run-complete" }
   | {
@@ -145,4 +154,9 @@ export type RuntimeWorkerMessage =
       state: RuntimeState;
       slots: Record<string, number>;
     }
-  | { type: "error"; detail: string; stage?: "compile" | "run" };
+  | {
+      type: "error";
+      detail: string;
+      stage?: "compile" | "run";
+      diagnostics?: PythonDiagnostic[];
+    };

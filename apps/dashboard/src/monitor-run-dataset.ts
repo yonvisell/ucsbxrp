@@ -73,6 +73,11 @@ export class MonitorRunDatasetController {
     return this.completed;
   }
 
+  /** One bounded copy for a newly visible World; never used per sample/frame. */
+  activeRecordingSnapshot(): TelemetryRecordingSnapshot | null {
+    return this.active ? this.recorder.snapshot() : null;
+  }
+
   /** Fill a late project descriptor, but reject a different project mid-run. */
   acceptProject(project: SynchronizedProject | null): boolean {
     if (!this.active) return true;

@@ -6,11 +6,12 @@ low-speed straight motion and confirms that wheel position changes. This tests
 project transfer, execution, telemetry, sensors, motors, encoders, and stopping
 without solving a course challenge.
 
-Edit only `student_work.py`.
+The supplied project is immediately runnable. Rehearse it on the Virtual XRP
+before editing `student_work.py` or selecting the physical target.
 
-## Exercise: summarize a sequence of robot states
+## Walkthrough: summarize a sequence of robot states
 
-Complete:
+Read:
 
 ```python
 def preflight_report(states: object) -> dict:
@@ -31,9 +32,8 @@ return a dictionary containing:
 Raise `ValueError` for an empty collection. Initialize named accumulators before
 the loop. Check `range_mm is not None` before comparing distances.
 
-Select **Check exercises**. Program output checks each report field separately,
-so one incorrect calculation does not hide the others. `NOT COMPLETED` means
-the placeholder remains; `INCORRECT` identifies a result that differs.
+Select **Check examples** after tracing the loop. Program output checks each
+report field separately, so one incorrect edit does not hide the others.
 
 ## Rehearse on the Virtual XRP
 

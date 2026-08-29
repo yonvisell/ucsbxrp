@@ -70,9 +70,7 @@ describe("course starter catalog", () => {
     expect(tutorial.project.files["student_work.py"]).toContain(
       "average_speed_mm_s",
     );
-    expect(tutorial.project.files["README.md"]).toContain(
-      "Edit only `student_work.py`",
-    );
+    expect(tutorial.project.files["README.md"]).toContain("Start with **Run**");
     expect(Object.keys(tutorial.project.files)).toHaveLength(5);
 
     const drawing = courseProjectTemplate("tutorial_virtual_drawing");

@@ -34,6 +34,20 @@ export {
   VirtualTargetClient,
   testCourseProjectComponents,
 } from "./virtual-target";
+export {
+  BROWSER_SYNTAX_CHECK_TIMEOUT_MS,
+  checkCourseProjectSyntax,
+} from "./browser-syntax-check";
+export {
+  MAX_PYTHON_DIAGNOSTIC_COLUMN,
+  MAX_PYTHON_DIAGNOSTIC_LINE,
+  MAX_PYTHON_DIAGNOSTIC_MESSAGE_CHARACTERS,
+  MAX_PYTHON_DIAGNOSTIC_RAW_LINE_CHARACTERS,
+  MAX_PYTHON_DIAGNOSTIC_RAW_LINES,
+  parseMicroPythonDiagnostics,
+  studentFacingMicroPythonError,
+} from "./micropython-error";
+export type { ParseMicroPythonDiagnosticOptions } from "./micropython-error";
 export { describeProject, projectRevision } from "./project-identity";
 export {
   MAX_PORTABLE_FILE_BYTES,
@@ -81,6 +95,8 @@ export type {
   ProjectRunProvider,
   ProjectRunSnapshot,
   ProjectRevisionNotice,
+  PythonDiagnostic,
+  PythonDiagnosticPosition,
   RuntimeParameter,
   RuntimeParameterKind,
   RuntimeParameterValue,

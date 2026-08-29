@@ -697,6 +697,47 @@
   border-radius: 0;
 }
 
+.connection-recovery {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  border-bottom: 1px solid #d7a8a5;
+  padding: 0.42rem 0.7rem;
+  background: #fff0ee;
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.connection-recovery div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.45rem;
+}
+
+.connection-recovery span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-recovery a {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .connection-recovery {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .connection-recovery a {
+    grid-column: 2;
+  }
+}
+
 .console-panel.collapsed {
   grid-template-rows: 26px;
 }
@@ -813,6 +854,70 @@
   line-height: 1.5;
 }
 
+.problems-panel {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.45rem 0.55rem;
+  background: var(--panel);
+}
+
+.problem-list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.problem-list button {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(9rem, auto) minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 2px;
+  padding: 0.38rem 0.48rem;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.problem-list button:hover:not(:disabled) {
+  background: #fff0ee;
+}
+
+.problem-list span,
+.problem-list small {
+  color: var(--quiet);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-xs);
+}
+
+.problem-list strong {
+  overflow: hidden;
+  color: var(--red);
+  font-size: var(--font-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compiler-raw-output {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.4rem;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.compiler-raw-output pre {
+  overflow: auto;
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  font-size: var(--font-sm);
+  white-space: pre-wrap;
+}
+
 .console-placeholder {
   color: var(--quiet);
 }
@@ -834,6 +939,22 @@
 
 .console-line.system {
   color: var(--muted);
+}
+
+.console-source-link {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  white-space: pre-wrap;
+}
+
+.console-line > span:last-child {
+  white-space: pre-wrap;
 }
 
 .console-marker {

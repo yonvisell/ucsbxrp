@@ -14,6 +14,51 @@
   grid-template-columns: 176px minmax(0, 1fr);
 }
 
+.app-shell.monitor-recovery-visible {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.monitor-connection-recovery {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  border-bottom: 1px solid #d7a8a5;
+  padding: 0.42rem 0.7rem;
+  background: #fff0ee;
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.monitor-connection-recovery div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.45rem;
+}
+
+.monitor-connection-recovery span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-connection-recovery a {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .monitor-connection-recovery {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .monitor-connection-recovery a {
+    grid-column: 2;
+  }
+}
+
 .monitor-controls {
   position: relative;
   z-index: 8;
