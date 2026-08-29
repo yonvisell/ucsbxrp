@@ -1015,19 +1015,21 @@ export class DirectPhysicalTargetClient implements TargetClient {
         detail: string;
         reconnecting: boolean;
       }>("reset", {}, { action: "reset", label: "Reset" });
-      // Reset starts a new course-telemetry epoch without changing the boot or
-      // run identity. The service restarts its sample sequence at one, so the
-      // browser must restart its cursor here or it will silently discard every
-      // post-reset idle sample until the sequence overtakes the previous run.
-      this.lastSampleSeq = 0;
       if (result.reconnecting) {
         this.emitStatus("connecting", `${result.detail}; reconnecting…`);
         await this.reconnectAfterReset();
-      } else if (result.detail === "Program state reset") {
-        this.emitStatus("ready", result.detail);
       } else {
-        this.emitStatus("loading", result.detail);
-        await this.waitForProgramStop();
+        if (result.detail === "Program state reset") {
+          this.emitStatus("ready", result.detail);
+        } else {
+          this.emitStatus("loading", result.detail);
+          await this.waitForProgramStop();
+        }
+        // Reset starts a new course-telemetry epoch without changing the boot
+        // or run identity. Restart the cursor only after the old program has
+        // stopped and its retained samples have drained; doing this at the ACK
+        // would let those old samples raise the cursor again before seq 1.
+        this.lastSampleSeq = 0;
       }
     } catch (error) {
       this.emitConsole(

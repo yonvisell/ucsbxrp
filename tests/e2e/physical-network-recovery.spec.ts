@@ -29,6 +29,7 @@ let rejectedCommand: "stop" | "reset" | null = null;
 let serviceSampleSeq = 0;
 let resetTelemetryEpoch = false;
 let readySamplePending = false;
+let resetPollStage = 0;
 
 async function seedPhysicalWorkspace(
   page: import("@playwright/test").Page,
@@ -111,10 +112,7 @@ test.beforeAll(async () => {
         serviceState = "ready";
       }
       if (command === "reset") {
-        serviceState = "ready";
-        serviceSampleSeq = 0;
-        resetTelemetryEpoch = true;
-        readySamplePending = true;
+        resetPollStage = 1;
       }
       response.writeHead(200, responseHeaders);
       response.end(
@@ -125,7 +123,7 @@ test.beforeAll(async () => {
           result: {
             detail:
               command === "reset"
-                ? "Program state reset"
+                ? "Resetting program state"
                 : `${command} accepted`,
             reconnecting: false,
             runtimeJson: common.runtimeJson,
@@ -135,15 +133,36 @@ test.beforeAll(async () => {
       return;
     }
     const infoRequest = url.pathname.endsWith("/info");
+    let responseState: "loading" | "ready" | "running" = serviceState;
+    let completedResetThisPoll = false;
+    if (!infoRequest && resetPollStage === 1) {
+      responseState = "loading";
+      resetPollStage = 2;
+    } else if (!infoRequest && resetPollStage === 2) {
+      serviceState = "ready";
+      responseState = "ready";
+      serviceSampleSeq = 0;
+      resetTelemetryEpoch = true;
+      readySamplePending = true;
+      resetPollStage = 0;
+      completedResetThisPoll = true;
+    }
     const publishReadySample =
-      !infoRequest && serviceState === "ready" && readySamplePending;
+      !infoRequest &&
+      responseState === "ready" &&
+      readySamplePending &&
+      !completedResetThisPoll;
     const nextSample =
-      !infoRequest && (serviceState === "running" || publishReadySample)
+      !infoRequest &&
+      (responseState === "running" ||
+        responseState === "loading" ||
+        publishReadySample)
         ? {
             tMs: (serviceSampleSeq + 1) * 40,
             seq: (serviceSampleSeq += 1),
             source: "physical",
-            poseAvailable: serviceState === "running",
+            poseAvailable:
+              responseState === "running" || responseState === "loading",
             xMm: serviceSampleSeq * 5,
             yMm: 0,
             headingRad: 0,
@@ -187,12 +206,19 @@ test.beforeAll(async () => {
         }
       : {
           ...common,
-          state: serviceState,
+          state: responseState,
           detail:
-            serviceState === "running"
+            responseState === "running"
               ? "Running main.py"
-              : "Physical XRP ready",
-          runId: serviceState === "running" || resetTelemetryEpoch ? 1 : 0,
+              : responseState === "loading"
+                ? "Resetting program state"
+                : "Physical XRP ready",
+          runId:
+            responseState === "running" ||
+            responseState === "loading" ||
+            resetTelemetryEpoch
+              ? 1
+              : 0,
           logs: [],
           samples: nextSample ? [nextSample] : [],
           moreSamples: false,
@@ -387,6 +413,7 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
   serviceSampleSeq = 0;
   resetTelemetryEpoch = false;
   readySamplePending = false;
+  resetPollStage = 0;
   rejectedCommand = null;
   try {
     await seedPhysicalWorkspace(ide);
@@ -430,5 +457,6 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
     serviceSampleSeq = 0;
     resetTelemetryEpoch = false;
     readySamplePending = false;
+    resetPollStage = 0;
   }
 });

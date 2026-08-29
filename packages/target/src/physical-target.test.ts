@@ -2786,13 +2786,22 @@ describe("physical target", () => {
         }
         if (url.includes("/api/v1/telemetry")) {
           telemetryRequests.push(url);
+          const pollNumber = telemetryRequests.length;
           return response({
             bootId: "boot-a",
-            state: "ready",
-            detail: "Program state reset",
+            state: pollNumber === 1 ? "loading" : "ready",
+            detail:
+              pollNumber === 1
+                ? "Resetting program state"
+                : "Program state reset",
             runId: 3,
             logs: [],
-            samples: [resetSample],
+            samples:
+              pollNumber === 1
+                ? [physicalSample(13, 260)]
+                : pollNumber === 2
+                  ? []
+                  : [resetSample],
             moreSamples: false,
           });
         }
@@ -2801,7 +2810,7 @@ describe("physical target", () => {
           protocol: 1,
           requestId: body.requestId,
           ok: true,
-          result: { detail: "Program state reset", reconnecting: false },
+          result: { detail: "Resetting program state", reconnecting: false },
         });
       },
     );
@@ -2822,8 +2831,10 @@ describe("physical target", () => {
     events.length = 0;
 
     await target.reset();
-    await vi.waitFor(() => expect(telemetryRequests).toHaveLength(1));
-    expect(telemetryRequests[0]).toContain(
+    await vi.waitFor(() => expect(telemetryRequests).toHaveLength(3));
+    expect(telemetryRequests[0]).toContain("afterLogSeq=0&afterSampleSeq=12");
+    expect(telemetryRequests[1]).toContain("afterLogSeq=0&afterSampleSeq=13");
+    expect(telemetryRequests[2]).toContain(
       "afterLogSeq=0&afterSampleSeq=0&runId=3",
     );
     await vi.waitFor(() =>
