@@ -1769,6 +1769,7 @@ export class PhysicalTargetClient implements TargetClient {
   private localNetworkPermissionPrimed = false;
   private pageLifecycleObserved = false;
   private pageWasHidden = false;
+  private pageCacheSuspended = false;
   private readonly candidateEndpoints: readonly string[];
   private readonly discoveryTimeoutMs: number;
   private readonly directMode: boolean;
@@ -1863,6 +1864,7 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   disconnect(): void {
+    this.pageCacheSuspended = false;
     this.stopObservingPageLifecycle();
     if (this.direct) {
       this.direct.disconnect();
@@ -2187,13 +2189,38 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   private readonly releaseOnPageHide = (event: PageTransitionEvent): void => {
-    if (!event.persisted) this.disconnect();
+    if (!event.persisted) {
+      this.disconnect();
+      return;
+    }
+    // A page retained in the back-forward cache stays alive but cannot serve
+    // the user. Release its SharedWorker port so an obsolete app shell cannot
+    // keep polling the single-threaded XRP service behind the visible page.
+    // Keep the lifecycle listeners so pageshow can establish a fresh port.
+    this.pageCacheSuspended = true;
+    if (this.direct) {
+      this.direct.disconnect();
+    } else {
+      this.releaseWorker("Physical target suspended in browser history");
+    }
   };
 
   private readonly releaseOnBeforeUnload = (): void => this.disconnect();
 
   private readonly resumeOnPageShow = (event: PageTransitionEvent): void => {
-    if (event.persisted) this.requestResumeRecovery("pageshow");
+    if (!event.persisted) return;
+    if (!this.pageCacheSuspended) {
+      this.requestResumeRecovery("pageshow");
+      return;
+    }
+    this.pageCacheSuspended = false;
+    void this.connect().catch((error: unknown) => {
+      this.emit({
+        type: "status",
+        state: "error",
+        detail: errorDetail(error),
+      });
+    });
   };
 
   private readonly resumeOnVisibilityChange = (): void => {

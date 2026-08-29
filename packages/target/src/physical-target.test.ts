@@ -1365,6 +1365,81 @@ describe("physical target", () => {
     }
   });
 
+  it("releases a back-forward cached page and reconnects it with a fresh worker port", async () => {
+    vi.useFakeTimers();
+    const ports: Array<{
+      onmessage: ((event: MessageEvent) => void) | null;
+      start: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+      posted: Array<{ type: string; requestId?: string }>;
+      postMessage(message: { type: string; requestId?: string }): void;
+    }> = [];
+    class FakeSharedWorker {
+      readonly port = {
+        onmessage: null as ((event: MessageEvent) => void) | null,
+        start: vi.fn(),
+        close: vi.fn(),
+        posted: [] as Array<{ type: string; requestId?: string }>,
+        postMessage(message: { type: string; requestId?: string }) {
+          this.posted.push(message);
+          if (message.type === "connect" && message.requestId) {
+            queueMicrotask(() =>
+              this.onmessage?.({
+                data: {
+                  type: "response",
+                  requestId: message.requestId,
+                  ok: true,
+                },
+              } as MessageEvent),
+            );
+          }
+        },
+      };
+
+      constructor() {
+        ports.push(this.port);
+      }
+    }
+    const fakeWindow = Object.assign(new EventTarget(), {
+      location: { protocol: "https:" },
+    });
+    const fakeDocument = Object.assign(new EventTarget(), {
+      visibilityState: "visible" as DocumentVisibilityState,
+    });
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", fakeDocument);
+    vi.stubGlobal("navigator", { onLine: true });
+
+    const target = new PhysicalTargetClient("192.168.7.30");
+    try {
+      await target.connect();
+      const pageHide = new Event("pagehide");
+      Object.defineProperty(pageHide, "persisted", { value: true });
+      fakeWindow.dispatchEvent(pageHide);
+      expect(ports[0]?.posted.at(-1)).toEqual({ type: "disconnect" });
+
+      const pageShow = new Event("pageshow");
+      Object.defineProperty(pageShow, "persisted", { value: true });
+      fakeWindow.dispatchEvent(pageShow);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(ports).toHaveLength(2);
+      expect(
+        ports[0]?.posted.some((message) => message.type === "resume"),
+      ).toBe(false);
+      expect(
+        ports[1]?.posted.some((message) => message.type === "connect"),
+      ).toBe(true);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(ports[0]?.close).toHaveBeenCalledOnce();
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it("invokes the browser fetch function with its global receiver", async () => {
     const originalFetch = globalThis.fetch;
     let observedReceiver: unknown;
