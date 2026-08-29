@@ -83,7 +83,11 @@ test("shows the built-in starter as read-only until a Working folder is selected
   await expect(page.getByTestId("project-save-state")).toHaveText(
     "Working folder required",
   );
-  await expect(page.getByRole("button", { name: "Compile" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Compile" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Compile" })).toHaveAttribute(
+    "title",
+    "Compile the recovered browser copy. Reconnect the Working folder before editing or saving.",
+  );
   await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "New file…", exact: true }),

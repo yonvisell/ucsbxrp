@@ -253,6 +253,10 @@ test("Monitor Run executes an IDE edit without waiting for stale publication", a
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Immediate-Monitor-Run",
+  );
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
 
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");

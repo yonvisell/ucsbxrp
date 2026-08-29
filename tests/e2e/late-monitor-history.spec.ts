@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 
 import {
   readWorkspaceTextFile,
-  replaceWorkspaceProject,
   seedWorkingFolder,
   type TestProject,
 } from "./working-folder";
@@ -40,18 +39,16 @@ test("a late Monitor restores one completed run and replaces it on direct Run", 
 }) => {
   test.setTimeout(45_000);
 
-  await seedWorkingFolder(ide, { folderName: "Late-Monitor-Run" });
-  await ide.goto("/ide/");
-  await expect(ide.getByTestId("project-name")).toHaveText("Expanding spiral");
-  await expect(ide.getByTestId("project-folder")).toHaveText(
-    "Expanding-Spiral",
-  );
-
-  await replaceWorkspaceProject(ide, completedRunProject, {
+  await seedWorkingFolder(ide, {
     folderName: "Late-Monitor-Run",
+    projectFolderName: "Late-Monitor-Run",
+    project: completedRunProject,
   });
-  await ide.reload();
+  await ide.goto("/ide/");
   await expect(ide.getByTestId("project-name")).toHaveText("Late Monitor run");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "Late-Monitor-Run",
+  );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · running",
