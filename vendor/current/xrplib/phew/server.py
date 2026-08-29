@@ -62,9 +62,9 @@ data: {self.data}"""
 
 
 class Response:
-  def __init__(self, body, status=200, headers={}):
+  def __init__(self, body, status=200, headers=None):
     self.status = status
-    self.headers = headers
+    self.headers = {} if headers is None else headers
     self.body = body
 
   def add_header(self, name, value):
@@ -91,9 +91,9 @@ content_type_map = {
 
 
 class FileResponse(Response):
-  def __init__(self, file, status=200, headers={}):
+  def __init__(self, file, status=200, headers=None):
     self.status = 404
-    self.headers = headers
+    self.headers = {} if headers is None else headers
     self.file = file
 
     try:
@@ -226,87 +226,112 @@ status_message_map = {
 
 # handle an incoming request to the web server
 async def _handle_request(reader, writer):
-  response = None
-
-  request_start_time = time.ticks_ms()
-
-  request_line = await reader.readline()
   try:
-    method, uri, protocol = request_line.decode().split()
-  except Exception as e:
-    logging.error(e)
-    return
+    while True:
+      response = None
+      request_start_time = time.ticks_ms()
+      request_line = await reader.readline()
+      if not request_line:
+        break
+      try:
+        method, uri, protocol = request_line.decode().split()
+      except Exception as e:
+        logging.error(e)
+        break
 
-  request = Request(method, uri, protocol)
-  request.headers = await _parse_headers(reader)
-  if "content-length" in request.headers and "content-type" in request.headers:
-    if request.headers["content-type"].startswith("multipart/form-data"):
-      request.form = await _parse_form_data(reader, request.headers)
-    if request.headers["content-type"].startswith("application/json"):
-      request.data = await _parse_json_body(reader, request.headers)
-    if request.headers["content-type"].startswith("application/x-www-form-urlencoded"):
-      form_data = await reader.read(int(request.headers["content-length"]))
-      request.form = _parse_query_string(form_data.decode()) 
+      request = Request(method, uri, protocol)
+      request.headers = await _parse_headers(reader)
+      if "content-length" in request.headers and "content-type" in request.headers:
+        if request.headers["content-type"].startswith("multipart/form-data"):
+          request.form = await _parse_form_data(reader, request.headers)
+        if request.headers["content-type"].startswith("application/json"):
+          request.data = await _parse_json_body(reader, request.headers)
+        if request.headers["content-type"].startswith("application/x-www-form-urlencoded"):
+          form_data = await reader.read(int(request.headers["content-length"]))
+          request.form = _parse_query_string(form_data.decode())
 
-  route = _match_route(request)
-  if route:
-    response = route.call_handler(request)
-  elif catchall_handler:
-    response = catchall_handler(request)
+      route = _match_route(request)
+      if route:
+        response = route.call_handler(request)
+      elif catchall_handler:
+        response = catchall_handler(request)
 
-  # if shorthand body generator only notation used then convert to tuple
-  if type(response).__name__ == "generator":
-    response = (response,)
+      # if shorthand body generator only notation used then convert to tuple
+      if type(response).__name__ == "generator":
+        response = (response,)
 
-  # if shorthand body text only notation used then convert to tuple
-  if isinstance(response, str):
-    response = (response,)
+      # if shorthand body text only notation used then convert to tuple
+      if isinstance(response, str):
+        response = (response,)
 
-  # if shorthand tuple notation used then build full response object
-  if isinstance(response, tuple):
-    body = response[0]
-    status = response[1] if len(response) >= 2 else 200
-    content_type = response[2] if len(response) >= 3 else "text/html"
-    response = Response(body, status=status)
-    response.add_header("Content-Type", content_type)
-    if hasattr(body, '__len__'):
-      response.add_header("Content-Length", len(body))
-  
-  # write status line
-  status_message = status_message_map.get(response.status, "Unknown")
-  writer.write(f"HTTP/1.1 {response.status} {status_message}\r\n".encode("ascii"))
+      # if shorthand tuple notation used then build full response object
+      if isinstance(response, tuple):
+        body = response[0]
+        status = response[1] if len(response) >= 2 else 200
+        content_type = response[2] if len(response) >= 3 else "text/html"
+        response = Response(body, status=status)
+        response.add_header("Content-Type", content_type)
+        if hasattr(body, '__len__'):
+          response.add_header("Content-Length", len(body))
 
-  # write headers
-  for key, value in response.headers.items():
-    writer.write(f"{key}: {value}\r\n".encode("ascii"))
+      # Persistent HTTP/1.1 removes one TCP setup from every telemetry page.
+      # Only reuse a connection when the response has an explicit boundary;
+      # streaming generator responses still close to delimit their body.
+      content_length_known = any(
+        key.lower() == "content-length" for key in response.headers
+      )
+      connection_header = request.headers.get("connection", "").lower()
+      streaming_response = (
+        not isinstance(response, FileResponse)
+        and type(response.body).__name__ == "generator"
+      )
+      keep_alive = (
+        not streaming_response
+        and content_length_known
+        and (
+          (protocol == "HTTP/1.1" and connection_header != "close")
+          or (protocol == "HTTP/1.0" and connection_header == "keep-alive")
+        )
+      )
+      response.add_header("Connection", "keep-alive" if keep_alive else "close")
 
-  # blank line to denote end of headers
-  writer.write("\r\n".encode("ascii"))
- 
-  if isinstance(response, FileResponse):
-    # file
-    with open(response.file, "rb") as f:
-      while True:
-        chunk = f.read(1024)
-        if not chunk:
-          break
-        writer.write(chunk)
+      # write status line
+      status_message = status_message_map.get(response.status, "Unknown")
+      writer.write(f"HTTP/1.1 {response.status} {status_message}\r\n".encode("ascii"))
+
+      # write headers
+      for key, value in response.headers.items():
+        writer.write(f"{key}: {value}\r\n".encode("ascii"))
+
+      # blank line to denote end of headers
+      writer.write("\r\n".encode("ascii"))
+
+      if isinstance(response, FileResponse):
+        # file
+        with open(response.file, "rb") as f:
+          while True:
+            chunk = f.read(1024)
+            if not chunk:
+              break
+            writer.write(chunk)
+            await writer.drain()
+      elif type(response.body).__name__ == "generator":
+        # generator
+        for chunk in response.body:
+          writer.write(chunk)
+          await writer.drain()
+      else:
+        # string/bytes
+        writer.write(response.body)
         await writer.drain()
-  elif type(response.body).__name__ == "generator":
-    # generator
-    for chunk in response.body:
-      writer.write(chunk)
-      await writer.drain()
-  else:
-    # string/bytes
-    writer.write(response.body)
-    await writer.drain()
-  
-  writer.close()
-  await writer.wait_closed()
-  
-  processing_time = time.ticks_ms() - request_start_time
-  logging.info(f"> {request.method} {request.path} ({response.status} {status_message}) [{processing_time}ms]")
+
+      processing_time = time.ticks_ms() - request_start_time
+      logging.info(f"> {request.method} {request.path} ({response.status} {status_message}) [{processing_time}ms]")
+      if not keep_alive:
+        break
+  finally:
+    writer.close()
+    await writer.wait_closed()
 
 
 # adds a new route to the routing table

@@ -1428,6 +1428,135 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["samples"][-1]["xMm"], 8.0)
         read_hardware.assert_not_called()
 
+    def test_compact_telemetry_preserves_samples_without_repeated_field_names(self):
+        sample = {
+            "tMs": 120,
+            "seq": 7,
+            "source": "physical",
+            "poseAvailable": True,
+            "xMm": 12.5,
+            "yMm": -3.0,
+            "headingRad": 0.2,
+            "estimatedPoseAvailable": True,
+            "estimatedXmm": 12.5,
+            "estimatedYmm": -3.0,
+            "estimatedHeadingRad": 0.2,
+            "groundTruthPoseAvailable": False,
+            "groundTruthXmm": None,
+            "groundTruthYmm": None,
+            "groundTruthHeadingRad": None,
+            "requestedForwardSpeedMmS": 80.0,
+            "requestedTurnRateRadS": 0.1,
+            "targetLeftWheelSpeedMmS": 72.0,
+            "targetRightWheelSpeedMmS": 88.0,
+            "leftEffort": 0.2,
+            "rightEffort": 0.25,
+            "leftWheelSpeedMmS": 70.0,
+            "rightWheelSpeedMmS": 85.0,
+            "leftWheelDistanceMm": 20.0,
+            "rightWheelDistanceMm": 22.0,
+            "leftEncoderCount": 62,
+            "rightEncoderCount": 68,
+            "collision": False,
+            "rangeMm": 310.0,
+            "buttonPressed": False,
+            "accelerationMg": [1.0, 2.0, 999.0],
+            "angularRateMdps": [10.0, 20.0, 30.0],
+            "temperatureC": 27.0,
+            "batteryV": 6.2,
+            "sensorError": None,
+        }
+        state_value = {
+            "bootId": "boot-compact",
+            "state": "running",
+            "detail": "Running main.py",
+            "runId": 1,
+            "logs": [],
+        }
+        pose = {
+            "sampleTimeMs": 120,
+            "sampleSeq": 7,
+            "xMm": 12.5,
+            "yMm": -3.0,
+            "headingRad": 0.2,
+            "requestedForwardSpeedMmS": 80.0,
+            "requestedTurnRateRadS": 0.1,
+            "targetLeftWheelSpeedMmS": 72.0,
+            "targetRightWheelSpeedMmS": 88.0,
+            "leftEffort": 0.2,
+            "rightEffort": 0.25,
+            "leftWheelSpeedMmS": 70.0,
+            "rightWheelSpeedMmS": 85.0,
+            "leftWheelDistanceMm": 20.0,
+            "rightWheelDistanceMm": 22.0,
+            "leftEncoderCount": 62,
+            "rightEncoderCount": 68,
+            "rangeMm": 310.0,
+            "buttonPressed": False,
+        }
+        hardware = {
+            "leftEncoderCount": 62,
+            "rightEncoderCount": 68,
+            "rangeMm": 310.0,
+            "buttonPressed": False,
+            "accelerationMg": [1.0, 2.0, 999.0],
+            "angularRateMdps": [10.0, 20.0, 30.0],
+            "temperatureC": 27.0,
+            "batteryV": 6.2,
+            "sensorError": None,
+        }
+        self.service._thread_active = True
+        with (
+            patch.object(
+                self.service,
+                "_state_result",
+                side_effect=lambda *_args: dict(state_value),
+            ),
+            patch.object(
+                self.service,
+                "_buffered_course_samples",
+                return_value=([sample, {**sample, "seq": 8, "tMs": 140}], False),
+            ),
+            patch.object(
+                self.service,
+                "_buffered_course_page",
+                return_value=(
+                    (pose, {**pose, "sampleSeq": 8, "sampleTimeMs": 140}),
+                    hardware,
+                    False,
+                ),
+            ),
+            patch.object(self.service, "_sample_epoch_start_ms", 0),
+        ):
+            legacy_body = self.service.telemetry(
+                types.SimpleNamespace(query={})
+            ).body.decode("utf-8")
+            compact_body = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={"sampleEncoding": self.service.COMPACT_TELEMETRY_ENCODING}
+                )
+            ).body.decode("utf-8")
+
+        legacy = json.loads(legacy_body)
+        compact = json.loads(compact_body)
+        self.assertEqual(compact["sampleEncoding"], "row-v1")
+        self.assertNotIn("samples", compact)
+        self.assertNotIn("sample", compact)
+        self.assertEqual(len(compact["sampleRows"]), 2)
+        self.assertEqual(len(compact["sampleRows"][0]), 20)
+        self.assertEqual(compact["sampleRows"][0][0:6], [120, 7, True, 12.5, -3.0, 0.2])
+        self.assertEqual(compact["sampleRows"][1][0:2], [140, 8])
+        self.assertEqual(
+            compact["sampleShared"],
+            [[1.0, 2.0, 999.0], [10.0, 20.0, 30.0], 27.0, 6.2, None],
+        )
+        self.assertLess(len(compact_body), len(legacy_body) * 0.55)
+
+        info = json.loads(
+            self.service.info(types.SimpleNamespace()).body.decode("utf-8")
+        )
+        self.assertIn("telemetry.compact-v1", info["capabilities"])
+
     def test_telemetry_pages_backlog_and_defers_the_final_stopped_sample(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
         base = {

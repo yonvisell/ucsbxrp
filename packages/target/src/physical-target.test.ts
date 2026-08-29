@@ -1491,7 +1491,7 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.7.30");
     try {
       await target.connect();
-      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v14"]);
+      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v15"]);
       expect(frames).toHaveLength(1);
 
       runFrame();
@@ -1970,6 +1970,194 @@ describe("physical target", () => {
       expect(requestedUrls).toContain(
         "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=4&runId=1",
       );
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("negotiates compact telemetry and restores the public sample shape", async () => {
+    vi.useFakeTimers();
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-compact",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+            "telemetry.compact-v1",
+          ],
+        });
+      }
+      return response({
+        bootId: "boot-compact",
+        state: "running",
+        detail: "Running main.py",
+        runId: 1,
+        logs: [],
+        sampleEncoding: "row-v1",
+        sampleRows: [
+          [
+            140,
+            7,
+            true,
+            12.5,
+            -3,
+            0.2,
+            80,
+            0.1,
+            72,
+            88,
+            0.2,
+            0.25,
+            70,
+            85,
+            20,
+            22,
+            62,
+            68,
+            310,
+            false,
+          ],
+        ],
+        sampleShared: [[1, 2, 999], [10, 20, 30], 27, 6.2, null],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10_000,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0&sampleEncoding=row-v1",
+      );
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=7&runId=1&sampleEncoding=row-v1",
+      );
+      expect(
+        events
+          .filter((event) => event.type === "console")
+          .map((event) => event.line),
+      ).toContain("Telemetry gap · 6 samples unavailable");
+      expect(events.find((event) => event.type === "telemetry")).toEqual({
+        type: "telemetry",
+        sample: expect.objectContaining({
+          tMs: 140,
+          seq: 7,
+          source: "physical",
+          poseAvailable: true,
+          xMm: 12.5,
+          yMm: -3,
+          headingRad: 0.2,
+          estimatedPoseAvailable: true,
+          estimatedXmm: 12.5,
+          estimatedYmm: -3,
+          estimatedHeadingRad: 0.2,
+          groundTruthPoseAvailable: false,
+          groundTruthXmm: null,
+          groundTruthYmm: null,
+          groundTruthHeadingRad: null,
+          requestedForwardSpeedMmS: 80,
+          requestedTurnRateRadS: 0.1,
+          targetLeftWheelSpeedMmS: 72,
+          targetRightWheelSpeedMmS: 88,
+          leftEffort: 0.2,
+          rightEffort: 0.25,
+          leftWheelSpeedMmS: 70,
+          rightWheelSpeedMmS: 85,
+          leftWheelDistanceMm: 20,
+          rightWheelDistanceMm: 22,
+          leftEncoderCount: 62,
+          rightEncoderCount: 68,
+          collision: false,
+          rangeMm: 310,
+          buttonPressed: false,
+          accelerationMg: [1, 2, 999],
+          angularRateMdps: [10, 20, 30],
+          temperatureC: 27,
+          batteryV: 6.2,
+          sensorError: null,
+        }),
+      });
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects malformed compact telemetry instead of publishing it", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-malformed",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+            "telemetry.compact-v1",
+          ],
+        });
+      }
+      return response({
+        bootId: "boot-malformed",
+        state: "running",
+        detail: "Running main.py",
+        runId: 1,
+        logs: [],
+        sampleEncoding: "row-v1",
+        sampleRows: [[140, 7]],
+        sampleShared: [null, null, null, null, null],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10_000,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(events.some((event) => event.type === "telemetry")).toBe(false);
+      expect(
+        events.some(
+          (event) =>
+            event.type === "console" &&
+            event.line.includes("row-v1 requires exactly 20 row values"),
+        ),
+      ).toBe(true);
     } finally {
       target.disconnect();
       vi.useRealTimers();

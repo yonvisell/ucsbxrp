@@ -38,7 +38,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.42"
+COURSE_RELEASE = "2026.08-dev.43"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -59,6 +59,7 @@ TELEMETRY_LOG_BATCH_LIMIT = 8
 # One response can drain nearly half of the 50 Hz course-loop ring. This keeps
 # local Wi-Fi request overhead from accumulating a backlog during short runs.
 TELEMETRY_SAMPLE_BATCH_LIMIT = 24
+COMPACT_TELEMETRY_ENCODING = "row-v1"
 IDLE_TELEMETRY_CADENCE_MS = 250
 TELEMETRY_POLL_OWNER_LEASE_MS = IDLE_TELEMETRY_CADENCE_MS * 3
 TELEMETRY_POLL_OWNER_MAX_CHARS = 64
@@ -1158,8 +1159,8 @@ def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
     }
 
 
-def _course_sample(pose, hardware):
-    """Translate one retained Robot.step publication without device I/O."""
+def _course_sample_identity(pose):
+    """Resolve one retained publication's stable wire sequence and time."""
     global _sample_seq
     sequence = pose.get("sampleSeq")
     if not isinstance(sequence, int) or sequence <= 0:
@@ -1172,6 +1173,12 @@ def _course_sample(pose, hardware):
         time_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
     else:
         time_ms = _sample_epoch_start_ms + elapsed_ms
+    return sequence, time_ms
+
+
+def _course_sample(pose, hardware):
+    """Translate one retained Robot.step publication without device I/O."""
+    sequence, time_ms = _course_sample_identity(pose)
     return _sample_value(
         pose,
         hardware,
@@ -1266,8 +1273,8 @@ def _hardware_sample():
     return _sample_value(None, hardware, 0, 0, 0.0, 0.0)
 
 
-def _buffered_course_samples(after_sample_seq, maximum=None):
-    """Read one ordered page from the bounded course-state ring."""
+def _buffered_course_page(after_sample_seq, maximum=None):
+    """Read retained publications and their shared hardware snapshot."""
     try:
         from ucsb_xrp._telemetry import buffered_state_snapshots
 
@@ -1286,13 +1293,93 @@ def _buffered_course_samples(after_sample_seq, maximum=None):
     except (ImportError, AttributeError):
         mirrored_hardware = None
     if not snapshots:
-        return [], more
+        return (), None, more
     hardware = (
         mirrored_hardware or _last_hardware or _empty_hardware()
         if _thread_active
         else _idle_hardware_snapshot()[0]
     )
+    return snapshots, hardware, more
+
+
+def _buffered_course_samples(after_sample_seq, maximum=None):
+    """Expand one ordered page for the legacy object wire format."""
+    snapshots, hardware, more = _buffered_course_page(after_sample_seq, maximum)
     return [_course_sample(snapshot, hardware) for snapshot in snapshots], more
+
+
+def _compact_telemetry_row(sample):
+    """Encode one physical sample without repeating JSON field names."""
+    return [
+        sample["tMs"],
+        sample["seq"],
+        sample["poseAvailable"],
+        sample["xMm"],
+        sample["yMm"],
+        sample["headingRad"],
+        sample.get("requestedForwardSpeedMmS"),
+        sample.get("requestedTurnRateRadS"),
+        sample.get("targetLeftWheelSpeedMmS"),
+        sample.get("targetRightWheelSpeedMmS"),
+        sample["leftEffort"],
+        sample["rightEffort"],
+        sample["leftWheelSpeedMmS"],
+        sample["rightWheelSpeedMmS"],
+        sample.get("leftWheelDistanceMm"),
+        sample.get("rightWheelDistanceMm"),
+        sample["leftEncoderCount"],
+        sample["rightEncoderCount"],
+        sample["rangeMm"],
+        sample["buttonPressed"],
+    ]
+
+
+def _compact_course_telemetry_row(pose, hardware):
+    """Encode one retained publication without allocating a wire dictionary."""
+    sequence, time_ms = _course_sample_identity(pose)
+    left_count = (
+        hardware["leftEncoderCount"]
+        if pose.get("leftEncoderCount") is None
+        else pose["leftEncoderCount"]
+    )
+    right_count = (
+        hardware["rightEncoderCount"]
+        if pose.get("rightEncoderCount") is None
+        else pose["rightEncoderCount"]
+    )
+    return [
+        time_ms,
+        sequence,
+        True,
+        pose["xMm"],
+        pose["yMm"],
+        pose["headingRad"],
+        pose.get("requestedForwardSpeedMmS"),
+        pose.get("requestedTurnRateRadS"),
+        pose.get("targetLeftWheelSpeedMmS"),
+        pose.get("targetRightWheelSpeedMmS"),
+        pose["leftEffort"],
+        pose["rightEffort"],
+        pose["leftWheelSpeedMmS"],
+        pose["rightWheelSpeedMmS"],
+        pose.get("leftWheelDistanceMm"),
+        pose.get("rightWheelDistanceMm"),
+        left_count,
+        right_count,
+        hardware["rangeMm"] if pose["rangeMm"] is None else pose["rangeMm"],
+        pose["buttonPressed"],
+    ]
+
+
+def _compact_telemetry_shared(sample):
+    """Return hardware diagnostics shared by every row in one sample page."""
+    return [
+        sample["accelerationMg"],
+        sample["angularRateMdps"],
+        sample["temperatureC"],
+        sample["batteryV"],
+        sample["sensorError"],
+    ]
 
 
 def _runtime_snapshot_json():
@@ -1404,6 +1491,7 @@ def info(request):
                 "program.stop",
                 "target.reset",
                 "telemetry.poll",
+                "telemetry.compact-v1",
                 "logs.poll",
                 "runtime.parameters",
             ],
@@ -1447,11 +1535,38 @@ def telemetry(request):
         # serialized HTTP request before the next poll or a Stop command.
         _extend_run_lease(LEASE_MS)
     value = _state_result(after, TELEMETRY_LOG_BATCH_LIMIT)
-    samples, more_samples = _buffered_course_samples(
-        after_sample, TELEMETRY_SAMPLE_BATCH_LIMIT
+    compact_requested = (
+        request.query.get("sampleEncoding") == COMPACT_TELEMETRY_ENCODING
     )
+    compact_rows = None
+    compact_shared = None
+    if compact_requested and _thread_active:
+        snapshots, hardware, more_samples = _buffered_course_page(
+            after_sample, TELEMETRY_SAMPLE_BATCH_LIMIT
+        )
+        # If the program ended concurrently, use the established terminal-tail
+        # path below. During a running page, build rows directly from immutable
+        # course snapshots and avoid 24 temporary 35-key dictionaries.
+        if _thread_active:
+            compact_rows = [
+                _compact_course_telemetry_row(item, hardware)
+                for item in snapshots
+            ]
+            if compact_rows:
+                compact_shared = _compact_telemetry_shared(hardware)
+            samples = []
+        else:
+            samples = [
+                _course_sample(item, hardware) for item in snapshots
+            ]
+    else:
+        samples, more_samples = _buffered_course_samples(
+            after_sample, TELEMETRY_SAMPLE_BATCH_LIMIT
+        )
     value["moreSamples"] = more_samples
-    if _thread_active and samples:
+    if compact_rows is not None:
+        sample = None
+    elif _thread_active and samples:
         sample = samples[-1]
     elif _thread_active:
         # No new Robot.step publication is available yet. Keep the legacy
@@ -1481,8 +1596,18 @@ def telemetry(request):
         sample = _hardware_sample()
         if sample["seq"] > after_sample:
             samples.append(sample)
-    value["samples"] = samples
-    value["sample"] = sample
+    if compact_requested:
+        value["sampleEncoding"] = COMPACT_TELEMETRY_ENCODING
+        if compact_rows is None:
+            compact_rows = [_compact_telemetry_row(item) for item in samples]
+            if compact_rows:
+                compact_shared = _compact_telemetry_shared(samples[-1])
+        value["sampleRows"] = compact_rows
+        if compact_shared is not None:
+            value["sampleShared"] = compact_shared
+    else:
+        value["samples"] = samples
+        value["sample"] = sample
     if poll_ownership is not None:
         value["pollOwnership"] = poll_ownership
     response = _json_response(value)

@@ -1704,7 +1704,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   );
 
   const validateCode = useCallback(async () => {
-    if (!workingFolder || isRunning || !beginProjectCommand()) {
+    if (isRunning || !beginProjectCommand()) {
       return;
     }
     setOutputPanelOpen(true);
@@ -3546,7 +3546,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <select
             aria-label="Run on"
             className="target-select"
-            disabled={!workingFolder || isRunning || projectCommandActive}
+            disabled={isRunning || projectCommandActive}
             onChange={(event) => {
               if (!projectProviderActive) useThisIde();
               updateTargetPreference((current) => ({
@@ -3555,15 +3555,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               }));
             }}
             title={
-              !workingFolder
-                ? "Choose a Working folder before selecting an XRP."
-                : projectCommandActive
-                  ? "Wait for the current Compile or Run request to finish."
-                  : isRunning
-                    ? "Stop the current program before changing XRP."
-                    : !projectProviderActive
-                      ? "Choose the XRP target. Changing it makes this IDE control Run."
-                      : "Choose whether Run uses the simulator or the configured physical XRP."
+              projectCommandActive
+                ? "Wait for the current Compile or Run request to finish."
+                : isRunning
+                  ? "Stop the current program before changing XRP."
+                  : !projectProviderActive
+                    ? "Choose the XRP target. Changing it makes this IDE control Run."
+                    : "Choose whether Run uses the simulator or the configured physical XRP."
             }
             value={targetPreference.kind}
           >
@@ -3573,15 +3571,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             </option>
           </select>
           <button
-            disabled={!workingFolder || isRunning || projectCommandActive}
+            disabled={isRunning || projectCommandActive}
             onClick={validateCode}
             title={
-              !workingFolder
-                ? "Choose a Working folder and create or open a project before compiling."
-                : projectCommandActive
-                  ? "The current Compile or Run request is still in progress."
-                  : target.kind === "physical" && targetState === "error"
-                    ? "Compile locally with the browser's MicroPython runtime; reconnect the XRP before Run."
+              projectCommandActive
+                ? "The current Compile or Run request is still in progress."
+                : target.kind === "physical" && targetState === "error"
+                  ? "Compile locally with the browser's MicroPython runtime; reconnect the XRP before Run."
+                  : !workingFolder
+                    ? "Compile the recovered browser copy. Reconnect the Working folder before editing or saving."
                     : "Check project structure and compile all Python files without running the robot (⌘/Ctrl+Shift+Enter)"
             }
           >

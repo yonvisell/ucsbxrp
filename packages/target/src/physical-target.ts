@@ -40,7 +40,7 @@ export const CURRENT_SERVICE_VERSION = courseRelease.service.version;
  * Device-side poll ownership generation. Change this only when a newly
  * deployed SharedWorker must supersede workers retained from an older shell.
  */
-export const PHYSICAL_POLL_COORDINATOR_GENERATION = 14;
+export const PHYSICAL_POLL_COORDINATOR_GENERATION = 15;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -114,6 +114,9 @@ interface PhysicalState {
   moreSamples?: boolean;
   sample?: TelemetrySample;
   samples?: TelemetrySample[];
+  sampleEncoding?: string;
+  sampleRows?: unknown[];
+  sampleShared?: unknown;
   project?: PhysicalProjectManifest | null;
   runtimeJson?: string;
   pollOwnership?: PhysicalPollOwnership;
@@ -222,6 +225,130 @@ const POLL_RECOVERY_DELAY_MS = 900;
 // toward this cadence, so a slower XRP naturally limits the rate without
 // accumulating requests or adding another delay after each response.
 const ACTIVE_TELEMETRY_POLL_MS = 20;
+const COMPACT_TELEMETRY_ENCODING = "row-v1";
+const COMPACT_TELEMETRY_ROW_LIMIT = 24;
+
+function telemetryRowError(detail: string): never {
+  throw new PhysicalTargetError(
+    "invalid_telemetry",
+    `XRP returned invalid compact telemetry: ${detail}`,
+  );
+}
+
+function telemetryRowNumber(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    telemetryRowError(`${field} is not a finite number`);
+  }
+  return value;
+}
+
+function telemetryRowNullableNumber(
+  value: unknown,
+  field: string,
+): number | null {
+  return value === null ? null : telemetryRowNumber(value, field);
+}
+
+function telemetryRowVector(
+  value: unknown,
+  field: string,
+): [number, number, number] | null {
+  if (value === null) return null;
+  if (!Array.isArray(value) || value.length !== 3) {
+    telemetryRowError(`${field} is not a three-axis vector`);
+  }
+  return [
+    telemetryRowNumber(value[0], `${field}[0]`),
+    telemetryRowNumber(value[1], `${field}[1]`),
+    telemetryRowNumber(value[2], `${field}[2]`),
+  ];
+}
+
+function decodeCompactTelemetryRow(
+  value: unknown,
+  shared: unknown,
+): TelemetrySample {
+  if (!Array.isArray(value) || value.length !== 20) {
+    telemetryRowError("row-v1 requires exactly 20 row values");
+  }
+  if (!Array.isArray(shared) || shared.length !== 5) {
+    telemetryRowError("row-v1 requires exactly five shared values");
+  }
+  const poseAvailable = value[2];
+  const buttonPressed = value[19];
+  const sensorError = shared[4];
+  if (typeof poseAvailable !== "boolean") {
+    telemetryRowError("poseAvailable is not boolean");
+  }
+  if (typeof buttonPressed !== "boolean") {
+    telemetryRowError("buttonPressed is not boolean");
+  }
+  if (sensorError !== null && typeof sensorError !== "string") {
+    telemetryRowError("sensorError is not text or null");
+  }
+  const xMm = telemetryRowNumber(value[3], "xMm");
+  const yMm = telemetryRowNumber(value[4], "yMm");
+  const headingRad = telemetryRowNumber(value[5], "headingRad");
+  const seq = telemetryRowNumber(value[1], "seq");
+  if (!Number.isSafeInteger(seq) || seq < 0) {
+    telemetryRowError("seq is not a nonnegative safe integer");
+  }
+  return {
+    tMs: telemetryRowNumber(value[0], "tMs"),
+    seq,
+    source: "physical",
+    poseAvailable,
+    xMm,
+    yMm,
+    headingRad,
+    estimatedPoseAvailable: poseAvailable,
+    estimatedXmm: poseAvailable ? xMm : null,
+    estimatedYmm: poseAvailable ? yMm : null,
+    estimatedHeadingRad: poseAvailable ? headingRad : null,
+    groundTruthPoseAvailable: false,
+    groundTruthXmm: null,
+    groundTruthYmm: null,
+    groundTruthHeadingRad: null,
+    requestedForwardSpeedMmS: telemetryRowNullableNumber(
+      value[6],
+      "requestedForwardSpeedMmS",
+    ),
+    requestedTurnRateRadS: telemetryRowNullableNumber(
+      value[7],
+      "requestedTurnRateRadS",
+    ),
+    targetLeftWheelSpeedMmS: telemetryRowNullableNumber(
+      value[8],
+      "targetLeftWheelSpeedMmS",
+    ),
+    targetRightWheelSpeedMmS: telemetryRowNullableNumber(
+      value[9],
+      "targetRightWheelSpeedMmS",
+    ),
+    leftEffort: telemetryRowNumber(value[10], "leftEffort"),
+    rightEffort: telemetryRowNumber(value[11], "rightEffort"),
+    leftWheelSpeedMmS: telemetryRowNumber(value[12], "leftWheelSpeedMmS"),
+    rightWheelSpeedMmS: telemetryRowNumber(value[13], "rightWheelSpeedMmS"),
+    leftWheelDistanceMm: telemetryRowNullableNumber(
+      value[14],
+      "leftWheelDistanceMm",
+    ),
+    rightWheelDistanceMm: telemetryRowNullableNumber(
+      value[15],
+      "rightWheelDistanceMm",
+    ),
+    leftEncoderCount: telemetryRowNumber(value[16], "leftEncoderCount"),
+    rightEncoderCount: telemetryRowNumber(value[17], "rightEncoderCount"),
+    collision: false,
+    rangeMm: telemetryRowNullableNumber(value[18], "rangeMm"),
+    buttonPressed,
+    accelerationMg: telemetryRowVector(shared[0], "accelerationMg"),
+    angularRateMdps: telemetryRowVector(shared[1], "angularRateMdps"),
+    temperatureC: telemetryRowNullableNumber(shared[2], "temperatureC"),
+    batteryV: telemetryRowNullableNumber(shared[3], "batteryV"),
+    sensorError,
+  };
+}
 
 interface CommandActivity {
   action: NonNullable<TargetConsoleMetadata["action"]>;
@@ -1434,6 +1561,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
   ): string {
     let path = `/api/v1/telemetry?afterLogSeq=${afterLogSeq}&afterSampleSeq=${afterSampleSeq}`;
     if (runId !== undefined) path += `&runId=${runId}`;
+    if (this.info?.capabilities.includes("telemetry.compact-v1")) {
+      path += `&sampleEncoding=${COMPACT_TELEMETRY_ENCODING}`;
+    }
     if (
       this.pollCoordinatorGeneration !== undefined &&
       this.pollOwnerId !== undefined
@@ -1460,7 +1590,35 @@ export class DirectPhysicalTargetClient implements TargetClient {
         `Another UCSBXRP page is coordinating this robot${owner === null ? "" : ` (poll generation ${owner})`}. Close or reload older UCSBXRP pages, then select Reconnect${typeof lease === "number" ? `; takeover is available in at most ${lease} ms` : ""}.`,
       );
     }
-    return value as PhysicalState;
+    const state = value as PhysicalState;
+    if (state.sampleEncoding !== undefined) {
+      if (
+        state.sampleEncoding !== COMPACT_TELEMETRY_ENCODING ||
+        !Array.isArray(state.sampleRows)
+      ) {
+        telemetryRowError("encoding or rows are unsupported");
+      }
+      if (state.sampleRows.length > COMPACT_TELEMETRY_ROW_LIMIT) {
+        telemetryRowError(
+          `row-v1 exceeds the ${COMPACT_TELEMETRY_ROW_LIMIT}-row page limit`,
+        );
+      }
+      if (state.sampleRows.length > 0 && state.sampleShared === undefined) {
+        telemetryRowError("shared values are missing");
+      }
+      const decoded = state.sampleRows.map((row) =>
+        decodeCompactTelemetryRow(row, state.sampleShared),
+      );
+      for (let index = 1; index < decoded.length; index += 1) {
+        if (decoded[index]!.seq <= decoded[index - 1]!.seq) {
+          telemetryRowError(
+            "row-v1 sequence values are not strictly increasing",
+          );
+        }
+      }
+      state.samples = decoded;
+    }
+    return state;
   }
 
   private consumeState(state: PhysicalState, publishTelemetry = true): void {
@@ -1587,7 +1745,6 @@ export class DirectPhysicalTargetClient implements TargetClient {
       if (
         publishTelemetry &&
         reportGaps &&
-        this.lastSampleSeq > 0 &&
         sample.seq > this.lastSampleSeq + 1
       ) {
         const firstMissing = this.lastSampleSeq + 1;
@@ -1950,7 +2107,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v14" },
+          { type: "module", name: "ucsb-xrp-physical-target-v15" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
