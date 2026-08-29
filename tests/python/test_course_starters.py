@@ -19,6 +19,13 @@ TEMPLATES = ROOT / "vendor" / "current" / "templates"
 COMPONENT_TEMPLATES = ROOT / "vendor" / "current" / "student_component_templates"
 
 
+def _clear_course_live_state():
+    live_module = sys.modules.get("ucsb_xrp.live")
+    clear = getattr(live_module, "clear", None)
+    if callable(clear):
+        clear()
+
+
 class CourseStarterTests(unittest.TestCase):
     def test_challenge_one_reports_wrap_safe_elapsed_time_and_mean_travel(self):
         starter = STARTERS / "challenge_1"
@@ -140,10 +147,10 @@ class CourseStarterTests(unittest.TestCase):
             normalized_readme = " ".join(readme.split())
             student_source = (tutorial / "student_work.py").read_text(encoding="utf-8")
             with self.subTest(tutorial=number):
-                self.assertIn("Edit only `student_work.py`", normalized_readme)
-                self.assertIn("NOT COMPLETED", readme)
-                self.assertIn("INCORRECT", readme)
-                self.assertIn("NotImplementedError", student_source)
+                self.assertIn("`student_work.py`", normalized_readme)
+                self.assertIn("Run", normalized_readme)
+                self.assertIn("Check examples", normalized_readme)
+                self.assertNotIn("NotImplementedError", student_source)
                 self.assertEqual(
                     [path.name for path in tutorial.glob("student_*.py")],
                     ["student_work.py"],
@@ -220,11 +227,12 @@ class CourseStarterTests(unittest.TestCase):
         self.assertIn("robot.step(STOP_COMMAND, read_range=True)", physical_main)
         self.assertNotIn("sleep", physical_main.lower())
 
-    def test_unfinished_tutorial_exercises_report_clear_outcomes(self):
+    def test_runnable_tutorial_examples_report_clear_outcomes(self):
         tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*"))
         course_source = str(ROOT / "vendor" / "current")
         for tutorial in tutorials:
             output = io.StringIO()
+            _clear_course_live_state()
             saved_modules = {
                 name: sys.modules.pop(name)
                 for name in ("student_work", "exercise_checks")
@@ -239,14 +247,19 @@ class CourseStarterTests(unittest.TestCase):
                     )
                     exercise_checks["run_exercise_checks"]()
                 text = output.getvalue()
-                self.assertIn("NOT COMPLETED", text)
-                self.assertIn("0 incorrect", text)
+                self.assertIn("PASS", text)
+                self.assertIn(
+                    "passed · 0 not completed · 0 incorrect", text.lower()
+                )
+                self.assertNotIn("NOT COMPLETED", text)
+                self.assertNotIn("INCORRECT", text)
             finally:
                 sys.path.remove(str(tutorial))
                 sys.path.remove(course_source)
                 sys.modules.pop("student_work", None)
                 sys.modules.pop("exercise_checks", None)
                 sys.modules.update(saved_modules)
+                _clear_course_live_state()
 
     def test_tutorial_python_uses_comments_and_undecorated_course_examples(self):
         tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*"))

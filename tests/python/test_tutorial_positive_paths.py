@@ -22,6 +22,13 @@ TEMPLATES = ROOT / "vendor" / "current" / "templates"
 COURSE_SOURCE = str(ROOT / "vendor" / "current")
 
 
+def _clear_course_live_state():
+    live_module = sys.modules.get("ucsb_xrp.live")
+    clear = getattr(live_module, "clear", None)
+    if callable(clear):
+        clear()
+
+
 @contextlib.contextmanager
 def _project_imports(tutorial, replacements):
     module_names = {
@@ -39,6 +46,7 @@ def _project_imports(tutorial, replacements):
     original_path = list(sys.path)
     sys.path[:0] = [str(tutorial), COURSE_SOURCE]
     sys.modules.update(replacements)
+    _clear_course_live_state()
     try:
         yield
     finally:
@@ -46,6 +54,7 @@ def _project_imports(tutorial, replacements):
         for name in module_names:
             sys.modules.pop(name, None)
         sys.modules.update(saved_modules)
+        _clear_course_live_state()
 
 
 class _VirtualRobot:
