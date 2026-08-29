@@ -292,8 +292,18 @@ test("Run reports a compilation error before starting invalid code", async ({
   await page.goto("/ide/");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByRole("log")).toContainText("Compilation failed");
-  await expect(page.getByRole("log")).not.toContainText("<stdin>");
+  await expect(page.getByRole("tab", { name: "Problems (1)" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(
+    page.getByRole("button", { name: /main\.py:1:1.*invalid syntax/i }),
+  ).toBeVisible();
+  await page.getByText("Raw compiler output", { exact: true }).click();
+  await expect(page.getByRole("tabpanel")).toContainText(
+    'File "/project/main.py", line 1',
+  );
+  await expect(page.getByRole("tabpanel")).not.toContainText("<stdin>");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
   await expect(page.getByTestId("target-status")).toContainText(
