@@ -3579,7 +3579,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 : isRunning
                   ? "Stop the current program before changing XRP."
                   : !targetPreference.robotId
-                    ? "Reconnect the Working folder to restore the commissioned Physical XRP connection."
+                    ? workingFolderAccessState === "needs-permission"
+                      ? "Reconnect the Working folder to restore the commissioned Physical XRP connection."
+                      : "Run Set up or Repair before selecting the Physical XRP."
                     : !projectProviderActive
                       ? "Choose the XRP target. Changing it makes this IDE control Run."
                       : "Choose whether Run uses the simulator or the configured physical XRP."
@@ -3590,7 +3592,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <option disabled={!targetPreference.robotId} value="physical">
               {targetPreference.robotId
                 ? "Physical XRP"
-                : "Physical XRP · reconnect folder"}
+                : workingFolderAccessState === "needs-permission"
+                  ? "Physical XRP · reconnect folder"
+                  : "Physical XRP · set up first"}
             </option>
           </select>
           <button

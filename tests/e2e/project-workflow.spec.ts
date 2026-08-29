@@ -43,6 +43,9 @@ test("shows one clear folder-backed project model on first IDE use", async ({
   await expect(page.getByTestId("project-save-state")).toHaveText(
     "Working folder required",
   );
+  await expect(
+    page.getByRole("option", { name: "Physical XRP · set up first" }),
+  ).toBeDisabled();
 
   const projectActions = page.getByRole("group", { name: "Project actions" });
   await expect(
@@ -64,7 +67,11 @@ test("shows one clear folder-backed project model on first IDE use", async ({
   await expect(
     fileActions.getByRole("button", { name: "Import files…" }),
   ).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Compile" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Compile" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Compile" })).toHaveAttribute(
+    "title",
+    "Compile the recovered browser copy. Reconnect the Working folder before editing or saving.",
+  );
   await expect(
     page.getByRole("button", { name: "Run", exact: true }),
   ).toBeDisabled();
