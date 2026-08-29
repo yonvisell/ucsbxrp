@@ -595,6 +595,7 @@ describe("physical target coordinator", () => {
       detail: "Run completed",
     });
     target.emit({ type: "telemetry", sample: telemetry(2) });
+    await Promise.resolve();
 
     expect(
       events(liveMonitor, "telemetry").map(
@@ -622,6 +623,172 @@ describe("physical target coordinator", () => {
         (event) => event.type === "telemetry" && event.sample.seq,
       ),
     ).toEqual([1]);
+  });
+
+  it("delivers a synchronous live telemetry burst to Monitor in one message", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    const monitor = new FakePort();
+    coordinator.attach(ide);
+    coordinator.attach(monitor);
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect")).toHaveLength(1),
+    );
+    monitor.messages.length = 0;
+    ide.messages.length = 0;
+
+    for (const seq of [1, 2, 3]) {
+      target.emit({ type: "telemetry", sample: telemetry(seq) });
+    }
+    await Promise.resolve();
+
+    const batches = monitor.messages.filter(
+      (message) => message.type === "telemetry-batch",
+    );
+    expect(batches).toHaveLength(1);
+    expect(
+      batches[0]?.type === "telemetry-batch"
+        ? batches[0].events.map((event) => event.sample.seq)
+        : [],
+    ).toEqual([1, 2, 3]);
+    expect(events(ide, "telemetry")).toHaveLength(0);
+  });
+
+  it("retains one run across a transient connecting status", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    coordinator.attach(ide);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "ide-connect",
+        role: "ide",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect")).toHaveLength(1),
+    );
+
+    target.emit({
+      type: "console",
+      stream: "system",
+      line: "Starting run",
+      action: "run",
+      phase: "request",
+      requestId: "run-transient",
+      eventId: "run-transient-request",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(1) });
+    target.emit({
+      type: "status",
+      state: "connecting",
+      detail: "Telemetry was interrupted",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(2) });
+    target.emit({
+      type: "status",
+      state: "running",
+      detail: "Connection restored",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(3) });
+    target.emit({ type: "status", state: "ready", detail: "Completed" });
+
+    const monitor = new FakePort();
+    coordinator.attach(monitor);
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect")).toHaveLength(1),
+    );
+    expect(
+      events(monitor, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([1, 2, 3]);
+  });
+
+  it("does not replay a pre-reset path to a later Monitor", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const ide = new FakePort();
+    coordinator.attach(ide);
+    coordinator.handle(
+      ide,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "ide-connect",
+        role: "ide",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(ide, "ide-connect")).toHaveLength(1),
+    );
+    target.emit({
+      type: "console",
+      stream: "system",
+      line: "Starting run",
+      action: "run",
+      phase: "request",
+      requestId: "run-before-reset",
+      eventId: "run-before-reset-request",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(1) });
+    target.emit({ type: "status", state: "ready", detail: "Completed" });
+    target.emit({
+      type: "console",
+      stream: "system",
+      line: "Reset complete",
+      action: "reset",
+      phase: "result",
+      requestId: "reset",
+      eventId: "reset-result",
+    });
+
+    const monitor = new FakePort();
+    coordinator.attach(monitor);
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.4.1",
+        requestId: "monitor-connect",
+        role: "monitor",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "monitor-connect")).toHaveLength(1),
+    );
+    expect(events(monitor, "telemetry")).toHaveLength(0);
   });
 
   it("serializes two-tab commands and permits another run after completion", async () => {

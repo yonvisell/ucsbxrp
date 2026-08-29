@@ -202,19 +202,14 @@ self.addEventListener("fetch", (event) => {
     const fallbackUrl = navigationFallback(url.pathname);
     if (fallbackUrl !== null) {
       event.respondWith((async () => {
-        let response;
-        try {
-          response = await fetch(request);
-        } catch {
-          const cache = await caches.open(CACHE_NAME);
-          response = await cache.match(
-            new URL(fallbackUrl, self.location.origin).toString(),
-          );
-          if (response === undefined) {
-            throw new Error("Offline application entry is unavailable");
-          }
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(
+          new URL(fallbackUrl, self.location.origin).toString(),
+        );
+        if (cached !== undefined) {
+          return withIsolationHeaders(cached);
         }
-        return withIsolationHeaders(response);
+        return withIsolationHeaders(await fetch(request));
       })());
     }
     return;

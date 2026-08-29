@@ -47,6 +47,27 @@ assert.ok(
   ),
   "the first release-scoped worker must retain legacy commissioning files for already-open tabs",
 );
+const navigationHandlerStart = serviceWorkerText.indexOf(
+  'if (request.mode === "navigate")',
+);
+const navigationHandlerEnd = serviceWorkerText.indexOf(
+  "const canonicalUrl = url.pathname;",
+  navigationHandlerStart,
+);
+const navigationHandler = serviceWorkerText.slice(
+  navigationHandlerStart,
+  navigationHandlerEnd,
+);
+assert.ok(
+  navigationHandlerStart >= 0 && navigationHandlerEnd > navigationHandlerStart,
+  "service worker must define the application navigation handler",
+);
+assert.ok(
+  navigationHandler.indexOf("await cache.match(") >= 0 &&
+    navigationHandler.indexOf("await cache.match(") <
+      navigationHandler.indexOf("await fetch(request)"),
+  "application navigation must use the installed shell before attempting the internet",
+);
 
 for (const requiredPath of [
   "index.html",

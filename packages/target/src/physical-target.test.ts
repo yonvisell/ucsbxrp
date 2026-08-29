@@ -2780,6 +2780,62 @@ describe("physical target", () => {
     }
   });
 
+  it("stops automatic polling after the bounded recovery attempt fails", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      telemetryRequests += 1;
+      throw new TypeError("Wi-Fi unavailable");
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "connecting",
+      });
+
+      await vi.advanceTimersByTimeAsync(900);
+      expect(telemetryRequests).toBe(2);
+      expect(events.at(-1)).toMatchObject({
+        type: "status",
+        state: "error",
+      });
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(telemetryRequests).toBe(2);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps an accepted run recoverable when its first startup poll times out", async () => {
     vi.useFakeTimers();
     const revision =

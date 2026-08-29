@@ -1069,6 +1069,18 @@ export function DashboardApp() {
     [archiveCompletedRun, diagnosticLog, runDatasetController],
   );
 
+  const clearDisplayedRun = useCallback(() => {
+    runDatasetController.clear();
+    setActiveRunId(null);
+    setLatestRun(null);
+    latestRunFolderRef.current = null;
+    plotSampleHistory.clear();
+    annotationsRef.current = [];
+    setAnnotations([]);
+    setExportDetail("");
+    retryPendingOfflineShellReload();
+  }, [plotSampleHistory, runDatasetController]);
+
   const beginRunDataset = useCallback(
     (
       source: TelemetrySample["source"],
@@ -1205,12 +1217,15 @@ export function DashboardApp() {
         }
       } else if (event.type === "status") {
         targetStateRef.current = event.state;
-        const nextRunActive = isActiveRunState(event.state);
-        if (event.state === "running" && !runDatasetController.isActive) {
+        const retained = replayedRunRef.current?.boundary;
+        if (
+          (event.state === "running" ||
+            (event.state === "connecting" && retained !== undefined)) &&
+          !runDatasetController.isActive
+        ) {
           // A Monitor can attach after another tab requested Run. Entering the
-          // target's running state is an unambiguous fallback boundary; Reset
-          // and connection work never enter this state.
-          const retained = replayedRunRef.current?.boundary;
+          // running state, or replaying an interrupted run, is an unambiguous
+          // fallback boundary. Initial connection has no retained run.
           beginRunDataset(
             target.kind,
             retained
@@ -1222,6 +1237,9 @@ export function DashboardApp() {
               : undefined,
           );
         }
+        const nextRunActive =
+          isActiveRunState(event.state) ||
+          (event.state === "connecting" && runDatasetController.isActive);
         if (!nextRunActive && runDatasetController.isActive) {
           finishActiveRun(event.state, event.detail);
         }
@@ -1358,6 +1376,14 @@ export function DashboardApp() {
           }
         }
       } else if (event.type === "console") {
+        if (
+          event.action === "reset" &&
+          event.phase === "result" &&
+          event.replayed !== true
+        ) {
+          finishActiveRun("ready", "Run ended by Reset");
+          clearDisplayedRun();
+        }
         if (!projectProviderAvailableRef.current) {
           diagnosticLog.record({
             event: "target.console",
@@ -1468,6 +1494,7 @@ export function DashboardApp() {
   }, [
     beginTargetCommand,
     beginRunDataset,
+    clearDisplayedRun,
     diagnosticLog,
     finishActiveRun,
     finishTargetCommand,
@@ -1617,18 +1644,6 @@ export function DashboardApp() {
     } finally {
       finishFolderInteraction();
     }
-  };
-
-  const clearDisplayedRun = () => {
-    runDatasetController.clear();
-    setActiveRunId(null);
-    setLatestRun(null);
-    latestRunFolderRef.current = null;
-    plotSampleHistory.clear();
-    annotationsRef.current = [];
-    setAnnotations([]);
-    setExportDetail("");
-    retryPendingOfflineShellReload();
   };
 
   const exportRecording = async () => {

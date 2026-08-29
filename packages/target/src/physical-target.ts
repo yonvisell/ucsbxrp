@@ -1298,8 +1298,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
             "connecting",
             "Telemetry was interrupted; reconnecting to the XRP…",
           );
+          this.schedulePoll(POLL_RECOVERY_DELAY_MS);
         }
-        this.schedulePoll(POLL_RECOVERY_DELAY_MS);
       }
     } finally {
       if (this.pollAbortController === controller) {

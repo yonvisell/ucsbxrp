@@ -26,6 +26,7 @@ let mockXrpEndpoint = "";
 let reachable = false;
 let serviceState: "ready" | "running" = "ready";
 let rejectedCommand: "stop" | "reset" | null = null;
+let serviceSampleSeq = 0;
 
 async function seedPhysicalWorkspace(
   page: import("@playwright/test").Page,
@@ -104,7 +105,9 @@ test.beforeAll(async () => {
         );
         return;
       }
-      if (command === "stop") serviceState = "ready";
+      if (command === "stop" || command === "reset") {
+        serviceState = "ready";
+      }
       response.writeHead(200, responseHeaders);
       response.end(
         JSON.stringify({
@@ -112,7 +115,10 @@ test.beforeAll(async () => {
           requestId: requestBody.requestId,
           ok: true,
           result: {
-            detail: `${command} accepted`,
+            detail:
+              command === "reset"
+                ? "Program state reset"
+                : `${command} accepted`,
             reconnecting: false,
             runtimeJson: common.runtimeJson,
           },
@@ -120,7 +126,34 @@ test.beforeAll(async () => {
       );
       return;
     }
-    const body = url.pathname.endsWith("/info")
+    const infoRequest = url.pathname.endsWith("/info");
+    const nextSample =
+      !infoRequest && serviceState === "running"
+        ? {
+            tMs: (serviceSampleSeq + 1) * 40,
+            seq: (serviceSampleSeq += 1),
+            source: "physical",
+            poseAvailable: true,
+            xMm: serviceSampleSeq * 5,
+            yMm: 0,
+            headingRad: 0,
+            leftEffort: 0.2,
+            rightEffort: 0.2,
+            leftWheelSpeedMmS: 100,
+            rightWheelSpeedMmS: 100,
+            leftEncoderCount: serviceSampleSeq,
+            rightEncoderCount: serviceSampleSeq,
+            collision: false,
+            rangeMm: 300,
+            buttonPressed: false,
+            accelerationMg: null,
+            angularRateMdps: null,
+            temperatureC: null,
+            batteryV: null,
+            sensorError: null,
+          }
+        : null;
+    const body = infoRequest
       ? {
           ...common,
           robotId: "network-recovery-xrp",
@@ -144,10 +177,15 @@ test.beforeAll(async () => {
       : {
           ...common,
           state: serviceState,
-          detail: "Physical XRP ready",
+          detail:
+            serviceState === "running"
+              ? "Running main.py"
+              : "Physical XRP ready",
           runId: serviceState === "running" ? 1 : 0,
           logs: [],
-          samples: [],
+          samples: nextSample ? [nextSample] : [],
+          moreSamples: false,
+          moreLogs: false,
           sample: null,
         };
     response.writeHead(200, responseHeaders);
@@ -319,5 +357,49 @@ test("reports a rejected physical Reset in the IDE System log", async ({
     );
   } finally {
     rejectedCommand = null;
+  }
+});
+
+test("physical Reset from the IDE clears the Monitor world path", async ({
+  context,
+  page: ide,
+}) => {
+  reachable = true;
+  serviceState = "running";
+  serviceSampleSeq = 0;
+  rejectedCommand = null;
+  try {
+    await seedPhysicalWorkspace(ide);
+    await ide.goto("/ide/");
+    const monitor = await context.newPage();
+    await monitor.goto("/monitor/");
+    await expect(monitor.getByTestId("target-status")).toContainText(
+      "Physical XRP · running",
+    );
+    await expect
+      .poll(async () =>
+        Number(
+          await monitor
+            .getByTestId("world-view")
+            .getAttribute("data-path-point-count"),
+        ),
+      )
+      .toBeGreaterThan(2);
+
+    await ide
+      .locator(".app-header")
+      .getByRole("button", { name: "Reset", exact: true })
+      .click();
+
+    await expect(monitor.getByTestId("target-status")).toContainText(
+      "Physical XRP · ready",
+    );
+    await expect(monitor.getByTestId("world-view")).toHaveAttribute(
+      "data-path-point-count",
+      "0",
+    );
+  } finally {
+    serviceState = "ready";
+    serviceSampleSeq = 0;
   }
 });

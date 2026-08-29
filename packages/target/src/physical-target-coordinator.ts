@@ -63,6 +63,11 @@ export class PhysicalTargetCoordinator {
   private readonly consoleHistory: ConsoleEvent[] = [];
   private readonly retainedConsoleIds = new Set<string>();
   private readonly telemetryHistory = new TelemetryEventHistory();
+  private readonly pendingLiveTelemetry = new Map<
+    PhysicalWorkerPort,
+    WorkerTelemetryEvent[]
+  >();
+  private liveTelemetryFlushScheduled = false;
   private retainingRunTelemetry = false;
   private readonly projectRunProvider =
     new ProjectRunProviderBroker<PhysicalWorkerPort>(
@@ -95,6 +100,9 @@ export class PhysicalTargetCoordinator {
 
   handle(port: PhysicalWorkerPort, command: PhysicalWorkerCommand): void {
     if (command.type === "set-role") {
+      if (this.roles.get(port) !== command.role) {
+        this.pendingLiveTelemetry.delete(port);
+      }
       this.roles.set(port, command.role);
       return;
     }
@@ -129,10 +137,12 @@ export class PhysicalTargetCoordinator {
       this.publishProjectProviderState();
     }
     if (command.type === "connect") {
-      this.roles.set(
-        port,
-        command.role ?? (command.providesProject ? "ide" : "monitor"),
-      );
+      const role =
+        command.role ?? (command.providesProject ? "ide" : "monitor");
+      if (this.roles.get(port) !== role) {
+        this.pendingLiveTelemetry.delete(port);
+      }
+      this.roles.set(port, role);
     }
     const operation = this.commandQueue.then(async () => {
       if (!this.ports.has(port)) {
@@ -147,6 +157,7 @@ export class PhysicalTargetCoordinator {
     const providerChanged = this.projectRunProvider.unregister(port);
     this.ports.delete(port);
     this.roles.delete(port);
+    this.pendingLiveTelemetry.delete(port);
     this.deliveredConsoleIds.delete(port);
     this.deliveredTelemetry.delete(port);
     port.close();
@@ -330,6 +341,7 @@ export class PhysicalTargetCoordinator {
     this.consoleHistory.length = 0;
     this.retainedConsoleIds.clear();
     this.telemetryHistory.clear();
+    this.pendingLiveTelemetry.clear();
     this.retainingRunTelemetry = false;
     this.latestStatus = {
       type: "status",
@@ -354,6 +366,17 @@ export class PhysicalTargetCoordinator {
   }
 
   private broadcast(rawEvent: TargetEvent): void {
+    if (rawEvent.type === "telemetry") {
+      if (this.retainingRunTelemetry) {
+        this.telemetryHistory.retain(rawEvent);
+      }
+      this.queueLiveTelemetry(rawEvent);
+      return;
+    }
+    // One physical response can contain many samples followed by output and
+    // status. Deliver its samples in one worker message, before the boundary
+    // event that follows them.
+    this.flushLiveTelemetry();
     if (rawEvent.type === "project-provider") {
       // The shared backend has no document-local project provider and reports
       // its own local state as unavailable during connect. Project authority
@@ -371,15 +394,12 @@ export class PhysicalTargetCoordinator {
       if (
         this.retainingRunTelemetry &&
         event.state !== "loading" &&
-        event.state !== "running"
+        event.state !== "running" &&
+        event.state !== "connecting"
       ) {
         // A late Monitor needs the completed run, not the continuing idle
         // telemetry stream. Live telemetry is still broadcast below.
         this.retainingRunTelemetry = false;
-      }
-    } else if (event.type === "telemetry") {
-      if (this.retainingRunTelemetry) {
-        this.telemetryHistory.retain(event);
       }
     } else if (event.type === "project") {
       this.latestProject = event;
@@ -396,6 +416,12 @@ export class PhysicalTargetCoordinator {
         // only this run prevents a late Monitor from combining separate runs.
         this.telemetryHistory.clear();
         this.retainingRunTelemetry = true;
+      }
+      if (event.action === "reset" && event.phase === "result") {
+        // Reset is also a display-history boundary. A Monitor that opens
+        // later must not reconstruct the pre-reset path.
+        this.telemetryHistory.clear();
+        this.retainingRunTelemetry = false;
       }
       if (event.eventId) {
         this.retainedConsoleIds.add(event.eventId);
@@ -445,6 +471,7 @@ export class PhysicalTargetCoordinator {
         event: { ...retainedRun, phase: "end" },
       });
     }
+    this.flushLiveTelemetry();
   }
 
   private retainedRun(): Omit<
@@ -524,6 +551,34 @@ export class PhysicalTargetCoordinator {
     } catch {
       // A tab can close while a target request is finishing. The remaining
       // ports and the physical operation must continue unaffected.
+    }
+  }
+
+  private queueLiveTelemetry(event: WorkerTelemetryEvent): void {
+    for (const port of this.ports) {
+      if (this.roles.get(port) !== "monitor") continue;
+      const pending = this.pendingLiveTelemetry.get(port);
+      if (pending) {
+        pending.push(event);
+      } else {
+        this.pendingLiveTelemetry.set(port, [event]);
+      }
+    }
+    if (this.pendingLiveTelemetry.size === 0) return;
+    if (this.liveTelemetryFlushScheduled) return;
+    this.liveTelemetryFlushScheduled = true;
+    queueMicrotask(() => {
+      this.liveTelemetryFlushScheduled = false;
+      this.flushLiveTelemetry();
+    });
+  }
+
+  private flushLiveTelemetry(): void {
+    if (this.pendingLiveTelemetry.size === 0) return;
+    const pending = [...this.pendingLiveTelemetry];
+    this.pendingLiveTelemetry.clear();
+    for (const [port, events] of pending) {
+      this.send(port, { type: "telemetry-batch", events });
     }
   }
 
