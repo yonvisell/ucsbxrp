@@ -3,12 +3,16 @@ import type { WorldMarker } from "@ucsb-xrp/target";
 export interface WorldMarkerVisualStyle {
   color: string;
   dashed: boolean;
+  fillColor?: string;
+  fillOpacity?: number;
   shape: "line" | "box" | "ring" | "diamond";
 }
 
 const START_STYLE: WorldMarkerVisualStyle = {
-  color: "#315f85",
+  color: "#5a8a68",
   dashed: false,
+  fillColor: "#e8f6eb",
+  fillOpacity: 0.78,
   shape: "line",
 };
 const FINISH_STYLE: WorldMarkerVisualStyle = {

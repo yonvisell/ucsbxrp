@@ -118,6 +118,7 @@ function textSprite(
   text: string,
   widthMm = 176,
   color = "#34444d",
+  backing = true,
 ): THREE.Sprite {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
@@ -129,10 +130,14 @@ function textSprite(
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.font = "700 48px system-ui, sans-serif";
-  context.lineWidth = 7;
-  context.strokeStyle = "rgba(255, 255, 255, 0.96)";
-  context.strokeText(text, canvas.width / 2, canvas.height / 2);
+  context.font = "700 44px system-ui, sans-serif";
+  if (backing) {
+    const textWidth = Math.min(244, context.measureText(text).width + 18);
+    context.fillStyle = "rgba(255, 255, 255, 0.78)";
+    context.beginPath();
+    context.roundRect((canvas.width - textWidth) / 2, 7, textWidth, 50, 8);
+    context.fill();
+  }
   context.fillStyle = color;
   context.fillText(text, canvas.width / 2, canvas.height / 2);
 
@@ -230,7 +235,7 @@ function addBoundedGrid(
     x <= bounds.maximumXmm;
     x += MAJOR_GRID_MM
   ) {
-    const label = textSprite(String(x), 190);
+    const label = textSprite(String(x), 190, "#34444d", false);
     label.position.set(x, bounds.minimumYmm + labelInset, 4);
     scene.add(label);
   }
@@ -240,18 +245,18 @@ function addBoundedGrid(
     y += MAJOR_GRID_MM
   ) {
     if (y === 0) continue;
-    const label = textSprite(String(y), 165);
+    const label = textSprite(String(y), 165, "#34444d", false);
     label.position.set(bounds.minimumXmm + 72, y, 4);
     scene.add(label);
   }
-  const xAxisLabel = textSprite("x (mm)", 160);
+  const xAxisLabel = textSprite("x (mm)", 160, "#34444d", false);
   xAxisLabel.position.set(
     bounds.maximumXmm - 95,
     bounds.minimumYmm + labelInset * 2.1,
     4,
   );
   scene.add(xAxisLabel);
-  const yAxisLabel = textSprite("y (mm)", 160);
+  const yAxisLabel = textSprite("y (mm)", 160, "#34444d", false);
   yAxisLabel.position.set(bounds.minimumXmm + 95, bounds.maximumYmm - 45, 4);
   scene.add(yAxisLabel);
 }
@@ -514,6 +519,48 @@ export function WorldView({
         if (marker.type === "marker") ring.rotation.z = Math.PI / 4;
         scene.add(ring);
       } else {
+        if (style.fillColor) {
+          let fill: THREE.Mesh;
+          if ("x1Mm" in marker) {
+            const deltaX = marker.x2Mm - marker.x1Mm;
+            const deltaY = marker.y2Mm - marker.y1Mm;
+            fill = new THREE.Mesh(
+              new THREE.PlaneGeometry(Math.hypot(deltaX, deltaY), 16),
+              new THREE.MeshBasicMaterial({
+                color: style.fillColor,
+                depthWrite: false,
+                opacity: style.fillOpacity ?? 1,
+                side: THREE.DoubleSide,
+                transparent: (style.fillOpacity ?? 1) < 1,
+              }),
+            );
+            fill.position.set(
+              (marker.x1Mm + marker.x2Mm) / 2,
+              (marker.y1Mm + marker.y2Mm) / 2,
+              1,
+            );
+            fill.rotation.z = Math.atan2(deltaY, deltaX);
+          } else {
+            const width = marker.maximumXmm - marker.minimumXmm;
+            const height = marker.maximumYmm - marker.minimumYmm;
+            fill = new THREE.Mesh(
+              new THREE.PlaneGeometry(width, height),
+              new THREE.MeshBasicMaterial({
+                color: style.fillColor,
+                depthWrite: false,
+                opacity: style.fillOpacity ?? 1,
+                side: THREE.DoubleSide,
+                transparent: (style.fillOpacity ?? 1) < 1,
+              }),
+            );
+            fill.position.set(
+              (marker.minimumXmm + marker.maximumXmm) / 2,
+              (marker.minimumYmm + marker.maximumYmm) / 2,
+              1,
+            );
+          }
+          scene.add(fill);
+        }
         const points =
           "x1Mm" in marker
             ? [
@@ -556,7 +603,7 @@ export function WorldView({
     const trailGeometry = new WorldTrailGeometry();
     const trail = new THREE.LineSegments(
       trailGeometry.geometry,
-      new THREE.LineBasicMaterial({ color: "#006c64" }),
+      new THREE.LineBasicMaterial({ color: "#4169e1" }),
     );
     trail.frustumCulled = false;
     trail.position.z = 1;
@@ -917,14 +964,21 @@ export function WorldView({
           Major grid lines and values are labeled every 500 millimeters.
         </span>
         <div
-          aria-label="World line legend: green is path; ochre is ultrasound distance"
+          aria-label="World line legend: royal blue is path; ochre cone is ultrasound distance"
           className="world-legend"
         >
           <span>
             <i className="path-line" /> path
           </span>
           <span>
-            <i className="ultrasound-line" /> ultrasound distance
+            <svg
+              aria-hidden="true"
+              className="ultrasound-cone"
+              viewBox="0 0 18 10"
+            >
+              <path d="M1 5 L17 1 M1 5 L17 9" />
+            </svg>{" "}
+            ultrasound distance
           </span>
         </div>
       </div>

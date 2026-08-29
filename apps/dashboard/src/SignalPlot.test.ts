@@ -7,6 +7,7 @@ import {
   runtimePlotDefinition,
   signalPlotData,
   signalPlotDataForDefinition,
+  signalPlotTitle,
   signalXAxis,
 } from "./SignalPlot";
 
@@ -99,7 +100,7 @@ describe("monitor signal plots", () => {
       5,
     );
 
-    expect(data[0]?.name).toBe("Measured L");
+    expect(data[0]?.name).toBe("measured v_L");
     expect(data[0]?.values.map((point) => point[1])).toEqual([80, 120, 100]);
   });
 
@@ -165,7 +166,28 @@ describe("monitor signal plots", () => {
 
     expect(xAxis.min).toBe(-10);
     expect(xAxis.max).toBe(0);
+    expect(xAxis.name).toBe("t (s)");
+    expect(xAxis.nameGap).toBeLessThan(0);
+    expect(xAxis.nameTextStyle.color).toBe("#000000");
+    expect(xAxis.axisLabel.color).toBe("#000000");
     expect(xAxis.minorTick).toEqual({ show: false, splitNumber: 2 });
     expect(xAxis.minorSplitLine.show).toBe(true);
+  });
+
+  it("uses wheel and drive variables consistently on axes and legends", () => {
+    const wheelSpeed = SIGNAL_PLOTS.find((plot) => plot.id === "wheel-speed")!;
+    const drive = SIGNAL_PLOTS.find((plot) => plot.id === "motor-effort")!;
+
+    expect(wheelSpeed.axisLabel).toBe("v_L, v_R");
+    expect(signalPlotTitle(wheelSpeed)).toBe("Wheel speed • v_L, v_R");
+    expect(wheelSpeed.series.map(({ label }) => label)).toEqual([
+      "measured v_L",
+      "measured v_R",
+      "target v_L",
+      "target v_R",
+    ]);
+    expect(drive.axisLabel).toBe("u_L, u_R");
+    expect(signalPlotTitle(drive)).toBe("Drive command: u_L, u_R");
+    expect(drive.series.map(({ label }) => label)).toEqual(["u_L", "u_R"]);
   });
 });

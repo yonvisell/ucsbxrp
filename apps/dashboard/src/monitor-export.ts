@@ -8,6 +8,7 @@ import { type TelemetrySample, type WorldDefinition } from "@ucsb-xrp/target";
 import {
   signalPlotDataForDefinition,
   signalPlotDefinition,
+  signalPlotTitle,
   type SignalPlotDefinition,
   type SignalPlotId,
 } from "./SignalPlot";
@@ -112,7 +113,7 @@ export function createSignalPlotsSvg(
 
     body.push(
       `<rect x="0" y="${sectionY}" width="${width}" height="${sectionHeight}" fill="#fff"/>`,
-      `<text x="8" y="${sectionY + 17}" class="title">${xml(definition.label)} · ${xml(definition.unit)}</text>`,
+      `<text x="8" y="${sectionY + 14}" class="title">${xml(signalPlotTitle(definition))}</text>`,
     );
     for (let tick = 0; tick <= 4; tick += 1) {
       const value = minimum + ((maximum - minimum) * tick) / 4;
@@ -139,7 +140,8 @@ export function createSignalPlotsSvg(
     body.push(
       `<line x1="${left}" y1="${chartTop}" x2="${left}" y2="${chartTop + plotHeight}" class="axis-line"/>`,
       `<line x1="${left}" y1="${chartTop + plotHeight}" x2="${width - right}" y2="${chartTop + plotHeight}" class="axis-line"/>`,
-      `<text x="${width - right}" y="${chartTop + plotHeight + 29}" text-anchor="end" class="axis">time (s)</text>`,
+      `<text x="${left + 5}" y="${chartTop + 11}" class="axis">${xml(definition.unit)}</text>`,
+      `<text x="${width - right - 16}" y="${chartTop + plotHeight + 16}" text-anchor="end" class="axis">t (s)</text>`,
     );
 
     const visibleAnnotations = annotations.filter(
@@ -175,8 +177,13 @@ export function createSignalPlotsSvg(
               : ""
         }/>`,
       );
+      const legendWidths = definition.series.map((item) =>
+        Math.max(78, item.label.length * 7 + 31),
+      );
       const legendX =
-        width - right - (definition.series.length - seriesIndex) * 84;
+        width -
+        right -
+        legendWidths.slice(seriesIndex).reduce((sum, item) => sum + item, 0);
       body.push(
         `<line x1="${legendX}" y1="${sectionY + 14}" x2="${legendX + 18}" y2="${sectionY + 14}" stroke="${series.color}" stroke-width="2"/>`,
         `<text x="${legendX + 23}" y="${sectionY + 17}" class="legend">${xml(series.label)}</text>`,
@@ -189,10 +196,10 @@ export function createSignalPlotsSvg(
   <title id="title">UCSBXRP signal plots</title>
   <desc id="description">${plots.length} signal histories over ${timeWindowS} seconds</desc>
   <style>
-    text { font-family: system-ui, -apple-system, sans-serif; fill: #17232b; }
+    text { font-family: system-ui, -apple-system, sans-serif; fill: #000; }
     .title { font-size: 14px; font-weight: 650; }
-    .axis, .legend { font-size: 11px; fill: #56636c; }
-    .note { font-size: 10px; font-weight: 600; fill: #75434d; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+    .axis, .legend { font-size: 11px; fill: #000; }
+    .note { font-size: 10px; font-weight: 600; fill: #000; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
     .grid { stroke-width: 1; }
     .grid.major { stroke: #d5dadd; }
     .grid.minor { stroke: #eceff0; }
@@ -354,9 +361,17 @@ function drawWorldFrame(
     context.font = "600 16px system-ui, sans-serif";
     context.textAlign = "center";
     context.textBaseline = "bottom";
-    context.lineWidth = 4;
-    context.strokeStyle = "rgba(255, 255, 255, 0.96)";
-    context.strokeText(label, xPx, yPx);
+    const labelWidth = context.measureText(label).width;
+    context.fillStyle = "rgba(255, 255, 255, 0.78)";
+    context.beginPath();
+    context.roundRect(
+      xPx - labelWidth / 2 - 5,
+      yPx - 19,
+      labelWidth + 10,
+      22,
+      4,
+    );
+    context.fill();
     context.fillStyle = color;
     context.fillText(label, xPx, yPx);
     context.restore();
@@ -424,6 +439,28 @@ function drawWorldFrame(
   context.lineWidth = 2;
   for (const marker of world.markers) {
     const style = worldMarkerVisualStyle(marker);
+    if (style.fillColor) {
+      context.save();
+      context.globalAlpha = style.fillOpacity ?? 1;
+      context.fillStyle = style.fillColor;
+      context.strokeStyle = style.fillColor;
+      context.setLineDash([]);
+      if ("x1Mm" in marker) {
+        context.lineWidth = Math.max(2, 16 * scale);
+        context.beginPath();
+        context.moveTo(x(marker.x1Mm), y(marker.y1Mm));
+        context.lineTo(x(marker.x2Mm), y(marker.y2Mm));
+        context.stroke();
+      } else if ("minimumXmm" in marker) {
+        context.fillRect(
+          x(marker.minimumXmm),
+          y(marker.maximumYmm),
+          (marker.maximumXmm - marker.minimumXmm) * scale,
+          (marker.maximumYmm - marker.minimumYmm) * scale,
+        );
+      }
+      context.restore();
+    }
     context.strokeStyle = style.color;
     context.fillStyle = style.color;
     context.setLineDash(style.dashed ? [10, 7] : []);
@@ -461,7 +498,7 @@ function drawWorldFrame(
   }
   context.setLineDash([]);
 
-  context.strokeStyle = "#006c64";
+  context.strokeStyle = "#4169e1";
   context.lineWidth = 3;
   context.beginPath();
   let pathStarted = false;
@@ -486,7 +523,7 @@ function drawWorldFrame(
     const halfAngle = XRP_ULTRASONIC_FIELD_OF_VIEW_RAD / 2;
     context.fillStyle = "rgba(185, 138, 41, 0.11)";
     context.strokeStyle = "#765000";
-    context.lineWidth = 2;
+    context.lineWidth = 3;
     context.beginPath();
     context.moveTo(x(sensor.xMm), y(sensor.yMm));
     for (let index = 0; index <= 16; index += 1) {

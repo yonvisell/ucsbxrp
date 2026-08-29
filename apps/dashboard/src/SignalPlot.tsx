@@ -54,6 +54,8 @@ interface SignalSeriesDefinition {
 export interface SignalPlotDefinition {
   id: string;
   label: string;
+  axisLabel: string;
+  title?: string;
   unit: string;
   description: string;
   fixedRange?: readonly [number, number];
@@ -68,29 +70,30 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "wheel-speed",
     label: "Wheel speed",
+    axisLabel: "v_L, v_R",
     unit: "mm/s",
     description:
       "Target wheel speeds and wheel-speed estimates based on recent encoder samples. The controller uses the same estimates.",
     series: [
       {
-        label: "Measured L",
+        label: "measured v_L",
         color: "#08736b",
         value: (sample) => sample.leftWheelSpeedMmS,
       },
       {
-        label: "Measured R",
+        label: "measured v_R",
         color: "#a66b08",
         dash: "dashed",
         value: (sample) => sample.rightWheelSpeedMmS,
       },
       {
-        label: "Target L",
+        label: "target v_L",
         color: "#205f99",
         dash: "dotted",
         value: (sample) => sample.targetLeftWheelSpeedMmS ?? null,
       },
       {
-        label: "Target R",
+        label: "target v_R",
         color: "#87515d",
         dash: "dotted",
         value: (sample) => sample.targetRightWheelSpeedMmS ?? null,
@@ -100,17 +103,18 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "wheel-distance",
     label: "Wheel distance",
+    axisLabel: "d_L, d_R",
     unit: "mm",
     description:
       "Signed left and right wheel distance calculated by SensorModel from encoder counts.",
     series: [
       {
-        label: "Left",
+        label: "d_L",
         color: "#08736b",
         value: (sample) => sample.leftWheelDistanceMm ?? null,
       },
       {
-        label: "Right",
+        label: "d_R",
         color: "#a66b08",
         dash: "dashed",
         value: (sample) => sample.rightWheelDistanceMm ?? null,
@@ -119,18 +123,20 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   },
   {
     id: "motor-effort",
-    label: "Drive command u",
+    label: "Drive command",
+    axisLabel: "u_L, u_R",
+    title: "Drive command: u_L, u_R",
     unit: "−1…+1",
     description: "Dimensionless left and right drive commands from −1 to +1",
     fixedRange: [-1, 1],
     series: [
       {
-        label: "Left",
+        label: "u_L",
         color: "#08736b",
         value: (sample) => sample.leftEffort,
       },
       {
-        label: "Right",
+        label: "u_R",
         color: "#a66b08",
         dash: "dashed",
         value: (sample) => sample.rightEffort,
@@ -140,12 +146,13 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "pose-error",
     label: "Odometry check (virtual)",
+    axisLabel: "e_position",
     unit: "mm",
     description:
       "Simulation-only difference between student odometry and the simulator's true pose. The true pose is not available to robot code or a physical XRP.",
     series: [
       {
-        label: "Position error",
+        label: "e_position",
         color: "#87515d",
         value: (sample) =>
           sample.estimatedPoseAvailable &&
@@ -169,11 +176,12 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "range",
     label: "Ultrasound distance",
+    axisLabel: "d_range",
     unit: "mm",
     description: "Forward ultrasound distance",
     series: [
       {
-        label: "Range",
+        label: "d_range",
         color: "#205f99",
         value: (sample) => sample.rangeMm,
       },
@@ -182,11 +190,12 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "acceleration",
     label: "Acceleration",
+    axisLabel: "a_x, a_y, a_z",
     unit: "m/s²",
     description: "IMU acceleration along the x, y, and z axes",
     series: [
       {
-        label: "x",
+        label: "a_x",
         color: "#08736b",
         value: (sample) =>
           sample.accelerationMg
@@ -194,7 +203,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
             : null,
       },
       {
-        label: "y",
+        label: "a_y",
         color: "#a66b08",
         dash: "dashed",
         value: (sample) =>
@@ -203,7 +212,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
             : null,
       },
       {
-        label: "z",
+        label: "a_z",
         color: "#a02d27",
         dash: "dotted",
         value: (sample) =>
@@ -216,6 +225,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "angular-rate",
     label: "Yaw rate ωz",
+    axisLabel: "ωz",
     unit: "rad/s",
     description: "IMU yaw rate about the vertical z axis",
     series: [
@@ -235,6 +245,7 @@ export function runtimePlotDefinition(plot: RuntimePlot): SignalPlotDefinition {
   return {
     id: `program:${plot.name}`,
     label: plot.label,
+    axisLabel: plot.name,
     unit: plot.unit || "unitless",
     description: `${plot.label} published by the running program.`,
     series: [
@@ -247,6 +258,10 @@ export function runtimePlotDefinition(plot: RuntimePlot): SignalPlotDefinition {
       },
     ],
   };
+}
+
+export function signalPlotTitle(definition: SignalPlotDefinition): string {
+  return definition.title ?? `${definition.label} • ${definition.axisLabel}`;
 }
 
 export function signalPlotDefinition(id: SignalPlotId): SignalPlotDefinition {
@@ -309,10 +324,17 @@ export function signalXAxis(timeWindowS: number) {
     type: "value" as const,
     min: -timeWindowS,
     max: 0,
-    name: "time (s)",
-    nameGap: 12,
-    nameTextStyle: { color: "#56636c", fontSize: 8 },
-    axisLabel: { color: "#56636c", fontSize: 8 },
+    name: "t (s)",
+    nameGap: -3,
+    nameLocation: "end" as const,
+    nameTextStyle: {
+      align: "right" as const,
+      color: "#000000",
+      fontSize: 8,
+      padding: [3, 18, 0, 0],
+      verticalAlign: "top" as const,
+    },
+    axisLabel: { color: "#000000", fontSize: 8 },
     axisLine: { lineStyle: { color: "#737f88", width: 1 } },
     splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
     minorTick: { show: false, splitNumber: 2 },
@@ -424,10 +446,10 @@ export function SignalPlot({
         backgroundColor: "transparent",
         title: {
           left: 5,
-          top: 2,
-          text: `${definition.label} · ${definition.unit}`,
+          top: -1,
+          text: signalPlotTitle(definition),
           textStyle: {
-            color: "#17232b",
+            color: "#000000",
             fontFamily: "system-ui, sans-serif",
             fontSize: 9,
             fontWeight: 600,
@@ -446,7 +468,7 @@ export function SignalPlot({
           trigger: "axis",
           backgroundColor: "#ffffff",
           borderColor: "#737f88",
-          textStyle: { color: "#182128", fontSize: 9 },
+          textStyle: { color: "#000000", fontSize: 9 },
         },
         xAxis: signalXAxis(timeWindowS),
         yAxis: {
@@ -454,7 +476,7 @@ export function SignalPlot({
           min: definition.fixedRange?.[0],
           max: definition.fixedRange?.[1],
           scale: definition.fixedRange === undefined,
-          axisLabel: { color: "#56636c", fontSize: 8 },
+          axisLabel: { color: "#000000", fontSize: 8 },
           axisLine: { show: true, lineStyle: { color: "#737f88" } },
           splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
         },
@@ -481,7 +503,7 @@ export function SignalPlot({
                     width: 1,
                   },
                   label: {
-                    color: "#75434d",
+                    color: "#000000",
                     fontSize: 8,
                     formatter: "{b}",
                     position: "insideEndTop",
@@ -587,6 +609,12 @@ export function SignalPlot({
         ref={elementRef}
         role="img"
       />
+      <div
+        aria-hidden="true"
+        className={`signal-y-unit ${compactLayout ? "compact" : ""}`}
+      >
+        {definition.unit}
+      </div>
       <div
         aria-hidden="true"
         className={`signal-series-legend ${compactLayout ? "compact" : ""}`}

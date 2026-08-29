@@ -4,6 +4,13 @@ type FrameCallback = (timestamp: number) => void;
 type ScheduleFrame = (callback: FrameCallback) => number;
 type CancelFrame = (frameId: number) => void;
 
+/**
+ * Physical telemetry can arrive as several ordered samples in one HTTP/worker
+ * batch. Present at most 100 ms of source time per visual update so those real
+ * samples remain visible at roughly 10 Hz instead of collapsing to one jump.
+ */
+export const PHYSICAL_VISUAL_INTERVAL_MS = 100;
+
 export interface MonitorVisualSnapshot {
   readonly sample: TelemetrySample | null;
   readonly samples: readonly TelemetrySample[];
@@ -84,8 +91,11 @@ export function recentTelemetryRateHz(
 export class MonitorVisualHistory {
   private readonly samples: TelemetrySample[] = [];
   private nextWriteIndex = 0;
-  private latestSample: TelemetrySample | null = null;
+  private latestReceivedSample: TelemetrySample | null = null;
+  private latestPresentedSample: TelemetrySample | null = null;
   private latestHistorySample: TelemetrySample | null = null;
+  private readonly pendingPhysicalSamples: TelemetrySample[] = [];
+  private nextPhysicalPublicationAtMs: number | null = null;
   private pendingFrame: number | null = null;
   private active = true;
   private dirty = false;
@@ -102,10 +112,12 @@ export class MonitorVisualHistory {
   }
 
   append(sample: TelemetrySample, retainInHistory: boolean): boolean {
-    this.latestSample = sample;
+    this.latestReceivedSample = sample;
     this.dirty = true;
 
     if (!retainInHistory) {
+      this.resetPhysicalPresentation();
+      this.latestPresentedSample = sample;
       this.schedulePublication();
       return false;
     }
@@ -131,15 +143,26 @@ export class MonitorVisualHistory {
       this.nextWriteIndex = (this.nextWriteIndex + 1) % this.maximumSamples;
     }
     this.latestHistorySample = sample;
+    if (sample.source === "physical") {
+      if (!previous || restarted) {
+        this.resetPhysicalPresentation();
+        this.latestPresentedSample = null;
+      }
+      this.pendingPhysicalSamples.push(sample);
+    } else {
+      this.resetPhysicalPresentation();
+      this.latestPresentedSample = sample;
+    }
 
     this.schedulePublication();
     return restarted;
   }
 
   snapshot(): MonitorVisualSnapshot {
+    const sample = this.latestPresentedSample ?? this.latestReceivedSample;
     return {
-      sample: this.latestSample,
-      samples: this.historySnapshot(),
+      sample,
+      samples: this.historySnapshotThrough(sample),
     };
   }
 
@@ -150,22 +173,29 @@ export class MonitorVisualHistory {
       this.cancelPendingFrame();
       return;
     }
+    // A hidden Monitor keeps every bounded sample but does not replay a long
+    // visual queue when shown again. Resume from the newest real observation.
+    this.resetPhysicalPresentation();
+    this.latestPresentedSample = this.latestReceivedSample;
+    this.dirty = true;
     this.schedulePublication();
   }
 
   clearHistory(publish = true): void {
     this.cancelPendingFrame();
     this.clearRetainedSamples();
+    this.latestPresentedSample = this.latestReceivedSample;
     this.dirty = publish;
     if (publish) this.publishImmediately();
   }
 
   clearAll(publish = true): void {
-    this.latestSample = null;
+    this.latestReceivedSample = null;
+    this.latestPresentedSample = null;
     this.clearHistory(publish);
   }
 
-  private historySnapshot(): readonly TelemetrySample[] {
+  private historySnapshot(): TelemetrySample[] {
     if (
       this.samples.length < this.maximumSamples ||
       this.nextWriteIndex === 0
@@ -178,14 +208,73 @@ export class MonitorVisualHistory {
     ];
   }
 
+  private historySnapshotThrough(
+    sample: TelemetrySample | null,
+  ): readonly TelemetrySample[] {
+    const history = this.historySnapshot();
+    if (!sample) return history;
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      const candidate = history[index]!;
+      if (
+        candidate.source === sample.source &&
+        candidate.seq === sample.seq &&
+        candidate.tMs === sample.tMs
+      ) {
+        return history.slice(0, index + 1);
+      }
+    }
+    return history;
+  }
+
   private schedulePublication(): void {
     if (!this.active || !this.dirty || this.pendingFrame !== null) return;
-    this.pendingFrame = this.scheduleFrame(() => {
+    this.pendingFrame = this.scheduleFrame((timestamp) => {
       this.pendingFrame = null;
       if (!this.active || !this.dirty) return;
-      this.dirty = false;
-      this.publish(this.snapshot());
+      if (this.advancePresentation(timestamp)) {
+        this.publish(this.snapshot());
+      }
+      this.schedulePublication();
     });
+  }
+
+  /**
+   * Advance only through received samples. The source-time bound spreads a
+   * transport burst over successive display frames without interpolation,
+   * downsampling, or delaying the recorder that consumes samples upstream.
+   */
+  private advancePresentation(timestamp: number): boolean {
+    if (this.pendingPhysicalSamples.length === 0) {
+      this.latestPresentedSample = this.latestReceivedSample;
+      this.dirty = false;
+      this.nextPhysicalPublicationAtMs = null;
+      return true;
+    }
+    if (
+      this.nextPhysicalPublicationAtMs !== null &&
+      timestamp < this.nextPhysicalPublicationAtMs
+    ) {
+      return false;
+    }
+
+    const previous = this.latestPresentedSample;
+    let presentedIndex = 0;
+    if (previous?.source === "physical") {
+      const latestSourceTime = previous.tMs + PHYSICAL_VISUAL_INTERVAL_MS;
+      for (
+        let index = 1;
+        index < this.pendingPhysicalSamples.length;
+        index += 1
+      ) {
+        if (this.pendingPhysicalSamples[index]!.tMs > latestSourceTime) break;
+        presentedIndex = index;
+      }
+    }
+    this.latestPresentedSample = this.pendingPhysicalSamples[presentedIndex]!;
+    this.pendingPhysicalSamples.splice(0, presentedIndex + 1);
+    this.nextPhysicalPublicationAtMs = timestamp + PHYSICAL_VISUAL_INTERVAL_MS;
+    this.dirty = this.pendingPhysicalSamples.length > 0;
+    return true;
   }
 
   private publishImmediately(): void {
@@ -206,5 +295,11 @@ export class MonitorVisualHistory {
     this.samples.length = 0;
     this.nextWriteIndex = 0;
     this.latestHistorySample = null;
+    this.resetPhysicalPresentation();
+  }
+
+  private resetPhysicalPresentation(): void {
+    this.pendingPhysicalSamples.length = 0;
+    this.nextPhysicalPublicationAtMs = null;
   }
 }

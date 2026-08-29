@@ -26,7 +26,11 @@ describe("world marker presentation", () => {
     );
 
     expect(styles.start_line).toMatchObject({ dashed: false, shape: "line" });
-    expect(styles.start_box).toMatchObject({ dashed: false, shape: "box" });
+    expect(styles.start_box).toMatchObject({
+      dashed: false,
+      fillColor: "#e8f6eb",
+      shape: "box",
+    });
     expect(styles.finish_line).toMatchObject({ dashed: true, shape: "line" });
     expect(styles.finish_box).toMatchObject({ dashed: true, shape: "box" });
     expect(styles.waypoint).toMatchObject({ shape: "ring" });

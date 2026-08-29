@@ -5,6 +5,7 @@ import type { TelemetrySample } from "@ucsb-xrp/target";
 import {
   appendTelemetryRateSample,
   MonitorVisualHistory,
+  PHYSICAL_VISUAL_INTERVAL_MS,
   type MonitorVisualSnapshot,
   recentTelemetryRateHz,
 } from "./plot-sample-history";
@@ -31,10 +32,10 @@ function harness(maximumSamples = 3) {
       frames.delete(id);
     },
   );
-  const flush = () => {
+  const flush = (timestamp = 0) => {
     const scheduled = [...frames.entries()];
     frames.clear();
-    for (const [, callback] of scheduled) callback(0);
+    for (const [, callback] of scheduled) callback(timestamp);
   };
   return { cancelled, flush, frames, history, published };
 }
@@ -90,6 +91,34 @@ describe("PlotSampleHistory", () => {
     flush();
     expect(published.at(-1)?.sample?.seq).toBe(3);
     expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1, 2, 3]);
+  });
+
+  it("presents a physical response burst as real samples at about 10 Hz", () => {
+    const { flush, frames, history, published } = harness(20);
+    for (let seq = 1; seq <= 11; seq += 1) {
+      history.append(sample(seq, "physical"), true);
+    }
+
+    expect(frames.size).toBe(1);
+    flush(0);
+    expect(published.at(-1)?.sample?.seq).toBe(1);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1]);
+
+    flush(PHYSICAL_VISUAL_INTERVAL_MS / 2);
+    expect(published).toHaveLength(1);
+
+    flush(PHYSICAL_VISUAL_INTERVAL_MS);
+    expect(published.at(-1)?.sample?.seq).toBe(6);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+
+    flush(PHYSICAL_VISUAL_INTERVAL_MS * 2);
+    expect(published.at(-1)?.sample?.seq).toBe(11);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+    ]);
+    expect(frames.size).toBe(0);
   });
 
   it("preserves chronological order after the fixed buffer wraps", () => {

@@ -74,8 +74,11 @@ describe("monitor exports", () => {
     ]);
 
     expect(svg).toContain('width="1200" height="480"');
-    expect(svg).toContain("Wheel speed · mm/s");
-    expect(svg).toContain("Ultrasound distance · mm");
+    expect(svg).toContain("Wheel speed • v_L, v_R");
+    expect(svg).toContain(">mm/s</text>");
+    expect(svg).toContain("measured v_L");
+    expect(svg).toContain("Ultrasound distance • d_range");
+    expect(svg).toContain(">mm</text>");
     expect(svg).toContain("5.00 s · turn &amp; inspect");
     expect(svg).toContain("<path");
     expect(svg).not.toContain("NaN");
