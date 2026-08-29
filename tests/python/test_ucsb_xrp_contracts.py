@@ -349,6 +349,55 @@ class XRPBotContractTests(unittest.TestCase):
                 devices.rangefinder.distance_cm = raw_value
                 self.assertIsNone(bot.read(include_range=True).range_mm)
 
+    def test_range_reads_preserve_but_do_not_block_on_auxiliary_diagnostics(self):
+        devices = FakeDevices()
+        now_ms = [0]
+        calls = {"battery": 0, "acceleration": 0, "gyro": 0, "temperature": 0}
+
+        def reading(name, value):
+            def read():
+                calls[name] += 1
+                return value
+
+            return read
+
+        devices.board.get_battery_voltage = reading("battery", 6.2)
+        devices.imu = type(
+            "FakeIMU",
+            (),
+            {
+                "get_acc_rates": staticmethod(
+                    reading("acceleration", (1.0, 2.0, 999.0))
+                ),
+                "get_gyro_rates": staticmethod(
+                    reading("gyro", (10.0, 20.0, 30.0))
+                ),
+                "temperature": staticmethod(reading("temperature", 27.0)),
+            },
+        )()
+        bot = XRPBot(
+            calibrated_config(),
+            _devices=devices,
+            _ticks_ms=lambda: now_ms[0],
+        )
+
+        bot.read(include_range=False)
+        baseline = course_telemetry.hardware_snapshot()
+        self.assertEqual(calls, {key: 1 for key in calls})
+
+        now_ms[0] = 300
+        ranged = bot.read(include_range=True)
+        mirrored = course_telemetry.hardware_snapshot()
+        self.assertEqual(ranged.range_mm, 255.0)
+        self.assertEqual(calls, {key: 1 for key in calls})
+        self.assertEqual(mirrored["accelerationMg"], baseline["accelerationMg"])
+        self.assertEqual(mirrored["angularRateMdps"], baseline["angularRateMdps"])
+        self.assertEqual(mirrored["temperatureC"], baseline["temperatureC"])
+        self.assertEqual(mirrored["batteryV"], baseline["batteryV"])
+
+        bot.read(include_range=False)
+        self.assertEqual(calls, {key: 2 for key in calls})
+
     def test_set_drive_applies_signs_and_final_boundary_clamp(self):
         bot, devices = self.make_bot()
         bot.set_drive(DriveCommand(0.9, -0.7))

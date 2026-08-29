@@ -1253,10 +1253,12 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
 
   useEffect(() => {
     let disposed = false;
+    let recoveryWorkspace: CourseDirectoryHandle | null = null;
     const restoreFolders = async () => {
       const browserSession = initialProjectSession;
       let resolvedSession = browserSession;
       const loadedWorkspace = await loadRememberedWorkspaceFolder();
+      recoveryWorkspace = loadedWorkspace;
       if (disposed) return;
       let workspace = loadedWorkspace;
       let folder: CourseDirectoryHandle | null = null;
@@ -1433,10 +1435,24 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     };
     void restoreFolders().catch((error: unknown) => {
       if (disposed) return;
-      setFolderSaveState("error");
-      setOperationDetail(
-        `The saved project could not be reopened: ${errorDetail(error)}`,
-      );
+      if (recoveryWorkspace) {
+        // A retained handle can report permission as granted after sleep and
+        // still reject its first real file operation. Do not leave that stale
+        // handle looking connected: the next user gesture must re-enter the
+        // normal permission-and-write-check path.
+        setWorkspaceFolder(null);
+        setWorkingFolder(null);
+        setWorkingFolderAccessState("needs-permission");
+        setFolderSaveState("permission");
+        setOperationDetail(
+          `Reconnect Working folder ${recoveryWorkspace.name} to reopen its project and XRP settings. Chrome could not read it: ${errorDetail(error)}`,
+        );
+      } else {
+        setFolderSaveState("error");
+        setOperationDetail(
+          `The saved project could not be reopened: ${errorDetail(error)}`,
+        );
+      }
       publishProjectSession(initialProjectSession);
       setProjectSessionReady(true);
     });
@@ -2257,7 +2273,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       reportError?: (detail: string) => void,
       selectProjectFromFolder = true,
     ) => {
-      if (workspaceFolder) return workspaceFolder;
+      if (workspaceFolder && workingFolderAccessState === "connected") {
+        return workspaceFolder;
+      }
 
       beginFolderInteraction();
       try {
@@ -2298,6 +2316,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       connectWorkingFolder,
       finishFolderInteraction,
       rememberedWorkspaceFolder,
+      workingFolderAccessState,
       workspaceFolder,
     ],
   );
@@ -3559,15 +3578,19 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 ? "Wait for the current Compile or Run request to finish."
                 : isRunning
                   ? "Stop the current program before changing XRP."
-                  : !projectProviderActive
-                    ? "Choose the XRP target. Changing it makes this IDE control Run."
-                    : "Choose whether Run uses the simulator or the configured physical XRP."
+                  : !targetPreference.robotId
+                    ? "Reconnect the Working folder to restore the commissioned Physical XRP connection."
+                    : !projectProviderActive
+                      ? "Choose the XRP target. Changing it makes this IDE control Run."
+                      : "Choose whether Run uses the simulator or the configured physical XRP."
             }
             value={targetPreference.kind}
           >
             <option value="virtual">Virtual XRP</option>
             <option disabled={!targetPreference.robotId} value="physical">
-              Physical XRP
+              {targetPreference.robotId
+                ? "Physical XRP"
+                : "Physical XRP · reconnect folder"}
             </option>
           </select>
           <button
@@ -3849,6 +3872,17 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       title={`Reconnect ${rememberedFolder.name} with read-write access and resume automatic saving.`}
                     >
                       Reconnect project folder…
+                    </button>
+                  ) : null}
+                  {!workingFolder &&
+                  rememberedWorkspaceFolder &&
+                  workingFolderAccessState === "needs-permission" ? (
+                    <button
+                      className="project-storage-action"
+                      onClick={() => void ensureWorkingFolderAccess()}
+                      title={`Restore read-write access to ${rememberedWorkspaceFolder.name}, reopen its active Project, and restore its XRP connection.`}
+                    >
+                      Reconnect Working folder…
                     </button>
                   ) : null}
                 </div>

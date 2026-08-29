@@ -12,6 +12,7 @@ import io
 import json
 import math
 import os
+import struct
 import sys
 import time
 
@@ -38,7 +39,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.43"
+COURSE_RELEASE = "2026.08-dev.44"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -60,6 +61,11 @@ TELEMETRY_LOG_BATCH_LIMIT = 8
 # local Wi-Fi request overhead from accumulating a backlog during short runs.
 TELEMETRY_SAMPLE_BATCH_LIMIT = 24
 COMPACT_TELEMETRY_ENCODING = "row-v1"
+PACKED_TELEMETRY_ENCODING = "packed-v1"
+PACKED_TELEMETRY_SAMPLE_BATCH_LIMIT = 16
+PACKED_TELEMETRY_MAGIC = b"UXT1"
+PACKED_TELEMETRY_ROW_FORMAT = "<IIBB13fiifB"
+PACKED_TELEMETRY_SHARED_FORMAT = "<H8fH"
 IDLE_TELEMETRY_CADENCE_MS = 250
 TELEMETRY_POLL_OWNER_LEASE_MS = IDLE_TELEMETRY_CADENCE_MS * 3
 TELEMETRY_POLL_OWNER_MAX_CHARS = 64
@@ -187,6 +193,24 @@ def _cors_headers():
 def _json_response(value, status=200):
     body = json.dumps(value, separators=(",", ":")).encode("utf-8")
     headers = _cors_headers()
+    headers["Content-Length"] = str(len(body))
+    return server.Response(body, status=status, headers=headers)
+
+
+def _packed_telemetry_response(
+    value, packed_shared, packed_rows, status=200
+):
+    """Frame state metadata, shared diagnostics, then fixed-width rows."""
+    metadata = json.dumps(value, separators=(",", ":")).encode("utf-8")
+    body = (
+        PACKED_TELEMETRY_MAGIC
+        + struct.pack("<I", len(metadata))
+        + metadata
+        + packed_shared
+        + packed_rows
+    )
+    headers = _cors_headers()
+    headers["Content-Type"] = "application/octet-stream"
     headers["Content-Length"] = str(len(body))
     return server.Response(body, status=status, headers=headers)
 
@@ -1382,6 +1406,64 @@ def _compact_telemetry_shared(sample):
     ]
 
 
+def _pack_telemetry_rows(rows):
+    """Pack compact rows without repeating JSON punctuation or number text."""
+    packed = bytearray()
+    for row in rows:
+        null_mask = 0
+        for bit, index in enumerate((6, 7, 8, 9, 14, 15, 18)):
+            if row[index] is None:
+                null_mask |= 1 << bit
+        packed.extend(
+            struct.pack(
+                PACKED_TELEMETRY_ROW_FORMAT,
+                int(row[0]),
+                int(row[1]),
+                1 if row[2] else 0,
+                null_mask,
+                *[0.0 if value is None else float(value) for value in row[3:16]],
+                int(row[16]),
+                int(row[17]),
+                0.0 if row[18] is None else float(row[18]),
+                1 if row[19] else 0,
+            )
+        )
+    return bytes(packed)
+
+
+def _pack_telemetry_shared(shared):
+    """Pack page-wide diagnostics once, with exact nullable-value markers."""
+    acceleration, angular_rate, temperature, battery, sensor_error = shared
+    values = []
+    null_mask = 0
+    for vector in (acceleration, angular_rate):
+        if vector is None:
+            for _ in range(3):
+                null_mask |= 1 << len(values)
+                values.append(0.0)
+        else:
+            values.extend(float(value) for value in vector)
+    for value in (temperature, battery):
+        if value is None:
+            null_mask |= 1 << len(values)
+            values.append(0.0)
+        else:
+            values.append(float(value))
+    if sensor_error is None:
+        null_mask |= 1 << 8
+        error_bytes = b""
+    else:
+        # Sensor errors are status text, not an unbounded transport channel.
+        # Slice characters before encoding so UTF-8 remains complete.
+        error_bytes = str(sensor_error)[:512].encode("utf-8")
+    return struct.pack(
+        PACKED_TELEMETRY_SHARED_FORMAT,
+        null_mask,
+        *values,
+        len(error_bytes),
+    ) + error_bytes
+
+
 def _runtime_snapshot_json():
     try:
         from ucsb_xrp.live import runtime_snapshot_json
@@ -1492,6 +1574,7 @@ def info(request):
                 "target.reset",
                 "telemetry.poll",
                 "telemetry.compact-v1",
+                "telemetry.packed-v1",
                 "logs.poll",
                 "runtime.parameters",
             ],
@@ -1510,10 +1593,25 @@ def state(request):
 
 @server.route("/api/v1/telemetry")
 def telemetry(request):
+    requested_encoding = request.query.get("sampleEncoding")
+    compact_requested = requested_encoding == COMPACT_TELEMETRY_ENCODING
+    packed_requested = requested_encoding == PACKED_TELEMETRY_ENCODING
+    packed_updates_requested = (
+        not packed_requested or request.query.get("includeUpdates") != "0"
+    )
     accepted, poll_generation, poll_owner, poll_ownership = (
         _begin_telemetry_poll(request.query)
     )
     if not accepted:
+        if packed_requested:
+            return _packed_telemetry_response(
+                {
+                    "sampleCount": 0,
+                    "pollOwnership": poll_ownership,
+                },
+                b"",
+                b"",
+            )
         return _json_response({"pollOwnership": poll_ownership})
     try:
         after = int(request.query.get("afterLogSeq", "0"))
@@ -1534,19 +1632,36 @@ def telemetry(request):
         # browser is present. Renew the run here instead of requiring a second
         # serialized HTTP request before the next poll or a Stop command.
         _extend_run_lease(LEASE_MS)
-    value = _state_result(after, TELEMETRY_LOG_BATCH_LIMIT)
-    compact_requested = (
-        request.query.get("sampleEncoding") == COMPACT_TELEMETRY_ENCODING
+    packed_fast_response = (
+        packed_requested
+        and not packed_updates_requested
+        and _state == "running"
+    )
+    if packed_fast_response:
+        value = {
+            # Short private wire keys leave the active response budget to its
+            # ordered sample page. The browser expands them before the state
+            # reaches any application consumer.
+            "s": 2,
+            "r": _run_id,
+        }
+    else:
+        value = _state_result(after, TELEMETRY_LOG_BATCH_LIMIT)
+    row_encoding_requested = compact_requested or packed_requested
+    sample_limit = (
+        PACKED_TELEMETRY_SAMPLE_BATCH_LIMIT
+        if packed_requested
+        else TELEMETRY_SAMPLE_BATCH_LIMIT
     )
     compact_rows = None
     compact_shared = None
-    if compact_requested and _thread_active:
+    if row_encoding_requested and _thread_active:
         snapshots, hardware, more_samples = _buffered_course_page(
-            after_sample, TELEMETRY_SAMPLE_BATCH_LIMIT
+            after_sample, sample_limit
         )
         # If the program ended concurrently, use the established terminal-tail
-        # path below. During a running page, build rows directly from immutable
-        # course snapshots and avoid 24 temporary 35-key dictionaries.
+        # path below. During a running page, build wire rows directly from
+        # immutable course snapshots instead of temporary 35-key dictionaries.
         if _thread_active:
             compact_rows = [
                 _compact_course_telemetry_row(item, hardware)
@@ -1561,9 +1676,18 @@ def telemetry(request):
             ]
     else:
         samples, more_samples = _buffered_course_samples(
-            after_sample, TELEMETRY_SAMPLE_BATCH_LIMIT
+            after_sample, sample_limit
         )
-    value["moreSamples"] = more_samples
+    if packed_fast_response and _state != "running":
+        # A program can finish while its retained page is being copied. Send
+        # the complete terminal state immediately instead of one stale compact
+        # running envelope followed by a delayed status refresh.
+        value = _state_result(after, TELEMETRY_LOG_BATCH_LIMIT)
+        packed_fast_response = False
+    if packed_fast_response:
+        value["m"] = 1 if more_samples else 0
+    else:
+        value["moreSamples"] = more_samples
     if compact_rows is not None:
         sample = None
     elif _thread_active and samples:
@@ -1596,21 +1720,40 @@ def telemetry(request):
         sample = _hardware_sample()
         if sample["seq"] > after_sample:
             samples.append(sample)
-    if compact_requested:
-        value["sampleEncoding"] = COMPACT_TELEMETRY_ENCODING
+    if row_encoding_requested:
+        if not packed_requested:
+            value["sampleEncoding"] = COMPACT_TELEMETRY_ENCODING
         if compact_rows is None:
             compact_rows = [_compact_telemetry_row(item) for item in samples]
             if compact_rows:
                 compact_shared = _compact_telemetry_shared(samples[-1])
-        value["sampleRows"] = compact_rows
-        if compact_shared is not None:
+        if compact_shared is not None and not packed_requested:
             value["sampleShared"] = compact_shared
+        if packed_requested:
+            if packed_fast_response:
+                value["n"] = len(compact_rows)
+            else:
+                value["sampleCount"] = len(compact_rows)
+        else:
+            value["sampleRows"] = compact_rows
     else:
         value["samples"] = samples
         value["sample"] = sample
-    if poll_ownership is not None:
+    if poll_ownership is not None and not packed_requested:
         value["pollOwnership"] = poll_ownership
-    response = _json_response(value)
+    response = (
+        _packed_telemetry_response(
+            value,
+            (
+                _pack_telemetry_shared(compact_shared)
+                if compact_rows and compact_shared is not None
+                else b""
+            ),
+            _pack_telemetry_rows(compact_rows),
+        )
+        if packed_requested
+        else _json_response(value)
+    )
     _renew_telemetry_poll_owner(poll_generation, poll_owner)
     return response
 

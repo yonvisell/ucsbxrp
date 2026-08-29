@@ -3,6 +3,7 @@ import builtins
 import importlib.util
 import json
 from pathlib import Path
+import struct
 import sys
 import tempfile
 import time
@@ -1556,6 +1557,195 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.service.info(types.SimpleNamespace()).body.decode("utf-8")
         )
         self.assertIn("telemetry.compact-v1", info["capabilities"])
+
+    def test_packed_telemetry_pages_fixed_rows_without_weakening_legacy(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        base = {
+            "xMm": 1.25,
+            "yMm": -2.5,
+            "headingRad": 0.125,
+            "leftWheelSpeedMmS": 70.0,
+            "rightWheelSpeedMmS": 85.0,
+            "leftWheelDistanceMm": None,
+            "rightWheelDistanceMm": 22.0,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "leftEffort": 0.2,
+            "rightEffort": 0.25,
+            "requestedForwardSpeedMmS": 80.0,
+            "requestedTurnRateRadS": None,
+            "targetLeftWheelSpeedMmS": 72.0,
+            "targetRightWheelSpeedMmS": 88.0,
+        }
+        retained = [
+            {
+                **base,
+                "sampleSeq": sequence,
+                "sampleTimeMs": sequence * 20,
+                "xMm": float(sequence),
+            }
+            for sequence in range(1, 35)
+        ]
+        hardware = {
+            "leftEncoderCount": 62,
+            "rightEncoderCount": -68,
+            "rangeMm": 310.0,
+            "buttonPressed": False,
+            "accelerationMg": [1.0, 2.0, 999.0],
+            "angularRateMdps": [10.0, 20.0, 30.0],
+            "temperatureC": 27.0,
+            "batteryV": 6.2,
+            "sensorError": None,
+        }
+        project_manifest = {
+            "name": "Second window project",
+            "entrypoint": "main.py",
+            "files": ["main.py"],
+            "bytes": 24,
+            "revision": "second-revision",
+            "lifetime": "boot",
+        }
+        self.service._thread_active = True
+        self.service._state = "running"
+        self.service._run_id = 3
+        self.service._sample_epoch_start_ms = 0
+        self.service._last_hardware = hardware
+
+        def parse_packed(response):
+            body = response.body
+            self.assertEqual(body[:4], b"UXT1")
+            metadata_bytes = struct.unpack("<I", body[4:8])[0]
+            metadata_end = 8 + metadata_bytes
+            metadata = json.loads(body[8:metadata_end].decode("utf-8"))
+            count = metadata.get("sampleCount", metadata.get("n"))
+            shared = None
+            rows_start = metadata_end
+            if count:
+                shared_size = struct.calcsize(
+                    self.service.PACKED_TELEMETRY_SHARED_FORMAT
+                )
+                shared = struct.unpack(
+                    self.service.PACKED_TELEMETRY_SHARED_FORMAT,
+                    body[rows_start : rows_start + shared_size],
+                )
+                rows_start += shared_size + shared[-1]
+            row_bytes = body[rows_start:]
+            rows = [
+                struct.unpack(
+                    self.service.PACKED_TELEMETRY_ROW_FORMAT,
+                    row_bytes[
+                        index * 75 : (index + 1) * 75
+                    ],
+                )
+                for index in range(count)
+            ]
+            return metadata, shared, rows
+
+        with (
+            patch.object(
+                course_telemetry,
+                "buffered_state_snapshots",
+                side_effect=lambda after: tuple(
+                    item for item in retained if item["sampleSeq"] > after
+                ),
+                create=True,
+            ),
+            patch.object(
+                course_telemetry,
+                "hardware_snapshot",
+                return_value=hardware,
+                create=True,
+            ),
+            patch.object(
+                self.service,
+                "_read_manifest",
+                return_value=project_manifest,
+            ),
+        ):
+            first_response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "afterSampleSeq": "0",
+                        "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
+                        "includeUpdates": "0",
+                    }
+                )
+            )
+            second_response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "afterSampleSeq": "16",
+                        "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
+                        "includeUpdates": "0",
+                    }
+                )
+            )
+            third_response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "afterSampleSeq": "32",
+                        "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
+                        "includeUpdates": "0",
+                    }
+                )
+            )
+            authoritative_response = self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "afterSampleSeq": "34",
+                        "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
+                        "includeUpdates": "1",
+                    }
+                )
+            )
+            legacy = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(query={"afterSampleSeq": "0"})
+                ).body.decode("utf-8")
+            )
+
+        first, first_shared, first_rows = parse_packed(first_response)
+        second, _, second_rows = parse_packed(second_response)
+        third, _, third_rows = parse_packed(third_response)
+        authoritative, _, authoritative_rows = parse_packed(
+            authoritative_response
+        )
+        self.assertEqual(
+            first_response.headers["Content-Type"],
+            "application/octet-stream",
+        )
+        self.assertNotIn("sampleEncoding", first)
+        self.assertEqual(first["n"], 16)
+        self.assertEqual(first["m"], 1)
+        self.assertEqual(first["s"], 2)
+        self.assertEqual(first["r"], 3)
+        self.assertNotIn("project", first)
+        self.assertLess(len(first_response.body), 1_300)
+        self.assertEqual([row[1] for row in first_rows], list(range(1, 17)))
+        self.assertEqual(first_rows[0][0:6], (20, 1, 1, 18, 1.0, -2.5))
+        self.assertEqual(first_rows[0][8], 0.0)
+        self.assertEqual(first_rows[0][15], 0.0)
+        self.assertEqual(first_rows[0][17:19], (62, -68))
+        self.assertEqual(first_rows[0][19], 310.0)
+        self.assertEqual(first_shared[0], 1 << 8)
+        self.assertEqual(first_shared[7], 27.0)
+        self.assertAlmostEqual(first_shared[8], 6.2, places=5)
+        self.assertEqual(first_shared[-1], 0)
+        self.assertEqual(second["n"], 16)
+        self.assertEqual(second["m"], 1)
+        self.assertEqual([row[1] for row in second_rows], list(range(17, 33)))
+        self.assertEqual(third["n"], 2)
+        self.assertEqual(third["m"], 0)
+        self.assertEqual([row[1] for row in third_rows], [33, 34])
+        self.assertEqual(authoritative["project"], project_manifest)
+        self.assertEqual(authoritative_rows, [])
+        self.assertEqual([sample["seq"] for sample in legacy["samples"]], list(range(1, 25)))
+        self.assertTrue(legacy["moreSamples"])
+
+        info = json.loads(
+            self.service.info(types.SimpleNamespace()).body.decode("utf-8")
+        )
+        self.assertIn("telemetry.packed-v1", info["capabilities"])
 
     def test_telemetry_pages_backlog_and_defers_the_final_stopped_sample(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]

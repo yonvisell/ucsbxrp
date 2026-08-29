@@ -112,3 +112,88 @@ test("denied Working-folder permission remains a visible reconnect action", asyn
   ).toBe(0);
   await expect(ide.getByTestId("project-folder")).toHaveText("Not selected");
 });
+
+test("a retained folder that rejects its background read recovers from the project rail", async ({
+  page: ide,
+}) => {
+  await seedWorkingFolder(ide, {
+    folderName: "Sleep-Recovery-Workspace",
+    project: currentProject,
+    projectFolderName: "Current-Project",
+    robot: {
+      id: "robot-after-sleep",
+      name: "ucsb-xrp-after-sleep",
+      networkMode: "station",
+      ssid: "Course Wi-Fi",
+      address: "127.0.0.1:65534",
+    },
+  });
+  await ide.addInitScript(() => {
+    const testWindow = window as typeof window & { __pickerCalls?: number };
+    testWindow.__pickerCalls = 0;
+    const originalGetFileHandle =
+      FileSystemDirectoryHandle.prototype.getFileHandle;
+    Object.defineProperties(FileSystemDirectoryHandle.prototype, {
+      queryPermission: {
+        configurable: true,
+        value: async () => "granted",
+      },
+      requestPermission: {
+        configurable: true,
+        value: async () => "granted",
+      },
+      getFileHandle: {
+        configurable: true,
+        value: function (
+          this: FileSystemDirectoryHandle,
+          ...args: Parameters<FileSystemDirectoryHandle["getFileHandle"]>
+        ) {
+          if (
+            this.name === "Sleep-Recovery-Workspace" &&
+            !navigator.userActivation.isActive
+          ) {
+            return Promise.reject(
+              new DOMException(
+                "The request is not allowed in the current context",
+                "NotAllowedError",
+              ),
+            );
+          }
+          return originalGetFileHandle.apply(this, args);
+        },
+      },
+    });
+    Object.defineProperty(window, "showDirectoryPicker", {
+      configurable: true,
+      value: async () => {
+        testWindow.__pickerCalls = (testWindow.__pickerCalls ?? 0) + 1;
+        throw new DOMException("No folder selected", "AbortError");
+      },
+    });
+  });
+
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("project-folder")).toHaveText("Not selected");
+  const reconnect = ide.getByRole("button", {
+    name: "Reconnect Working folder…",
+  });
+  await expect(reconnect).toBeVisible();
+  await expect(
+    ide.getByRole("option", { name: "Physical XRP · reconnect folder" }),
+  ).toBeDisabled();
+
+  await reconnect.click();
+
+  await expect(ide.getByTestId("project-folder")).toHaveText("Current-Project");
+  await expect(ide.getByLabel("Run on")).toContainText("Physical XRP");
+  await expect(
+    ide.getByRole("option", { name: "Physical XRP", exact: true }),
+  ).toBeEnabled();
+  expect(
+    await ide.evaluate(
+      () =>
+        (window as typeof window & { __pickerCalls?: number }).__pickerCalls ??
+        0,
+    ),
+  ).toBe(0);
+});

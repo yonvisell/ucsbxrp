@@ -40,7 +40,7 @@ export const CURRENT_SERVICE_VERSION = courseRelease.service.version;
  * Device-side poll ownership generation. Change this only when a newly
  * deployed SharedWorker must supersede workers retained from an older shell.
  */
-export const PHYSICAL_POLL_COORDINATOR_GENERATION = 15;
+export const PHYSICAL_POLL_COORDINATOR_GENERATION = 16;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -115,6 +115,7 @@ interface PhysicalState {
   sample?: TelemetrySample;
   samples?: TelemetrySample[];
   sampleEncoding?: string;
+  sampleCount?: number;
   sampleRows?: unknown[];
   sampleShared?: unknown;
   project?: PhysicalProjectManifest | null;
@@ -227,6 +228,14 @@ const POLL_RECOVERY_DELAY_MS = 900;
 const ACTIVE_TELEMETRY_POLL_MS = 20;
 const COMPACT_TELEMETRY_ENCODING = "row-v1";
 const COMPACT_TELEMETRY_ROW_LIMIT = 24;
+const PACKED_TELEMETRY_ENCODING = "packed-v1";
+const PACKED_TELEMETRY_ROW_LIMIT = 24;
+const PACKED_TELEMETRY_HEADER_BYTES = 8;
+const PACKED_TELEMETRY_SHARED_FIXED_BYTES = 36;
+const PACKED_TELEMETRY_SENSOR_ERROR_LIMIT = 2_048;
+const PACKED_TELEMETRY_METADATA_LIMIT = 65_536;
+const PACKED_TELEMETRY_ROW_BYTES = 75;
+const PACKED_TELEMETRY_MAGIC = [0x55, 0x58, 0x54, 0x31] as const;
 
 function telemetryRowError(detail: string): never {
   throw new PhysicalTargetError(
@@ -350,6 +359,268 @@ function decodeCompactTelemetryRow(
   };
 }
 
+function packedBoolean(view: DataView, offset: number, field: string): boolean {
+  const value = view.getUint8(offset);
+  if (value !== 0 && value !== 1) {
+    telemetryRowError(`${field} is not boolean`);
+  }
+  return value === 1;
+}
+
+function packedNullableFloat(
+  value: number,
+  nullMask: number,
+  bit: number,
+  field: string,
+): number | null {
+  if ((nullMask & (1 << bit)) === 0) return value;
+  if (value !== 0) {
+    telemetryRowError(`${field} null sentinel is not canonical`);
+  }
+  return null;
+}
+
+type DecodedPackedTelemetry = Partial<PhysicalState> & {
+  sampleEncoding: typeof PACKED_TELEMETRY_ENCODING;
+  sampleCount: number;
+  samples: TelemetrySample[];
+};
+
+function decodePackedTelemetryPayload(
+  payload: ArrayBuffer,
+): DecodedPackedTelemetry {
+  const bytes = new Uint8Array(payload);
+  if (bytes.byteLength < PACKED_TELEMETRY_HEADER_BYTES) {
+    telemetryRowError("packed-v1 header is truncated");
+  }
+  for (let index = 0; index < PACKED_TELEMETRY_MAGIC.length; index += 1) {
+    if (bytes[index] !== PACKED_TELEMETRY_MAGIC[index]) {
+      telemetryRowError("packed-v1 magic is invalid");
+    }
+  }
+  const view = new DataView(payload);
+  const metadataBytes = view.getUint32(4, true);
+  if (metadataBytes > PACKED_TELEMETRY_METADATA_LIMIT) {
+    telemetryRowError("packed-v1 metadata is too large");
+  }
+  const metadataEnd = PACKED_TELEMETRY_HEADER_BYTES + metadataBytes;
+  if (metadataEnd > bytes.byteLength) {
+    telemetryRowError("packed-v1 metadata is truncated");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(
+        bytes.subarray(PACKED_TELEMETRY_HEADER_BYTES, metadataEnd),
+      ),
+    );
+  } catch {
+    telemetryRowError("packed-v1 metadata is not valid JSON");
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    telemetryRowError("packed-v1 metadata is not an object");
+  }
+  const wire = parsed as Partial<PhysicalState> & {
+    n?: unknown;
+    m?: unknown;
+    s?: unknown;
+    r?: unknown;
+  };
+  if (
+    wire.sampleEncoding !== undefined &&
+    wire.sampleEncoding !== PACKED_TELEMETRY_ENCODING
+  ) {
+    telemetryRowError("packed-v1 metadata has the wrong encoding");
+  }
+  if (
+    wire.sampleCount !== undefined &&
+    wire.n !== undefined &&
+    wire.sampleCount !== wire.n
+  ) {
+    telemetryRowError("packed-v1 sample counts disagree");
+  }
+  const count = wire.sampleCount ?? wire.n;
+  if (
+    !Number.isSafeInteger(count) ||
+    (count as number) < 0 ||
+    (count as number) > PACKED_TELEMETRY_ROW_LIMIT
+  ) {
+    telemetryRowError(
+      `packed-v1 sampleCount must be 0 to ${PACKED_TELEMETRY_ROW_LIMIT}`,
+    );
+  }
+  if (wire.m !== undefined) {
+    if (wire.m !== 0 && wire.m !== 1) {
+      telemetryRowError("packed-v1 more-samples flag is invalid");
+    }
+    if (wire.moreSamples !== undefined && wire.moreSamples !== (wire.m === 1)) {
+      telemetryRowError("packed-v1 more-samples values disagree");
+    }
+    wire.moreSamples = wire.m === 1;
+  }
+  if (wire.s !== undefined) {
+    const states = ["ready", "loading", "running", "error"] as const;
+    if (
+      !Number.isSafeInteger(wire.s) ||
+      states[wire.s as number] === undefined
+    ) {
+      telemetryRowError("packed-v1 state code is invalid");
+    }
+    if (wire.state !== undefined && wire.state !== states[wire.s as number]) {
+      telemetryRowError("packed-v1 state values disagree");
+    }
+    wire.state = states[wire.s as number];
+  }
+  if (wire.r !== undefined) {
+    if (!Number.isSafeInteger(wire.r) || (wire.r as number) < 0) {
+      telemetryRowError("packed-v1 run ID is invalid");
+    }
+    if (wire.runId !== undefined && wire.runId !== wire.r) {
+      telemetryRowError("packed-v1 run IDs disagree");
+    }
+    wire.runId = wire.r as number;
+  }
+  let rowsStart = metadataEnd;
+  let shared: unknown = undefined;
+  if ((count as number) > 0) {
+    if (bytes.byteLength < rowsStart + PACKED_TELEMETRY_SHARED_FIXED_BYTES) {
+      telemetryRowError("packed-v1 shared diagnostics are truncated");
+    }
+    const nullMask = view.getUint16(rowsStart, true);
+    if ((nullMask & ~0x1ff) !== 0) {
+      telemetryRowError("packed-v1 shared null mask has unsupported bits");
+    }
+    const accelerationMask = nullMask & 0x7;
+    const angularRateMask = nullMask & 0x38;
+    if (accelerationMask !== 0 && accelerationMask !== 0x7) {
+      telemetryRowError("packed-v1 acceleration null mask is partial");
+    }
+    if (angularRateMask !== 0 && angularRateMask !== 0x38) {
+      telemetryRowError("packed-v1 angular-rate null mask is partial");
+    }
+    const sharedFloats = Array.from({ length: 8 }, (_, index) =>
+      packedNullableFloat(
+        view.getFloat32(rowsStart + 2 + index * 4, true),
+        nullMask,
+        index,
+        `shared[${index}]`,
+      ),
+    );
+    const sensorErrorBytes = view.getUint16(rowsStart + 34, true);
+    if (sensorErrorBytes > PACKED_TELEMETRY_SENSOR_ERROR_LIMIT) {
+      telemetryRowError("packed-v1 sensor error is too large");
+    }
+    const sensorErrorStart = rowsStart + PACKED_TELEMETRY_SHARED_FIXED_BYTES;
+    const sensorErrorEnd = sensorErrorStart + sensorErrorBytes;
+    if (sensorErrorEnd > bytes.byteLength) {
+      telemetryRowError("packed-v1 sensor error is truncated");
+    }
+    const sensorErrorIsNull = (nullMask & 0x100) !== 0;
+    if (sensorErrorIsNull && sensorErrorBytes !== 0) {
+      telemetryRowError("packed-v1 null sensor error has text");
+    }
+    let sensorError: string | null = null;
+    if (!sensorErrorIsNull) {
+      try {
+        sensorError = new TextDecoder("utf-8", { fatal: true }).decode(
+          bytes.subarray(sensorErrorStart, sensorErrorEnd),
+        );
+      } catch {
+        telemetryRowError("packed-v1 sensor error is not valid UTF-8");
+      }
+    }
+    shared = [
+      accelerationMask === 0
+        ? [sharedFloats[0], sharedFloats[1], sharedFloats[2]]
+        : null,
+      angularRateMask === 0
+        ? [sharedFloats[3], sharedFloats[4], sharedFloats[5]]
+        : null,
+      sharedFloats[6],
+      sharedFloats[7],
+      sensorError,
+    ];
+    rowsStart = sensorErrorEnd;
+  }
+  const expectedBytes =
+    rowsStart + (count as number) * PACKED_TELEMETRY_ROW_BYTES;
+  if (bytes.byteLength !== expectedBytes) {
+    telemetryRowError("packed-v1 row bytes do not match sampleCount");
+  }
+  const samples: TelemetrySample[] = [];
+  for (let index = 0; index < (count as number); index += 1) {
+    const offset = rowsStart + index * PACKED_TELEMETRY_ROW_BYTES;
+    const rowView = new DataView(payload, offset, PACKED_TELEMETRY_ROW_BYTES);
+    const nullMask = rowView.getUint8(9);
+    if ((nullMask & 0x80) !== 0) {
+      telemetryRowError("packed-v1 null mask has unsupported bits");
+    }
+    const floats = Array.from({ length: 13 }, (_, floatIndex) =>
+      rowView.getFloat32(10 + floatIndex * 4, true),
+    );
+    samples.push(
+      decodeCompactTelemetryRow(
+        [
+          rowView.getUint32(0, true),
+          rowView.getUint32(4, true),
+          packedBoolean(rowView, 8, "poseAvailable"),
+          floats[0],
+          floats[1],
+          floats[2],
+          packedNullableFloat(
+            floats[3]!,
+            nullMask,
+            0,
+            "requestedForwardSpeedMmS",
+          ),
+          packedNullableFloat(floats[4]!, nullMask, 1, "requestedTurnRateRadS"),
+          packedNullableFloat(
+            floats[5]!,
+            nullMask,
+            2,
+            "targetLeftWheelSpeedMmS",
+          ),
+          packedNullableFloat(
+            floats[6]!,
+            nullMask,
+            3,
+            "targetRightWheelSpeedMmS",
+          ),
+          floats[7],
+          floats[8],
+          floats[9],
+          floats[10],
+          packedNullableFloat(floats[11]!, nullMask, 4, "leftWheelDistanceMm"),
+          packedNullableFloat(floats[12]!, nullMask, 5, "rightWheelDistanceMm"),
+          rowView.getInt32(62, true),
+          rowView.getInt32(66, true),
+          packedNullableFloat(
+            rowView.getFloat32(70, true),
+            nullMask,
+            6,
+            "rangeMm",
+          ),
+          packedBoolean(rowView, 74, "buttonPressed"),
+        ],
+        shared,
+      ),
+    );
+  }
+  for (let index = 1; index < samples.length; index += 1) {
+    if (samples[index]!.seq <= samples[index - 1]!.seq) {
+      telemetryRowError(
+        "packed-v1 sequence values are not strictly increasing",
+      );
+    }
+  }
+  const state = wire as DecodedPackedTelemetry;
+  state.sampleEncoding = PACKED_TELEMETRY_ENCODING;
+  state.sampleCount = count as number;
+  state.sampleShared = shared;
+  state.samples = samples;
+  return state;
+}
+
 interface CommandActivity {
   action: NonNullable<TargetConsoleMetadata["action"]>;
   label: string;
@@ -460,6 +731,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private reconnecting = false;
   private pollConnectionFailed = false;
   private consecutivePollFailures = 0;
+  private lastPackedUpdatesAtMs: number | null = null;
   private connectGeneration = 0;
   private nextRequest = 1;
   private nextEvent = 1;
@@ -655,6 +927,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.pollGeneration += 1;
     this.stopPolling();
     this.abortActivePoll();
+    this.lastPackedUpdatesAtMs = null;
     this.emitStatus("disconnected", "Physical XRP disconnected");
   }
 
@@ -1561,7 +1834,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
   ): string {
     let path = `/api/v1/telemetry?afterLogSeq=${afterLogSeq}&afterSampleSeq=${afterSampleSeq}`;
     if (runId !== undefined) path += `&runId=${runId}`;
-    if (this.info?.capabilities.includes("telemetry.compact-v1")) {
+    if (this.info?.capabilities.includes("telemetry.packed-v1")) {
+      path += `&sampleEncoding=${PACKED_TELEMETRY_ENCODING}`;
+      const now = monotonicTimeMs();
+      const includeUpdates =
+        this.lastPackedUpdatesAtMs === null ||
+        now - this.lastPackedUpdatesAtMs >= this.pollIntervalMs;
+      path += `&includeUpdates=${includeUpdates ? "1" : "0"}`;
+      if (includeUpdates) this.lastPackedUpdatesAtMs = now;
+    } else if (this.info?.capabilities.includes("telemetry.compact-v1")) {
       path += `&sampleEncoding=${COMPACT_TELEMETRY_ENCODING}`;
     }
     if (
@@ -1579,9 +1860,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     timeoutMs: number,
     controller?: AbortController,
   ): Promise<PhysicalState> {
-    const value = await this.getJson<
-      PhysicalState | PhysicalPollOwnershipReply
-    >(path, timeoutMs, controller);
+    const value = this.info?.capabilities.includes("telemetry.packed-v1")
+      ? await this.getPackedTelemetry(path, timeoutMs, controller)
+      : await this.getJson<PhysicalState | PhysicalPollOwnershipReply>(
+          path,
+          timeoutMs,
+          controller,
+        );
     if (value.pollOwnership?.accepted === false) {
       const owner = value.pollOwnership.ownerGeneration;
       const lease = value.pollOwnership.leaseRemainingMs;
@@ -1590,12 +1875,45 @@ export class DirectPhysicalTargetClient implements TargetClient {
         `Another UCSBXRP page is coordinating this robot${owner === null ? "" : ` (poll generation ${owner})`}. Close or reload older UCSBXRP pages, then select Reconnect${typeof lease === "number" ? `; takeover is available in at most ${lease} ms` : ""}.`,
       );
     }
-    const state = value as PhysicalState;
-    if (state.sampleEncoding !== undefined) {
-      if (
-        state.sampleEncoding !== COMPACT_TELEMETRY_ENCODING ||
-        !Array.isArray(state.sampleRows)
-      ) {
+    let state = value as PhysicalState;
+    if (state.sampleEncoding === PACKED_TELEMETRY_ENCODING) {
+      const packed = value as DecodedPackedTelemetry;
+      const completeState =
+        typeof packed.bootId === "string" &&
+        (packed.state === "ready" ||
+          packed.state === "loading" ||
+          packed.state === "running" ||
+          packed.state === "error") &&
+        typeof packed.detail === "string" &&
+        Number.isSafeInteger(packed.runId) &&
+        (packed.runId as number) >= 0 &&
+        Array.isArray(packed.logs);
+      if (!completeState) {
+        const cachedBootId = this.bootId ?? this.info?.bootId;
+        if (
+          !path.includes("includeUpdates=0") ||
+          !cachedBootId ||
+          packed.state !== "running" ||
+          !Number.isSafeInteger(packed.runId) ||
+          (packed.runId as number) < 1
+        ) {
+          telemetryRowError("packed-v1 state metadata is incomplete");
+        }
+        state = {
+          ...packed,
+          bootId: cachedBootId,
+          state: "running",
+          detail:
+            this.currentState === "running"
+              ? this.currentDetail
+              : "Program running",
+          runId: packed.runId as number,
+          logs: [],
+        };
+      }
+    }
+    if (state.sampleEncoding === COMPACT_TELEMETRY_ENCODING) {
+      if (!Array.isArray(state.sampleRows)) {
         telemetryRowError("encoding or rows are unsupported");
       }
       if (state.sampleRows.length > COMPACT_TELEMETRY_ROW_LIMIT) {
@@ -1617,8 +1935,66 @@ export class DirectPhysicalTargetClient implements TargetClient {
         }
       }
       state.samples = decoded;
+    } else if (
+      state.sampleEncoding !== undefined &&
+      state.sampleEncoding !== PACKED_TELEMETRY_ENCODING
+    ) {
+      telemetryRowError("encoding is unsupported");
     }
     return state;
+  }
+
+  private async getPackedTelemetry(
+    path: string,
+    timeoutMs: number,
+    requestController?: AbortController,
+  ): Promise<DecodedPackedTelemetry | PhysicalPollOwnershipReply> {
+    const controller = requestController ?? new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await this.fetchImplementation(this.endpoint + path, {
+        ...localNetworkRequestInit(this.endpoint, { method: "GET" }),
+        cache: "no-store",
+        signal: controller.signal,
+      } as LocalNetworkRequestInit);
+      if (!response.ok) {
+        let value: { error?: { code?: string; detail?: string } } = {};
+        try {
+          value = (await response.json()) as typeof value;
+        } catch {
+          // Preserve the status fallback when the device error body is broken.
+        }
+        throw new PhysicalTargetError(
+          value.error?.code ?? `http_${response.status}`,
+          value.error?.detail ??
+            `XRP request failed with HTTP ${response.status}`,
+        );
+      }
+      const state = decodePackedTelemetryPayload(await response.arrayBuffer());
+      if (typeof state.bootId === "string") {
+        // Schedule the next log/runtime refresh from completion, not request
+        // start. The robot also promotes a requested fast page to a complete
+        // response as soon as the run reaches a terminal state.
+        this.lastPackedUpdatesAtMs = monotonicTimeMs();
+      }
+      return state;
+    } catch (error) {
+      if (error instanceof PhysicalTargetError) {
+        throw error;
+      }
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new PhysicalTargetError(
+          "timeout",
+          `XRP did not reply within ${timeoutMs / 1000} seconds. ${physicalConnectionRecovery(this.endpoint)}`,
+        );
+      }
+      throw new PhysicalTargetError(
+        "network_error",
+        `Cannot reach ${this.endpoint}: ${errorDetail(error)}. ${physicalConnectionRecovery(this.endpoint)}`,
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private consumeState(state: PhysicalState, publishTelemetry = true): void {
@@ -2107,7 +2483,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v15" },
+          { type: "module", name: "ucsb-xrp-physical-target-v16" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,

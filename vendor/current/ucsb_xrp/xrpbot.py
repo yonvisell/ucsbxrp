@@ -123,7 +123,15 @@ class XRPBot:
             publish_raw_sensors(
                 raw,
                 range_sampled=include_range,
-                diagnostics=self._read_diagnostics(now_ms),
+                # Range is part of the control decision. Keep optional
+                # battery/IMU I2C reads out of that critical path; their last
+                # snapshot remains available and the next non-range read
+                # refreshes it immediately when due.
+                diagnostics=(
+                    None
+                    if include_range
+                    else self._read_diagnostics(now_ms)
+                ),
             )
         except Exception:
             # Browser diagnostics must never interrupt a student program.

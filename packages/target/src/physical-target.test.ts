@@ -27,6 +27,85 @@ function response(value: unknown, status = 200): Response {
   });
 }
 
+function packedTelemetryResponse(
+  metadata: Record<string, unknown>,
+  rows: readonly (readonly unknown[])[],
+): Response {
+  const shared = metadata.sampleShared as readonly unknown[] | undefined;
+  const wireMetadata = { ...metadata };
+  delete wireMetadata.sampleShared;
+  const encodedMetadata = new TextEncoder().encode(
+    JSON.stringify({
+      ...wireMetadata,
+      sampleCount: rows.length,
+    }),
+  );
+  const sensorError = shared?.[4];
+  const encodedSensorError =
+    typeof sensorError === "string"
+      ? new TextEncoder().encode(sensorError)
+      : new Uint8Array();
+  const sharedBytes = rows.length > 0 ? 36 + encodedSensorError.byteLength : 0;
+  const rowBytes = 75;
+  const payload = new ArrayBuffer(
+    8 + encodedMetadata.byteLength + sharedBytes + rows.length * rowBytes,
+  );
+  const bytes = new Uint8Array(payload);
+  bytes.set([0x55, 0x58, 0x54, 0x31]);
+  const view = new DataView(payload);
+  view.setUint32(4, encodedMetadata.byteLength, true);
+  bytes.set(encodedMetadata, 8);
+  let rowsStart = 8 + encodedMetadata.byteLength;
+  if (rows.length > 0) {
+    const acceleration = shared?.[0] as readonly unknown[] | null | undefined;
+    const angularRate = shared?.[1] as readonly unknown[] | null | undefined;
+    const sharedValues = [
+      ...(acceleration ?? [null, null, null]),
+      ...(angularRate ?? [null, null, null]),
+      shared?.[2] ?? null,
+      shared?.[3] ?? null,
+    ];
+    let sharedNullMask = sensorError === null ? 1 << 8 : 0;
+    sharedValues.forEach((value, index) => {
+      if (value === null) sharedNullMask |= 1 << index;
+    });
+    view.setUint16(rowsStart, sharedNullMask, true);
+    sharedValues.forEach((value, index) => {
+      view.setFloat32(rowsStart + 2 + index * 4, Number(value ?? 0), true);
+    });
+    view.setUint16(rowsStart + 34, encodedSensorError.byteLength, true);
+    bytes.set(encodedSensorError, rowsStart + 36);
+    rowsStart += sharedBytes;
+  }
+  rows.forEach((row, index) => {
+    const offset = rowsStart + index * rowBytes;
+    const rowView = new DataView(payload, offset, rowBytes);
+    rowView.setUint32(0, Number(row[0]), true);
+    rowView.setUint32(4, Number(row[1]), true);
+    rowView.setUint8(8, row[2] === true ? 1 : 0);
+    let nullMask = 0;
+    [6, 7, 8, 9, 14, 15, 18].forEach((rowIndex, bit) => {
+      if (row[rowIndex] === null) nullMask |= 1 << bit;
+    });
+    rowView.setUint8(9, nullMask);
+    for (let rowIndex = 3; rowIndex <= 15; rowIndex += 1) {
+      rowView.setFloat32(
+        10 + (rowIndex - 3) * 4,
+        row[rowIndex] === null ? 0 : Number(row[rowIndex]),
+        true,
+      );
+    }
+    rowView.setInt32(62, Number(row[16]), true);
+    rowView.setInt32(66, Number(row[17]), true);
+    rowView.setFloat32(70, row[18] === null ? 0 : Number(row[18]), true);
+    rowView.setUint8(74, row[19] === true ? 1 : 0);
+  });
+  return new Response(payload, {
+    status: 200,
+    headers: { "Content-Type": "application/octet-stream" },
+  });
+}
+
 function physicalSample(
   sequence: number,
   timeMs = sequence * 20,
@@ -1491,7 +1570,7 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.7.30");
     try {
       await target.connect();
-      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v15"]);
+      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v16"]);
       expect(frames).toHaveLength(1);
 
       runFrame();
@@ -2099,6 +2178,141 @@ describe("physical target", () => {
           sensorError: null,
         }),
       });
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("prefers packed telemetry and decodes its fixed-width rows", async () => {
+    vi.useFakeTimers();
+    const requestedUrls: string[] = [];
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-packed",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+            "telemetry.compact-v1",
+            "telemetry.packed-v1",
+          ],
+        });
+      }
+      telemetryRequests += 1;
+      return packedTelemetryResponse(
+        telemetryRequests === 1
+          ? {
+              bootId: "boot-packed",
+              state: "running",
+              detail: "Running main.py",
+              runId: 1,
+              logs: [],
+              sampleShared: [[1, 2, 999], [10, 20, 30], 27, 6.2, null],
+            }
+          : {
+              s: 2,
+              r: 1,
+              m: 0,
+              sampleShared: [[1, 2, 999], [10, 20, 30], 27, 6.2, null],
+            },
+        [
+          [
+            telemetryRequests === 1 ? 140 : 160,
+            telemetryRequests === 1 ? 7 : 8,
+            true,
+            12.5,
+            -3,
+            0.2,
+            80,
+            null,
+            72,
+            88,
+            0.2,
+            0.25,
+            70,
+            85,
+            null,
+            22,
+            -62,
+            68,
+            null,
+            false,
+          ],
+        ],
+      );
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 20,
+      pollIntervalMs: 10_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(20);
+
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0&sampleEncoding=packed-v1&includeUpdates=1",
+      );
+      expect(requestedUrls).toContain(
+        "http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=7&runId=1&sampleEncoding=packed-v1&includeUpdates=0",
+      );
+      expect(
+        requestedUrls.some((url) => url.includes("sampleEncoding=row-v1")),
+      ).toBe(false);
+      expect(
+        events
+          .filter((event) => event.type === "console")
+          .map((event) => event.line),
+      ).toContain("Telemetry gap · 6 samples unavailable");
+      const telemetry = events.filter(
+        (event): event is Extract<TargetEvent, { type: "telemetry" }> =>
+          event.type === "telemetry",
+      );
+      expect(telemetry.map((event) => event.sample.seq)).toEqual([7, 8]);
+      const sample = telemetry.at(-1)?.sample;
+      expect(sample).toMatchObject({
+        tMs: 160,
+        seq: 8,
+        source: "physical",
+        poseAvailable: true,
+        xMm: 12.5,
+        yMm: -3,
+        requestedForwardSpeedMmS: 80,
+        requestedTurnRateRadS: null,
+        targetLeftWheelSpeedMmS: 72,
+        targetRightWheelSpeedMmS: 88,
+        leftWheelDistanceMm: null,
+        rightWheelDistanceMm: 22,
+        leftEncoderCount: -62,
+        rightEncoderCount: 68,
+        rangeMm: null,
+        buttonPressed: false,
+        accelerationMg: [1, 2, 999],
+        angularRateMdps: [10, 20, 30],
+        temperatureC: 27,
+        sensorError: null,
+      });
+      expect(sample?.batteryV).toBeCloseTo(6.2);
+      expect(sample?.headingRad).toBeCloseTo(0.2);
+      expect(sample?.leftEffort).toBeCloseTo(0.2);
+      expect(sample?.rightEffort).toBeCloseTo(0.25);
     } finally {
       target.disconnect();
       vi.useRealTimers();
