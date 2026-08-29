@@ -32,8 +32,8 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
         bootstrap_sources = INSTALLER.bootstrap_files()
 
         self.assertEqual(manifest["schemaVersion"], 2)
-        self.assertEqual(manifest["releaseId"], "2026.08-dev.41")
-        self.assertEqual(manifest["releaseSequence"], 41)
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.42")
+        self.assertEqual(manifest["releaseSequence"], 42)
         self.assertIn("lib/XRPLib/board.py", runtime_sources)
         self.assertIn("lib/phew/server.py", runtime_sources)
         self.assertEqual(
@@ -45,7 +45,7 @@ class BrowserCommissioningBundleTest(unittest.TestCase):
                 "protocolVersion": 1,
                 "protocolRevision": 2,
                 "bootstrapVersion": 1,
-                "minimumRobotReleaseSequence": 39,
+                "minimumRobotReleaseSequence": 42,
             },
         )
         self.assertEqual(

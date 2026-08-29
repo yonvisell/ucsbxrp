@@ -1,16 +1,23 @@
 /// <reference lib="webworker" />
 
-import { DirectPhysicalTargetClient } from "./physical-target";
+import {
+  DirectPhysicalTargetClient,
+  PHYSICAL_POLL_COORDINATOR_GENERATION,
+} from "./physical-target";
 import { PhysicalTargetCoordinator } from "./physical-target-coordinator";
 import type { PhysicalWorkerCommand } from "./physical-worker-protocol";
 
 declare const self: SharedWorkerGlobalScope;
+
+const pollOwnerId = `worker-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 const coordinator = new PhysicalTargetCoordinator(
   (endpoint, discoveryTimeoutMs, expectedRobotId) =>
     new DirectPhysicalTargetClient(endpoint, {
       discoveryTimeoutMs,
       expectedRobotId,
+      pollCoordinatorGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
+      pollOwnerId,
     }),
 );
 

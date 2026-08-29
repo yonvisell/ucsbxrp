@@ -8,6 +8,7 @@ import {
   DirectPhysicalTargetClient,
   localNetworkRequestInit,
   MINIMUM_ROBOT_RELEASE_SEQUENCE,
+  PHYSICAL_POLL_COORDINATOR_GENERATION,
   PhysicalTargetClient,
   normalizePhysicalEndpoint,
 } from "./physical-target";
@@ -342,6 +343,69 @@ describe("physical target", () => {
       robotId: "4c91fae8f1775aa4",
       hostname: "ucsb-xrp",
     });
+    target.disconnect();
+  });
+
+  it("identifies its poll coordinator and stops immediately when a newer owner is active", async () => {
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          protocolRevision: CURRENT_PROTOCOL_REVISION,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE,
+          courseApiRevision: CURRENT_COURSE_API_REVISION,
+          bootId: "boot-owner",
+          robotName: "ucsb-xrp",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response({
+        pollOwnership: {
+          accepted: false,
+          ownerGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION + 1,
+          leaseRemainingMs: 220,
+        },
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollCoordinatorGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
+      pollOwnerId: "worker-a",
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await vi.waitFor(() =>
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "status",
+          state: "error",
+          detail: expect.stringContaining("Another UCSBXRP page"),
+        }),
+      ),
+    );
+
+    expect(requestedUrls).toContain(
+      `http://192.168.7.30/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0&pollGeneration=${PHYSICAL_POLL_COORDINATOR_GENERATION}&pollOwner=worker-a`,
+    );
+    expect(
+      requestedUrls.filter((url) => url.includes("/api/v1/telemetry?")),
+    ).toHaveLength(1);
     target.disconnect();
   });
 

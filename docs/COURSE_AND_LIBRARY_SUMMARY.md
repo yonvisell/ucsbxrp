@@ -230,7 +230,7 @@ an optional fleet interface to the same exact release file set.
 ## Current implementation note
 
 No contradiction was found among the three active `v2_` documents. The current
-browser/device bundle is `2026.08-dev.41`. That release includes a pinned,
+browser/device bundle is `2026.08-dev.42`. That release includes a pinned,
 unmodified XRPLib and its `phew` dependency. It was installed on an erased
 RP2350 restored to official SparkFun/WPILib firmware, using an empty Working
 folder. Native Chrome then verified Pink, created the default and a second

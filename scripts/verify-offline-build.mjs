@@ -160,10 +160,17 @@ const virtualTargetWorker = assets.find(
     asset.path.startsWith("assets/virtual-target.shared-worker-") &&
     asset.path.endsWith(".js"),
 );
+const physicalTargetWorker = assets.find(
+  (asset) => asset.path === "assets/physical-target.shared-worker.js",
+);
 assert.ok(micropythonWorker, "offline shell is missing the MicroPython worker");
 assert.ok(
   virtualTargetWorker,
   "offline shell is missing the virtual target worker",
+);
+assert.ok(
+  physicalTargetWorker,
+  "offline shell must give the physical target worker a stable URL so open app releases share one XRP connection",
 );
 assert.ok(
   assets.some(

@@ -145,6 +145,16 @@ export default defineConfig({
   },
   worker: {
     format: "es",
+    rolldownOptions: {
+      output: {
+        entryFileNames: (chunk) =>
+          chunk.name === "physical-target.shared-worker"
+            ? // The worker name is versioned in physical-target.ts. Keep its URL
+              // stable so open IDEs from adjacent releases share one XRP poller.
+              "assets/physical-target.shared-worker.js"
+            : "assets/[name]-[hash].js",
+      },
+    },
   },
   server: {
     port: 5173,

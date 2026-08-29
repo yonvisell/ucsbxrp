@@ -38,7 +38,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.37"
+COURSE_RELEASE = "2026.08-dev.42"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -59,6 +59,9 @@ TELEMETRY_LOG_BATCH_LIMIT = 8
 # One response can drain nearly half of the 50 Hz course-loop ring. This keeps
 # local Wi-Fi request overhead from accumulating a backlog during short runs.
 TELEMETRY_SAMPLE_BATCH_LIMIT = 24
+IDLE_TELEMETRY_CADENCE_MS = 250
+TELEMETRY_POLL_OWNER_LEASE_MS = IDLE_TELEMETRY_CADENCE_MS * 3
+TELEMETRY_POLL_OWNER_MAX_CHARS = 64
 STOP_GRACE_MS = 2500
 PROJECT_WORKER_IDLE_MS = 5
 PROJECT_WORKER_START_TIMEOUT_MS = 500
@@ -88,6 +91,12 @@ _sample_seq = 0
 _sample_epoch_start_ms = 0
 _last_sample = None
 _last_hardware = None
+_idle_hardware = None
+_idle_hardware_ticks_ms = None
+_idle_sample = None
+_telemetry_poll_generation = None
+_telemetry_poll_owner = None
+_telemetry_poll_lease_deadline = None
 _active_ram_slot = None
 _active_ram_manifest = None
 _ram_project_volumes = {"a": None, "b": None}
@@ -236,6 +245,117 @@ def _extend_run_lease(duration_ms):
         or time.ticks_diff(candidate, _lease_deadline) > 0
     ):
         _lease_deadline = candidate
+
+
+def _clear_telemetry_poll_owner():
+    global _telemetry_poll_generation, _telemetry_poll_owner
+    global _telemetry_poll_lease_deadline
+    _telemetry_poll_generation = None
+    _telemetry_poll_owner = None
+    _telemetry_poll_lease_deadline = None
+
+
+def _telemetry_poll_identity(query):
+    """Return one valid generated-poller identity or the legacy identity."""
+    raw_generation = query.get("pollGeneration")
+    try:
+        generation = int(raw_generation)
+    except (TypeError, ValueError):
+        return None, None
+    if generation <= 0:
+        return None, None
+
+    owner = query.get("pollOwner")
+    if (
+        not isinstance(owner, str)
+        or not owner
+        or len(owner) > TELEMETRY_POLL_OWNER_MAX_CHARS
+    ):
+        return None, None
+    return generation, owner
+
+
+def _begin_telemetry_poll(query):
+    """Claim or verify the short lease protecting telemetry response work."""
+    global _telemetry_poll_generation, _telemetry_poll_owner
+    global _telemetry_poll_lease_deadline
+    generation, owner = _telemetry_poll_identity(query)
+    now = time.ticks_ms()
+    if (
+        _telemetry_poll_lease_deadline is not None
+        and time.ticks_diff(_telemetry_poll_lease_deadline, now) <= 0
+    ):
+        _clear_telemetry_poll_owner()
+
+    active = (
+        _telemetry_poll_generation is not None
+        and _telemetry_poll_lease_deadline is not None
+    )
+    accepted = not active
+    if active:
+        accepted = (
+            generation is not None
+            and (
+                generation > _telemetry_poll_generation
+                or (
+                    generation == _telemetry_poll_generation
+                    and owner == _telemetry_poll_owner
+                )
+            )
+        )
+
+    if not accepted:
+        remaining_ms = max(
+            0, time.ticks_diff(_telemetry_poll_lease_deadline, now)
+        )
+        return (
+            False,
+            generation,
+            owner,
+            {
+                "accepted": False,
+                "ownerGeneration": _telemetry_poll_generation,
+                "leaseRemainingMs": remaining_ms,
+            },
+        )
+
+    if generation is None:
+        return True, None, None, None
+
+    _telemetry_poll_generation = generation
+    _telemetry_poll_owner = owner
+    # Establish ownership during the synchronous handler. The deadline is
+    # renewed after response serialization so slow hardware work cannot consume
+    # the useful lease seen by the next request.
+    _telemetry_poll_lease_deadline = time.ticks_add(
+        now, TELEMETRY_POLL_OWNER_LEASE_MS
+    )
+    return (
+        True,
+        generation,
+        owner,
+        {"accepted": True, "ownerGeneration": generation},
+    )
+
+
+def _renew_telemetry_poll_owner(generation, owner):
+    global _telemetry_poll_lease_deadline
+    if (
+        generation is None
+        or generation != _telemetry_poll_generation
+        or owner != _telemetry_poll_owner
+    ):
+        return
+    _telemetry_poll_lease_deadline = time.ticks_add(
+        time.ticks_ms(), TELEMETRY_POLL_OWNER_LEASE_MS
+    )
+
+
+def _invalidate_idle_telemetry():
+    global _idle_hardware, _idle_hardware_ticks_ms, _idle_sample
+    _idle_hardware = None
+    _idle_hardware_ticks_ms = None
+    _idle_sample = None
 
 
 def _feed_watchdog_now():
@@ -857,6 +977,7 @@ def _clear_course_run_state(detail="Program state reset"):
     _sample_seq = 0
     _sample_epoch_start_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
     _last_sample = None
+    _invalidate_idle_telemetry()
     _stop_acknowledged_run_id = None
     _set_state("ready", detail)
 
@@ -1061,9 +1182,68 @@ def _course_sample(pose, hardware):
     )
 
 
-def _hardware_sample():
-    global _sample_seq, _last_sample
+def _idle_hardware_snapshot():
+    """Return one stationary peripheral read for the whole idle cadence."""
+    global _idle_hardware, _idle_hardware_ticks_ms, _idle_sample
     now = time.ticks_ms()
+    if _idle_hardware is not None and _idle_hardware_ticks_ms is not None:
+        age_ms = time.ticks_diff(now, _idle_hardware_ticks_ms)
+        if 0 <= age_ms < IDLE_TELEMETRY_CADENCE_MS:
+            return _idle_hardware, _idle_hardware_ticks_ms
+
+    hardware = _read_hardware()
+    sampled_at_ms = time.ticks_ms()
+    _idle_hardware = hardware
+    _idle_hardware_ticks_ms = sampled_at_ms
+    _idle_sample = None
+    return hardware, sampled_at_ms
+
+
+def _hardware_sample():
+    global _sample_seq, _last_sample, _idle_sample
+    if not _thread_active:
+        hardware, sampled_at_ms = _idle_hardware_snapshot()
+        if _idle_sample is not None:
+            return _idle_sample
+        try:
+            from ucsb_xrp._telemetry import state_snapshot
+
+            pose = state_snapshot()
+        except Exception:
+            pose = None
+
+        left_count = hardware["leftEncoderCount"]
+        right_count = hardware["rightEncoderCount"]
+        left_speed = 0.0
+        right_speed = 0.0
+        if _last_sample is not None:
+            dt_ms = time.ticks_diff(sampled_at_ms, _last_sample[0])
+            if dt_ms > 0:
+                millimeters_per_count = math.pi * 60.0 / 585.0
+                left_speed = (
+                    (left_count - _last_sample[1])
+                    * millimeters_per_count
+                    * 1000.0
+                    / dt_ms
+                )
+                right_speed = (
+                    (right_count - _last_sample[2])
+                    * millimeters_per_count
+                    * 1000.0
+                    / dt_ms
+                )
+        _last_sample = (sampled_at_ms, left_count, right_count)
+        _sample_seq += 1
+        _idle_sample = _sample_value(
+            pose,
+            hardware,
+            _sample_seq,
+            time.ticks_diff(sampled_at_ms, _boot_ms),
+            left_speed,
+            right_speed,
+        )
+        return _idle_sample
+
     try:
         from ucsb_xrp._telemetry import state_snapshot
 
@@ -1079,40 +1259,11 @@ def _hardware_sample():
 
     # XRPLib's I2C and encoder drivers are not safe for concurrent access from
     # both RP2350 cores. While a student program is active, use its published
-    # course state and the latest stationary peripheral sample. Direct device
-    # reads resume as soon as the program thread finishes.
-    if _thread_active:
-        hardware = mirrored_hardware or _last_hardware or _empty_hardware()
-        if pose is not None:
-            return _course_sample(pose, hardware)
-        return _sample_value(None, hardware, 0, 0, 0.0, 0.0)
-    else:
-        hardware = _read_hardware()
-
-    left_count = hardware["leftEncoderCount"]
-    right_count = hardware["rightEncoderCount"]
-    left_speed = 0.0
-    right_speed = 0.0
-    if not _thread_active and _last_sample is not None:
-        dt_ms = time.ticks_diff(now, _last_sample[0])
-        if dt_ms > 0:
-            millimeters_per_count = math.pi * 60.0 / 585.0
-            left_speed = (
-                (left_count - _last_sample[1]) * millimeters_per_count * 1000.0 / dt_ms
-            )
-            right_speed = (
-                (right_count - _last_sample[2]) * millimeters_per_count * 1000.0 / dt_ms
-            )
-    _last_sample = (now, left_count, right_count)
-    _sample_seq += 1
-    return _sample_value(
-        pose,
-        hardware,
-        _sample_seq,
-        time.ticks_diff(now, _boot_ms),
-        left_speed,
-        right_speed,
-    )
+    # course state and the latest stationary peripheral sample.
+    hardware = mirrored_hardware or _last_hardware or _empty_hardware()
+    if pose is not None:
+        return _course_sample(pose, hardware)
+    return _sample_value(None, hardware, 0, 0, 0.0, 0.0)
 
 
 def _buffered_course_samples(after_sample_seq, maximum=None):
@@ -1137,9 +1288,9 @@ def _buffered_course_samples(after_sample_seq, maximum=None):
     if not snapshots:
         return [], more
     hardware = (
-        (mirrored_hardware or _last_hardware or _empty_hardware())
+        mirrored_hardware or _last_hardware or _empty_hardware()
         if _thread_active
-        else _read_hardware()
+        else _idle_hardware_snapshot()[0]
     )
     return [_course_sample(snapshot, hardware) for snapshot in snapshots], more
 
@@ -1271,6 +1422,11 @@ def state(request):
 
 @server.route("/api/v1/telemetry")
 def telemetry(request):
+    accepted, poll_generation, poll_owner, poll_ownership = (
+        _begin_telemetry_poll(request.query)
+    )
+    if not accepted:
+        return _json_response({"pollOwnership": poll_ownership})
     try:
         after = int(request.query.get("afterLogSeq", "0"))
     except ValueError:
@@ -1323,10 +1479,15 @@ def telemetry(request):
         # the batch with a fresh stopped sample. A newly opened Monitor must
         # never present the last moving wheel speed as the current ready state.
         sample = _hardware_sample()
-        samples.append(sample)
+        if sample["seq"] > after_sample:
+            samples.append(sample)
     value["samples"] = samples
     value["sample"] = sample
-    return _json_response(value)
+    if poll_ownership is not None:
+        value["pollOwnership"] = poll_ownership
+    response = _json_response(value)
+    _renew_telemetry_poll_owner(poll_generation, poll_owner)
+    return response
 
 
 @server.route("/api/v1/check", methods=["POST"])
@@ -1438,6 +1599,7 @@ def run_project(request):
             _sample_seq = 0
             _sample_epoch_start_ms = time.ticks_diff(time.ticks_ms(), _boot_ms)
             _last_sample = None
+            _invalidate_idle_telemetry()
             gc.collect()
             _run_id += 1
             _stop_acknowledged_run_id = None

@@ -36,6 +36,11 @@ export const CURRENT_PROTOCOL_REVISION =
   courseRelease.service.protocol_revision;
 export const CURRENT_COURSE_API_REVISION = courseRelease.course_api_revision;
 export const CURRENT_SERVICE_VERSION = courseRelease.service.version;
+/**
+ * Device-side poll ownership generation. Change this only when a newly
+ * deployed SharedWorker must supersede workers retained from an older shell.
+ */
+export const PHYSICAL_POLL_COORDINATOR_GENERATION = 13;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -111,6 +116,17 @@ interface PhysicalState {
   samples?: TelemetrySample[];
   project?: PhysicalProjectManifest | null;
   runtimeJson?: string;
+  pollOwnership?: PhysicalPollOwnership;
+}
+
+interface PhysicalPollOwnership {
+  accepted: boolean;
+  ownerGeneration: number | null;
+  leaseRemainingMs?: number;
+}
+
+interface PhysicalPollOwnershipReply {
+  pollOwnership: PhysicalPollOwnership;
 }
 
 interface CommandReply<T> {
@@ -130,6 +146,10 @@ export interface PhysicalTargetOptions {
   discoveryTimeoutMs?: number;
   /** Stable hardware identity retained by commissioning. */
   expectedRobotId?: string;
+  /** Internal browser-poller admission identity; omitted by legacy clients. */
+  pollCoordinatorGeneration?: number;
+  /** One worker/page identity within a poll-coordinator generation. */
+  pollOwnerId?: string;
 }
 
 export class PhysicalTargetError extends Error {
@@ -294,6 +314,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly requestTimeoutMs: number;
   private readonly connectTimeoutMs: number;
   private readonly expectedRobotId?: string;
+  private readonly pollCoordinatorGeneration?: number;
+  private readonly pollOwnerId?: string;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollInFlight: Promise<void> | null = null;
@@ -335,6 +357,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.connectTimeoutMs = options.discoveryTimeoutMs ?? this.requestTimeoutMs;
     this.expectedRobotId = normalizedRobotId(options.expectedRobotId);
+    const pollGeneration = options.pollCoordinatorGeneration;
+    if (
+      Number.isSafeInteger(pollGeneration) &&
+      (pollGeneration as number) > 0
+    ) {
+      this.pollCoordinatorGeneration = pollGeneration;
+      const configuredOwner = options.pollOwnerId?.trim();
+      this.pollOwnerId = (configuredOwner || this.eventSession).slice(0, 64);
+    }
   }
 
   async connect(): Promise<void> {
@@ -1262,9 +1293,12 @@ export class DirectPhysicalTargetClient implements TargetClient {
     const controller = new AbortController();
     this.pollAbortController = controller;
     try {
-      const runQuery = this.lastRunId > 0 ? `&runId=${this.lastRunId}` : "";
-      const state = await this.getJson<PhysicalState>(
-        `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}${runQuery}`,
+      const state = await this.readTelemetry(
+        this.telemetryPath(
+          this.lastLogSeq,
+          this.lastSampleSeq,
+          this.lastRunId > 0 ? this.lastRunId : undefined,
+        ),
         this.requestTimeoutMs,
         controller,
       );
@@ -1299,6 +1333,19 @@ export class DirectPhysicalTargetClient implements TargetClient {
         !this.pollingPaused &&
         generation === this.pollGeneration
       ) {
+        if (
+          error instanceof PhysicalTargetError &&
+          error.code === "telemetry_owner_active"
+        ) {
+          this.pollConnectionFailed = true;
+          this.consecutivePollFailures = POLL_FAILURES_BEFORE_ERROR;
+          this.emitConsole("system", `Telemetry paused · ${error.message}`, {
+            action: "telemetry",
+            phase: "error",
+          });
+          this.emitStatus("error", error.message);
+          return;
+        }
         this.consecutivePollFailures += 1;
         if (!this.pollConnectionFailed) {
           this.pollConnectionFailed = true;
@@ -1326,6 +1373,42 @@ export class DirectPhysicalTargetClient implements TargetClient {
         this.pollAbortController = null;
       }
     }
+  }
+
+  private telemetryPath(
+    afterLogSeq: number,
+    afterSampleSeq: number,
+    runId?: number,
+  ): string {
+    let path = `/api/v1/telemetry?afterLogSeq=${afterLogSeq}&afterSampleSeq=${afterSampleSeq}`;
+    if (runId !== undefined) path += `&runId=${runId}`;
+    if (
+      this.pollCoordinatorGeneration !== undefined &&
+      this.pollOwnerId !== undefined
+    ) {
+      path += `&pollGeneration=${this.pollCoordinatorGeneration}`;
+      path += `&pollOwner=${encodeURIComponent(this.pollOwnerId)}`;
+    }
+    return path;
+  }
+
+  private async readTelemetry(
+    path: string,
+    timeoutMs: number,
+    controller?: AbortController,
+  ): Promise<PhysicalState> {
+    const value = await this.getJson<
+      PhysicalState | PhysicalPollOwnershipReply
+    >(path, timeoutMs, controller);
+    if (value.pollOwnership?.accepted === false) {
+      const owner = value.pollOwnership.ownerGeneration;
+      const lease = value.pollOwnership.leaseRemainingMs;
+      throw new PhysicalTargetError(
+        "telemetry_owner_active",
+        `Another UCSBXRP page is coordinating this robot${owner === null ? "" : ` (poll generation ${owner})`}. Close or reload older UCSBXRP pages, then select Reconnect${typeof lease === "number" ? `; takeover is available in at most ${lease} ms` : ""}.`,
+      );
+    }
+    return value as PhysicalState;
   }
 
   private consumeState(state: PhysicalState): void {
@@ -1548,8 +1631,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
     while (performance.now() < deadline && this.connected) {
       await new Promise((resolve) => setTimeout(resolve, 100));
       try {
-        const state = await this.getJson<PhysicalState>(
-          `/api/v1/telemetry?afterLogSeq=${this.lastLogSeq}&afterSampleSeq=${this.lastSampleSeq}`,
+        const state = await this.readTelemetry(
+          this.telemetryPath(this.lastLogSeq, this.lastSampleSeq),
           1_000,
         );
         this.consumeState(state);
@@ -1587,10 +1670,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     while (performance.now() < deadline && this.connected) {
       await new Promise((resolve) => setTimeout(resolve, 450));
       try {
-        const state = await this.getJson<PhysicalState>(
-          "/api/v1/telemetry?afterLogSeq=0&afterSampleSeq=0",
-          1_500,
-        );
+        const state = await this.readTelemetry(this.telemetryPath(0, 0), 1_500);
         this.pollConnectionFailed = false;
         this.consecutivePollFailures = 0;
         this.consumeState(state);
@@ -1773,6 +1853,7 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly candidateEndpoints: readonly string[];
   private readonly discoveryTimeoutMs: number;
   private readonly directMode: boolean;
+  private readonly directPollOwnerId = `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   private projectRunProvider: ProjectRunProvider | null = null;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
@@ -1804,7 +1885,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v12" },
+          { type: "module", name: "ucsb-xrp-physical-target-v13" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1974,18 +2055,35 @@ export class PhysicalTargetClient implements TargetClient {
 
   private useDirectClient(): DirectPhysicalTargetClient {
     if (!this.direct) {
-      this.direct = new DirectPhysicalTargetClient(this.endpoint, this.options);
+      this.direct = new DirectPhysicalTargetClient(
+        this.endpoint,
+        this.directTargetOptions(),
+      );
       this.direct.setProjectRunProvider(this.projectRunProvider);
       this.direct.subscribe((event) => this.emit(event));
     }
     return this.direct;
   }
 
+  private directTargetOptions(): PhysicalTargetOptions {
+    if (
+      this.options.fetch ||
+      this.options.pollCoordinatorGeneration !== undefined
+    ) {
+      return this.options;
+    }
+    return {
+      ...this.options,
+      pollCoordinatorGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
+      pollOwnerId: this.directPollOwnerId,
+    };
+  }
+
   private async connectDirectCandidate(): Promise<void> {
     let lastError: unknown = new Error("No XRP address is available");
     for (const endpoint of this.candidateEndpoints) {
       const candidate = new DirectPhysicalTargetClient(endpoint, {
-        ...this.options,
+        ...this.directTargetOptions(),
         discoveryTimeoutMs: this.discoveryTimeoutMs,
         candidateEndpoints: undefined,
       });

@@ -395,7 +395,15 @@ reboot; an in-flight telemetry timeout cannot replace the reconnecting status.
 The shared client requests active-run telemetry on the course's 20 ms sample
 cadence and returns to 250 ms when idle. Request duration counts toward the
 cadence, so a slower response reduces the request rate instead of accumulating
-work. The XRP buffers the 50 Hz course samples and retained output,
+work. The physical worker has a stable asset URL and an explicit coordinator
+generation. The XRP admits one `(generation, owner)` poller for a short lease:
+the same owner renews it, a higher generation immediately supersedes an older
+browser release, and stale or duplicate pollers receive a small response
+without reading hardware or draining rings. When stopped, all callers within
+one idle cadence reuse the exact same hardware sample and sequence. Thus an
+open page from an earlier release cannot multiply peripheral reads or delay a
+Run command, while a closed current poller yields ownership in less than one
+second. The XRP buffers the 50 Hz course samples and retained output,
 then returns them in small cursor-ordered pages. A client requests the next
 page immediately while a backlog remains and publishes a terminal state only
 after that backlog is drained. This bounds the single HTTP response that a

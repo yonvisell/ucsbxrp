@@ -279,6 +279,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._reply_order.clear()
         self.service._last_hardware = None
         self.service._last_sample = None
+        self.service._invalidate_idle_telemetry()
+        self.service._clear_telemetry_poll_owner()
         self.service._active_ram_slot = None
         self.service._active_ram_manifest = None
         self.service._ram_project_volumes = {"a": None, "b": None}
@@ -348,6 +350,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.service._stop_motors = lambda: None
             self.service._sample_seq = 41
             self.service._last_sample = (90, 1, 1)
+            self.service._idle_hardware = {"cached": True}
+            self.service._idle_hardware_ticks_ms = 90
+            self.service._idle_sample = {"seq": 42}
 
             response = self.service.run_project(
                 types.SimpleNamespace(data={"requestId": "runtime-test"})
@@ -358,6 +363,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.assertEqual(self.service._state, "loading")
             self.assertEqual(self.service._sample_seq, 0)
             self.assertIsNone(self.service._last_sample)
+            self.assertIsNone(self.service._idle_hardware)
+            self.assertIsNone(self.service._idle_hardware_ticks_ms)
+            self.assertIsNone(self.service._idle_sample)
             self.assertEqual(self.thread_calls, [])
             self.assertEqual(len(self.server.loop.tasks), 1)
 
@@ -982,6 +990,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
     def test_reset_clears_idle_course_state_without_rebooting(self):
         self.service._sample_seq = 42
         self.service._last_sample = (100, 2, 3)
+        self.service._idle_hardware = {"cached": True}
+        self.service._idle_hardware_ticks_ms = 100
+        self.service._idle_sample = {"seq": 43}
 
         response = self.service.reset(
             types.SimpleNamespace(data={"requestId": "reset-idle"})
@@ -995,6 +1006,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(self.service._state, "ready")
         self.assertEqual(self.service._sample_seq, 0)
         self.assertIsNone(self.service._last_sample)
+        self.assertIsNone(self.service._idle_hardware)
+        self.assertIsNone(self.service._idle_hardware_ticks_ms)
+        self.assertIsNone(self.service._idle_sample)
         self.assertEqual(self.reset_calls, [])
         self.assertEqual(self.server.loop.tasks, [])
 
@@ -1557,6 +1571,221 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             500 + self.service.LEASE_MS,
         )
 
+    def test_telemetry_poll_owner_rejects_legacy_and_peer_without_response_work(self):
+        self.service._thread_active = True
+        state_value = {"state": "running", "runId": 4, "logs": []}
+        sample = {"seq": 1}
+
+        with (
+            patch.object(
+                self.service, "_state_result", return_value=state_value
+            ) as state_result,
+            patch.object(
+                self.service,
+                "_buffered_course_samples",
+                return_value=([], False),
+            ) as buffered_samples,
+            patch.object(
+                self.service, "_hardware_sample", return_value=sample
+            ) as hardware_sample,
+            patch.object(
+                self.service.time,
+                "ticks_ms",
+                side_effect=(100, 400, 500, 600, 700),
+            ),
+        ):
+            accepted = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={
+                            "afterLogSeq": "0",
+                            "afterSampleSeq": "0",
+                            "pollGeneration": "12",
+                            "pollOwner": "owner-a",
+                        }
+                    )
+                ).body.decode("utf-8")
+            )
+            legacy = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    )
+                ).body.decode("utf-8")
+            )
+            peer = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={
+                            "afterLogSeq": "0",
+                            "afterSampleSeq": "0",
+                            "pollGeneration": "12",
+                            "pollOwner": "owner-b",
+                        }
+                    )
+                ).body.decode("utf-8")
+            )
+
+        self.assertEqual(
+            accepted["pollOwnership"],
+            {"accepted": True, "ownerGeneration": 12},
+        )
+        self.assertNotIn("leaseRemainingMs", accepted["pollOwnership"])
+        self.assertEqual(
+            legacy,
+            {
+                "pollOwnership": {
+                    "accepted": False,
+                    "ownerGeneration": 12,
+                    "leaseRemainingMs": 650,
+                }
+            },
+        )
+        self.assertEqual(
+            peer,
+            {
+                "pollOwnership": {
+                    "accepted": False,
+                    "ownerGeneration": 12,
+                    "leaseRemainingMs": 550,
+                }
+            },
+        )
+        state_result.assert_called_once()
+        buffered_samples.assert_called_once()
+        hardware_sample.assert_called_once()
+
+    def test_telemetry_poll_identity_requires_one_valid_bounded_pair(self):
+        self.assertEqual(
+            self.service._telemetry_poll_identity(
+                {
+                    "pollGeneration": "13",
+                    "pollOwner": "x" * self.service.TELEMETRY_POLL_OWNER_MAX_CHARS,
+                }
+            ),
+            (13, "x" * self.service.TELEMETRY_POLL_OWNER_MAX_CHARS),
+        )
+        self.assertEqual(
+            self.service._telemetry_poll_identity(
+                {
+                    "pollGeneration": "13",
+                    "pollOwner": "x"
+                    * (self.service.TELEMETRY_POLL_OWNER_MAX_CHARS + 1),
+                }
+            ),
+            (None, None),
+        )
+        self.assertEqual(
+            self.service._telemetry_poll_identity(
+                {"pollGeneration": "13", "pollOwner": ""}
+            ),
+            (None, None),
+        )
+        self.assertEqual(
+            self.service._telemetry_poll_identity(
+                {"pollGeneration": "0", "pollOwner": "owner-a"}
+            ),
+            (None, None),
+        )
+
+    def test_telemetry_poll_owner_takeover_renewal_and_expiry_are_monotonic(self):
+        self.service._thread_active = True
+        state_value = {"state": "running", "runId": 4, "logs": []}
+        with (
+            patch.object(
+                self.service,
+                "_state_result",
+                side_effect=lambda *_args: dict(state_value),
+            ),
+            patch.object(
+                self.service,
+                "_buffered_course_samples",
+                return_value=([], False),
+            ),
+            patch.object(self.service, "_hardware_sample", return_value={"seq": 1}),
+            patch.object(
+                self.service.time,
+                "ticks_ms",
+                side_effect=(
+                    100,
+                    110,
+                    120,
+                    200,
+                    250,
+                    650,
+                    700,
+                    800,
+                    850,
+                    900,
+                    1650,
+                    1660,
+                ),
+            ),
+        ):
+            self.service.telemetry(
+                types.SimpleNamespace(
+                    query={
+                        "pollGeneration": "12",
+                        "pollOwner": "owner-a",
+                    }
+                )
+            )
+            takeover = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={
+                            "pollGeneration": "13",
+                            "pollOwner": "owner-b",
+                        }
+                    )
+                ).body.decode("utf-8")
+            )
+            older = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={
+                            "pollGeneration": "12",
+                            "pollOwner": "owner-a",
+                        }
+                    )
+                ).body.decode("utf-8")
+            )
+            renewed = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={
+                            "pollGeneration": "13",
+                            "pollOwner": "owner-b",
+                        }
+                    )
+                ).body.decode("utf-8")
+            )
+            legacy_after_expiry = json.loads(
+                self.service.telemetry(types.SimpleNamespace(query={})).body.decode(
+                    "utf-8"
+                )
+            )
+
+        self.assertEqual(takeover["pollOwnership"]["ownerGeneration"], 13)
+        self.assertEqual(
+            older,
+            {
+                "pollOwnership": {
+                    "accepted": False,
+                    "ownerGeneration": 13,
+                    "leaseRemainingMs": 700,
+                }
+            },
+        )
+        self.assertEqual(
+            renewed["pollOwnership"],
+            {"accepted": True, "ownerGeneration": 13},
+        )
+        self.assertNotIn("pollOwnership", legacy_after_expiry)
+        self.assertIsNone(self.service._telemetry_poll_generation)
+        self.assertIsNone(self.service._telemetry_poll_owner)
+        self.assertIsNone(self.service._telemetry_poll_lease_deadline)
+
     def test_idle_telemetry_adds_one_fresh_sample_to_the_batch(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
         hardware = {
@@ -1591,6 +1820,85 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["samples"][0]["seq"], 1)
         self.assertEqual(result["sample"], result["samples"][0])
         self.assertEqual(result["sample"]["rangeMm"], 300.0)
+
+    def test_idle_telemetry_coalesces_one_global_sample_for_one_cadence(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        first_hardware = {
+            "leftEncoderCount": 10,
+            "rightEncoderCount": 12,
+            "rangeMm": 300.0,
+            "buttonPressed": False,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": 25.0,
+            "batteryV": 6.1,
+            "sensorError": None,
+        }
+        second_hardware = {
+            **first_hardware,
+            "leftEncoderCount": 20,
+            "rightEncoderCount": 22,
+            "rangeMm": 250.0,
+        }
+        with (
+            patch.object(
+                course_telemetry,
+                "buffered_state_snapshots",
+                return_value=(),
+                create=True,
+            ),
+            patch.object(
+                course_telemetry, "state_snapshot", return_value=None, create=True
+            ) as state_snapshot,
+            patch.object(
+                self.service,
+                "_read_hardware",
+                side_effect=(first_hardware, second_hardware),
+            ) as read_hardware,
+            patch.object(
+                self.service.time,
+                "ticks_ms",
+                side_effect=(200, 200, 210, 300, 300, 320, 320, 460, 460, 470),
+            ),
+        ):
+            first = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    )
+                ).body.decode("utf-8")
+            )
+            concurrent = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    )
+                ).body.decode("utf-8")
+            )
+            current_cursor = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "0", "afterSampleSeq": "1"}
+                    )
+                ).body.decode("utf-8")
+            )
+            after_expiry = json.loads(
+                self.service.telemetry(
+                    types.SimpleNamespace(
+                        query={"afterLogSeq": "0", "afterSampleSeq": "1"}
+                    )
+                ).body.decode("utf-8")
+            )
+
+        self.assertEqual(first["samples"], concurrent["samples"])
+        self.assertEqual(first["sample"], concurrent["sample"])
+        self.assertEqual(first["sample"]["seq"], 1)
+        self.assertEqual(current_cursor["samples"], [])
+        self.assertEqual(current_cursor["sample"], first["sample"])
+        self.assertEqual(after_expiry["samples"][0]["seq"], 2)
+        self.assertEqual(after_expiry["sample"]["rangeMm"], 250.0)
+        self.assertEqual(read_hardware.call_count, 2)
+        self.assertEqual(state_snapshot.call_count, 2)
 
     def test_ready_telemetry_drains_retained_samples_before_the_stopped_sample(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
