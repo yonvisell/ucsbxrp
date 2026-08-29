@@ -56,6 +56,11 @@ export interface CheckResult {
   detail: string;
   /** Additive for compatibility with targets that return only `detail`. */
   diagnostics?: PythonDiagnostic[];
+  /**
+   * Exact, ordered compiler text for a dedicated transcript. Unlike a
+   * diagnostic summary, these lines are not rewritten for presentation.
+   */
+  compilerOutput?: string[];
   output?: string[];
 }
 

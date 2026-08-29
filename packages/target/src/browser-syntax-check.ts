@@ -67,6 +67,7 @@ export function startCourseProjectSyntaxCheck(
       result: Promise.resolve({
         ok: false,
         detail: portabilityError.message,
+        compilerOutput: [portabilityError.message],
         diagnostics: [
           {
             source: "project",
@@ -142,6 +143,7 @@ export function startCourseProjectSyntaxCheck(
         resolveOnce({
           ok: true,
           detail: message.detail,
+          compilerOutput: [...output, message.detail],
           ...(diagnostics.length > 0 ? { diagnostics } : {}),
           ...(output.length > 0 ? { output } : {}),
         });
@@ -152,6 +154,7 @@ export function startCourseProjectSyntaxCheck(
         resolveOnce({
           ok: false,
           detail: message.detail,
+          compilerOutput: [...output, message.detail],
           ...(diagnostics.length > 0 ? { diagnostics } : {}),
           ...(output.length > 0 ? { output } : {}),
         });

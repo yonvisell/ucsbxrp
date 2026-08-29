@@ -86,6 +86,7 @@ describe("standalone browser syntax checking", () => {
     await expect(checkCourseProjectSyntax(project)).resolves.toEqual({
       ok: false,
       detail: "SyntaxError: invalid syntax",
+      compilerOutput: ["compiler raw", "SyntaxError: invalid syntax"],
       diagnostics: [diagnostic],
       output: ["compiler raw"],
     });
@@ -153,6 +154,7 @@ describe("standalone browser syntax checking", () => {
     await expect(checkCourseProjectSyntax(project)).resolves.toEqual({
       ok: true,
       detail: "1 Python file compiled with MicroPython 1.28.0",
+      compilerOutput: ["1 Python file compiled with MicroPython 1.28.0"],
     });
   });
 
@@ -179,6 +181,9 @@ describe("standalone browser syntax checking", () => {
     ).resolves.toEqual({
       ok: false,
       detail: "This project has no files. Add a Python file, then try again.",
+      compilerOutput: [
+        "This project has no files. Add a Python file, then try again.",
+      ],
       diagnostics: [
         {
           source: "project",

@@ -80,9 +80,12 @@ const ignoredDirectories = new Set([
   ".git",
   ".idea",
   ".vscode",
-  autosaveDirectoryName,
   "dist",
   "node_modules",
+]);
+const generatedProjectDirectories = new Set([
+  autosaveDirectoryName.toLowerCase(),
+  "exports",
 ]);
 const maximumFiles = 250;
 const maximumFileBytes = 1024 * 1024;
@@ -336,6 +339,9 @@ export function projectPathError(path: string): string | null {
     )
   ) {
     return "That name is reserved for UCSBXRP project settings.";
+  }
+  if (generatedProjectDirectories.has(parts[0]!.toLowerCase())) {
+    return "That top-level folder is reserved for UCSBXRP run data and exports.";
   }
   return null;
 }
@@ -665,7 +671,7 @@ export async function readProjectFolder(
   ): Promise<void> => {
     for await (const [name, handle] of directory.entries()) {
       if (handle.kind === "directory") {
-        if (name === autosaveDirectoryName) {
+        if (generatedProjectDirectories.has(name.toLowerCase())) {
           continue;
         }
         if (name.startsWith(".") || ignoredDirectories.has(name)) {
@@ -985,7 +991,7 @@ export class ProjectFolderConflictError extends Error {
     readonly folderDigest: string,
   ) {
     super(
-      "Files in this project folder changed outside UCSBXRP. Automatic saving paused so neither version is overwritten.",
+      "Files on disk no longer match the version this browser tab edited. Automatic saving paused until you choose which version to keep.",
     );
   }
 }

@@ -69,6 +69,13 @@ interface AutomaticWriteSlot {
   pending: PendingAutomaticWrite | null;
 }
 
+interface CommittedWrite {
+  writeEpoch: number;
+  projectId: string;
+  revision: number;
+  contentDigest: string;
+}
+
 /**
  * Serializes writes to the active Project folder and keeps the saved revision
  * and pending deletions consistent with the exact snapshot written to disk.
@@ -77,6 +84,13 @@ interface AutomaticWriteSlot {
 export class ProjectFolderPersistenceController {
   private writeQueue: Promise<void> = Promise.resolve();
   private writeEpoch = 0;
+  /**
+   * The filesystem commit that this controller itself completed most recently.
+   * React may not have published that acknowledgement before the next queued
+   * edit begins. Carrying the digest inside the serialized writer prevents a
+   * later UCSBXRP edit from being mistaken for an external folder change.
+   */
+  private readonly committedWrites = new WeakMap<object, CommittedWrite>();
   private pendingDeletions = new Set<string>();
   private pendingAutomaticWriteSlot: AutomaticWriteSlot | null = null;
   private conflictHandler: (conflict: ProjectFolderConflictError) => void =
@@ -309,16 +323,30 @@ export class ProjectFolderPersistenceController {
           "NotAllowedError",
         );
       }
+      const committed = this.committedWrites.get(request.folder);
+      const serializedBaseDigest =
+        committed &&
+        committed.writeEpoch === request.writeEpoch &&
+        committed.projectId === request.session.projectId &&
+        committed.revision <= request.session.revision
+          ? committed.contentDigest
+          : undefined;
+      const expectedBaseDigest =
+        request.expectedBaseDigest ?? serializedBaseDigest;
       const result = await this.save(
         request.folder,
         savedProject,
         deletedPaths,
         {
-          ...(request.expectedBaseDigest
-            ? { expectedBaseDigest: request.expectedBaseDigest }
-            : {}),
+          ...(expectedBaseDigest ? { expectedBaseDigest } : {}),
         },
       );
+      this.committedWrites.set(request.folder, {
+        writeEpoch: request.writeEpoch,
+        projectId: request.session.projectId,
+        revision: request.session.revision,
+        contentDigest: result.contentDigest,
+      });
       return this.finishWrite(request, deletedPaths, result);
     } catch (error) {
       if (error instanceof ProjectFolderConflictError) {

@@ -54,6 +54,14 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
 }) => {
   const folderName = "IDE-Editing";
   const projectFolderName = "Editor-Regression";
+  const invalidSource = [
+    "from ucsb_xrp import live",
+    "FORWARD_SPEED = live.number(",
+    '    "Forward speed",',
+    "    minimum=60.0",
+    "    maximum=130.0,",
+    ")",
+  ].join("\n");
   await seedWorkingFolder(page, {
     folderName,
     projectFolderName,
@@ -61,7 +69,7 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
       name: "Editor regression",
       entrypoint: "main.py",
       files: {
-        "main.py": 'print("Original program output")\n',
+        "main.py": invalidSource,
         "README.md": "# Editor regression\n",
       },
     },
@@ -73,27 +81,27 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
     "true",
   );
 
-  const invalidSource = "def broken:";
-  await replaceVisibleEditorSource(
-    page,
-    invalidSource,
-    folderName,
-    projectFolderName,
-  );
   await page.getByRole("button", { name: "Run", exact: true }).click();
 
   await expect(
     page.getByRole("tab", { name: /Problems \(1\)/ }),
   ).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel")).toContainText("main.py:1:1");
-  await expect(page.getByRole("tabpanel")).toContainText(/syntax/i);
+  const problems = page.getByRole("tabpanel");
+  await expect(problems).toContainText("main.py · line 5");
+  await expect(problems).toContainText(
+    "Likely fix: add a comma at the end of line 4.",
+  );
+  await expect(problems).not.toContainText(/invalid syntax|SyntaxError/);
   await expect(page.locator(".squiggly-error")).toHaveCount(1);
-  await page.getByText("Raw compiler output").click();
+  await expect(page.locator(".python-error-line")).toHaveCount(1);
+  await expect(page.locator(".python-likely-fix-line")).toHaveCount(1);
+  await page.getByRole("tab", { name: "Compiler output" }).click();
   await expect(page.getByRole("tabpanel")).toContainText("main.py");
+  await expect(page.getByRole("tabpanel")).toContainText("line 5");
+  await expect(page.getByRole("tabpanel")).toContainText("SyntaxError");
   await page.getByRole("tab", { name: "Status" }).click();
-  await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
   await expect(page.getByTestId("check-result")).toContainText(
-    /syntax|line\s*1/i,
+    "1 problem found",
   );
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",

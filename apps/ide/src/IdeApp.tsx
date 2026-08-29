@@ -26,6 +26,7 @@ import {
   type TargetRunState,
   type SynchronizedProject,
   type CourseProjectKind,
+  type CheckResult,
   type PythonDiagnostic,
 } from "@ucsb-xrp/target";
 
@@ -102,6 +103,7 @@ import {
   type ProjectSession,
 } from "./project-session";
 import { ProjectFolderPersistenceController } from "./project-folder-persistence";
+import { presentPythonDiagnostic } from "./python-diagnostic-presentation";
 import {
   ideReloadIsIdle,
   projectRevisionIdentity,
@@ -121,7 +123,14 @@ interface ConsoleEntry {
   timestampMs?: number;
 }
 
-type ConsoleTab = "status" | "problems" | "output" | "details";
+type ConsoleTab = "status" | "problems" | "compiler" | "output" | "details";
+
+interface CompilerTranscript {
+  projectId: string;
+  revision: number;
+  ok: boolean;
+  lines: string[];
+}
 
 interface IdeSettings {
   editorFontSize: number;
@@ -155,12 +164,6 @@ function formatConsoleTime(timestampMs: number | undefined): string {
     second: "2-digit",
     hour12: false,
   });
-}
-
-function diagnosticLocation(diagnostic: PythonDiagnostic): string {
-  if (!diagnostic.path) return "Project";
-  if (!diagnostic.start) return diagnostic.path;
-  return `${diagnostic.path}:${diagnostic.start.line}:${diagnostic.start.column}`;
 }
 
 function consoleSourceLocation(
@@ -498,6 +501,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const [pythonDiagnostics, setPythonDiagnostics] = useState<
     PythonDiagnostic[]
   >([]);
+  const [compilerTranscript, setCompilerTranscript] =
+    useState<CompilerTranscript | null>(null);
   const [projectCommandActive, setProjectCommandActive] = useState(false);
   const [syncDetail, setSyncDetail] = useState(
     "Run will load the current project into XRP memory.",
@@ -591,6 +596,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const compileDecorationIdsRef = useRef<string[]>([]);
   const pendingEditorLocationRef = useRef<{
     path: string;
     line: number;
@@ -827,7 +833,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setFolderDirty(true);
     setFolderSaveState("error");
     setOperationDetail(
-      "The project folder changed outside UCSBXRP. Choose which version to keep; neither version has been overwritten.",
+      "Files on disk no longer match this browser tab. Automatic saving paused; choose which version to keep.",
     );
   }, [projectFolderConflict]);
 
@@ -994,7 +1000,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       setFolderDirty(true);
       setFolderSaveState("error");
       setOperationDetail(
-        "The project folder changed outside UCSBXRP. Choose which version to keep; neither version has been overwritten.",
+        "Files on disk no longer match this browser tab. Automatic saving paused; choose which version to keep.",
       );
     },
     [preserveBrowserDraft],
@@ -1494,6 +1500,17 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     [project.files],
   );
   const projectPathSet = useMemo(() => new Set(projectFiles), [projectFiles]);
+  const presentedPythonDiagnostics = useMemo(
+    () =>
+      pythonDiagnostics.map((diagnostic) => ({
+        diagnostic,
+        presentation: presentPythonDiagnostic(diagnostic, project.files),
+      })),
+    [project.files, pythonDiagnostics],
+  );
+  const compilerTranscriptIsCurrent =
+    compilerTranscript?.projectId === projectSession.projectId &&
+    compilerTranscript.revision === projectSession.revision;
   const followingChallenge = useMemo(
     () =>
       project.templateId ? nextChallengeTemplate(project.templateId) : null,
@@ -1503,7 +1520,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     () => consoleEntries.filter((entry) => entry.category === "program"),
     [consoleEntries],
   );
-  const serviceDetails = useMemo(() => consoleEntries, [consoleEntries]);
+  const serviceDetails = useMemo(
+    () => consoleEntries.filter((entry) => entry.category === "service"),
+    [consoleEntries],
+  );
   const canDeleteActiveFile =
     projectFiles.length > 1 && activePath !== project.entrypoint;
 
@@ -1539,43 +1559,35 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     return () => setCoursePythonProjectContext(null);
   }, [openEditorLocation, project.files, projectSession.projectId]);
 
-  const mountEditor = useCallback<OnMount>((editor, monaco) => {
-    editorRef.current = editor;
-    monacoRef.current = monaco;
-    const location = pendingEditorLocationRef.current;
-    if (!location) return;
-    pendingEditorLocationRef.current = null;
-    editor.setPosition({
-      lineNumber: location.line,
-      column: location.column,
-    });
-    editor.revealLineInCenter(location.line);
-    editor.focus();
-  }, []);
-
-  useEffect(() => {
-    const editor = editorRef.current;
-    const monaco = monacoRef.current;
-    const model = editor?.getModel();
-    if (!editor || !monaco || !model) return;
-    if (!activePath.endsWith(".py")) {
-      monaco.editor.setModelMarkers(model, "ucsb-xrp-compile", []);
-      return;
-    }
-    const markers = pythonDiagnostics
-      .filter(
-        (diagnostic) =>
+  const applyCompilerDiagnosticsToEditor = useCallback(
+    (editor: Parameters<OnMount>[0], monaco: Parameters<OnMount>[1]) => {
+      const model = editor?.getModel();
+      if (!editor || !monaco || !model) return;
+      if (!activePath.endsWith(".py") || !compilerTranscriptIsCurrent) {
+        monaco.editor.setModelMarkers(model, "ucsb-xrp-compile", []);
+        compileDecorationIdsRef.current = editor.deltaDecorations(
+          compileDecorationIdsRef.current,
+          [],
+        );
+        return;
+      }
+      const activeDiagnostics = presentedPythonDiagnostics.filter(
+        ({ diagnostic }) =>
           diagnostic.phase === "compile" && diagnostic.path === activePath,
-      )
-      .map((diagnostic) => {
-        const start = model.validatePosition({
+      );
+      const markers = activeDiagnostics.map(({ diagnostic, presentation }) => {
+        const boundedLine = model.validatePosition({
           lineNumber: diagnostic.start?.line ?? 1,
-          column: diagnostic.start?.column ?? 1,
+          column: 1,
+        }).lineNumber;
+        const start = model.validatePosition({
+          lineNumber: boundedLine,
+          column:
+            diagnostic.start && diagnostic.start.column > 1
+              ? diagnostic.start.column
+              : (model.getLineFirstNonWhitespaceColumn(boundedLine) ?? 1),
         });
-        const requestedEnd = model.validatePosition({
-          lineNumber: diagnostic.end?.line ?? start.lineNumber,
-          column: diagnostic.end?.column ?? start.column + 1,
-        });
+        const lineEnd = model.getLineMaxColumn(start.lineNumber);
         return {
           severity:
             diagnostic.severity === "warning"
@@ -1583,22 +1595,95 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               : diagnostic.severity === "info"
                 ? monaco.MarkerSeverity.Info
                 : monaco.MarkerSeverity.Error,
-          message: diagnostic.message,
+          message: `${presentation.title}\n${presentation.suggestion}`,
           source: "MicroPython",
-          code: diagnostic.code,
           startLineNumber: start.lineNumber,
           startColumn: start.column,
-          endLineNumber: requestedEnd.lineNumber,
-          endColumn: Math.max(
-            requestedEnd.column,
-            requestedEnd.lineNumber === start.lineNumber
-              ? start.column + 1
-              : requestedEnd.column,
-          ),
+          endLineNumber: start.lineNumber,
+          endColumn: Math.max(start.column + 1, lineEnd),
         };
       });
-    monaco.editor.setModelMarkers(model, "ucsb-xrp-compile", markers);
-  }, [activePath, pythonDiagnostics]);
+      monaco.editor.setModelMarkers(model, "ucsb-xrp-compile", markers);
+
+      const reportedLines = new Set(
+        activeDiagnostics.map(
+          ({ diagnostic }) =>
+            model.validatePosition({
+              lineNumber: diagnostic.start?.line ?? 1,
+              column: 1,
+            }).lineNumber,
+        ),
+      );
+      const suggestedLines = new Set(
+        activeDiagnostics
+          .map(({ presentation }) => presentation.focusLine)
+          .filter(
+            (line): line is number =>
+              line !== undefined &&
+              !reportedLines.has(
+                model.validatePosition({ lineNumber: line, column: 1 })
+                  .lineNumber,
+              ),
+          )
+          .map(
+            (line) =>
+              model.validatePosition({ lineNumber: line, column: 1 })
+                .lineNumber,
+          ),
+      );
+      compileDecorationIdsRef.current = editor.deltaDecorations(
+        compileDecorationIdsRef.current,
+        [
+          ...[...reportedLines].map((line) => ({
+            range: new monaco.Range(line, 1, line, 1),
+            options: {
+              isWholeLine: true,
+              className: "python-error-line",
+              linesDecorationsClassName: "python-error-line-gutter",
+              overviewRuler: {
+                color: "#c43424",
+                position: monaco.editor.OverviewRulerLane.Right,
+              },
+            },
+          })),
+          ...[...suggestedLines].map((line) => ({
+            range: new monaco.Range(line, 1, line, 1),
+            options: {
+              isWholeLine: true,
+              className: "python-likely-fix-line",
+              linesDecorationsClassName: "python-likely-fix-line-gutter",
+            },
+          })),
+        ],
+      );
+    },
+    [activePath, compilerTranscriptIsCurrent, presentedPythonDiagnostics],
+  );
+
+  const mountEditor = useCallback<OnMount>(
+    (editor, monaco) => {
+      editorRef.current = editor;
+      monacoRef.current = monaco;
+      applyCompilerDiagnosticsToEditor(editor, monaco);
+      const location = pendingEditorLocationRef.current;
+      if (!location) return;
+      pendingEditorLocationRef.current = null;
+      editor.setPosition({
+        lineNumber: location.line,
+        column: location.column,
+      });
+      editor.revealLineInCenter(location.line);
+      editor.focus();
+    },
+    [applyCompilerDiagnosticsToEditor],
+  );
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    applyCompilerDiagnosticsToEditor(editor, monaco);
+  }, [applyCompilerDiagnosticsToEditor]);
 
   useEffect(() => {
     setMarkdownPreviewOpen(activePath.endsWith(".md"));
@@ -1719,6 +1804,97 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     [activePath, applyProjectChange, workingFolder],
   );
 
+  const applyCompilationResult = useCallback(
+    (
+      result: CheckResult,
+      checkedProject: ProjectSnapshot,
+      checkedIdentity: { projectId: string; revision: number },
+      requestedBy: "Compile" | "Run",
+      systemLogRecordedByTarget = false,
+    ) => {
+      const diagnostics = result.diagnostics ?? [];
+      const presentations = diagnostics.map((diagnostic) => ({
+        diagnostic,
+        presentation: presentPythonDiagnostic(diagnostic, checkedProject.files),
+      }));
+      const first = presentations[0];
+      const problemCount = diagnostics.length;
+      const compilerLines =
+        result.compilerOutput && result.compilerOutput.length > 0
+          ? result.compilerOutput
+          : [result.detail];
+
+      setPythonDiagnostics(diagnostics);
+      setCompilerTranscript({
+        projectId: checkedIdentity.projectId,
+        revision: checkedIdentity.revision,
+        ok: result.ok,
+        lines: compilerLines,
+      });
+      setCheckOk(result.ok);
+      setCheckDetail(
+        result.ok
+          ? "Current files compiled successfully."
+          : problemCount > 0
+            ? `${problemCount} problem${problemCount === 1 ? "" : "s"} found. Open Problems for a guided fix; Compiler output contains the exact MicroPython text.`
+            : "Compile could not finish. Compiler output contains the complete error.",
+      );
+
+      diagnosticLog.record({
+        event: result.ok ? "project.compile-passed" : "project.compile-failed",
+        message: JSON.stringify({
+          requestedBy,
+          detail: result.detail,
+          compilerOutput: compilerLines,
+          diagnostics: presentations.map(({ diagnostic, presentation }) => ({
+            code: diagnostic.code ?? null,
+            message: diagnostic.message,
+            path: diagnostic.path ?? null,
+            line: diagnostic.start?.line ?? null,
+            column:
+              diagnostic.start && diagnostic.start.column > 1
+                ? diagnostic.start.column
+                : null,
+            suggestion: presentation.suggestion,
+            focusLine: presentation.focusLine ?? null,
+          })),
+        }),
+        level: result.ok ? "info" : "error",
+        terminal: true,
+      });
+
+      if (!systemLogRecordedByTarget) {
+        const line = result.ok
+          ? `${requestedBy} passed · ${result.detail}`
+          : problemCount > 0
+            ? `${requestedBy} found ${problemCount} source problem${problemCount === 1 ? "" : "s"} · open Problems for guidance or Compiler output for exact text`
+            : `${requestedBy} could not finish · open Compiler output for the complete error`;
+        setConsoleEntries((entries) => [
+          ...entries.slice(-(maximumSessionLogEntries - 1)),
+          {
+            id: `ide-local-${nextConsoleId.current++}`,
+            category: "service",
+            stream: result.ok ? "system" : "stderr",
+            line,
+            timestampMs: Date.now(),
+          },
+        ]);
+      }
+
+      if (!result.ok) {
+        setConsoleTab(first ? "problems" : "compiler");
+        if (first?.diagnostic.path && first.diagnostic.start) {
+          openEditorLocation({
+            path: first.diagnostic.path,
+            line: first.presentation.focusLine ?? first.diagnostic.start.line,
+            column: 1,
+          });
+        }
+      }
+    },
+    [diagnosticLog, openEditorLocation],
+  );
+
   const validateCode = useCallback(async () => {
     if (isRunning || !beginProjectCommand()) {
       return;
@@ -1732,13 +1908,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       projectId: projectSessionRef.current.projectId,
       revision: projectSessionRef.current.revision,
     };
+    const checkedProject = projectRef.current;
     try {
-      const checkedProject = projectRef.current;
       const [browserResult, contentDigest] = await Promise.all([
         checkCourseProjectSyntax(checkedProject),
         projectContentDigest(checkedProject),
       ]);
       let result = browserResult;
+      let systemLogRecordedByTarget = false;
       if (
         browserResult.ok &&
         target.kind === "physical" &&
@@ -1746,10 +1923,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         projectProviderActiveRef.current
       ) {
         const deviceResult = await target.check(checkedProject);
+        systemLogRecordedByTarget = true;
         result = {
           ...deviceResult,
           diagnostics:
             deviceResult.diagnostics ?? browserResult.diagnostics ?? [],
+          compilerOutput: [
+            ...(browserResult.compilerOutput ?? [browserResult.detail]),
+            ...(deviceResult.compilerOutput ?? [deviceResult.detail]),
+          ],
         };
       } else if (browserResult.ok && target.kind === "physical") {
         result = {
@@ -1767,40 +1949,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         );
         return;
       }
-      const diagnostics = result.diagnostics ?? [];
-      const firstDiagnostic = diagnostics[0];
-      setPythonDiagnostics(diagnostics);
-      setCheckOk(result.ok);
-      setCheckDetail(
-        result.ok || !firstDiagnostic
-          ? result.detail
-          : `First compiler error · ${diagnosticLocation(firstDiagnostic)} · ${firstDiagnostic.message}`,
+      applyCompilationResult(
+        result,
+        checkedProject,
+        checkedIdentity,
+        "Compile",
+        systemLogRecordedByTarget,
       );
-      diagnosticLog.record({
-        event: result.ok ? "project.compile-passed" : "project.compile-failed",
-        message: JSON.stringify({
-          detail: result.detail,
-          diagnostics: diagnostics.map((diagnostic) => ({
-            code: diagnostic.code ?? null,
-            message: diagnostic.message,
-            path: diagnostic.path ?? null,
-            line: diagnostic.start?.line ?? null,
-            column: diagnostic.start?.column ?? null,
-          })),
-        }),
-        level: result.ok ? "info" : "error",
-        terminal: true,
-      });
-      setConsoleEntries((entries) => [
-        ...entries.slice(-(maximumSessionLogEntries - 1)),
-        {
-          id: `ide-local-${nextConsoleId.current++}`,
-          category: "service",
-          stream: result.ok ? "system" : "stderr",
-          line: `${result.ok ? "Compilation passed" : "Compilation failed"} · ${result.detail}`,
-          timestampMs: Date.now(),
-        },
-      ]);
       if (
         result.ok &&
         projectSessionRef.current.projectId === checkedIdentity.projectId &&
@@ -1809,30 +1964,25 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         rememberCompilation(window.sessionStorage, contentDigest);
       } else if (!result.ok) {
         forgetCompilation(window.sessionStorage);
-        setConsoleTab("problems");
-        if (firstDiagnostic?.path && firstDiagnostic.start) {
-          openEditorLocation({
-            path: firstDiagnostic.path,
-            line: firstDiagnostic.start.line,
-            column: firstDiagnostic.start.column,
-          });
-        }
       }
     } catch (error) {
-      setPythonDiagnostics([]);
-      setCheckOk(false);
-      setCheckDetail(errorDetail(error));
+      const detail = errorDetail(error);
+      applyCompilationResult(
+        { ok: false, detail, compilerOutput: [detail] },
+        checkedProject,
+        checkedIdentity,
+        "Compile",
+      );
     } finally {
       finishProjectCommand();
       retryPendingOfflineShellReload();
     }
   }, [
+    applyCompilationResult,
     beginProjectCommand,
     canCommand,
-    diagnosticLog,
     finishProjectCommand,
     isRunning,
-    openEditorLocation,
     target,
     workingFolder,
   ]);
@@ -1950,7 +2100,19 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         setCheckDetail(
           "Run is checking the project and compiling its Python files…",
         );
-        const result = await checkCourseProjectSyntax(projectToRun);
+        let result: CheckResult;
+        try {
+          result = await checkCourseProjectSyntax(projectToRun);
+        } catch (error) {
+          const detail = errorDetail(error);
+          applyCompilationResult(
+            { ok: false, detail, compilerOutput: [detail] },
+            projectToRun,
+            checkedIdentity,
+            "Run",
+          );
+          return;
+        }
         if (
           projectSessionRef.current.projectId !== checkedIdentity.projectId ||
           projectSessionRef.current.revision !== checkedIdentity.revision
@@ -1961,39 +2123,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           );
           return;
         }
-        const diagnostics = result.diagnostics ?? [];
-        setPythonDiagnostics(diagnostics);
+        applyCompilationResult(result, projectToRun, checkedIdentity, "Run");
         if (!result.ok) {
           forgetCompilation(window.sessionStorage);
-          const firstDiagnostic = diagnostics[0];
-          setCheckOk(false);
-          setCheckDetail(
-            firstDiagnostic
-              ? `First compiler error · ${diagnosticLocation(firstDiagnostic)} · ${firstDiagnostic.message}`
-              : result.detail,
-          );
-          setConsoleEntries((entries) => [
-            ...entries.slice(-(maximumSessionLogEntries - 1)),
-            {
-              id: `ide-local-${nextConsoleId.current++}`,
-              category: "service",
-              stream: "stderr",
-              line: `Compilation failed · ${result.detail}`,
-              timestampMs: Date.now(),
-            },
-          ]);
-          setConsoleTab("problems");
-          if (firstDiagnostic?.path && firstDiagnostic.start) {
-            openEditorLocation({
-              path: firstDiagnostic.path,
-              line: firstDiagnostic.start.line,
-              column: firstDiagnostic.start.column,
-            });
-          }
           return;
         }
-        setCheckOk(true);
-        setCheckDetail(result.detail);
       }
       await target.run(projectToRun);
       if (
@@ -2030,11 +2164,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       retryPendingOfflineShellReload();
     }
   }, [
+    applyCompilationResult,
     beginProjectCommand,
     canRunProject,
     finishProjectCommand,
     isRunning,
-    openEditorLocation,
     target,
     virtualRuntimePreparing,
     workingFolder,
@@ -3969,8 +4103,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       role="alert"
                     >
                       <small>
-                        The folder changed outside UCSBXRP. Choose which files
-                        to keep. Neither version has been overwritten.
+                        Files on disk no longer match this browser tab.
+                        Automatic saving is paused; choose which version to
+                        keep.
                       </small>
                       <div>
                         <button
@@ -4219,6 +4354,18 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     : ""}
                 </button>
                 <button
+                  aria-selected={consoleTab === "compiler"}
+                  className={consoleTab === "compiler" ? "active" : ""}
+                  onClick={() => {
+                    setConsoleTab("compiler");
+                    setOutputPanelOpen(true);
+                  }}
+                  role="tab"
+                  title="Show the exact, unfiltered text returned by the latest MicroPython compile."
+                >
+                  Compiler output
+                </button>
+                <button
                   aria-selected={consoleTab === "output"}
                   className={consoleTab === "output" ? "active" : ""}
                   onClick={() => {
@@ -4259,7 +4406,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                           ? entries.filter(
                               (entry) => entry.category !== "program",
                             )
-                          : [],
+                          : entries.filter(
+                              (entry) => entry.category !== "service",
+                            ),
                       )
                     }
                     title={`Clear ${consoleTab === "output" ? "program output" : "system log"}.`}
@@ -4347,50 +4496,77 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     problems here.
                   </span>
                 ) : (
-                  <>
-                    <ol className="problem-list">
-                      {pythonDiagnostics.map((diagnostic, index) => (
-                        <li
-                          key={`${diagnostic.path ?? "project"}:${diagnostic.start?.line ?? 0}:${diagnostic.start?.column ?? 0}:${index}`}
-                        >
-                          <button
-                            disabled={!diagnostic.path}
-                            onClick={() => {
-                              if (!diagnostic.path) return;
-                              openEditorLocation({
-                                path: diagnostic.path,
-                                line: diagnostic.start?.line ?? 1,
-                                column: diagnostic.start?.column ?? 1,
-                              });
-                            }}
-                            title={
-                              diagnostic.path
-                                ? `Open ${diagnosticLocation(diagnostic)}`
-                                : "The compiler did not provide a source location."
-                            }
-                            type="button"
+                  <ol className="problem-list">
+                    {presentedPythonDiagnostics.map(
+                      ({ diagnostic, presentation }, index) => {
+                        const focusLine =
+                          presentation.focusLine ?? diagnostic.start?.line ?? 1;
+                        return (
+                          <li
+                            key={`${diagnostic.path ?? "project"}:${diagnostic.start?.line ?? 0}:${diagnostic.start?.column ?? 0}:${index}`}
                           >
-                            <span>{diagnosticLocation(diagnostic)}</span>
-                            <strong>{diagnostic.message}</strong>
-                            <small>
-                              {index === 0 ? "First compiler error" : "Error"}
-                              {diagnostic.code
-                                ? ` · ${diagnostic.code}`
-                                : " · MicroPython"}
-                            </small>
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
-                    <details className="compiler-raw-output">
-                      <summary>Raw compiler output</summary>
-                      <pre>
-                        {pythonDiagnostics
-                          .flatMap((diagnostic) => diagnostic.raw)
-                          .join("\n")}
-                      </pre>
-                    </details>
+                            <button
+                              disabled={!diagnostic.path}
+                              onClick={() => {
+                                if (!diagnostic.path) return;
+                                openEditorLocation({
+                                  path: diagnostic.path,
+                                  line: focusLine,
+                                  column: 1,
+                                });
+                              }}
+                              title={
+                                diagnostic.path
+                                  ? `Open ${diagnostic.path} at line ${focusLine}`
+                                  : "The compiler did not provide a source location."
+                              }
+                              type="button"
+                            >
+                              <span className="problem-location">
+                                {presentation.location}
+                              </span>
+                              <strong>{presentation.title}</strong>
+                              <span className="problem-suggestion">
+                                {presentation.suggestion}
+                              </span>
+                              {presentation.sourceLine ? (
+                                <code>{presentation.sourceLine}</code>
+                              ) : null}
+                              <small>
+                                {presentation.focusLine !== undefined &&
+                                presentation.focusLine !==
+                                  diagnostic.start?.line
+                                  ? `Go to likely fix on line ${presentation.focusLine}`
+                                  : "Open highlighted line"}
+                              </small>
+                            </button>
+                          </li>
+                        );
+                      },
+                    )}
+                  </ol>
+                )}
+              </div>
+            ) : outputPanelOpen && consoleTab === "compiler" ? (
+              <div className="compiler-output-panel" role="tabpanel">
+                {compilerTranscript ? (
+                  <>
+                    <div className="compiler-output-heading">
+                      <strong>Exact MicroPython output</strong>
+                      <span>
+                        {compilerTranscript.ok ? "Passed" : "Failed"} ·{" "}
+                        {compilerTranscriptIsCurrent
+                          ? "current files"
+                          : "earlier Project revision"}
+                      </span>
+                    </div>
+                    <pre>{compilerTranscript.lines.join("\n")}</pre>
                   </>
+                ) : (
+                  <span className="console-placeholder">
+                    Compile to see the complete, unfiltered MicroPython output
+                    here.
+                  </span>
                 )}
               </div>
             ) : outputPanelOpen ? (

@@ -297,15 +297,19 @@ test("Run reports a compilation error before starting invalid code", async ({
     "true",
   );
   await expect(
-    page.getByRole("button", { name: /main\.py:1:1.*invalid syntax/i }),
+    page.getByRole("button", {
+      name: /main\.py · line 1.*Python could not parse this statement/i,
+    }),
   ).toBeVisible();
-  await page.getByText("Raw compiler output", { exact: true }).click();
+  await page.getByRole("tab", { name: "Compiler output" }).click();
   await expect(page.getByRole("tabpanel")).toContainText(
     'File "/project/main.py", line 1',
   );
   await expect(page.getByRole("tabpanel")).not.toContainText("<stdin>");
   await page.getByRole("tab", { name: "Status" }).click();
-  await expect(page.getByTestId("check-result")).toContainText(/main\.py/i);
+  await expect(page.getByTestId("check-result")).toContainText(
+    "1 problem found",
+  );
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );

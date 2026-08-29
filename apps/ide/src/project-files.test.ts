@@ -215,6 +215,8 @@ describe("project paths", () => {
     "notes./main.py",
     "student/.UCSB-XRP-PROJECT.JSON",
     ".ucsb-xrp-project.json",
+    "exports/telemetry.csv",
+    "UCSB_XRP_Autosaves/notes.txt",
   ])("rejects an unsafe project path: %s", (path) => {
     expect(projectPathError(path)).not.toBeNull();
   });
@@ -358,6 +360,15 @@ describe("project-folder reads", () => {
         ".git",
         new ReadonlyDirectoryHandle(".git", [
           ["config", new ReadonlyFileHandle("config", "ignored")],
+        ]),
+      ],
+      [
+        "exports",
+        new ReadonlyDirectoryHandle("exports", [
+          [
+            "telemetry.csv",
+            new ReadonlyFileHandle("telemetry.csv", "generated,run,data\n"),
+          ],
         ]),
       ],
     ]);

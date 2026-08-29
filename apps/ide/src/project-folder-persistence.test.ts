@@ -268,6 +268,73 @@ describe("ProjectFolderPersistenceController", () => {
     expect(maximumActive).toBe(1);
   });
 
+  it("rebases a queued UCSBXRP edit on the writer's preceding commit", async () => {
+    let releaseFirst!: () => void;
+    let diskDigest = "a".repeat(64);
+    let saveNumber = 0;
+    const save = vi.fn<SaveProjectFolder>(
+      async (_folder, project, _deletedPaths, options) => {
+        saveNumber += 1;
+        const expected =
+          options?.expectedBaseDigest ?? project.session?.baseDigest;
+        if (expected !== diskDigest) {
+          throw new ProjectFolderConflictError(project, diskDigest);
+        }
+        if (saveNumber === 1) {
+          await new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+          });
+        }
+        diskDigest = `${saveNumber + 1}`.repeat(64);
+        return {
+          changed: true,
+          removedFiles: 0,
+          contentDigest: diskDigest,
+        };
+      },
+    );
+    const harness = setup({ save });
+
+    const first = harness.controller.saveAutomatically(
+      folder,
+      harness.session,
+      1,
+    );
+    await vi.waitFor(() => expect(save).toHaveBeenCalledOnce());
+
+    const next = updateProjectSession(
+      harness.session,
+      {
+        ...harness.session.project,
+        files: {
+          ...harness.session.project.files,
+          "main.py": "print('newest')\n",
+        },
+      },
+      102,
+    );
+    harness.setSession(next);
+    harness.setProjectVersion(2);
+    const second = harness.controller.saveAutomatically(folder, next, 2);
+
+    releaseFirst();
+    const firstOutcome = await first;
+    if (firstOutcome.status !== "saved") {
+      throw new Error("first save did not complete");
+    }
+    harness.setSession(firstOutcome.session);
+    const secondOutcome = await second;
+
+    expect(secondOutcome).toMatchObject({
+      status: "saved",
+      exactRevision: true,
+    });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]?.[3]).toEqual({
+      expectedBaseDigest: "2".repeat(64),
+    });
+  });
+
   it("requires folder permission for autosave and pre-update writes", async () => {
     const harness = setup({ permission: async () => "denied" });
 

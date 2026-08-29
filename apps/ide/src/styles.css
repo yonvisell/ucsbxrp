@@ -300,14 +300,18 @@
 
 .project-folder-conflict {
   display: grid;
-  gap: 4px;
-  border-left: 2px solid var(--warning, #9a5c00);
-  padding-left: 5px;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--red) 42%, white);
+  border-left: 3px solid var(--red);
+  border-radius: 2px;
+  padding: 5px 6px;
+  background: color-mix(in srgb, var(--red) 7%, white);
 }
 
 .project-folder-conflict small {
-  color: var(--text);
+  color: var(--red);
   font-size: var(--font-xs);
+  font-weight: 750;
   line-height: 1.35;
 }
 
@@ -863,7 +867,7 @@
 
 .problem-list {
   display: grid;
-  gap: 3px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -873,12 +877,18 @@
   display: grid;
   width: 100%;
   min-width: 0;
-  grid-template-columns: minmax(9rem, auto) minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  border: 0;
-  border-radius: 2px;
-  padding: 0.38rem 0.48rem;
-  background: transparent;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "location action"
+    "title action"
+    "suggestion action"
+    "source action";
+  gap: 0.16rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--red) 20%, var(--line));
+  border-left: 3px solid var(--red);
+  border-radius: 3px;
+  padding: 0.48rem 0.58rem;
+  background: color-mix(in srgb, var(--red) 3%, var(--panel));
   color: var(--ink);
   text-align: left;
 }
@@ -887,35 +897,98 @@
   background: #fff0ee;
 }
 
-.problem-list span,
-.problem-list small {
-  color: var(--quiet);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+.problem-list .problem-location {
+  grid-area: location;
+  color: var(--red);
   font-size: var(--font-xs);
+  font-weight: 750;
 }
 
 .problem-list strong {
-  overflow: hidden;
-  color: var(--red);
-  font-size: var(--font-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.compiler-raw-output {
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--line);
-  padding-top: 0.4rem;
-  color: var(--muted);
-  font-size: var(--font-sm);
-}
-
-.compiler-raw-output pre {
-  overflow: auto;
-  margin: 0.35rem 0 0;
+  grid-area: title;
   color: var(--ink);
   font-size: var(--font-sm);
+  line-height: 1.35;
+}
+
+.problem-list .problem-suggestion {
+  grid-area: suggestion;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.problem-list code {
+  grid-area: source;
+  justify-self: start;
+  max-width: 100%;
+  overflow: auto;
+  border-radius: 2px;
+  padding: 0.12rem 0.28rem;
+  background: color-mix(in srgb, var(--red) 7%, white);
+  color: var(--ink);
+  font-size: var(--font-xs);
+  white-space: pre;
+}
+
+.problem-list small {
+  grid-area: action;
+  align-self: center;
+  color: var(--red);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
+.compiler-output-panel {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.5rem 0.65rem;
+  background: var(--panel);
+}
+
+.compiler-output-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.compiler-output-heading span {
+  color: var(--muted);
+  font-size: var(--font-xs);
+}
+
+.compiler-output-panel pre {
+  overflow: visible;
+  margin: 0;
+  color: var(--ink);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-sm);
+  line-height: 1.5;
   white-space: pre-wrap;
+}
+
+.monaco-editor .python-error-line {
+  background: rgb(196 52 36 / 12%);
+  box-shadow: inset 3px 0 0 rgb(196 52 36 / 78%);
+}
+
+.monaco-editor .python-error-line-gutter {
+  border-left: 3px solid #c43424;
+  background: rgb(196 52 36 / 16%);
+}
+
+.monaco-editor .python-likely-fix-line {
+  background: rgb(254 188 17 / 20%);
+  box-shadow: inset 3px 0 0 rgb(184 118 0 / 72%);
+}
+
+.monaco-editor .python-likely-fix-line-gutter {
+  border-left: 3px solid #b87600;
+  background: rgb(254 188 17 / 28%);
 }
 
 .console-placeholder {

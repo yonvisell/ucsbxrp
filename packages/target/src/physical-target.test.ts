@@ -2837,6 +2837,7 @@ describe("physical target", () => {
     await expect(target.check(project)).resolves.toEqual({
       ok: true,
       detail: "1 Python files compiled",
+      compilerOutput: ["1 Python files compiled"],
     });
     await target.synchronize(project);
     await target.run(project);

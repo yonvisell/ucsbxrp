@@ -963,7 +963,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
           requestId,
         },
       );
-      return { ok: false, detail: portabilityError.message };
+      return {
+        ok: false,
+        detail: portabilityError.message,
+        compilerOutput: [portabilityError.message],
+      };
     }
     await this.pausePollingForCommand();
     try {
@@ -976,13 +980,21 @@ export class DirectPhysicalTargetClient implements TargetClient {
           detail: projectName,
         },
       );
-      return { ok: true, detail: result.detail };
+      return {
+        ok: true,
+        detail: result.detail,
+        compilerOutput: [result.detail],
+      };
     } catch (error) {
       if (
         error instanceof PhysicalTargetError &&
         error.code === "syntax_error"
       ) {
-        return { ok: false, detail: error.message };
+        return {
+          ok: false,
+          detail: error.message,
+          compilerOutput: [error.message],
+        };
       }
       throw error;
     } finally {
