@@ -39,7 +39,7 @@ export interface PythonDiagnosticPosition {
  * so a richer presentation never replaces the original evidence.
  */
 export interface PythonDiagnostic {
-  source: "micropython" | "course-symbols";
+  source: "micropython" | "course-symbols" | "project";
   phase: "compile" | "runtime";
   severity: "error" | "warning" | "info";
   code?: string;

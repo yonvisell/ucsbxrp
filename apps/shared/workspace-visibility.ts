@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 export const workspaceSurfaceVisibilityMessageType =
   "ucsb-xrp-workspace-surface-visibility-v1";
@@ -64,8 +64,12 @@ function documentIsVisible(): boolean {
   );
 }
 
-export function workspaceSurfaceStartsVisible(embedded: boolean): boolean {
-  return !embedded;
+export function workspaceSurfaceStartsVisible(
+  embedded: boolean,
+  requestedVisibility?: string | null,
+): boolean {
+  if (!embedded) return true;
+  return requestedVisibility === "1";
 }
 
 /**
@@ -77,10 +81,13 @@ export function useWorkspaceSurfaceActive(surface: WorkspaceSurface): boolean {
   const [workspaceVisible, setWorkspaceVisible] = useState(() =>
     workspaceSurfaceStartsVisible(
       typeof window !== "undefined" && window.parent !== window,
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("workspaceVisible"),
     ),
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const updateDocumentVisibility = () =>
       setDocumentVisible(documentIsVisible());
     const updateWorkspaceVisibility = (event: MessageEvent<unknown>) => {

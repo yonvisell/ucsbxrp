@@ -14,6 +14,8 @@ describe("workspace surface visibility", () => {
   it("starts standalone surfaces active and embedded surfaces paused", () => {
     expect(workspaceSurfaceStartsVisible(false)).toBe(true);
     expect(workspaceSurfaceStartsVisible(true)).toBe(false);
+    expect(workspaceSurfaceStartsVisible(true, "0")).toBe(false);
+    expect(workspaceSurfaceStartsVisible(true, "1")).toBe(true);
   });
 
   it("round-trips a typed Monitor visibility message", () => {

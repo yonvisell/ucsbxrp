@@ -179,6 +179,19 @@ describe("standalone browser syntax checking", () => {
     ).resolves.toEqual({
       ok: false,
       detail: "This project has no files. Add a Python file, then try again.",
+      diagnostics: [
+        {
+          source: "project",
+          phase: "compile",
+          severity: "error",
+          code: "invalid_project",
+          message:
+            "This project has no files. Add a Python file, then try again.",
+          raw: [
+            "This project has no files. Add a Python file, then try again.",
+          ],
+        },
+      ],
     });
     expect(FakeWorker.instance).toBeNull();
   });

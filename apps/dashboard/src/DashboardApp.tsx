@@ -78,6 +78,7 @@ import {
 } from "./monitor-run-dataset";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
 import {
+  appendTelemetryRateSample,
   MonitorVisualHistory,
   type MonitorVisualSnapshot,
   recentTelemetryRateHz,
@@ -1293,16 +1294,7 @@ export function DashboardApp() {
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
         const rateSamples = telemetryRateSamplesRef.current;
-        const previousRateSample = rateSamples.at(-1);
-        if (
-          previousRateSample &&
-          (previousRateSample.source !== event.sample.source ||
-            event.sample.seq <= previousRateSample.seq)
-        ) {
-          rateSamples.length = 0;
-        }
-        rateSamples.push(event.sample);
-        if (rateSamples.length > 41) rateSamples.shift();
+        appendTelemetryRateSample(rateSamples, event.sample);
 
         if (event.replayed === true && replayedRunRef.current) {
           replayedRunRef.current.samples.push(event.sample);

@@ -67,6 +67,16 @@ export function startCourseProjectSyntaxCheck(
       result: Promise.resolve({
         ok: false,
         detail: portabilityError.message,
+        diagnostics: [
+          {
+            source: "project",
+            phase: "compile",
+            severity: "error",
+            code: portabilityError.code,
+            message: portabilityError.message,
+            raw: [portabilityError.message],
+          },
+        ],
       }),
       cancel() {},
     };

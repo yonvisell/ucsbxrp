@@ -301,10 +301,11 @@ test("opens an oversized folder but prevents compilation and virtual execution",
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Compile" }).click();
-  await expect(page.getByTestId("check-result")).toContainText(
-    "This project has 49 files",
-  );
-  await expect(page.getByTestId("check-result")).toContainText("at most 48");
+  const problems = page.getByRole("tabpanel");
+  await expect(problems).toContainText("Project");
+  await expect(problems).toContainText("This project has 49 files");
+  await expect(problems).toContainText("at most 48");
+  await expect(problems).toContainText("project_too_large");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await page.getByRole("tab", { name: /System log/ }).click();

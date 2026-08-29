@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { TelemetrySample } from "@ucsb-xrp/target";
 
 import {
+  appendTelemetryRateSample,
   MonitorVisualHistory,
   type MonitorVisualSnapshot,
   recentTelemetryRateHz,
@@ -50,6 +51,32 @@ describe("PlotSampleHistory", () => {
       ]),
     ).toBeCloseTo(50);
     expect(recentTelemetryRateHz([sample(1)])).toBeNull();
+  });
+
+  it("ignores repeated virtual-state publications without erasing rate intervals", () => {
+    const retained: TelemetrySample[] = [];
+    for (const seq of [0, 0, 1, 1, 2, 2, 3, 3]) {
+      appendTelemetryRateSample(retained, sample(seq));
+    }
+
+    expect(retained.map(({ seq }) => seq)).toEqual([0, 1, 2, 3]);
+    expect(recentTelemetryRateHz(retained)).toBeCloseTo(50);
+  });
+
+  it("starts a new rate epoch only on source change or sequence rollback", () => {
+    const retained: TelemetrySample[] = [];
+    appendTelemetryRateSample(retained, sample(8));
+    appendTelemetryRateSample(retained, sample(9));
+    appendTelemetryRateSample(retained, sample(9));
+    expect(retained.map(({ seq }) => seq)).toEqual([8, 9]);
+
+    appendTelemetryRateSample(retained, sample(1));
+    expect(retained.map(({ seq }) => seq)).toEqual([1]);
+
+    appendTelemetryRateSample(retained, sample(2, "physical"));
+    expect(retained.map(({ seq, source }) => [seq, source])).toEqual([
+      [2, "physical"],
+    ]);
   });
 
   it("retains every sample and publishes only once per display frame", () => {

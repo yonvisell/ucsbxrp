@@ -17,7 +17,6 @@ import {
   checkCourseProjectSyntax,
   createNextChallengeProject,
   nextChallengeTemplate,
-  portableProjectError,
   physicalEndpointCandidates,
   targetPreferenceForPhysicalNetwork,
   testCourseProjectComponents,
@@ -1921,24 +1920,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       return;
     }
     const projectToRun = projectRef.current;
-    const projectError = portableProjectError(projectToRun);
-    if (projectError) {
-      setOutputPanelOpen(true);
-      setConsoleTab("details");
-      setCheckOk(false);
-      setCheckDetail(projectError.message);
-      setConsoleEntries((entries) => [
-        ...entries.slice(-(maximumSessionLogEntries - 1)),
-        {
-          id: `ide-local-${nextConsoleId.current++}`,
-          category: "service",
-          stream: "stderr",
-          line: `Compilation failed · ${projectError.message}`,
-          timestampMs: Date.now(),
-        },
-      ]);
-      return;
-    }
     if (!beginProjectCommand()) return;
     const checkedIdentity = {
       projectId: projectSessionRef.current.projectId,

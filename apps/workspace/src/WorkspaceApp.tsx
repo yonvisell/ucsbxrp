@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
 import {
@@ -28,6 +34,10 @@ export function WorkspaceApp() {
   const [splitPercent, setSplitPercent] = useState(50);
   const monitorFrameRef = useRef<HTMLIFrameElement>(null);
   const monitorVisible = mode === "split" || mode === "monitor";
+  const [monitorSource] = useState(
+    () =>
+      `../monitor/?embedded=1&workspaceVisible=${monitorVisible ? "1" : "0"}`,
+  );
 
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -44,14 +54,14 @@ export function WorkspaceApp() {
     window.history.replaceState(null, "", url);
   }, [mode]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     monitorFrameRef.current?.contentWindow?.postMessage(
       workspaceSurfaceVisibilityMessage("monitor", monitorVisible),
       window.location.origin,
     );
   }, [monitorVisible]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const respondToMonitorReady = (event: MessageEvent<unknown>) => {
       const monitorWindow = monitorFrameRef.current?.contentWindow;
       if (
@@ -170,7 +180,7 @@ export function WorkspaceApp() {
               )
             }
             ref={monitorFrameRef}
-            src="../monitor/?embedded=1"
+            src={monitorSource}
             title="UCSBXRP Monitor"
           />
         </section>

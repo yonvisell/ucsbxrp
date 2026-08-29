@@ -9,6 +9,39 @@ export interface MonitorVisualSnapshot {
   readonly samples: readonly TelemetrySample[];
 }
 
+/**
+ * Retain one sample per source sequence for the recent-rate estimate.
+ *
+ * A target may publish the same simulator state again after changing an
+ * effort or runtime value. Equal sequence numbers are therefore duplicate
+ * observations, not a new telemetry epoch. Only a source change or a strict
+ * sequence rollback begins a new epoch.
+ */
+export function appendTelemetryRateSample(
+  samples: TelemetrySample[],
+  sample: TelemetrySample,
+  maximumIntervals = 40,
+): void {
+  if (!Number.isInteger(maximumIntervals) || maximumIntervals < 1) {
+    throw new Error("maximumIntervals must be a positive integer");
+  }
+  const previous = samples.at(-1);
+  if (previous?.source === sample.source && previous.seq === sample.seq) {
+    return;
+  }
+  if (
+    previous &&
+    (previous.source !== sample.source || sample.seq < previous.seq)
+  ) {
+    samples.length = 0;
+  }
+  samples.push(sample);
+  const maximumSamples = maximumIntervals + 1;
+  if (samples.length > maximumSamples) {
+    samples.splice(0, samples.length - maximumSamples);
+  }
+}
+
 /** Estimate the source sample rate from recent device timestamps. */
 export function recentTelemetryRateHz(
   samples: readonly TelemetrySample[],
