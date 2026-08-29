@@ -258,6 +258,11 @@ describe("virtual target shared session", () => {
     expect(
       monitorEvents.filter((event) => event.type === "project").at(-1),
     ).toMatchObject({ project: { stale: true } });
+    await ide.markProjectStale(latestProject);
+    await ide.markProjectStale(latestProject);
+    expect(
+      monitorEvents.filter((event) => event.type === "project").at(-1),
+    ).toMatchObject({ project: { stale: true } });
 
     await monitor.runCurrent();
 

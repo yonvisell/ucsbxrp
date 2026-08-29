@@ -867,13 +867,18 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async markProjectStale(project: CourseProject): Promise<void> {
     const descriptor = await describeProject(project);
+    const retainedProjectIsExact =
+      this.currentProject?.stale === false &&
+      this.currentProject.revision === descriptor.revision &&
+      this.currentProject.name === descriptor.name &&
+      this.currentProject.entrypoint === descriptor.entrypoint;
     const worldChanged =
       this.stagedProject === null ||
       this.stagedProject.files["world.json"] !== project.files["world.json"];
     this.stagedProject = project;
     this.setCurrentProject({
       ...descriptor,
-      stale: this.currentProject?.revision !== descriptor.revision,
+      stale: !retainedProjectIsExact,
     });
     if (worldChanged) {
       const catalog = worldCatalogForProject(project);

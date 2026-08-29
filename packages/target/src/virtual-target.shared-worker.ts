@@ -181,6 +181,7 @@ function stageProject(
   descriptor: SynchronizedProject,
 ): void {
   const retainedProjectIsExact =
+    currentProjectDescriptor?.stale === false &&
     currentProjectDescriptor?.revision === descriptor.revision &&
     currentProjectDescriptor.name === descriptor.name &&
     currentProjectDescriptor.entrypoint === descriptor.entrypoint;

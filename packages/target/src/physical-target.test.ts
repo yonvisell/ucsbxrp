@@ -863,6 +863,16 @@ describe("physical target", () => {
 
     await target.connect();
     await target.markProjectStale(changed);
+    await target.markProjectStale(changed);
+    expect(events.filter((event) => event.type === "project").at(-1)).toEqual({
+      type: "project",
+      project: {
+        name: changed.name,
+        entrypoint: changed.entrypoint,
+        revision: changedRevision,
+        stale: true,
+      },
+    });
     await target.runCurrent();
     expect(postCount).toBe(1);
     expect(events).toContainEqual(
