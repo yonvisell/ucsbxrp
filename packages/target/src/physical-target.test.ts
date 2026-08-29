@@ -1927,6 +1927,80 @@ describe("physical target", () => {
     }
   });
 
+  it("does not report gaps between on-demand ready-state hardware samples", async () => {
+    vi.useFakeTimers();
+    const replies = [
+      {
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [],
+        samples: [physicalSample(2)],
+        sample: physicalSample(2),
+        moreSamples: false,
+      },
+      {
+        bootId: "boot-a",
+        state: "ready",
+        detail: "Physical XRP ready",
+        runId: 0,
+        logs: [],
+        samples: [physicalSample(5)],
+        sample: physicalSample(5),
+        moreSamples: false,
+      },
+    ];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          bootId: "boot-a",
+          robotName: "xrp-test",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      return response(replies.shift());
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      activePollIntervalMs: 10,
+      pollIntervalMs: 10,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(
+        events
+          .filter((event) => event.type === "console")
+          .map((event) => event.line),
+      ).not.toContain("Telemetry gap · 2 samples unavailable");
+      expect(
+        events
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([2, 5]);
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("retains single-sample polling for an older physical service", async () => {
     vi.useFakeTimers();
     let telemetryRequest = 0;

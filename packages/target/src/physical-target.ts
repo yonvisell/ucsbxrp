@@ -1358,7 +1358,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
         (left, right) => left.seq - right.seq,
       );
       if (!terminalCurrentSample) {
-        this.publishBatchedSamples(state.bootId, orderedSamples);
+        // Ready-state samples are fresh device reads created on demand. Other
+        // browser clients can legitimately consume intervening sequence
+        // numbers, so only a running/backlog stream can prove retained course
+        // samples were actually lost.
+        this.publishBatchedSamples(
+          state.bootId,
+          orderedSamples,
+          nextState === "running" || state.moreSamples === true,
+        );
       }
     }
     const orderedLogs = [...state.logs].sort(
@@ -1401,7 +1409,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         // all retained course-loop samples have been drained. Close the run
         // before publishing that sample so it updates live telemetry without
         // extending the completed recording.
-        this.publishBatchedSamples(state.bootId, orderedSamples);
+        this.publishBatchedSamples(state.bootId, orderedSamples, false);
       }
     } else if (terminalCurrentSample) {
       // A log backlog can outlive the retained course samples. Do not attach
@@ -1420,6 +1428,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private publishBatchedSamples(
     bootId: string,
     samples: readonly TelemetrySample[],
+    reportGaps: boolean,
   ): void {
     for (const sample of samples) {
       if (
@@ -1428,7 +1437,11 @@ export class DirectPhysicalTargetClient implements TargetClient {
       ) {
         continue;
       }
-      if (this.lastSampleSeq > 0 && sample.seq > this.lastSampleSeq + 1) {
+      if (
+        reportGaps &&
+        this.lastSampleSeq > 0 &&
+        sample.seq > this.lastSampleSeq + 1
+      ) {
         const firstMissing = this.lastSampleSeq + 1;
         const lastMissing = sample.seq - 1;
         this.emitConsole(

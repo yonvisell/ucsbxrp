@@ -1225,34 +1225,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
 
   useEffect(() => {
     if (!projectSessionReady) return;
-    if (!projectProviderActive) return;
-    const identity = `${projectSession.projectId}:${projectSession.revision}`;
-    const previous = announcedProjectRevisionRef.current;
-    announcedProjectRevisionRef.current = { target, identity };
-    if (
-      previous === null ||
-      (previous.target === target && previous.identity === identity)
-    ) {
-      return;
-    }
-    target.markProjectChanged({
-      projectId: projectSession.projectId,
-      revision: projectSession.revision,
-      name: projectSession.project.name,
-      entrypoint: projectSession.project.entrypoint,
-    });
-  }, [
-    projectSession.project.entrypoint,
-    projectSession.project.name,
-    projectSession.projectId,
-    projectSession.revision,
-    projectSessionReady,
-    projectProviderActive,
-    target,
-  ]);
-
-  useEffect(() => {
-    if (!projectSessionReady) return;
     const key = `${project.templateId ?? "custom"}:${project.name}`;
     if (key === displayedProjectKey.current) return;
     displayedProjectKey.current = key;
@@ -1633,13 +1605,68 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   );
 
   useEffect(() => {
-    if (!projectSessionReady || !projectProviderActive || !isConnected) return;
-    void stageOpenedProject(projectRef.current);
+    if (!projectSessionReady || !projectProviderActive || !isConnected) {
+      // A later connection or explicit ownership takeover must reconcile the
+      // open files with the target again, even when the browser revision did
+      // not change while this IDE was on standby.
+      announcedProjectRevisionRef.current = null;
+      return;
+    }
+
+    const identity = `${projectSession.projectId}:${projectSession.revision}`;
+    const previous = announcedProjectRevisionRef.current;
+    if (previous?.target === target && previous.identity === identity) return;
+    announcedProjectRevisionRef.current = { target, identity };
+
+    if (previous === null || previous.target !== target) {
+      // The first notice for an active IDE uses the content digest, not the
+      // browser's edit counter. This is the authoritative comparison after a
+      // reconnect, reload, or ownership takeover: an exact retained project
+      // remains ready and any other project becomes "Loads on Run".
+      const snapshot = projectSession.project;
+      void target
+        .markProjectStale(snapshot)
+        .then(() => {
+          const latest = announcedProjectRevisionRef.current;
+          if (
+            latest === null ||
+            latest.target !== target ||
+            latest.identity === identity
+          ) {
+            return;
+          }
+          // If an edit landed while the digest was being calculated, restore
+          // the newest browser revision as the visible authority.
+          const current = projectSessionRef.current;
+          target.markProjectChanged({
+            projectId: current.projectId,
+            revision: current.revision,
+            name: current.project.name,
+            entrypoint: current.project.entrypoint,
+          });
+        })
+        .catch(() => {
+          // Editing remains available if a physical target disconnects during
+          // this local reconciliation. The connection status carries the
+          // actionable recovery state.
+        });
+      return;
+    }
+
+    target.markProjectChanged({
+      projectId: projectSession.projectId,
+      revision: projectSession.revision,
+      name: projectSession.project.name,
+      entrypoint: projectSession.project.entrypoint,
+    });
   }, [
     isConnected,
     projectProviderActive,
+    projectSession.project,
+    projectSession.projectId,
+    projectSession.revision,
     projectSessionReady,
-    stageOpenedProject,
+    target,
   ]);
 
   const closeFile = useCallback(
