@@ -15,11 +15,15 @@ export interface PhysicalWorkerPort {
   close(): void;
 }
 
+type PollDrivenPhysicalTarget = TargetClient & {
+  requestPollIfDue?(): void;
+};
+
 type PhysicalTargetFactory = (
   endpoint: string,
   requestTimeoutMs?: number,
   expectedRobotId?: string,
-) => TargetClient;
+) => PollDrivenPhysicalTarget;
 type ConsoleEvent = Extract<TargetEvent, { type: "console" }>;
 
 interface PhysicalConnectionRequest {
@@ -80,7 +84,7 @@ export class PhysicalTargetCoordinator {
       (port, request) => this.send(port, request),
       () => this.publishProjectProviderState(),
     );
-  private target: TargetClient | null = null;
+  private target: PollDrivenPhysicalTarget | null = null;
   private targetEndpoint: string | null = null;
   private targetExpectedRobotId: string | null = null;
   private connection: Promise<void> | null = null;
@@ -113,6 +117,12 @@ export class PhysicalTargetCoordinator {
         this.pendingLiveTelemetry.delete(port);
       }
       this.roles.set(port, command.role);
+      return;
+    }
+    if (command.type === "poll-frame") {
+      if (this.ports.has(port)) {
+        this.target?.requestPollIfDue?.();
+      }
       return;
     }
     if (command.type === "disconnect") {
@@ -255,6 +265,7 @@ export class PhysicalTargetCoordinator {
     command: Exclude<
       PhysicalWorkerCommand,
       | { type: "set-role" }
+      | { type: "poll-frame" }
       | { type: "disconnect" }
       | { type: "resume" }
       | { type: "set-project-run-provider" }

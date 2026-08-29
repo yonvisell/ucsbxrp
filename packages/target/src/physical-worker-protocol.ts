@@ -13,6 +13,7 @@ import type { TargetWorkerRole, WorkerTelemetryEvent } from "./worker-protocol";
 
 export type PhysicalWorkerCommand =
   | { type: "set-role"; role: TargetWorkerRole }
+  | { type: "poll-frame" }
   | {
       type: "resume";
       reason: "pageshow" | "visibilitychange" | "online" | "focus";

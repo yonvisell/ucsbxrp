@@ -1429,6 +1429,97 @@ describe("physical target", () => {
     }
   });
 
+  it("drives the shared poll cadence only while its document is visible", async () => {
+    const posted: Array<{ type: string; requestId?: string }> = [];
+    const frames = new Map<number, FrameRequestCallback>();
+    const workerNames: string[] = [];
+    let nextFrame = 1;
+    const port = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      start: vi.fn(),
+      close: vi.fn(),
+      postMessage(message: { type: string; requestId?: string }) {
+        posted.push(message);
+        if (message.type === "connect" && message.requestId) {
+          queueMicrotask(() =>
+            this.onmessage?.({
+              data: {
+                type: "response",
+                requestId: message.requestId,
+                ok: true,
+              },
+            } as MessageEvent),
+          );
+        }
+      },
+    };
+    class FakeSharedWorker {
+      readonly port = port;
+
+      constructor(_url: URL, options: { name: string }) {
+        workerNames.push(options.name);
+      }
+    }
+    const fakeWindow = Object.assign(new EventTarget(), {
+      location: { protocol: "https:" },
+      requestAnimationFrame(callback: FrameRequestCallback) {
+        const frame = nextFrame;
+        nextFrame += 1;
+        frames.set(frame, callback);
+        return frame;
+      },
+      cancelAnimationFrame(frame: number) {
+        frames.delete(frame);
+      },
+    });
+    const fakeDocument = Object.assign(new EventTarget(), {
+      visibilityState: "visible" as DocumentVisibilityState,
+    });
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+    vi.stubGlobal("window", fakeWindow);
+    vi.stubGlobal("document", fakeDocument);
+    vi.stubGlobal("navigator", { onLine: true });
+
+    const runFrame = () => {
+      const next = frames.entries().next().value as
+        [number, FrameRequestCallback] | undefined;
+      expect(next).toBeDefined();
+      const [frame, callback] = next!;
+      frames.delete(frame);
+      callback(0);
+    };
+    const target = new PhysicalTargetClient("192.168.7.30");
+    try {
+      await target.connect();
+      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v14"]);
+      expect(frames).toHaveLength(1);
+
+      runFrame();
+      expect(
+        posted.filter((message) => message.type === "poll-frame"),
+      ).toHaveLength(1);
+      expect(frames).toHaveLength(1);
+
+      fakeDocument.visibilityState = "hidden";
+      fakeDocument.dispatchEvent(new Event("visibilitychange"));
+      expect(frames).toHaveLength(0);
+
+      fakeDocument.visibilityState = "visible";
+      fakeDocument.dispatchEvent(new Event("visibilitychange"));
+      expect(frames).toHaveLength(1);
+      runFrame();
+      expect(
+        posted.filter((message) => message.type === "poll-frame"),
+      ).toHaveLength(2);
+
+      target.disconnect();
+      expect(frames).toHaveLength(0);
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("releases a back-forward cached page and reconnects it with a fresh worker port", async () => {
     vi.useFakeTimers();
     const ports: Array<{
@@ -1670,6 +1761,74 @@ describe("physical target", () => {
       expect(telemetryRequests).toBe(3);
     } finally {
       target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
+  it("uses visible poll nudges only when due and coalesces in-flight signals", async () => {
+    vi.useFakeTimers();
+    let clockMs = 0;
+    const clock = vi
+      .spyOn(globalThis.performance, "now")
+      .mockImplementation(() => clockMs);
+    let telemetryRequests = 0;
+    let releaseSecondPoll: (() => void) | undefined;
+    const secondPollGate = new Promise<void>((resolve) => {
+      releaseSecondPoll = resolve;
+    });
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      if (String(input).includes("/api/v1/telemetry")) {
+        telemetryRequests += 1;
+        if (telemetryRequests === 2) await secondPollGate;
+        return response({
+          bootId: "boot-frame",
+          state: "ready",
+          detail: "XRP ready",
+          runId: 0,
+          logs: [],
+        });
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-frame",
+        robotName: "xrp-test",
+        address: "192.168.7.30",
+        project: null,
+        capabilities: [
+          "project.check",
+          "project.prepare",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 250,
+    });
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+
+      target.requestPollIfDue();
+      expect(telemetryRequests).toBe(1);
+
+      clockMs = 250;
+      target.requestPollIfDue();
+      target.requestPollIfDue();
+      expect(telemetryRequests).toBe(2);
+
+      releaseSecondPoll?.();
+      await vi.advanceTimersByTimeAsync(0);
+    } finally {
+      target.disconnect();
+      clock.mockRestore();
       vi.useRealTimers();
     }
   });

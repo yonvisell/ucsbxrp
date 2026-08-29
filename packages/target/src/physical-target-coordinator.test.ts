@@ -45,6 +45,7 @@ class FakePhysicalTarget implements TargetClient {
   readonly runProjects: CourseProject[] = [];
   stopCalls = 0;
   resetCalls = 0;
+  pollNudgeCalls = 0;
   running = false;
   nextRunError: Error | null = null;
   emitLocalProviderStateOnConnect = false;
@@ -166,6 +167,10 @@ class FakePhysicalTarget implements TargetClient {
     this.emit({ type: "status", state: "ready", detail: "Reset complete" });
   }
 
+  requestPollIfDue(): void {
+    this.pollNudgeCalls += 1;
+  }
+
   async setRuntimeParameter(
     _name: string,
     _value: RuntimeParameterValue,
@@ -230,6 +235,44 @@ function telemetry(seq: number): TelemetrySample {
 }
 
 describe("physical target coordinator", () => {
+  it("passes visible-frame poll nudges only to the attached shared target", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const monitor = new FakePort();
+    const detached = new FakePort();
+    coordinator.attach(monitor);
+
+    coordinator.handle(monitor, command({ type: "poll-frame" }));
+    expect(target).toBeUndefined();
+
+    coordinator.handle(
+      monitor,
+      command({
+        type: "connect",
+        endpoint: "http://192.168.7.25",
+        requestId: "connect",
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(responses(monitor, "connect")).toHaveLength(1),
+    );
+    const responseCount = monitor.messages.filter(
+      (message) => message.type === "response",
+    ).length;
+
+    coordinator.handle(detached, command({ type: "poll-frame" }));
+    coordinator.handle(monitor, command({ type: "poll-frame" }));
+    coordinator.handle(monitor, command({ type: "poll-frame" }));
+
+    expect(target.pollNudgeCalls).toBe(2);
+    expect(
+      monitor.messages.filter((message) => message.type === "response"),
+    ).toHaveLength(responseCount);
+  });
+
   it("keeps broker project authority when the shared backend reports no local provider", async () => {
     let target!: FakePhysicalTarget;
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {

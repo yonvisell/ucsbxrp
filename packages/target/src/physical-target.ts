@@ -40,7 +40,7 @@ export const CURRENT_SERVICE_VERSION = courseRelease.service.version;
  * Device-side poll ownership generation. Change this only when a newly
  * deployed SharedWorker must supersede workers retained from an older shell.
  */
-export const PHYSICAL_POLL_COORDINATOR_GENERATION = 13;
+export const PHYSICAL_POLL_COORDINATOR_GENERATION = 14;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -197,6 +197,12 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function monotonicTimeMs(): number {
+  return typeof globalThis.performance?.now === "function"
+    ? globalThis.performance.now()
+    : Date.now();
+}
+
 function physicalConnectionRecovery(endpoint: string): string {
   return (
     "Run and telemetry use Wi-Fi. The computer and XRP must use the network " +
@@ -318,6 +324,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly pollOwnerId?: string;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollDueAtMs: number | null = null;
   private pollInFlight: Promise<void> | null = null;
   private pollAbortController: AbortController | null = null;
   private pollGeneration = 0;
@@ -1241,23 +1248,60 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (!this.connected || this.pollingPaused) {
       return;
     }
-    this.pollTimer = setTimeout(() => {
+    const boundedDelay = Math.max(0, delay);
+    this.pollDueAtMs = monotonicTimeMs() + boundedDelay;
+    const timer = setTimeout(() => {
+      // A visible-frame nudge can clear a timeout whose task is already
+      // queued. Ignore that stale task if a completed poll has since installed
+      // the next cadence timer.
+      if (this.pollTimer !== timer) {
+        return;
+      }
       this.pollTimer = null;
-      const request = this.poll();
-      this.pollInFlight = request;
-      void request.then(
-        () => {
-          if (this.pollInFlight === request) {
-            this.pollInFlight = null;
-          }
-        },
-        () => {
-          if (this.pollInFlight === request) {
-            this.pollInFlight = null;
-          }
-        },
-      );
-    }, delay);
+      this.startScheduledPoll();
+    }, boundedDelay);
+    this.pollTimer = timer;
+  }
+
+  /**
+   * Let a visible document wake the worker's cadence clock.
+   *
+   * Chrome can heavily throttle SharedWorker timers even while an attached
+   * IDE or Monitor is visible. The document animation frame is only a wake
+   * signal: the existing cadence deadline remains authoritative, and this
+   * method coalesces every signal while a request is in flight.
+   */
+  requestPollIfDue(): void {
+    if (this.pollDueAtMs === null || monotonicTimeMs() < this.pollDueAtMs) {
+      return;
+    }
+    this.startScheduledPoll();
+  }
+
+  private startScheduledPoll(): void {
+    if (
+      !this.connected ||
+      this.pollingPaused ||
+      this.reconnecting ||
+      this.pollInFlight
+    ) {
+      return;
+    }
+    this.stopPolling();
+    const request = this.poll();
+    this.pollInFlight = request;
+    void request.then(
+      () => {
+        if (this.pollInFlight === request) {
+          this.pollInFlight = null;
+        }
+      },
+      () => {
+        if (this.pollInFlight === request) {
+          this.pollInFlight = null;
+        }
+      },
+    );
   }
 
   private stopPolling(): void {
@@ -1265,6 +1309,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
+    this.pollDueAtMs = null;
   }
 
   private abortActivePoll(): void {
@@ -1295,7 +1340,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     if (!this.connected || this.reconnecting) {
       return;
     }
-    const startedAtMs = Date.now();
+    const startedAtMs = monotonicTimeMs();
     const generation = this.pollGeneration;
     const controller = new AbortController();
     this.pollAbortController = controller;
@@ -1331,7 +1376,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         state.state === "running"
           ? this.activePollIntervalMs
           : this.pollIntervalMs;
-      const elapsedMs = Math.max(0, Date.now() - startedAtMs);
+      const elapsedMs = Math.max(0, monotonicTimeMs() - startedAtMs);
       this.schedulePoll(hasBacklog ? 0 : Math.max(0, cadenceMs - elapsedMs));
     } catch (error) {
       if (
@@ -1867,6 +1912,7 @@ export class PhysicalTargetClient implements TargetClient {
   private pageLifecycleObserved = false;
   private pageWasHidden = false;
   private pageCacheSuspended = false;
+  private visiblePollFrame: number | null = null;
   private readonly candidateEndpoints: readonly string[];
   private readonly discoveryTimeoutMs: number;
   private readonly directMode: boolean;
@@ -1891,9 +1937,11 @@ export class PhysicalTargetClient implements TargetClient {
     if (this.directMode) {
       if (this.direct) {
         await this.direct.connect();
+        this.startVisiblePollDriver();
         return;
       }
       await this.connectDirectCandidate();
+      this.startVisiblePollDriver();
       return;
     }
     if (!this.worker) {
@@ -1902,7 +1950,7 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v13" },
+          { type: "module", name: "ucsb-xrp-physical-target-v14" },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,
@@ -1923,6 +1971,7 @@ export class PhysicalTargetClient implements TargetClient {
       } catch (error) {
         this.releaseWorker(errorDetail(error));
         await this.useDirectClient().connect();
+        this.startVisiblePollDriver();
         return;
       }
     }
@@ -1940,6 +1989,7 @@ export class PhysicalTargetClient implements TargetClient {
     // restore this tab without a second document fetch or permission prompt.
     try {
       await connectWorker(this.candidateEndpoints);
+      this.startVisiblePollDriver();
       return;
     } catch (firstError) {
       if (!this.shouldPrimeLocalNetworkPermission(firstError)) {
@@ -1959,10 +2009,12 @@ export class PhysicalTargetClient implements TargetClient {
         ]
       : this.candidateEndpoints;
     await connectWorker(endpoints);
+    this.startVisiblePollDriver();
   }
 
   disconnect(): void {
     this.pageCacheSuspended = false;
+    this.stopVisiblePollDriver();
     this.stopObservingPageLifecycle();
     if (this.direct) {
       this.direct.disconnect();
@@ -2284,6 +2336,7 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   private releaseWorker(detail: string): void {
+    this.stopVisiblePollDriver();
     const worker = this.worker;
     this.worker = null;
     this.rejectPending(detail);
@@ -2340,9 +2393,11 @@ export class PhysicalTargetClient implements TargetClient {
 
   private readonly resumeOnVisibilityChange = (): void => {
     if (document.visibilityState === "hidden") {
+      this.stopVisiblePollDriver();
       this.pageWasHidden = true;
       return;
     }
+    this.startVisiblePollDriver();
     if (!this.pageWasHidden) return;
     this.pageWasHidden = false;
     this.requestResumeRecovery("visibilitychange");
@@ -2360,6 +2415,47 @@ export class PhysicalTargetClient implements TargetClient {
     return (
       typeof document === "undefined" || document.visibilityState !== "hidden"
     );
+  }
+
+  private readonly driveVisiblePoll = (): void => {
+    this.visiblePollFrame = null;
+    if (!this.pageIsVisible() || this.pageCacheSuspended) {
+      return;
+    }
+    if (this.direct) {
+      this.direct.requestPollIfDue();
+    } else {
+      this.worker?.port.postMessage({
+        type: "poll-frame",
+      } satisfies PhysicalWorkerCommand);
+    }
+    this.startVisiblePollDriver();
+  };
+
+  private startVisiblePollDriver(): void {
+    if (
+      this.visiblePollFrame !== null ||
+      (!this.worker && !this.direct) ||
+      !this.pageIsVisible() ||
+      typeof window === "undefined" ||
+      typeof window.requestAnimationFrame !== "function"
+    ) {
+      return;
+    }
+    this.visiblePollFrame = window.requestAnimationFrame(this.driveVisiblePoll);
+  }
+
+  private stopVisiblePollDriver(): void {
+    if (
+      this.visiblePollFrame === null ||
+      typeof window === "undefined" ||
+      typeof window.cancelAnimationFrame !== "function"
+    ) {
+      this.visiblePollFrame = null;
+      return;
+    }
+    window.cancelAnimationFrame(this.visiblePollFrame);
+    this.visiblePollFrame = null;
   }
 
   private requestResumeRecovery(
