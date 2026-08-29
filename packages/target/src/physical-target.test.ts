@@ -2845,6 +2845,12 @@ describe("physical target", () => {
         }),
       ),
     );
+    expect(events).not.toContainEqual(
+      expect.objectContaining({
+        type: "telemetry",
+        sample: expect.objectContaining({ seq: 13 }),
+      }),
+    );
     target.disconnect();
   });
 

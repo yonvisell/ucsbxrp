@@ -1023,7 +1023,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           this.emitStatus("ready", result.detail);
         } else {
           this.emitStatus("loading", result.detail);
-          await this.waitForProgramStop();
+          await this.waitForProgramStop(false);
         }
         // Reset starts a new course-telemetry epoch without changing the boot
         // or run identity. Restart the cursor only after the old program has
@@ -1418,7 +1418,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     return value as PhysicalState;
   }
 
-  private consumeState(state: PhysicalState): void {
+  private consumeState(state: PhysicalState, publishTelemetry = true): void {
     const bootChanged = state.bootId !== this.bootId;
     const runChanged = state.runId !== this.lastRunId;
     if (bootChanged) {
@@ -1445,7 +1445,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       // Services released before telemetry batching return one fresh sample
       // per request and ignore afterSampleSeq. Preserve that behavior.
       if (state.sample) {
-        this.emitTelemetry(state.sample);
+        if (publishTelemetry) this.emitTelemetry(state.sample);
         this.lastSampleSeq = state.sample.seq;
       }
     } else {
@@ -1461,6 +1461,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           state.bootId,
           orderedSamples,
           nextState === "running" || state.moreSamples === true,
+          publishTelemetry,
         );
       }
     }
@@ -1504,7 +1505,12 @@ export class DirectPhysicalTargetClient implements TargetClient {
         // all retained course-loop samples have been drained. Close the run
         // before publishing that sample so it updates live telemetry without
         // extending the completed recording.
-        this.publishBatchedSamples(state.bootId, orderedSamples, false);
+        this.publishBatchedSamples(
+          state.bootId,
+          orderedSamples,
+          false,
+          publishTelemetry,
+        );
       }
     } else if (terminalCurrentSample) {
       // A log backlog can outlive the retained course samples. Do not attach
@@ -1524,6 +1530,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     bootId: string,
     samples: readonly TelemetrySample[],
     reportGaps: boolean,
+    publishTelemetry = true,
   ): void {
     for (const sample of samples) {
       if (
@@ -1533,6 +1540,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         continue;
       }
       if (
+        publishTelemetry &&
         reportGaps &&
         this.lastSampleSeq > 0 &&
         sample.seq > this.lastSampleSeq + 1
@@ -1549,7 +1557,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           },
         );
       }
-      this.emitTelemetry(sample);
+      if (publishTelemetry) this.emitTelemetry(sample);
       this.lastSampleSeq = sample.seq;
     }
   }
@@ -1632,7 +1640,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
     );
   }
 
-  private async waitForProgramStop(): Promise<void> {
+  private async waitForProgramStop(publishTelemetry = true): Promise<void> {
     const deadline = performance.now() + 2_000;
     let lastError: unknown = null;
     while (performance.now() < deadline && this.connected) {
@@ -1642,7 +1650,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
           this.telemetryPath(this.lastLogSeq, this.lastSampleSeq),
           1_000,
         );
-        this.consumeState(state);
+        this.consumeState(state, publishTelemetry);
         if (
           state.state === "ready" ||
           (state.state === "error" &&
@@ -1664,13 +1672,15 @@ export class DirectPhysicalTargetClient implements TargetClient {
     // whether the old program is still active on the same boot.
     this.emitStatus("connecting", "Checking program stop…");
     try {
-      await this.recoverAfterInterruptedStop();
+      await this.recoverAfterInterruptedStop(publishTelemetry);
     } catch (error) {
       throw lastError ?? error;
     }
   }
 
-  private async recoverAfterInterruptedStop(): Promise<void> {
+  private async recoverAfterInterruptedStop(
+    publishTelemetry = true,
+  ): Promise<void> {
     this.stopPolling();
     const deadline = performance.now() + RESET_RECONNECT_TIMEOUT_MS;
     let lastError: unknown = null;
@@ -1680,7 +1690,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         const state = await this.readTelemetry(this.telemetryPath(0, 0), 1_500);
         this.pollConnectionFailed = false;
         this.consecutivePollFailures = 0;
-        this.consumeState(state);
+        this.consumeState(state, publishTelemetry);
         if (
           state.state === "ready" ||
           (state.state === "error" &&
