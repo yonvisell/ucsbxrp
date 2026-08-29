@@ -82,6 +82,7 @@ export interface ExistingNetworkProfile {
   version?: number;
   mode?: "access_point" | "station";
   stationSsid?: string;
+  stationPasswordConfigured?: boolean;
   accessPointSsid?: string;
 }
 
@@ -158,6 +159,22 @@ export function hotspotSsidForLastName(value: string): string | undefined {
     throw new Error("The hotspot name can contain at most 23 characters.");
   }
   return ssid;
+}
+
+/** Return the first station-credential problem before anything is sent. */
+export function stationNetworkError(
+  ssidValue: string,
+  password: string,
+): string | null {
+  const ssid = ssidValue.trim();
+  if (!ssid) return "Enter the exact Wi-Fi network name.";
+  if (textEncoder.encode(ssid).length > 32) {
+    return "The Wi-Fi network name must contain at most 32 bytes.";
+  }
+  if (password.length < 8 || password.length > 63) {
+    return "The Wi-Fi password must contain 8 to 63 characters.";
+  }
+  return null;
 }
 
 export class FirmwareRequiredError extends Error {
@@ -348,7 +365,8 @@ export async function readExistingNetworkProfile(
       ` c=json.load(open('/xrp_wifi.json'))\n` +
       ` s=c.get('station') if isinstance(c.get('station'),dict) else {}\n` +
       ` a=c.get('access_point') if isinstance(c.get('access_point'),dict) else {}\n` +
-      ` p={'present':True,'version':c.get('version'),'mode':c.get('mode'),'stationSsid':s.get('ssid') or c.get('ssid'),'accessPointSsid':a.get('ssid')}\n` +
+      ` pw=s.get('password') if 'password' in s else c.get('password')\n` +
+      ` p={'present':True,'version':c.get('version'),'mode':c.get('mode'),'stationSsid':s.get('ssid') or c.get('ssid'),'stationPasswordConfigured':isinstance(pw,str) and len(pw)>=8,'accessPointSsid':a.get('ssid')}\n` +
       `except Exception:\n p={'present':False}\n` +
       `print(${pythonLiteral(NETWORK_PROFILE_MARKER)}+json.dumps(p))`,
   );
@@ -698,9 +716,8 @@ function networkConfig(
   };
   if (selection.mode === "station") {
     const ssid = selection.ssid.trim();
-    if (!ssid || selection.password.length < 8) {
-      throw new Error("Existing Wi-Fi needs its network name and password.");
-    }
+    const issue = stationNetworkError(ssid, selection.password);
+    if (issue) throw new Error(issue);
     value.station = { ssid, password: selection.password };
   }
   return value;
@@ -866,6 +883,10 @@ export async function commissionDevice(options: {
     onProgress = () => undefined,
     fetch: fetchImplementation = globalThis.fetch,
   } = options;
+  if (network.mode === "station") {
+    const issue = stationNetworkError(network.ssid, network.password);
+    if (issue) throw new Error(issue);
+  }
   const hostname = robotHostnameForId(robotId);
   let resetStarted = false;
   try {

@@ -42,6 +42,7 @@ import {
   hotspotSsidForLastName,
   HOTSPOT_SSID_PREFIX,
   readExistingNetworkProfile,
+  stationNetworkError,
   waitForReenumeratedPort,
   type CommissioningManifest,
   type CommissioningProgress,
@@ -244,7 +245,42 @@ export function hasUsableNetworkProfile(
 ): boolean {
   if (!profile?.present) return false;
   if (profile.mode === "access_point") return true;
-  return profile.mode === "station" && Boolean(profile.stationSsid?.trim());
+  return (
+    profile.mode === "station" &&
+    Boolean(profile.stationSsid?.trim()) &&
+    profile.stationPasswordConfigured === true
+  );
+}
+
+/** Explain why a requested station join fell back to the robot hotspot. */
+export function stationFallbackReason(
+  status: string | undefined,
+  ssid: string,
+): string {
+  switch (status) {
+    case "wrong_password":
+      return `The XRP rejected the password for ${ssid}.`;
+    case "network_not_found":
+      return `The XRP could not find ${ssid}; check its exact name and that it provides 2.4 GHz Wi-Fi.`;
+    case "waiting_for_ip":
+      return `The XRP joined ${ssid} but did not receive a network address.`;
+    case "connect_failed":
+      return `The XRP found ${ssid} but could not join it.`;
+    default:
+      return `The XRP could not join ${ssid}.`;
+  }
+}
+
+/** Discover station service by stable identity, retaining the last DHCP route. */
+export function commissioningEndpointCandidates(
+  network: Pick<CommissioningResult["network"], "mode" | "address">,
+  robotId: string,
+): readonly string[] {
+  const direct = /^https?:\/\//i.test(network.address)
+    ? network.address
+    : `http://${network.address}`;
+  if (network.mode !== "station") return [direct];
+  return [...new Set([`http://${robotHostnameForId(robotId)}.local`, direct])];
 }
 
 export function CommissionApp() {
@@ -263,6 +299,7 @@ export function CommissionApp() {
   >("access_point");
   const [stationSsid, setStationSsid] = useState("");
   const [stationPassword, setStationPassword] = useState("");
+  const [showStationPassword, setShowStationPassword] = useState(false);
   const [hotspotLastName, setHotspotLastName] = useState("");
   const [progress, setProgress] = useState<CommissioningProgress | null>(null);
   const [installElapsedSeconds, setInstallElapsedSeconds] = useState(0);
@@ -355,6 +392,10 @@ export function CommissionApp() {
       return { error: errorDetail(hotspotError), ssid: undefined };
     }
   }, [hotspotLastName]);
+  const stationIssue = useMemo(
+    () => stationNetworkError(stationSsid, stationPassword),
+    [stationPassword, stationSsid],
+  );
   const visibleNetworkChoices = networkChoiceVisibility(existingNetwork);
 
   const recordSetup = useCallback(
@@ -986,6 +1027,7 @@ export function CommissionApp() {
       });
       sessionRef.current = null;
       setStationPassword("");
+      setShowStationPassword(false);
       const workspace = folderRef.current;
       if (!workspace || !inspectedRobotId) {
         throw new Error(
@@ -1003,9 +1045,16 @@ export function CommissionApp() {
         network.mode === "station" &&
         completed.network.mode === "access_point" &&
         completed.network.fallback;
+      const fallbackReason =
+        network.mode === "station"
+          ? stationFallbackReason(
+              completed.network.station_status,
+              network.ssid,
+            )
+          : "";
       setDetail(
         stationFallback
-          ? `The XRP could not join ${network.ssid} and started ${completed.network.ssid} instead. Join that robot hotspot from this computer's Wi-Fi menu, then check the connection.`
+          ? `${fallbackReason} It started ${completed.network.ssid} instead. Join that robot hotspot to continue, or use Repair again by USB below to correct the Wi-Fi details.`
           : completed.network.mode === "station"
             ? `The XRP joined ${completed.network.ssid}. Confirm that this computer is on the same network before checking the robot connection.`
             : `USB setup is complete. Before checking the robot, join ${completed.network.ssid} from the computer's Wi-Fi menu and return to this page.`,
@@ -1062,14 +1111,34 @@ export function CommissionApp() {
     const attempt = wifiAttemptRef.current + 1;
     wifiAttemptRef.current = attempt;
     setWifiAttempts(attempt);
-    const endpoint = `http://${result.network.address}`;
     try {
-      const response = await fetchXrpService(
-        endpoint,
-        "/api/v1/info",
-        "identity",
-        WIFI_INFO_PROBE_TIMEOUT_MS,
+      const endpoints = commissioningEndpointCandidates(
+        result.network,
+        inspectedRobotId,
       );
+      let endpoint = endpoints[0]!;
+      let response: Response | null = null;
+      let lastConnectionError: unknown = null;
+      for (const candidate of endpoints) {
+        try {
+          const candidateResponse = await fetchXrpService(
+            candidate,
+            "/api/v1/info",
+            "identity",
+            WIFI_INFO_PROBE_TIMEOUT_MS,
+          );
+          endpoint = candidate;
+          response = candidateResponse;
+          break;
+        } catch (candidateError) {
+          lastConnectionError = candidateError;
+        }
+      }
+      if (!response) {
+        throw (
+          lastConnectionError ?? new Error("No XRP connection route was found.")
+        );
+      }
       if (!response.ok) {
         throw new XrpServiceProbeError(
           "http",
@@ -1630,36 +1699,80 @@ export function CommissionApp() {
                   <strong>
                     {existingNetwork?.mode === "station"
                       ? "Connect to another Wi-Fi network"
-                      : "Connect to a Wi-Fi network"}
+                      : "Connect the XRP to local Wi-Fi"}
                   </strong>
-                  <small>Use the same local network as this computer.</small>
+                  <small>
+                    Enter its exact name and shared password below; both are
+                    sent to the XRP over USB.
+                  </small>
                 </span>
               </label>
               {networkMode === "station" ? (
                 <div className="station-fields">
+                  <p>
+                    Copy the exact network name from this computer&apos;s Wi-Fi
+                    menu. The browser cannot read it automatically.
+                  </p>
                   <label>
                     Network name
                     <input
+                      aria-invalid={
+                        stationIssue?.includes("network name") &&
+                        (stationSsid || stationPassword)
+                          ? "true"
+                          : undefined
+                      }
                       autoComplete="off"
+                      autoCapitalize="none"
                       onChange={(event) => setStationSsid(event.target.value)}
+                      spellCheck={false}
                       value={stationSsid}
                     />
                   </label>
                   <label>
                     Wi-Fi password
                     <input
+                      aria-invalid={
+                        stationIssue?.includes("password") &&
+                        (stationSsid || stationPassword)
+                          ? "true"
+                          : undefined
+                      }
                       autoComplete="off"
+                      maxLength={63}
                       onChange={(event) =>
                         setStationPassword(event.target.value)
                       }
-                      type="password"
+                      type={showStationPassword ? "text" : "password"}
                       value={stationPassword}
                     />
                   </label>
+                  <label className="station-password-visibility">
+                    <input
+                      checked={showStationPassword}
+                      onChange={(event) =>
+                        setShowStationPassword(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    Show password
+                  </label>
                   <small>
-                    The password is sent over USB and is not saved by the web
-                    app. Wi-Fi passwords contain at least 8 characters.
+                    Use a 2.4 GHz WPA/WPA2 Personal network with a shared
+                    8–63-character password. Enterprise/802.1X, captive-portal,
+                    and client-isolated guest networks are not supported; use
+                    Robot hotspot for those networks.
                   </small>
+                  <small>
+                    The credentials are stored on this XRP so it can reconnect.
+                    They are not stored by the web app, Working folder, or setup
+                    log. Do not enter a university account password.
+                  </small>
+                  {stationIssue && (stationSsid || stationPassword) ? (
+                    <small className="field-error" role="alert">
+                      {stationIssue}
+                    </small>
+                  ) : null}
                 </div>
               ) : null}
               {networkMode === "access_point" ||
@@ -1696,8 +1809,7 @@ export function CommissionApp() {
               <button
                 className="primary-button"
                 disabled={
-                  (networkMode === "station" &&
-                    (!stationSsid.trim() || stationPassword.length < 8)) ||
+                  (networkMode === "station" && Boolean(stationIssue)) ||
                   (networkMode !== "station" && Boolean(hotspotName.error))
                 }
                 onClick={beginCommissioning}

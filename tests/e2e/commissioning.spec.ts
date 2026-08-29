@@ -852,13 +852,19 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(page.getByLabel("Robot hotspot", { exact: true })).toHaveCount(
     0,
   );
-  await page.getByLabel("Connect to a Wi-Fi network").check();
+  await page.getByLabel(/Connect the XRP to local Wi-Fi/).check();
   await page.getByLabel("Network name").fill("Course network");
   await page.getByLabel("Wi-Fi password").fill("short");
   await expect(
     page.getByRole("button", { name: "Install or repair software on XRP" }),
   ).toBeDisabled();
-  await expect(page.getByText(/at least 8 characters/)).toBeVisible();
+  await expect(page.getByText(/8 to 63 characters/)).toBeVisible();
+  await expect(page.getByText(/2.4 GHz WPA\/WPA2 Personal/)).toBeVisible();
+  await page.getByLabel("Show password").check();
+  await expect(page.getByLabel("Wi-Fi password")).toHaveAttribute(
+    "type",
+    "text",
+  );
   await page.getByLabel("Keep UCSB-XRP-4A21").check();
   const hotspotName = page.getByLabel(
     /Enter one team member's last name to give this robot a unique Wi-Fi hotspot name/,

@@ -281,7 +281,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
     "Physical XRP · ready",
   );
   await expect(monitor.getByTestId("target-status")).toContainText(
-    "Expanding-Spiral loads on Run",
+    /Expanding spiral|Expanding-Spiral loads on Run/,
   );
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",

@@ -10,6 +10,7 @@ import {
   installFirmware,
   robotHostnameForId,
   requireMatchingCommissioningRelease,
+  stationNetworkError,
   type CommissioningManifest,
 } from "./commissioner";
 import type { MicroPythonSession, ReplResult } from "./web-serial";
@@ -385,6 +386,32 @@ describe("browser XRP commissioning", () => {
     expect(() => robotHostnameForId("not-a-controller-id")).toThrow(
       "stable identity",
     );
+  });
+
+  it("validates station credentials before a device write", () => {
+    expect(stationNetworkError("Pink", "course-passphrase")).toBeNull();
+    expect(stationNetworkError("", "course-passphrase")).toContain(
+      "network name",
+    );
+    expect(stationNetworkError("é".repeat(17), "course-passphrase")).toContain(
+      "32 bytes",
+    );
+    expect(stationNetworkError("Pink", "short")).toContain("8 to 63");
+    expect(stationNetworkError("Pink", "x".repeat(64))).toContain("8 to 63");
+  });
+
+  it("rejects invalid station credentials before inspecting the device", async () => {
+    const session = new FakeSession();
+    await expect(
+      commissionDevice({
+        session,
+        manifest: manifest(),
+        manifestUrl,
+        robotId: "4c91fae8f1775aa4",
+        network: { mode: "station", ssid: "Pink", password: "short" },
+      }),
+    ).rejects.toThrow("8 to 63");
+    expect(session.commands).toHaveLength(0);
   });
 
   it("accepts only the pinned MicroPython controller runtime", async () => {
