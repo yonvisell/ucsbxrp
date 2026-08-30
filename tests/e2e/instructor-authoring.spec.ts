@@ -31,6 +31,12 @@ test("specification editor validates and downloads the complete curriculum examp
   await expect(page.getByLabel("Starting challenge")).toHaveValue(
     "challenge_3",
   );
+  await expect(
+    page.getByLabel("Starting challenge").locator("option"),
+  ).toHaveCount(8);
+  await expect(
+    page.getByLabel("Starting challenge").locator("option").last(),
+  ).toHaveAttribute("value", "challenge_8");
   await expect(page.getByLabel("Challenge ID")).toHaveValue("challenge_6");
   await expect(
     page.getByLabel("Program sequence — one step per line"),
@@ -170,9 +176,44 @@ test("visual world editor changes the downloadable world without losing advanced
   await expect(editor.getByText("Advanced world.json")).toBeVisible();
   await expect(editor.getByLabel("World configuration JSON")).not.toBeVisible();
 
+  const inspector = editor.locator(".world-editor-inspector");
+  await inspector.getByRole("button", { name: "waypoint · 2" }).click();
+  await editor.getByText("Advanced world.json").click();
+  const rawEditor = editor.getByLabel("World configuration JSON");
+  const sourceBeforeRejectedEdit = await rawEditor.inputValue();
+  const worldBeforeRejectedEdit = JSON.parse(
+    sourceBeforeRejectedEdit,
+  ) as Record<string, any>;
+  const boundsBeforeRejectedEdit = worldBeforeRejectedEdit.worlds[0]
+    .bounds as Record<string, number>;
+  await inspector
+    .getByLabel("x mm", { exact: true })
+    .fill(String(boundsBeforeRejectedEdit.maximum_x_mm + 100));
+  await expect(editor.getByRole("alert")).toContainText(
+    "That edit was not applied.",
+  );
+  await expect(editor.getByRole("alert")).toContainText(
+    "Waypoint “2” is outside the arena in world “Waypoint slalom”.",
+  );
+  await expect(editor.getByRole("alert")).toContainText(
+    `x = ${boundsBeforeRejectedEdit.minimum_x_mm} to ${boundsBeforeRejectedEdit.maximum_x_mm} mm and y = ${boundsBeforeRejectedEdit.minimum_y_mm} to ${boundsBeforeRejectedEdit.maximum_y_mm} mm`,
+  );
+  await expect(
+    editor.getByRole("img", { name: "Graphic editor for Waypoint slalom" }),
+  ).toBeVisible();
+  await expect(inspector.getByLabel("x mm", { exact: true })).toHaveValue(
+    "500",
+  );
+  await expect(rawEditor).toHaveValue(sourceBeforeRejectedEdit);
+  await editor.getByText("Technical details").click();
+  await expect(editor.getByRole("alert").locator("code")).toHaveText(
+    "worlds[0].markers[2] must be inside the world bounds",
+  );
+  await inspector.getByLabel("x mm", { exact: true }).fill("525");
+  await expect(editor.getByRole("alert")).toHaveCount(0);
+
   await editor.getByLabel("World item type").selectOption("block");
   await editor.getByRole("button", { name: "Add item" }).click();
-  const inspector = editor.locator(".world-editor-inspector");
   await expect(
     inspector.getByRole("heading", { name: "block · Block" }),
   ).toBeVisible();
@@ -182,8 +223,6 @@ test("visual world editor changes the downloadable world without losing advanced
     editor.getByRole("button", { name: "block · Foam barrier" }),
   ).toBeVisible();
 
-  await editor.getByText("Advanced world.json").click();
-  const rawEditor = editor.getByLabel("World configuration JSON");
   const editedSource = await rawEditor.inputValue();
   const extended = JSON.parse(editedSource) as Record<string, any>;
   extended.instructor_extension = { keep: "yes" };
@@ -221,13 +260,29 @@ test("visual world editor changes the downloadable world without losing advanced
     .inputValue();
   await editor.getByLabel("World configuration JSON").fill("{");
   await expect(editor.getByRole("alert")).toContainText(
-    "Graphic editor unavailable",
+    "World JSON needs attention.",
+  );
+  await expect(editor.getByRole("alert")).toContainText(
+    "Advanced world.json contains incomplete or invalid JSON.",
   );
   await expect(editor.getByLabel("World configuration JSON")).toHaveValue("{");
-  await editor.getByLabel("World configuration JSON").fill(validExtendedSource);
   await expect(
     editor.getByRole("img", { name: /Graphic editor for/ }),
   ).toBeVisible();
+  await expect(editor.getByRole("button", { name: "Add item" })).toBeDisabled();
+  const review = page.locator(".review-errors");
+  await expect(review).toContainText(
+    "Resolve the world configuration issue shown in Section 3.",
+  );
+  await expect(review).not.toContainText("World JSON:");
+  await editor
+    .getByRole("button", { name: "Restore last valid world configuration" })
+    .click();
+  await expect(editor.getByLabel("World configuration JSON")).toHaveValue(
+    validExtendedSource,
+  );
+  await expect(editor.getByRole("alert")).toHaveCount(0);
+  await expect(editor.getByRole("button", { name: "Add item" })).toBeEnabled();
 
   const downloadEvent = page.waitForEvent("download");
   await page

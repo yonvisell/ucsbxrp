@@ -15,6 +15,7 @@ import {
   updateWorldIdentity,
   updateWorldNumbers,
   updateWorldText,
+  worldEditorDiagnostic,
   worldEditorWarnings,
   type WorldAddItemType,
 } from "./world-editor-model";
@@ -26,7 +27,7 @@ const source = readFileSync(
 
 describe("visual world editor model", () => {
   test("all current challenge worlds parse without conversion", () => {
-    for (let challenge = 1; challenge <= 5; challenge += 1) {
+    for (let challenge = 1; challenge <= 8; challenge += 1) {
       const current = readFileSync(
         `vendor/current/starters/challenge_${challenge}/world.json`,
         "utf8",
@@ -154,21 +155,48 @@ describe("visual world editor model", () => {
     expect(reordered.markerIndex).toBe(2);
   });
 
-  test("out-of-bounds edits are reported and are never silently cropped", () => {
+  test("out-of-bounds graphic edits are rejected transactionally", () => {
     const current = readFileSync(
       "vendor/current/starters/challenge_4/world.json",
       "utf8",
     );
-    const outside = updateWorldNumbers(
-      current,
-      "mapped-route",
-      { kind: "obstacle", index: 0 },
-      { maximum_x_mm: 1_600 },
+    expect(() =>
+      updateWorldNumbers(
+        current,
+        "mapped-route",
+        { kind: "obstacle", index: 0 },
+        { maximum_x_mm: 1_600 },
+      ),
+    ).toThrow("inside the world bounds");
+    expect(JSON.parse(current).worlds[0].obstacles[0].maximum_x_mm).not.toBe(
+      1_600,
     );
-    expect(JSON.parse(outside).worlds[0].obstacles[0].maximum_x_mm).toBe(1_600);
-    expect(() => parseWorldDocument(outside)).toThrow(
-      "inside the world bounds",
-    );
+  });
+
+  test("schema paths become object-specific bounded repairs", () => {
+    const example = JSON.parse(
+      readFileSync("docs/examples/waypoint_slalom.challenge.json", "utf8"),
+    ) as Record<string, any>;
+    const current = JSON.stringify(example.world);
+    const bounds = example.world.worlds[0].bounds as Record<string, number>;
+    const technical = "worlds[0].markers[2] must be inside the world bounds";
+    expect(worldEditorDiagnostic(current, technical)).toEqual({
+      summary: "Waypoint “2” is outside the arena in world “Waypoint slalom”.",
+      guidance: `Keep the entire item within x = ${bounds.minimum_x_mm} to ${bounds.maximum_x_mm} mm and y = ${bounds.minimum_y_mm} to ${bounds.maximum_y_mm} mm.`,
+      technical,
+    });
+    expect(
+      worldEditorDiagnostic(
+        "{",
+        "world.json is not valid JSON: incomplete",
+        current,
+      ),
+    ).toEqual({
+      summary: "Advanced world.json contains incomplete or invalid JSON.",
+      guidance:
+        "Correct the JSON text, or restore the last valid world configuration.",
+      technical: "world.json is not valid JSON: incomplete",
+    });
   });
 
   test("initial footprint overlap is a warning rather than a parse failure", () => {

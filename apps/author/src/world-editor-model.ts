@@ -33,6 +33,12 @@ export interface WorldEditorWarning {
   message: string;
 }
 
+export interface WorldEditorDiagnostic {
+  summary: string;
+  guidance: string;
+  technical: string;
+}
+
 function rectangleValues(item: WorldObstacle | WorldMarker) {
   if (!("minimumXmm" in item)) return null;
   return {
@@ -123,8 +129,9 @@ function serialize(value: JsonObject): string {
 }
 
 export function parseWorldDocument(source: string): ParsedWorldDocument {
+  const catalog = parseWorldCatalog(source);
   const raw = objectValue(JSON.parse(source) as unknown, "world.json");
-  return { raw, catalog: parseWorldCatalog(source) };
+  return { raw, catalog };
 }
 
 function mutateDocument(
@@ -134,7 +141,148 @@ function mutateDocument(
   const { raw } = parseWorldDocument(source);
   const next = clone(raw);
   mutate(next);
-  return serialize(next);
+  const nextSource = serialize(next);
+  // Graphic operations are transactions: never publish a candidate that would
+  // make the next render lose the editor that created it.
+  parseWorldDocument(nextSource);
+  return nextSource;
+}
+
+function rawDocument(source: string): JsonObject | null {
+  try {
+    return objectValue(JSON.parse(source) as unknown, "world.json");
+  } catch {
+    return null;
+  }
+}
+
+function formatMillimeters(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Number.isInteger(value)
+      ? String(value)
+      : String(Number(value.toFixed(3)))
+    : "?";
+}
+
+function diagnosticItemName(
+  item: JsonObject | null,
+  collection: "markers" | "obstacles",
+  index: number,
+): string {
+  const type =
+    typeof item?.type === "string"
+      ? item.type.replaceAll("_", " ")
+      : collection === "markers"
+        ? "marker"
+        : "obstacle";
+  const label =
+    typeof item?.label === "string" && item.label.trim()
+      ? item.label.trim()
+      : typeof item?.name === "string" && item.name.trim()
+        ? item.name.trim()
+        : "";
+  const titledType = type.charAt(0).toUpperCase() + type.slice(1);
+  return label ? `${titledType} “${label}”` : `${titledType} ${index + 1}`;
+}
+
+/** Convert a schema path into a concise instructor-facing repair. */
+export function worldEditorDiagnostic(
+  source: string,
+  error: unknown,
+  fallbackSource?: string,
+): WorldEditorDiagnostic {
+  const technical = error instanceof Error ? error.message : String(error);
+  const root =
+    rawDocument(source) ??
+    (fallbackSource === undefined ? null : rawDocument(fallbackSource));
+  const match = technical.match(
+    /^worlds\[(\d+)]\.(markers|obstacles)\[(\d+)] must be inside the world bounds$/,
+  );
+  if (match) {
+    const worldIndex = Number(match[1]);
+    const collection = match[2] as "markers" | "obstacles";
+    const itemIndex = Number(match[3]);
+    const worlds = Array.isArray(root?.worlds) ? root.worlds : [];
+    const rawWorldValue = worlds[worldIndex];
+    const world =
+      rawWorldValue &&
+      typeof rawWorldValue === "object" &&
+      !Array.isArray(rawWorldValue)
+        ? (rawWorldValue as JsonObject)
+        : null;
+    const values = Array.isArray(world?.[collection])
+      ? (world[collection] as unknown[])
+      : [];
+    const rawItem = values[itemIndex];
+    const item =
+      rawItem && typeof rawItem === "object" && !Array.isArray(rawItem)
+        ? (rawItem as JsonObject)
+        : null;
+    const rawBounds = world?.bounds;
+    const bounds =
+      rawBounds && typeof rawBounds === "object" && !Array.isArray(rawBounds)
+        ? (rawBounds as JsonObject)
+        : null;
+    const worldLabel =
+      typeof world?.label === "string" && world.label.trim()
+        ? ` in world “${world.label.trim()}”`
+        : "";
+    return {
+      summary: `${diagnosticItemName(item, collection, itemIndex)} is outside the arena${worldLabel}.`,
+      guidance: `Keep the entire item within x = ${formatMillimeters(bounds?.minimum_x_mm)} to ${formatMillimeters(bounds?.maximum_x_mm)} mm and y = ${formatMillimeters(bounds?.minimum_y_mm)} to ${formatMillimeters(bounds?.maximum_y_mm)} mm.`,
+      technical,
+    };
+  }
+
+  const poseMatch = technical.match(
+    /^worlds\[(\d+)]\.initial_pose must be inside the bounds$/,
+  );
+  if (poseMatch) {
+    const worldIndex = Number(poseMatch[1]);
+    const worlds = Array.isArray(root?.worlds) ? root.worlds : [];
+    const rawWorldValue = worlds[worldIndex];
+    const world =
+      rawWorldValue &&
+      typeof rawWorldValue === "object" &&
+      !Array.isArray(rawWorldValue)
+        ? (rawWorldValue as JsonObject)
+        : null;
+    const rawBounds = world?.bounds;
+    const bounds =
+      rawBounds && typeof rawBounds === "object" && !Array.isArray(rawBounds)
+        ? (rawBounds as JsonObject)
+        : null;
+    return {
+      summary: "The initial XRP pose is outside the arena.",
+      guidance: `Place its center within x = ${formatMillimeters(bounds?.minimum_x_mm)} to ${formatMillimeters(bounds?.maximum_x_mm)} mm and y = ${formatMillimeters(bounds?.minimum_y_mm)} to ${formatMillimeters(bounds?.maximum_y_mm)} mm.`,
+      technical,
+    };
+  }
+
+  if (technical.startsWith("world.json is not valid JSON:")) {
+    return {
+      summary: "Advanced world.json contains incomplete or invalid JSON.",
+      guidance:
+        "Correct the JSON text, or restore the last valid world configuration.",
+      technical,
+    };
+  }
+  if (
+    /worlds\[\d+]\.bounds must have positive width and height/.test(technical)
+  ) {
+    return {
+      summary: "The arena bounds do not form a positive rectangle.",
+      guidance:
+        "Each maximum coordinate must be greater than its corresponding minimum coordinate.",
+      technical,
+    };
+  }
+  return {
+    summary: "The world configuration cannot be used by the graphic editor.",
+    guidance:
+      "Correct the affected world value, or restore the last valid world configuration.",
+    technical,
+  };
 }
 
 function rawWorlds(root: JsonObject): JsonObject[] {

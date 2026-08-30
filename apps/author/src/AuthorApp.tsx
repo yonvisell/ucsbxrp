@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import authoringInstructionsUrl from "../../../docs/INSTRUCTOR_CHALLENGE_AUTHORING.md?url";
 import exampleSource from "../../../docs/examples/waypoint_slalom.challenge.json?raw";
+import projectCatalogSource from "../../../vendor/current/project_catalog.json?raw";
 import { CourseHeader } from "../../shared/CourseHeader";
 import {
   registerOfflineShellBeforeReload,
@@ -34,13 +35,29 @@ const starterWorldSources = import.meta.glob(
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
 
-const sources = [
-  ["challenge_1", "Challenge 1 · measured straight run"],
-  ["challenge_2", "Challenge 2 · turn and return"],
-  ["challenge_3", "Challenge 3 · ordered waypoints"],
-  ["challenge_4", "Challenge 4 · mapped route"],
-  ["challenge_5", "Challenge 5 · observe, plan, deliver"],
-] as const;
+interface ProjectCatalogEntry {
+  id: string;
+  kind: string;
+  label: string;
+  published?: boolean;
+}
+
+const starterWorldIds = new Set(
+  Object.keys(starterWorldSources).flatMap((path) => {
+    const match = path.match(
+      /\/starters\/(challenge_[1-9][0-9]*)\/world\.json$/,
+    );
+    return match?.[1] ? [match[1]] : [];
+  }),
+);
+const sources = (JSON.parse(projectCatalogSource) as ProjectCatalogEntry[])
+  .filter(
+    (entry) =>
+      entry.kind === "challenge" &&
+      entry.published === true &&
+      starterWorldIds.has(entry.id),
+  )
+  .map((entry) => [entry.id, entry.label] as const);
 
 const componentDefaults: ChallengeComponentSpec[] = [
   {
@@ -202,6 +219,10 @@ export function AuthorApp() {
   const filename = specificationFilename(currentSpec.spec);
   const command = authoringCommand(filename);
   const overrideCount = Object.keys(currentSpec.spec.files ?? {}).length;
+  const reviewErrors = currentSpec.errors.filter(
+    (error) => !error.startsWith("World JSON:"),
+  );
+  const hasWorldErrors = reviewErrors.length !== currentSpec.errors.length;
   currentSpecificationRef.current = currentDraftFingerprint;
 
   useEffect(
@@ -782,12 +803,21 @@ export function AuthorApp() {
                 </p>
               ) : (
                 <>
-                  <p>{currentSpec.errors.length} item(s) require attention:</p>
-                  <ul>
-                    {currentSpec.errors.map((error) => (
-                      <li key={error}>{error}</li>
-                    ))}
-                  </ul>
+                  {reviewErrors.length > 0 && (
+                    <>
+                      <p>{reviewErrors.length} item(s) require attention:</p>
+                      <ul>
+                        {reviewErrors.map((error) => (
+                          <li key={error}>{error}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {hasWorldErrors && (
+                    <p>
+                      Resolve the world configuration issue shown in Section 3.
+                    </p>
+                  )}
                 </>
               )}
             </div>

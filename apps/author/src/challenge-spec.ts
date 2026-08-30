@@ -414,9 +414,9 @@ export function challengeDraftProject(spec: ChallengeSpec): CourseProject {
     entrypoint: source.entrypoint,
     files: {
       ...source.files,
+      ...(spec.files ?? {}),
       "README.md": renderChallengeReadme(spec),
       "world.json": `${JSON.stringify(spec.world, null, 2)}\n`,
-      ...(spec.files ?? {}),
     },
   };
 }

@@ -84,10 +84,11 @@ describe("challenge authoring specification", () => {
       },
     ];
     const world = (spec.world.worlds as Array<Record<string, unknown>>)[0]!;
+    const bounds = world.bounds as Record<string, number>;
     world.markers = [
       {
         type: "start_line",
-        x1_mm: -250,
+        x1_mm: bounds.minimum_x_mm - 50,
         y1_mm: 0,
         x2_mm: 0,
         y2_mm: 0,
@@ -119,6 +120,23 @@ describe("challenge authoring specification", () => {
     spec.source_id = "challenge_4";
     spec.files = { ...spec.files, "challenge.py": "ROUTE = ()\n" };
     expect(validateChallengeSpec(spec)).toEqual([]);
+  });
+
+  it("reserves generated README and world files for specification fields", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    spec.files = {
+      ...spec.files,
+      "README.md": "unrelated instructions",
+      "world.json": '{"unrelated":true}',
+    };
+
+    const errors = validateChallengeSpec(spec);
+    expect(errors).toContain(
+      "README.md is generated from its specification fields.",
+    );
+    expect(errors).toContain(
+      "world.json is generated from its specification fields.",
+    );
   });
 
   it("requires complete source for a newly declared component", () => {

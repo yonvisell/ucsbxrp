@@ -305,6 +305,18 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 294px;
   min-width: 0;
+  min-inline-size: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.world-editor-layout.is-read-only {
+  opacity: 0.72;
+}
+
+.world-editor-layout.is-read-only .world-editor-canvas {
+  pointer-events: none;
 }
 
 .world-editor-canvas-panel {
@@ -542,6 +554,33 @@
   background: #fbf4f3;
   color: #6d312b;
   font-size: 13px;
+}
+
+.world-editor-invalid p {
+  margin: 0;
+}
+
+.world-editor-invalid-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.world-editor-invalid details {
+  margin: 0.25rem 0 0;
+  border: 0;
+  padding: 0;
+}
+
+.world-editor-invalid summary {
+  font-size: 12px;
+}
+
+.world-editor-invalid code {
+  display: block;
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
 }
 
 .world-editor-message {

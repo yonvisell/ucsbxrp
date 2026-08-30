@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   addWorld,
@@ -7,6 +7,9 @@ import {
   makeDefaultWorld,
   parseWorldDocument,
   updateWorldIdentity,
+  worldEditorDiagnostic,
+  type ParsedWorldDocument,
+  type WorldEditorDiagnostic,
   type WorldObjectSelection,
 } from "./world-editor-model";
 import { WorldEditorCanvas } from "./WorldEditorCanvas";
@@ -15,6 +18,34 @@ import { WorldEditorInspector } from "./WorldEditorInspector";
 interface WorldEditorProps {
   source: string;
   onChange: (source: string) => void;
+}
+
+interface ValidWorldState {
+  source: string;
+  document: ParsedWorldDocument;
+}
+
+function DiagnosticCard({
+  title,
+  diagnostic,
+  actions,
+}: {
+  title: string;
+  diagnostic: WorldEditorDiagnostic;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="world-editor-invalid" role="alert">
+      <strong>{title}</strong>
+      <p>{diagnostic.summary}</p>
+      <p>{diagnostic.guidance}</p>
+      {actions}
+      <details>
+        <summary>Technical details</summary>
+        <code>{diagnostic.technical}</code>
+      </details>
+    </div>
+  );
 }
 
 export function WorldEditor({ source, onChange }: WorldEditorProps) {
@@ -34,13 +65,39 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
   });
   const [snap, setSnap] = useState(25);
   const [message, setMessage] = useState("");
+  const [graphicDiagnostic, setGraphicDiagnostic] =
+    useState<WorldEditorDiagnostic | null>(null);
+  const [lastValid, setLastValid] = useState<ValidWorldState | null>(() => {
+    try {
+      return { source, document: parseWorldDocument(source) };
+    } catch {
+      return null;
+    }
+  });
+  const jsonDetailsRef = useRef<HTMLDetailsElement | null>(null);
+  const jsonTextRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const catalog = parsed.document?.catalog ?? null;
+  const displayed = parsed.document
+    ? { source, document: parsed.document }
+    : lastValid;
+  const catalog = displayed?.document.catalog ?? null;
+  const editorSource = displayed?.source ?? source;
+  const sourceInvalid = Boolean(parsed.error);
   const world =
     catalog?.worlds.find((candidate) => candidate.id === selectedWorldId) ??
     catalog?.worlds[0] ??
     null;
   const activeWorldId = world?.id ?? "";
+
+  useEffect(() => {
+    if (!parsed.document) return;
+    setLastValid({ source, document: parsed.document });
+  }, [parsed.document, source]);
+
+  useEffect(() => {
+    setGraphicDiagnostic(null);
+    setMessage("");
+  }, [source]);
 
   useEffect(() => {
     if (!catalog) return;
@@ -65,10 +122,28 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
     try {
       operation();
       setMessage("");
+      setGraphicDiagnostic(null);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
+      setMessage("");
+      setGraphicDiagnostic(worldEditorDiagnostic(editorSource, error));
     }
   }
+
+  function reportGraphicError(error: string) {
+    setMessage("");
+    setGraphicDiagnostic(
+      error ? worldEditorDiagnostic(editorSource, error) : null,
+    );
+  }
+
+  function reviewAdvancedJson() {
+    if (jsonDetailsRef.current) jsonDetailsRef.current.open = true;
+    jsonTextRef.current?.focus();
+  }
+
+  const sourceDiagnostic = parsed.error
+    ? worldEditorDiagnostic(source, parsed.error, lastValid?.source)
+    : null;
 
   return (
     <div className="world-editor">
@@ -95,10 +170,10 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
         <div className="world-editor-world-actions">
           <button
             type="button"
-            disabled={!catalog}
+            disabled={!catalog || sourceInvalid}
             onClick={() =>
               run(() => {
-                const result = addWorld(source);
+                const result = addWorld(editorSource);
                 onChange(result.source);
                 setSelectedWorldId(result.worldId);
                 setSelection({ kind: "initial_pose" });
@@ -109,10 +184,10 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           </button>
           <button
             type="button"
-            disabled={!world}
+            disabled={!world || sourceInvalid}
             onClick={() =>
               run(() => {
-                const result = duplicateWorld(source, activeWorldId);
+                const result = duplicateWorld(editorSource, activeWorldId);
                 onChange(result.source);
                 setSelectedWorldId(result.worldId);
                 setSelection({ kind: "initial_pose" });
@@ -123,10 +198,10 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           </button>
           <button
             type="button"
-            disabled={!world || catalog?.worlds.length === 1}
+            disabled={!world || sourceInvalid || catalog?.worlds.length === 1}
             onClick={() =>
               run(() => {
-                const result = deleteWorld(source, activeWorldId);
+                const result = deleteWorld(editorSource, activeWorldId);
                 onChange(result.source);
                 setSelectedWorldId(result.worldId);
                 setSelection({ kind: "initial_pose" });
@@ -137,9 +212,13 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           </button>
           <button
             type="button"
-            disabled={!world || catalog?.defaultWorldId === activeWorldId}
+            disabled={
+              !world ||
+              sourceInvalid ||
+              catalog?.defaultWorldId === activeWorldId
+            }
             onClick={() =>
-              run(() => onChange(makeDefaultWorld(source, activeWorldId)))
+              run(() => onChange(makeDefaultWorld(editorSource, activeWorldId)))
             }
           >
             Make default
@@ -152,6 +231,7 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           <label>
             World ID
             <input
+              disabled={sourceInvalid}
               pattern="[a-z][a-z0-9_-]*"
               value={world.id}
               onChange={(event) => {
@@ -168,7 +248,7 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
                 }
                 run(() => {
                   const result = updateWorldIdentity(
-                    source,
+                    editorSource,
                     activeWorldId,
                     "id",
                     value,
@@ -182,13 +262,14 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           <label>
             Display name
             <input
+              disabled={sourceInvalid}
               value={world.label}
               onChange={(event) => {
                 const value = event.target.value;
                 if (!value.trim()) return;
                 run(() => {
                   const result = updateWorldIdentity(
-                    source,
+                    editorSource,
                     activeWorldId,
                     "label",
                     value,
@@ -215,37 +296,58 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
         </div>
       )}
 
-      {parsed.error ? (
-        <div className="world-editor-invalid" role="alert">
-          <strong>Graphic editor unavailable.</strong>
-          <span>{parsed.error}</span>
-          <span>
-            The text below is unchanged. Correct it in Advanced world.json to
-            restore the graphic editor.
-          </span>
-        </div>
-      ) : (
-        world && (
-          <div className="world-editor-layout">
-            <WorldEditorCanvas
-              source={source}
-              world={world}
-              selection={selection}
-              snap={snap}
-              onChange={onChange}
-              onError={setMessage}
-              onSelectionChange={setSelection}
-            />
-            <WorldEditorInspector
-              source={source}
-              world={world}
-              selection={selection}
-              onChange={onChange}
-              onError={setMessage}
-              onSelectionChange={setSelection}
-            />
-          </div>
-        )
+      {sourceDiagnostic && (
+        <DiagnosticCard
+          title="World JSON needs attention."
+          diagnostic={sourceDiagnostic}
+          actions={
+            <div className="world-editor-invalid-actions">
+              {lastValid && (
+                <button
+                  type="button"
+                  onClick={() => onChange(lastValid.source)}
+                >
+                  Restore last valid world configuration
+                </button>
+              )}
+              <button type="button" onClick={reviewAdvancedJson}>
+                Review Advanced world.json
+              </button>
+            </div>
+          }
+        />
+      )}
+
+      {graphicDiagnostic && !sourceDiagnostic && (
+        <DiagnosticCard
+          title="That edit was not applied."
+          diagnostic={graphicDiagnostic}
+        />
+      )}
+
+      {world && (
+        <fieldset
+          className={`world-editor-layout${sourceInvalid ? " is-read-only" : ""}`}
+          disabled={sourceInvalid}
+        >
+          <WorldEditorCanvas
+            source={editorSource}
+            world={world}
+            selection={selection}
+            snap={snap}
+            onChange={onChange}
+            onError={reportGraphicError}
+            onSelectionChange={setSelection}
+          />
+          <WorldEditorInspector
+            source={editorSource}
+            world={world}
+            selection={selection}
+            onChange={onChange}
+            onError={reportGraphicError}
+            onSelectionChange={setSelection}
+          />
+        </fieldset>
       )}
 
       {message && (
@@ -253,7 +355,7 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           {message}
         </p>
       )}
-      <details className="world-editor-json">
+      <details className="world-editor-json" ref={jsonDetailsRef}>
         <summary>Advanced world.json</summary>
         <p>
           The graphic editor and this JSON edit the same project data. Use JSON
@@ -266,6 +368,7 @@ export function WorldEditor({ source, onChange }: WorldEditorProps) {
           spellCheck={false}
           value={source}
           onChange={(event) => onChange(event.target.value)}
+          ref={jsonTextRef}
         />
       </details>
     </div>
