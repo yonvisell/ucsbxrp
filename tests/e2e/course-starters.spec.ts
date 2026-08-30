@@ -8,7 +8,7 @@ import {
 
 const starters = [
   { option: "challenge_2", completion: "Challenge 2 complete" },
-  { option: "challenge_3", completion: "Challenge 3 complete" },
+  { option: "challenge_3", completion: "Challenge 3: result=complete" },
   { option: "challenge_4", completion: "Challenge 4 complete" },
   { option: "challenge_5", completion: "Challenge 5 result: delivered" },
 ];

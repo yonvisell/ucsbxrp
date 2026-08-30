@@ -36,8 +36,32 @@ const challengeOne: TestProject = {
 async function readFolderFiles(page: Page, rootName: string) {
   return page.evaluate(async (selectedRootName) => {
     const files: Record<string, string> = {};
-    const root = await navigator.storage.getDirectory();
-    const selected = await root.getDirectoryHandle(selectedRootName);
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("ucsb-xrp-course-tools-v1", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const selected = await new Promise<FileSystemDirectoryHandle>(
+      (resolve, reject) => {
+        const transaction = database.transaction("course-folders", "readonly");
+        const request = transaction
+          .objectStore("course-folders")
+          .get("workspace-folder-capability-v1");
+        request.onsuccess = () => {
+          const handle = request.result as
+            FileSystemDirectoryHandle | undefined;
+          if (handle) resolve(handle);
+          else reject(new Error("The retained Working folder is unavailable"));
+        };
+        request.onerror = () => reject(request.error);
+      },
+    );
+    database.close();
+    if (selected.name !== selectedRootName) {
+      throw new Error(
+        `Expected retained Working folder ${selectedRootName}; received ${selected.name}`,
+      );
+    }
     const read = async (folder: FileSystemDirectoryHandle, prefix = "") => {
       for await (const [name, handle] of folder.entries()) {
         const path = `${prefix}${name}`;
