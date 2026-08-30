@@ -254,7 +254,10 @@ test("rejects the course repository without exposing its source files", async ({
   });
   await page.goto("/ide/");
   await page.getByRole("button", { name: "Open project…" }).click();
-  await page.getByRole("button", { name: "Choose Working folder…" }).click();
+  await page
+    .getByRole("dialog", { name: "Open project" })
+    .getByRole("button", { name: "Choose Working folder…" })
+    .click();
 
   await expect(
     page.getByText(/not the UCSBXRP course software repository/),

@@ -36,9 +36,9 @@
       "obstacles": [
         {
           "type": "block",
-          "minimum_x_mm": 320,
+          "minimum_x_mm": 250,
           "minimum_y_mm": -100,
-          "maximum_x_mm": 420,
+          "maximum_x_mm": 350,
           "maximum_y_mm": 100,
           "label": "Test obstacle"
         }

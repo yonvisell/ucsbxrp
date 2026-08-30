@@ -741,9 +741,12 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   await monitor
     .getByLabel("World configuration")
     .selectOption("obstacle-ahead");
-  await expect(monitor.getByTestId("range-mm")).toContainText("250.0 mm");
+  await expect(monitor.getByTestId("range-mm")).toContainText("180.0 mm");
   await ide.getByRole("button", { name: "Run", exact: true }).click();
 
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
