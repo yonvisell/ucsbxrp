@@ -55,9 +55,9 @@ test("direct Guide and API fragment links reveal their rendered section", async 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const [path, id] of [
-    ["/guide/#offline-use", "offline-use"],
-    ["/reference/#sensor-model", "sensor-model"],
+  for (const [path, id, minimumTop, maximumTop] of [
+    ["/guide/#offline-use", "offline-use", 85, 120],
+    ["/reference/#sensor-model", "sensor-model", 60, 90],
   ] as const) {
     await page.goto(path);
     await page.locator(`#${id}`).waitFor({ state: "attached" });
@@ -66,10 +66,55 @@ test("direct Guide and API fragment links reveal their rendered section", async 
         const top = await page
           .locator(`#${id}`)
           .evaluate((element) => element.getBoundingClientRect().top);
-        return top >= 60 && top < 90;
+        return top >= minimumTop && top < maximumTop;
       })
       .toBe(true);
   }
+});
+
+test("compact Guide keeps section navigation available", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/guide/");
+
+  const sections = page.getByRole("navigation", { name: "Guide sections" });
+  await expect(sections).toBeVisible();
+  await expect(
+    sections.getByRole("link", { name: "07 Offline use" }),
+  ).toHaveCount(1);
+  const dimensions = await sections.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    height: element.getBoundingClientRect().height,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(dimensions.height).toBeLessThan(50);
+  expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth);
+
+  await sections.getByRole("link", { name: "07 Offline use" }).click();
+  await expect(page).toHaveURL(/\/guide\/#offline-use$/);
+  await expect
+    .poll(() =>
+      page
+        .locator("#offline-use")
+        .evaluate((element) => element.getBoundingClientRect().top),
+    )
+    .toBeGreaterThanOrEqual(85);
+});
+
+test("IDE contextual documentation replaces the top-level workspace tab", async ({
+  context,
+  page,
+}) => {
+  await page.goto("/workspace/?mode=ide");
+  const ide = page.frameLocator('iframe[title="UCSBXRP IDE"]');
+  await ide.getByRole("button", { name: "Open robot_config.py" }).click();
+  const documentation = ide.getByRole("link", { name: "Configuration API" });
+  await expect(documentation).toHaveAttribute("target", "_top");
+  const pageCount = context.pages().length;
+
+  await documentation.click();
+  await expect(page).toHaveURL(/\/reference\/#configuration$/);
+  expect(context.pages()).toHaveLength(pageCount);
+  await expect(page.locator("#configuration")).toBeVisible();
 });
 
 test("course pages keep the complete navigation visible without header collisions", async ({

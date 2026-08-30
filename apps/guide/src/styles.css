@@ -450,13 +450,29 @@ kbd {
   }
 
   .guide-toc {
-    display: none;
+    position: sticky;
+    z-index: 10;
+    top: var(--course-header-height);
+    display: flex;
+    overflow-x: auto;
+    margin: 0 -4px 4px;
+    padding: 5px 4px 7px;
+    background: rgb(255 255 255 / 96%);
+    gap: 4px;
+    scrollbar-width: thin;
+  }
+
+  .guide-toc a {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 5px 7px;
   }
 
   .guide-content > section:not(.guide-intro) {
     grid-template-columns: 25px minmax(0, 1fr);
     gap: 7px;
-    scroll-margin-top: calc(var(--course-header-height) + 22px);
+    scroll-margin-top: calc(var(--course-header-height) + 42px);
   }
 
   .project-catalog {

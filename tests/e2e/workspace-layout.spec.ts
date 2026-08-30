@@ -273,3 +273,32 @@ test("workspace opens in IDE mode unless the user selects another layout", async
   );
   await expect(page).toHaveURL(/mode=ide/);
 });
+
+test("phone-width IDE keeps the output action inside its console header", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/ide/");
+
+  const header = page.locator(".console-header");
+  const action = page.getByRole("button", { name: "Expand output" });
+  await expect(action).toBeVisible();
+  const [headerBox, actionBox] = await Promise.all([
+    header.boundingBox(),
+    action.boundingBox(),
+  ]);
+  expect(headerBox).not.toBeNull();
+  expect(actionBox).not.toBeNull();
+  expect((actionBox?.x ?? 0) + (actionBox?.width ?? 0)).toBeLessThanOrEqual(
+    (headerBox?.x ?? 0) + (headerBox?.width ?? 0) + 0.5,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(0);
+});

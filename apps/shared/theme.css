@@ -611,6 +611,10 @@ input[type="radio"] {
   color: var(--quiet);
 }
 
+.landing-offline-readiness {
+  margin-top: 0.15rem;
+}
+
 .landing-offline-summary a {
   color: var(--muted);
   text-underline-offset: 2px;

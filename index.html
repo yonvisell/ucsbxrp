@@ -53,6 +53,21 @@
         Monitor, virtual XRP, Guide, and API without internet.
         <a href="./guide/#offline-use">What is stored and what is not.</a>
       </p>
+      <div
+        aria-live="polite"
+        class="landing-offline-readiness offline-readiness installing"
+        data-testid="offline-readiness"
+        id="landing-offline-readiness"
+        role="status"
+      >
+        <span aria-hidden="true" class="offline-readiness-dot"></span>
+        <a
+          class="offline-readiness-label"
+          href="./guide/#offline-use"
+          id="landing-offline-readiness-label"
+          >Preparing offline copy</a
+        >
+      </div>
       <nav class="landing-setup-action" aria-label="XRP setup and repair">
         <a class="secondary-link" href="./commission/">
           Open wizard for XRP initial set up or repair
@@ -77,9 +92,35 @@
       Release <span id="landing-release-id"></span>
     </footer>
     <script type="module">
-      import { registerOfflineShell } from "/apps/shared/offline-shell.ts";
+      import {
+        OFFLINE_SHELL_EVENT,
+        readOfflineShellStatus,
+        registerOfflineShell,
+      } from "/apps/shared/offline-shell.ts";
+      import {
+        offlineReadinessDetail,
+        offlineReadinessLabel,
+      } from "/apps/shared/offline-readiness.ts";
       import courseRelease from "/vendor/current/release.json";
 
+      const offlineReadiness = document.querySelector(
+        "#landing-offline-readiness",
+      );
+      const offlineReadinessLabelElement = document.querySelector(
+        "#landing-offline-readiness-label",
+      );
+      const renderOfflineReadiness = (status) => {
+        const detail = offlineReadinessDetail(status);
+        offlineReadiness.className = `landing-offline-readiness offline-readiness ${status.state}`;
+        offlineReadiness.setAttribute("aria-label", detail);
+        offlineReadiness.title = detail;
+        offlineReadinessLabelElement.textContent =
+          offlineReadinessLabel(status);
+      };
+      window.addEventListener(OFFLINE_SHELL_EVENT, (event) => {
+        renderOfflineReadiness(event.detail);
+      });
+      renderOfflineReadiness(readOfflineShellStatus());
       registerOfflineShell();
 
       document.querySelector("#landing-release-id").textContent =

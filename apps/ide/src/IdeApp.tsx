@@ -1510,7 +1510,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         setWorkingFolderAccessState("needs-permission");
         setFolderSaveState("permission");
         setOperationDetail(
-          `Reconnect Working folder ${recoveryWorkspace.name} to reopen its project and XRP settings. Chrome could not read it: ${errorDetail(error)}`,
+          `Reconnect Working folder ${recoveryWorkspace.name} to reopen its project and XRP settings. Chrome needs a user action before it can verify this retained folder again.`,
         );
       } else {
         setFolderSaveState("error");
@@ -4286,11 +4286,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 <a
                   className="editor-api-link"
                   href={activeHelp.href}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  title={`Open ${activeHelp.label} for ${activePath}.`}
+                  target="_top"
+                  title={`Open ${activeHelp.label} for ${activePath} in this tab.`}
                 >
-                  {activeHelp.label} ↗
+                  {activeHelp.label}
                 </a>
               ) : null}
               {tutorialInstructionsAvailable ? (

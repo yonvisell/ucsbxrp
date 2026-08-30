@@ -314,6 +314,15 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
       { exact: true },
     ),
   ).toBeVisible();
+  const setupLinks = monitor.getByRole("link", {
+    name: "Set up or repair XRP",
+  });
+  await expect(setupLinks).toHaveCount(2);
+  expect(
+    await setupLinks.evaluateAll((links) =>
+      links.every((link) => link.getAttribute("target") === "_top"),
+    ),
+  ).toBe(true);
   await expect(
     monitor.getByRole("button", { name: "Run", exact: true }),
   ).toBeDisabled();

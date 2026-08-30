@@ -73,6 +73,23 @@ function recordBrowserProblems(context: BrowserContext) {
   return { errors, externalRequests };
 }
 
+test("Home exposes the offline-readiness state promised by the Guide", async ({
+  page,
+}) => {
+  await page.goto(coursePath());
+  await expectOfflineShellReady(page);
+
+  const readiness = page.getByTestId("offline-readiness");
+  await expect(readiness).toContainText("Ready without internet");
+  await expect(readiness).toHaveAttribute(
+    "aria-label",
+    /Chrome saved Course tools and every UCSBXRP course page/,
+  );
+  await expect(
+    readiness.getByRole("link", { name: "Ready without internet" }),
+  ).toHaveAttribute("href", "./guide/#offline-use");
+});
+
 test("creates a folder-backed project and reopens the course apps without internet", async ({
   context,
   page: ide,

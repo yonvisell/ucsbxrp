@@ -133,6 +133,14 @@ test("a retained folder that rejects its background read recovers from the proje
     testWindow.__pickerCalls = 0;
     const originalGetFileHandle =
       FileSystemDirectoryHandle.prototype.getFileHandle;
+    let retainedReadsRequireReconnect = true;
+    addEventListener(
+      "pointerdown",
+      () => {
+        retainedReadsRequireReconnect = false;
+      },
+      { capture: true, once: true },
+    );
     Object.defineProperties(FileSystemDirectoryHandle.prototype, {
       queryPermission: {
         configurable: true,
@@ -149,8 +157,9 @@ test("a retained folder that rejects its background read recovers from the proje
           ...args: Parameters<FileSystemDirectoryHandle["getFileHandle"]>
         ) {
           if (
-            this.name === "Sleep-Recovery-Workspace" &&
-            !navigator.userActivation.isActive
+            retainedReadsRequireReconnect &&
+            (args[0] === ".ucsbxrp.json" ||
+              args[0] === ".ucsb-xrp-project.json")
           ) {
             return Promise.reject(
               new DOMException(
@@ -173,6 +182,18 @@ test("a retained folder that rejects its background read recovers from the proje
   });
 
   await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(ide.getByTestId("target-status")).toHaveAttribute(
+    "title",
+    "Virtual target ready",
+  );
+  await expect(
+    ide.locator(
+      '[title*="getFileHandle"], [aria-label*="getFileHandle"], [title*="request is not allowed"], [aria-label*="request is not allowed"]',
+    ),
+  ).toHaveCount(0);
   await expect(ide.getByTestId("project-folder")).toHaveText("Not selected");
   const reconnect = ide.getByRole("button", {
     name: "Reconnect Working folder…",

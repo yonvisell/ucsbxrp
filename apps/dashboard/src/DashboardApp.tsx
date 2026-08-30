@@ -2222,8 +2222,8 @@ export function DashboardApp() {
           >
             Reconnect XRP
           </button>
-          <a href="../commission/" target="_blank" rel="noopener noreferrer">
-            Set up or repair XRP ↗
+          <a href="../commission/" target="_top">
+            Set up or repair XRP
           </a>
         </section>
       ) : null}
@@ -2259,12 +2259,8 @@ export function DashboardApp() {
                         ? `Connect this computer to ${targetPreference.lastObservedNetwork?.ssid ?? "the XRP hotspot"}, then select Reconnect.`
                         : `Connect this computer and the XRP to ${targetPreference.lastObservedNetwork?.ssid ?? "the same Wi-Fi network"}, then select Reconnect.`}
                     </p>
-                    <a
-                      href="../commission/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Set up or repair XRP ↗
+                    <a href="../commission/" target="_top">
+                      Set up or repair XRP
                     </a>
                   </div>
                 ) : null}

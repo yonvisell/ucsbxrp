@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DEFAULT_TARGET_PREFERENCE, type RobotProfile } from "@ucsb-xrp/target";
 
-import { subscribeCourseFolderChanged } from "./course-folder";
+import {
+  subscribeCourseFolderChanged,
+  WorkspaceManifestError,
+} from "./course-folder";
 import {
   loadWorkspaceTargetPreference,
   updateWorkspaceTargetPreference,
@@ -48,9 +51,18 @@ export function useTargetPreference() {
         }
       } catch (failure) {
         if (!disposed) {
-          setError(
-            failure instanceof Error ? failure.message : String(failure),
-          );
+          if (failure instanceof WorkspaceManifestError) {
+            // Folder restoration owns manifest/read recovery. Until the user
+            // reconnects that folder, keep the independent Virtual XRP usable
+            // instead of presenting a folder-permission failure as a target
+            // connection error.
+            setPreference(DEFAULT_TARGET_PREFERENCE);
+            setError(null);
+          } else {
+            setError(
+              failure instanceof Error ? failure.message : String(failure),
+            );
+          }
         }
       } finally {
         if (!disposed) setReady(true);
