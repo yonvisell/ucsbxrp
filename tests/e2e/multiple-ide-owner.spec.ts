@@ -24,7 +24,9 @@ test("duplicate IDE tabs keep the same saved Project and do not block Monitor", 
     "Expanding-Spiral",
     { timeout: 15_000 },
   );
-  await expect(secondIde.getByText("Another IDE controls Run")).toBeVisible();
+  await expect(
+    secondIde.getByText("Another IDE tab receives Run commands"),
+  ).toBeVisible();
   await expect(secondIde.getByLabel("Run on")).toBeEnabled();
 
   const monitor = await context.newPage();

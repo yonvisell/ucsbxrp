@@ -5,9 +5,10 @@ start either robot. It introduces the Python syntax used in the remaining
 tutorials: values, functions, decisions, loops, and collections.
 
 Start with **Run**. Program output immediately shows concrete results. Then keep
-the instructions beside `student_work.py`, change one value or branch, and use
-**Check examples** after each edit. You are modifying working code, not filling
-an empty scaffold.
+the instructions beside `student_work.py`, change one value or branch, and run
+the project again. Each Run checks the four functions before it prints the
+examples, so a separate check button would only repeat the same work. You are
+modifying working code, not filling an empty scaffold.
 
 ## Reading a function
 
@@ -92,13 +93,13 @@ dictionary with these four named results:
 A dictionary groups related values under descriptive keys. This pattern is
 used later for telemetry summaries.
 
-## Check and run
+## Run and observe
 
 1. Select **Run** and read all four results in **Program output**.
 2. Open `student_work.py` beside these instructions and trace one result back
    through its function.
 3. Make one small change suggested above and predict the new result.
-4. Select **Check examples**, then **Run** again.
+4. Select **Run** again and compare the result with your prediction.
 5. Restore the supplied behavior before continuing if a check identifies a
    mismatch.
 

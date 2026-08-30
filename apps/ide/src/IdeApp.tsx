@@ -3859,7 +3859,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <button
               className="quiet-button"
               onClick={useThisIde}
-              title="Make this visible IDE the one that supplies and runs the current project."
+              title="Make this IDE supply the current project and send Run commands."
               type="button"
             >
               Use this IDE
@@ -3875,7 +3875,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <span aria-hidden="true" className={`status-dot ${targetState}`} />
             <span>
               {!projectProviderActive && projectProviderAvailable
-                ? "Another IDE controls Run"
+                ? "Another IDE tab receives Run commands"
                 : `${target.kind === "virtual" ? "Virtual XRP" : "Physical XRP"} · ${targetState}${target.kind === "physical" ? ` · ${physicalStatus}` : ""}`}
             </span>
           </div>
@@ -4130,7 +4130,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   />
                 </div>
                 <div className="course-project-actions">
-                  {projectCheckFile ? (
+                  {projectCheckFile &&
+                  project.templateId !== "micropython_tutorial" ? (
                     <button
                       className="component-check-button"
                       disabled={!workingFolder || componentCheckRunning}
@@ -4159,6 +4160,18 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       Continue to {followingChallenge.label}…
                     </button>
                   ) : null}
+                </div>
+                <div className="working-folder-shortcut">
+                  <button
+                    disabled={!supportsWorkingFolders()}
+                    onClick={() => void selectWorkspaceFolder()}
+                    title="Choose the parent folder for Projects. UCSBXRP verifies write access, then opens that folder's active Project or asks you to choose one."
+                    type="button"
+                  >
+                    {workingFolderName
+                      ? "Change Working folder…"
+                      : "Choose Working folder…"}
+                  </button>
                 </div>
                 {projectFolderConflict ? (
                   <div className="project-feedback">

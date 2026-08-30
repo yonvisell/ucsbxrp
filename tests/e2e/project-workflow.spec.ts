@@ -57,6 +57,9 @@ test("shows one clear folder-backed project model on first IDE use", async ({
   await expect(
     projectActions.getByRole("button", { name: "Save project…" }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Choose Working folder…" }),
+  ).toBeVisible();
 
   const fileActions = page.getByRole("group", {
     name: "Create or import project files",
@@ -97,6 +100,9 @@ test("creates, saves, and remembers a named project in a new Working folder", as
     .click();
 
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
+  await expect(page.getByTestId("project-folder")).toHaveText("Team-Spiral");
+  await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
+  await page.getByRole("button", { name: "Change Working folder…" }).click();
   await expect(page.getByTestId("project-folder")).toHaveText("Team-Spiral");
   await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
 

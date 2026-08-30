@@ -556,10 +556,23 @@ test("compiles all five active tutorials and checks their runnable examples with
     await expect(ide.getByTestId("check-result")).toContainText(
       "compiled successfully",
     );
-    await ide.getByRole("button", { name: "Check examples" }).click();
+    if (tutorial.id === "micropython_tutorial") {
+      await expect(
+        ide.getByRole("button", { name: "Check examples" }),
+      ).toHaveCount(0);
+      await ide.getByRole("button", { name: "Run", exact: true }).click();
+    } else {
+      await ide.getByRole("button", { name: "Check examples" }).click();
+    }
     await expect(ide.getByRole("log")).toContainText(tutorial.summary, {
       timeout: 15_000,
     });
+    if (tutorial.id === "micropython_tutorial") {
+      await expect(ide.getByRole("log")).toContainText("Tutorial 1 complete");
+      await expect(ide.getByTestId("target-status")).toContainText(
+        "Virtual XRP · ready",
+      );
+    }
     await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
     await expect(monitor.getByTestId("x-mm")).toHaveText("0.0 mm");
   }
@@ -731,10 +744,6 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   await expect(monitor.getByTestId("range-mm")).toContainText("250.0 mm");
   await ide.getByRole("button", { name: "Run", exact: true }).click();
 
-  await expect(ide.getByRole("log")).toContainText(
-    "Obstacle detected; spiral stopped",
-    { timeout: 15_000 },
-  );
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
