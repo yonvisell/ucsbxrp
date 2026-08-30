@@ -1676,10 +1676,13 @@ export function DashboardApp() {
   const changeWorld = async (nextWorldId: string) => {
     finishActiveRun("ready", "Run ended because the world changed");
     clearDisplayedRun();
-    setSelectedWorldId(nextWorldId);
     beginTargetCommand();
     try {
       await target.setSimulationScenario?.(nextWorldId);
+      // Publish the selection only after the shared target acknowledges it.
+      // Otherwise another tab can Run while the selector already depicts a
+      // world that the target has not applied yet.
+      setSelectedWorldId(nextWorldId);
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : String(error);
       targetStateRef.current = "error";
