@@ -94,9 +94,10 @@ functions.
 ## Experiment: build an ordered drawing
 
 `build_drawing(...)` returns eight segments: four straight sides alternating
-with four left turns. After the baseline run, change the loop or one named
-constant in `main.py` to draw a rectangle or three-sided path. Make one change
-at a time so the result is legible.
+with four left turns. After the baseline run, edit `build_drawing(...)` in
+`student_work.py`: change one pair of side lengths for a rectangle, or change
+the constructed sequence for a three-sided path. Make one change at a time so
+the result is legible. `main.py` remains supplied and read-only.
 
 Use the values passed through the function parameters. The checks use more than
 one square size, so fixed numerical replacements are not correct.
@@ -106,8 +107,11 @@ one square size, so fixed numerical replacements are not correct.
 1. Open Monitor, reset the Virtual XRP, and select **Run**.
 2. Confirm four visible sides, four left turns, and a zero final motor command.
 3. Read `build_drawing(...)` and predict the order of segment names.
-4. Change one side or turn value, select **Check examples**, reset, and rerun.
-5. Compare the new path with your prediction, then restore the square.
+4. Change one side or the segment sequence in `student_work.py`, reset, and
+   rerun. The current valid drawing runs even when it intentionally differs
+   from the checked eight-segment square.
+5. Compare the new path with your prediction. **Check examples** describes the
+   difference from the baseline contract; restore the square before continuing.
 
 `main.py` uses a nested loop: the outer loop visits each segment, and the inner
 loop calls `Robot.step(...)` for `segment.steps` samples. `Robot.step()` already

@@ -9,28 +9,28 @@ from ucsb_xrp import MotionCommand, Pose, live, wrap_angle_rad
 
 CLOSE_RANGE_MM = live.number(
     "close_range_mm",
-    180.0,
-    minimum=100.0,
-    maximum=350.0,
+    250.0,
+    minimum=180.0,
+    maximum=400.0,
     step=10.0,
     unit="mm",
     label="Obstacle distance",
 )
 FORWARD_SPEED_MM_S = live.number(
     "forward_speed_mm_s",
-    120.0,
-    minimum=60.0,
-    maximum=220.0,
+    150.0,
+    minimum=100.0,
+    maximum=160.0,
     step=10.0,
     unit="mm/s",
     label="Forward speed",
 )
 TURN_RATE_RAD_S = live.number(
     "turn_rate_rad_s",
-    0.75,
-    minimum=0.25,
-    maximum=1.25,
-    step=0.05,
+    1.3,
+    minimum=0.8,
+    maximum=1.5,
+    step=0.1,
     unit="rad/s",
     label="Turn rate",
 )
@@ -47,12 +47,14 @@ SECOND_APPROACH = live.toggle(
 )
 TURN_TOLERANCE_RAD = 0.06
 MAX_FORWARD_TRAVEL_MM = 1100.0
+MAX_FORWARD_SAMPLES = 10000
 MAX_TURN_STEPS = 300
 
 def drive_until_close(robot, state):
     # Drive until the range or travel limit ends this phase.
     start_pose = state.pose
     range_samples = []
+    samples = 0
     live.watch("phase", "driving")
     while True:
         state = robot.step(
@@ -61,6 +63,7 @@ def drive_until_close(robot, state):
         )
         range_samples.append(state.measurements.range_mm)
         range_samples = range_samples[-5:]
+        samples += 1
         range_mm = robot.estimate_range(range_samples, minimum_usable=3)
         live.watch("range_mm", range_mm if range_mm is not None else "—", unit="mm")
         if range_mm is not None and range_mm <= CLOSE_RANGE_MM.value:
@@ -72,6 +75,8 @@ def drive_until_close(robot, state):
         live.watch("travel_mm", travel_mm, unit="mm")
         if travel_mm >= MAX_FORWARD_TRAVEL_MM:
             raise RuntimeError("No obstacle detected within the demo distance")
+        if samples >= MAX_FORWARD_SAMPLES:
+            raise RuntimeError("No obstacle detected within the demo sample guard")
 
 
 def turn_quarter_turn(robot, state):

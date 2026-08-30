@@ -9,18 +9,18 @@ from ucsb_xrp import MotionCommand, Pose, STOP_COMMAND, live
 
 FORWARD_SPEED = live.number(
     "forward_speed_mm_s",
-    90.0,
-    minimum=60.0,
-    maximum=130.0,
+    110.0,
+    minimum=90.0,
+    maximum=110.0,
     step=10.0,
     unit="mm/s",
     label="Forward speed",
 )
 WINDING_RATE = live.number(
     "spiral_winding_turns_per_m",
-    1.2,
-    minimum=0.4,
-    maximum=2.0,
+    0.8,
+    minimum=0.5,
+    maximum=1.0,
     step=0.1,
     unit="turns/m",
     label="Spiral winding rate",
@@ -28,18 +28,20 @@ WINDING_RATE = live.number(
 
 OBSTACLE_STOP_MM = 150.0
 SPIRAL_EXPANSION_MM = 1500.0
-MAX_TRAVEL_MM = 3500.0
+MAX_TRAVEL_MM = 350000.0
+MAXIMUM_SAMPLES = 180000
 
 def run_spiral():
     # Run the spiral to its travel limit and return its result text and final state.
     robot = make_robot(ROBOT_CONFIG)
-    result = "Spiral travel limit reached"
+    result = "Spiral travel guard reached"
     try:
         state = robot.start(Pose(0.0, 0.0, 0.0))
 
         # Check the range once before applying a moving command.
         state = robot.step(STOP_COMMAND, read_range=True)
         travel_mm = 0.0
+        samples = 0
 
         while True:
             range_mm = state.measurements.range_mm
@@ -47,6 +49,9 @@ def run_spiral():
                 result = "Obstacle detected; spiral stopped"
                 break
             if travel_mm >= MAX_TRAVEL_MM:
+                break
+            if samples >= MAXIMUM_SAMPLES:
+                result = "Spiral sample guard reached"
                 break
 
             speed_mm_s = FORWARD_SPEED.value
@@ -75,6 +80,7 @@ def run_spiral():
                 abs(state.measurements.left_increment_mm)
                 + abs(state.measurements.right_increment_mm)
             ) / 2.0
+            samples += 1
         return result, state
     # Always stop the motors, including when an error ends the program.
     finally:

@@ -12,7 +12,7 @@ FORWARD_SPEED = live.number(
     "tutorial_forward_speed_mm_s",
     110.0,
     minimum=60.0,
-    maximum=180.0,
+    maximum=130.0,
     step=10.0,
     unit="mm/s",
     label="Forward speed",

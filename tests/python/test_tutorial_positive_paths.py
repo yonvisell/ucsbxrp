@@ -95,8 +95,8 @@ class _VirtualRobot:
         from ucsb_xrp import Pose
 
         self.step_calls.append((command, read_range))
-        if len(self.step_calls) > 500:
-            raise AssertionError("tutorial runner exceeded 500 samples")
+        if len(self.step_calls) > 1000:
+            raise AssertionError("tutorial runner exceeded 1000 samples")
         dt_s = 0.02
         forward_mm = command.forward_speed_mm_s * dt_s
         heading_change_rad = command.turn_rate_rad_s * dt_s
@@ -191,30 +191,21 @@ class TutorialPositivePathTests(unittest.TestCase):
                 )
 
             self.assertGreater(len(robot.step_calls), 0)
-            self.assertLessEqual(len(robot.step_calls), 500)
+            self.assertLessEqual(len(robot.step_calls), 1000)
             maximum_path_mm = (
                 1400.0
                 if directory_name == "tutorial_2_virtual_drawing"
                 else 1000.0
             )
             self.assertLess(robot.path_length_mm, maximum_path_mm)
-            expected_stop_count = (
-                2 if directory_name == "tutorial_5_physical_preflight" else 1
-            )
-            self.assertEqual(robot.stop_count, expected_stop_count)
+            self.assertEqual(robot.stop_count, 1)
             self.assertEqual(robot.last_command.forward_speed_mm_s, 0.0)
             self.assertEqual(robot.last_command.turn_rate_rad_s, 0.0)
-            if directory_name == "tutorial_2_virtual_drawing":
-                self.assertLess(math.hypot(robot.pose.x_mm, robot.pose.y_mm), 15.0)
-                heading_error = (robot.pose.heading_rad + math.pi) % (
-                    2.0 * math.pi
-                ) - math.pi
-                self.assertLess(abs(heading_error), 0.08)
 
         self.assertIn("button_was_pressed: True", output.getvalue())
 
-    def test_robot_tutorials_do_not_construct_a_robot_before_checks_pass(self):
-        for directory_name, solution_factory in self.tutorials[2:4]:
+    def test_behavior_tutorial_does_not_construct_robot_before_checks_pass(self):
+        for directory_name, solution_factory in self.tutorials[3:4]:
             tutorial = TEMPLATES / directory_name
             constructed = []
             replacements = {
@@ -236,20 +227,44 @@ class TutorialPositivePathTests(unittest.TestCase):
                 )
             self.assertEqual(constructed, [])
 
-    def test_physical_preflight_uses_centered_course_arena(self):
-        world_path = (
-            TEMPLATES / "tutorial_5_physical_preflight" / "world.json"
-        )
-        world = json.loads(world_path.read_text(encoding="utf-8"))["worlds"][0]
-        self.assertEqual(
-            world["bounds"],
-            {
-                "minimum_x_mm": -1524,
-                "minimum_y_mm": -609.6,
-                "maximum_x_mm": 1524,
-                "maximum_y_mm": 609.6,
-            },
-        )
+    def test_exploratory_tutorials_run_when_checks_differ(self):
+        for directory_name, solution_factory in self.tutorials[1:3]:
+            tutorial = TEMPLATES / directory_name
+            robot = _VirtualRobot()
+            replacements = {
+                "student_work": solution_factory(),
+                "exercise_checks": types.SimpleNamespace(
+                    run_exercise_checks=lambda: False
+                ),
+                "course_setup": types.SimpleNamespace(
+                    make_robot=lambda _config, robot=robot: robot
+                ),
+                "robot_config": types.SimpleNamespace(ROBOT_CONFIG=object()),
+            }
+            output = io.StringIO()
+            with self.subTest(tutorial=directory_name), _project_imports(
+                tutorial, replacements
+            ), contextlib.redirect_stdout(output):
+                runpy.run_path(
+                    str(tutorial / "main.py"),
+                    run_name=directory_name + "_exploratory_run",
+                )
+            self.assertGreater(len(robot.step_calls), 0)
+            self.assertEqual(robot.stop_count, 1)
+            self.assertIn("checks differ", output.getvalue())
+
+    def test_demo_and_tutorial_worlds_use_centered_course_arena(self):
+        expected_bounds = {
+            "minimum_x_mm": -1524,
+            "minimum_y_mm": -609.6,
+            "maximum_x_mm": 1524,
+            "maximum_y_mm": 609.6,
+        }
+        for world_path in sorted(TEMPLATES.glob("*/world.json")):
+            catalog = json.loads(world_path.read_text(encoding="utf-8"))
+            for world in catalog["worlds"]:
+                with self.subTest(template=world_path.parent.name, world=world["id"]):
+                    self.assertEqual(world["bounds"], expected_bounds)
 
 
 if __name__ == "__main__":

@@ -4,12 +4,17 @@ from course_setup import make_robot
 from exercise_checks import run_exercise_checks
 from robot_config import ROBOT_CONFIG
 from student_work import preflight_report
-from ucsb_xrp import MotionCommand, Pose, STOP_COMMAND
+from ucsb_xrp import MotionCommand, Pose, STOP_COMMAND, live
 
 
 STATIONARY_SAMPLE_COUNT = 50
 MOTION_SAMPLE_COUNT = 25
 MOTION_SPEED_MM_S = 60.0
+ENABLE_SHORT_MOTION = live.toggle(
+    "tutorial_enable_short_motion",
+    False,
+    label="Enable short motion",
+)
 
 
 def collect_stationary_samples(robot):
@@ -64,6 +69,10 @@ def run_preflight():
         "button_was_pressed",
     ):
         print(name + ":", report[name])
+
+    if not ENABLE_SHORT_MOTION.value:
+        print("Short motion disabled; enable it explicitly and Run again")
+        return report
 
     initial_state, final_state = run_short_motion(robot)
     wheel_travel_mm = mean_wheel_position_mm(final_state) - mean_wheel_position_mm(

@@ -628,15 +628,15 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
     timeout: 5_000,
   });
   const speed = liveProgram.getByRole("slider", { name: "Forward speed" });
-  await speed.fill("180");
+  await speed.fill("150");
   const speedControl = liveProgram.locator(
     '[data-runtime-parameter="forward_speed_mm_s"]',
   );
-  await expect(speedControl).toContainText("180 mm/s");
+  await expect(speedControl).toContainText("150 mm/s");
   await expect(speedControl).toHaveAttribute("data-pending", "false", {
     timeout: 5_000,
   });
-  await expect(speedControl).toHaveAttribute("data-runtime-value", "180");
+  await expect(speedControl).toHaveAttribute("data-runtime-value", "150");
   const direction = liveProgram.locator(
     '[data-runtime-parameter="turn_direction"]',
   );
@@ -717,16 +717,16 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   const winding = liveControls.getByRole("slider", {
     name: "Spiral winding rate",
   });
-  await expect(winding).toHaveValue("1.2");
-  await expect(winding).toHaveAttribute("max", "2");
+  await expect(winding).toHaveValue("0.8");
+  await expect(winding).toHaveAttribute("max", "1");
   await expect(ide.getByRole("log")).not.toContainText(
     "Press and release USER",
   );
-  await winding.fill("1");
+  await winding.fill("0.6");
   const windingControl = liveControls.locator(
     '[data-runtime-parameter="spiral_winding_turns_per_m"]',
   );
-  await expect(windingControl).toHaveAttribute("data-runtime-value", "1", {
+  await expect(windingControl).toHaveAttribute("data-runtime-value", "0.6", {
     timeout: 5_000,
   });
   await expect(windingControl).toHaveAttribute("data-pending", "false");

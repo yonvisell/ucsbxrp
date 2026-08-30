@@ -84,9 +84,13 @@ measured response and total motion.
 1. Open Monitor and select **Run** with the Virtual XRP selected.
 2. Confirm an approximately 300 mm straight path, increasing mean wheel
    position, printed final pose, and a zero final drive command.
-3. Change `FORWARD_SPEED_MM_S` or `SAMPLE_COUNT` in `main.py`, predict the new
-   distance, then select **Check examples**, reset, and rerun.
-4. Restore the supplied value and repeat once. The same program in the same
+3. Read the 120 mm/s and 125-sample inputs in supplied, read-only `main.py`.
+   Predict the effect of temporarily scaling the command or changing the loop
+   count inside `run_robot_program(...)` in `student_work.py`, then make one
+   change, reset, and rerun.
+4. **Check examples** reports how an experiment differs from the required call
+   sequence but does not prevent a valid virtual program from running. Restore
+   the supplied behavior and repeat once. The same program in the same
    virtual world should produce a comparable trajectory.
 
 `PASS` confirms the required result or call sequence. If an experiment breaks

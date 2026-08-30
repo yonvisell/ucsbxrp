@@ -1,7 +1,5 @@
 # Execute a checked Tutorial 2 drawing on the Virtual XRP.
 
-from math import pi
-
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks
 from robot_config import ROBOT_CONFIG
@@ -9,16 +7,16 @@ from student_work import build_drawing
 from ucsb_xrp import Pose
 
 
-SIDE_SPEED_MM_S = 250.0
-SIDE_STEPS = 60
-TURN_RATE_RAD_S = pi
-TURN_STEPS = 25
+SIDE_SPEED_MM_S = 120.0
+SIDE_STEPS = 125
+TURN_RATE_RAD_S = 1.3
+TURN_STEPS = 70
 
 
 def run_drawing():
-    if not run_exercise_checks():
-        print("Restore the runnable example before drawing")
-        return
+    checks_passed = run_exercise_checks()
+    if not checks_passed:
+        print("Example checks differ; running the current virtual drawing")
 
     segments = build_drawing(
         side_speed_mm_s=SIDE_SPEED_MM_S,

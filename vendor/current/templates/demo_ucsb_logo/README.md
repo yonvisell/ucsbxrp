@@ -9,8 +9,10 @@ are labeled, keeping the Monitor world legible while retaining every corner as
 an inspectable waypoint.
 
 The route remains inside x = -1200...1120 mm and y = -300...300 mm, within the
-3048 x 1219.2 mm course arena. `Robot.step()` supplies the only timing. The run
-also stops if it reaches 8000 samples or 13000 mm of measured wheel travel, and
+3048 x 1219.2 mm course arena. The supplied controller requests 150 mm/s on
+long strokes and 1.3 rad/s for heading corrections. `Robot.step()` supplies the
+only timing. Completing all 28 waypoints is the intended natural finish; 8000
+samples and 13000 mm of measured wheel travel are protective failure guards.
 `finally: robot.stop()` returns both motor commands to zero on every exit.
 
 The same project runs on Virtual XRP or Physical XRP. For a physical run, mark

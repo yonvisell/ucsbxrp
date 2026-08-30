@@ -4,11 +4,12 @@ Run four short, complete functions in `student_work.py`. This project does not
 start either robot. It introduces the Python syntax used in the remaining
 tutorials: values, functions, decisions, loops, and collections.
 
-Start with **Run**. Program output immediately shows concrete results. Then keep
-the instructions beside `student_work.py`, change one value or branch, and run
-the project again. Each Run checks the four functions before it prints the
-examples, so a separate check button would only repeat the same work. You are
-modifying working code, not filling an empty scaffold.
+Start with **Run**. Program output immediately shows concrete results. Keep the
+instructions beside the editable `student_work.py`; the supplied `main.py` is
+read-only. Make one temporary expression or branch change in `student_work.py`
+and run again. Each Run checks the four functions before it prints the examples,
+so a separate check button would only repeat the same work. You are modifying
+working code, not filling an empty scaffold.
 
 ## Reading a function
 
@@ -30,8 +31,8 @@ Indentation defines which statements belong to the function or to an `if` or
 
 ## Example 1: calculate average speed
 
-Read `average_speed_mm_s(distance_mm, duration_s)`, then try another input in
-`main.py`.
+Read `average_speed_mm_s(distance_mm, duration_s)`, trace the supplied call from
+read-only `main.py`, then predict the result for the second input below.
 
 ```python
 average_speed_mm_s(600.0, 4.0)  # returns 150.0
@@ -43,8 +44,8 @@ useful than a physically meaningless result.
 
 ## Example 2: choose from measured conditions
 
-Read `range_state(range_mm, stop_distance_mm)`, then change the range printed by
-`main.py` so that a different branch runs.
+Read `range_state(range_mm, stop_distance_mm)` and predict which branch each
+supplied call below selects.
 
 ```python
 range_state(180.0, 250.0)  # returns "stop"
@@ -62,7 +63,8 @@ numerical comparison. Reject a stop distance that is zero or negative.
 
 ## Example 3: total a route with a loop
 
-Read `route_distance_mm(segment_distances_mm)`, then add a route segment.
+Read `route_distance_mm(segment_distances_mm)`, then predict the total if another
+route segment were added.
 
 ```python
 route_distance_mm([120.0, 80.0, 50.0])  # returns 250.0
@@ -74,8 +76,8 @@ a negative segment. An empty route has a total distance of `0.0`.
 
 ## Example 4: return named results
 
-Read `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`, then change
-one wheel-speed sample and predict which fields will change.
+Read `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`, then predict
+which fields would change if one wheel-speed sample changed.
 
 ```python
 summary = wheel_speed_summary([100.0, 120.0], [90.0, 110.0])
@@ -98,7 +100,8 @@ used later for telemetry summaries.
 1. Select **Run** and read all four results in **Program output**.
 2. Open `student_work.py` beside these instructions and trace one result back
    through its function.
-3. Make one small change suggested above and predict the new result.
+3. Make one small expression or branch change in `student_work.py` and predict
+   which check will identify it.
 4. Select **Run** again and compare the result with your prediction.
 5. Restore the supplied behavior before continuing if a check identifies a
    mismatch.

@@ -148,6 +148,41 @@ class CourseStarterTests(unittest.TestCase):
                 with self.subTest(template=directory.name, file=path.name):
                     compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
+    def test_demo_motion_limits_match_their_intended_terminators(self):
+        spiral_source = (
+            TEMPLATES / "demo_spiral" / "main.py"
+        ).read_text(encoding="utf-8")
+        spiral_readme = (
+            TEMPLATES / "demo_spiral" / "README.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("MAX_TRAVEL_MM = 350000.0", spiral_source)
+        self.assertIn("MAXIMUM_SAMPLES = 180000", spiral_source)
+        self.assertIn("ordinary **Stop**", spiral_readme)
+
+        roomba_source = (
+            TEMPLATES / "demo_roomba" / "main.py"
+        ).read_text(encoding="utf-8")
+        roomba_readme = (
+            TEMPLATES / "demo_roomba" / "README.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("MAXIMUM_WHEEL_TRAVEL_MM = 190000.0", roomba_source)
+        self.assertIn("MAXIMUM_SAMPLES = 90000", roomba_source)
+        self.assertIn("ordinary **Stop**", roomba_readme)
+
+        for demo in sorted(TEMPLATES.glob("demo_*")):
+            config_source = (demo / "robot_config.py").read_text(encoding="utf-8")
+            with self.subTest(demo=demo.name):
+                self.assertIn("max_drive_command=0.65", config_source)
+
+        snake_readme = (
+            TEMPLATES / "demo_random_snake" / "README.md"
+        ).read_text(encoding="utf-8")
+        logo_readme = (
+            TEMPLATES / "demo_ucsb_logo" / "README.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("intended natural finish", snake_readme)
+        self.assertIn("intended natural finish", logo_readme)
+
     def test_tutorials_are_active_ordered_projects_with_one_student_file(self):
         tutorials = [
             TEMPLATES / "tutorial_1_python_essentials",
@@ -244,6 +279,33 @@ class CourseStarterTests(unittest.TestCase):
         physical_main = (tutorials[4] / "main.py").read_text(encoding="utf-8")
         self.assertIn("robot.step(STOP_COMMAND, read_range=True)", physical_main)
         self.assertNotIn("sleep", physical_main.lower())
+
+    def test_tutorial_motion_examples_use_reachable_visible_settings(self):
+        drawing_main = (
+            TEMPLATES / "tutorial_2_virtual_drawing" / "main.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SIDE_SPEED_MM_S = 120.0", drawing_main)
+        self.assertIn("SIDE_STEPS = 125", drawing_main)
+        self.assertIn("TURN_RATE_RAD_S = 1.3", drawing_main)
+        self.assertIn("TURN_STEPS = 70", drawing_main)
+        self.assertNotIn("if not run_exercise_checks()", drawing_main)
+
+        robot_main = (
+            TEMPLATES / "tutorial_3_robot_programs" / "main.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("FORWARD_SPEED_MM_S = 120.0", robot_main)
+        self.assertIn("SAMPLE_COUNT = 125", robot_main)
+        self.assertNotIn("if not run_exercise_checks()", robot_main)
+
+        telemetry_source = (
+            TEMPLATES / "tutorial_4_behavior_telemetry" / "student_work.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("maximum=130.0", telemetry_source)
+
+        preflight_main = (
+            TEMPLATES / "tutorial_5_physical_preflight" / "main.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"tutorial_enable_short_motion",\n    False,', preflight_main)
 
     def test_runnable_tutorial_examples_report_clear_outcomes(self):
         tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*"))
@@ -401,7 +463,7 @@ class CourseStarterTests(unittest.TestCase):
             if saved_student_work is not None:
                 sys.modules["student_work"] = saved_student_work
 
-    def test_tutorial_five_runs_stationary_and_short_motion_then_stops(self):
+    def test_tutorial_five_requires_motion_gate_then_runs_and_stops(self):
         tutorial = TEMPLATES / "tutorial_5_physical_preflight"
         stop_command = object()
 
@@ -446,6 +508,7 @@ class CourseStarterTests(unittest.TestCase):
             "nearest_range_mm": 500.0,
             "button_was_pressed": False,
         }
+        motion_enabled = types.SimpleNamespace(value=False)
         fake_modules = {
             "course_setup": types.SimpleNamespace(make_robot=lambda _config: robot),
             "exercise_checks": types.SimpleNamespace(run_exercise_checks=lambda: True),
@@ -460,6 +523,9 @@ class CourseStarterTests(unittest.TestCase):
                 ),
                 Pose=lambda x_mm, y_mm, heading_rad: (x_mm, y_mm, heading_rad),
                 STOP_COMMAND=stop_command,
+                live=types.SimpleNamespace(
+                    toggle=lambda _name, _initial, label: motion_enabled
+                ),
             ),
         }
         saved_modules = {
@@ -474,21 +540,30 @@ class CourseStarterTests(unittest.TestCase):
                 namespace = runpy.run_path(
                     str(tutorial / "main.py"), run_name="tutorial_5_main"
                 )
-            self.assertEqual(len(robot.step_calls), 75)
+            self.assertEqual(len(robot.step_calls), 50)
             self.assertTrue(
                 all(
                     command is stop_command and read_range is True
-                    for command, read_range in robot.step_calls[:50]
+                    for command, read_range in robot.step_calls
                 )
             )
+            self.assertEqual(robot.stop_count, 1)
+            self.assertIn("Stationary preflight complete", output.getvalue())
+            self.assertIn("Short motion disabled", output.getvalue())
+            self.assertNotIn("Short motion check complete", output.getvalue())
+
+            motion_enabled.value = True
+            with contextlib.redirect_stdout(output):
+                namespace["run_preflight"]()
+            self.assertEqual(len(robot.step_calls), 125)
             self.assertTrue(
                 all(
                     command is not stop_command and read_range is False
-                    for command, read_range in robot.step_calls[50:]
+                    for command, read_range in robot.step_calls[-25:]
                 )
             )
-            self.assertEqual(robot.stop_count, 2)
-            self.assertIn("Stationary preflight complete", output.getvalue())
+            self.assertEqual(robot.stop_count, 3)
+            self.assertIn("Short motion check complete", output.getvalue())
 
             failing_robot = RecordingRobot(fail_at_step=3)
             with self.assertRaisesRegex(

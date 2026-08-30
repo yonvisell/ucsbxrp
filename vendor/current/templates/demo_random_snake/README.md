@@ -7,10 +7,13 @@ generator chooses every distance and direction, so every run with
 
 `world.json` places the virtual XRP at the left side of the course arena and
 marks the expected finishing neighborhood for the supplied seed and nominal
-configuration. The program uses the ordinary `Robot.step()` sample clock; it
-does not add sleeps. It stops after twelve segments or earlier at either the
-wheel-travel or sample limit, and `finally: robot.stop()` returns both motor
-commands to zero on every exit.
+configuration. The 150 mm/s straight request and 1.4 rad/s turn request remain
+inside the configured wheel-speed envelope. The program uses the ordinary
+`Robot.step()` sample clock; it does not add sleeps. Completing twelve segments
+is the intended natural finish. The 4000 mm wheel-travel and 2400-sample limits
+are protective guards for that finite route, not substitutes for the twelve
+segments. `finally: robot.stop()` returns both motor commands to zero on every
+exit.
 
 The same project runs on Virtual XRP or Physical XRP. For a physical run, use
 a clear, level area at least as large as the marked route, place the robot at
