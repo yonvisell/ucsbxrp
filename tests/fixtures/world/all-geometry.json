@@ -5,14 +5,14 @@
       "id": "all-geometry",
       "label": "All world geometry",
       "bounds": {
-        "minimum_x_mm": 0,
-        "minimum_y_mm": 0,
-        "maximum_x_mm": 1600,
-        "maximum_y_mm": 1000
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": {
         "x_mm": 180,
-        "y_mm": 180,
+        "y_mm": -320,
         "heading_rad": 0
       },
       "obstacles": [
@@ -20,18 +20,18 @@
           "type": "wall",
           "label": "Divider",
           "minimum_x_mm": 700,
-          "minimum_y_mm": 0,
+          "minimum_y_mm": -500,
           "maximum_x_mm": 740,
-          "maximum_y_mm": 440
+          "maximum_y_mm": -60
         },
         {
           "type": "block",
           "feature": "movable_gate",
           "label": "Gate",
           "minimum_x_mm": 980,
-          "minimum_y_mm": 380,
+          "minimum_y_mm": -120,
           "maximum_x_mm": 1080,
-          "maximum_y_mm": 520
+          "maximum_y_mm": 20
         }
       ],
       "markers": [
@@ -40,25 +40,25 @@
           "name": "start_gate",
           "label": "Start line",
           "x1_mm": 280,
-          "y1_mm": 80,
+          "y1_mm": -420,
           "x2_mm": 280,
-          "y2_mm": 280
+          "y2_mm": -220
         },
         {
           "type": "start_box",
           "name": "start_area",
           "label": "Start box",
           "minimum_x_mm": 80,
-          "minimum_y_mm": 80,
+          "minimum_y_mm": -420,
           "maximum_x_mm": 280,
-          "maximum_y_mm": 280
+          "maximum_y_mm": -220
         },
         {
           "type": "waypoint",
           "name": "first_goal",
           "label": "Goal 1",
           "x_mm": 500,
-          "y_mm": 700,
+          "y_mm": 200,
           "heading_rad": 1.5707963267948966
         },
         {
@@ -66,7 +66,7 @@
           "name": "inspection_point",
           "label": "Inspect",
           "x_mm": 850,
-          "y_mm": 700,
+          "y_mm": 200,
           "instructor_note": "Retained for a later editor"
         },
         {
@@ -74,25 +74,25 @@
           "name": "finish_gate",
           "label": "Finish line",
           "x1_mm": 1320,
-          "y1_mm": 620,
+          "y1_mm": 120,
           "x2_mm": 1320,
-          "y2_mm": 880
+          "y2_mm": 380
         },
         {
           "type": "waypoint",
           "name": "second_goal",
           "label": "Goal 2",
           "x_mm": 1200,
-          "y_mm": 300
+          "y_mm": -200
         },
         {
           "type": "finish_box",
           "name": "finish_area",
           "label": "Finish box",
           "minimum_x_mm": 1320,
-          "minimum_y_mm": 620,
+          "minimum_y_mm": 120,
           "maximum_x_mm": 1520,
-          "maximum_y_mm": 880
+          "maximum_y_mm": 380
         }
       ]
     }

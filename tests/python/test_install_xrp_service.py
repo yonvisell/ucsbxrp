@@ -115,8 +115,8 @@ class InstallXrpServiceTest(unittest.TestCase):
     def test_runtime_manifest_is_canonical_and_complete(self):
         manifest = INSTALLER.runtime_manifest()
         data = INSTALLER.canonical_json_bytes(manifest)
-        self.assertEqual(manifest["releaseId"], "2026.08-dev.45")
-        self.assertEqual(manifest["releaseSequence"], 45)
+        self.assertEqual(manifest["releaseId"], "2026.08-dev.46")
+        self.assertEqual(manifest["releaseSequence"], 46)
         self.assertEqual(manifest["compatibility"]["protocolVersion"], 1)
         self.assertTrue(data.endswith(b"\n"))
         self.assertNotIn(b" ", data)

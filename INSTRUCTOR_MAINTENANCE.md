@@ -160,9 +160,10 @@ Use these rules:
 - `world.json` is the single source for bounds, initial pose, obstacles, and
   markers used by project Python, the simulator, and the Monitor. Do not copy
   those coordinates into prose or another JavaScript world.
-- Each `complete_challenge_N` catalog entry shares the same starter source and
-  selects supplied implementations. Do not create a second solution project;
-  keep the challenge and complete catalog labels consistent.
+- Each `complete_challenge_N` catalog entry shares the challenge task source,
+  but the catalog projection removes student component files and component
+  checks and generates a reference-only `course_setup.py`. Do not expose
+  supplied solution source; keep the challenge and complete labels consistent.
 - If a canonical student component contract or starter explanation changes,
   edit the canonical file under `student_component_templates` and then run
   `python3 scripts/sync_student_component_templates.py`. This command

@@ -177,9 +177,31 @@ test("visual world editor changes the downloadable world without losing advanced
   await expect(editor.getByLabel("World configuration JSON")).not.toBeVisible();
 
   const inspector = editor.locator(".world-editor-inspector");
+  await inspector.getByRole("button", { name: "Course arena (fixed)" }).click();
+  await expect(
+    inspector.locator('.world-editor-number-grid input[type="number"]'),
+  ).toHaveCount(4);
+  for (const input of await inspector
+    .locator('.world-editor-number-grid input[type="number"]')
+    .all()) {
+    await expect(input).toBeDisabled();
+  }
+
   await inspector.getByRole("button", { name: "waypoint · 2" }).click();
   await editor.getByText("Advanced world.json").click();
   const rawEditor = editor.getByLabel("World configuration JSON");
+  const canonicalSource = await rawEditor.inputValue();
+  const resizedArena = JSON.parse(canonicalSource) as Record<string, any>;
+  resizedArena.worlds[0].bounds.maximum_x_mm = 1400;
+  await rawEditor.fill(JSON.stringify(resizedArena, null, 2));
+  await expect(editor.getByRole("alert")).toContainText(
+    "Every challenge world uses the fixed course arena.",
+  );
+  await editor
+    .getByRole("button", { name: "Restore last valid world configuration" })
+    .click();
+  await expect(rawEditor).toHaveValue(canonicalSource);
+
   const sourceBeforeRejectedEdit = await rawEditor.inputValue();
   const worldBeforeRejectedEdit = JSON.parse(
     sourceBeforeRejectedEdit,
@@ -188,7 +210,7 @@ test("visual world editor changes the downloadable world without losing advanced
     .bounds as Record<string, number>;
   await inspector
     .getByLabel("x mm", { exact: true })
-    .fill(String(boundsBeforeRejectedEdit.maximum_x_mm + 100));
+    .fill(String(Number(boundsBeforeRejectedEdit.maximum_x_mm) + 100));
   await expect(editor.getByRole("alert")).toContainText(
     "That edit was not applied.",
   );

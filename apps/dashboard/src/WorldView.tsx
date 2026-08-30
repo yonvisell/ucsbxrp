@@ -121,18 +121,32 @@ function textSprite(
   backing = true,
 ): THREE.Sprite {
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
   canvas.height = 64;
   const context = canvas.getContext("2d");
   if (!context) {
     throw new Error("World label canvas is unavailable");
   }
+  context.font = "700 44px system-ui, sans-serif";
+  const measuredTextWidth = context.measureText(text).width;
+  const naturalWidthMm = ((measuredTextWidth + 22) / canvas.height) * 52;
+  const resolvedWidthMm = Math.min(600, Math.max(widthMm, naturalWidthMm));
+  canvas.width = Math.max(
+    64,
+    Math.ceil((resolvedWidthMm / 52) * canvas.height),
+  );
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.font = "700 44px system-ui, sans-serif";
+  const fontSize = Math.min(
+    44,
+    (44 * (canvas.width - 20)) / Math.max(measuredTextWidth, 1),
+  );
+  context.font = `700 ${fontSize}px system-ui, sans-serif`;
   if (backing) {
-    const textWidth = Math.min(244, context.measureText(text).width + 18);
+    const textWidth = Math.min(
+      canvas.width - 8,
+      context.measureText(text).width + 18,
+    );
     context.fillStyle = "rgba(255, 255, 255, 0.78)";
     context.beginPath();
     context.roundRect((canvas.width - textWidth) / 2, 7, textWidth, 50, 8);
@@ -151,11 +165,66 @@ function textSprite(
       transparent: true,
     }),
   );
-  sprite.scale.set(widthMm, 52, 1);
-  sprite.userData.labelWidthMm = widthMm;
+  sprite.scale.set(resolvedWidthMm, 52, 1);
+  sprite.userData.labelWidthMm = resolvedWidthMm;
   sprite.userData.labelHeightMm = 52;
   sprite.renderOrder = 5;
   return sprite;
+}
+
+export function boundedWorldLabelPosition(
+  bounds: WorldDefinition["bounds"],
+  xMm: number,
+  yMm: number,
+  widthMm: number,
+  heightMm: number,
+): { xMm: number; yMm: number } {
+  const boundedCoordinate = (
+    value: number,
+    minimum: number,
+    maximum: number,
+    halfSize: number,
+  ) =>
+    maximum - minimum <= halfSize * 2
+      ? (minimum + maximum) / 2
+      : Math.max(minimum + halfSize, Math.min(maximum - halfSize, value));
+  return {
+    xMm: boundedCoordinate(
+      xMm,
+      bounds.minimumXmm,
+      bounds.maximumXmm,
+      widthMm / 2,
+    ),
+    yMm: boundedCoordinate(
+      yMm,
+      bounds.minimumYmm,
+      bounds.maximumYmm,
+      heightMm / 2,
+    ),
+  };
+}
+
+function placeWorldLabel(
+  label: THREE.Sprite,
+  bounds: WorldDefinition["bounds"],
+  xMm: number,
+  yMm: number,
+  z: number,
+): void {
+  label.userData.labelAnchorXmm = xMm;
+  label.userData.labelAnchorYmm = yMm;
+  label.userData.labelMinimumXmm = bounds.minimumXmm;
+  label.userData.labelMinimumYmm = bounds.minimumYmm;
+  label.userData.labelMaximumXmm = bounds.maximumXmm;
+  label.userData.labelMaximumYmm = bounds.maximumYmm;
+  const position = boundedWorldLabelPosition(
+    bounds,
+    xMm,
+    yMm,
+    Number(label.userData.labelWidthMm),
+    Number(label.userData.labelHeightMm),
+  );
+  label.position.set(position.xMm, position.yMm, z);
 }
 
 function addBoundedGrid(
@@ -236,7 +305,7 @@ function addBoundedGrid(
     x += MAJOR_GRID_MM
   ) {
     const label = textSprite(String(x), 190, "#34444d", false);
-    label.position.set(x, bounds.minimumYmm + labelInset, 4);
+    placeWorldLabel(label, bounds, x, bounds.minimumYmm + labelInset, 4);
     scene.add(label);
   }
   for (
@@ -246,18 +315,26 @@ function addBoundedGrid(
   ) {
     if (y === 0) continue;
     const label = textSprite(String(y), 165, "#34444d", false);
-    label.position.set(bounds.minimumXmm + 72, y, 4);
+    placeWorldLabel(label, bounds, bounds.minimumXmm + 72, y, 4);
     scene.add(label);
   }
   const xAxisLabel = textSprite("x (mm)", 160, "#34444d", false);
-  xAxisLabel.position.set(
+  placeWorldLabel(
+    xAxisLabel,
+    bounds,
     bounds.maximumXmm - 95,
     bounds.minimumYmm + labelInset * 2.1,
     4,
   );
   scene.add(xAxisLabel);
   const yAxisLabel = textSprite("y (mm)", 160, "#34444d", false);
-  yAxisLabel.position.set(bounds.minimumXmm + 95, bounds.maximumYmm - 45, 4);
+  placeWorldLabel(
+    yAxisLabel,
+    bounds,
+    bounds.minimumXmm + 95,
+    bounds.maximumYmm - 45,
+    4,
+  );
   scene.add(yAxisLabel);
 }
 
@@ -498,7 +575,13 @@ export function WorldView({
           obstacle.label,
           Math.min(360, Math.max(150, obstacle.label.length * 11)),
         );
-        label.position.set(mesh.position.x, mesh.position.y, 18);
+        placeWorldLabel(
+          label,
+          world.bounds,
+          mesh.position.x,
+          mesh.position.y,
+          18,
+        );
         scene.add(label);
       }
     }
@@ -594,7 +677,7 @@ export function WorldView({
           Math.min(360, Math.max(150, marker.label.length * 11)),
           style.color,
         );
-        label.position.set(position.xMm, position.yMm, 6);
+        placeWorldLabel(label, world.bounds, position.xMm, position.yMm, 6);
         scene.add(label);
       }
     }
@@ -668,11 +751,31 @@ export function WorldView({
         const baseHeight = Number(object.userData.labelHeightMm);
         if (!Number.isFinite(baseWidth) || !Number.isFinite(baseHeight)) return;
         const labelHeight = Math.max(baseHeight, minimumLabelHeightMm);
-        object.scale.set(
-          labelHeight * (baseWidth / baseHeight),
-          labelHeight,
-          1,
-        );
+        const labelWidth = labelHeight * (baseWidth / baseHeight);
+        object.scale.set(labelWidth, labelHeight, 1);
+        const anchorX = Number(object.userData.labelAnchorXmm);
+        const anchorY = Number(object.userData.labelAnchorYmm);
+        const labelBounds = {
+          minimumXmm: Number(object.userData.labelMinimumXmm),
+          minimumYmm: Number(object.userData.labelMinimumYmm),
+          maximumXmm: Number(object.userData.labelMaximumXmm),
+          maximumYmm: Number(object.userData.labelMaximumYmm),
+        };
+        if (
+          Number.isFinite(anchorX) &&
+          Number.isFinite(anchorY) &&
+          Object.values(labelBounds).every(Number.isFinite)
+        ) {
+          const position = boundedWorldLabelPosition(
+            labelBounds,
+            anchorX,
+            anchorY,
+            labelWidth,
+            labelHeight,
+          );
+          object.position.x = position.xMm;
+          object.position.y = position.yMm;
+        }
       });
       if (viewRef.current) {
         viewRef.current.dataset.minimumLabelPixels = "9";
@@ -860,7 +963,13 @@ export function WorldView({
           labelText,
           Math.min(420, Math.max(190, labelText.length * 11)),
         );
-        label.position.set(annotation.xMm, annotation.yMm + 34, 8);
+        placeWorldLabel(
+          label,
+          world.bounds,
+          annotation.xMm,
+          annotation.yMm + 34,
+          8,
+        );
         label.renderOrder = 8;
         group.add(label);
       }

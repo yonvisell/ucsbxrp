@@ -22,6 +22,20 @@ const allGeometryWorldSource = readFileSync(
   new URL("../../../tests/fixtures/world/all-geometry.json", import.meta.url),
   "utf8",
 );
+const challengeSixWorldSource = readFileSync(
+  new URL(
+    "../../../vendor/current/starters/challenge_6/world.json",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const challengeSevenWorldSource = readFileSync(
+  new URL(
+    "../../../vendor/current/starters/challenge_7/world.json",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("deterministic XRP planar simulator", () => {
   it("uses the centered 10 ft by 4 ft course arena by default", () => {
@@ -297,6 +311,70 @@ describe("project world configuration", () => {
     simulator.reset(world.initialPose);
     expect(simulator.config.obstacles).toEqual(world.obstacles);
     expect(simulator.state.rangeMm).toBeCloseTo(520, 9);
+  });
+
+  it("can keep the course boundary out of ultrasonic range without changing collision bounds", () => {
+    const source = JSON.parse(worldSource([])) as {
+      worlds: Array<Record<string, unknown>>;
+    };
+    source.worlds[0]!.range_sensor = { include_arena_boundary: false };
+    const world = parseWorldCatalog(JSON.stringify(source)).worlds[0]!;
+    const simulator = new XrpSimulator({
+      ...simulatorConfigForWorld(world),
+      rangeSensorOffsetMm: 0,
+    });
+    simulator.reset(world.initialPose);
+
+    expect(world.includeArenaBoundaryInRange).toBe(false);
+    expect(simulator.config.includeWorldBoundaryInRange).toBe(false);
+    expect(simulator.state.rangeMm).toBeNull();
+    expect(simulator.config.worldBounds).toEqual(world.bounds);
+
+    simulator.reset({
+      xMm: world.bounds.maximumXmm - 90,
+      yMm: 0,
+      headingRad: 0,
+    });
+    simulator.setMotorEffort("left", 0.8);
+    simulator.setMotorEffort("right", 0.8);
+    for (let index = 0; index < 30; index += 1) simulator.step();
+    expect(simulator.state.collision).toBe(true);
+    expect(simulator.state.pose.xMm).toBeLessThanOrEqual(
+      world.bounds.maximumXmm - 85,
+    );
+  });
+
+  it("uses explicit Challenge 6 and 7 walls without shrinking the course arena", () => {
+    const challengeSix = parseWorldCatalog(challengeSixWorldSource);
+    const noRange = challengeSix.worlds.find(
+      (world) => world.id === "no-range",
+    )!;
+    const noRangeSimulator = new XrpSimulator(simulatorConfigForWorld(noRange));
+    noRangeSimulator.reset(noRange.initialPose);
+    expect(noRange.bounds).toEqual(COURSE_ARENA_BOUNDS);
+    expect(noRangeSimulator.state.rangeMm).toBeNull();
+
+    const challengeSeven = parseWorldCatalog(challengeSevenWorldSource);
+    const station = challengeSeven.worlds.find(
+      (world) => world.id === "localization-station",
+    )!;
+    const missingY = challengeSeven.worlds.find(
+      (world) => world.id === "missing-y-reference",
+    )!;
+    const stationSimulator = new XrpSimulator(simulatorConfigForWorld(station));
+    stationSimulator.reset(station.initialPose);
+    expect(stationSimulator.state.rangeMm).toBeCloseTo(830, 6);
+    stationSimulator.reset({ ...station.initialPose, headingRad: Math.PI / 2 });
+    expect(stationSimulator.state.rangeMm).toBeCloseTo(430, 6);
+    const missingYSimulator = new XrpSimulator(
+      simulatorConfigForWorld(missingY),
+    );
+    missingYSimulator.reset({
+      ...missingY.initialPose,
+      headingRad: Math.PI / 2,
+    });
+    expect(missingY.bounds).toEqual(COURSE_ARENA_BOUNDS);
+    expect(missingYSimulator.state.rangeMm).toBeNull();
   });
 
   it("rejects ambiguous names and geometry outside the arena walls", () => {

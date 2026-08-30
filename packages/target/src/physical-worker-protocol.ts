@@ -37,13 +37,24 @@ export type PhysicalWorkerCommand =
   | { type: "mark-project-changed"; project: ProjectRevisionNotice }
   | ProjectRunSnapshotResponse
   | { type: "check"; requestId: string; project: CourseProject }
-  | { type: "prepare"; requestId: string; project: CourseProject }
-  | { type: "run"; requestId: string; project: CourseProject }
+  | {
+      type: "prepare";
+      requestId: string;
+      project: CourseProject;
+      projectId?: string;
+    }
+  | {
+      type: "run";
+      requestId: string;
+      project: CourseProject;
+      projectId?: string;
+    }
   | { type: "run-current"; requestId: string }
   | {
       type: "mark-project-stale";
       requestId: string;
       project: CourseProject;
+      projectId?: string;
     }
   | { type: "stop"; requestId: string }
   | { type: "reset"; requestId: string }

@@ -76,6 +76,7 @@ import {
   type MonitorRunDataset,
   type MonitorRunOutput,
 } from "./monitor-run-dataset";
+import { monitorProjectId } from "./monitor-project-identity";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
 import {
   appendTelemetryRateSample,
@@ -1651,7 +1652,10 @@ export function DashboardApp() {
             );
           }
           const opened = await readProjectFolder(folder);
-          await target.run(opened.project);
+          await target.run(
+            opened.project,
+            monitorProjectId(folder, opened.project.session),
+          );
         }
       }
     } catch (error: unknown) {

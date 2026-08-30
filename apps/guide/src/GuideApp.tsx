@@ -151,7 +151,9 @@ export function GuideApp() {
                   the Working folder and opens it. To inspect a ready-to-run
                   challenge, select <strong>complete challenges</strong> on Home
                   first. The revealed demonstrations use the supplied reference
-                  classes; they do not change the student challenge projects.
+                  classes and intentionally omit student component files and
+                  component checks; they do not change the student challenge
+                  projects.
                 </dd>
               </div>
               <div>

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_WORLD_CATALOG, type TelemetrySample } from "@ucsb-xrp/target";
 
-import { fittedWorldViewSpans, worldTrailSegmentPoints } from "./WorldView";
+import {
+  boundedWorldLabelPosition,
+  fittedWorldViewSpans,
+  worldTrailSegmentPoints,
+} from "./WorldView";
 import { WorldTrailGeometry } from "./world-trail-geometry";
 
 function pose(source: TelemetrySample["source"], seq: number, tMs = seq) {
@@ -33,6 +37,34 @@ describe("world view geometry", () => {
       expect(spans.verticalMm).toBeGreaterThanOrEqual(worldHeight + 180);
       expect(spans.horizontalMm / spans.verticalMm).toBeCloseTo(width / height);
     }
+  });
+
+  it("keeps long labels inside every edge of the world", () => {
+    const bounds = DEFAULT_WORLD_CATALOG.worlds[0]!.bounds;
+    expect(
+      boundedWorldLabelPosition(
+        bounds,
+        bounds.maximumXmm,
+        bounds.maximumYmm,
+        600,
+        52,
+      ),
+    ).toEqual({
+      xMm: bounds.maximumXmm - 300,
+      yMm: bounds.maximumYmm - 26,
+    });
+    expect(
+      boundedWorldLabelPosition(
+        bounds,
+        bounds.minimumXmm,
+        bounds.minimumYmm,
+        1_200,
+        104,
+      ),
+    ).toEqual({
+      xMm: bounds.minimumXmm + 600,
+      yMm: bounds.minimumYmm + 52,
+    });
   });
 
   it("does not connect a path across reset or target boundaries", () => {

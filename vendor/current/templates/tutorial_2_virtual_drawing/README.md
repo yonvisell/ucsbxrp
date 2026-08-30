@@ -6,7 +6,7 @@ introduces Python modules and classes through working code, including the small
 form of inheritance used by course components.
 
 Use the **Virtual XRP**. Open Monitor and select **Run** before editing; the
-approximately 300 mm square should be unmistakable in the course arena. Edit
+approximately 200 mm square should be visible in the course arena. Edit
 only `student_work.py` after observing that baseline.
 
 ## The files used in this project
@@ -110,8 +110,9 @@ one square size, so fixed numerical replacements are not correct.
 4. Change one side or the segment sequence in `student_work.py`, reset, and
    rerun. The current valid drawing runs even when it intentionally differs
    from the checked eight-segment square.
-5. Compare the new path with your prediction. **Check examples** describes the
-   difference from the baseline contract; restore the square before continuing.
+5. Compare the new path with your prediction. Each **Run** first reports how
+   the current definitions differ from the baseline contract; restore the
+   square before continuing.
 
 `main.py` uses a nested loop: the outer loop visits each segment, and the inner
 loop calls `Robot.step(...)` for `segment.steps` samples. `Robot.step()` already

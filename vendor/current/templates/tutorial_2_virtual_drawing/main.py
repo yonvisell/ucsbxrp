@@ -7,10 +7,10 @@ from student_work import build_drawing
 from ucsb_xrp import Pose
 
 
-SIDE_SPEED_MM_S = 120.0
-SIDE_STEPS = 125
-TURN_RATE_RAD_S = 1.3
-TURN_STEPS = 70
+SIDE_SPEED_MM_S = 140.0
+SIDE_STEPS = 75
+TURN_RATE_RAD_S = 1.5
+TURN_STEPS = 52
 
 
 def run_drawing():

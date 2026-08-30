@@ -278,12 +278,12 @@ class UtilityContractTests(unittest.TestCase):
         self.assertEqual(
             world.waypoints(),
             (
-                NavigationGoal(500, 700, math.pi / 2),
-                NavigationGoal(1200, 300),
+                NavigationGoal(500, 200, math.pi / 2),
+                NavigationGoal(1200, -200),
             ),
         )
         self.assertEqual(
-            world.waypoint("second_goal"), NavigationGoal(1200, 300)
+            world.waypoint("second_goal"), NavigationGoal(1200, -200)
         )
 
 

@@ -48,7 +48,7 @@ describe("world marker presentation", () => {
     expect(positions).toContainEqual({
       label: "Finish box",
       xMm: 1420,
-      yMm: 910,
+      yMm: 410,
     });
   });
 });

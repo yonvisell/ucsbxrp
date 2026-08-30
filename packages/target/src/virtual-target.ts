@@ -255,15 +255,22 @@ export class VirtualTargetClient implements TargetClient {
     }
   }
 
-  async run(project: CourseProject): Promise<void> {
+  async run(project: CourseProject, projectId?: string): Promise<void> {
     validatePortableProject(project);
     const descriptor = await describeProject(project);
-    await this.startRun({ type: "prepare-run", project, descriptor });
+    await this.startRun({
+      type: "prepare-run",
+      project,
+      descriptor,
+      ...(projectId ? { projectId } : {}),
+    });
   }
 
   async runCurrent(): Promise<void> {
     const staged = (await this.request({ type: "get-project" })) as {
       project?: CourseProject;
+      projectId?: string;
+      storedProjectId?: string;
       descriptor?: SynchronizedProject;
     };
     if (!staged.project || !staged.descriptor) {
@@ -272,6 +279,7 @@ export class VirtualTargetClient implements TargetClient {
     validatePortableProject(staged.project);
     const descriptor = await describeProject(staged.project);
     const retainedProjectIsExact =
+      staged.projectId === staged.storedProjectId &&
       !staged.descriptor.stale &&
       staged.descriptor.revision === descriptor.revision &&
       staged.descriptor.name === descriptor.name &&
@@ -281,6 +289,7 @@ export class VirtualTargetClient implements TargetClient {
         type: "prepare-run",
         project: staged.project,
         descriptor,
+        ...(staged.projectId ? { projectId: staged.projectId } : {}),
       });
       return;
     }
@@ -313,6 +322,7 @@ export class VirtualTargetClient implements TargetClient {
           type: "prepare-run";
           project: CourseProject;
           descriptor: SynchronizedProject;
+          projectId?: string;
         },
   ): Promise<void> {
     this.terminateRuntime();
@@ -375,13 +385,18 @@ export class VirtualTargetClient implements TargetClient {
     });
   }
 
-  async synchronize(project: CourseProject): Promise<void> {
+  async synchronize(project: CourseProject, projectId?: string): Promise<void> {
     const result = await this.check(project);
     if (!result.ok) {
       throw new Error(result.detail);
     }
     const descriptor = await describeProject(project);
-    await this.request({ type: "store-project", project, descriptor });
+    await this.request({
+      type: "store-project",
+      project,
+      descriptor,
+      ...(projectId ? { projectId } : {}),
+    });
     this.publishConsole({
       type: "console",
       stream: "system",
@@ -391,12 +406,16 @@ export class VirtualTargetClient implements TargetClient {
     });
   }
 
-  async markProjectStale(project: CourseProject): Promise<void> {
+  async markProjectStale(
+    project: CourseProject,
+    projectId?: string,
+  ): Promise<void> {
     const descriptor = await describeProject(project);
     await this.request({
       type: "mark-project-stale",
       project,
       descriptor,
+      ...(projectId ? { projectId } : {}),
     });
   }
 
@@ -437,16 +456,19 @@ export class VirtualTargetClient implements TargetClient {
           type: "prepare-run";
           project?: CourseProject;
           descriptor?: SynchronizedProject;
+          projectId?: string;
         }
       | {
           type: "store-project";
           project: CourseProject;
           descriptor: SynchronizedProject;
+          projectId?: string;
         }
       | {
           type: "mark-project-stale";
           project: CourseProject;
           descriptor: SynchronizedProject;
+          projectId?: string;
         }
       | { type: "get-project" }
       | { type: "set-scenario"; scenario: SimulationScenario }

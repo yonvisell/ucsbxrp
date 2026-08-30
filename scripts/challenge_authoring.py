@@ -601,6 +601,7 @@ _WORLD_LINE_MARKERS = ("start_line", "finish_line")
 _WORLD_BOX_MARKERS = ("start_box", "finish_box")
 _WORLD_POINT_MARKERS = ("waypoint", "marker")
 _WORLD_MARKERS = _WORLD_LINE_MARKERS + _WORLD_BOX_MARKERS + _WORLD_POINT_MARKERS
+_COURSE_ARENA_BOUNDS = (-1524.0, -609.6, 1524.0, 609.6)
 
 
 def _valid_number(value):
@@ -704,6 +705,25 @@ def _world_errors(world, prefix):
         bounds = _rectangle_values(item.get("bounds"), name + ".bounds", errors)
         if bounds is None:
             continue
+        if bounds != _COURSE_ARENA_BOUNDS:
+            errors.append(
+                name
+                + ".bounds must match the fixed course arena "
+                + "(x = -1524 to 1524 mm and y = -609.6 to 609.6 mm)"
+            )
+
+        if "range_sensor" in item:
+            range_sensor = item.get("range_sensor")
+            if not isinstance(range_sensor, dict):
+                errors.append(name + ".range_sensor must be an object")
+            elif (
+                "include_arena_boundary" in range_sensor
+                and not isinstance(range_sensor["include_arena_boundary"], bool)
+            ):
+                errors.append(
+                    name
+                    + ".range_sensor.include_arena_boundary must be true or false"
+                )
 
         pose = item.get(
             "initial_pose", {"x_mm": 0, "y_mm": 0, "heading_rad": 0}

@@ -88,10 +88,10 @@ measured response and total motion.
    Predict the effect of temporarily scaling the command or changing the loop
    count inside `run_robot_program(...)` in `student_work.py`, then make one
    change, reset, and rerun.
-4. **Check examples** reports how an experiment differs from the required call
+4. Each **Run** first reports how an experiment differs from the required call
    sequence but does not prevent a valid virtual program from running. Restore
-   the supplied behavior and repeat once. The same program in the same
-   virtual world should produce a comparable trajectory.
+   the supplied behavior and repeat once. The same program in the same virtual
+   world should produce a comparable trajectory.
 
 `PASS` confirms the required result or call sequence. If an experiment breaks
 the example, the first differing value or robot method call is identified.

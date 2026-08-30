@@ -5,10 +5,10 @@
       "id": "all-stops-reachable",
       "label": "All stops reachable",
       "bounds": {
-        "minimum_x_mm": -800,
-        "minimum_y_mm": -600,
-        "maximum_x_mm": 800,
-        "maximum_y_mm": 600
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": { "x_mm": -550, "y_mm": -350, "heading_rad": 0 },
       "obstacles": [
@@ -65,10 +65,10 @@
       "id": "stop-c-disconnected",
       "label": "Stop C disconnected",
       "bounds": {
-        "minimum_x_mm": -800,
-        "minimum_y_mm": -600,
-        "maximum_x_mm": 800,
-        "maximum_y_mm": 600
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
       "initial_pose": { "x_mm": -550, "y_mm": -350, "heading_rad": 0 },
       "obstacles": [

@@ -115,7 +115,7 @@ Monitor recording is the appropriate source for complete time histories.
 2. Observe the approach, range threshold, phase watch, turn, and final stop.
 3. Change one live control and repeat from Reset. Compare the path and plots.
 4. Trace that visible change through `next_phase`, `command_for_phase`, or
-   `publish_telemetry`, then select **Check examples**.
+   `publish_telemetry`. Each **Run** checks these functions before motion.
 
 The supplied loop calls `Robot.step()` at the measured sample rate and always
 calls `robot.stop()` in `finally`. Do not add `sleep()` or `sleep_ms()`.

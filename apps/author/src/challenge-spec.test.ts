@@ -73,6 +73,15 @@ describe("challenge authoring specification", () => {
     );
   });
 
+  it("rejects a valid but noncanonical challenge arena", () => {
+    const spec = JSON.parse(exampleSource) as ChallengeSpec;
+    const world = spec.world.worlds as Array<Record<string, any>>;
+    world[0]!.bounds.maximum_x_mm = 1400;
+    expect(validateChallengeSpec(spec)).toContain(
+      "World JSON: worlds[0].bounds must match the fixed course arena (x = -1524 to 1524 mm and y = -609.6 to 609.6 mm)",
+    );
+  });
+
   it("rejects unsafe student declarations and malformed world markers", () => {
     const spec = JSON.parse(exampleSource) as ChallengeSpec;
     spec.student_implementations = [
@@ -88,7 +97,7 @@ describe("challenge authoring specification", () => {
     world.markers = [
       {
         type: "start_line",
-        x1_mm: bounds.minimum_x_mm - 50,
+        x1_mm: Number(bounds.minimum_x_mm) - 50,
         y1_mm: 0,
         x2_mm: 0,
         y2_mm: 0,

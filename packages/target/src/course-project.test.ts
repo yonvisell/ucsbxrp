@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { COURSE_ARENA_BOUNDS } from "@ucsb-xrp/simulator";
+
 import {
   COURSE_PROJECT_TEMPLATES,
   COURSE_STARTERS,
@@ -56,13 +58,55 @@ describe("course starter catalog", () => {
     for (let number = 1; number <= 8; number += 1) {
       const student = courseProjectTemplate(`challenge_${number}`);
       const complete = courseProjectTemplate(`complete_challenge_${number}`);
-      expect(complete.project.files).toEqual(student.project.files);
+      expect(complete.project.files["course_setup.py"]).toContain(
+        "Student implementation files are intentionally absent",
+      );
       expect(complete.project.files["course_setup.py"]).not.toMatch(
-        /^USE_STUDENT_[A-Z0-9_]+ = True$/m,
+        /^from .*student/im,
       );
-      expect(complete.project.files["course_setup.py"]).toMatch(
-        /^USE_STUDENT_[A-Z0-9_]+ = False$/m,
+      expect(complete.project.files["course_setup.py"]).not.toContain(
+        "USE_STUDENT_",
       );
+      expect(complete.project.files["component_checks.py"]).toBeUndefined();
+      for (const component of student.components) {
+        expect(complete.project.files[component.file]).toBeUndefined();
+      }
+      expect(complete.project.files["README.md"]).toContain(
+        "Student component files and component checks are intentionally absent",
+      );
+      expect(complete.project.files["README.md"]).not.toMatch(
+        /Test components|USE_STUDENT_|What you implement|Continue from Challenge/,
+      );
+      for (const link of complete.project.files["README.md"]!.matchAll(
+        /\]\(([^)]+)\)/g,
+      )) {
+        expect(
+          complete.project.files[link[1]!],
+          `${complete.id} README link ${link[1]}`,
+        ).toBeDefined();
+      }
+      expect(complete.project.files["main.py"]).toBe(
+        student.project.files["main.py"],
+      );
+      const courseSetupImport = complete.project.files["main.py"]!.match(
+        /from course_setup import\s*(?:\(([\s\S]*?)\)|([^\n]+))/,
+      );
+      expect(
+        courseSetupImport,
+        `${complete.id} course_setup import`,
+      ).not.toBeNull();
+      const importedFactories = (
+        courseSetupImport![1] ?? courseSetupImport![2]!
+      )
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean);
+      for (const factory of importedFactories) {
+        expect(
+          complete.project.files["course_setup.py"],
+          `${complete.id} defines ${factory}`,
+        ).toMatch(new RegExp(`^def ${factory}\\(`, "m"));
+      }
       expect(complete.components).toHaveLength(0);
       expect(complete.predecessorId).toBeNull();
     }
@@ -99,7 +143,7 @@ describe("course starter catalog", () => {
     );
     const roomba = courseProjectTemplate("demo_roomba");
     expect(roomba.project.files["main.py"]).toContain(
-      "OBSTACLE_THRESHOLD_MM = 120.0",
+      "OBSTACLE_THRESHOLD_MM = 250.0",
     );
     expect(roomba.project.files["main.py"]).toContain(
       "MAXIMUM_CONSECUTIVE_MISSING_RANGES = 10",
@@ -191,6 +235,25 @@ describe("course starter catalog", () => {
       "PoseCorrector",
       "VisitOrderPlanner",
     ]);
+  });
+
+  it("keeps every public project world in the full course arena", () => {
+    const expectedBounds = {
+      minimum_x_mm: COURSE_ARENA_BOUNDS.minimumXmm,
+      minimum_y_mm: COURSE_ARENA_BOUNDS.minimumYmm,
+      maximum_x_mm: COURSE_ARENA_BOUNDS.maximumXmm,
+      maximum_y_mm: COURSE_ARENA_BOUNDS.maximumYmm,
+    };
+    for (const template of COURSE_PROJECT_TEMPLATES) {
+      const catalog = JSON.parse(template.project.files["world.json"]!) as {
+        worlds: Array<{ bounds: Record<string, number> }>;
+      };
+      for (const world of catalog.worlds) {
+        expect(world.bounds, `${template.id} world bounds`).toEqual(
+          expectedBounds,
+        );
+      }
+    }
   });
 
   it("creates a self-contained next challenge with only declared work carried forward", () => {

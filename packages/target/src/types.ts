@@ -234,15 +234,20 @@ export interface TargetClient {
   connect(): Promise<void>;
   disconnect(): void;
   check(project: CourseProject): Promise<CheckResult>;
-  synchronize(project: CourseProject): Promise<void>;
-  run(project: CourseProject): Promise<void>;
+  synchronize(project: CourseProject, projectId?: string): Promise<void>;
+  run(project: CourseProject, projectId?: string): Promise<void>;
   runCurrent(): Promise<void>;
   setProjectRunProvider(
     provider: ProjectRunProvider | null,
     options?: { takeover?: boolean },
   ): void;
   markProjectChanged(project: ProjectRevisionNotice): void;
-  markProjectStale(project: CourseProject): Promise<void>;
+  /**
+   * Stage the open editor project. `projectId` is the existing project-session
+   * identity; targets use it to reset the visible world on an actual Project
+   * switch even when two Projects contain identical world.json text.
+   */
+  markProjectStale(project: CourseProject, projectId?: string): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;
   setRuntimeParameter(

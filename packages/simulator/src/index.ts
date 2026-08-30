@@ -90,6 +90,7 @@ export function simulatorConfigForWorld(
   return {
     worldBounds: world.bounds,
     obstacles: world.obstacles,
+    includeWorldBoundaryInRange: world.includeArenaBoundaryInRange !== false,
   };
 }
 
@@ -115,6 +116,7 @@ export interface XrpSimulatorConfig {
   temperatureC: number;
   worldBounds: AxisAlignedRectangle;
   obstacles: readonly AxisAlignedRectangle[];
+  includeWorldBoundaryInRange: boolean;
 }
 
 export interface XrpSimulatorState {
@@ -154,6 +156,7 @@ export const DEFAULT_XRP_SIMULATOR_CONFIG: XrpSimulatorConfig = {
   temperatureC: 27,
   worldBounds: COURSE_ARENA_BOUNDS,
   obstacles: [],
+  includeWorldBoundaryInRange: true,
 };
 
 const stoppedWheelSpeedMmS = 0.01;
@@ -435,15 +438,17 @@ export class XrpSimulator {
           distances.push(distance);
         }
       }
-      const boundaryDistance = rayRectangleDistance(
-        origin.xMm,
-        origin.yMm,
-        directionX,
-        directionY,
-        this.config.worldBounds,
-      );
-      if (boundaryDistance !== null && boundaryDistance >= 0) {
-        distances.push(boundaryDistance);
+      if (this.config.includeWorldBoundaryInRange) {
+        const boundaryDistance = rayRectangleDistance(
+          origin.xMm,
+          origin.yMm,
+          directionX,
+          directionY,
+          this.config.worldBounds,
+        );
+        if (boundaryDistance !== null && boundaryDistance >= 0) {
+          distances.push(boundaryDistance);
+        }
       }
     }
     const closest = distances.length > 0 ? Math.min(...distances) : Infinity;

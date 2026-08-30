@@ -27,10 +27,12 @@ function NumberField({
   label,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <label>
@@ -38,6 +40,7 @@ function NumberField({
       <input
         inputMode="decimal"
         type="number"
+        disabled={disabled}
         value={Number.isFinite(value) ? value : ""}
         onChange={(event) => {
           const next = event.currentTarget.valueAsNumber;
@@ -118,7 +121,7 @@ export function WorldEditorInspector({
           type="button"
           onClick={() => onSelectionChange({ kind: "bounds" })}
         >
-          Arena bounds
+          Course arena (fixed)
         </button>
         <button
           className={selection.kind === "initial_pose" ? "is-selected" : ""}
@@ -160,7 +163,7 @@ export function WorldEditorInspector({
       <div className="world-editor-properties">
         <h3>
           {selection.kind === "bounds"
-            ? "Arena bounds"
+            ? "Course arena (fixed)"
             : selection.kind === "initial_pose"
               ? "Initial XRP pose"
               : selectedItem
@@ -225,10 +228,17 @@ export function WorldEditorInspector({
               key={field}
               label={field.replaceAll("_", " ")}
               value={value}
+              disabled={selection.kind === "bounds"}
               onChange={(next) => changeNumber(field, next)}
             />
           ))}
         </div>
+        {selection.kind === "bounds" && (
+          <p>
+            All projects use the 3048 × 1219.2 mm course arena. Position the
+            scenario geometry and initial pose within these fixed bounds.
+          </p>
+        )}
         {selection.kind === "marker" &&
           world.markers[selection.index]?.type === "waypoint" && (
             <div className="world-editor-reorder">

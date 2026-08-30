@@ -34,8 +34,9 @@ return a dictionary containing:
 Raise `ValueError` for an empty collection. Initialize named accumulators before
 the loop. Check `range_mm is not None` before comparing distances.
 
-Select **Check examples** after tracing the loop. Program output checks each
-report field separately, so one incorrect edit does not hide the others.
+Each **Run** checks every report field before interacting with either XRP, so
+one incorrect edit does not hide the others and an invalid report prevents
+motion.
 
 ## Rehearse on the Virtual XRP
 

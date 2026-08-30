@@ -39,6 +39,21 @@ export interface WorldEditorDiagnostic {
   technical: string;
 }
 
+const fixedArenaDescription = "x = -1524 to 1524 mm and y = -609.6 to 609.6 mm";
+
+export function courseArenaBoundsError(catalog: WorldCatalog): string | null {
+  const index = catalog.worlds.findIndex(
+    (world) =>
+      world.bounds.minimumXmm !== COURSE_ARENA_BOUNDS.minimumXmm ||
+      world.bounds.minimumYmm !== COURSE_ARENA_BOUNDS.minimumYmm ||
+      world.bounds.maximumXmm !== COURSE_ARENA_BOUNDS.maximumXmm ||
+      world.bounds.maximumYmm !== COURSE_ARENA_BOUNDS.maximumYmm,
+  );
+  return index < 0
+    ? null
+    : `worlds[${index}].bounds must match the fixed course arena (${fixedArenaDescription})`;
+}
+
 function rectangleValues(item: WorldObstacle | WorldMarker) {
   if (!("minimumXmm" in item)) return null;
   return {
@@ -130,6 +145,8 @@ function serialize(value: JsonObject): string {
 
 export function parseWorldDocument(source: string): ParsedWorldDocument {
   const catalog = parseWorldCatalog(source);
+  const boundsError = courseArenaBoundsError(catalog);
+  if (boundsError) throw new Error(boundsError);
   const raw = objectValue(JSON.parse(source) as unknown, "world.json");
   return { raw, catalog };
 }
@@ -274,6 +291,13 @@ export function worldEditorDiagnostic(
       summary: "The arena bounds do not form a positive rectangle.",
       guidance:
         "Each maximum coordinate must be greater than its corresponding minimum coordinate.",
+      technical,
+    };
+  }
+  if (technical.includes("bounds must match the fixed course arena")) {
+    return {
+      summary: "Every challenge world uses the fixed course arena.",
+      guidance: `Restore the bounds to ${fixedArenaDescription}; place task geometry inside that arena instead of resizing it.`,
       technical,
     };
   }
@@ -496,7 +520,7 @@ export function updateWorldNumbers(
     const world = rawWorld(root, worldId);
     let target: JsonObject;
     if (selection.kind === "bounds") {
-      target = objectValue(world.bounds, "bounds");
+      throw new Error("Course arena bounds are fixed");
     } else if (selection.kind === "initial_pose") {
       target = objectValue(world.initial_pose, "initial_pose");
     } else {

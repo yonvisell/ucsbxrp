@@ -105,8 +105,11 @@ fields that this release does not interpret. If the JSON is incomplete or
 invalid, its text remains unchanged and the graphic editor stays unavailable
 until the JSON is corrected.
 
-The world `bounds` are the four arena walls. Every initial pose, obstacle, and
-marker must lie within them. Obstacles are axis-aligned `block` or `wall`
+Every world uses the fixed 3048 × 1219.2 mm course arena: x = -1524 to 1524 mm
+and y = -609.6 to 609.6 mm. The visual editor shows these bounds read-only, and
+the Advanced editor and publication command reject a different arena size.
+Every initial pose, obstacle, and marker must lie within the course arena.
+Obstacles are axis-aligned `block` or `wall`
 rectangles. `start_line`, `start_box`, `finish_line`, and `finish_box` identify
 visible task regions. `marker` adds a general labeled point. These five marker
 types do not become navigation goals. A `waypoint` is both visible and available
@@ -114,29 +117,34 @@ to project Python through `ProjectWorld.waypoint()` and
 `ProjectWorld.waypoints()`; it may add `heading_rad` when arrival orientation is
 part of the task. Waypoints retain their file order. Marker names and
 conditional obstacle `feature` names must be unique within a world.
+By default, those same arena walls also reflect the virtual ultrasonic sensor.
+For a controlled localization case in which only explicit obstacle faces are
+range references, set `range_sensor.include_arena_boundary` to `false`. This
+does not remove or resize the arena collision boundary.
 The exact supported shapes are ordinary JSON. Instructors normally create them
 with the visual editor; this reference is useful for review and extension:
 
 ```json
 {
   "bounds": {
-    "minimum_x_mm": 0,
-    "minimum_y_mm": 0,
-    "maximum_x_mm": 1200,
-    "maximum_y_mm": 800
+    "minimum_x_mm": -1524,
+    "minimum_y_mm": -609.6,
+    "maximum_x_mm": 1524,
+    "maximum_y_mm": 609.6
   },
-  "initial_pose": { "x_mm": 100, "y_mm": 100, "heading_rad": 0 },
+  "initial_pose": { "x_mm": -1200, "y_mm": -400, "heading_rad": 0 },
+  "range_sensor": { "include_arena_boundary": true },
   "obstacles": [
-    { "type": "wall", "minimum_x_mm": 400, "minimum_y_mm": 0, "maximum_x_mm": 450, "maximum_y_mm": 300 },
-    { "type": "block", "feature": "gate", "minimum_x_mm": 600, "minimum_y_mm": 300, "maximum_x_mm": 700, "maximum_y_mm": 400 }
+    { "type": "wall", "minimum_x_mm": -500, "minimum_y_mm": -609.6, "maximum_x_mm": -450, "maximum_y_mm": 0 },
+    { "type": "block", "feature": "gate", "minimum_x_mm": 100, "minimum_y_mm": -100, "maximum_x_mm": 200, "maximum_y_mm": 100 }
   ],
   "markers": [
-    { "type": "start_line", "x1_mm": 50, "y1_mm": 50, "x2_mm": 50, "y2_mm": 150 },
-    { "type": "start_box", "minimum_x_mm": 50, "minimum_y_mm": 50, "maximum_x_mm": 150, "maximum_y_mm": 150 },
-    { "type": "waypoint", "name": "turn", "label": "Turn", "x_mm": 700, "y_mm": 500, "heading_rad": 1.57 },
-    { "type": "marker", "name": "inspect", "label": "Inspect", "x_mm": 900, "y_mm": 500 },
-    { "type": "finish_line", "x1_mm": 1100, "y1_mm": 600, "x2_mm": 1100, "y2_mm": 750 },
-    { "type": "finish_box", "label": "Finish", "minimum_x_mm": 1100, "minimum_y_mm": 600, "maximum_x_mm": 1180, "maximum_y_mm": 750 }
+    { "type": "start_line", "x1_mm": -1100, "y1_mm": -450, "x2_mm": -1100, "y2_mm": -250 },
+    { "type": "start_box", "minimum_x_mm": -1250, "minimum_y_mm": -500, "maximum_x_mm": -1050, "maximum_y_mm": -300 },
+    { "type": "waypoint", "name": "turn", "label": "Turn", "x_mm": 400, "y_mm": 300, "heading_rad": 1.57 },
+    { "type": "marker", "name": "inspect", "label": "Inspect", "x_mm": 800, "y_mm": 200 },
+    { "type": "finish_line", "x1_mm": 1200, "y1_mm": -100, "x2_mm": 1200, "y2_mm": 100 },
+    { "type": "finish_box", "label": "Finish", "minimum_x_mm": 1120, "minimum_y_mm": -150, "maximum_x_mm": 1320, "maximum_y_mm": 150 }
   ]
 }
 ```
@@ -309,10 +317,10 @@ The complete checked specification is
         "id": "waypoint-slalom",
         "label": "Waypoint slalom",
         "bounds": {
-          "minimum_x_mm": -200,
-          "minimum_y_mm": -400,
-          "maximum_x_mm": 1400,
-          "maximum_y_mm": 400
+          "minimum_x_mm": -1524,
+          "minimum_y_mm": -609.6,
+          "maximum_x_mm": 1524,
+          "maximum_y_mm": 609.6
         },
         "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
         "obstacles": [],

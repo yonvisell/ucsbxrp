@@ -37,6 +37,8 @@ ordinary editable project. The demos include obstacle-triggered turning, an
 expanding spiral with two live parameters, random 90-degree motion, Roomba-style
 avoidance, and a waypoint-drawn UCSB logo. Select **complete challenges** on
 Home to reveal ready-to-run variants that use every supplied reference class.
+Those reference demonstrations omit student component files and component
+checks so they cannot be mistaken for unfinished student projects.
 Select **Virtual XRP** for immediate use or **Physical XRP** for a robot
 hotspot or an existing local network. Later challenges retain all components
 introduced so far; students carry their completed methods forward and enable

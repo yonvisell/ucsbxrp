@@ -309,14 +309,14 @@ export class PhysicalTargetCoordinator {
       if (command.type === "check") {
         result = await this.target.check(command.project);
       } else if (command.type === "prepare") {
-        await this.target.synchronize(command.project);
+        await this.target.synchronize(command.project, command.projectId);
       } else if (command.type === "run") {
-        await this.target.run(command.project);
+        await this.target.run(command.project, command.projectId);
       } else if (command.type === "run-current") {
         const snapshot = await this.projectRunProvider.request();
-        await this.target.run(snapshot.project);
+        await this.target.run(snapshot.project, snapshot.projectId);
       } else if (command.type === "mark-project-stale") {
-        await this.target.markProjectStale(command.project);
+        await this.target.markProjectStale(command.project, command.projectId);
       } else if (command.type === "stop") {
         await this.target.stop();
       } else if (command.type === "reset") {

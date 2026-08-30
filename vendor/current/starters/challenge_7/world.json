@@ -5,11 +5,12 @@
       "id": "localization-station",
       "label": "Localization station",
       "bounds": {
-        "minimum_x_mm": -600,
-        "minimum_y_mm": -600,
-        "maximum_x_mm": 1200,
-        "maximum_y_mm": 900
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
+      "range_sensor": { "include_arena_boundary": false },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
       "obstacles": [
         {
@@ -17,15 +18,15 @@
           "minimum_x_mm": 900,
           "minimum_y_mm": -400,
           "maximum_x_mm": 950,
-          "maximum_y_mm": 720,
+          "maximum_y_mm": 520,
           "label": "Known x wall"
         },
         {
           "type": "wall",
           "minimum_x_mm": -400,
-          "minimum_y_mm": 700,
+          "minimum_y_mm": 500,
           "maximum_x_mm": 900,
-          "maximum_y_mm": 750,
+          "maximum_y_mm": 550,
           "label": "Known y wall"
         }
       ],
@@ -67,11 +68,12 @@
       "id": "missing-y-reference",
       "label": "Missing y reference",
       "bounds": {
-        "minimum_x_mm": -600,
-        "minimum_y_mm": -600,
-        "maximum_x_mm": 1200,
-        "maximum_y_mm": 3000
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
       },
+      "range_sensor": { "include_arena_boundary": false },
       "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
       "obstacles": [
         {
@@ -79,7 +81,7 @@
           "minimum_x_mm": 900,
           "minimum_y_mm": -400,
           "maximum_x_mm": 950,
-          "maximum_y_mm": 720,
+          "maximum_y_mm": 520,
           "label": "Known x wall"
         }
       ],

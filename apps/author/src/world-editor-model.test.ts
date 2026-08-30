@@ -223,4 +223,35 @@ describe("visual world editor model", () => {
     expect(snapWorldValue(113, 25)).toBe(125);
     expect(snapWorldValue(113, 0)).toBe(113);
   });
+
+  test("rejects resizing the fixed course arena in graphic or Advanced editing", () => {
+    const current = readFileSync(
+      "vendor/current/starters/challenge_1/world.json",
+      "utf8",
+    );
+    expect(() =>
+      updateWorldNumbers(
+        current,
+        "straight-run",
+        { kind: "bounds" },
+        {
+          maximum_x_mm: 1400,
+        },
+      ),
+    ).toThrow("Course arena bounds are fixed");
+
+    const advanced = JSON.parse(current) as Record<string, any>;
+    advanced.worlds[0].bounds.maximum_x_mm = 1400;
+    expect(() => parseWorldDocument(JSON.stringify(advanced))).toThrow(
+      "must match the fixed course arena",
+    );
+    expect(
+      worldEditorDiagnostic(
+        JSON.stringify(advanced),
+        "worlds[0].bounds must match the fixed course arena (x = -1524 to 1524 mm and y = -609.6 to 609.6 mm)",
+      ),
+    ).toMatchObject({
+      summary: "Every challenge world uses the fixed course arena.",
+    });
+  });
 });

@@ -38,6 +38,119 @@ function sourceLines(
   return source === undefined ? undefined : source.split("\n");
 }
 
+interface StructuralLineState {
+  stack: string[];
+  callStack: boolean[];
+  inTripleString: boolean;
+  valid: boolean;
+}
+
+/**
+ * Return the open delimiters at the start of each source line. This deliberately
+ * understands only ordinary single-line Python strings: if the source is more
+ * complicated, the diagnostic presenter declines to guess.
+ */
+function structuralLineStates(lines: readonly string[]): StructuralLineState[] {
+  const states: StructuralLineState[] = [];
+  const stack: string[] = [];
+  const callStack: boolean[] = [];
+  let tripleQuote: "'''" | '\"\"\"' | undefined;
+  let valid = true;
+  const closingFor: Readonly<Record<string, string>> = {
+    "(": ")",
+    "[": "]",
+    "{": "}",
+  };
+
+  for (const line of lines) {
+    states.push({
+      stack: [...stack],
+      callStack: [...callStack],
+      inTripleString: tripleQuote !== undefined,
+      valid,
+    });
+    let quote: "'" | '"' | undefined;
+    let escaped = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index]!;
+      if (tripleQuote) {
+        if (line.startsWith(tripleQuote, index)) {
+          index += 2;
+          tripleQuote = undefined;
+        }
+        continue;
+      }
+      if (quote) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === quote) {
+          quote = undefined;
+        }
+        continue;
+      }
+      if (character === "#") break;
+      if (line.startsWith("'''", index)) {
+        tripleQuote = "'''";
+        index += 2;
+      } else if (line.startsWith('\"\"\"', index)) {
+        tripleQuote = '\"\"\"';
+        index += 2;
+      } else if (character === "'" || character === '"') {
+        quote = character;
+      } else if (character in closingFor) {
+        stack.push(character);
+        const preceding = line.slice(0, index).trimEnd().at(-1) ?? "";
+        callStack.push(character === "(" && /[A-Za-z0-9_\])]/.test(preceding));
+      } else if (character === ")" || character === "]" || character === "}") {
+        const opening = stack.pop();
+        callStack.pop();
+        if (!opening || closingFor[opening] !== character) valid = false;
+      }
+    }
+    // Multiline and unterminated strings need the compiler's own explanation;
+    // do not infer punctuation from a partial lexical model.
+    if (quote) valid = false;
+  }
+  return states;
+}
+
+function structuralStateAfter(line: string): StructuralLineState {
+  return structuralLineStates([line, ""])[1]!;
+}
+
+function codeWithoutComment(line: string): string {
+  let quote: "'" | '"' | undefined;
+  let escaped = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index]!;
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = undefined;
+    } else if (character === "'" || character === '"') {
+      quote = character;
+    } else if (character === "#") {
+      return line.slice(0, index).trimEnd();
+    }
+  }
+  return line.trimEnd();
+}
+
+function completeKeywordArgument(
+  line: string,
+  commaRequired: boolean,
+): boolean {
+  const code = codeWithoutComment(line).trim();
+  if (!/^[A-Za-z_]\w*\s*=\s*\S/.test(code)) return false;
+  if (commaRequired && !code.endsWith(",")) return false;
+  const value = code.replace(/^[A-Za-z_]\w*\s*=\s*/, "").replace(/,$/, "");
+  if (!value || /[+\-*/%&|^<>:=([{\\]$/.test(value)) return false;
+  const after = structuralStateAfter(code);
+  return after.valid && after.stack.length === 0;
+}
+
 function likelyMissingComma(
   diagnostic: PythonDiagnostic,
   lines: readonly string[] | undefined,
@@ -54,15 +167,61 @@ function likelyMissingComma(
   }
   const current = lines[reportedLine - 1]?.trim() ?? "";
   const previous = lines[reportedLine - 2]?.trim() ?? "";
+  const states = structuralLineStates(lines);
+  const previousState = states[reportedLine - 2];
+  const currentState = states[reportedLine - 1];
+  const previousIndent = lines[reportedLine - 2]?.match(/^\s*/)?.[0].length;
+  const currentIndent = lines[reportedLine - 1]?.match(/^\s*/)?.[0].length;
   if (
     !/^[A-Za-z_]\w*\s*=/.test(current) ||
     !/^[A-Za-z_]\w*\s*=/.test(previous) ||
+    !previousState?.valid ||
+    !currentState?.valid ||
+    previousState.stack.at(-1) !== "(" ||
+    currentState.stack.at(-1) !== "(" ||
+    previousState.inTripleString ||
+    currentState.inTripleString ||
+    previousState.callStack.at(-1) !== true ||
+    currentState.callStack.at(-1) !== true ||
+    previousState.stack.length !== currentState.stack.length ||
+    previousIndent !== currentIndent ||
+    !completeKeywordArgument(previous, false) ||
+    !completeKeywordArgument(current, true) ||
     /[,([{\\]$/.test(previous) ||
     /[+\-*/%&|^<>:=]$/.test(previous)
   ) {
     return undefined;
   }
   return { line: reportedLine - 1, text: previous };
+}
+
+function unambiguousBlockHeader(code: string): boolean {
+  if (/^(?:else|try|finally)$/.test(code)) return true;
+  const atom = String.raw`(?:[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*|-?\d+(?:\.\d+)?|True|False|None|'[^']*'|"[^"]*")`;
+  const expression = String.raw`(?:not\s+)?${atom}(?:\s*(?:==|!=|<=|>=|<|>)\s*${atom})?`;
+  if (
+    new RegExp(`^(?:if|elif|while|match|case)\\s+${expression}$`).test(code)
+  ) {
+    return true;
+  }
+  if (
+    /^(?:async\s+)?def\s+[A-Za-z_]\w*\s*\(\s*\)(?:\s*->\s*[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?$/.test(
+      code,
+    ) ||
+    /^class\s+[A-Za-z_]\w*(?:\s*\(\s*\))?$/.test(code) ||
+    /^(?:async\s+)?for\s+[A-Za-z_]\w*\s+in\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(
+      code,
+    ) ||
+    /^(?:async\s+)?with\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+as\s+[A-Za-z_]\w*)?$/.test(
+      code,
+    ) ||
+    /^except(?:\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+as\s+[A-Za-z_]\w*)?)?$/.test(
+      code,
+    )
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function likelyMissingColon(
@@ -78,13 +237,17 @@ function likelyMissingColon(
     return undefined;
   }
   const current = lines[reportedLine - 1]?.trim() ?? "";
+  const code = codeWithoutComment(current).trim();
+  const structure = structuralStateAfter(code);
   if (
-    /^(?:async\s+def|def|class|if|elif|else|for|while|try|except|finally|with|match|case)\b/.test(
-      current,
-    ) &&
-    !current.endsWith(":")
+    structure.valid &&
+    !structure.inTripleString &&
+    structure.stack.length === 0 &&
+    unambiguousBlockHeader(code) &&
+    !code.endsWith(":") &&
+    !/[+\-*/%&|^<>=([{\\]$/.test(code)
   ) {
-    return { line: reportedLine, text: current };
+    return { line: reportedLine, text: code };
   }
   return undefined;
 }
@@ -146,7 +309,7 @@ export function presentPythonDiagnostic(
       title: "Syntax error.",
       location: location(diagnostic),
       suggestion:
-        "Check this line and the line immediately above for a missing comma, colon, bracket, or quote.",
+        "MicroPython stopped at this line, but the cause may be in the preceding statement. Inspect the highlighted source and the exact Compiler output.",
       ...(currentLine ? { sourceLine: currentLine } : {}),
       ...(reportedLine ? { focusLine: reportedLine } : {}),
     };

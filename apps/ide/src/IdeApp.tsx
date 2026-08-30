@@ -431,7 +431,6 @@ function newProjectPrefersVirtual(project: ProjectSnapshot): boolean {
 }
 
 function checkFileForProject(project: ProjectSnapshot): string | null {
-  if ("exercise_checks.py" in project.files) return "exercise_checks.py";
   if ("component_checks.py" in project.files) return "component_checks.py";
   return null;
 }
@@ -1553,7 +1552,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     target.setProjectRunProvider(provideProjectRunSnapshot, { takeover: true });
   }, [provideProjectRunSnapshot, target]);
   const projectCheckFile = checkFileForProject(project);
-  const checkingExercises = projectCheckFile === "exercise_checks.py";
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -1749,11 +1747,19 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   }, [activePath]);
 
   const stageOpenedProject = useCallback(
-    async (snapshot: ProjectSnapshot) => {
+    async (snapshot: ProjectSnapshot, projectId: string) => {
       if (!projectProviderActiveRef.current) return;
+      if (
+        targetStateRef.current === "loading" ||
+        targetStateRef.current === "running"
+      ) {
+        throw new Error(
+          "Stop the current run before opening a different Project.",
+        );
+      }
       beginTargetCommand();
       try {
-        await target.markProjectStale(snapshot);
+        await target.markProjectStale(snapshot, projectId);
       } catch {
         // Opening and editing remain available while a physical XRP is offline.
       } finally {
@@ -1784,7 +1790,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       // remains ready and any other project becomes "Loads on Run".
       const snapshot = projectSession.project;
       void target
-        .markProjectStale(snapshot)
+        .markProjectStale(snapshot, projectSession.projectId)
         .then(() => {
           const latest = announcedProjectRevisionRef.current;
           if (
@@ -2054,21 +2060,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setComponentCheckRunning(true);
     setOutputPanelOpen(true);
     setConsoleTab("output");
-    setOperationDetail(
-      checkingExercises
-        ? "Checking the runnable tutorial examples without starting a robot…"
-        : "Running hardware-free component checks…",
-    );
+    setOperationDetail("Running hardware-free component checks…");
     try {
       const result = await testCourseProjectComponents({
         ...projectRef.current,
         entrypoint: projectCheckFile,
       });
-      const completionDetail = checkingExercises
-        ? result.detail.replace(/^Component checks/, "Example checks")
-        : result.detail;
+      const completionDetail = result.detail;
       const incompleteComponents =
-        !checkingExercises &&
         result.ok &&
         (result.output ?? []).some((line) =>
           /^0 passed · [1-9]\d* not implemented · 0 failed$/.test(line),
@@ -2090,7 +2089,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             ? "Component checks finished · implement the listed methods, then test again."
             : result.ok
               ? completionDetail
-              : `${checkingExercises ? "Exercise" : "Component"} checks stopped: ${completionDetail}`,
+              : `Component checks stopped: ${completionDetail}`,
         },
       ];
       setConsoleEntries((entries) => [
@@ -2101,12 +2100,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         incompleteComponents
           ? "Component checks finished; implement the listed methods, then test again."
           : result.ok
-            ? checkingExercises
-              ? "Example checks finished; review the results below."
-              : "Component checks finished; review PASS and NOT IMPLEMENTED results below."
-            : checkingExercises
-              ? "One or more tutorial examples changed incompatibly; review Program output."
-              : "One or more component checks failed; review Program output.",
+            ? "Component checks finished; review PASS and NOT IMPLEMENTED results below."
+            : "One or more component checks failed; review Program output.",
       );
     } catch (error) {
       const detail = errorDetail(error);
@@ -2116,24 +2111,17 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           id: `ide-local-${nextConsoleId.current++}`,
           category: "program",
           stream: "stderr",
-          line: `${checkingExercises ? "Exercise" : "Component"} checks could not run: ${detail}`,
+          line: `Component checks could not run: ${detail}`,
           timestampMs: Date.now(),
         },
       ]);
-      setOperationDetail(
-        `${checkingExercises ? "Exercise" : "Component"} checks could not run.`,
-      );
+      setOperationDetail("Component checks could not run.");
     } finally {
       componentCheckRunningRef.current = false;
       setComponentCheckRunning(false);
       retryPendingOfflineShellReload();
     }
-  }, [
-    checkingExercises,
-    componentCheckRunning,
-    projectCheckFile,
-    workingFolder,
-  ]);
+  }, [componentCheckRunning, projectCheckFile, workingFolder]);
 
   const runTarget = useCallback(async () => {
     if (
@@ -2188,7 +2176,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           return;
         }
       }
-      await target.run(projectToRun);
+      await target.run(projectToRun, checkedIdentity.projectId);
       if (
         projectSessionRef.current.projectId === checkedIdentity.projectId &&
         projectSessionRef.current.revision === checkedIdentity.revision
@@ -2308,7 +2296,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       // Publish the complete project to the shared target before exposing it as
       // the active project. Monitor Run can otherwise observe the new IDE files
       // while the shared worker still owns the preceding project.
-      await stageOpenedProject(reconciliation.session.project);
+      await stageOpenedProject(
+        reconciliation.session.project,
+        reconciliation.session.projectId,
+      );
       stopFolderWrites();
       setWorkingFolder(folder);
       setRememberedFolder(folder);
@@ -2655,7 +2646,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       const opened = await readProjectFolder(rememberedFolder);
       const { folder: folderSession, result: reconciliation } =
         reconcileFolderSnapshot(opened);
-      await stageOpenedProject(reconciliation.session.project);
+      await stageOpenedProject(
+        reconciliation.session.project,
+        reconciliation.session.projectId,
+      );
       publishProjectSession(reconciliation.session);
       setActivePath(reconciliation.session.project.entrypoint);
       setOpenPaths([reconciliation.session.project.entrypoint]);
@@ -2788,7 +2782,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     const browserDraft = projectSessionRef.current;
     preserveBrowserDraft(snapshotForProjectSession(browserDraft));
     try {
-      await stageOpenedProject(projectFolderConflict.folderSession.project);
+      await stageOpenedProject(
+        projectFolderConflict.folderSession.project,
+        projectFolderConflict.folderSession.projectId,
+      );
       publishProjectSession(projectFolderConflict.folderSession);
       setActivePath(projectFolderConflict.folderSession.project.entrypoint);
       setOpenPaths([projectFolderConflict.folderSession.project.entrypoint]);
@@ -2864,7 +2861,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       const restored = createProjectSession(snapshot, {
         source: "browser-draft",
       });
-      await stageOpenedProject(restored.project);
+      await stageOpenedProject(restored.project, restored.projectId);
       publishProjectSession(restored);
       setActivePath(restored.project.entrypoint);
       setOpenPaths([restored.project.entrypoint]);
@@ -3038,6 +3035,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   ]);
 
   const openProjectTemplateDialog = useCallback(() => {
+    if (
+      targetStateRef.current === "loading" ||
+      targetStateRef.current === "running"
+    ) {
+      setOperationDetail(
+        "Stop the current run before creating a different Project.",
+      );
+      return;
+    }
     setSelectedTemplateId("");
     setPendingProject(null);
     setProjectCreationPurpose("new-project");
@@ -3134,6 +3140,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       if (!pendingProject) return;
+      if (
+        targetStateRef.current === "loading" ||
+        targetStateRef.current === "running"
+      ) {
+        setNewProjectError(
+          "Stop the current run before creating or opening another Project.",
+        );
+        return;
+      }
       const validationError = projectFolderNameError(newProjectDraft);
       if (validationError) {
         setNewProjectError(validationError);
@@ -3191,7 +3206,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           );
         }
         stopFolderWrites();
-        await stageOpenedProject(nextSession.project);
+        await stageOpenedProject(nextSession.project, nextSession.projectId);
         publishProjectSession(nextSession);
         if (
           projectCreationPurpose !== "save-current" &&
@@ -4050,16 +4065,25 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   <button
                     aria-label="Open project…"
                     className="open-folder-button"
-                    disabled={!supportsWorkingFolders()}
+                    disabled={!supportsWorkingFolders() || isRunning}
                     onClick={() => void openProject()}
-                    title="Open an existing UCSBXRP project with read-write access. Changes save to its folder automatically."
+                    title={
+                      isRunning
+                        ? "Stop the current run before opening another Project."
+                        : "Open an existing UCSBXRP project with read-write access. Changes save to its folder automatically."
+                    }
                   >
                     Open project…
                   </button>
                   <button
                     aria-label="New project…"
+                    disabled={isRunning}
                     onClick={openProjectTemplateDialog}
-                    title="Create a new project from a course challenge, demo, or tutorial."
+                    title={
+                      isRunning
+                        ? "Stop the current run before creating another Project."
+                        : "Create a new project from a course challenge, demo, or tutorial."
+                    }
                   >
                     New project…
                   </button>
@@ -4071,6 +4095,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   rememberedFolderCanAttach ? (
                     <button
                       className="project-storage-action"
+                      disabled={isRunning}
                       onClick={reconnectWorkingFolder}
                       title={`Reconnect ${rememberedFolder.name} with read-write access and resume automatic saving.`}
                     >
@@ -4082,6 +4107,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   workingFolderAccessState === "needs-permission" ? (
                     <button
                       className="project-storage-action"
+                      disabled={isRunning}
                       onClick={() => void ensureWorkingFolderAccess()}
                       title={`Restore read-write access to ${rememberedWorkspaceFolder.name}, reopen its active Project, and restore its XRP connection.`}
                     >
@@ -4130,30 +4156,22 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   />
                 </div>
                 <div className="course-project-actions">
-                  {projectCheckFile &&
-                  project.templateId !== "micropython_tutorial" ? (
+                  {projectCheckFile ? (
                     <button
                       className="component-check-button"
                       disabled={!workingFolder || componentCheckRunning}
                       onClick={() => void testComponents()}
-                      title={
-                        checkingExercises
-                          ? "Check the runnable tutorial examples without starting either robot. Results appear in Program output."
-                          : "Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
-                      }
+                      title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
                     >
                       {componentCheckRunning
-                        ? checkingExercises
-                          ? "Checking examples…"
-                          : "Testing components…"
-                        : checkingExercises
-                          ? "Check examples"
-                          : "Test components"}
+                        ? "Testing components…"
+                        : "Test components"}
                     </button>
                   ) : null}
                   {followingChallenge ? (
                     <button
                       className="next-challenge-button"
+                      disabled={isRunning}
                       onClick={() => void startNextChallenge()}
                       title={`Continue in a separate ${followingChallenge.label} project. Copies ${followingChallengeCarriedFiles.join(", ")} from this project; this project remains unchanged.`}
                     >
@@ -4163,7 +4181,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 </div>
                 <div className="working-folder-shortcut">
                   <button
-                    disabled={!supportsWorkingFolders()}
+                    disabled={!supportsWorkingFolders() || isRunning}
                     onClick={() => void selectWorkspaceFolder()}
                     title="Choose the parent folder for Projects. UCSBXRP verifies write access, then opens that folder's active Project or asks you to choose one."
                     type="button"
@@ -4187,6 +4205,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       </small>
                       <div>
                         <button
+                          disabled={isRunning}
                           onClick={useFolderConflictFiles}
                           title="Open the files currently in the Project folder. The current IDE files remain available as an unsaved copy."
                         >
@@ -4738,7 +4757,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <div className="project-setting-actions">
               {workingFolderAccessState === "needs-permission" ? (
                 <button
-                  disabled={!supportsWorkingFolders()}
+                  disabled={!supportsWorkingFolders() || isRunning}
                   onClick={() => void ensureWorkingFolderAccess()}
                   title="Restore read-write access to the remembered Working folder."
                 >
@@ -4746,7 +4765,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 </button>
               ) : null}
               <button
-                disabled={!supportsWorkingFolders()}
+                disabled={!supportsWorkingFolders() || isRunning}
                 onClick={() => void selectWorkspaceFolder()}
                 title="Choose the parent folder used when new projects are created. The current project remains open."
               >
@@ -4757,6 +4776,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               {preservedBrowserDraft ? (
                 <button
                   disabled={
+                    isRunning ||
                     folderDirty ||
                     folderSaveState === "saving" ||
                     projectFolderConflict !== null
@@ -4962,7 +4982,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                         choice.folderName
                       }
                       autoFocus={index === 0}
-                      disabled={openingProjectFolder !== null}
+                      disabled={openingProjectFolder !== null || isRunning}
                       key={choice.folderName}
                       onClick={() => void openListedProject(choice)}
                       type="button"
@@ -4985,6 +5005,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   </p>
                   <button
                     className="primary-button"
+                    disabled={isRunning}
                     onClick={() => {
                       setProjectChooserOpen(false);
                       openProjectTemplateDialog();
@@ -5008,7 +5029,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <div className="dialog-actions project-chooser-actions">
               <button
                 disabled={
-                  openingProjectFolder !== null || projectChooserLoading
+                  isRunning ||
+                  openingProjectFolder !== null ||
+                  projectChooserLoading
                 }
                 onClick={closeProjectChooser}
                 type="button"
@@ -5105,9 +5128,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 ) : null}
                 {pendingTemplate.kind === "complete-challenge" ? (
                   <p className="dialog-context">
-                    Ready to run: every <code>USE_STUDENT_…</code> selector is
-                    False, so this demonstration uses the supplied reference
-                    classes. Student challenge projects remain separate.
+                    Ready to run: this demonstration uses a reference-only
+                    <code> course_setup.py</code>. Student component files and
+                    component checks are intentionally absent; student challenge
+                    projects remain separate.
                   </p>
                 ) : null}
                 {pendingTemplatePredecessor ? (
@@ -5159,6 +5183,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               <button
                 className="primary-button"
                 disabled={
+                  isRunning ||
                   !pendingProject ||
                   (!workspaceFolder && !supportsWorkingFolders())
                 }

@@ -1,6 +1,7 @@
 import { parseWorldCatalog } from "@ucsb-xrp/simulator";
 import { courseProjectTemplate, type CourseProject } from "@ucsb-xrp/target";
 import catalogSource from "../../../vendor/current/project_catalog.json?raw";
+import { courseArenaBoundsError } from "./world-editor-model";
 
 export interface ChallengeComponentSpec {
   file: string;
@@ -251,6 +252,8 @@ export function validateChallengeSpec(value: unknown): string[] {
     }
   }
   if (parsedWorld !== null) {
+    const boundsError = courseArenaBoundsError(parsedWorld);
+    if (boundsError) errors.push(`World JSON: ${boundsError}`);
     const selected = parsedWorld.worlds.find(
       (world) => world.id === parsedWorld?.defaultWorldId,
     );

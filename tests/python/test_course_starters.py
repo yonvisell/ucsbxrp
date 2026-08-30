@@ -198,11 +198,8 @@ class CourseStarterTests(unittest.TestCase):
             with self.subTest(tutorial=number):
                 self.assertIn("`student_work.py`", normalized_readme)
                 self.assertIn("Run", normalized_readme)
-                if number == 1:
-                    self.assertNotIn("Check examples", normalized_readme)
-                    self.assertIn("Each Run checks", normalized_readme)
-                else:
-                    self.assertIn("Check examples", normalized_readme)
+                self.assertNotIn("Check examples", normalized_readme)
+                self.assertIn("Run", normalized_readme)
                 self.assertNotIn("NotImplementedError", student_source)
                 self.assertEqual(
                     [path.name for path in tutorial.glob("student_*.py")],
@@ -1360,6 +1357,72 @@ class CourseStarterTests(unittest.TestCase):
         finally:
             os.chdir(previous_directory)
             sys.path.remove(course_source)
+
+    def test_challenge_eight_world_cases_preserve_route_connectivity(self):
+        directory = STARTERS / "challenge_8"
+        course_source = str(ROOT / "vendor" / "current")
+        reference_source = str(ROOT / "vendor" / "current" / "reference_source")
+        sys.path.insert(0, reference_source)
+        sys.path.insert(0, course_source)
+        try:
+            from ucsb_xrp import NavigationGoal, OccupancyGrid, load_world
+            from ucsb_xrp_reference import GridPlanner
+            from ucsb_xrp_reference.challenge_8 import VisitOrderPlanner
+
+            def route_data(world_id):
+                world = load_world(str(directory / "world.json"), world_id)
+                grid = OccupancyGrid.from_arena(
+                    world.arena_map(),
+                    resolution_mm=100.0,
+                    clearance_mm=95.0,
+                )
+                goals = (
+                    NavigationGoal(
+                        world.initial_pose.x_mm,
+                        world.initial_pose.y_mm,
+                    ),
+                ) + tuple(
+                    world.waypoint(name)
+                    for name in ("stop_a", "stop_b", "stop_c")
+                )
+                cells = tuple(
+                    grid.world_to_cell(goal.x_mm, goal.y_mm) for goal in goals
+                )
+                planner = GridPlanner()
+                paths = tuple(
+                    tuple(planner.plan(grid, start, finish) for finish in cells)
+                    for start in cells
+                )
+                costs = tuple(
+                    tuple(None if path is None else len(path.cells) - 1 for path in row)
+                    for row in paths
+                )
+                return paths, costs
+
+            reachable_paths, reachable_costs = route_data("all-stops-reachable")
+            self.assertTrue(
+                all(
+                    path is not None
+                    for row in reachable_paths
+                    for path in row
+                )
+            )
+            self.assertIsNotNone(
+                VisitOrderPlanner().plan(reachable_costs, 0, (1, 2, 3), 0)
+            )
+
+            _, disconnected_costs = route_data("stop-c-disconnected")
+            self.assertIsNone(
+                VisitOrderPlanner().plan(disconnected_costs, 0, (1, 2, 3), 0)
+            )
+        finally:
+            sys.path.remove(course_source)
+            sys.path.remove(reference_source)
+            for name in tuple(sys.modules):
+                if name == "ucsb_xrp_reference" or name.startswith(
+                    "ucsb_xrp_reference."
+                ):
+                    sys.modules.pop(name, None)
 
 
 if __name__ == "__main__":

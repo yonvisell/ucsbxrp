@@ -66,11 +66,67 @@ test("reveals complete challenge demonstrations only when requested on Home", as
     .getByLabel("Project template")
     .selectOption("complete_challenge_1");
   await expect(page.locator(".template-guidance")).toContainText(
-    "uses the supplied reference classes",
+    "uses a reference-only",
   );
   await expect(page.locator(".template-guidance")).toContainText(
-    "Student challenge projects remain separate",
+    "Student component files and component checks are intentionally absent",
   );
+});
+
+test("imports every generated complete challenge without student files", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await seedWorkingFolder(page, { folderName: "Complete-Challenge-Smoke" });
+  await page.goto("/");
+  await page.getByLabel("complete challenges").check();
+  await page.goto("/ide/");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  const requiredCourseSetupNames = [
+    ["make_robot"],
+    ["make_robot"],
+    ["make_navigation_controller", "make_robot"],
+    ["make_grid_planner", "make_navigation_controller", "make_robot"],
+    ["make_grid_planner", "make_navigation_controller", "make_robot"],
+    ["make_range_safety_controller", "make_robot"],
+    ["make_navigation_controller", "make_pose_corrector", "make_robot"],
+    [
+      "make_navigation_controller",
+      "make_robot",
+      "make_route_cost_grid_planner",
+      "make_visit_order_planner",
+    ],
+  ] as const;
+
+  for (let number = 1; number <= 8; number += 1) {
+    await createTemplateProject(page, `complete_challenge_${number}`);
+    await expect(
+      page.getByRole("button", { name: "Test components" }),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Open main.py (main file)" })
+      .click();
+    const editor = page.locator(".monaco-editor").first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+A");
+    const importedNames = requiredCourseSetupNames[number - 1]!;
+    await page.keyboard.insertText(
+      `from course_setup import ${importedNames.join(", ")}\nprint("complete ${number} imports")\n`,
+    );
+    await page.getByRole("button", { name: "Compile" }).click();
+    await expect(page.getByTestId("check-result")).toContainText(
+      "compiled successfully",
+    );
+    await page.getByRole("button", { name: "Run", exact: true }).click();
+    await expect(page.getByRole("log")).toContainText(
+      `complete ${number} imports`,
+    );
+    await expect(page.getByTestId("target-status")).toContainText(
+      "Virtual XRP · ready",
+    );
+  }
 });
 
 test("creates the selected Project when its Working folder is chosen", async ({
@@ -483,7 +539,7 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   await expect(page.locator(".file-type-icon")).toHaveCount(0);
 });
 
-test("compiles all five active tutorials and checks their runnable examples without motion", async ({
+test("compiles all five active tutorials and runs their examples to completion", async ({
   context,
   page: ide,
 }) => {
@@ -503,6 +559,7 @@ test("compiles all five active tutorials and checks their runnable examples with
       summary: "Tutorial 1: 4 passed · 0 not completed · 0 incorrect",
       helpLabel: "Tutorial path",
       helpHref: "../guide/#virtual-run",
+      completion: "Tutorial 1 complete",
     },
     {
       id: "tutorial_virtual_drawing",
@@ -511,6 +568,7 @@ test("compiles all five active tutorials and checks their runnable examples with
       summary: "Tutorial 2: 3 passed · 0 not completed · 0 incorrect",
       helpLabel: "Data types",
       helpHref: "../reference/#records",
+      completion: "Tutorial 2 drawing complete",
     },
     {
       id: "tutorial_robot_programs",
@@ -519,6 +577,7 @@ test("compiles all five active tutorials and checks their runnable examples with
       summary: "Tutorial 3: 2 passed · 0 not completed · 0 incorrect",
       helpLabel: "Robot service API",
       helpHref: "../reference/#robot",
+      completion: "Tutorial 3 run complete",
     },
     {
       id: "tutorial_behavior_telemetry",
@@ -527,6 +586,7 @@ test("compiles all five active tutorials and checks their runnable examples with
       summary: "Tutorial 4: 3 passed · 0 not completed · 0 incorrect",
       helpLabel: "Live controls and telemetry",
       helpHref: "../reference/#live",
+      completion: "Tutorial 4 behavior complete",
     },
     {
       id: "tutorial_physical_preflight",
@@ -535,11 +595,14 @@ test("compiles all five active tutorials and checks their runnable examples with
       summary: "Tutorial 5: 6 passed · 0 not completed · 0 incorrect",
       helpLabel: "Physical XRP setup",
       helpHref: "../guide/#physical-xrp",
+      completion: "Stationary preflight complete",
     },
   ] as const;
 
   for (const tutorial of tutorials) {
     await createTemplateProject(ide, tutorial.id);
+    await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
+    await expect(monitor.getByTestId("x-mm")).toHaveText("0.0 mm");
     const preview = ide.getByLabel("Rendered Markdown preview");
     await expect(preview).toBeVisible();
     await expect(
@@ -556,26 +619,48 @@ test("compiles all five active tutorials and checks their runnable examples with
     await expect(ide.getByTestId("check-result")).toContainText(
       "compiled successfully",
     );
-    if (tutorial.id === "micropython_tutorial") {
-      await expect(
-        ide.getByRole("button", { name: "Check examples" }),
-      ).toHaveCount(0);
-      await ide.getByRole("button", { name: "Run", exact: true }).click();
-    } else {
-      await ide.getByRole("button", { name: "Check examples" }).click();
-    }
+    await expect(
+      ide.getByRole("button", { name: "Check examples" }),
+    ).toHaveCount(0);
+    await ide.getByRole("button", { name: "Run", exact: true }).click();
     await expect(ide.getByRole("log")).toContainText(tutorial.summary, {
       timeout: 15_000,
     });
-    if (tutorial.id === "micropython_tutorial") {
-      await expect(ide.getByRole("log")).toContainText("Tutorial 1 complete");
-      await expect(ide.getByTestId("target-status")).toContainText(
-        "Virtual XRP · ready",
-      );
-    }
+    await expect(ide.getByRole("log")).toContainText(tutorial.completion, {
+      timeout: 15_000,
+    });
+    await expect(ide.getByTestId("target-status")).toContainText(
+      "Virtual XRP · ready",
+    );
     await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
-    await expect(monitor.getByTestId("x-mm")).toHaveText("0.0 mm");
   }
+});
+
+test("keeps the Roomba demo active at full configured drive until Stop", async ({
+  context,
+  page: ide,
+}) => {
+  await seedWorkingFolder(ide, { folderName: "Roomba-Demo-Test" });
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await ide.goto("/ide/");
+  await createTemplateProject(ide, "demo_roomba");
+  await ide.getByRole("button", { name: "Compile" }).click();
+  await expect(ide.getByTestId("check-result")).toContainText(
+    "compiled successfully",
+  );
+  await ide.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · running",
+  );
+  await expect(monitor.getByTestId("motor-effort")).toHaveText(
+    /0\.[1-9]\d \/ 0\.[1-9]\d/,
+  );
+  await ide.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  await expect(monitor.getByTestId("motor-effort")).toHaveText("0.00 / 0.00");
 });
 
 test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({

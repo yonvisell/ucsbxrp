@@ -314,10 +314,36 @@ The robot measures, controls, and stops in a repeated sequence.
             "Retained for a later editor",
         )
 
-        world["worlds"][0]["markers"][0]["x1_mm"] = -1
+        world["worlds"][0]["markers"][0]["x1_mm"] = -1600
         self.assertTrue(
             any(
                 "inside the arena walls" in error
+                for error in AUTHORING._world_errors(world, "example")
+            )
+        )
+
+        world = json.loads(
+            (ROOT / "tests/fixtures/world/all-geometry.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        world["worlds"][0]["range_sensor"] = {
+            "include_arena_boundary": "false"
+        }
+        self.assertIn(
+            "example: worlds[0].range_sensor.include_arena_boundary must be true or false",
+            AUTHORING._world_errors(world, "example"),
+        )
+        world["worlds"][0]["range_sensor"] = None
+        self.assertIn(
+            "example: worlds[0].range_sensor must be an object",
+            AUTHORING._world_errors(world, "example"),
+        )
+        del world["worlds"][0]["range_sensor"]
+        world["worlds"][0]["bounds"]["maximum_x_mm"] = 1400
+        self.assertTrue(
+            any(
+                "must match the fixed course arena" in error
                 for error in AUTHORING._world_errors(world, "example")
             )
         )

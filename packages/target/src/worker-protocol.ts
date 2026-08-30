@@ -59,18 +59,21 @@ export type TargetWorkerCommand =
       requestId: string;
       project?: CourseProject;
       descriptor?: SynchronizedProject;
+      projectId?: string;
     }
   | {
       type: "store-project";
       requestId: string;
       project: CourseProject;
       descriptor: SynchronizedProject;
+      projectId?: string;
     }
   | {
       type: "mark-project-stale";
       requestId: string;
       project: CourseProject;
       descriptor: SynchronizedProject;
+      projectId?: string;
     }
   | { type: "get-project"; requestId: string }
   | {
@@ -113,6 +116,8 @@ export type TargetWorkerMessage =
         scenario?: SimulationScenario;
         world?: WorldDefinition;
         project?: CourseProject;
+        projectId?: string;
+        storedProjectId?: string;
         descriptor?: SynchronizedProject;
       };
     }

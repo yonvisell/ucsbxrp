@@ -749,6 +749,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private lastRunId = 0;
   private currentProject: SynchronizedProject | null = null;
   private stagedProject: CourseProject | null = null;
+  private stagedProjectId: string | null = null;
   private projectStateKnown = false;
   private info: PhysicalInfo | null = null;
   private lastRuntimeJson = "";
@@ -1010,7 +1011,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
   }
 
-  async synchronize(project: CourseProject): Promise<void> {
+  async synchronize(project: CourseProject, projectId?: string): Promise<void> {
+    if (this.currentState === "loading" || this.currentState === "running") {
+      throw new PhysicalTargetError(
+        "program_active",
+        "Stop the current run before preparing a Project.",
+      );
+    }
     const portabilityError = portableProjectError(project);
     if (portabilityError) {
       this.emitConsole(
@@ -1026,14 +1033,27 @@ export class DirectPhysicalTargetClient implements TargetClient {
     await this.pausePollingForCommand();
     try {
       await this.prepareWhilePollingPaused(project);
+      if (projectId !== undefined) this.stagedProjectId = projectId;
     } finally {
       this.resumePollingAfterCommand();
     }
   }
 
-  async run(project: CourseProject): Promise<void> {
+  async run(project: CourseProject, projectId?: string): Promise<void> {
     validatePortableProject(project);
+    const projectChanged =
+      projectId !== undefined && projectId !== this.stagedProjectId;
+    if (
+      projectChanged &&
+      (this.currentState === "loading" || this.currentState === "running")
+    ) {
+      throw new PhysicalTargetError(
+        "program_active",
+        "Stop the current run before running a different Project.",
+      );
+    }
     this.stagedProject = project;
+    if (projectId !== undefined) this.stagedProjectId = projectId;
     const descriptor = await describeProject(project);
     let started = false;
     await this.pausePollingForCommand();
@@ -1041,7 +1061,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
       const projectNeedsPreparing =
         !this.currentProject ||
         this.currentProject.stale ||
-        descriptor.revision !== this.currentProject.revision;
+        descriptor.revision !== this.currentProject.revision ||
+        descriptor.name !== this.currentProject.name ||
+        descriptor.entrypoint !== this.currentProject.entrypoint;
       if (projectNeedsPreparing) {
         if (!this.info?.capabilities.includes("project.run")) {
           throw new PhysicalTargetError(
@@ -1054,6 +1076,14 @@ export class DirectPhysicalTargetClient implements TargetClient {
           descriptor,
         );
       } else {
+        if (projectChanged) {
+          const catalog = worldCatalogForProject(project);
+          this.emit({
+            type: "world",
+            catalog,
+            selectedWorldId: catalog.defaultWorldId,
+          });
+        }
         started = await this.startCurrentProjectWhilePollingPaused();
       }
     } finally {
@@ -1063,7 +1093,8 @@ export class DirectPhysicalTargetClient implements TargetClient {
 
   async runCurrent(): Promise<void> {
     if (this.projectRunProvider) {
-      await this.run(this.projectRunProvider().project);
+      const snapshot = this.projectRunProvider();
+      await this.run(snapshot.project, snapshot.projectId);
       return;
     }
     if (
@@ -1323,17 +1354,33 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
   }
 
-  async markProjectStale(project: CourseProject): Promise<void> {
+  async markProjectStale(
+    project: CourseProject,
+    projectId?: string,
+  ): Promise<void> {
     const descriptor = await describeProject(project);
     const retainedProjectIsExact =
       this.currentProject?.stale === false &&
       this.currentProject.revision === descriptor.revision &&
       this.currentProject.name === descriptor.name &&
       this.currentProject.entrypoint === descriptor.entrypoint;
+    const projectChanged =
+      projectId !== undefined && projectId !== this.stagedProjectId;
     const worldChanged =
       this.stagedProject === null ||
-      this.stagedProject.files["world.json"] !== project.files["world.json"];
+      this.stagedProject.files["world.json"] !== project.files["world.json"] ||
+      projectChanged;
+    if (
+      worldChanged &&
+      (this.currentState === "loading" || this.currentState === "running")
+    ) {
+      throw new PhysicalTargetError(
+        "program_active",
+        "Stop the current run before opening a different Project or world.",
+      );
+    }
     this.stagedProject = project;
+    if (projectId !== undefined) this.stagedProjectId = projectId;
     this.setCurrentProject({
       ...descriptor,
       stale: !retainedProjectIsExact,
@@ -1363,6 +1410,13 @@ export class DirectPhysicalTargetClient implements TargetClient {
   }
 
   markProjectChanged(project: ProjectRevisionNotice): void {
+    if (
+      (this.currentState === "loading" || this.currentState === "running") &&
+      (this.stagedProjectId === null ||
+        project.projectId !== this.stagedProjectId)
+    ) {
+      return;
+    }
     const editorPrefix = `ide:${project.projectId}:`;
     if (
       this.currentProject?.stale &&
@@ -2614,20 +2668,28 @@ export class PhysicalTargetClient implements TargetClient {
     return (await this.request({ type: "check", project })) as CheckResult;
   }
 
-  async synchronize(project: CourseProject): Promise<void> {
+  async synchronize(project: CourseProject, projectId?: string): Promise<void> {
     if (this.direct) {
-      await this.direct.synchronize(project);
+      await this.direct.synchronize(project, projectId);
       return;
     }
-    await this.request({ type: "prepare", project });
+    await this.request({
+      type: "prepare",
+      project,
+      ...(projectId ? { projectId } : {}),
+    });
   }
 
-  async run(project: CourseProject): Promise<void> {
+  async run(project: CourseProject, projectId?: string): Promise<void> {
     if (this.direct) {
-      await this.direct.run(project);
+      await this.direct.run(project, projectId);
       return;
     }
-    await this.request({ type: "run", project });
+    await this.request({
+      type: "run",
+      project,
+      ...(projectId ? { projectId } : {}),
+    });
   }
 
   async runCurrent(): Promise<void> {
@@ -2638,12 +2700,19 @@ export class PhysicalTargetClient implements TargetClient {
     await this.request({ type: "run-current" });
   }
 
-  async markProjectStale(project: CourseProject): Promise<void> {
+  async markProjectStale(
+    project: CourseProject,
+    projectId?: string,
+  ): Promise<void> {
     if (this.direct) {
-      await this.direct.markProjectStale(project);
+      await this.direct.markProjectStale(project, projectId);
       return;
     }
-    await this.request({ type: "mark-project-stale", project });
+    await this.request({
+      type: "mark-project-stale",
+      project,
+      ...(projectId ? { projectId } : {}),
+    });
   }
 
   setProjectRunProvider(
@@ -2843,10 +2912,14 @@ export class PhysicalTargetClient implements TargetClient {
           role: TargetWorkerRole;
         }
       | { type: "check"; project: CourseProject }
-      | { type: "prepare"; project: CourseProject }
-      | { type: "run"; project: CourseProject }
+      | { type: "prepare"; project: CourseProject; projectId?: string }
+      | { type: "run"; project: CourseProject; projectId?: string }
       | { type: "run-current" }
-      | { type: "mark-project-stale"; project: CourseProject }
+      | {
+          type: "mark-project-stale";
+          project: CourseProject;
+          projectId?: string;
+        }
       | { type: "stop" }
       | { type: "reset" }
       | {

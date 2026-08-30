@@ -3043,6 +3043,130 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("resets the visible world when direct Run changes Project identity without retransferring identical content", async () => {
+    const worldProject: CourseProject = {
+      name: "Identity reset project",
+      entrypoint: "main.py",
+      files: {
+        "main.py": "print('ready')\n",
+        "world.json": JSON.stringify({
+          default_world: "default",
+          worlds: [
+            {
+              id: "default",
+              label: "Default",
+              bounds: {
+                minimum_x_mm: -1524,
+                minimum_y_mm: -609.6,
+                maximum_x_mm: 1524,
+                maximum_y_mm: 609.6,
+              },
+              initial_pose: { x_mm: 0, y_mm: 0, heading_rad: 0 },
+              obstacles: [],
+              markers: [],
+            },
+          ],
+        }),
+      },
+    };
+    const revision = (await describeProject(worldProject)).revision;
+    let postCount = 0;
+    const fetchMock = vi.fn(
+      async (_input: URL | RequestInfo, init?: RequestInit) => {
+        if (!init || init.method === "GET") {
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            capabilities: [
+              "project.check",
+              "project.prepare",
+              "project.run",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+            ],
+          });
+        }
+        const body = JSON.parse(String(init.body)) as { requestId: string };
+        postCount += 1;
+        return response({
+          protocol: 1,
+          requestId: body.requestId,
+          ok: true,
+          result:
+            postCount === 1
+              ? {
+                  detail: "Project prepared",
+                  project: {
+                    name: worldProject.name,
+                    entrypoint: worldProject.entrypoint,
+                    revision,
+                    lifetime: "boot",
+                  },
+                }
+              : { detail: "Running main.py", runId: 5 },
+        });
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollIntervalMs: 60_000,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    await target.connect();
+    await target.synchronize(worldProject, "project-a");
+    const worldEventsAfterPrepare = events.filter(
+      (event) => event.type === "world",
+    ).length;
+    await target.run(worldProject, "project-b");
+
+    expect(postCount).toBe(2);
+    expect(events.filter((event) => event.type === "world")).toHaveLength(
+      worldEventsAfterPrepare + 1,
+    );
+    expect(
+      events.filter((event) => event.type === "world").at(-1),
+    ).toMatchObject({ selectedWorldId: "default" });
+    const worldEventsWhileRunning = events.filter(
+      (event) => event.type === "world",
+    ).length;
+    const differentWorld = {
+      ...worldProject,
+      files: {
+        ...worldProject.files,
+        "world.json": worldProject.files["world.json"]!.replace(
+          '"label":"Default"',
+          '"label":"Different"',
+        ),
+      },
+    };
+    target.markProjectChanged({
+      projectId: "project-c",
+      revision: 1,
+      name: "Different Project",
+      entrypoint: "main.py",
+    });
+    await expect(
+      target.markProjectStale(differentWorld, "project-c"),
+    ).rejects.toMatchObject({ code: "program_active" });
+    await expect(
+      target.synchronize(differentWorld, "project-c"),
+    ).rejects.toMatchObject({ code: "program_active" });
+    expect(events.filter((event) => event.type === "world")).toHaveLength(
+      worldEventsWhileRunning,
+    );
+    expect(
+      events.filter((event) => event.type === "project").at(-1),
+    ).toMatchObject({ project: { name: "Identity reset project" } });
+    target.disconnect();
+  });
+
   it("compiles, prepares, and starts an edited project with one device request", async () => {
     const projectRevision = (await describeProject(project)).revision;
     const postPaths: string[] = [];

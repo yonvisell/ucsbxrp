@@ -56,6 +56,8 @@ export interface WorldDefinition {
   initialPose: { xMm: number; yMm: number; headingRad: number };
   obstacles: readonly WorldObstacle[];
   markers: readonly WorldMarker[];
+  /** Whether the rectangular arena edge is an ultrasonic reflector. */
+  includeArenaBoundaryInRange?: boolean;
 }
 
 export interface WorldCatalog {
@@ -140,6 +142,13 @@ function arrayValue(value: unknown, name: string, maximum: number): unknown[] {
 function numberValue(value: unknown, name: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`${name} must be a finite number`);
+  }
+  return value;
+}
+
+function booleanValue(value: unknown, name: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`${name} must be true or false`);
   }
   return value;
 }
@@ -409,6 +418,10 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
   if (new Set(markerNames).size !== markerNames.length) {
     throw new Error(`worlds[${index}] marker names must be unique`);
   }
+  const rangeSensor =
+    item.range_sensor === undefined
+      ? undefined
+      : objectValue(item.range_sensor, `worlds[${index}].range_sensor`);
   return {
     id: identifier(item.id, `worlds[${index}].id`),
     label: textValue(item.label, `worlds[${index}].label`),
@@ -416,6 +429,14 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
     initialPose,
     obstacles,
     markers,
+    ...(rangeSensor?.include_arena_boundary === undefined
+      ? {}
+      : {
+          includeArenaBoundaryInRange: booleanValue(
+            rangeSensor.include_arena_boundary,
+            `worlds[${index}].range_sensor.include_arena_boundary`,
+          ),
+        }),
   };
 }
 

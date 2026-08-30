@@ -58,7 +58,10 @@ methods; your class retains only the translation state.
   verifies retained translation and heading, and rejects invalid range.
 - [`world.json`](world.json) provides a complete localization station and a
   missing-y-reference failure case. The failure case stops before destination
-  motion.
+  motion. Both cases retain the full course arena. Their explicit
+  `range_sensor.include_arena_boundary: false` setting makes only the drawn
+  known-wall obstacles ultrasonic references; the arena edge remains a
+  collision boundary but cannot masquerade as the deliberately removed y wall.
 
 ## How the program runs
 

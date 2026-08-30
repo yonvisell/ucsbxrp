@@ -56,10 +56,10 @@
         "id": "waypoint-slalom",
         "label": "Waypoint slalom",
         "bounds": {
-          "minimum_x_mm": -200,
-          "minimum_y_mm": -400,
-          "maximum_x_mm": 1400,
-          "maximum_y_mm": 400
+          "minimum_x_mm": -1524,
+          "minimum_y_mm": -609.6,
+          "maximum_x_mm": 1524,
+          "maximum_y_mm": 609.6
         },
         "initial_pose": {
           "x_mm": 0,

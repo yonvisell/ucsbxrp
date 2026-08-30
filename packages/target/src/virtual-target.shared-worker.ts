@@ -54,6 +54,7 @@ let currentState: TargetRunState = "ready";
 let currentDetail = "Virtual target ready";
 let currentProject: CourseProject | null = null;
 let currentProjectDescriptor: SynchronizedProject | null = null;
+let currentProjectId: string | null = null;
 let runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
 let runtimeSlots: Record<string, number> = {};
 let courseTelemetryState: CourseTelemetryState | null = null;
@@ -150,8 +151,19 @@ function invalidateRun(detail: string): void {
 function storeProject(
   project: CourseProject,
   descriptor: SynchronizedProject,
+  projectId?: string,
 ): void {
+  const retainedIdentityMatches =
+    currentProjectDescriptor?.revision === descriptor.revision &&
+    currentProjectDescriptor.name === descriptor.name &&
+    currentProjectDescriptor.entrypoint === descriptor.entrypoint;
   const nextCatalog = worldCatalogForProject(project);
+  const projectChanged =
+    (projectId !== undefined && projectId !== currentProjectId) ||
+    (projectId === undefined &&
+      currentProjectDescriptor !== null &&
+      (descriptor.name !== currentProjectDescriptor.name ||
+        descriptor.entrypoint !== currentProjectDescriptor.entrypoint));
   const worldFileUnchanged =
     currentProject?.files["world.json"] === project.files["world.json"];
   const selectedWorldStillExists = nextCatalog.worlds.some(
@@ -159,13 +171,15 @@ function storeProject(
   );
   currentCatalog = nextCatalog;
   currentScenario =
-    worldFileUnchanged && selectedWorldStillExists
+    !projectChanged && worldFileUnchanged && selectedWorldStillExists
       ? currentScenario
       : currentCatalog.defaultWorldId;
   currentWorld = worldById(currentCatalog, currentScenario);
   simulator = new XrpSimulator(simulatorConfigForWorld(currentWorld));
   simulatorState = simulator.reset(currentWorld.initialPose);
   currentProject = project;
+  currentProjectId =
+    projectId ?? (retainedIdentityMatches ? currentProjectId : null);
   currentProjectDescriptor = { ...descriptor, stale: false };
   broadcast({ type: "project", project: currentProjectDescriptor });
   broadcast({
@@ -179,7 +193,8 @@ function storeProject(
 function stageProject(
   project: CourseProject,
   descriptor: SynchronizedProject,
-): void {
+  projectId?: string,
+): string | null {
   const retainedProjectIsExact =
     currentProjectDescriptor?.stale === false &&
     currentProjectDescriptor?.revision === descriptor.revision &&
@@ -187,16 +202,28 @@ function stageProject(
     currentProjectDescriptor.entrypoint === descriptor.entrypoint;
   const worldFileChanged =
     currentProject?.files["world.json"] !== project.files["world.json"];
+  const projectChanged =
+    projectId !== undefined && projectId !== currentProjectId;
+  if (
+    (currentState === "loading" || currentState === "running") &&
+    (worldFileChanged || projectChanged)
+  ) {
+    return "Stop the current run before opening a different Project or world.";
+  }
   currentProject = project;
+  if (projectId !== undefined) currentProjectId = projectId;
   currentProjectDescriptor = {
     ...descriptor,
     stale: !retainedProjectIsExact,
   };
   broadcast({ type: "project", project: currentProjectDescriptor });
-  if (!worldFileChanged) return;
+  if (!worldFileChanged && !projectChanged) return null;
 
   currentCatalog = worldCatalogForProject(project);
-  if (!currentCatalog.worlds.some((world) => world.id === currentScenario)) {
+  if (
+    projectChanged ||
+    !currentCatalog.worlds.some((world) => world.id === currentScenario)
+  ) {
     currentScenario = currentCatalog.defaultWorldId;
   }
   currentWorld = worldById(currentCatalog, currentScenario);
@@ -208,6 +235,7 @@ function stageProject(
     selectedWorldId: currentScenario,
   });
   broadcast(telemetryEvent());
+  return null;
 }
 
 function markProjectChanged(project: {
@@ -216,6 +244,12 @@ function markProjectChanged(project: {
   name: string;
   entrypoint: string;
 }): void {
+  if (
+    (currentState === "loading" || currentState === "running") &&
+    (currentProjectId === null || project.projectId !== currentProjectId)
+  ) {
+    return;
+  }
   const nextDescriptor: SynchronizedProject = {
     name: project.name,
     entrypoint: project.entrypoint,
@@ -240,7 +274,7 @@ function prepareRuntime(
   command: Extract<TargetWorkerCommand, { type: "prepare-run" }>,
 ): void {
   if (command.project && command.descriptor) {
-    storeProject(command.project, command.descriptor);
+    storeProject(command.project, command.descriptor, command.projectId);
   }
   if (!currentProject || !currentProjectDescriptor) {
     send(port, {
@@ -455,11 +489,34 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
   } else if (command.type === "prepare-run") {
     prepareRuntime(port, command);
   } else if (command.type === "store-project") {
-    storeProject(command.project, command.descriptor);
-    send(port, { type: "response", requestId: command.requestId, ok: true });
+    if (currentState === "loading" || currentState === "running") {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error: "Stop the current run before preparing a Project.",
+      });
+    } else {
+      storeProject(command.project, command.descriptor, command.projectId);
+      send(port, { type: "response", requestId: command.requestId, ok: true });
+    }
   } else if (command.type === "mark-project-stale") {
-    stageProject(command.project, command.descriptor);
-    send(port, { type: "response", requestId: command.requestId, ok: true });
+    const error = stageProject(
+      command.project,
+      command.descriptor,
+      command.projectId,
+    );
+    send(
+      port,
+      error
+        ? {
+            type: "response",
+            requestId: command.requestId,
+            ok: false,
+            error,
+          }
+        : { type: "response", requestId: command.requestId, ok: true },
+    );
   } else if (command.type === "get-project") {
     void projectRunProvider
       .request()
@@ -470,6 +527,8 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
           ok: true,
           result: {
             project: snapshot.project,
+            projectId: snapshot.projectId,
+            storedProjectId: currentProjectId ?? undefined,
             descriptor: currentProjectDescriptor ?? undefined,
           },
         });

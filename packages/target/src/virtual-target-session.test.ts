@@ -36,7 +36,7 @@ function channel(): [DuplexPort, DuplexPort] {
   return [client, server];
 }
 
-type RuntimeOutcome = "complete" | "error";
+type RuntimeOutcome = "complete" | "error" | "pending";
 
 class FakeRuntimeWorker {
   static nextOutcome: RuntimeOutcome = "complete";
@@ -83,7 +83,7 @@ class FakeRuntimeWorker {
     });
     if (outcome === "error") {
       this.emit({ type: "error", detail: "test exception" });
-    } else {
+    } else if (outcome === "complete") {
       FakeRuntimeWorker.completedRuns += 1;
       this.emit({ type: "run-complete" });
     }
@@ -271,6 +271,174 @@ describe("virtual target shared session", () => {
     );
     ide.disconnect();
     monitor.disconnect();
+  });
+
+  it("resets the visible world when a different Project has identical world text", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ide = new VirtualTargetClient();
+    const events: TargetEvent[] = [];
+    ide.subscribe((event) => events.push(event));
+    await ide.connect();
+
+    await ide.markProjectStale(project, "project-a");
+    await ide.run(project, "project-a");
+    const afterFirstProject = events.filter(
+      (event) => event.type === "world",
+    ).length;
+    await ide.markProjectStale(
+      { ...project, name: "Edited Project A" },
+      "project-a",
+    );
+    expect(events.filter((event) => event.type === "world")).toHaveLength(
+      afterFirstProject,
+    );
+
+    await ide.markProjectStale({ ...project, name: "Project B" }, "project-b");
+    expect(events.filter((event) => event.type === "world")).toHaveLength(
+      afterFirstProject + 1,
+    );
+    expect(
+      events.filter((event) => event.type === "telemetry").at(-1),
+    ).toMatchObject({ sample: { xMm: 0, yMm: 0 } });
+
+    ide.disconnect();
+  });
+
+  it("returns to the default world when direct synchronize or Run changes Project identity", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ide = new VirtualTargetClient();
+    const monitor = new VirtualTargetClient();
+    const events: TargetEvent[] = [];
+    const worldSource = JSON.stringify({
+      default_world: "default",
+      worlds: [
+        {
+          id: "default",
+          label: "Default",
+          bounds: {
+            minimum_x_mm: -1524,
+            minimum_y_mm: -609.6,
+            maximum_x_mm: 1524,
+            maximum_y_mm: 609.6,
+          },
+          initial_pose: { x_mm: 0, y_mm: 0, heading_rad: 0 },
+          obstacles: [],
+          markers: [],
+        },
+        {
+          id: "alternate",
+          label: "Alternate",
+          bounds: {
+            minimum_x_mm: -1524,
+            minimum_y_mm: -609.6,
+            maximum_x_mm: 1524,
+            maximum_y_mm: 609.6,
+          },
+          initial_pose: { x_mm: 300, y_mm: 0, heading_rad: 0 },
+          obstacles: [],
+          markers: [],
+        },
+      ],
+    });
+    const worldProject: CourseProject = {
+      ...project,
+      files: { ...project.files, "world.json": worldSource },
+    };
+    ide.subscribe((event) => events.push(event));
+    await ide.connect();
+    await monitor.connect();
+
+    await ide.synchronize(worldProject, "project-a");
+    await ide.setSimulationScenario("alternate");
+    await ide.synchronize(worldProject, "project-b");
+    expect(
+      events.filter((event) => event.type === "world").at(-1),
+    ).toMatchObject({ selectedWorldId: "default" });
+
+    await ide.setSimulationScenario("alternate");
+    await ide.run(worldProject, "project-c");
+    expect(
+      events.filter((event) => event.type === "world").at(-1),
+    ).toMatchObject({ selectedWorldId: "default" });
+
+    let providerProjectId = "project-c";
+    ide.setProjectRunProvider(() => ({
+      projectId: providerProjectId,
+      revision: 1,
+      project: worldProject,
+    }));
+    await ide.setSimulationScenario("alternate");
+    providerProjectId = "project-d";
+    await monitor.runCurrent();
+    expect(
+      events.filter((event) => event.type === "world").at(-1),
+    ).toMatchObject({ selectedWorldId: "default" });
+
+    ide.disconnect();
+    monitor.disconnect();
+  });
+
+  it("does not replace the staged Project or world during an active run", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ide = new VirtualTargetClient();
+    const events: TargetEvent[] = [];
+    const first: CourseProject = {
+      ...project,
+      files: {
+        ...project.files,
+        "world.json": JSON.stringify({
+          default_world: "first",
+          worlds: [
+            {
+              id: "first",
+              label: "First",
+              bounds: {
+                minimum_x_mm: -1524,
+                minimum_y_mm: -609.6,
+                maximum_x_mm: 1524,
+                maximum_y_mm: 609.6,
+              },
+              initial_pose: { x_mm: 0, y_mm: 0, heading_rad: 0 },
+              obstacles: [],
+              markers: [],
+            },
+          ],
+        }),
+      },
+    };
+    const second: CourseProject = {
+      ...first,
+      name: "Second Project",
+      files: {
+        ...first.files,
+        "world.json": first.files["world.json"]!.replaceAll("first", "second"),
+      },
+    };
+    ide.subscribe((event) => events.push(event));
+    await ide.connect();
+    FakeRuntimeWorker.nextOutcome = "pending";
+    await ide.run(first, "project-first");
+    ide.markProjectChanged({
+      projectId: "project-second",
+      revision: 1,
+      name: "Second Project",
+      entrypoint: "main.py",
+    });
+    await expect(
+      ide.markProjectStale(second, "project-second"),
+    ).rejects.toThrow("Stop the current run");
+    await expect(ide.synchronize(second, "project-second")).rejects.toThrow(
+      "Stop the current run",
+    );
+    expect(
+      events.filter((event) => event.type === "world").at(-1),
+    ).toMatchObject({ selectedWorldId: "first" });
+    expect(
+      events.filter((event) => event.type === "project").at(-1),
+    ).toMatchObject({ project: { name: "Shared virtual project" } });
+
+    await ide.stop();
+    ide.disconnect();
   });
 
   it("does not use a retained project when no IDE provider is active", async () => {
