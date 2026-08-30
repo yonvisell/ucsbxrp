@@ -359,7 +359,7 @@ test("runs hardware-free student component checks without changing the target", 
   ).toBeVisible();
   await page.getByRole("button", { name: "Test components" }).click();
   await expect(page.getByRole("log")).toContainText(
-    "INPUT · reset at counts 10/20",
+    "INPUT · two wheel geometries and encoder-sign conventions",
   );
   await expect(page.getByRole("log")).toContainText(
     "EXPECT · device timestamps set dt",
