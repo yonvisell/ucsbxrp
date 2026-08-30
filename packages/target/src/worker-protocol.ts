@@ -157,6 +157,8 @@ export type RuntimeWorkerMessage =
   | {
       type: "error";
       detail: string;
+      /** Exact runtime exception text before student-facing presentation. */
+      rawDetail?: string;
       stage?: "compile" | "run";
       diagnostics?: PythonDiagnostic[];
     };

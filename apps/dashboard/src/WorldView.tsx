@@ -151,9 +151,9 @@ function textSprite(
       transparent: true,
     }),
   );
-  sprite.scale.set(widthMm, 42, 1);
+  sprite.scale.set(widthMm, 52, 1);
   sprite.userData.labelWidthMm = widthMm;
-  sprite.userData.labelHeightMm = 42;
+  sprite.userData.labelHeightMm = 52;
   sprite.renderOrder = 5;
   return sprite;
 }
@@ -712,6 +712,12 @@ export function WorldView({
           spans.horizontalMm.toFixed(1);
         viewRef.current.dataset.verticalSpanMm = spans.verticalMm.toFixed(1);
       }
+      const arenaPixelHeight = (worldHeightMm / spans.verticalMm) * height;
+      const arenaBottomPx = (height + arenaPixelHeight) / 2;
+      host.style.setProperty(
+        "--world-legend-bottom",
+        `${Math.max(3, height - arenaBottomPx + 4).toFixed(1)}px`,
+      );
       requestRender();
     };
     resizeRef.current = resize;

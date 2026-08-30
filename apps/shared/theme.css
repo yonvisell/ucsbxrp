@@ -14,6 +14,7 @@
   --page: #ffffff;
   --panel: #ffffff;
   --panel-raised: #f1f3f4;
+  --header-bg: #edeadf;
   --line: #adb5ba;
   --line-bright: #737f88;
   --pane-line: #4f5a61;
@@ -151,14 +152,14 @@ button:disabled {
   gap: 0.28rem;
   border-bottom: 1px solid var(--pane-line);
   padding: 1px 0.3rem;
-  background: var(--panel);
+  background: var(--header-bg);
 }
 
 .brand {
   display: flex;
   min-width: max-content;
   align-items: center;
-  gap: 0;
+  gap: 2px;
   white-space: nowrap;
 }
 
@@ -204,13 +205,13 @@ button:disabled {
 .brand-xrp,
 .brand-separator,
 .brand-product {
-  font-size: var(--font-ui);
+  font-size: var(--font-title);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .brand-mark {
-  color: var(--ucsb-blue);
+  color: var(--brand);
 }
 
 .brand-name {
@@ -219,7 +220,7 @@ button:disabled {
 
 .brand-xrp,
 .brand-product {
-  color: var(--wordmark-secondary);
+  color: var(--gold);
 }
 
 .brand-separator {
@@ -654,6 +655,26 @@ input[type="radio"] {
 
 .landing-instructor-links > span {
   color: var(--quiet);
+}
+
+.landing-complete-challenges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.landing-complete-challenges input {
+  width: 0.78rem;
+  height: 0.78rem;
+  margin: 0;
+}
+
+.landing-complete-challenges small {
+  color: var(--quiet);
+  font-size: var(--font-xs);
 }
 
 .landing-release {

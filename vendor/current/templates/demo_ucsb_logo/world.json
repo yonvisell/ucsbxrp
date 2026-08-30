@@ -1,0 +1,204 @@
+{
+  "default_world": "ucsb-logo",
+  "worlds": [
+    {
+      "id": "ucsb-logo",
+      "label": "UCSB waypoint logo",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -1200,
+        "y_mm": 300,
+        "heading_rad": -1.5707963267948966
+      },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -1260,
+          "minimum_y_mm": 240,
+          "maximum_x_mm": -1140,
+          "maximum_y_mm": 360,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "u_start",
+          "x_mm": -1200,
+          "y_mm": 300,
+          "label": "U"
+        },
+        {
+          "type": "waypoint",
+          "name": "u_left_bottom",
+          "x_mm": -1200,
+          "y_mm": -220
+        },
+        {
+          "type": "waypoint",
+          "name": "u_curve_left",
+          "x_mm": -1130,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "u_curve_right",
+          "x_mm": -970,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "u_right_bottom",
+          "x_mm": -900,
+          "y_mm": -220
+        },
+        {
+          "type": "waypoint",
+          "name": "u_end",
+          "x_mm": -900,
+          "y_mm": 300
+        },
+        {
+          "type": "waypoint",
+          "name": "c_start",
+          "x_mm": -250,
+          "y_mm": 300,
+          "label": "C"
+        },
+        {
+          "type": "waypoint",
+          "name": "c_top_left",
+          "x_mm": -650,
+          "y_mm": 300
+        },
+        {
+          "type": "waypoint",
+          "name": "c_bottom_left",
+          "x_mm": -650,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "c_end",
+          "x_mm": -250,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "s_start",
+          "x_mm": 0,
+          "y_mm": -300,
+          "label": "S"
+        },
+        {
+          "type": "waypoint",
+          "name": "s_bottom_right",
+          "x_mm": 400,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "s_middle_right",
+          "x_mm": 400,
+          "y_mm": 0
+        },
+        {
+          "type": "waypoint",
+          "name": "s_middle_left",
+          "x_mm": 0,
+          "y_mm": 0
+        },
+        {
+          "type": "waypoint",
+          "name": "s_top_left",
+          "x_mm": 0,
+          "y_mm": 300
+        },
+        {
+          "type": "waypoint",
+          "name": "s_end",
+          "x_mm": 400,
+          "y_mm": 300
+        },
+        {
+          "type": "waypoint",
+          "name": "b_start",
+          "x_mm": 650,
+          "y_mm": 300,
+          "label": "B"
+        },
+        {
+          "type": "waypoint",
+          "name": "b_stem_bottom",
+          "x_mm": 650,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "b_bottom_edge",
+          "x_mm": 1000,
+          "y_mm": -300
+        },
+        {
+          "type": "waypoint",
+          "name": "b_lower_round_1",
+          "x_mm": 1120,
+          "y_mm": -220
+        },
+        {
+          "type": "waypoint",
+          "name": "b_lower_round_2",
+          "x_mm": 1120,
+          "y_mm": -80
+        },
+        {
+          "type": "waypoint",
+          "name": "b_middle_right",
+          "x_mm": 1000,
+          "y_mm": 0
+        },
+        {
+          "type": "waypoint",
+          "name": "b_middle_left",
+          "x_mm": 650,
+          "y_mm": 0
+        },
+        {
+          "type": "waypoint",
+          "name": "b_middle_out",
+          "x_mm": 1000,
+          "y_mm": 0
+        },
+        {
+          "type": "waypoint",
+          "name": "b_upper_round_1",
+          "x_mm": 1120,
+          "y_mm": 80
+        },
+        {
+          "type": "waypoint",
+          "name": "b_upper_round_2",
+          "x_mm": 1120,
+          "y_mm": 220
+        },
+        {
+          "type": "waypoint",
+          "name": "b_top_right",
+          "x_mm": 1000,
+          "y_mm": 300
+        },
+        {
+          "type": "waypoint",
+          "name": "b_end",
+          "x_mm": 650,
+          "y_mm": 300,
+          "heading_rad": 3.141592653589793
+        }
+      ]
+    }
+  ]
+}

@@ -50,6 +50,10 @@ function errorDetail(error: unknown): string {
   return studentFacingMicroPythonError(String(error));
 }
 
+function rawErrorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function microPythonErrorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("type" in error)) {
     return undefined;
@@ -398,11 +402,13 @@ exec(
   } catch (error) {
     simulator.stop();
     postSimulatorState();
+    const rawDetail = rawErrorDetail(error);
     const detail = errorDetail(error);
     const phase = programStarted ? "runtime" : "compile";
     post({
       type: "error",
       detail,
+      rawDetail,
       stage: programStarted ? "run" : "compile",
       diagnostics: parseMicroPythonDiagnostics(detail, {
         phase,

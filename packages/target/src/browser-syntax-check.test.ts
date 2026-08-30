@@ -79,6 +79,8 @@ describe("standalone browser syntax checking", () => {
         type: "error",
         stage: "compile",
         detail: "SyntaxError: invalid syntax",
+        rawDetail:
+          'Traceback (most recent call last):\n  File "<stdin>", line 2\n  File "/project/main.py", line 1\nSyntaxError: invalid syntax',
         diagnostics: [diagnostic],
       });
     });
@@ -86,7 +88,10 @@ describe("standalone browser syntax checking", () => {
     await expect(checkCourseProjectSyntax(project)).resolves.toEqual({
       ok: false,
       detail: "SyntaxError: invalid syntax",
-      compilerOutput: ["compiler raw", "SyntaxError: invalid syntax"],
+      compilerOutput: [
+        "compiler raw",
+        'Traceback (most recent call last):\n  File "<stdin>", line 2\n  File "/project/main.py", line 1\nSyntaxError: invalid syntax',
+      ],
       diagnostics: [diagnostic],
       output: ["compiler raw"],
     });

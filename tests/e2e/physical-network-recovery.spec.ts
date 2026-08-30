@@ -276,7 +276,7 @@ test("keeps IDE and Monitor attached until the XRP Wi-Fi connection returns", as
   await expect(ide.getByRole("button", { name: "Compile" })).toBeEnabled();
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    /compiled with MicroPython/i,
+    /compiled successfully/i,
   );
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · error",

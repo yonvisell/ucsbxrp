@@ -26,7 +26,7 @@ WINDING_RATE = live.number(
     label="Spiral winding rate",
 )
 
-OBSTACLE_STOP_MM = 260.0
+OBSTACLE_STOP_MM = 150.0
 SPIRAL_EXPANSION_MM = 1500.0
 MAX_TRAVEL_MM = 3500.0
 

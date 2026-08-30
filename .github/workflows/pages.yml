@@ -67,7 +67,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, browser-tests]
     steps:
       - name: Deploy GitHub Pages artifact
         id: deployment

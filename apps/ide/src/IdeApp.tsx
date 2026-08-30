@@ -152,7 +152,38 @@ interface ProjectFolderConflictState {
 }
 
 const settingsKey = "ucsb-xrp-ide-settings-v2";
+const completeChallengesPreferenceKey = "ucsb-xrp-show-complete-challenges-v1";
 const maximumSessionLogEntries = 5_000;
+
+function uniquePythonDiagnostics(
+  diagnostics: readonly PythonDiagnostic[],
+): PythonDiagnostic[] {
+  const seen = new Set<string>();
+  return diagnostics.filter((diagnostic) => {
+    const key = JSON.stringify([
+      diagnostic.phase,
+      diagnostic.path ?? null,
+      diagnostic.start?.line ?? null,
+      diagnostic.start?.column ?? null,
+      diagnostic.end?.line ?? null,
+      diagnostic.end?.column ?? null,
+      diagnostic.code ?? null,
+      diagnostic.message,
+    ]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function storedCompleteChallengesPreference(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(completeChallengesPreferenceKey) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function formatConsoleTime(timestampMs: number | undefined): string {
   if (timestampMs === undefined) {
@@ -188,8 +219,8 @@ function consoleSourceLocation(
   };
 }
 const defaultSettings: IdeSettings = {
-  editorFontSize: 9,
-  consoleFontSize: 9,
+  editorFontSize: 13,
+  consoleFontSize: 12,
   tabSize: 4,
   wordWrap: "off",
   minimap: false,
@@ -204,13 +235,13 @@ function loadSettings(): IdeSettings {
     return {
       editorFontSize:
         typeof value.editorFontSize === "number" &&
-        value.editorFontSize >= 8 &&
+        value.editorFontSize >= 10 &&
         value.editorFontSize <= 20
           ? value.editorFontSize
           : defaultSettings.editorFontSize,
       consoleFontSize:
         typeof value.consoleFontSize === "number" &&
-        value.consoleFontSize >= 8 &&
+        value.consoleFontSize >= 10 &&
         value.consoleFontSize <= 16
           ? value.consoleFontSize
           : defaultSettings.consoleFontSize,
@@ -367,6 +398,7 @@ const templateGroups: readonly {
   label: string;
 }[] = [
   { kind: "challenge", label: "Course challenges" },
+  { kind: "complete-challenge", label: "Complete challenge demonstrations" },
   { kind: "demo", label: "Robot demos" },
   { kind: "tutorial", label: "Tutorials" },
 ];
@@ -375,7 +407,9 @@ function openingPathForNewProject(project: ProjectSnapshot): string {
   const template = COURSE_PROJECT_TEMPLATES.find(
     (candidate) => candidate.id === project.templateId,
   );
-  return (template?.kind === "challenge" || template?.kind === "tutorial") &&
+  return (template?.kind === "challenge" ||
+    template?.kind === "complete-challenge" ||
+    template?.kind === "tutorial") &&
     "README.md" in project.files
     ? "README.md"
     : project.entrypoint;
@@ -389,7 +423,11 @@ function isTutorialProject(project: ProjectSnapshot): boolean {
 }
 
 function newProjectPrefersVirtual(project: ProjectSnapshot): boolean {
-  return isTutorialProject(project);
+  return COURSE_PROJECT_TEMPLATES.some(
+    (template) =>
+      template.id === project.templateId &&
+      (template.kind === "tutorial" || template.kind === "complete-challenge"),
+  );
 }
 
 function checkFileForProject(project: ProjectSnapshot): string | null {
@@ -515,6 +553,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     initiallyShowProjectPanel,
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showCompleteChallenges, setShowCompleteChallenges] = useState(
+    storedCompleteChallengesPreference,
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("");
@@ -579,6 +620,24 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       }),
     [],
   );
+  const availableProjectTemplates = useMemo(
+    () =>
+      COURSE_PROJECT_TEMPLATES.filter(
+        (template) =>
+          template.kind !== "complete-challenge" || showCompleteChallenges,
+      ),
+    [showCompleteChallenges],
+  );
+
+  useEffect(() => {
+    const synchronizePreference = (event: StorageEvent) => {
+      if (event.key === completeChallengesPreferenceKey || event.key === null) {
+        setShowCompleteChallenges(storedCompleteChallengesPreference());
+      }
+    };
+    window.addEventListener("storage", synchronizePreference);
+    return () => window.removeEventListener("storage", synchronizePreference);
+  }, []);
   const initializedProjectEffect = useRef(false);
   const announcedProjectRevisionRef = useRef<{
     target: TargetClient;
@@ -1812,7 +1871,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       requestedBy: "Compile" | "Run",
       systemLogRecordedByTarget = false,
     ) => {
-      const diagnostics = result.diagnostics ?? [];
+      const diagnostics = uniquePythonDiagnostics(result.diagnostics ?? []);
       const presentations = diagnostics.map((diagnostic) => ({
         diagnostic,
         presentation: presentPythonDiagnostic(diagnostic, checkedProject.files),
@@ -1834,7 +1893,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       setCheckOk(result.ok);
       setCheckDetail(
         result.ok
-          ? "Current files compiled successfully."
+          ? "Current files compiled successfully. Compile checks Python syntax; Run checks value types and program behavior."
           : problemCount > 0
             ? `${problemCount} problem${problemCount === 1 ? "" : "s"} found. Open Problems for a guided fix; Compiler output contains the exact MicroPython text.`
             : "Compile could not finish. Compiler output contains the complete error.",
@@ -2987,27 +3046,30 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setNewProjectOpen(true);
   }, []);
 
-  const selectProjectTemplate = useCallback((templateId: string) => {
-    setSelectedTemplateId(templateId);
-    const template = COURSE_PROJECT_TEMPLATES.find(
-      (candidate) => candidate.id === templateId,
-    );
-    if (!template) {
-      setPendingProject(null);
-      setNewProjectDraft("");
-      return;
-    }
-    const snapshot: ProjectSnapshot = {
-      name: template.project.name ?? template.id.replaceAll("_", "-"),
-      entrypoint: template.project.entrypoint,
-      files: { ...template.project.files },
-      templateId: template.id,
-    };
-    setPendingProject(snapshot);
-    setProjectCreationPurpose("new-project");
-    setNewProjectDraft(suggestedProjectFolderName(snapshot.name));
-    setNewProjectError("");
-  }, []);
+  const selectProjectTemplate = useCallback(
+    (templateId: string) => {
+      setSelectedTemplateId(templateId);
+      const template = availableProjectTemplates.find(
+        (candidate) => candidate.id === templateId,
+      );
+      if (!template) {
+        setPendingProject(null);
+        setNewProjectDraft("");
+        return;
+      }
+      const snapshot: ProjectSnapshot = {
+        name: template.project.name ?? template.id.replaceAll("_", "-"),
+        entrypoint: template.project.entrypoint,
+        files: { ...template.project.files },
+        templateId: template.id,
+      };
+      setPendingProject(snapshot);
+      setProjectCreationPurpose("new-project");
+      setNewProjectDraft(suggestedProjectFolderName(snapshot.name));
+      setNewProjectError("");
+    },
+    [availableProjectTemplates],
+  );
 
   const prepareNextChallengeCreation = useCallback(
     async (sourceProject: ProjectSnapshot) => {
@@ -3643,7 +3705,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     !workingFolder ||
     (isTutorialProject(project) && activePath !== "student_work.py");
   const pendingTemplate = pendingProject?.templateId
-    ? COURSE_PROJECT_TEMPLATES.find(
+    ? availableProjectTemplates.find(
         (template) => template.id === pendingProject.templateId,
       )
     : null;
@@ -4001,6 +4063,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   >
                     New project…
                   </button>
+                  <small className="project-template-hint">
+                    New project contains challenges, demos, and tutorials.
+                  </small>
                   {!workingFolder &&
                   rememberedFolder &&
                   rememberedFolderCanAttach ? (
@@ -4112,13 +4177,15 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                           onClick={useFolderConflictFiles}
                           title="Open the files currently in the Project folder. The current IDE files remain available as an unsaved copy."
                         >
-                          Use folder files
+                          <strong>Open folder version</strong>
+                          <span>Keep this tab as an Unsaved copy</span>
                         </button>
                         <button
                           onClick={keepIdeConflictFiles}
                           title="Write the IDE files to the project folder and retain the previous folder files in autosaves."
                         >
-                          Keep IDE files
+                          <strong>Save this tab to folder</strong>
+                          <span>Retain the previous version in Autosaves</span>
                         </button>
                       </div>
                     </div>
@@ -4552,7 +4619,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 {compilerTranscript ? (
                   <>
                     <div className="compiler-output-heading">
-                      <strong>Exact MicroPython output</strong>
+                      <strong>Captured MicroPython output · unfiltered</strong>
                       <span>
                         {compilerTranscript.ok ? "Passed" : "Failed"} ·{" "}
                         {compilerTranscriptIsCurrent
@@ -4743,7 +4810,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             </span>
             <input
               max="20"
-              min="8"
+              min="10"
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
@@ -4760,7 +4827,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             </span>
             <input
               max="16"
-              min="8"
+              min="10"
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
@@ -4992,17 +5059,23 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   <option value="">
                     Choose a challenge, demo, or tutorial…
                   </option>
-                  {templateGroups.map((group) => (
-                    <optgroup key={group.kind} label={group.label}>
-                      {COURSE_PROJECT_TEMPLATES.filter(
+                  {templateGroups
+                    .filter((group) =>
+                      availableProjectTemplates.some(
                         (template) => template.kind === group.kind,
-                      ).map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.shortLabel}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
+                      ),
+                    )
+                    .map((group) => (
+                      <optgroup key={group.kind} label={group.label}>
+                        {availableProjectTemplates
+                          .filter((template) => template.kind === group.kind)
+                          .map((template) => (
+                            <option key={template.id} value={template.id}>
+                              {template.shortLabel}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
                 </select>
               </label>
             ) : null}
@@ -5016,6 +5089,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   <p className="dialog-context">
                     The tutorial opens with the Virtual XRP selected. Tutorial 5
                     explains when to switch to a physical XRP.
+                  </p>
+                ) : null}
+                {pendingTemplate.kind === "complete-challenge" ? (
+                  <p className="dialog-context">
+                    Ready to run: every <code>USE_STUDENT_…</code> selector is
+                    False, so this demonstration uses the supplied reference
+                    classes. Student challenge projects remain separate.
                   </p>
                 ) : null}
                 {pendingTemplatePredecessor ? (

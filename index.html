@@ -61,6 +61,16 @@
       <nav class="landing-instructor-links" aria-label="Instructor resources">
         <span>Instructor resources:</span>
         <a href="./author/">challenge creation wizard</a>
+        <label
+          class="landing-complete-challenges"
+          title="Show ready-to-run reference-backed challenge demonstrations in the IDE's New project menu."
+        >
+          <input id="landing-complete-challenges" type="checkbox" />
+          <span>
+            complete challenges
+            <small>· ready-to-run references</small>
+          </span>
+        </label>
       </nav>
     </main>
     <footer class="landing-release" aria-label="Current UCSBXRP release">
@@ -76,6 +86,23 @@
         courseRelease.release_id;
 
       const browserSupport = document.querySelector("#landing-browser-support");
+      const completeChallengesPreferenceKey =
+        "ucsb-xrp-show-complete-challenges-v1";
+      const completeChallenges = document.querySelector(
+        "#landing-complete-challenges",
+      );
+      try {
+        completeChallenges.checked =
+          localStorage.getItem(completeChallengesPreferenceKey) === "1";
+        completeChallenges.addEventListener("change", () => {
+          localStorage.setItem(
+            completeChallengesPreferenceKey,
+            completeChallenges.checked ? "1" : "0",
+          );
+        });
+      } catch {
+        completeChallenges.disabled = true;
+      }
       const supportsCourseApps =
         window.isSecureContext &&
         "serviceWorker" in navigator &&

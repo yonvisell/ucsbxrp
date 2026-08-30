@@ -1,6 +1,40 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { seedWorkingFolder, type TestProject } from "./working-folder";
+
+function obstacleTurnProjectWithWrongRangeType(): TestProject {
+  const templateFile = (path: string) =>
+    readFileSync(
+      new URL(
+        `../../vendor/current/templates/demo_obstacle_turn/${path}`,
+        import.meta.url,
+      ),
+      "utf8",
+    );
+  const originalMain = templateFile("main.py");
+  const main = originalMain.replace(
+    "range_samples.append(state.measurements.range_mm)",
+    'range_samples.append("blah")  # deliberate wrong type',
+  );
+  if (main === originalMain) {
+    throw new Error("Obstacle-turn range sample statement was not found");
+  }
+  return {
+    name: "Obstacle, left, obstacle",
+    entrypoint: "main.py",
+    templateId: "demo_obstacle_turn",
+    files: {
+      "main.py": main,
+      ...Object.fromEntries(
+        ["README.md", "course_setup.py", "robot_config.py", "world.json"].map(
+          (path) => [path, templateFile(path)],
+        ),
+      ),
+    },
+  } satisfies TestProject;
+}
 
 async function readDiagnosticLog(page: Page, folderName: string) {
   return page.evaluate(async (name) => {
@@ -144,7 +178,7 @@ test("keeps an unchanged compilation current across a Guide round trip", async (
   );
   await page.getByRole("button", { name: "Compile", exact: true }).click();
   await expect(page.getByTestId("check-result")).toContainText(
-    /compiled with MicroPython/i,
+    /compiled successfully/i,
   );
   const compilationMarker = await page.evaluate(() =>
     sessionStorage.getItem("ucsb-xrp-ide-compiled-digest-v1"),
@@ -169,10 +203,31 @@ test("keeps an unchanged compilation current across a Guide round trip", async (
   await ide.getByRole("button", { name: "Expand output" }).click();
   await ide.getByRole("tab", { name: "Status", exact: true }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    /compiled with MicroPython|passed earlier in this browser tab/i,
+    /compiled successfully|passed earlier in this browser tab/i,
   );
   await expect(ide.getByTestId("check-result")).not.toContainText(
     /files changed|not been compiled/i,
+  );
+});
+
+test("shows a precise runtime type error for the Obstacle-turn range edit", async ({
+  page,
+}) => {
+  await seedWorkingFolder(page, {
+    folderName: "Obstacle-Range-Type-Error",
+    projectFolderName: "Obstacle-Left-Obstacle",
+    project: obstacleTurnProjectWithWrongRangeType(),
+  });
+  await page.goto("/ide/");
+
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await page.getByRole("tab", { name: "Program output" }).click();
+  await expect(page.getByRole("log")).toContainText(
+    "TypeError: range sample 0 must be a number or None; received str",
+  );
+  await expect(page.getByRole("log")).toContainText("main.py");
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · error",
   );
 });
 
@@ -317,11 +372,18 @@ test("opens an oversized folder but prevents compilation and virtual execution",
   await expect(problems).toContainText("Project");
   await expect(problems).toContainText("This project has 49 files");
   await expect(problems).toContainText("at most 48");
-  await expect(problems).toContainText("project_too_large");
+  await page.getByRole("tab", { name: /Compiler output/ }).click();
+  const compilerOutput = page.getByRole("tabpanel");
+  await expect(compilerOutput).toContainText(
+    "Captured MicroPython output · unfiltered",
+  );
+  await expect(compilerOutput).toContainText("This project has 49 files");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await page.getByRole("tab", { name: /System log/ }).click();
-  await expect(page.getByRole("log")).toContainText("Compilation failed");
+  await expect(page.getByRole("log")).toContainText(
+    "Run found 1 source problem",
+  );
   await page.getByRole("tab", { name: /Program output/ }).click();
   await expect(page.getByRole("log")).not.toContainText("not run");
   await expect(page.getByTestId("target-status")).toContainText(

@@ -1,7 +1,7 @@
 # UCSB XRP course tools
 
 This repository contains the `ucsb_xrp` MicroPython library, supplied reference
-bytecode, five challenge projects, two demos, five guided Python and MicroPython
+bytecode, eight challenge projects, five demos, five guided Python and MicroPython
 tutorial projects, a browser IDE, the XRP Monitor, a repeatable physics-based
 virtual XRP, and the on-robot
 service used to run the same projects on a SparkFun RP2350 XRP. The five
@@ -31,10 +31,12 @@ npm run dev
 - Getting started: `http://127.0.0.1:5173/guide/`
 - UCSB XRP API: `http://127.0.0.1:5173/reference/`
 
-The IDE starts with the expanding-spiral demo. **New from template…**
-creates any of the five challenges, two sensor-driven robot demos, or a staged
-MicroPython tutorial as an ordinary editable project. The demos cover
-obstacle-triggered turning and an expanding spiral with two live parameters.
+The IDE starts with the expanding-spiral demo. **New project…** creates any of
+the eight challenges, five robot demos, or a staged MicroPython tutorial as an
+ordinary editable project. The demos include obstacle-triggered turning, an
+expanding spiral with two live parameters, random 90-degree motion, Roomba-style
+avoidance, and a waypoint-drawn UCSB logo. Select **complete challenges** on
+Home to reveal ready-to-run variants that use every supplied reference class.
 Select **Virtual XRP** for immediate use or **Physical XRP** for a robot
 hotspot or an existing local network. Later challenges retain all components
 introduced so far; students carry their completed methods forward and enable
@@ -44,8 +46,8 @@ each named `USE_STUDENT_*` switch independently.
 
 A **Working folder** is the parent folder for UCSBXRP work. Each **Current
 project** is stored in one named **Project folder** inside it. After the IDE has
-access to a Working folder, **New from template…** asks for the Project folder
-name, creates that folder, and writes the template immediately. **Open project**
+access to a Working folder, **New project…** asks for the Project folder name,
+creates that folder, and writes the template immediately. **Open project…**
 resumes an existing folder. Source edits then save automatically after a short
 pause; Command/Ctrl+S forces an immediate write.
 The active folder is shown as
@@ -73,8 +75,8 @@ folder.
   connection, so Run can start the same project revision again immediately.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
-Settings are collapsible and include editor/output font size (9 px default,
-8 px minimum), indentation, word wrap, code overview, target selection, and
+Settings are collapsible and include editor/output font size (13/12 px default,
+10 px minimum), indentation, word wrap, code overview, target selection, and
 the XRP Wi-Fi mode and existing-Wi-Fi address. Status, Program output, and
 the connection/compilation System log are separate tabs.
 
@@ -236,9 +238,10 @@ works on current Windows and macOS without a command-line Git installation.
 
 ## Course library
 
-The five challenges are Straight Run, Turn and Return, Waypoint Courier,
-Mapped Route, and Delivery Mission. Students progressively implement six
-components:
+The five core challenges are Straight Run, Turn and Return, Waypoint Courier,
+Mapped Route, and Delivery Mission. Three extension challenges add
+Range-Constrained Stopping, Wall-Range Pose Correction, and Multi-Stop Route
+Planning. Students progressively implement six recurring components:
 
 - `SensorModel`
 - `WheelSpeedController`
@@ -246,6 +249,10 @@ components:
 - `Odometry`
 - `NavigationController`
 - `GridPlanner`
+
+The extension challenges add focused `RangeSafetyController`, `PoseCorrector`,
+and `VisitOrderPlanner` project components while carrying the six recurring
+components forward.
 
 Supplied services are `XRPBot`, `Robot`, `StraightLineController`, `ArenaMap`,
 `OccupancyGrid`, and `DeliveryMission`. `DriveCommand(left, right)` is the
@@ -263,7 +270,9 @@ Instructors can define a checked, initially unpublished challenge in the
 [browser authoring wizard](author/) and create it from the downloaded
 specification with `scripts/challenge_authoring.py`. See
 [`docs/INSTRUCTOR_CHALLENGE_AUTHORING.md`](docs/INSTRUCTOR_CHALLENGE_AUTHORING.md)
-and the [UCSBXRP instructor overview](overview/).
+and the [UCSBXRP instructor overview](overview/). Repository access, review,
+release coordination, deployment, and recovery are covered in
+[`INSTRUCTOR_MAINTENANCE.md`](INSTRUCTOR_MAINTENANCE.md).
 
 ## Offline use
 

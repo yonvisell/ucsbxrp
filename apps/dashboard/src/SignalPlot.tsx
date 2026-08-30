@@ -330,11 +330,11 @@ export function signalXAxis(timeWindowS: number) {
     nameTextStyle: {
       align: "right" as const,
       color: "#000000",
-      fontSize: 8,
+      fontSize: 10,
       padding: [3, 18, 0, 0],
       verticalAlign: "top" as const,
     },
-    axisLabel: { color: "#000000", fontSize: 8 },
+    axisLabel: { color: "#000000", fontSize: 10 },
     axisLine: { lineStyle: { color: "#737f88", width: 1 } },
     splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
     minorTick: { show: false, splitNumber: 2 },
@@ -451,7 +451,7 @@ export function SignalPlot({
           textStyle: {
             color: "#000000",
             fontFamily: "system-ui, sans-serif",
-            fontSize: 9,
+            fontSize: 11,
             fontWeight: 600,
           },
         },
@@ -468,7 +468,7 @@ export function SignalPlot({
           trigger: "axis",
           backgroundColor: "#ffffff",
           borderColor: "#737f88",
-          textStyle: { color: "#000000", fontSize: 9 },
+          textStyle: { color: "#000000", fontSize: 11 },
         },
         xAxis: signalXAxis(timeWindowS),
         yAxis: {
@@ -476,7 +476,7 @@ export function SignalPlot({
           min: definition.fixedRange?.[0],
           max: definition.fixedRange?.[1],
           scale: definition.fixedRange === undefined,
-          axisLabel: { color: "#000000", fontSize: 8 },
+          axisLabel: { color: "#000000", fontSize: 10 },
           axisLine: { show: true, lineStyle: { color: "#737f88" } },
           splitLine: { lineStyle: { color: "#d5dadd", width: 1 } },
         },
@@ -489,7 +489,7 @@ export function SignalPlot({
           lineStyle: {
             color: series.color,
             type: series.dash,
-            width: 1.4,
+            width: 1.9,
           },
           data: data[index]?.values ?? [],
           markLine:
@@ -504,7 +504,7 @@ export function SignalPlot({
                   },
                   label: {
                     color: "#000000",
-                    fontSize: 8,
+                    fontSize: 10,
                     formatter: "{b}",
                     position: "insideEndTop",
                     rotate: 0,

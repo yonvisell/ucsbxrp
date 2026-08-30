@@ -41,6 +41,38 @@ test("opens the spiral demo by default in a new browser", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("reveals complete challenge demonstrations only when requested on Home", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const completeChallenges = page.getByLabel("complete challenges");
+  await expect(completeChallenges).not.toBeChecked();
+
+  await page.goto("/ide/");
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await expect(
+    page.locator('option[value="complete_challenge_1"]'),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+
+  await page.goto("/");
+  await page.getByLabel("complete challenges").check();
+  await page.goto("/ide/");
+  await page.getByRole("button", { name: "New project…", exact: true }).click();
+  await expect(
+    page.locator('optgroup[label="Complete challenge demonstrations"]'),
+  ).toHaveCount(1);
+  await page
+    .getByLabel("Project template")
+    .selectOption("complete_challenge_1");
+  await expect(page.locator(".template-guidance")).toContainText(
+    "uses the supplied reference classes",
+  );
+  await expect(page.locator(".template-guidance")).toContainText(
+    "Student challenge projects remain separate",
+  );
+});
+
 test("creates the selected Project when its Working folder is chosen", async ({
   page,
 }) => {
@@ -298,14 +330,14 @@ test("Run reports a compilation error before starting invalid code", async ({
   );
   await expect(
     page.getByRole("button", {
-      name: /main\.py · line 1.*Python could not parse this statement/i,
+      name: /main\.py · line 1.*Syntax error/i,
     }),
   ).toBeVisible();
   await page.getByRole("tab", { name: "Compiler output" }).click();
   await expect(page.getByRole("tabpanel")).toContainText(
     'File "/project/main.py", line 1',
   );
-  await expect(page.getByRole("tabpanel")).not.toContainText("<stdin>");
+  await expect(page.getByRole("tabpanel")).toContainText("<stdin>");
   await page.getByRole("tab", { name: "Status" }).click();
   await expect(page.getByTestId("check-result")).toContainText(
     "1 problem found",
@@ -373,7 +405,7 @@ for (const starter of starters) {
     await createTemplateProject(page, starter.option);
     await page.getByRole("button", { name: "Compile" }).click();
     await expect(page.getByTestId("check-result")).toContainText(
-      "compiled with MicroPython",
+      "compiled successfully",
     );
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await expect(page.getByRole("log")).toContainText(starter.completion, {
@@ -522,7 +554,7 @@ test("compiles all five active tutorials and checks their runnable examples with
     ).toHaveAttribute("href", tutorial.helpHref);
     await ide.getByRole("button", { name: "Compile" }).click();
     await expect(ide.getByTestId("check-result")).toContainText(
-      `${tutorial.compiled} Python files compiled with MicroPython`,
+      "compiled successfully",
     );
     await ide.getByRole("button", { name: "Check examples" }).click();
     await expect(ide.getByRole("log")).toContainText(tutorial.summary, {
@@ -548,7 +580,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   await createTemplateProject(ide, "demo_obstacle_turn");
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    "3 Python files compiled with MicroPython",
+    "compiled successfully",
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(monitor.getByTestId("target-status")).toContainText(
@@ -635,7 +667,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
   await createTemplateProject(ide, "demo_spiral");
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    "3 Python files compiled with MicroPython",
+    "compiled successfully",
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
 

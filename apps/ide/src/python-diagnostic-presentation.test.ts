@@ -26,7 +26,7 @@ describe("presentPythonDiagnostic", () => {
     );
 
     expect(presentation).toEqual({
-      title: "Python could not parse the next statement.",
+      title: "Syntax error near this line.",
       location: "main.py · line 14",
       suggestion: "Likely fix: add a comma at the end of line 13.",
       sourceLine: "minimum=60.0",
@@ -73,7 +73,7 @@ describe("presentPythonDiagnostic", () => {
     );
 
     expect(presentation.location).toBe("main.py · line 5");
-    expect(presentation.title).toBe("Python could not parse this statement.");
+    expect(presentation.title).toBe("Syntax error.");
     expect(`${presentation.title} ${presentation.suggestion}`).not.toMatch(
       /invalid syntax|SyntaxError/,
     );

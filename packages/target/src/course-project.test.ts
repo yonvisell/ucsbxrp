@@ -10,13 +10,16 @@ import {
 } from "./course-project";
 
 describe("course starter catalog", () => {
-  it("bundles all five complete projects in course order", () => {
+  it("bundles all eight complete projects in course order", () => {
     expect(COURSE_STARTERS.map((starter) => starter.id)).toEqual([
       "challenge_1",
       "challenge_2",
       "challenge_3",
       "challenge_4",
       "challenge_5",
+      "challenge_6",
+      "challenge_7",
+      "challenge_8",
     ]);
     for (const starter of COURSE_STARTERS) {
       expect(starter.project.entrypoint).toBe("main.py");
@@ -41,21 +44,28 @@ describe("course starter catalog", () => {
     );
   });
 
-  it("groups challenges, two sensor-driven demos, and five ordered tutorials", () => {
-    expect(COURSE_PROJECT_TEMPLATES.map((template) => template.kind)).toEqual([
-      "challenge",
-      "challenge",
-      "challenge",
-      "challenge",
-      "challenge",
-      "demo",
-      "demo",
-      "tutorial",
-      "tutorial",
-      "tutorial",
-      "tutorial",
-      "tutorial",
-    ]);
+  it("groups student challenges, complete variants, demos, and tutorials", () => {
+    const templatesOfKind = (
+      kind: (typeof COURSE_PROJECT_TEMPLATES)[number]["kind"],
+    ) => COURSE_PROJECT_TEMPLATES.filter((template) => template.kind === kind);
+    expect(templatesOfKind("challenge")).toHaveLength(8);
+    expect(templatesOfKind("complete-challenge")).toHaveLength(8);
+    expect(templatesOfKind("demo").length).toBeGreaterThanOrEqual(2);
+    expect(templatesOfKind("tutorial")).toHaveLength(5);
+
+    for (let number = 1; number <= 8; number += 1) {
+      const student = courseProjectTemplate(`challenge_${number}`);
+      const complete = courseProjectTemplate(`complete_challenge_${number}`);
+      expect(complete.project.files).toEqual(student.project.files);
+      expect(complete.project.files["course_setup.py"]).not.toMatch(
+        /^USE_STUDENT_[A-Z0-9_]+ = True$/m,
+      );
+      expect(complete.project.files["course_setup.py"]).toMatch(
+        /^USE_STUDENT_[A-Z0-9_]+ = False$/m,
+      );
+      expect(complete.components).toHaveLength(0);
+      expect(complete.predecessorId).toBeNull();
+    }
     const demo = courseProjectTemplate("demo_obstacle_turn");
     expect(demo.project.files["main.py"]).toContain("drive_until_close");
     expect(demo.project.files["main.py"]).toContain("turn_quarter_turn");
@@ -64,7 +74,43 @@ describe("course starter catalog", () => {
     expect(spiral.project.files["main.py"]).toContain(
       "spiral_winding_turns_per_m",
     );
-    expect(spiral.project.files["main.py"]).toContain("OBSTACLE_STOP_MM");
+    expect(spiral.project.files["main.py"]).toContain(
+      "OBSTACLE_STOP_MM = 150.0",
+    );
+    for (const demoId of [
+      "demo_random_snake",
+      "demo_roomba",
+      "demo_ucsb_logo",
+    ]) {
+      expect(
+        Object.keys(courseProjectTemplate(demoId).project.files).sort(),
+      ).toEqual([
+        "README.md",
+        "course_setup.py",
+        "main.py",
+        "robot_config.py",
+        "world.json",
+      ]);
+    }
+    const snake = courseProjectTemplate("demo_random_snake");
+    expect(snake.project.files["main.py"]).toContain("pi / 2.0");
+    expect(snake.project.files["main.py"]).toContain(
+      "direction = -1.0 if random.unit() < 0.5 else 1.0",
+    );
+    const roomba = courseProjectTemplate("demo_roomba");
+    expect(roomba.project.files["main.py"]).toContain(
+      "OBSTACLE_THRESHOLD_MM = 120.0",
+    );
+    expect(roomba.project.files["main.py"]).toContain(
+      "MAXIMUM_CONSECUTIVE_MISSING_RANGES = 10",
+    );
+    const logo = courseProjectTemplate("demo_ucsb_logo");
+    expect(logo.project.files["main.py"]).toContain(
+      "ROUTE = WORLD.waypoints()",
+    );
+    expect(
+      logo.project.files["world.json"]!.match(/"type": "waypoint"/g),
+    ).toHaveLength(28);
     const tutorial = courseProjectTemplate("micropython_tutorial");
     expect(tutorial.project.entrypoint).toBe("main.py");
     expect(tutorial.project.files["student_work.py"]).toContain(
@@ -113,7 +159,8 @@ describe("course starter catalog", () => {
 
   it("declares the challenge sequence and student component progression", () => {
     expect(nextChallengeTemplate("challenge_1")?.id).toBe("challenge_2");
-    expect(nextChallengeTemplate("challenge_5")).toBeNull();
+    expect(nextChallengeTemplate("challenge_5")?.id).toBe("challenge_6");
+    expect(nextChallengeTemplate("challenge_8")).toBeNull();
     expect(nextChallengeTemplate("demo_spiral")).toBeNull();
 
     const second = courseProjectTemplate("challenge_2");
@@ -129,6 +176,21 @@ describe("course starter catalog", () => {
         .filter((component) => component.carryForward)
         .map((component) => component.file),
     ).toEqual(["sensor_model.py", "wheel_speed_controller.py"]);
+    expect(
+      courseProjectTemplate("challenge_8").components.map(
+        (component) => component.name,
+      ),
+    ).toEqual([
+      "SensorModel",
+      "WheelSpeedController",
+      "DifferentialDrive",
+      "Odometry",
+      "NavigationController",
+      "GridPlanner",
+      "RangeSafetyController",
+      "PoseCorrector",
+      "VisitOrderPlanner",
+    ]);
   });
 
   it("creates a self-contained next challenge with only declared work carried forward", () => {
@@ -180,7 +242,7 @@ describe("course starter catalog", () => {
   });
 
   it("carries exactly the declared components through every challenge transition", () => {
-    for (let challenge = 1; challenge < 5; challenge += 1) {
+    for (let challenge = 1; challenge < 8; challenge += 1) {
       const currentId = `challenge_${challenge}`;
       const current = courseProjectTemplate(currentId).project;
       const nextTemplate = nextChallengeTemplate(currentId)!;
@@ -267,8 +329,8 @@ describe("course starter catalog", () => {
     ).toThrow("sensor_model.py");
     expect(() =>
       createNextChallengeProject(
-        "challenge_5",
-        courseProjectTemplate("challenge_5").project,
+        "challenge_8",
+        courseProjectTemplate("challenge_8").project,
       ),
     ).toThrow("No challenge follows");
   });

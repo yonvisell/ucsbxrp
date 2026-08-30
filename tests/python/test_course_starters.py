@@ -40,6 +40,11 @@ class CourseStarterTests(unittest.TestCase):
         class FakeState:
             def __init__(self, measurements):
                 self.measurements = measurements
+                self.pose = types.SimpleNamespace(
+                    x_mm=500.0,
+                    y_mm=0.0,
+                    heading_rad=0.0,
+                )
 
         class FakeRobot:
             def __init__(self):
@@ -76,7 +81,12 @@ class CourseStarterTests(unittest.TestCase):
 
         fake_modules = {
             "challenge": types.SimpleNamespace(
-                INITIAL_POSE=object(),
+                INITIAL_POSE=types.SimpleNamespace(
+                    x_mm=0.0,
+                    y_mm=0.0,
+                    heading_rad=0.0,
+                ),
+                MAX_RUN_TIME_S=20.0,
                 TARGET_TIME_S=8.0,
                 TRAVEL_DISTANCE_MM=500.0,
             ),
@@ -84,12 +94,13 @@ class CourseStarterTests(unittest.TestCase):
                 make_robot=lambda _config: robot,
             ),
             "robot_config": types.SimpleNamespace(
-                ROBOT_CONFIG=object(),
+                ROBOT_CONFIG=types.SimpleNamespace(sample_period_ms=20),
                 STRAIGHT_CONFIG=object(),
             ),
             "ucsb_xrp": types.SimpleNamespace(
                 StraightLineController=FakeStraightLineController,
                 elapsed_time_s=wrap_safe_elapsed_time_s,
+                wrap_angle_rad=lambda value: value,
             ),
         }
         saved_modules = {
@@ -118,7 +129,10 @@ class CourseStarterTests(unittest.TestCase):
             [path.name for path in directories],
             [
                 "demo_obstacle_turn",
+                "demo_random_snake",
+                "demo_roomba",
                 "demo_spiral",
+                "demo_ucsb_logo",
                 "tutorial_1_python_essentials",
                 "tutorial_2_virtual_drawing",
                 "tutorial_3_robot_programs",
@@ -483,11 +497,20 @@ class CourseStarterTests(unittest.TestCase):
                 sys.modules.pop(name, None)
             sys.modules.update(saved_modules)
 
-    def test_all_five_starters_are_complete_compilable_projects(self):
+    def test_all_eight_starters_are_complete_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())
         self.assertEqual(
             [path.name for path in directories],
-            ["challenge_1", "challenge_2", "challenge_3", "challenge_4", "challenge_5"],
+            [
+                "challenge_1",
+                "challenge_2",
+                "challenge_3",
+                "challenge_4",
+                "challenge_5",
+                "challenge_6",
+                "challenge_7",
+                "challenge_8",
+            ],
         )
         component_files = (
             "sensor_model.py",
@@ -496,11 +519,14 @@ class CourseStarterTests(unittest.TestCase):
             "odometry.py",
             "navigation_controller.py",
             "grid_planner.py",
+            "range_safety_controller.py",
+            "pose_corrector.py",
+            "visit_order_planner.py",
         )
         for directory in directories:
             paths = {path.name: path for path in directory.glob("*.py")}
             challenge_number = int(directory.name.rsplit("_", 1)[1])
-            component_count = (2, 4, 5, 6, 6)[challenge_number - 1]
+            component_count = (2, 4, 5, 6, 6, 7, 8, 9)[challenge_number - 1]
             required = {
                 "challenge.py",
                 "component_checks.py",
@@ -522,10 +548,13 @@ class CourseStarterTests(unittest.TestCase):
             "odometry.py": 2,
             "navigation_controller.py": 3,
             "grid_planner.py": 4,
+            "range_safety_controller.py": 6,
+            "pose_corrector.py": 7,
+            "visit_order_planner.py": 8,
         }
         for filename, first_challenge in introduced_by_challenge.items():
             canonical = (COMPONENT_TEMPLATES / filename).read_text(encoding="utf-8")
-            for challenge_number in range(first_challenge, 6):
+            for challenge_number in range(first_challenge, 9):
                 starter = STARTERS / ("challenge_%d" % challenge_number) / filename
                 with self.subTest(
                     component=filename,
@@ -540,6 +569,9 @@ class CourseStarterTests(unittest.TestCase):
             "challenge_3": 5,
             "challenge_4": 6,
             "challenge_5": 6,
+            "challenge_6": 7,
+            "challenge_7": 8,
+            "challenge_8": 9,
         }
         for challenge, expected_count in expected_switches.items():
             source = (STARTERS / challenge / "course_setup.py").read_text(

@@ -151,10 +151,11 @@ export function startCourseProjectSyntaxCheck(
       }
       if (message.type === "error") {
         const diagnostics = fallbackDiagnostics(message, output, project);
+        const exactCompilerText = message.rawDetail ?? message.detail;
         resolveOnce({
           ok: false,
           detail: message.detail,
-          compilerOutput: [...output, message.detail],
+          compilerOutput: [...output, exactCompilerText],
           ...(diagnostics.length > 0 ? { diagnostics } : {}),
           ...(output.length > 0 ? { output } : {}),
         });

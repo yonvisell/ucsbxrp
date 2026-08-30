@@ -8,6 +8,8 @@ UCSB-XRP provides the common structure used by the course robot programs. It
 connects motion commands to the XRP motors, converts encoder readings to
 physical units, estimates pose, follows world-coordinate destinations, creates
 an occupancy grid from a dimensioned map, and plans a route through free cells.
+Extension projects also use measured stopping envelopes, known-wall position
+correction, and bounded multi-stop ordering.
 
 XRPBot is the only UCSB-XRP class that calls XRPLib directly. Most programs use
 Robot and the higher-level controllers rather than accessing XRPBot.
@@ -60,6 +62,17 @@ DeliveryMission
     combines stationary range observation, map selection, planning, and
     navigation for the final course task
 
+Challenge-specific extension components
+
+RangeSafetyController
+    limits requested speed using measured speed and available forward range
+
+PoseCorrector
+    applies x and y translation corrections inferred from known-wall range
+
+VisitOrderPlanner
+    chooses a least-cost order for a bounded set of required stops
+
 
 UNITS AND DIRECTIONS
 
@@ -91,7 +104,8 @@ robot_config.py
     one robot.
 
 sensor_model.py, wheel_speed_controller.py, differential_drive.py,
-odometry.py, navigation_controller.py, grid_planner.py
+odometry.py, navigation_controller.py, grid_planner.py,
+range_safety_controller.py, pose_corrector.py, visit_order_planner.py
     Each file defines the class named by the file. Early challenges include
     only the classes introduced so far.
 
@@ -136,7 +150,7 @@ coordinates.
 
 SELECTING THE SUPPLIED OR PROJECT-FILE CLASS
 
-Each of the six components has a supplied class and a class in
+Each of the six recurring components has a supplied class and a class in
 the corresponding project file. Both classes have the same public methods.
 Code obtains the selected class from course_setup.py, so the rest of the
 program is unchanged when a selection changes.
@@ -149,6 +163,13 @@ course_setup.py contains one explicit Boolean per component:
     USE_STUDENT_ODOMETRY = False
     USE_STUDENT_NAVIGATION_CONTROLLER = False
     USE_STUDENT_GRID_PLANNER = False
+
+The extension projects add one selector when each focused component is
+introduced:
+
+    USE_STUDENT_RANGE_SAFETY_CONTROLLER = False
+    USE_STUDENT_POSE_CORRECTOR = False
+    USE_STUDENT_VISIT_ORDER_PLANNER = False
 
 False selects the supplied class and True selects the class in the named
 project file. The file initially selects all supplied classes;
@@ -422,7 +443,7 @@ the stationary observation, map selection, planning, and navigation sequence.
 
 main.py
 
-    from challenge import DELIVERY_TASK
+    from challenge import DELIVERY_TASK, MAXIMUM_NAVIGATION_STEPS
     from course_setup import (
         make_grid_planner,
         make_navigation_controller,
@@ -437,16 +458,30 @@ main.py
             task=DELIVERY_TASK,
             navigation=make_navigation_controller(NAVIGATION_CONFIG),
             planner=make_grid_planner(),
+            maximum_navigation_steps=MAXIMUM_NAVIGATION_STEPS,
         )
         final_state = mission.run(make_robot(ROBOT_CONFIG))
-        print(mission.result, final_state.pose)
+        print("result:", mission.result)
+        print("range estimate (mm):", mission.range_estimate_mm)
+        print("feature blocked:", mission.feature_blocked)
+        print("planned path:", mission.planned_path)
+        print("navigation steps:", mission.navigation_step_count)
+        print("final pose:", final_state.pose)
         return final_state
 
 
     run_delivery()
 
-DeliveryMission.result is "delivered" after successful navigation or "no_path"
-when the selected map has no route to the destination.
+DeliveryMission.result is "delivered" after successful navigation, "no_path"
+when the selected map has no route to the destination, or "step_limit" when
+the explicit project-owned navigation bound is reached. DeliveryMission has no
+hidden default step limit; each moving course project states its bound in
+student-readable code.
+
+The read-only range_estimate_mm, feature_blocked, planned_path, and
+navigation_step_count fields make the mission's observation, map choice, route,
+and run length inspectable. They are evidence for debugging, not a second
+controller or an implicit constraint on student output.
 
 
 REQUESTING RANGE OUTSIDE DELIVERYMISSION
@@ -461,7 +496,11 @@ Collect Measurements.range_mm from the requested samples, then call
 robot.estimate_range(samples, minimum_usable). Robot delegates the calculation
 to its selected SensorModel class. The method accepts a sequence
 containing numeric ranges and None values and returns one range estimate, or
-None when too few usable samples are present.
+None when too few usable samples are present. A nonnumeric program value such
+as a string raises TypeError with its sample index; it is not silently treated
+as a missing physical reading. None, nonfinite numbers, zero, and negative
+numbers remain sensor-quality cases for SensorModel to reject from its
+estimate.
 
 
 ADJUSTING A RUN AND WATCHING INTERMEDIATE VALUES

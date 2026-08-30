@@ -103,7 +103,7 @@ test("creates a folder-backed project and reopens the course apps without intern
 
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    "compiled with MicroPython",
+    "compiled successfully",
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(

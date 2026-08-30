@@ -18,6 +18,10 @@ const coordinator = new PhysicalTargetCoordinator(
       expectedRobotId,
       pollCoordinatorGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
       pollOwnerId,
+      // A SharedWorker has no reliable notification when a document vanishes.
+      // Only visible app frames may advance its polling clock, so an orphaned
+      // worker cannot renew the XRP's single-poller lease indefinitely.
+      pollDrivenByVisibleClient: true,
     }),
 );
 

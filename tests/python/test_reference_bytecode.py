@@ -23,7 +23,7 @@ class ReferenceBytecodeReleaseTest(unittest.TestCase):
 
         self.assertEqual(manifest["compiler"]["tag"], "v1.28.0")
         self.assertEqual(manifest["compiler"]["portable_abi"], 774)
-        self.assertEqual(len(manifest["artifacts"]), 5)
+        self.assertEqual(len(manifest["artifacts"]), 8)
         self.assertTrue(
             all(item["byte_size"] > 0 for item in manifest["artifacts"])
         )

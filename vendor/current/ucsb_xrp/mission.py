@@ -135,9 +135,25 @@ class DeliveryTask(_ValueRecord):
 class DeliveryMission:
     """Supplied observation, planning, and delivery orchestration."""
 
-    __slots__ = ("_task", "_navigation", "_planner", "_result")
+    __slots__ = (
+        "_task",
+        "_navigation",
+        "_planner",
+        "_maximum_navigation_steps",
+        "_range_estimate_mm",
+        "_feature_blocked",
+        "_planned_path",
+        "_navigation_step_count",
+        "_result",
+    )
 
-    def __init__(self, task, navigation, planner):
+    def __init__(
+        self,
+        task,
+        navigation,
+        planner,
+        maximum_navigation_steps=None,
+    ):
         if not isinstance(task, DeliveryTask):
             raise TypeError("task must be a DeliveryTask")
         if not all(
@@ -150,6 +166,19 @@ class DeliveryMission:
         self._task = task
         self._navigation = navigation
         self._planner = planner
+        self._maximum_navigation_steps = (
+            None
+            if maximum_navigation_steps is None
+            else require_int(
+                "maximum_navigation_steps",
+                maximum_navigation_steps,
+                minimum=1,
+            )
+        )
+        self._range_estimate_mm = None
+        self._feature_blocked = None
+        self._planned_path = None
+        self._navigation_step_count = 0
         self._result = None
 
     @property
@@ -160,7 +189,31 @@ class DeliveryMission:
     def result(self):
         return self._result
 
+    @property
+    def maximum_navigation_steps(self):
+        return self._maximum_navigation_steps
+
+    @property
+    def range_estimate_mm(self):
+        return self._range_estimate_mm
+
+    @property
+    def feature_blocked(self):
+        return self._feature_blocked
+
+    @property
+    def planned_path(self):
+        return self._planned_path
+
+    @property
+    def navigation_step_count(self):
+        return self._navigation_step_count
+
     def run(self, robot):
+        self._range_estimate_mm = None
+        self._feature_blocked = None
+        self._planned_path = None
+        self._navigation_step_count = 0
         self._result = None
         state = None
         try:
@@ -173,11 +226,13 @@ class DeliveryMission:
                 samples,
                 self.task.minimum_usable_range_count,
             )
+            self._range_estimate_mm = estimate
             blocked = (
                 self.task.assume_blocked_without_range
                 if estimate is None
                 else estimate <= self.task.blocked_range_threshold_mm
             )
+            self._feature_blocked = blocked
             arena = self.task.arena.with_feature_blocked(
                 self.task.observed_feature_name,
                 blocked,
@@ -193,6 +248,7 @@ class DeliveryMission:
                 self.task.destination.y_mm,
             )
             path = self._planner.plan(grid, start, goal)
+            self._planned_path = path
             if path is None:
                 self._result = "no_path"
                 return state
@@ -201,10 +257,15 @@ class DeliveryMission:
             self._navigation.start(goals)
             steps = 0
             while not self._navigation.is_complete():
+                if (
+                    self.maximum_navigation_steps is not None
+                    and steps >= self.maximum_navigation_steps
+                ):
+                    self._result = "step_limit"
+                    return state
                 state = robot.step(self._navigation.update(state.pose))
                 steps += 1
-                if steps > 30000:
-                    raise RuntimeError("delivery navigation did not complete")
+                self._navigation_step_count = steps
             self._result = "delivered"
             return state
         finally:

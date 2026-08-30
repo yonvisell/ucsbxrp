@@ -11,8 +11,14 @@ when no route is available.
 start, destination, and changeable feature. [`challenge.py`](challenge.py)
 constructs `DELIVERY_TASK`, which supplies the range-sample requirements,
 decision threshold, missing-range behavior, grid settings, geometry, initial
-pose, and destination. Use `DELIVERY_TASK`; do not repeat its current numerical
-values or obstacle coordinates elsewhere.
+pose, and destination. It also defines the visible
+`MAXIMUM_NAVIGATION_STEPS` mission limit. Use these names; do not repeat their
+current numerical values or obstacle coordinates elsewhere.
+
+The virtual gate opening is 300 mm wide. The task clearance includes the
+simulator's 85 mm XRP collision radius and a 10 mm planning margin. Before a
+physical run, measure the assembled robot footprint and verify that the course
+gate and route provide at least the assigned clearance.
 
 ## Continue from Challenge 4
 
@@ -54,10 +60,13 @@ files**, regardless of which classes are selected for a complete robot run.
 ## Provided files and tools
 
 - `DeliveryMission` keeps the robot stopped during observation, evaluates the
-  named feature, builds the selected grid, plans, navigates, and stops on every
-  exit.
+  named feature, builds the selected grid, plans, navigates, enforces the
+  project-supplied navigation-step limit, retains the observation, map
+  decision, planned path, and navigation-step count, and stops on every exit.
 - [`main.py`](main.py) constructs the mission services, runs the mission, and
-  prints its result and final pose.
+  prints that evidence, the result, and final pose. It independently checks
+  that a reported delivery ended in the destination grid cell at the requested
+  heading.
 - [`component_checks.py`](component_checks.py) calls
   `SensorModel.estimate_range()` and the required methods of the five
   carried-forward classes without starting a robot.
@@ -74,7 +83,8 @@ route                    -> NavigationController -> delivery motion
 ```
 
 The observed distance, not the virtual case label, determines the selected map
-condition.
+condition. A run that reaches `MAXIMUM_NAVIGATION_STEPS` reports `step_limit`
+rather than reporting a delivery.
 
 ## Check the component
 

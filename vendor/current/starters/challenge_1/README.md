@@ -10,7 +10,8 @@ The task values have one source:
 
 - [`world.json`](world.json) defines the initial pose and finish marker.
 - [`challenge.py`](challenge.py) loads `INITIAL_POSE`, calculates
-  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S`.
+  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the visible
+  `MAX_RUN_TIME_S` diagnostic limit.
 
 Use these names in your program. Do not copy their current numerical values
 into another file. Record robot-specific calibration in
@@ -64,8 +65,10 @@ targets + measured speeds
                  -> WheelSpeedController     -> motor commands
 ```
 
-The loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. The `finally`
-block in `main.py` stops both motors on completion or error.
+The loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. If a sensor or
+controller mistake prevents progress for `MAX_RUN_TIME_S`, the program names
+that failure and raises an error. The `finally` block in `main.py` stops both
+motors on completion or error.
 
 ## Check each component
 
@@ -95,8 +98,9 @@ class passes its checks.
 3. Select the `WheelSpeedController` defined in
    `wheel_speed_controller.py`. Verify command limits and an exact zero command
    at the finish.
-4. Compare repeated virtual runs using `mean_wheel_travel_mm` and
-   `measured_elapsed_time_s` in Program output.
+4. Compare repeated virtual runs using the reported distance, lateral,
+   heading, and time errors. `timed_result` states explicitly whether a run
+   finished early or satisfied the no-earlier-than-target rule.
 5. For the physical XRP, first check wheel direction and Stop with the wheels
    clear. Then run the marked lane and record distance, elapsed time, requested
    and measured speed, and drive command.

@@ -1,0 +1,35 @@
+{
+  "default_world": "snake-course",
+  "worlds": [
+    {
+      "id": "snake-course",
+      "label": "Random-snake course",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": { "x_mm": -800, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -860,
+          "minimum_y_mm": -60,
+          "maximum_x_mm": -740,
+          "maximum_y_mm": 60,
+          "label": "Start"
+        },
+        {
+          "type": "finish_box",
+          "minimum_x_mm": -540,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": -260,
+          "maximum_y_mm": 180,
+          "label": "Expected finish"
+        }
+      ]
+    }
+  ]
+}

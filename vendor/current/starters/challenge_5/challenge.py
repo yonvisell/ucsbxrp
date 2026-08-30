@@ -18,7 +18,8 @@ DELIVERY_TASK = DeliveryTask(
     initial_pose=WORLD.initial_pose,
     arena=MISSION_MAP_WORLD.arena_map(),
     grid_resolution_mm=100.0,
-    clearance_mm=35.0,
+    # 85 mm virtual collision radius plus 10 mm planning margin.
+    clearance_mm=95.0,
     destination=WORLD.waypoint("destination"),
     observed_feature_name="center_gate",
     range_sample_count=7,
@@ -26,3 +27,7 @@ DELIVERY_TASK = DeliveryTask(
     blocked_range_threshold_mm=500.0,
     assume_blocked_without_range=True,
 )
+
+# This visible mission limit is enforced by DeliveryMission. At the default
+# 20 ms sample period it allows up to 100 s of navigation after observation.
+MAXIMUM_NAVIGATION_STEPS = 5000

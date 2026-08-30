@@ -97,10 +97,33 @@ def _sensor_model(component_class):
                 next_measured.right_speed_mm_s,
             )
         )
+
+    # A second geometry and sign convention makes this a behavior check rather
+    # than a fixture whose few numerical answers can be memorized.
+    varied_model = component_class(
+        RobotConfig(
+            sample_period_ms=30,
+            wheel_diameter_mm=40.0,
+            encoder_counts_per_revolution=400.0,
+            left_encoder_sign=1,
+            right_encoder_sign=-1,
+            wheel_speed_filter_time_constant_ms=60.0,
+        )
+    )
+    varied_model.reset(RawSensors(900, -5, 12, None, False))
+    varied = varied_model.update(RawSensors(930, -1, 8, 525.0, True))
+    _close("varied-config dt_s", varied.dt_s, 0.03)
+    _close("varied-config left position (mm)", varied.left_position_mm, 2.0 * pi / 5.0)
+    _close("varied-config right position (mm)", varied.right_position_mm, 2.0 * pi / 5.0)
+    _close("varied-config left increment (mm)", varied.left_increment_mm, 2.0 * pi / 5.0)
+    _close("varied-config right increment (mm)", varied.right_increment_mm, 2.0 * pi / 5.0)
+    _close("varied-config preserved range (mm)", varied.range_mm, 525.0)
+    if not varied.button_pressed:
+        raise AssertionError("varied-config USER button state was not preserved")
     return (
         "dt = {:.3f}/{:.3f} s; positions = {:.3f}/{:.3f} mm; "
         "latest increments = {:.3f}/{:.3f} mm; left speed = {:.3f}->{:.3f} "
-        "mm/s; right speed = {:.3f}->{:.3f} mm/s"
+        "mm/s; right speed = {:.3f}->{:.3f} mm/s; varied geometry = {:.3f}/{:.3f} mm"
     ).format(
         measured.dt_s,
         next_measured.dt_s,
@@ -112,6 +135,8 @@ def _sensor_model(component_class):
         next_measured.left_speed_mm_s,
         measured.right_speed_mm_s,
         next_measured.right_speed_mm_s,
+        varied.left_position_mm,
+        varied.right_position_mm,
     )
 
 
@@ -181,14 +206,35 @@ def _wheel_speed_controller(component_class):
                 stopped.left, stopped.right
             )
         )
+    controller.reset()
+    reverse_and_stop = controller.update(
+        WheelSpeeds(-70.0, 0.0),
+        WheelSpeeds(-40.0, 35.0),
+    )
+    if reverse_and_stop.left >= 0.0:
+        raise AssertionError(
+            "reverse target: expected a negative left command, received {}".format(
+                reverse_and_stop.left
+            )
+        )
+    if reverse_and_stop.right != 0.0:
+        raise AssertionError(
+            "mixed stop: expected right=0.0, received {}".format(
+                reverse_and_stop.right
+            )
+        )
+    if abs(reverse_and_stop.left) > 0.6:
+        raise AssertionError("reverse command should respect max_drive_command")
     return (
         "target +100/-100 mm/s: measured +80/-80 gave {:.3f}/{:.3f}; "
-        "measured +20/-20 gave {:.3f}/{:.3f}; zero target gave 0/0"
+        "measured +20/-20 gave {:.3f}/{:.3f}; zero target gave 0/0; "
+        "mixed reverse/stop gave {:.3f}/0"
     ).format(
         close_command.left,
         close_command.right,
         underspeed_command.left,
         underspeed_command.right,
+        reverse_and_stop.left,
     )
 
 
@@ -230,7 +276,14 @@ def _differential_drive(component_class):
     turn = drive.wheel_speeds(MotionCommand(0.0, -1.0))
     _close("right-turn left target (mm/s)", turn.left_mm_s, 50.0)
     _close("right-turn right target (mm/s)", turn.right_mm_s, -50.0)
-    return "straight 80/80; moving turn 0/200; in-place right turn 50/-50 mm/s"
+    wide_drive = component_class(RobotConfig(track_width_mm=140.0))
+    reverse_curve = wide_drive.wheel_speeds(MotionCommand(-30.0, 0.5))
+    _close("varied-track left target (mm/s)", reverse_curve.left_mm_s, -65.0)
+    _close("varied-track right target (mm/s)", reverse_curve.right_mm_s, 5.0)
+    return (
+        "straight 80/80; moving turn 0/200; in-place right turn 50/-50; "
+        "140 mm track reverse curve -65/5 mm/s"
+    )
 
 
 def _odometry(component_class):
@@ -260,10 +313,39 @@ def _odometry(component_class):
     _close("curved heading (rad)", curve.heading_rad, 1.0)
     if odometry.pose != curve:
         raise AssertionError("pose property: expected the latest returned Pose")
+
+    varied_start = Pose(20.0, -30.0, 3.0)
+    odometry.reset(varied_start)
+    wrapped_curve = odometry.update(-10.0, 20.0)
+    heading_change = 0.3
+    radius_mm = 5.0 / heading_change
+    unwrapped_heading = varied_start.heading_rad + heading_change
+    expected_x_mm = varied_start.x_mm + radius_mm * (
+        sin(unwrapped_heading) - sin(varied_start.heading_rad)
+    )
+    expected_y_mm = varied_start.y_mm - radius_mm * (
+        cos(unwrapped_heading) - cos(varied_start.heading_rad)
+    )
+    expected_wrapped = Pose(expected_x_mm, expected_y_mm, unwrapped_heading)
+    _close("varied-start curved x (mm)", wrapped_curve.x_mm, expected_wrapped.x_mm)
+    _close("varied-start curved y (mm)", wrapped_curve.y_mm, expected_wrapped.y_mm)
+    _close(
+        "varied-start wrapped heading (rad)",
+        wrapped_curve.heading_rad,
+        expected_wrapped.heading_rad,
+    )
     return (
         "straight pose = (10.000, 0.000, 0.000); in-place heading = 1.000 rad; "
-        "curved pose = ({:.3f}, {:.3f}, {:.3f})"
-    ).format(curve.x_mm, curve.y_mm, curve.heading_rad)
+        "curved pose = ({:.3f}, {:.3f}, {:.3f}); varied start = "
+        "({:.3f}, {:.3f}, {:.3f})"
+    ).format(
+        curve.x_mm,
+        curve.y_mm,
+        curve.heading_rad,
+        wrapped_curve.x_mm,
+        wrapped_curve.y_mm,
+        wrapped_curve.heading_rad,
+    )
 
 
 def _navigation_controller(component_class):
@@ -482,8 +564,8 @@ _CHECKS = (
             "WheelSpeedController"
         ),
         (
-            "reset at counts 10/20; move forward with a reversed left encoder "
-            "over unequal 25/40 ms samples"
+            "two wheel geometries and encoder-sign conventions; unequal "
+            "25/40 ms samples and one 30 ms sample"
         ),
         (
             "device timestamps set dt; encoder signs set forward distance; "
@@ -496,8 +578,8 @@ _CHECKS = (
         "wheel_speed_controller",
         "Turns requested wheel speeds into the motor commands used by Robot",
         (
-            "request +100/-100 mm/s at two measured speeds, then verify "
-            "direction, response to speed error, limits, and stop"
+            "request +100/-100 mm/s at two measured speeds, then a mixed "
+            "reverse/stop request; verify direction, error response, and limits"
         ),
         (
             "a larger speed error produces a stronger command in the requested "
@@ -526,7 +608,10 @@ _CHECKS = (
             "Converts one robot-motion request into the two targets used by "
             "wheel control"
         ),
-        "check a straight command, a moving turn, and an in-place right turn",
+        (
+            "check straight, moving-turn, and in-place commands, then change "
+            "track width for a reverse curve"
+        ),
         (
             "straight motion gives equal wheel targets; turning gives the "
             "wheel-speed difference with the correct sign"
@@ -537,7 +622,10 @@ _CHECKS = (
         "Odometry · measured wheel increments to pose",
         "odometry",
         "Provides the estimated pose used to end turns and navigate",
-        "update pose after equal, equal-and-opposite, and unequal wheel travel",
+        (
+            "update pose after equal, equal-and-opposite, and unequal wheel "
+            "travel, including a nonzero start and heading wrap"
+        ),
         (
             "equal travel advances straight; opposite travel turns in place; "
             "unequal travel gives the corresponding planar arc"

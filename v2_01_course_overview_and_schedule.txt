@@ -10,8 +10,9 @@ return, travel through world-coordinate destinations, plan around a known
 obstacle, and complete a delivery after observing whether part of the route is
 blocked.
 
-The course is organized around five robot challenges. A short lecture and one
-or more focused experiments provide the material needed for each challenge.
+The course is organized around five core robot challenges and three extension
+challenges. A short lecture and one or more focused experiments provide the
+material needed for each challenge.
 Students work in pairs, with one XRP kit per pair. Tuesday and Thursday meetings
 combine lecture, programming, measurement, and robot runs. The laboratory is
 available between meetings.
@@ -21,7 +22,7 @@ Python or robotics experience. Python classes are introduced through concrete
 robot components whose inputs and outputs can be inspected directly.
 
 
-THE FIVE CHALLENGES
+THE FIVE CORE CHALLENGES AND THREE EXTENSIONS
 
 
 CHALLENGE 1: STRAIGHT RUN
@@ -154,6 +155,10 @@ readings while stationary, and determines whether a named feature in the
 dimensioned map is blocked. It then constructs the corresponding occupancy
 grid, plans a route, and completes the delivery.
 
+The supplied mission exposes the range estimate, blocked/open classification,
+planned path, navigation-step count, and final result so students can inspect
+each decision during debugging.
+
 New student code
 
 SensorModel.estimate_range()
@@ -167,6 +172,8 @@ The range implementation and final integration must account for:
 
 - variation among repeated readings;
 - missing readings;
+- programming values other than numbers or None, which Robot reports as an
+  error rather than treating as missing sensor data;
 - the minimum number of usable samples;
 - the measured distinction between the relevant open and blocked conditions;
 - changing only the named map feature associated with the observation;
@@ -175,13 +182,64 @@ The range implementation and final integration must account for:
   challenges.
 
 
+CHALLENGE 6: RANGE-CONSTRAINED STOPPING
+
+Task
+
+The robot approaches a stationary wall while filtered ultrasound range and
+measured forward speed limit its requested speed. It stops without crossing a
+marked exclusion line and remains stopped when no usable range is available.
+
+New student code
+
+RangeSafetyController
+    Returns a nonnegative forward-speed request that preserves a configured
+    stopping margin under stated response-time and deceleration assumptions.
+
+
+CHALLENGE 7: WALL-RANGE POSE CORRECTION
+
+Task
+
+The stationary robot observes two known orthogonal walls, corrects the x and y
+translation of its odometry pose, and navigates to a destination using the
+corrected position. The odometry heading is retained.
+
+New student code
+
+PoseCorrector
+    Retains a map-frame translation inferred from known-wall range
+    observations and applies it to subsequent odometry poses.
+
+
+CHALLENGE 8: MULTI-STOP ROUTE PLANNING
+
+Task
+
+The robot starts at a depot, visits three required service stops exactly once,
+and returns to the depot. Pairwise route costs come from the mapped arena; the
+visit order is selected before motion.
+
+New student code
+
+VisitOrderPlanner
+    Returns the least-cost complete stop order, with deterministic tie-breaking,
+    or None when no complete order is reachable.
+
+
 PRACTICAL CONTINUITY
 
-The challenges do not require five independent physical setups. Straight Run
+The challenges do not require eight independent physical setups. Straight Run
 uses an open lane. Turn and Return and Waypoint Courier use the same open floor
 area with different marked coordinates. Mapped Route and Delivery Mission use
 the same supplied dimensioned map and shared arena; the delivery adds one
 observed map condition.
+
+Range-Constrained Stopping uses a straight ultrasound target and a marked stop
+margin. Wall-Range Pose Correction uses two measured orthogonal references.
+Multi-Stop Route Planning reuses the shared mapped arena with named service
+stops. These extension configurations require physical calibration before
+scored motion but run immediately as bounded virtual cases.
 
 The software develops in the same way. Each challenge keeps the student
 implementations from the preceding challenge and adds a small number of new
@@ -207,12 +265,15 @@ Mobile robotics
 - navigation through world-coordinate destinations;
 - forward range sensing;
 - dimensioned arena maps and sampled occupancy grids; and
-- grid-based path planning with and without obstacles.
+- grid-based path planning with and without obstacles;
+- stopping-distance envelopes and fail-stopped range behavior;
+- position correction from known geometric references; and
+- bounded multi-stop route ordering.
 
 
 THE CODE STUDENTS DEVELOP
 
-Six components have a reference implementation and a student implementation:
+Six recurring components have a reference implementation and a student implementation:
 
 - SensorModel;
 - WheelSpeedController;
@@ -220,6 +281,13 @@ Six components have a reference implementation and a student implementation:
 - Odometry;
 - NavigationController; and
 - GridPlanner.
+
+The extension challenges add three focused components with the same supplied
+versus project-file selection pattern:
+
+- RangeSafetyController;
+- PoseCorrector; and
+- VisitOrderPlanner.
 
 Both implementations have the same public methods. A student implementation
 inherits a supplied base class that fixes the method names, arguments, and
@@ -278,7 +346,8 @@ robot_config.py
     sample period, and reusable controller settings.
 
 sensor_model.py, wheel_speed_controller.py, differential_drive.py,
-odometry.py, navigation_controller.py, grid_planner.py
+odometry.py, navigation_controller.py, grid_planner.py,
+range_safety_controller.py, pose_corrector.py, visit_order_planner.py
     Each file contains the student implementation named by the file. A starter
     includes only the components introduced by that challenge.
 
@@ -299,7 +368,7 @@ WEEK 1: PYTHON OBJECTS AND THE XRP
 
 Tuesday
 
-- Demonstration of the five robot challenges.
+- Demonstration of the five core challenges and three extensions.
 - Mobile-robot tasks: motion, position, sensing, mapping, and planning.
 - Python review: values, functions, conditionals, loops, and lists.
 - Pose represented as a record with named fields.
@@ -501,6 +570,11 @@ Practical result
 
 The robot observes the relevant map condition, plans through the resulting
 occupancy grid, and completes the delivery.
+
+Challenges 6-8 are extension assignments after the core ten-week sequence or
+may replace selected integration exercises when additional course time is
+available. Their virtual cases are complete; physical scoring requires the
+stopping, wall-reference, and shared-arena calibrations named in each project.
 
 
 TECHNICAL THREAD

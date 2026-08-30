@@ -104,7 +104,7 @@ export function presentPythonDiagnostic(
   const missingComma = likelyMissingComma(diagnostic, lines);
   if (missingComma) {
     return {
-      title: "Python could not parse the next statement.",
+      title: "Syntax error near this line.",
       location: location(diagnostic),
       suggestion: `Likely fix: add a comma at the end of line ${missingComma.line}.`,
       sourceLine: missingComma.text,
@@ -143,7 +143,7 @@ export function presentPythonDiagnostic(
     /invalid syntax/i.test(diagnostic.message)
   ) {
     return {
-      title: "Python could not parse this statement.",
+      title: "Syntax error.",
       location: location(diagnostic),
       suggestion:
         "Check this line and the line immediately above for a missing comma, colon, bracket, or quote.",

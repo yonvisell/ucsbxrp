@@ -17,13 +17,13 @@
           "minimum_x_mm": 350,
           "minimum_y_mm": -350,
           "maximum_x_mm": 450,
-          "maximum_y_mm": -100,
+          "maximum_y_mm": -150,
           "label": "Lower wall"
         },
         {
           "type": "wall",
           "minimum_x_mm": 350,
-          "minimum_y_mm": 100,
+          "minimum_y_mm": 150,
           "maximum_x_mm": 450,
           "maximum_y_mm": 350,
           "label": "Upper wall"
@@ -32,9 +32,9 @@
           "type": "block",
           "feature": "center_gate",
           "minimum_x_mm": 350,
-          "minimum_y_mm": -100,
+          "minimum_y_mm": -150,
           "maximum_x_mm": 450,
-          "maximum_y_mm": 100,
+          "maximum_y_mm": 150,
           "label": "Center gate"
         }
       ],
@@ -73,13 +73,13 @@
           "minimum_x_mm": 350,
           "minimum_y_mm": -350,
           "maximum_x_mm": 450,
-          "maximum_y_mm": -100,
+          "maximum_y_mm": -150,
           "label": "Lower wall"
         },
         {
           "type": "wall",
           "minimum_x_mm": 350,
-          "minimum_y_mm": 100,
+          "minimum_y_mm": 150,
           "maximum_x_mm": 450,
           "maximum_y_mm": 350,
           "label": "Upper wall"

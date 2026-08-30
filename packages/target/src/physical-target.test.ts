@@ -488,6 +488,94 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("takes over an expired same-generation poll lease without reconnecting", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/info")) {
+        return response({
+          protocol: 1,
+          protocolRevision: CURRENT_PROTOCOL_REVISION,
+          serviceVersion: CURRENT_COURSE_RELEASE,
+          courseRelease: CURRENT_COURSE_RELEASE,
+          runtimeReleaseSequence: CURRENT_ROBOT_RELEASE_SEQUENCE,
+          courseApiRevision: CURRENT_COURSE_API_REVISION,
+          bootId: "boot-same-generation-owner",
+          robotName: "ucsb-xrp",
+          address: "192.168.7.30",
+          capabilities: [
+            "project.check",
+            "project.prepare",
+            "program.run",
+            "program.stop",
+            "target.reset",
+            "telemetry.poll",
+          ],
+        });
+      }
+      telemetryRequests += 1;
+      if (telemetryRequests === 1) {
+        return response({
+          pollOwnership: {
+            accepted: false,
+            ownerGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
+            leaseRemainingMs: 240,
+          },
+        });
+      }
+      return response({
+        bootId: "boot-same-generation-owner",
+        state: "ready",
+        detail: "XRP ready",
+        runId: 0,
+        logs: [],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollCoordinatorGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
+      pollOwnerId: "new-visible-worker",
+      pollDrivenByVisibleClient: true,
+      pollIntervalMs: 250,
+    });
+    const events: TargetEvent[] = [];
+    target.subscribe((event) => events.push(event));
+
+    try {
+      await target.connect();
+      target.requestPollIfDue();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+      expect(events.at(-1)).toEqual(
+        expect.objectContaining({
+          type: "status",
+          state: "connecting",
+          detail: expect.stringContaining("previous page"),
+        }),
+      );
+
+      await vi.advanceTimersByTimeAsync(239);
+      target.requestPollIfDue();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      target.requestPollIfDue();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(2);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          line: "XRP connection restored",
+        }),
+      );
+    } finally {
+      target.disconnect();
+      vi.useRealTimers();
+    }
+  });
+
   it("rejects a compatible service with the wrong robot identity before publishing it", async () => {
     const fetchMock = vi.fn(async () =>
       response({
@@ -1570,7 +1658,7 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.7.30");
     try {
       await target.connect();
-      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v16"]);
+      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v17"]);
       expect(frames).toHaveLength(1);
 
       runFrame();
@@ -1908,6 +1996,70 @@ describe("physical target", () => {
     } finally {
       target.disconnect();
       clock.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not let an orphaned shared worker renew the XRP poll lease", async () => {
+    vi.useFakeTimers();
+    let telemetryRequests = 0;
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url.includes("/api/v1/telemetry")) {
+        telemetryRequests += 1;
+        requestedUrls.push(url);
+        return response({
+          bootId: "boot-visible-driver",
+          state: "ready",
+          detail: "XRP ready",
+          runId: 0,
+          logs: [],
+        });
+      }
+      return response({
+        protocol: 1,
+        serviceVersion: CURRENT_COURSE_RELEASE,
+        courseRelease: CURRENT_COURSE_RELEASE,
+        bootId: "boot-visible-driver",
+        robotName: "xrp-test",
+        address: "192.168.7.30",
+        project: null,
+        capabilities: [
+          "project.check",
+          "project.prepare",
+          "program.run",
+          "program.stop",
+          "target.reset",
+          "telemetry.poll",
+        ],
+      });
+    });
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollCoordinatorGeneration: PHYSICAL_POLL_COORDINATOR_GENERATION,
+      pollDrivenByVisibleClient: true,
+      pollIntervalMs: 250,
+      pollOwnerId: "visible-page-worker",
+    });
+
+    try {
+      await target.connect();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(telemetryRequests).toBe(0);
+
+      target.requestPollIfDue();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(1);
+      expect(requestedUrls[0]).toContain("pollGeneration=17");
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(telemetryRequests).toBe(1);
+      target.requestPollIfDue();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(telemetryRequests).toBe(2);
+    } finally {
+      target.disconnect();
       vi.useRealTimers();
     }
   });

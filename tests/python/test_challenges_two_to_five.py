@@ -268,6 +268,15 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertEqual(state_snapshot()["leftEffort"], 0)
         self.assertIsNone(state_snapshot()["requestedForwardSpeedMmS"])
 
+    def test_robot_rejects_a_programming_type_error_in_range_samples(self):
+        robot, _bot = self.make_robot()
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "range sample 1 must be a number or None; received str",
+        ):
+            robot.estimate_range([180.0, "blah", None], 1)
+
     def test_managed_run_starts_without_waiting_for_user_button(self):
         robot, bot = self.make_robot()
 
@@ -401,11 +410,101 @@ class RobotAndMissionTests(unittest.TestCase):
         navigation = OneStepNavigation()
         mission = DeliveryMission(task, navigation, GridPlanner())
 
+        self.assertIsNone(mission.range_estimate_mm)
+        self.assertIsNone(mission.feature_blocked)
+        self.assertIsNone(mission.planned_path)
+        self.assertEqual(mission.navigation_step_count, 0)
+        self.assertIsNone(mission.maximum_navigation_steps)
+
         result = mission.run(robot)
 
         self.assertEqual(mission.result, "delivered")
+        self.assertEqual(mission.range_estimate_mm, 190)
+        self.assertFalse(mission.feature_blocked)
+        self.assertIsNotNone(mission.planned_path)
+        self.assertEqual(mission.navigation_step_count, 1)
         self.assertEqual(result.pose, Pose(250, 150, 0))
         self.assertGreaterEqual(len(navigation.goals), 1)
+        self.assertTrue(robot.stopped)
+
+    def test_delivery_mission_exposes_and_honors_only_explicit_step_limit(self):
+        arena = ArenaMap(
+            (0, 0, 300, 200),
+            features={"gate": (100, 0, 200, 100)},
+        )
+        task = DeliveryTask(
+            initial_pose=Pose(50, 150, 0),
+            arena=arena,
+            grid_resolution_mm=100,
+            clearance_mm=0,
+            destination=NavigationGoal(250, 150, 0),
+            observed_feature_name="gate",
+            range_sample_count=1,
+            minimum_usable_range_count=1,
+            blocked_range_threshold_mm=100,
+            assume_blocked_without_range=True,
+        )
+
+        class Robot:
+            def __init__(self):
+                self.state = RobotState(
+                    Measurements(0, 0, 0, 0, 0, 0, 0, 0, None, False),
+                    task.initial_pose,
+                )
+                self.stopped = False
+
+            def start(self, _pose):
+                return self.state
+
+            def step(self, _command, read_range=False):
+                self.state = RobotState(
+                    Measurements(
+                        self.state.measurements.time_ms + 20,
+                        0.02,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        200 if read_range else None,
+                        False,
+                    ),
+                    self.state.pose,
+                )
+                return self.state
+
+            def estimate_range(self, samples, _minimum):
+                return samples[0]
+
+            def stop(self):
+                self.stopped = True
+
+        class NeverCompleteNavigation:
+            def start(self, _goals):
+                pass
+
+            def update(self, _pose):
+                return STOP_COMMAND
+
+            def is_complete(self):
+                return False
+
+        robot = Robot()
+        mission = DeliveryMission(
+            task,
+            NeverCompleteNavigation(),
+            GridPlanner(),
+            maximum_navigation_steps=2,
+        )
+
+        result = mission.run(robot)
+
+        self.assertEqual(mission.maximum_navigation_steps, 2)
+        self.assertEqual(mission.navigation_step_count, 2)
+        self.assertEqual(mission.result, "step_limit")
+        self.assertIsNotNone(mission.planned_path)
+        self.assertEqual(result, robot.state)
         self.assertTrue(robot.stopped)
 
 

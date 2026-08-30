@@ -9,7 +9,8 @@ export interface CourseStarter {
   project: CourseProject;
 }
 
-export type CourseProjectKind = "challenge" | "demo" | "tutorial";
+export type CourseProjectKind =
+  "challenge" | "complete-challenge" | "demo" | "tutorial";
 
 export interface CourseComponentTemplate {
   name: string;

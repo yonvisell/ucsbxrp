@@ -148,7 +148,10 @@ export function GuideApp() {
                 <dd>
                   Choose a supplied challenge, tutorial, or demo and give the
                   new project a name. The IDE creates a new Project folder in
-                  the Working folder and opens it.
+                  the Working folder and opens it. To inspect a ready-to-run
+                  challenge, select <strong>complete challenges</strong> on Home
+                  first. The revealed demonstrations use the supplied reference
+                  classes; they do not change the student challenge projects.
                 </dd>
               </div>
               <div>

@@ -21,6 +21,7 @@ except ImportError:  # CPython tests
         return newer - older
 
 from .config import RobotConfig
+from ._validation import require_int
 from ._telemetry import publish_state
 from .records import DriveCommand, MotionCommand, Pose, RobotState
 from .live import apply_updates
@@ -176,6 +177,23 @@ class Robot:
             raise
 
     def estimate_range(self, samples, minimum_usable):
+        minimum_usable = require_int(
+            "minimum_usable", minimum_usable, minimum=1
+        )
+        try:
+            samples = tuple(samples)
+        except TypeError:
+            raise TypeError("samples must be an iterable of numbers or None")
+        for index, value in enumerate(samples):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, (int, float))
+            ):
+                raise TypeError(
+                    "range sample {} must be a number or None; received {}".format(
+                        index,
+                        type(value).__name__,
+                    )
+                )
         return self._sensor_model.estimate_range(samples, minimum_usable)
 
     def stop(self):

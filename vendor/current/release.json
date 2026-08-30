@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.08-dev.44",
-  "release_sequence": 44,
+  "release_id": "2026.08-dev.45",
+  "release_sequence": 45,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.4-draft",
@@ -12,7 +12,7 @@
     "bootstrap_version": 1
   },
   "compatibility": {
-    "minimum_robot_release_sequence": 44
+    "minimum_robot_release_sequence": 45
   },
   "controller": {
     "id": "sparkfun-xrp-controller-rp2350",
@@ -40,7 +40,7 @@
     "version": "0.4.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
     "source_file_count": 16,
-    "source_sha256": "7489275a453ce74ca459a43dbbed3fb77848cc50de55f34543cfc5cc34ab113a",
+    "source_sha256": "eaba6fcc96fc85f267bb0fd24c3026a4fe1c9129db3f3f75f6d00bb528f3ce71",
     "reference_compiler": {
       "repository": "micropython/micropython",
       "tag": "v1.28.0",
@@ -83,6 +83,27 @@
         "source_sha256": "db710b214816df7dc91861e8734043c4b3600bd6cfcac3a53ea645d0e9d7e4fd",
         "byte_size": 639,
         "sha256": "6498a5593c1f96741e37fb5acabdae0e6623e52da0d5495c2ff9843be3eb69eb"
+      },
+      {
+        "path": "reference_mpy/ucsb_xrp_reference/challenge_6.mpy",
+        "source": "reference_source/ucsb_xrp_reference/challenge_6.py",
+        "source_sha256": "5614b4c35438bfbf2f7a9fba2c0fbf0c3f4c0ac9759678b0750f0c178c4a915f",
+        "byte_size": 1312,
+        "sha256": "c9bce5be31111958806c4ac894d9a385897ec35a3e2c9f90563d30947eebe5a8"
+      },
+      {
+        "path": "reference_mpy/ucsb_xrp_reference/challenge_7.mpy",
+        "source": "reference_source/ucsb_xrp_reference/challenge_7.py",
+        "source_sha256": "42cf01e9fd96d674d25470b5feaa3133dfdfbe029bed2855d9ff6bd76e7693ee",
+        "byte_size": 1550,
+        "sha256": "54bf411922b625288c8b44d2a2d8cb499d6d10296bd88f8461db27b1f05ba3a7"
+      },
+      {
+        "path": "reference_mpy/ucsb_xrp_reference/challenge_8.mpy",
+        "source": "reference_source/ucsb_xrp_reference/challenge_8.py",
+        "source_sha256": "36cfbbed68369da63bc54bacb44712187a01c85e62e29ddb9a9ff0843e95fc23",
+        "byte_size": 1422,
+        "sha256": "ca1262f2e88c3dc7aff1c797341e2d2687514adedd195cb4f2d25f2a3e994a34"
       }
     ]
   }

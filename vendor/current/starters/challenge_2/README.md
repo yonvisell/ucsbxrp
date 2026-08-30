@@ -9,8 +9,9 @@ from wheel travel with the robot's measured position and heading.
 [`world.json`](world.json) defines the initial pose and turn marker.
 [`challenge.py`](challenge.py) derives `INITIAL_POSE`,
 `OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and
-`FINAL_HEADING_RAD`. Use these names; do not repeat the current distances or
-headings elsewhere.
+`FINAL_HEADING_RAD`. It also names `MAX_STRAIGHT_TIME_S` and `MAX_TURN_TIME_S`,
+which stop a phase that makes no progress. Use these names; do not repeat the
+current distances or headings elsewhere.
 
 ## Continue from Challenge 1
 
@@ -69,8 +70,9 @@ encoder readings -> SensorModel       -> wheel increments
 wheel increments -> Odometry          -> estimated Pose
 ```
 
-`main.py` uses that pose to end each turn and starts the next phase. Its
-`finally` block stops both motors on completion or error.
+`main.py` names each phase in Program output and uses the estimated pose to end
+each turn. A phase that exceeds its visible time limit reports which motion did
+not complete. Its `finally` block stops both motors on completion or error.
 
 ## Check each component
 
@@ -96,7 +98,8 @@ or failing result, repeat **Test components**, and then set the matching
 3. Select the `Odometry` defined in `odometry.py`; compare its pose with
    virtual ground truth. The program uses odometry, not ground truth.
 4. Run the classes from all four component project files together and inspect
-   final pose, wheel increments, and requested turn rate.
+   final pose, wheel increments, requested turn rate, and the reported return
+   position and heading errors.
 5. On the physical course, record the estimated final pose and wheel travel,
    then measure final position and heading independently.
 

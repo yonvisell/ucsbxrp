@@ -460,9 +460,14 @@ test("selects plotted signals from the Monitor controls", async ({
       ],
     };
   });
-  expect(Math.abs(brandStyle.gap)).toBeLessThanOrEqual(0.5);
-  expect(brandStyle.markColor).toBe("rgb(0, 88, 138)");
-  expect(brandStyle.nameColor).toBe("rgb(118, 84, 94)");
+  expect(brandStyle.gap).toBeGreaterThanOrEqual(1.5);
+  expect(brandStyle.gap).toBeLessThanOrEqual(2.5);
+  expect(brandStyle.markColor).toBe("rgb(0, 54, 96)");
+  expect(brandStyle.nameColor).toBe("rgb(118, 80, 0)");
+  await expect(page.locator(".app-header").first()).toHaveCSS(
+    "background-color",
+    "rgb(237, 234, 223)",
+  );
   expect(brandStyle.typography.slice(0, 3)).toEqual(
     brandStyle.typography.slice(3),
   );

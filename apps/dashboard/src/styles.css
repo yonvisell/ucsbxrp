@@ -579,7 +579,7 @@
 .section-heading h2 {
   margin: 0;
   color: var(--ink);
-  font-size: var(--font-sm);
+  font-size: var(--font-ui);
   font-weight: 650;
 }
 
@@ -623,8 +623,8 @@
   padding: 0 2px;
   background: rgb(255 255 255 / 78%);
   color: #000000;
-  font-size: 8px;
-  line-height: 10px;
+  font-size: 10px;
+  line-height: 12px;
   white-space: nowrap;
 }
 
@@ -643,8 +643,8 @@
   justify-content: flex-end;
   gap: 7px;
   color: #000000;
-  font-size: 9px;
-  line-height: 12px;
+  font-size: 10px;
+  line-height: 13px;
   white-space: nowrap;
 }
 
@@ -699,7 +699,7 @@
 
 .world-view {
   display: grid;
-  grid-template-rows: 20px minmax(0, 1fr);
+  grid-template-rows: 22px minmax(0, 1fr);
   background: #f7f8f8;
 }
 
@@ -723,31 +723,31 @@
   padding: 1px 5px;
   background: var(--panel);
   color: var(--ink);
-  font-size: var(--font-xs);
+  font-size: var(--font-ui);
   font-variant-numeric: tabular-nums;
 }
 
 .world-section-label {
   color: var(--ink);
-  font-size: var(--font-xs);
+  font-size: var(--font-ui);
   font-weight: 700;
 }
 
 .world-toolbar select {
   max-width: 126px;
-  height: 17px;
+  height: 19px;
   border: 1px solid var(--line-bright);
   border-radius: 2px;
   padding: 0 18px 0 4px;
   background: #eef0f2;
   color: var(--ink);
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
 }
 
 .world-toolbar > span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -766,18 +766,18 @@
 }
 
 .world-view-controls button {
-  min-height: 17px;
-  height: 17px;
+  min-height: 19px;
+  height: 19px;
   min-width: 20px;
   padding: 0 4px;
   background: #eef0f2;
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
 }
 
 .world-legend {
   position: absolute;
   z-index: 3;
-  bottom: 3px;
+  bottom: var(--world-legend-bottom, 3px);
   left: 3px;
   display: flex;
   align-items: center;
@@ -785,7 +785,7 @@
   padding: 1px 3px;
   background: rgb(247 248 248 / 86%);
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-sm);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -882,7 +882,7 @@
 .live-values dt {
   overflow: hidden;
   color: var(--muted);
-  font-size: var(--font-xs);
+  font-size: var(--font-ui);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -890,7 +890,7 @@
 .live-values dd {
   margin: 0;
   color: var(--ink);
-  font-size: var(--font-xs);
+  font-size: var(--font-ui);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;

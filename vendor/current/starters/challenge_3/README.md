@@ -7,8 +7,9 @@ requested by the final marker. Navigation receives the newest odometry `Pose`
 at each sample and returns one requested forward speed and turn rate.
 
 [`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)
-loads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than
-copying the current coordinates, order, or headings into another file.
+loads `INITIAL_POSE` and the ordered `ROUTE`, and defines the visible
+`MAXIMUM_NAVIGATION_STEPS` mission limit. Use these names rather than copying
+the current coordinates, order, or headings into another file.
 
 ## Continue from Challenge 2
 
@@ -56,8 +57,9 @@ files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
-- [`main.py`](main.py) starts the route, passes each new pose to navigation, and
-  stops the robot on completion or error.
+- [`main.py`](main.py) starts the route, passes each new pose to navigation,
+  reports each ordered waypoint arrival, rejects a premature completion flag,
+  applies the stated step limit, and stops the robot on completion or error.
 - [`component_checks.py`](component_checks.py) calls the required
   `NavigationController` methods and the methods of the four carried-forward
   classes without starting a robot.
@@ -94,7 +96,8 @@ set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.
    approach, the reduced approach speed, and the final heading adjustment.
 2. Select the `NavigationController` defined in
    `navigation_controller.py`. Verify waypoint order and zero requested motion
-   after completion.
+   after completion. A completion flag without every `waypoint_reached` event
+   is rejected.
 3. Select the classes from all five component project files. Compare odometry
    with virtual ground truth to separate pose-estimation error from navigation
    behavior.

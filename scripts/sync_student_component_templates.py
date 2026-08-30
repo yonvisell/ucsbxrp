@@ -15,6 +15,9 @@ INTRODUCED_BY_CHALLENGE = {
     "odometry.py": 2,
     "navigation_controller.py": 3,
     "grid_planner.py": 4,
+    "range_safety_controller.py": 6,
+    "pose_corrector.py": 7,
+    "visit_order_planner.py": 8,
 }
 
 
@@ -22,7 +25,7 @@ def synchronize():
     """Replace every starter stub with its canonical documented template."""
     for filename, first_challenge in INTRODUCED_BY_CHALLENGE.items():
         source = TEMPLATES / filename
-        for challenge_number in range(first_challenge, 6):
+        for challenge_number in range(first_challenge, 9):
             destination = STARTERS / ("challenge_{}".format(challenge_number)) / filename
             shutil.copyfile(source, destination)
 

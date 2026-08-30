@@ -11,11 +11,15 @@ The current task is defined in two files:
 - [`world.json`](world.json) defines the arena, obstacles, initial pose, and
   destination.
 - [`challenge.py`](challenge.py) loads `ARENA_MAP`, `INITIAL_POSE`, and
-  `DESTINATION`, and defines `GRID_RESOLUTION_MM` and `CLEARANCE_MM`.
+  `DESTINATION`, and defines `GRID_RESOLUTION_MM`, `CLEARANCE_MM`, and the
+  visible `MAXIMUM_NAVIGATION_STEPS` mission limit.
 
 Use these names. Do not copy the current geometry or grid values into your
 planner. `CLEARANCE_MM` is the required distance from a candidate cell center
-to blocked geometry or the arena boundary; it is not the grid spacing.
+to blocked geometry or the arena boundary; it is not the grid spacing. The
+virtual value includes the 85 mm XRP collision radius and a 10 mm planning
+margin. For a physical course, confirm the robot footprint and tracking margin
+before motion rather than treating the virtual value as a calibration.
 
 ## Project worlds
 
@@ -67,8 +71,10 @@ files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
-- [`main.py`](main.py) constructs the grid, requests a path, converts a
-  successful path to navigation goals, and only then constructs the robot.
+- [`main.py`](main.py) constructs the grid, requests and validates a path,
+  converts a successful path to navigation goals, and only then constructs the
+  robot. It reports each route-goal arrival, rejects premature completion, and
+  stops when the stated navigation-step limit is reached.
 - [`component_checks.py`](component_checks.py) checks direct, detour, one-cell,
   invalid-endpoint, and disconnected cases without starting a robot.
 - `OccupancyGrid` supplies coordinate conversion, blocked-cell tests, and the
@@ -105,6 +111,7 @@ set `USE_STUDENT_GRID_PLANNER` to `True` in `course_setup.py`.
    layout, reported result, driven route, and final pose.
 2. Select the `GridPlanner` defined in `grid_planner.py`. For every returned
    path, verify free cells, side-sharing steps, and the requested endpoints.
+   The program performs the same check before it permits motion.
 3. Confirm separately that an unavailable endpoint and a disconnected map
    return `None` without motion.
 4. Repeat the valid route with the classes from all five carried-forward

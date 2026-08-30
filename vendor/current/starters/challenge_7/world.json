@@ -1,0 +1,106 @@
+{
+  "default_world": "localization-station",
+  "worlds": [
+    {
+      "id": "localization-station",
+      "label": "Localization station",
+      "bounds": {
+        "minimum_x_mm": -600,
+        "minimum_y_mm": -600,
+        "maximum_x_mm": 1200,
+        "maximum_y_mm": 900
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": 900,
+          "minimum_y_mm": -400,
+          "maximum_x_mm": 950,
+          "maximum_y_mm": 720,
+          "label": "Known x wall"
+        },
+        {
+          "type": "wall",
+          "minimum_x_mm": -400,
+          "minimum_y_mm": 700,
+          "maximum_x_mm": 900,
+          "maximum_y_mm": 750,
+          "label": "Known y wall"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -90,
+          "minimum_y_mm": -90,
+          "maximum_x_mm": 90,
+          "maximum_y_mm": 90,
+          "label": "Localization station"
+        },
+        {
+          "type": "marker",
+          "name": "scan_x",
+          "x_mm": 0,
+          "y_mm": 0,
+          "label": "x scan"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 500,
+          "y_mm": 350,
+          "heading_rad": 0,
+          "label": "Destination"
+        },
+        {
+          "type": "finish_box",
+          "minimum_x_mm": 440,
+          "minimum_y_mm": 290,
+          "maximum_x_mm": 560,
+          "maximum_y_mm": 410,
+          "label": "Finish"
+        }
+      ]
+    },
+    {
+      "id": "missing-y-reference",
+      "label": "Missing y reference",
+      "bounds": {
+        "minimum_x_mm": -600,
+        "minimum_y_mm": -600,
+        "maximum_x_mm": 1200,
+        "maximum_y_mm": 3000
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": 900,
+          "minimum_y_mm": -400,
+          "maximum_x_mm": 950,
+          "maximum_y_mm": 720,
+          "label": "Known x wall"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -90,
+          "minimum_y_mm": -90,
+          "maximum_x_mm": 90,
+          "maximum_y_mm": 90,
+          "label": "Localization station"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 500,
+          "y_mm": 350,
+          "heading_rad": 0,
+          "label": "Destination"
+        }
+      ]
+    }
+  ]
+}

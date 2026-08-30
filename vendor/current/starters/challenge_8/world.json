@@ -1,0 +1,117 @@
+{
+  "default_world": "all-stops-reachable",
+  "worlds": [
+    {
+      "id": "all-stops-reachable",
+      "label": "All stops reachable",
+      "bounds": {
+        "minimum_x_mm": -800,
+        "minimum_y_mm": -600,
+        "maximum_x_mm": 800,
+        "maximum_y_mm": 600
+      },
+      "initial_pose": { "x_mm": -550, "y_mm": -350, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "block",
+          "minimum_x_mm": -150,
+          "minimum_y_mm": -150,
+          "maximum_x_mm": 150,
+          "maximum_y_mm": 150,
+          "label": "Center storage block"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -620,
+          "minimum_y_mm": -420,
+          "maximum_x_mm": -480,
+          "maximum_y_mm": -280,
+          "label": "Depot"
+        },
+        {
+          "type": "finish_box",
+          "minimum_x_mm": -620,
+          "minimum_y_mm": -420,
+          "maximum_x_mm": -480,
+          "maximum_y_mm": -280,
+          "label": "Return to depot"
+        },
+        {
+          "type": "waypoint",
+          "name": "stop_a",
+          "x_mm": -550,
+          "y_mm": 350,
+          "label": "Stop A"
+        },
+        {
+          "type": "waypoint",
+          "name": "stop_b",
+          "x_mm": 150,
+          "y_mm": 350,
+          "label": "Stop B"
+        },
+        {
+          "type": "waypoint",
+          "name": "stop_c",
+          "x_mm": 550,
+          "y_mm": -350,
+          "label": "Stop C"
+        }
+      ]
+    },
+    {
+      "id": "stop-c-disconnected",
+      "label": "Stop C disconnected",
+      "bounds": {
+        "minimum_x_mm": -800,
+        "minimum_y_mm": -600,
+        "maximum_x_mm": 800,
+        "maximum_y_mm": 600
+      },
+      "initial_pose": { "x_mm": -550, "y_mm": -350, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": 350,
+          "minimum_y_mm": -600,
+          "maximum_x_mm": 450,
+          "maximum_y_mm": 600,
+          "label": "Dividing wall"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -620,
+          "minimum_y_mm": -420,
+          "maximum_x_mm": -480,
+          "maximum_y_mm": -280,
+          "label": "Depot"
+        },
+        {
+          "type": "waypoint",
+          "name": "stop_a",
+          "x_mm": -550,
+          "y_mm": 350,
+          "label": "Stop A"
+        },
+        {
+          "type": "waypoint",
+          "name": "stop_b",
+          "x_mm": 150,
+          "y_mm": 350,
+          "label": "Stop B"
+        },
+        {
+          "type": "waypoint",
+          "name": "stop_c",
+          "x_mm": 550,
+          "y_mm": -350,
+          "label": "Stop C"
+        }
+      ]
+    }
+  ]
+}

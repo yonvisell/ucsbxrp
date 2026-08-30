@@ -1,7 +1,7 @@
 # Wheeled Robotics with the XRP: Course and Library Summary
 
-This ten-week laboratory course introduces mobile robotics through five
-progressive challenges completed in pairs on the XRP robot. Students begin with
+This ten-week laboratory course introduces mobile robotics through five core
+challenges and three extension challenges completed in pairs on the XRP robot. Students begin with
 motor and encoder measurements, then add feedback control, differential-drive
 kinematics, odometry, waypoint navigation, range sensing, occupancy grids, and
 grid-based path planning. The same compact MicroPython project grows across the
@@ -38,6 +38,18 @@ course; each challenge retains the components developed in earlier challenges.
    `SensorModel.estimate_range()` and integrate their sensing, planning, and
    navigation work. The mission sequence itself is supplied as
    `DeliveryMission`.
+6. **Range-Constrained Stopping** — Use filtered ultrasound range and measured
+   forward speed to limit a requested speed and preserve a specified stopping
+   margin. Students implement `RangeSafetyController` and verify fail-stopped
+   behavior when no usable range estimate is available.
+7. **Wall-Range Pose Correction** — Observe two known, orthogonal walls while
+   stationary, correct the translational part of an odometry pose, and navigate
+   with the corrected position. Students implement `PoseCorrector`; heading
+   remains the odometry heading.
+8. **Multi-Stop Route Planning** — Build pairwise route costs from the mapped
+   arena, choose the least-cost order for three required stops, execute the
+   combined route, and return to the depot. Students implement the bounded
+   `VisitOrderPlanner` with deterministic tie-breaking.
 
 The physical work uses three continuing environments: an open lane for
 Straight Run, one marked open floor area for Turn and Return and Waypoint
@@ -45,8 +57,8 @@ Courier, and one shared mapped arena for Mapped Route and Delivery Mission.
 
 ## Classes and methods students implement
 
-Each of these classes has a supplied version and a version in its named project
-file:
+Each recurring core class has a supplied version and a version in its named
+project file:
 
 - `SensorModel`
 - `WheelSpeedController`
@@ -54,6 +66,10 @@ file:
 - `Odometry`
 - `NavigationController`
 - `GridPlanner`
+
+The extension projects add `RangeSafetyController`, `PoseCorrector`, and
+`VisitOrderPlanner` in their corresponding named files. Later projects carry
+them forward in the same way.
 
 The class in each component project file has the same public methods and return
 types as its supplied counterpart. Project templates inherit the corresponding
@@ -65,7 +81,8 @@ only the flags for classes introduced so far.
 
 Each class you implement has a literal file: `sensor_model.py`,
 `wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
-`navigation_controller.py`, or `grid_planner.py`. A challenge project includes
+`navigation_controller.py`, `grid_planner.py`, `range_safety_controller.py`,
+`pose_corrector.py`, or `visit_order_planner.py`. A challenge project includes
 only the components introduced so far. Robot-specific measurements and
 reusable controller settings belong in `robot_config.py`; challenge values
 belong in `challenge.py`; `main.py` constructs the selected objects and runs
@@ -134,8 +151,10 @@ ArenaMap
 ```
 
 The supplied `DeliveryMission` adds stationary range observation and selection
-of one named map feature before planning and navigation. It reports
-`"delivered"` or `"no_path"`.
+of one named map feature before planning and navigation. Its readable range
+estimate, blocked/open decision, planned path, navigation-step count, and
+result (`"delivered"`, `"no_path"`, or `"step_limit"`) make the supplied
+orchestration inspectable without constraining a student component invisibly.
 
 ## Public records and conventions
 

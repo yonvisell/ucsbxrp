@@ -17,11 +17,12 @@ sys.path.insert(0, str(REFERENCE_SOURCE_ROOT))
 
 
 class FakeMotor:
-    def __init__(self, read_error=None):
+    def __init__(self, read_error=None, moves=True):
         self.count = 0
         self.efforts = []
         self.reset_count = 0
         self.read_error = read_error
+        self.moves = moves
 
     def set_effort(self, effort):
         self.efforts.append(effort)
@@ -29,7 +30,7 @@ class FakeMotor:
     def get_position_counts(self):
         if self.read_error is not None:
             raise self.read_error
-        if self.efforts:
+        if self.efforts and self.moves:
             self.count += int(self.efforts[-1] * 20)
         return self.count
 
@@ -55,9 +56,9 @@ class FakeRangefinder:
 
 
 class ChallengeOneStarterTests(unittest.TestCase):
-    def make_fake_xrplib(self, read_error=None):
-        left_motor = FakeMotor(read_error=read_error)
-        right_motor = FakeMotor()
+    def make_fake_xrplib(self, read_error=None, stalled=False):
+        left_motor = FakeMotor(read_error=read_error, moves=not stalled)
+        right_motor = FakeMotor(moves=not stalled)
         board = FakeBoard()
         rangefinder = FakeRangefinder()
 
@@ -169,6 +170,10 @@ class ChallengeOneStarterTests(unittest.TestCase):
         self.assertEqual(board.wait_count, 1)
         self.assertIn("Challenge 1 complete", output)
         self.assertIn("target_distance_mm: 1000.0", output)
+        self.assertIn("estimated_final_pose:", output)
+        self.assertIn("estimated_lateral_error_mm:", output)
+        self.assertIn("estimated_heading_error_rad:", output)
+        self.assertIn("timed_result:", output)
 
     def test_sensor_read_failure_still_ends_with_zero_effort(self):
         modules, left_motor, right_motor, _ = self.make_fake_xrplib(
@@ -182,6 +187,20 @@ class ChallengeOneStarterTests(unittest.TestCase):
         self.assertEqual(right_motor.efforts[-1], 0.0)
         self.assertEqual(set(left_motor.efforts), {0.0})
         self.assertEqual(set(right_motor.efforts), {0.0})
+
+    def test_stalled_run_reaches_visible_limit_and_stops(self):
+        modules, left_motor, right_motor, _ = self.make_fake_xrplib(stalled=True)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "measured travel did not reach the finish within 20.0 s",
+        ):
+            self.run_starter(modules)
+
+        self.assertTrue(any(effort > 0 for effort in left_motor.efforts))
+        self.assertTrue(any(effort > 0 for effort in right_motor.efforts))
+        self.assertEqual(left_motor.efforts[-1], 0.0)
+        self.assertEqual(right_motor.efforts[-1], 0.0)
 
 
 if __name__ == "__main__":

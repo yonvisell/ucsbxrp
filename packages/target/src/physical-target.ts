@@ -40,7 +40,7 @@ export const CURRENT_SERVICE_VERSION = courseRelease.service.version;
  * Device-side poll ownership generation. Change this only when a newly
  * deployed SharedWorker must supersede workers retained from an older shell.
  */
-export const PHYSICAL_POLL_COORDINATOR_GENERATION = 16;
+export const PHYSICAL_POLL_COORDINATOR_GENERATION = 17;
 
 interface PhysicalProjectManifest {
   name: string;
@@ -154,12 +154,18 @@ export interface PhysicalTargetOptions {
   pollCoordinatorGeneration?: number;
   /** One worker/page identity within a poll-coordinator generation. */
   pollOwnerId?: string;
+  /** Let visible documents drive polling instead of a worker-owned timer. */
+  pollDrivenByVisibleClient?: boolean;
 }
 
 export class PhysicalTargetError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly context: {
+      readonly ownerGeneration?: number | null;
+      readonly leaseRemainingMs?: number;
+    } = {},
   ) {
     super(message);
     this.name = "PhysicalTargetError";
@@ -720,6 +726,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
   private readonly expectedRobotId?: string;
   private readonly pollCoordinatorGeneration?: number;
   private readonly pollOwnerId?: string;
+  private readonly pollDrivenByVisibleClient: boolean;
   private readonly listeners = new Set<(event: TargetEvent) => void>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollDueAtMs: number | null = null;
@@ -762,6 +769,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
       ACTIVE_TELEMETRY_POLL_MS;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.connectTimeoutMs = options.discoveryTimeoutMs ?? this.requestTimeoutMs;
+    this.pollDrivenByVisibleClient = options.pollDrivenByVisibleClient === true;
     this.expectedRobotId = normalizedRobotId(options.expectedRobotId);
     const pollGeneration = options.pollCoordinatorGeneration;
     if (
@@ -1662,6 +1670,9 @@ export class DirectPhysicalTargetClient implements TargetClient {
     }
     const boundedDelay = Math.max(0, delay);
     this.pollDueAtMs = monotonicTimeMs() + boundedDelay;
+    if (this.pollDrivenByVisibleClient) {
+      return;
+    }
     const timer = setTimeout(() => {
       // A visible-frame nudge can clear a timeout whose task is already
       // queued. Ignore that stale task if a completed poll has since installed
@@ -1801,6 +1812,27 @@ export class DirectPhysicalTargetClient implements TargetClient {
           error instanceof PhysicalTargetError &&
           error.code === "telemetry_owner_active"
         ) {
+          if (
+            error.context.ownerGeneration === this.pollCoordinatorGeneration &&
+            typeof error.context.leaseRemainingMs === "number"
+          ) {
+            const retryAfterMs = Math.max(0, error.context.leaseRemainingMs);
+            this.pollConnectionFailed = true;
+            this.emitConsole(
+              "system",
+              `A previous UCSBXRP page still owns telemetry; retrying automatically in at most ${retryAfterMs} ms`,
+              {
+                action: "telemetry",
+                phase: "error",
+              },
+            );
+            this.emitStatus(
+              "connecting",
+              "Waiting briefly for the previous page to release XRP telemetry…",
+            );
+            this.schedulePoll(retryAfterMs);
+            return;
+          }
           this.pollConnectionFailed = true;
           this.consecutivePollFailures = POLL_FAILURES_BEFORE_ERROR;
           this.emitConsole("system", `Telemetry paused · ${error.message}`, {
@@ -1885,6 +1917,10 @@ export class DirectPhysicalTargetClient implements TargetClient {
       throw new PhysicalTargetError(
         "telemetry_owner_active",
         `Another UCSBXRP page is coordinating this robot${owner === null ? "" : ` (poll generation ${owner})`}. Close or reload older UCSBXRP pages, then select Reconnect${typeof lease === "number" ? `; takeover is available in at most ${lease} ms` : ""}.`,
+        {
+          ownerGeneration: owner,
+          ...(typeof lease === "number" ? { leaseRemainingMs: lease } : {}),
+        },
       );
     }
     let state = value as PhysicalState;
@@ -2495,7 +2531,10 @@ export class PhysicalTargetClient implements TargetClient {
           new URL("./physical-target.shared-worker.ts", import.meta.url),
           // Change the name when connection discovery semantics change so an
           // already-open course app cannot retain an older worker indefinitely.
-          { type: "module", name: "ucsb-xrp-physical-target-v16" },
+          {
+            type: "module",
+            name: `ucsb-xrp-physical-target-v${PHYSICAL_POLL_COORDINATOR_GENERATION}`,
+          },
         );
         this.worker.port.onmessage = (
           event: MessageEvent<PhysicalWorkerMessage>,

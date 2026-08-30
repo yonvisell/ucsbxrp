@@ -1,0 +1,36 @@
+{
+  "default_world": "roomba-room",
+  "worlds": [
+    {
+      "id": "roomba-room",
+      "label": "Roomba room",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": { "x_mm": -850, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": -100,
+          "minimum_y_mm": -609.6,
+          "maximum_x_mm": -50,
+          "maximum_y_mm": 609.6,
+          "label": "Divider"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -910,
+          "minimum_y_mm": -60,
+          "maximum_x_mm": -790,
+          "maximum_y_mm": 60,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

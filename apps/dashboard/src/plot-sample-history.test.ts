@@ -5,7 +5,6 @@ import type { TelemetrySample } from "@ucsb-xrp/target";
 import {
   appendTelemetryRateSample,
   MonitorVisualHistory,
-  PHYSICAL_VISUAL_INTERVAL_MS,
   type MonitorVisualSnapshot,
   recentTelemetryRateHz,
 } from "./plot-sample-history";
@@ -93,7 +92,7 @@ describe("PlotSampleHistory", () => {
     expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1, 2, 3]);
   });
 
-  it("presents a physical response burst as real samples at about 10 Hz", () => {
+  it("publishes the newest physical state on each display frame without replay latency", () => {
     const { flush, frames, history, published } = harness(20);
     for (let seq = 1; seq <= 11; seq += 1) {
       history.append(sample(seq, "physical"), true);
@@ -101,24 +100,37 @@ describe("PlotSampleHistory", () => {
 
     expect(frames.size).toBe(1);
     flush(0);
-    expect(published.at(-1)?.sample?.seq).toBe(1);
-    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([1]);
-
-    flush(PHYSICAL_VISUAL_INTERVAL_MS / 2);
-    expect(published).toHaveLength(1);
-
-    flush(PHYSICAL_VISUAL_INTERVAL_MS);
-    expect(published.at(-1)?.sample?.seq).toBe(6);
-    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([
-      1, 2, 3, 4, 5, 6,
-    ]);
-
-    flush(PHYSICAL_VISUAL_INTERVAL_MS * 2);
     expect(published.at(-1)?.sample?.seq).toBe(11);
     expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
     ]);
     expect(frames.size).toBe(0);
+
+    for (let seq = 12; seq <= 16; seq += 1) {
+      history.append(sample(seq, "physical"), true);
+    }
+
+    flush(16);
+    expect(published.at(-1)?.sample?.seq).toBe(16);
+    expect(published.at(-1)?.samples.map(({ seq }) => seq)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+    ]);
+    expect(published).toHaveLength(2);
+    expect(frames.size).toBe(0);
+  });
+
+  it("coalesces a wrapped physical burst into the newest state and bounded history", () => {
+    const { flush, history, published } = harness(4);
+    for (let seq = 1; seq <= 12; seq += 1) {
+      history.append(sample(seq, "physical"), true);
+    }
+
+    flush(16);
+    expect(published).toHaveLength(1);
+    expect(published[0]?.sample?.seq).toBe(12);
+    expect(published[0]?.samples.map(({ seq }) => seq)).toEqual([
+      9, 10, 11, 12,
+    ]);
   });
 
   it("preserves chronological order after the fixed buffer wraps", () => {

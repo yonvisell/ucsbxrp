@@ -510,7 +510,7 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
 
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    "compiled with MicroPython",
+    "compiled successfully",
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText("Challenge 1 complete", {

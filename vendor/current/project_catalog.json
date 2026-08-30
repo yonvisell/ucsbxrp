@@ -202,6 +202,269 @@
     "published": true
   },
   {
+    "id": "challenge_6",
+    "kind": "challenge",
+    "source": "starters/challenge_6",
+    "label": "Challenge 6 · Range-Constrained Stopping",
+    "short_label": "6 · Range-Constrained Stopping",
+    "summary": "Use measured speed and ultrasound range to stop with a defined clearance margin.",
+    "entrypoint": "main.py",
+    "predecessor_id": "challenge_5",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": true
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": true
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER",
+        "carry_forward": true
+      },
+      {
+        "name": "RangeSafetyController",
+        "file": "range_safety_controller.py",
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER",
+        "carry_forward": false
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_7",
+    "kind": "challenge",
+    "source": "starters/challenge_7",
+    "label": "Challenge 7 · Wall-Range Pose Correction",
+    "short_label": "7 · Wall-Range Pose Correction",
+    "summary": "Correct odometry position from stationary observations of two known walls.",
+    "entrypoint": "main.py",
+    "predecessor_id": "challenge_6",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": true
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": true
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER",
+        "carry_forward": true
+      },
+      {
+        "name": "RangeSafetyController",
+        "file": "range_safety_controller.py",
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "PoseCorrector",
+        "file": "pose_corrector.py",
+        "selection_flag": "USE_STUDENT_POSE_CORRECTOR",
+        "carry_forward": false
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_8",
+    "kind": "challenge",
+    "source": "starters/challenge_8",
+    "label": "Challenge 8 · Multi-Stop Route Planning",
+    "short_label": "8 · Multi-Stop Route Planning",
+    "summary": "Choose and execute the least-cost order for three required service stops.",
+    "entrypoint": "main.py",
+    "predecessor_id": "challenge_7",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
+        "carry_forward": true
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
+        "carry_forward": true
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY",
+        "carry_forward": true
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER",
+        "carry_forward": true
+      },
+      {
+        "name": "RangeSafetyController",
+        "file": "range_safety_controller.py",
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER",
+        "carry_forward": true
+      },
+      {
+        "name": "PoseCorrector",
+        "file": "pose_corrector.py",
+        "selection_flag": "USE_STUDENT_POSE_CORRECTOR",
+        "carry_forward": true
+      },
+      {
+        "name": "VisitOrderPlanner",
+        "file": "visit_order_planner.py",
+        "selection_flag": "USE_STUDENT_VISIT_ORDER_PLANNER",
+        "carry_forward": false
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "complete_challenge_1",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_1",
+    "label": "Complete Challenge 1 · Straight Run",
+    "short_label": "Complete 1 · Straight Run",
+    "summary": "Run Challenge 1 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_2",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_2",
+    "label": "Complete Challenge 2 · Turn and Return",
+    "short_label": "Complete 2 · Turn and Return",
+    "summary": "Run Challenge 2 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_3",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_3",
+    "label": "Complete Challenge 3 · Waypoint Courier",
+    "short_label": "Complete 3 · Waypoint Courier",
+    "summary": "Run Challenge 3 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_4",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_4",
+    "label": "Complete Challenge 4 · Mapped Route",
+    "short_label": "Complete 4 · Mapped Route",
+    "summary": "Run Challenge 4 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_5",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_5",
+    "label": "Complete Challenge 5 · Delivery Mission",
+    "short_label": "Complete 5 · Delivery Mission",
+    "summary": "Run Challenge 5 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_6",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_6",
+    "label": "Complete Challenge 6 · Range-Constrained Stopping",
+    "short_label": "Complete 6 · Range-Constrained Stopping",
+    "summary": "Run Challenge 6 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_7",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_7",
+    "label": "Complete Challenge 7 · Wall-Range Pose Correction",
+    "short_label": "Complete 7 · Wall-Range Pose Correction",
+    "summary": "Run Challenge 7 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "complete_challenge_8",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_8",
+    "label": "Complete Challenge 8 · Multi-Stop Route Planning",
+    "short_label": "Complete 8 · Multi-Stop Route Planning",
+    "summary": "Run Challenge 8 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
     "id": "demo_obstacle_turn",
     "kind": "demo",
     "source": "templates/demo_obstacle_turn",
@@ -218,6 +481,36 @@
     "label": "Demo · Expanding Spiral",
     "short_label": "Expanding spiral",
     "summary": "Drive an expanding spiral and stop when the forward range sensor detects a nearby obstacle.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_random_snake",
+    "kind": "demo",
+    "source": "templates/demo_random_snake",
+    "label": "Demo · Random Snake",
+    "short_label": "Random snake",
+    "summary": "Drive random-length straight segments separated by reproducible 90-degree left or right turns.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_roomba",
+    "kind": "demo",
+    "source": "templates/demo_roomba",
+    "label": "Demo · Roomba-Style Avoidance",
+    "short_label": "Roomba-style avoidance",
+    "summary": "Drive until ultrasound detects a nearby obstacle, reverse briefly, turn randomly, and repeat.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_ucsb_logo",
+    "kind": "demo",
+    "source": "templates/demo_ucsb_logo",
+    "label": "Demo · Draw UCSB",
+    "short_label": "Draw UCSB",
+    "summary": "Use ordered waypoints to trace block-letter UCSB across the course arena.",
     "entrypoint": "main.py",
     "published": true
   },

@@ -70,7 +70,7 @@ test("edits, compiles, and runs one saved Project across IDE and Monitor", async
 
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
-    /Python files? compiled with MicroPython/,
+    /compiled successfully/i,
   );
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(monitor.getByTestId("target-status")).toContainText(
@@ -116,6 +116,8 @@ test("keeps the IDE workspace fitted while a window shrinks and expands", async 
   await ide.setViewportSize({ width: 820, height: 400 });
   await ide.goto("/ide/");
   await expect(ide.locator(".ide-workspace")).toBeVisible();
+  await ide.getByRole("button", { name: "Project ›" }).click();
+  await expect(ide.locator(".project-rail")).toBeVisible();
 
   const verifyShell = async () => {
     const geometry = await ide.evaluate(() => {
@@ -123,12 +125,17 @@ test("keeps the IDE workspace fitted while a window shrinks and expands", async 
         const element = document.querySelector<HTMLElement>(selector);
         if (!element) throw new Error(`Missing ${selector}`);
         const box = element.getBoundingClientRect();
-        return { right: box.right, bottom: box.bottom };
+        return {
+          left: box.left,
+          right: box.right,
+          bottom: box.bottom,
+        };
       };
       return {
         viewport: { width: innerWidth, height: innerHeight },
         shell: rectangle(".app-shell"),
         workspace: rectangle(".ide-workspace"),
+        project: rectangle(".project-rail"),
         editor: rectangle(".editor-stack"),
         documentWidth: document.documentElement.scrollWidth,
       };
@@ -136,6 +143,9 @@ test("keeps the IDE workspace fitted while a window shrinks and expands", async 
     expect(geometry.shell.right).toBeCloseTo(geometry.viewport.width, 0);
     expect(geometry.shell.bottom).toBeCloseTo(geometry.viewport.height, 0);
     expect(geometry.workspace.bottom).toBeCloseTo(geometry.viewport.height, 0);
+    expect(geometry.editor.left).toBeGreaterThanOrEqual(
+      geometry.project.right - 1,
+    );
     expect(geometry.editor.bottom).toBeLessThanOrEqual(
       geometry.viewport.height + 1,
     );
@@ -151,6 +161,9 @@ test("keeps the IDE workspace fitted while a window shrinks and expands", async 
   await expect(ide.locator(".editor-frame")).toBeVisible();
 
   await ide.setViewportSize({ width: 375, height: 800 });
+  await expect(ide.getByRole("button", { name: "Project ›" })).toBeVisible();
+  await ide.getByRole("button", { name: "Project ›" }).click();
   await verifyShell();
+  await ide.getByRole("button", { name: "Collapse project" }).click();
   await expect(ide.getByRole("button", { name: "Project ›" })).toBeVisible();
 });

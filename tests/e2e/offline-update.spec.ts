@@ -317,7 +317,7 @@ test("defers a cancelled A-to-B course update until the next safe IDE operation"
     // will display a beforeunload confirmation dialog.
     await ide.getByRole("button", { name: "Compile" }).click();
     await expect(ide.getByTestId("check-result")).toContainText(
-      "compiled with MicroPython",
+      "compiled successfully",
     );
     const pagehideBaseline = await ide.evaluate(
       (storageKey) =>
