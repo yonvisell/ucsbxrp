@@ -548,7 +548,8 @@
               "summary": "Clear retained feedback state before a run.",
               "requiredBehavior": [
                 "Set line_error and retained integral and preceding-error state to zero."
-              ]
+              ],
+              "returns": { "type": "None", "description": "No value." }
             },
             {
               "id": "method-line-follower-update",

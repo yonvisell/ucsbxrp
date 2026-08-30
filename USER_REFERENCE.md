@@ -532,6 +532,8 @@ Clear retained feedback state before a run.
 reset() -> None
 ```
 
+**Returns:** `None` — No value.
+
 **Required behavior**
 
 - Set line_error and retained integral and preceding-error state to zero.
