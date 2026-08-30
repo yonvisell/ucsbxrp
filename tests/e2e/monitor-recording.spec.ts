@@ -566,6 +566,18 @@ test("selects plotted signals from the Monitor controls", async ({
         lines.map((line) => getComputedStyle(line).borderTopStyle),
       ),
   ).toEqual(["solid", "dashed", "dotted", "dotted"]);
+  const showTargetValues = page.getByRole("checkbox", {
+    name: "Show target values",
+  });
+  await expect(showTargetValues).toBeChecked();
+  await showTargetValues.uncheck();
+  await expect(
+    page
+      .getByTestId("wheel-speed-plot")
+      .locator("xpath=..")
+      .locator(".signal-series-legend i"),
+  ).toHaveCount(2);
+  await showTargetValues.check();
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
     "strip-chart-motor-effort": 180,
@@ -597,21 +609,58 @@ test("selects plotted signals from the Monitor controls", async ({
   await expect(
     page.getByRole("heading", { name: "Live controls", exact: true }),
   ).toBeVisible();
-  const collapseLiveControls = page.getByRole("button", {
-    name: "Collapse live controls",
-  });
-  await expect(collapseLiveControls).toHaveAttribute("aria-expanded", "true");
-  await collapseLiveControls.click();
   await expect(
-    page.getByRole("button", { name: "Expand live controls" }),
-  ).toHaveAttribute("aria-expanded", "false");
-  await expect(page.locator("#live-controls-content")).toBeHidden();
-  await page.getByRole("button", { name: "Expand live controls" }).click();
-  await expect(page.locator("#live-controls-content")).toBeVisible();
+    page.getByRole("button", {
+      name: "Collapse live controls",
+      exact: true,
+    }),
+  ).toHaveCount(0);
 
   const worldValuesSeparator = page.getByRole("separator", {
     name: "Resize world and live telemetry",
   });
+  await page
+    .getByRole("button", { name: "Collapse live controls and telemetry" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Live controls", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Live telemetry", exact: true }),
+  ).toHaveCount(0);
+  await expect(worldValuesSeparator).toHaveCount(0);
+  const liveSidebarGeometry = await page.evaluate(() => {
+    const top = document
+      .querySelector<HTMLElement>(".top-region")!
+      .getBoundingClientRect();
+    const world = document
+      .querySelector<HTMLElement>(".world-panel")!
+      .getBoundingClientRect();
+    const restore = document
+      .querySelector<HTMLElement>(".monitor-live-restore")!
+      .getBoundingClientRect();
+    return {
+      restoreHeight: restore.height,
+      restoreWidth: restore.width,
+      topRight: top.right,
+      worldRight: world.right,
+    };
+  });
+  expect(liveSidebarGeometry.worldRight).toBeCloseTo(
+    liveSidebarGeometry.topRight,
+    0,
+  );
+  expect(liveSidebarGeometry.restoreWidth).toBe(24);
+  expect(liveSidebarGeometry.restoreHeight).toBe(24);
+  await page
+    .getByRole("button", { name: "Open live controls and telemetry" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Live controls", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Live telemetry", exact: true }),
+  ).toBeVisible();
   await expect(worldValuesSeparator).toHaveAttribute("aria-valuenow", "77");
   await worldValuesSeparator.focus();
   await worldValuesSeparator.press("ArrowLeft");
@@ -643,6 +692,16 @@ test("selects plotted signals from the Monitor controls", async ({
 
   await page.getByLabel("Strip chart time window").fill("6");
   await expect(page.getByText("6 s", { exact: true })).toBeVisible();
+
+  await monitorRun.click();
+  await expect(
+    page.getByRole("checkbox", { name: "Spiral travel" }),
+  ).toBeChecked({ timeout: 10_000 });
+  await expect(
+    page.getByRole("checkbox", { name: "Spiral yaw rate" }),
+  ).toBeChecked();
+  const stop = page.getByRole("button", { name: "Stop", exact: true });
+  if (await stop.isVisible()) await stop.click();
 
   await page.getByRole("button", { name: "Collapse monitor controls" }).click();
   await expect(

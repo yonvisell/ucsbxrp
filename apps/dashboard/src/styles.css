@@ -174,7 +174,7 @@
 
 .live-program-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px;
   color: var(--ink);
@@ -535,6 +535,14 @@
   overflow: hidden;
 }
 
+.dashboard-region.top-region {
+  position: relative;
+}
+
+.dashboard-region.live-sidebar-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .dashboard-region.bottom-region {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -572,7 +580,63 @@
 }
 
 .values-panel {
-  grid-template-rows: auto 22px minmax(0, 1fr);
+  grid-template-rows: 22px auto 22px minmax(0, 1fr);
+}
+
+.monitor-live-cap {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-left: 6px;
+}
+
+.monitor-live-cap strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--font-sm);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-live-collapse {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 14px;
+}
+
+.monitor-live-restore {
+  position: absolute;
+  z-index: 20;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 0;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 1px 4px rgb(23 35 43 / 18%);
+}
+
+.monitor-live-restore:hover:not(:disabled),
+.monitor-live-collapse:hover:not(:disabled) {
+  background: var(--panel-raised);
+}
+
+.monitor-live-restore span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .live-controls-panel {
@@ -582,12 +646,6 @@
   border-bottom: 1px solid var(--line);
   padding: 4px 5px;
   background: var(--panel);
-}
-
-.live-controls-panel.collapsed {
-  height: 22px;
-  gap: 0;
-  padding: 0 5px;
 }
 
 .live-controls-panel .live-program-content {
@@ -1057,6 +1115,10 @@
     overflow: hidden;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(300px, 1fr) minmax(0, 270px);
+  }
+
+  .dashboard-region.live-sidebar-collapsed {
+    grid-template-rows: minmax(300px, 1fr);
   }
 
   .dashboard-region.bottom-region {

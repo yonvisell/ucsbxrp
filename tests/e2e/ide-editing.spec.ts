@@ -4,14 +4,57 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { seedWorkingFolder, type TestProject } from "./working-folder";
 
-test("uses a compact 10 px editor default with an 8 px minimum", async ({
+test("keeps exact point-size preferences across a new Project and reload", async ({
   page,
 }) => {
+  await seedWorkingFolder(page, {
+    folderName: "IDE-Font-Preference",
+    projectFolderName: "Starting-Project",
+  });
   await page.goto("/ide/");
   await page.getByRole("button", { name: "Settings" }).click();
   const editorFont = page.getByLabel(/Editor font size/);
+  const outputFont = page.getByLabel(/Output font size/);
   await expect(editorFont).toHaveValue("10");
   await expect(editorFont).toHaveAttribute("min", "8");
+  await expect(outputFont).toHaveValue("10");
+  await expect(outputFont).toHaveAttribute("min", "8");
+  await editorFont.fill("9");
+  await outputFont.fill("9");
+  await page.getByRole("button", { name: "Close settings" }).click();
+  await page.getByRole("tab", { name: "Program output" }).click();
+
+  const editorPixels = await page
+    .locator(".monaco-editor .view-line")
+    .first()
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  const outputPixels = await page
+    .locator(".console-output")
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(editorPixels).toBeCloseTo(12, 1);
+  expect(outputPixels).toBeCloseTo(12, 1);
+
+  await page.getByRole("button", { name: "New project…" }).click();
+  await page.getByLabel("Project template").selectOption("demo_random_snake");
+  await page.getByLabel("Name").fill("Font-Persistence");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.getByTestId("project-folder")).toHaveText(
+    "Font-Persistence",
+  );
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel(/Editor font size/)).toHaveValue("9");
+  await expect(page.getByLabel(/Output font size/)).toHaveValue("9");
+  await page.getByRole("button", { name: "Close settings" }).click();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel(/Editor font size/)).toHaveValue("9");
+  await expect(page.getByLabel(/Output font size/)).toHaveValue("9");
 });
 
 function obstacleTurnProjectWithWrongRangeType(): TestProject {

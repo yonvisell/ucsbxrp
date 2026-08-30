@@ -59,6 +59,7 @@ import {
   SIGNAL_PLOTS,
   SignalPlot,
   runtimePlotDefinition,
+  withTargetSeriesVisibility,
   type SignalPlotDefinition,
   type SignalPlotId,
 } from "./SignalPlot";
@@ -265,6 +266,7 @@ async function prepareExportDestination(
 
 interface MonitorSettings {
   timeWindowS: number;
+  showTargetValues: boolean;
   plots: Record<SignalPlotId, boolean>;
   layout: {
     topHeightPercent: number;
@@ -275,6 +277,7 @@ interface MonitorSettings {
 
 const defaultMonitorSettings: MonitorSettings = {
   timeWindowS: 10,
+  showTargetValues: true,
   plots: {
     "wheel-speed": true,
     "wheel-distance": false,
@@ -314,6 +317,10 @@ function loadMonitorSettings(): MonitorSettings {
         Number.isFinite(timeWindowS) && timeWindowS >= 2 && timeWindowS <= 30
           ? timeWindowS
           : defaultMonitorSettings.timeWindowS,
+      showTargetValues:
+        typeof stored?.showTargetValues === "boolean"
+          ? stored.showTargetValues
+          : defaultMonitorSettings.showTargetValues,
       plots: Object.fromEntries(
         SIGNAL_PLOTS.map((plot) => [
           plot.id,
@@ -379,8 +386,6 @@ interface RuntimeControlsProps {
   ): void;
   runtime: RuntimeState;
   targetState: TargetRunState;
-  open: boolean;
-  onToggle(): void;
 }
 
 function RuntimeControls({
@@ -389,13 +394,11 @@ function RuntimeControls({
   onChange,
   runtime,
   targetState,
-  open,
-  onToggle,
 }: RuntimeControlsProps) {
   return (
     <section
       aria-labelledby="live-controls-title"
-      className={`live-controls-panel ${open ? "open" : "collapsed"}`}
+      className="live-controls-panel"
     >
       <div
         className="live-program-heading"
@@ -405,23 +408,8 @@ function RuntimeControls({
         {runtime.parameters.length > 0 ? (
           <small>{runtime.parameters.length} controls</small>
         ) : null}
-        <button
-          aria-controls="live-controls-content"
-          aria-expanded={open}
-          aria-label={`${open ? "Collapse" : "Expand"} live controls`}
-          className="panel-collapse-button"
-          onClick={onToggle}
-          title={`${open ? "Collapse" : "Expand"} live controls`}
-          type="button"
-        >
-          <span aria-hidden="true">{open ? "⌃" : "⌄"}</span>
-        </button>
       </div>
-      <div
-        className="live-program-content"
-        hidden={!open}
-        id="live-controls-content"
-      >
+      <div className="live-program-content" id="live-controls-content">
         {runtime.parameters.length === 0 ? (
           <p className="live-program-empty">No controls in this program.</p>
         ) : (
@@ -599,7 +587,7 @@ export function DashboardApp() {
   const [controlsOpen, setControlsOpen] = useState(
     initiallyShowMonitorControls,
   );
-  const [liveControlsOpen, setLiveControlsOpen] = useState(true);
+  const [liveSidebarOpen, setLiveSidebarOpen] = useState(true);
   const [plotsOpen, setPlotsOpen] = useState(true);
   const controlsRef = useRef<HTMLElement>(null);
 
@@ -759,7 +747,7 @@ export function DashboardApp() {
       );
       setProgramPlotVisibility((current) => {
         const next = Object.fromEntries(
-          state.plots.map((plot) => [plot.name, current[plot.name] ?? false]),
+          state.plots.map((plot) => [plot.name, current[plot.name] ?? true]),
         );
         return Object.keys(next).length === Object.keys(current).length &&
           Object.entries(next).every(
@@ -1877,7 +1865,10 @@ export function DashboardApp() {
     [availableProgramPlots],
   );
   const visiblePlots: SignalPlotDefinition[] = [
-    ...SIGNAL_PLOTS.filter((plot) => monitorSettings.plots[plot.id]),
+    ...SIGNAL_PLOTS.filter((plot) => monitorSettings.plots[plot.id]).map(
+      (plot) =>
+        withTargetSeriesVisibility(plot, monitorSettings.showTargetValues),
+    ),
     ...programPlotDefinitions.filter((plot) =>
       Boolean(programPlotVisibility[plot.id.replace(/^program:/, "")]),
     ),
@@ -2330,6 +2321,22 @@ export function DashboardApp() {
                       value={monitorSettings.timeWindowS}
                     />
                   </label>
+                  <label
+                    className="check-row target-values-choice"
+                    title="Show requested values alongside measured signals where a plot defines a target. Drive command is already an applied output, not a target."
+                  >
+                    <input
+                      checked={monitorSettings.showTargetValues}
+                      onChange={(event) =>
+                        setMonitorSettings((current) => ({
+                          ...current,
+                          showTargetValues: event.target.checked,
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                    <span>Show target values</span>
+                  </label>
                   <div className="signal-choices">
                     {SIGNAL_PLOTS.map((plot) => (
                       <label
@@ -2507,7 +2514,10 @@ export function DashboardApp() {
           className={`dashboard-grid ${plotsOpen ? "plots-open" : "plots-collapsed"}`}
           style={layoutStyle}
         >
-          <div className="dashboard-region top-region" style={topRegionStyle}>
+          <div
+            className={`dashboard-region top-region ${liveSidebarOpen ? "live-sidebar-open" : "live-sidebar-collapsed"}`}
+            style={topRegionStyle}
+          >
             <section className="world-panel dashboard-pane">
               <WorldView
                 active={monitorSurfaceActive}
@@ -2530,224 +2540,260 @@ export function DashboardApp() {
               />
             </section>
 
-            <ResizableSeparator
-              label="Resize world and live telemetry"
-              maximum={78}
-              minimum={48}
-              onChange={(next) => setLayoutValue("worldWidthPercent", next)}
-              orientation="vertical"
-              value={monitorSettings.layout.worldWidthPercent}
-            />
+            {liveSidebarOpen ? (
+              <>
+                <ResizableSeparator
+                  label="Resize world and live telemetry"
+                  maximum={78}
+                  minimum={48}
+                  onChange={(next) => setLayoutValue("worldWidthPercent", next)}
+                  orientation="vertical"
+                  value={monitorSettings.layout.worldWidthPercent}
+                />
 
-            <section className="values-panel dashboard-pane">
-              <RuntimeControls
-                drafts={runtimeDrafts}
-                error={runtimeUpdateError}
-                onChange={setRuntimeParameter}
-                onToggle={() => setLiveControlsOpen((current) => !current)}
-                open={liveControlsOpen}
-                runtime={runtimeState}
-                targetState={targetState}
-              />
-              <div className="section-heading">
-                <h2>Live telemetry</h2>
-              </div>
-              <div className="values-content">
-                {sample ? (
-                  <dl className="live-values">
-                    {groundTruthPose ? (
-                      <>
-                        <div title="Simulator ground-truth x position in millimeters.">
-                          <dt>simulator true x</dt>
-                          <dd data-testid="x-mm">
-                            {value(groundTruthPose.x)} mm
-                          </dd>
-                        </div>
-                        <div title="Simulator ground-truth y position in millimeters.">
-                          <dt>simulator true y</dt>
-                          <dd>{value(groundTruthPose.y)} mm</dd>
-                        </div>
-                        <div title="Simulator ground-truth counterclockwise heading from world +x.">
-                          <dt>simulator true heading θ</dt>
-                          <dd>{value(groundTruthPose.heading, 3)} rad</dd>
-                        </div>
-                      </>
-                    ) : null}
-                    {estimatedPose ? (
-                      <>
-                        <div title="Position estimated by the course Odometry component.">
-                          <dt>odometry x</dt>
-                          <dd
-                            data-testid={groundTruthPose ? undefined : "x-mm"}
-                          >
-                            {value(estimatedPose.x)} mm
-                          </dd>
-                        </div>
-                        <div title="Position estimated by the course Odometry component.">
-                          <dt>odometry y</dt>
-                          <dd>{value(estimatedPose.y)} mm</dd>
-                        </div>
-                        <div title="Heading estimated by the course Odometry component.">
-                          <dt>odometry heading θ</dt>
-                          <dd>{value(estimatedPose.heading, 3)} rad</dd>
-                        </div>
-                      </>
-                    ) : null}
-                    <div title="Wheel-speed estimates calculated by SensorModel from recent encoder counts and sample times. The wheel controller uses the same estimates.">
-                      <dt>measured wheel speed L/R</dt>
-                      <dd data-testid="left-speed">
-                        {value(sample.leftWheelSpeedMmS)} /{" "}
-                        {value(sample.rightWheelSpeedMmS)} mm/s
-                      </dd>
-                    </div>
-                    <div title="Signed left and right wheel distance calculated by SensorModel from encoder counts.">
-                      <dt>wheel distance L/R</dt>
-                      <dd data-testid="wheel-distance">
-                        {value(sample.leftWheelDistanceMm ?? null)} /{" "}
-                        {value(sample.rightWheelDistanceMm ?? null)} mm
-                      </dd>
-                    </div>
-                    {sample.targetLeftWheelSpeedMmS != null ||
-                    sample.targetRightWheelSpeedMmS != null ? (
-                      <div title="Left and right wheel speeds requested by DifferentialDrive.">
-                        <dt>target wheel speed L/R</dt>
-                        <dd>
-                          {value(sample.targetLeftWheelSpeedMmS ?? null)} /{" "}
-                          {value(sample.targetRightWheelSpeedMmS ?? null)} mm/s
-                        </dd>
-                      </div>
-                    ) : null}
-                    {sample.requestedForwardSpeedMmS != null ||
-                    sample.requestedTurnRateRadS != null ? (
-                      <div title="Forward speed and turn rate requested by the running program.">
-                        <dt>requested speed v / yaw rate ω</dt>
-                        <dd>
-                          {value(sample.requestedForwardSpeedMmS ?? null)} mm/s
-                          · {value(sample.requestedTurnRateRadS ?? null, 3)}{" "}
-                          rad/s
-                        </dd>
-                      </div>
-                    ) : null}
-                    <div title="Dimensionless left and right motor drive command, from −1 to +1.">
-                      <dt>drive command uL/uR</dt>
-                      <dd data-testid="motor-effort">
-                        {value(sample.leftEffort, 2)} /{" "}
-                        {value(sample.rightEffort, 2)}
-                      </dd>
-                    </div>
-                    <div title="Elapsed program or simulator time.">
-                      <dt>time</dt>
-                      <dd>{value(sample.tMs / 1000, 2)} s</dd>
-                    </div>
-                    <div title="Forward ultrasonic distance reading.">
-                      <dt>ultrasound distance</dt>
-                      <dd
-                        className={
-                          displayedUltrasoundMm === null
-                            ? "alert-value"
-                            : undefined
-                        }
-                        data-testid="range-mm"
-                      >
-                        {displayedUltrasoundMm === null
-                          ? "Out of range"
-                          : `${value(displayedUltrasoundMm)} mm`}
-                      </dd>
-                    </div>
-                    <div title="Acceleration along the IMU x, y, and z axes.">
-                      <dt>acceleration ax/ay/az</dt>
-                      <dd>
-                        {vector(
-                          sample.accelerationMg,
-                          milligravityToMetersPerSecondSquared,
-                          2,
-                        )}{" "}
-                        m/s²
-                      </dd>
-                    </div>
-                    <div title="Yaw rate about the vertical z axis.">
-                      <dt>yaw rate ωz</dt>
-                      <dd>
-                        {sample.angularRateMdps
-                          ? value(
-                              millidegreesPerSecondToRadiansPerSecond(
-                                sample.angularRateMdps[2],
-                              ),
-                              3,
-                            )
-                          : "—"}{" "}
-                        rad/s
-                      </dd>
-                    </div>
-                    {sample.sensorError ? (
-                      <div title="Latest sensor-service error.">
-                        <dt>sensor status</dt>
-                        <dd className="alert-value">{sample.sensorError}</dd>
-                      </div>
-                    ) : null}
-                    <div
-                      className="telemetry-secondary-start"
-                      title="Current state of the XRP USER button."
+                <section className="values-panel dashboard-pane">
+                  <div className="monitor-live-cap">
+                    <strong>Live</strong>
+                    <button
+                      aria-label="Collapse live controls and telemetry"
+                      className="monitor-live-collapse"
+                      onClick={() => setLiveSidebarOpen(false)}
+                      title="Collapse live controls and telemetry."
+                      type="button"
                     >
-                      <dt>USER button</dt>
-                      <dd>{sample.buttonPressed ? "pressed" : "released"}</dd>
-                    </div>
-                    <div title="Measured motor-supply voltage.">
-                      <dt>motor supply</dt>
-                      <dd>{value(sample.batteryV, 2)} V</dd>
-                    </div>
-                    <div title="Temperature reported by the inertial sensor.">
-                      <dt>IMU temperature</dt>
-                      <dd>{value(sample.temperatureC, 1)} °C</dd>
-                    </div>
-                    <div title="Raw left and right encoder counts.">
-                      <dt>encoder counts L/R</dt>
-                      <dd data-testid="encoder-counts">
-                        {sample.leftEncoderCount} / {sample.rightEncoderCount}
-                      </dd>
-                    </div>
-                    <div title="Recent telemetry sample rate calculated from XRP or simulator timestamps.">
-                      <dt>telemetry sample rate</dt>
-                      <dd data-testid="telemetry-rate">
-                        {telemetryRateHz === null
-                          ? "—"
-                          : `${telemetryRateHz.toFixed(1)} Hz`}
-                      </dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <div className="telemetry-placeholder" role="status">
-                    No telemetry received. Unavailable values remain blank.
+                      <span aria-hidden="true">›</span>
+                    </button>
                   </div>
-                )}
-                {runtimeState.watches.length > 0 ? (
-                  <section
-                    aria-labelledby="watch-values-title"
-                    className="watch-values"
-                  >
-                    <h3 id="watch-values-title">Watch values</h3>
-                    <dl
-                      aria-label="Program watch values"
-                      className="runtime-watches"
-                    >
-                      {runtimeState.watches.map((watch) => (
-                        <div key={watch.name} title={`Current ${watch.label}`}>
-                          <dt>{watch.label}</dt>
-                          <dd>
-                            {typeof watch.value === "number"
-                              ? watch.value.toLocaleString(undefined, {
-                                  maximumFractionDigits: 4,
-                                })
-                              : String(watch.value)}
-                            {watch.unit ? ` ${watch.unit}` : ""}
+                  <RuntimeControls
+                    drafts={runtimeDrafts}
+                    error={runtimeUpdateError}
+                    onChange={setRuntimeParameter}
+                    runtime={runtimeState}
+                    targetState={targetState}
+                  />
+                  <div className="section-heading">
+                    <h2>Live telemetry</h2>
+                  </div>
+                  <div className="values-content">
+                    {sample ? (
+                      <dl className="live-values">
+                        {groundTruthPose ? (
+                          <>
+                            <div title="Simulator ground-truth x position in millimeters.">
+                              <dt>simulator true x</dt>
+                              <dd data-testid="x-mm">
+                                {value(groundTruthPose.x)} mm
+                              </dd>
+                            </div>
+                            <div title="Simulator ground-truth y position in millimeters.">
+                              <dt>simulator true y</dt>
+                              <dd>{value(groundTruthPose.y)} mm</dd>
+                            </div>
+                            <div title="Simulator ground-truth counterclockwise heading from world +x.">
+                              <dt>simulator true heading θ</dt>
+                              <dd>{value(groundTruthPose.heading, 3)} rad</dd>
+                            </div>
+                          </>
+                        ) : null}
+                        {estimatedPose ? (
+                          <>
+                            <div title="Position estimated by the course Odometry component.">
+                              <dt>odometry x</dt>
+                              <dd
+                                data-testid={
+                                  groundTruthPose ? undefined : "x-mm"
+                                }
+                              >
+                                {value(estimatedPose.x)} mm
+                              </dd>
+                            </div>
+                            <div title="Position estimated by the course Odometry component.">
+                              <dt>odometry y</dt>
+                              <dd>{value(estimatedPose.y)} mm</dd>
+                            </div>
+                            <div title="Heading estimated by the course Odometry component.">
+                              <dt>odometry heading θ</dt>
+                              <dd>{value(estimatedPose.heading, 3)} rad</dd>
+                            </div>
+                          </>
+                        ) : null}
+                        <div title="Wheel-speed estimates calculated by SensorModel from recent encoder counts and sample times. The wheel controller uses the same estimates.">
+                          <dt>measured wheel speed L/R</dt>
+                          <dd data-testid="left-speed">
+                            {value(sample.leftWheelSpeedMmS)} /{" "}
+                            {value(sample.rightWheelSpeedMmS)} mm/s
                           </dd>
                         </div>
-                      ))}
-                    </dl>
-                  </section>
-                ) : null}
-              </div>
-            </section>
+                        <div title="Signed left and right wheel distance calculated by SensorModel from encoder counts.">
+                          <dt>wheel distance L/R</dt>
+                          <dd data-testid="wheel-distance">
+                            {value(sample.leftWheelDistanceMm ?? null)} /{" "}
+                            {value(sample.rightWheelDistanceMm ?? null)} mm
+                          </dd>
+                        </div>
+                        {sample.targetLeftWheelSpeedMmS != null ||
+                        sample.targetRightWheelSpeedMmS != null ? (
+                          <div title="Left and right wheel speeds requested by DifferentialDrive.">
+                            <dt>target wheel speed L/R</dt>
+                            <dd>
+                              {value(sample.targetLeftWheelSpeedMmS ?? null)} /{" "}
+                              {value(sample.targetRightWheelSpeedMmS ?? null)}{" "}
+                              mm/s
+                            </dd>
+                          </div>
+                        ) : null}
+                        {sample.requestedForwardSpeedMmS != null ||
+                        sample.requestedTurnRateRadS != null ? (
+                          <div title="Forward speed and turn rate requested by the running program.">
+                            <dt>requested speed v / yaw rate ω</dt>
+                            <dd>
+                              {value(sample.requestedForwardSpeedMmS ?? null)}{" "}
+                              mm/s ·{" "}
+                              {value(sample.requestedTurnRateRadS ?? null, 3)}{" "}
+                              rad/s
+                            </dd>
+                          </div>
+                        ) : null}
+                        <div title="Dimensionless left and right motor drive command, from −1 to +1.">
+                          <dt>drive command uL/uR</dt>
+                          <dd data-testid="motor-effort">
+                            {value(sample.leftEffort, 2)} /{" "}
+                            {value(sample.rightEffort, 2)}
+                          </dd>
+                        </div>
+                        <div title="Elapsed program or simulator time.">
+                          <dt>time</dt>
+                          <dd>{value(sample.tMs / 1000, 2)} s</dd>
+                        </div>
+                        <div title="Forward ultrasonic distance reading.">
+                          <dt>ultrasound distance</dt>
+                          <dd
+                            className={
+                              displayedUltrasoundMm === null
+                                ? "alert-value"
+                                : undefined
+                            }
+                            data-testid="range-mm"
+                          >
+                            {displayedUltrasoundMm === null
+                              ? "Out of range"
+                              : `${value(displayedUltrasoundMm)} mm`}
+                          </dd>
+                        </div>
+                        <div title="Acceleration along the IMU x, y, and z axes.">
+                          <dt>acceleration ax/ay/az</dt>
+                          <dd>
+                            {vector(
+                              sample.accelerationMg,
+                              milligravityToMetersPerSecondSquared,
+                              2,
+                            )}{" "}
+                            m/s²
+                          </dd>
+                        </div>
+                        <div title="Yaw rate about the vertical z axis.">
+                          <dt>yaw rate ωz</dt>
+                          <dd>
+                            {sample.angularRateMdps
+                              ? value(
+                                  millidegreesPerSecondToRadiansPerSecond(
+                                    sample.angularRateMdps[2],
+                                  ),
+                                  3,
+                                )
+                              : "—"}{" "}
+                            rad/s
+                          </dd>
+                        </div>
+                        {sample.sensorError ? (
+                          <div title="Latest sensor-service error.">
+                            <dt>sensor status</dt>
+                            <dd className="alert-value">
+                              {sample.sensorError}
+                            </dd>
+                          </div>
+                        ) : null}
+                        <div
+                          className="telemetry-secondary-start"
+                          title="Current state of the XRP USER button."
+                        >
+                          <dt>USER button</dt>
+                          <dd>
+                            {sample.buttonPressed ? "pressed" : "released"}
+                          </dd>
+                        </div>
+                        <div title="Measured motor-supply voltage.">
+                          <dt>motor supply</dt>
+                          <dd>{value(sample.batteryV, 2)} V</dd>
+                        </div>
+                        <div title="Temperature reported by the inertial sensor.">
+                          <dt>IMU temperature</dt>
+                          <dd>{value(sample.temperatureC, 1)} °C</dd>
+                        </div>
+                        <div title="Raw left and right encoder counts.">
+                          <dt>encoder counts L/R</dt>
+                          <dd data-testid="encoder-counts">
+                            {sample.leftEncoderCount} /{" "}
+                            {sample.rightEncoderCount}
+                          </dd>
+                        </div>
+                        <div title="Recent telemetry sample rate calculated from XRP or simulator timestamps.">
+                          <dt>telemetry sample rate</dt>
+                          <dd data-testid="telemetry-rate">
+                            {telemetryRateHz === null
+                              ? "—"
+                              : `${telemetryRateHz.toFixed(1)} Hz`}
+                          </dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <div className="telemetry-placeholder" role="status">
+                        No telemetry received. Unavailable values remain blank.
+                      </div>
+                    )}
+                    {runtimeState.watches.length > 0 ? (
+                      <section
+                        aria-labelledby="watch-values-title"
+                        className="watch-values"
+                      >
+                        <h3 id="watch-values-title">Watch values</h3>
+                        <dl
+                          aria-label="Program watch values"
+                          className="runtime-watches"
+                        >
+                          {runtimeState.watches.map((watch) => (
+                            <div
+                              key={watch.name}
+                              title={`Current ${watch.label}`}
+                            >
+                              <dt>{watch.label}</dt>
+                              <dd>
+                                {typeof watch.value === "number"
+                                  ? watch.value.toLocaleString(undefined, {
+                                      maximumFractionDigits: 4,
+                                    })
+                                  : String(watch.value)}
+                                {watch.unit ? ` ${watch.unit}` : ""}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </section>
+                    ) : null}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <button
+                aria-label="Open live controls and telemetry"
+                className="monitor-live-restore"
+                onClick={() => setLiveSidebarOpen(true)}
+                title="Open live controls and telemetry."
+                type="button"
+              >
+                <span aria-hidden="true">‹</span>
+              </button>
+            )}
           </div>
 
           {plotsOpen ? (

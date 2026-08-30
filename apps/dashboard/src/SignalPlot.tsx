@@ -49,6 +49,7 @@ interface SignalSeriesDefinition {
   label: string;
   color: string;
   dash?: "dashed" | "dotted";
+  target?: boolean;
   value: (sample: TelemetrySample) => number | null;
 }
 
@@ -91,12 +92,14 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
         label: "target v_L",
         color: "#205f99",
         dash: "dotted",
+        target: true,
         value: (sample) => sample.targetLeftWheelSpeedMmS ?? null,
       },
       {
         label: "target v_R",
         color: "#87515d",
         dash: "dotted",
+        target: true,
         value: (sample) => sample.targetRightWheelSpeedMmS ?? null,
       },
     ],
@@ -241,6 +244,19 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
     ],
   },
 ] as const;
+
+export function withTargetSeriesVisibility(
+  definition: SignalPlotDefinition,
+  showTargetValues: boolean,
+): SignalPlotDefinition {
+  if (showTargetValues || !definition.series.some((series) => series.target)) {
+    return definition;
+  }
+  return {
+    ...definition,
+    series: definition.series.filter((series) => !series.target),
+  };
+}
 
 export function runtimePlotDefinition(plot: RuntimePlot): SignalPlotDefinition {
   return {

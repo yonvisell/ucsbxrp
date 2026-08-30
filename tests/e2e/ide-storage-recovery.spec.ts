@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-import { seedWorkingFolder, type TestProject } from "./working-folder";
+import {
+  readWorkspaceManifest,
+  seedWorkingFolder,
+  type TestProject,
+} from "./working-folder";
 
 const currentProject: TestProject = {
   name: "Current folder project",
@@ -113,7 +117,7 @@ test("denied Working-folder permission remains a visible reconnect action", asyn
   await expect(ide.getByTestId("project-folder")).toHaveText("Not selected");
 });
 
-test("a retained folder that rejects its background read recovers from the project rail", async ({
+test("creating a project in a recommended older folder keeps Virtual XRP selected", async ({
   page: ide,
 }) => {
   await seedWorkingFolder(ide, {
@@ -127,6 +131,7 @@ test("a retained folder that rejects its background read recovers from the proje
       ssid: "Course Wi-Fi",
       address: "127.0.0.1:65534",
     },
+    target: "physical",
   });
   await ide.addInitScript(() => {
     const testWindow = window as typeof window & { __pickerCalls?: number };
@@ -203,13 +208,29 @@ test("a retained folder that rejects its background read recovers from the proje
     ide.getByRole("option", { name: "Physical XRP · reconnect folder" }),
   ).toBeDisabled();
 
-  await reconnect.click();
+  await ide.getByRole("button", { name: "New project…" }).click();
+  await ide.getByLabel("Project template").selectOption("demo_spiral");
+  await ide.getByLabel("Name").fill("New-Virtual-Project");
+  await ide
+    .getByRole("button", { name: "Choose Working folder and create" })
+    .click();
 
-  await expect(ide.getByTestId("project-folder")).toHaveText("Current-Project");
-  await expect(ide.getByLabel("Run on")).toContainText("Physical XRP");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "New-Virtual-Project",
+  );
+  await expect(ide.getByLabel("Run on")).toHaveValue("virtual");
+  await expect(ide.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
   await expect(
     ide.getByRole("option", { name: "Physical XRP", exact: true }),
   ).toBeEnabled();
+  expect(
+    await readWorkspaceManifest<{ settings: { target: string } }>(
+      ide,
+      "Sleep-Recovery-Workspace",
+    ),
+  ).toMatchObject({ settings: { target: "virtual" } });
   expect(
     await ide.evaluate(
       () =>

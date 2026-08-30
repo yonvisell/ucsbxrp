@@ -78,8 +78,8 @@ folder.
   connection, so Run can start the same project revision again immediately.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
-Settings are collapsible and include editor/output font size (10/12 px default,
-8 px minimum), indentation, word wrap, code overview, target selection, and
+Settings are collapsible and include editor/output font size (10 pt default,
+8 pt minimum), indentation, word wrap, code overview, target selection, and
 the XRP Wi-Fi mode and existing-Wi-Fi address. Status, Program output, and
 the connection/compilation System log are separate tabs.
 
@@ -101,12 +101,15 @@ gate blocked**; the second scene exercises Challenge 5 observation and
 replanning. The world uses the production XRP's dimensioned footprint, a
 coordinate grid labeled in millimetres, and a small legend for the royal-blue
 path and ultrasound fan. When range is unavailable, a faint red fan makes that
-state visible. The controls sidebar collapses to a small overlay restore button and selects a
-2–30 second scrolling history for wheel speed, normalized drive command,
-ultrasound distance,
-acceleration, or yaw rate. Signals can be combined or hidden for the
-current experiment. Each strip chart keeps the same vertical scale area as
-signals are added or removed; additional charts scroll instead of shrinking.
+state visible. The left controls sidebar collapses to a small overlay restore
+button and selects a 2–30 second scrolling history for wheel speed, normalized
+drive command, ultrasound distance, acceleration, or yaw rate. The complete
+right sidebar—Live controls and Live telemetry—collapses the same way. A signal
+declared with `live.plot()` is selected when it first appears and can then be
+hidden like any built-in signal. **Show target values** controls requested
+wheel-speed traces; drive command is an applied output and has no separate
+target trace. Each strip chart keeps the same vertical scale area as signals
+are added or removed; additional charts scroll instead of shrinking.
 One unlabeled grid line divides each pair of labeled time lines. When no pose
 has been published, the world remains visible with a clearly labeled XRP
 preview centered at the origin.
@@ -114,8 +117,8 @@ In a fresh virtual session, Monitor Run compiles and starts the default
 expanding-spiral project without requiring the IDE to run first. Once another
 project is prepared by the IDE, both applications control that same revision.
 
-**Live controls** remains open below the time window and shows controls declared
-with `ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use
+**Live controls** remains open within the right sidebar and shows controls
+declared with `ucsb_xrp.live`. Numeric values use thin bounded sliders, Booleans use
 checkboxes, and short choices use radio controls. Updates are validated and
 applied together at the next `Robot` sample boundary. Named `live.watch()`
 values appear below **Live telemetry** in the right panel, exposing current modes,

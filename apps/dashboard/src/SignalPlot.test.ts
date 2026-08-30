@@ -9,6 +9,7 @@ import {
   signalPlotDataForDefinition,
   signalPlotTitle,
   signalXAxis,
+  withTargetSeriesVisibility,
 } from "./SignalPlot";
 import { normalizeTelemetryUltrasound } from "./ultrasound-range";
 
@@ -220,5 +221,17 @@ describe("monitor signal plots", () => {
     expect(drive.axisLabel).toBe("u_L, u_R");
     expect(signalPlotTitle(drive)).toBe("Drive command: u_L, u_R");
     expect(drive.series.map(({ label }) => label)).toEqual(["u_L", "u_R"]);
+  });
+
+  it("hides only genuine target series when target values are disabled", () => {
+    const wheelSpeed = SIGNAL_PLOTS.find((plot) => plot.id === "wheel-speed")!;
+    const drive = SIGNAL_PLOTS.find((plot) => plot.id === "motor-effort")!;
+
+    expect(
+      withTargetSeriesVisibility(wheelSpeed, false).series.map(
+        ({ label }) => label,
+      ),
+    ).toEqual(["measured v_L", "measured v_R"]);
+    expect(withTargetSeriesVisibility(drive, false)).toBe(drive);
   });
 });
