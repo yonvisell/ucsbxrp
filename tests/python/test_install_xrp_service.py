@@ -191,7 +191,7 @@ class InstallXrpServiceTest(unittest.TestCase):
         activation = result["activation"]
         self.assertEqual(activation["generation"], 1)
         self.assertEqual(activation["slot"], "a")
-        self.assertEqual(activation["releaseSequence"], 45)
+        self.assertEqual(activation["releaseSequence"], 46)
         active_path = "/course_runtime/active.0.json"
         self.assertEqual(json.loads(transport.files[active_path]), activation)
         manifest_path = "/course_runtime/slots/a/runtime-manifest.json"
@@ -380,7 +380,7 @@ class InstallXrpServiceTest(unittest.TestCase):
             "generation": 8,
             "slot": "a",
             "releaseId": "future-release",
-            "releaseSequence": 46,
+            "releaseSequence": 47,
             "runtimeManifestSha256": digest,
         }
         transport = MemoryTransport(

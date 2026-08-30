@@ -281,10 +281,10 @@ class CourseStarterTests(unittest.TestCase):
         drawing_main = (
             TEMPLATES / "tutorial_2_virtual_drawing" / "main.py"
         ).read_text(encoding="utf-8")
-        self.assertIn("SIDE_SPEED_MM_S = 120.0", drawing_main)
-        self.assertIn("SIDE_STEPS = 125", drawing_main)
-        self.assertIn("TURN_RATE_RAD_S = 1.3", drawing_main)
-        self.assertIn("TURN_STEPS = 70", drawing_main)
+        self.assertIn("SIDE_SPEED_MM_S = 140.0", drawing_main)
+        self.assertIn("SIDE_STEPS = 75", drawing_main)
+        self.assertIn("TURN_RATE_RAD_S = 1.5", drawing_main)
+        self.assertIn("TURN_STEPS = 52", drawing_main)
         self.assertNotIn("if not run_exercise_checks()", drawing_main)
 
         robot_main = (
