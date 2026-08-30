@@ -163,7 +163,11 @@ class CourseStarterTests(unittest.TestCase):
             with self.subTest(tutorial=number):
                 self.assertIn("`student_work.py`", normalized_readme)
                 self.assertIn("Run", normalized_readme)
-                self.assertIn("Check examples", normalized_readme)
+                if number == 1:
+                    self.assertNotIn("Check examples", normalized_readme)
+                    self.assertIn("Each Run checks", normalized_readme)
+                else:
+                    self.assertIn("Check examples", normalized_readme)
                 self.assertNotIn("NotImplementedError", student_source)
                 self.assertEqual(
                     [path.name for path in tutorial.glob("student_*.py")],
