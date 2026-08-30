@@ -654,7 +654,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
         if (code.includes("__UCSB_XRP_VERIFY__=")) {
           return {
             stdout: `__UCSB_XRP_VERIFY__=${JSON.stringify({
-              library: "0.4.0-dev",
+              library: currentRelease.ucsb_xrp.version,
               protocol: 1,
               modules: [
                 "XRPLib.board",
