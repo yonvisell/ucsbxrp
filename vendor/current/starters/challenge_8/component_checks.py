@@ -5,10 +5,11 @@ from grid_planner import GridPlanner
 from navigation_controller import NavigationController
 from odometry import Odometry
 from sensor_model import SensorModel
-from visit_order_planner import VisitOrderPlanner, VisitOrderPlannerBase
+from visit_order_planner import VisitOrderPlanner
 from wheel_speed_controller import WheelSpeedController
 
 from ucsb_xrp.component_checks import run_component_checks
+from ucsb_xrp.student_api import VisitOrderPlannerBase
 
 
 run_component_checks(

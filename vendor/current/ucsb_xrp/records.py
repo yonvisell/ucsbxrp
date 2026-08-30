@@ -32,6 +32,29 @@ class _ValueRecord:
         return not self == other
 
 
+class ReflectanceReadings(_ValueRecord):
+    """Normalized left and right floor reflectance: 0 light, 1 dark."""
+
+    __slots__ = ("_left", "_right")
+    _field_names = ("left", "right")
+
+    def __init__(self, left, right):
+        left = require_number("left", left)
+        right = require_number("right", right)
+        if not 0.0 <= left <= 1.0 or not 0.0 <= right <= 1.0:
+            raise ValueError("reflectance readings must be within [0.0, 1.0]")
+        self._left = left
+        self._right = right
+
+    @property
+    def left(self):
+        return self._left
+
+    @property
+    def right(self):
+        return self._right
+
+
 class RawSensors(_ValueRecord):
     __slots__ = (
         "_time_ms",
@@ -39,6 +62,7 @@ class RawSensors(_ValueRecord):
         "_right_encoder_count",
         "_range_mm",
         "_button_pressed",
+        "_reflectance",
     )
     _field_names = (
         "time_ms",
@@ -46,6 +70,7 @@ class RawSensors(_ValueRecord):
         "right_encoder_count",
         "range_mm",
         "button_pressed",
+        "reflectance",
     )
 
     def __init__(
@@ -55,6 +80,7 @@ class RawSensors(_ValueRecord):
         right_encoder_count,
         range_mm,
         button_pressed,
+        reflectance=None,
     ):
         self._time_ms = require_int("time_ms", time_ms, minimum=0)
         self._left_encoder_count = require_int(
@@ -65,6 +91,11 @@ class RawSensors(_ValueRecord):
         )
         self._range_mm = require_optional_positive("range_mm", range_mm)
         self._button_pressed = require_bool("button_pressed", button_pressed)
+        if reflectance is not None and not isinstance(
+            reflectance, ReflectanceReadings
+        ):
+            raise TypeError("reflectance must be ReflectanceReadings or None")
+        self._reflectance = reflectance
 
     @property
     def time_ms(self):
@@ -85,6 +116,10 @@ class RawSensors(_ValueRecord):
     @property
     def button_pressed(self):
         return self._button_pressed
+
+    @property
+    def reflectance(self):
+        return self._reflectance
 
 
 class WheelSpeeds(_ValueRecord):
@@ -163,6 +198,7 @@ class Measurements(_ValueRecord):
         "_right_speed_mm_s",
         "_range_mm",
         "_button_pressed",
+        "_reflectance",
     )
     _field_names = (
         "time_ms",
@@ -175,6 +211,7 @@ class Measurements(_ValueRecord):
         "right_speed_mm_s",
         "range_mm",
         "button_pressed",
+        "reflectance",
     )
 
     def __init__(
@@ -189,6 +226,7 @@ class Measurements(_ValueRecord):
         right_speed_mm_s,
         range_mm,
         button_pressed,
+        reflectance=None,
     ):
         self._time_ms = require_int("time_ms", time_ms, minimum=0)
         self._dt_s = require_nonnegative("dt_s", dt_s)
@@ -210,6 +248,11 @@ class Measurements(_ValueRecord):
         )
         self._range_mm = require_optional_positive("range_mm", range_mm)
         self._button_pressed = require_bool("button_pressed", button_pressed)
+        if reflectance is not None and not isinstance(
+            reflectance, ReflectanceReadings
+        ):
+            raise TypeError("reflectance must be ReflectanceReadings or None")
+        self._reflectance = reflectance
 
     @property
     def time_ms(self):
@@ -250,6 +293,10 @@ class Measurements(_ValueRecord):
     @property
     def button_pressed(self):
         return self._button_pressed
+
+    @property
+    def reflectance(self):
+        return self._reflectance
 
     @property
     def wheel_speeds(self):

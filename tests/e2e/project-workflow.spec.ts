@@ -54,6 +54,9 @@ test("shows one clear folder-backed project model on first IDE use", async ({
   await expect(
     projectActions.getByRole("button", { name: "New project…" }),
   ).toBeVisible();
+  await expect(projectActions).toContainText(
+    "New project: Open challenges, demos, or tutorials",
+  );
   await expect(
     projectActions.getByRole("button", { name: "Save project…" }),
   ).toHaveCount(0);
@@ -70,6 +73,16 @@ test("shows one clear folder-backed project model on first IDE use", async ({
   await expect(
     fileActions.getByRole("button", { name: "Import files…" }),
   ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Test components" }),
+  ).toBeDisabled();
+  await expect(page.locator("#component-check-help")).toHaveText(
+    "Test the class implementations for this challenge",
+  );
+  await expect(page.getByTestId("current-file")).toHaveText("main.py");
+  await expect(page.getByRole("tablist", { name: "Open files" })).toHaveCount(
+    0,
+  );
   await expect(page.getByRole("button", { name: "Compile" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Compile" })).toHaveAttribute(
     "title",

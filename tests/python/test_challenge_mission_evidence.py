@@ -42,6 +42,9 @@ def load_main_definitions(challenge_number):
         "odometry",
         "navigation_controller",
         "grid_planner",
+        "range_safety_controller",
+        "pose_corrector",
+        "visit_order_planner",
     )
     saved_modules = {name: sys.modules.get(name) for name in module_names}
     previous_directory = os.getcwd()
@@ -80,7 +83,7 @@ class FakeRobot:
 
 
 class ChallengeMissionEvidenceTests(unittest.TestCase):
-    def test_challenge_3_rejects_completion_without_ordered_arrivals(self):
+    def test_challenge_3_rejects_completion_without_ordered_goal_evidence(self):
         main = load_main_definitions(3)
         robot = FakeRobot(main["INITIAL_POSE"])
 
@@ -97,43 +100,24 @@ class ChallengeMissionEvidenceTests(unittest.TestCase):
         main["make_robot"] = lambda _config: robot
         main["make_navigation_controller"] = lambda _config: PrematureNavigation()
         output = io.StringIO()
-        with self.assertRaisesRegex(RuntimeError, "ordered route"), contextlib.redirect_stdout(
-            output
-        ):
+        with self.assertRaisesRegex(
+            RuntimeError, "every waypoint"
+        ), contextlib.redirect_stdout(output):
             main["run_challenge"]()
 
-        self.assertIn("Challenge 3 result: route_incomplete", output.getvalue())
+        self.assertIn("Challenge 3: result=route_incomplete", output.getvalue())
         self.assertEqual(robot.step_count, 0)
         self.assertTrue(robot.stopped)
 
-    def test_challenge_3_step_limit_is_visible_and_precedes_motion(self):
-        main = load_main_definitions(3)
-        robot = FakeRobot(main["INITIAL_POSE"])
-
-        class NeverCompleteNavigation:
-            def start(self, _goals):
-                pass
-
-            def is_complete(self):
-                return False
-
-            def update(self, _pose):
-                raise AssertionError("the zero-step fixture must stop before motion")
-
-        main["MAXIMUM_NAVIGATION_STEPS"] = 0
-        main["make_robot"] = lambda _config: robot
-        main["make_navigation_controller"] = (
-            lambda _config: NeverCompleteNavigation()
-        )
-        output = io.StringIO()
-        with self.assertRaisesRegex(RuntimeError, "visible step limit"), contextlib.redirect_stdout(
-            output
-        ):
-            main["run_challenge"]()
-
-        self.assertIn("Challenge 3 result: step_limit", output.getvalue())
-        self.assertEqual(robot.step_count, 0)
-        self.assertTrue(robot.stopped)
+    def test_challenges_three_to_eight_have_no_arbitrary_mission_step_cap(self):
+        for number in range(3, 9):
+            directory = STARTERS / ("challenge_%d" % number)
+            source = (directory / "challenge.py").read_text(encoding="utf-8")
+            source += (directory / "main.py").read_text(encoding="utf-8")
+            self.assertNotIn("MAXIMUM_NAVIGATION_STEPS", source)
+            self.assertNotIn("MAXIMUM_APPROACH_STEPS", source)
+            self.assertNotIn("MAXIMUM_SETTLE_STEPS", source)
+            self.assertNotIn("MAXIMUM_TURN_STEPS", source)
 
     def test_challenge_4_rejects_a_connected_path_through_a_blocked_cell(self):
         main = load_main_definitions(4)
@@ -214,27 +198,20 @@ class ChallengeMissionEvidenceTests(unittest.TestCase):
             result = main["run_challenge"]()
 
         self.assertIsNone(result)
-        self.assertIn("Challenge 4 result: invalid_path", output.getvalue())
+        self.assertIn("Challenge 4: result=invalid_path", output.getvalue())
 
-    def test_challenge_5_passes_visible_limit_and_rejects_false_delivery(self):
+    def test_challenge_5_uses_delivery_mission_result_without_a_step_limit(self):
         main = load_main_definitions(5)
         captured = {}
 
         class FalseDeliveryMission:
-            def __init__(
-                self,
-                _task,
-                _navigation,
-                _planner,
-                maximum_navigation_steps=None,
-            ):
-                captured["limit"] = maximum_navigation_steps
-                self.maximum_navigation_steps = maximum_navigation_steps
+            def __init__(self, _task, _navigation, _planner):
+                captured["argument_count"] = 3
                 self.range_estimate_mm = 740.0
                 self.feature_blocked = False
                 self.planned_path = None
                 self.navigation_step_count = 0
-                self.result = "delivered"
+                self.result = "destination_not_reached"
 
             def run(self, _robot):
                 return types.SimpleNamespace(pose=main["DELIVERY_TASK"].initial_pose)
@@ -245,14 +222,180 @@ class ChallengeMissionEvidenceTests(unittest.TestCase):
         main["make_robot"] = lambda _config: object()
         output = io.StringIO()
         with self.assertRaisesRegex(
-            RuntimeError, "without destination evidence"
+            RuntimeError, "valid destination evidence"
         ), contextlib.redirect_stdout(output):
             main["run_challenge"]()
 
-        self.assertEqual(captured["limit"], main["MAXIMUM_NAVIGATION_STEPS"])
-        self.assertIn("map_decision: center_gate=open", output.getvalue())
-        self.assertIn("Challenge 5 result: delivery_incomplete", output.getvalue())
-        self.assertNotIn("Challenge 5 result: delivered", output.getvalue())
+        self.assertEqual(captured["argument_count"], 3)
+        self.assertIn("Challenge 5: result=destination_not_reached", output.getvalue())
+        self.assertNotIn("result=delivered", output.getvalue())
+
+    def test_challenge_6_distinguishes_early_stop_and_unavailable_range(self):
+        main = load_main_definitions(6)
+        with self.assertRaisesRegex(RuntimeError, "range is unavailable"):
+            main["valid_student_speed"](1.0, 120.0, 180.0, None)
+
+        class ZeroController:
+            def update(self, _requested, _measured, _range_mm):
+                return 0.0
+
+        class RangeRobot:
+            def __init__(self, range_mm):
+                self.range_mm = range_mm
+                self.commands = []
+                self.stopped = False
+                self.state = types.SimpleNamespace(
+                    pose=main["INITIAL_POSE"],
+                    measurements=types.SimpleNamespace(
+                        left_speed_mm_s=0.0,
+                        right_speed_mm_s=0.0,
+                        range_mm=range_mm,
+                    ),
+                )
+
+            def start(self, _pose):
+                return self.state
+
+            def step(self, command, read_range=False):
+                self.commands.append((command, read_range))
+                return self.state
+
+            def estimate_range(self, samples, minimum):
+                usable = [value for value in samples if value is not None]
+                return usable[-1] if len(usable) >= minimum else None
+
+            def stop(self):
+                self.stopped = True
+
+        main["make_range_safety_controller"] = lambda *_settings: ZeroController()
+        cases = (
+            (220.0, "complete"),
+            (380.0, "complete"),
+            (700.0, "early_stop"),
+            (None, "range_unavailable"),
+        )
+        for range_mm, expected in cases:
+            with self.subTest(expected=expected):
+                robot = RangeRobot(range_mm)
+                main["make_robot"] = lambda _config, robot=robot: robot
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    main["run_challenge"]()
+                self.assertIn("result=" + expected, output.getvalue())
+                self.assertTrue(
+                    all(
+                        command == main["STOP_COMMAND"]
+                        for command, _ in robot.commands
+                    )
+                )
+                self.assertTrue(robot.stopped)
+
+    def test_challenge_7_rejects_premature_corrected_navigation_completion(self):
+        main = load_main_definitions(7)
+
+        class Robot:
+            def __init__(self):
+                self.state = types.SimpleNamespace(
+                    pose=main["ODOMETRY_INITIAL_POSE"],
+                    measurements=types.SimpleNamespace(
+                        left_speed_mm_s=0.0,
+                        right_speed_mm_s=0.0,
+                    ),
+                )
+                self.stopped = False
+
+            def start(self, _pose):
+                return self.state
+
+            def stop(self):
+                self.stopped = True
+
+        class NoCorrection:
+            def reset(self, pose):
+                return pose
+
+            def observe_x(self, pose, *_observation):
+                return pose
+
+            def observe_y(self, pose, *_observation):
+                return pose
+
+            def corrected_pose(self, pose):
+                return pose
+
+        class PrematureNavigation:
+            def start(self, _goals):
+                pass
+
+            def is_complete(self):
+                return True
+
+            def update(self, _pose):
+                raise AssertionError("a completed navigator must not be stepped")
+
+        robot = Robot()
+        main["make_robot"] = lambda _config: robot
+        main["make_pose_corrector"] = lambda _offset: NoCorrection()
+        main["make_navigation_controller"] = lambda _config: PrematureNavigation()
+        main["turn_to_heading"] = lambda _robot, state, _heading: state
+        main["settle"] = lambda _robot, state: state
+        main["collect_stationary_range"] = (
+            lambda _robot, state, _heading: (state, 300.0)
+        )
+        output = io.StringIO()
+        with self.assertRaisesRegex(
+            RuntimeError, "Corrected navigation"
+        ), contextlib.redirect_stdout(output):
+            main["run_challenge"]()
+
+        self.assertIn("Challenge 7: result=destination_not_reached", output.getvalue())
+        self.assertTrue(robot.stopped)
+
+    def test_challenge_8_does_not_record_a_false_endpoint_arrival(self):
+        main = load_main_definitions(8)
+
+        class Path:
+            cells = (object(), object())
+
+            def to_goals(self, _grid):
+                return [NavigationGoal(0.0, 0.0)]
+
+        order = (0, 1, 2, 3, 0)
+        paths = {
+            pair: Path()
+            for pair in zip(order, order[1:])
+        }
+        main["build_pairwise_paths"] = lambda _grid: (
+            tuple(tuple(0 for _ in range(4)) for _ in range(4)),
+            paths,
+        )
+
+        class Planner:
+            def plan(self, *_arguments):
+                return order
+
+        class PrematureNavigation:
+            def start(self, _goals):
+                pass
+
+            def is_complete(self):
+                return True
+
+            def update(self, _pose):
+                raise AssertionError("a completed navigator must not be stepped")
+
+        robot = FakeRobot(main["INITIAL_POSE"])
+        main["make_visit_order_planner"] = lambda: Planner()
+        main["make_navigation_controller"] = lambda _config: PrematureNavigation()
+        main["make_robot"] = lambda _config: robot
+        output = io.StringIO()
+        with self.assertRaisesRegex(
+            RuntimeError, "route endpoint"
+        ), contextlib.redirect_stdout(output):
+            main["run_challenge"]()
+
+        self.assertIn("result=endpoint_not_reached endpoint=stop_a", output.getvalue())
+        self.assertTrue(robot.stopped)
 
     def test_goal_evidence_uses_arbitrary_coordinates_and_heading(self):
         main = load_main_definitions(3)
@@ -260,6 +403,26 @@ class ChallengeMissionEvidenceTests(unittest.TestCase):
         self.assertTrue(main["goal_is_reached"](Pose(-178.0, 285.0, -2.36), goal))
         self.assertFalse(main["goal_is_reached"](Pose(-190.0, 281.0, -2.4), goal))
         self.assertFalse(main["goal_is_reached"](Pose(-173.0, 281.0, -2.2), goal))
+
+    def test_challenge_3_goal_evidence_advances_only_in_order(self):
+        main = load_main_definitions(3)
+        route = (
+            NavigationGoal(100.0, 0.0),
+            NavigationGoal(200.0, 0.0),
+            NavigationGoal(300.0, 0.0),
+        )
+        self.assertEqual(
+            main["count_reached_goals"](Pose(300.0, 0.0, 0.0), route, 0),
+            0,
+        )
+        reached = main["count_reached_goals"](
+            Pose(100.0, 0.0, 0.0), route, 0
+        )
+        self.assertEqual(reached, 1)
+        self.assertEqual(
+            main["count_reached_goals"](Pose(200.0, 0.0, 0.0), route, reached),
+            2,
+        )
 
 
 if __name__ == "__main__":

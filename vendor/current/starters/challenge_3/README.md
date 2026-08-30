@@ -7,21 +7,15 @@ requested by the final marker. Navigation receives the newest odometry `Pose`
 at each sample and returns one requested forward speed and turn rate.
 
 [`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)
-loads `INITIAL_POSE` and the ordered `ROUTE`, and defines the visible
-`MAXIMUM_NAVIGATION_STEPS` mission limit. Use these names rather than copying
-the current coordinates, order, or headings into another file.
+loads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than
+copying the current coordinates, order, or headings into another file.
 
-## Continue from Challenge 2
+## Reuse work in another challenge
 
-Open the completed Challenge 2 project and select **Continue to Challenge 3 ·
-Waypoint Courier…**. The new project carries forward
-[`sensor_model.py`](sensor_model.py),
-[`wheel_speed_controller.py`](wheel_speed_controller.py),
-[`differential_drive.py`](differential_drive.py), and
-[`odometry.py`](odometry.py), along with their selections.
-[`navigation_controller.py`](navigation_controller.py) begins with the
-supplied `NavigationController` selected. The Challenge 2 project remains
-unchanged.
+Choose **Start another challenge…** in the IDE. Review the **Preserve**,
+**Replace**, and **Add** lists before creating the separate project; they show
+how existing component, calibration, helper, and task files will be handled.
+The current project remains unchanged.
 
 ## What you implement
 
@@ -39,6 +33,13 @@ configured approach speed near it, return to turning when the heading error is
 too large, and align to a requested final heading. Return `STOP_COMMAND` after
 the route is complete. Use `NAVIGATION_CONFIG` and the supplied
 `distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions.
+
+The configuration separates the decisions: `position_tolerance_mm` accepts a
+goal position, `heading_tolerance_rad` accepts the initial bearing or requested
+final heading, `realign_heading_rad` returns a drifting drive to the turn
+state, and `slowdown_distance_mm` selects approach rather than cruise speed.
+Keep an active-goal index and a small explicit mode such as `turn`, `drive`, or
+`align`. Each mode describes motion toward the current goal.
 
 ## Project modules
 
@@ -58,13 +59,13 @@ files**, regardless of which classes are selected for a complete robot run.
 ## Provided files and tools
 
 - [`main.py`](main.py) starts the route, passes each new pose to navigation,
-  reports each ordered waypoint arrival, rejects a premature completion flag,
-  applies the stated step limit, and stops the robot on completion or error.
+  records each assigned waypoint observed in order, and stops the robot on
+  completion or error.
 - [`component_checks.py`](component_checks.py) calls the required
-  `NavigationController` methods and the methods of the four carried-forward
-  classes without starting a robot.
-- `Robot` executes each `MotionCommand` through the carried-forward wheel,
-  sensing, and odometry components.
+  `NavigationController` methods and the methods of the other selected classes
+  without starting a robot.
+- `Robot` executes each `MotionCommand` through the selected wheel, sensing,
+  and odometry components.
 
 ## How the program runs
 
@@ -96,8 +97,8 @@ set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.
    approach, the reduced approach speed, and the final heading adjustment.
 2. Select the `NavigationController` defined in
    `navigation_controller.py`. Verify waypoint order and zero requested motion
-   after completion. A completion flag without every `waypoint_reached` event
-   is rejected.
+   after completion. The final measured pose must satisfy the assigned final
+   position and heading.
 3. Select the classes from all five component project files. Compare odometry
    with virtual ground truth to separate pose-estimation error from navigation
    behavior.
@@ -105,7 +106,3 @@ set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.
    path. Use the assigned values in `ROUTE` for your analysis.
 5. On the physical course, record the same program evidence and measure the
    final position and heading independently.
-
-After completing this challenge, select **Continue to Challenge 4 · Mapped
-Route…**. The new project carries forward the five component files and their
-selections; the Challenge 3 project remains unchanged.

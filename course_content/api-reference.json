@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "apiVersion": "0.4.0-dev",
+  "apiVersion": "0.5.0-dev",
   "title": "UCSB XRP API reference",
-  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six recurring component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Three extension components address range-constrained stopping, known-wall position correction, and bounded multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.",
+  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six reusable component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Catalog projects may add focused components for line following, range-constrained stopping, known-wall position correction, or multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.",
   "publicModules": {
     "ucsb_xrp": [
       "ArenaMap",
@@ -13,11 +13,14 @@
       "GridCell",
       "GridPath",
       "GridPlannerBase",
+      "LineFollowerBase",
       "NavigationConfig",
       "NavigationControllerBase",
       "RobotConfig",
       "OccupancyGrid",
       "OdometryBase",
+      "PoseCorrectorBase",
+      "RangeSafetyControllerBase",
       "Rectangle",
       "Measurements",
       "MotionCommand",
@@ -26,11 +29,13 @@
       "Pose",
       "ProjectWorld",
       "RawSensors",
+      "ReflectanceReadings",
       "Robot",
       "RobotState",
       "SensorModelBase",
       "STOP_COMMAND",
       "StraightLineController",
+      "VisitOrderPlannerBase",
       "WheelSpeeds",
       "WheelSpeedControllerBase",
       "XRPBot",
@@ -63,7 +68,7 @@
     {
       "id": "components",
       "title": "Classes you implement",
-      "introduction": "You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and DeliveryMission call the appropriate methods, so the rest of the project does not change when course_setup.py selects the class from that project file.",
+      "introduction": "You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot, DeliveryMission, or the project loop calls the appropriate methods, so the rest of that project does not change when course_setup.py selects the class from its project file.",
       "entries": [
         {
           "id": "sensor-model",
@@ -73,7 +78,7 @@
           "projectFile": "sensor_model.py",
           "baseClass": "SensorModelBase",
           "configType": "RobotConfig",
-          "purpose": "Convert encoder counts and device time into wheel positions, wheel-travel increments, regularized wheel-speed estimates, and elapsed sample time while preserving ultrasonic range and USER-button state. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() combines repeated ultrasonic readings.",
+          "purpose": "Convert encoder counts and device time into wheel positions, wheel-travel increments, regularized wheel-speed estimates, and elapsed sample time while preserving optional range and reflectance plus USER-button state. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() combines repeated ultrasonic readings.",
           "state": "After reset(), retain the encoder and time zero values, the preceding sample, and enough recent encoder history to estimate wheel speed. Wheel position remains relative to the reset values.",
           "relevantConfigFields": [
             "sample_period_ms",
@@ -107,7 +112,7 @@
               ],
               "returns": {
                 "type": "Measurements",
-                "description": "A measurement at raw.time_ms with zero positions, increments, speeds, and dt_s, while preserving raw.range_mm and raw.button_pressed."
+                "description": "A measurement at raw.time_ms with zero positions, increments, speeds, and dt_s, while preserving raw.range_mm, raw.reflectance, and raw.button_pressed."
               },
               "exceptions": ["TypeError if raw is not a RawSensors value."],
               "requiredBehavior": [
@@ -124,12 +129,12 @@
                 {
                   "name": "raw",
                   "type": "RawSensors",
-                  "description": "Next encoder, device-time, range, and USER-button sample."
+                  "description": "Next encoder, device-time, optional range and reflectance, and USER-button sample."
                 }
               ],
               "returns": {
                 "type": "Measurements",
-                "description": "Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, range, and button state."
+                "description": "Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, optional range and reflectance, and button state."
               },
               "exceptions": [
                 "RuntimeError if reset() has not been called.",
@@ -141,7 +146,7 @@
                 "Do not smooth left_increment_mm or right_increment_mm; odometry uses the measured increments.",
                 "Estimate wheel speed from recent encoder samples or an equivalent estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.",
                 "If no positive time has elapsed, report dt_s as zero without dividing by zero; positions and increments still follow the new encoder counts.",
-                "Preserve raw.range_mm and raw.button_pressed in the returned Measurements."
+                "Preserve raw.range_mm, raw.reflectance, and raw.button_pressed in the returned Measurements."
               ]
             },
             {
@@ -515,15 +520,76 @@
     },
     {
       "id": "challenge-extension-components",
-      "title": "Challenge-specific extension components",
-      "introduction": "These focused components are introduced in Challenges 6–8 and then carried forward. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.",
+      "title": "Project-specific components",
+      "introduction": "Catalog projects use these focused components when their learning objective requires them. Challenge numbers do not define a mandatory sequence. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.",
       "entries": [
+        {
+          "id": "line-follower",
+          "name": "LineFollower",
+          "symbols": ["LineFollower", "LineFollowerBase"],
+          "kind": "project component",
+          "projectFile": "line_follower.py",
+          "baseClass": "LineFollowerBase",
+          "purpose": "Convert normalized left and right floor-reflectance readings into a local MotionCommand that keeps a dark line under the robot.",
+          "state": "After reset(), retain the preceding line error and any integral or derivative state used by the chosen feedback law. line_error exposes the latest left-minus-right reading difference.",
+          "signature": "LineFollower(settings: dict)",
+          "parameters": [
+            {
+              "name": "settings",
+              "type": "dict",
+              "description": "Project-readable gains, speed limits, integral limit, and turn-slowdown settings used by the implementation. The base class stores the same mapping as self.settings."
+            }
+          ],
+          "methods": [
+            {
+              "id": "method-line-follower-reset",
+              "name": "reset",
+              "signature": "reset() -> None",
+              "summary": "Clear retained feedback state before a run.",
+              "requiredBehavior": [
+                "Set line_error and retained integral and preceding-error state to zero."
+              ]
+            },
+            {
+              "id": "method-line-follower-update",
+              "name": "update",
+              "signature": "update(reflectance: ReflectanceReadings, dt_s: float) -> MotionCommand",
+              "summary": "Return the next local motion request from one reflectance sample.",
+              "parameters": [
+                {
+                  "name": "reflectance",
+                  "type": "ReflectanceReadings",
+                  "description": "Normalized left and right readings: 0 is a light floor and 1 is a dark line."
+                },
+                {
+                  "name": "dt_s",
+                  "type": "float",
+                  "units": "s",
+                  "description": "Elapsed sample interval used by derivative or integral terms."
+                }
+              ],
+              "returns": {
+                "type": "MotionCommand",
+                "description": "Forward speed and turn rate for the next Robot.step() call."
+              },
+              "requiredBehavior": [
+                "Use positive left-minus-right line error for a positive counterclockwise turn request.",
+                "Keep forward speed and turn rate within the visible project settings.",
+                "Do not use a stored world-coordinate route; this component is local reflectance feedback."
+              ]
+            }
+          ],
+          "notes": [
+            "LineFollowerBase is imported from ucsb_xrp and supplies settings plus resettable feedback state."
+          ]
+        },
         {
           "id": "range-safety-controller",
           "name": "RangeSafetyController",
           "symbols": ["RangeSafetyController", "RangeSafetyControllerBase"],
           "kind": "project component",
           "projectFile": "range_safety_controller.py",
+          "baseClass": "RangeSafetyControllerBase",
           "purpose": "Limit a nonnegative forward-speed request using measured forward speed and available forward range.",
           "state": "Retain the configured response time, minimum deceleration, stopping margin, and maximum speed.",
           "signature": "RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)",
@@ -574,6 +640,7 @@
           "symbols": ["PoseCorrector", "PoseCorrectorBase"],
           "kind": "project component",
           "projectFile": "pose_corrector.py",
+          "baseClass": "PoseCorrectorBase",
           "purpose": "Retain a planar translation from raw odometry coordinates into a map frame. Known-wall observations correct one position coordinate at a time; heading remains the raw odometry heading.",
           "state": "After reset(), retain independent x and y translation corrections.",
           "signature": "PoseCorrector(sensor_forward_offset_mm)",
@@ -652,6 +719,7 @@
           "symbols": ["VisitOrderPlanner", "VisitOrderPlannerBase"],
           "kind": "project component",
           "projectFile": "visit_order_planner.py",
+          "baseClass": "VisitOrderPlannerBase",
           "purpose": "Choose a least-cost order for a bounded set of required service stops.",
           "state": "None is required between calls.",
           "signature": "VisitOrderPlanner()",
@@ -769,13 +837,19 @@
             {
               "id": "method-robot-start",
               "name": "start",
-              "signature": "start(initial_pose: Pose) -> RobotState",
+              "signature": "start(initial_pose: Pose, read_reflectance: bool = False) -> RobotState",
               "summary": "Reset encoders and components and begin a run.",
               "parameters": [
                 {
                   "name": "initial_pose",
                   "type": "Pose",
                   "description": "Known starting pose."
+                },
+                {
+                  "name": "read_reflectance",
+                  "type": "bool",
+                  "default": "False",
+                  "description": "Include left/right floor reflectance in the initial sample."
                 }
               ],
               "returns": {
@@ -786,14 +860,14 @@
                 "An IDE-managed Run begins immediately. A project launched directly on the XRP waits for the USER button."
               ],
               "exceptions": [
-                "TypeError if initial_pose is not a Pose value.",
+                "TypeError if initial_pose is not a Pose value or read_reflectance is not Boolean.",
                 "Hardware or component exceptions raised while resetting or taking the initial sample."
               ]
             },
             {
               "id": "method-robot-step",
               "name": "step",
-              "signature": "step(command: MotionCommand, read_range: bool = False) -> RobotState",
+              "signature": "step(command: MotionCommand, read_range: bool = False, read_reflectance: bool = False) -> RobotState",
               "summary": "Execute one complete robot control cycle.",
               "parameters": [
                 {
@@ -806,6 +880,12 @@
                   "type": "bool",
                   "default": "False",
                   "description": "Request an ultrasonic reading for this sample."
+                },
+                {
+                  "name": "read_reflectance",
+                  "type": "bool",
+                  "default": "False",
+                  "description": "Request left/right floor reflectance for this sample."
                 }
               ],
               "returns": {
@@ -818,7 +898,7 @@
               ],
               "exceptions": [
                 "RuntimeError if start() has not been called.",
-                "TypeError if command is not MotionCommand or read_range is not Boolean.",
+                "TypeError if command is not MotionCommand or either read flag is not Boolean.",
                 "Hardware or component exceptions raised during the sample; Robot attempts to stop the motors before re-raising them."
               ]
             },
@@ -944,12 +1024,36 @@
       "introduction": "These read-only records store sensor readings, motion requests, controller outputs, pose, and planning data passed between UCSBXRP classes.",
       "entries": [
         {
+          "id": "record-reflectance-readings",
+          "name": "ReflectanceReadings",
+          "symbols": ["ReflectanceReadings"],
+          "kind": "value record",
+          "purpose": "Store normalized readings from the left and right downward-facing sensors.",
+          "signature": "ReflectanceReadings(left, right)",
+          "properties": [
+            {
+              "name": "left",
+              "type": "float",
+              "description": "Left reflectance, from 0 for a light floor to 1 for a dark line."
+            },
+            {
+              "name": "right",
+              "type": "float",
+              "description": "Right reflectance, from 0 for a light floor to 1 for a dark line."
+            }
+          ],
+          "exceptions": [
+            "TypeError if either reading is Boolean or nonnumeric.",
+            "ValueError if either reading is nonfinite or outside [0, 1]."
+          ]
+        },
+        {
           "id": "record-raw-sensors",
           "name": "RawSensors",
           "symbols": ["RawSensors"],
           "kind": "value record",
           "purpose": "Store one direct hardware sample.",
-          "signature": "RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)",
+          "signature": "RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed, reflectance=None)",
           "properties": [
             {
               "name": "time_ms",
@@ -979,6 +1083,11 @@
               "name": "button_pressed",
               "type": "bool",
               "description": "Current USER-button state."
+            },
+            {
+              "name": "reflectance",
+              "type": "ReflectanceReadings | None",
+              "description": "Floor readings, or None when unavailable or not requested."
             }
           ],
           "exceptions": [
@@ -992,7 +1101,7 @@
           "symbols": ["Measurements"],
           "kind": "value record",
           "purpose": "Store sensor-derived motion and range values for one sample.",
-          "signature": "Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)",
+          "signature": "Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed, reflectance=None)",
           "properties": [
             {
               "name": "time_ms",
@@ -1052,6 +1161,11 @@
               "name": "button_pressed",
               "type": "bool",
               "description": "USER-button state."
+            },
+            {
+              "name": "reflectance",
+              "type": "ReflectanceReadings | None",
+              "description": "Preserved floor readings, or None."
             },
             {
               "name": "wheel_speeds",
@@ -2389,8 +2503,8 @@
           "symbols": ["DeliveryMission"],
           "kind": "supplied class",
           "purpose": "Perform range observation, map update, route planning, and navigation for a DeliveryTask.",
-          "state": "Retain task, the explicit optional navigation bound, the latest observation and route evidence, the executed navigation-step count, and result. result is None before run(), no_path when planning finds no route, step_limit when the explicit bound is reached, and delivered after navigation completes.",
-          "signature": "DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner, maximum_navigation_steps: int | None = None)",
+          "state": "Retain task, the latest observation and route evidence, the executed navigation-step count, and result. result is None before run(), no_path when no route is available, invalid_path when the planner returns an invalid route, destination_not_reached when navigation reports completion outside the destination tolerances, and delivered only after measured terminal evidence satisfies those tolerances.",
+          "signature": "DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)",
           "parameters": [
             {
               "name": "task",
@@ -2406,28 +2520,16 @@
               "name": "planner",
               "type": "GridPlanner",
               "description": "Selected grid-planning component."
-            },
-            {
-              "name": "maximum_navigation_steps",
-              "type": "int | None",
-              "default": "None",
-              "description": "Positive project-owned Robot.step bound, or None for no library-imposed bound. Moving course projects should pass a visible explicit bound."
             }
           ],
           "exceptions": [
-            "TypeError if task is not DeliveryTask, navigation and planner do not provide the required public methods, or maximum_navigation_steps has the wrong type.",
-            "ValueError if maximum_navigation_steps is below one."
+            "TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods."
           ],
           "properties": [
             {
               "name": "task",
               "type": "DeliveryTask",
               "description": "Mission definition."
-            },
-            {
-              "name": "maximum_navigation_steps",
-              "type": "int | None",
-              "description": "Explicit navigation bound, if supplied."
             },
             {
               "name": "range_estimate_mm",
@@ -2453,7 +2555,7 @@
             {
               "name": "result",
               "type": "str | None",
-              "description": "delivered, no_path, step_limit, or None before completion."
+              "description": "delivered, no_path, invalid_path, destination_not_reached, or None before completion."
             }
           ],
           "methods": [
@@ -2474,7 +2576,7 @@
                 "description": "Last robot state."
               },
               "exceptions": [
-                "Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising. Reaching maximum_navigation_steps returns the last state with result set to step_limit rather than raising."
+                "Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising. The IDE Stop control is the operator interruption path for a moving run."
               ]
             }
           ]
@@ -2515,14 +2617,20 @@
             {
               "id": "method-xrpbot-read",
               "name": "read",
-              "signature": "read(include_range: bool = False) -> RawSensors",
-              "summary": "Read encoders, time, button state, and optionally range.",
+              "signature": "read(include_range: bool = False, include_reflectance: bool = False) -> RawSensors",
+              "summary": "Read encoders, time, button state, and optional range and reflectance.",
               "parameters": [
                 {
                   "name": "include_range",
                   "type": "bool",
                   "default": "False",
                   "description": "Read the ultrasonic sensor on this sample."
+                },
+                {
+                  "name": "include_reflectance",
+                  "type": "bool",
+                  "default": "False",
+                  "description": "Read the left and right reflectance sensors on this sample."
                 }
               ],
               "returns": {
@@ -2530,7 +2638,7 @@
                 "description": "Direct hardware sample."
               },
               "exceptions": [
-                "TypeError if include_range is not Boolean.",
+                "TypeError if either include flag is not Boolean.",
                 "Hardware or run-stop exception while reading the XRP."
               ]
             },

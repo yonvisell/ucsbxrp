@@ -79,6 +79,10 @@ import {
 import { monitorProjectId } from "./monitor-project-identity";
 import { monitorReloadIsSafe } from "./monitor-release-reload";
 import {
+  normalizeTelemetryUltrasound,
+  normalizeUltrasoundRangeMm,
+} from "./ultrasound-range";
+import {
   appendTelemetryRateSample,
   MonitorVisualHistory,
   type MonitorVisualSnapshot,
@@ -375,6 +379,8 @@ interface RuntimeControlsProps {
   ): void;
   runtime: RuntimeState;
   targetState: TargetRunState;
+  open: boolean;
+  onToggle(): void;
 }
 
 function RuntimeControls({
@@ -383,11 +389,13 @@ function RuntimeControls({
   onChange,
   runtime,
   targetState,
+  open,
+  onToggle,
 }: RuntimeControlsProps) {
   return (
     <section
       aria-labelledby="live-controls-title"
-      className="live-controls-panel"
+      className={`live-controls-panel ${open ? "open" : "collapsed"}`}
     >
       <div
         className="live-program-heading"
@@ -397,8 +405,23 @@ function RuntimeControls({
         {runtime.parameters.length > 0 ? (
           <small>{runtime.parameters.length} controls</small>
         ) : null}
+        <button
+          aria-controls="live-controls-content"
+          aria-expanded={open}
+          aria-label={`${open ? "Collapse" : "Expand"} live controls`}
+          className="panel-collapse-button"
+          onClick={onToggle}
+          title={`${open ? "Collapse" : "Expand"} live controls`}
+          type="button"
+        >
+          <span aria-hidden="true">{open ? "⌃" : "⌄"}</span>
+        </button>
       </div>
-      <div className="live-program-content">
+      <div
+        className="live-program-content"
+        hidden={!open}
+        id="live-controls-content"
+      >
         {runtime.parameters.length === 0 ? (
           <p className="live-program-empty">No controls in this program.</p>
         ) : (
@@ -576,6 +599,8 @@ export function DashboardApp() {
   const [controlsOpen, setControlsOpen] = useState(
     initiallyShowMonitorControls,
   );
+  const [liveControlsOpen, setLiveControlsOpen] = useState(true);
+  const [plotsOpen, setPlotsOpen] = useState(true);
   const controlsRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -1302,16 +1327,17 @@ export function DashboardApp() {
     });
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
+        const normalizedSample = normalizeTelemetryUltrasound(event.sample);
         const rateSamples = telemetryRateSamplesRef.current;
-        appendTelemetryRateSample(rateSamples, event.sample);
+        appendTelemetryRateSample(rateSamples, normalizedSample);
 
         if (event.replayed === true && replayedRunRef.current) {
-          replayedRunRef.current.samples.push(event.sample);
+          replayedRunRef.current.samples.push(normalizedSample);
         }
 
-        const capturedByRun = runDatasetController.capture(event.sample);
+        const capturedByRun = runDatasetController.capture(normalizedSample);
         const telemetryRestarted = monitorVisualHistory.append(
-          event.sample,
+          normalizedSample,
           capturedByRun,
         );
         if (capturedByRun) {
@@ -2086,6 +2112,7 @@ export function DashboardApp() {
     [target.kind],
   );
   const worldSample = sample?.poseAvailable ? sample : worldPreviewSample;
+  const displayedUltrasoundMm = normalizeUltrasoundRangeMm(sample?.rangeMm);
   const telemetryRateHz = recentTelemetryRateHz(
     telemetryRateSamplesRef.current,
   );
@@ -2235,13 +2262,13 @@ export function DashboardApp() {
       <div
         className={`monitor-workspace ${controlsOpen ? "controls-open" : "controls-collapsed"}`}
       >
-        <aside
-          aria-label="Monitor controls"
-          className="monitor-controls"
-          data-testid="monitor-controls"
-          ref={controlsRef}
-        >
-          {controlsOpen ? (
+        {controlsOpen ? (
+          <aside
+            aria-label="Monitor controls"
+            className="monitor-controls"
+            data-testid="monitor-controls"
+            ref={controlsRef}
+          >
             <div className="monitor-controls-panel">
               <div className="monitor-controls-cap">
                 <strong>Controls</strong>
@@ -2463,20 +2490,23 @@ export function DashboardApp() {
                 </section>
               </div>
             </div>
-          ) : (
-            <button
-              aria-label="Open monitor controls"
-              className="monitor-controls-restore"
-              onClick={() => setControlsOpen(true)}
-              title="Open plot, run-data, and export controls."
-            >
-              <span>controls</span>
-              <b aria-hidden="true">›</b>
-            </button>
-          )}
-        </aside>
+          </aside>
+        ) : (
+          <button
+            aria-label="Open monitor controls"
+            className="monitor-controls-restore"
+            onClick={() => setControlsOpen(true)}
+            title="Open plot, run-data, and export controls."
+            type="button"
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        )}
 
-        <main className="dashboard-grid" style={layoutStyle}>
+        <main
+          className={`dashboard-grid ${plotsOpen ? "plots-open" : "plots-collapsed"}`}
+          style={layoutStyle}
+        >
           <div className="dashboard-region top-region" style={topRegionStyle}>
             <section className="world-panel dashboard-pane">
               <WorldView
@@ -2514,6 +2544,8 @@ export function DashboardApp() {
                 drafts={runtimeDrafts}
                 error={runtimeUpdateError}
                 onChange={setRuntimeParameter}
+                onToggle={() => setLiveControlsOpen((current) => !current)}
+                open={liveControlsOpen}
                 runtime={runtimeState}
                 targetState={targetState}
               />
@@ -2609,7 +2641,18 @@ export function DashboardApp() {
                     </div>
                     <div title="Forward ultrasonic distance reading.">
                       <dt>ultrasound distance</dt>
-                      <dd data-testid="range-mm">{value(sample.rangeMm)} mm</dd>
+                      <dd
+                        className={
+                          displayedUltrasoundMm === null
+                            ? "alert-value"
+                            : undefined
+                        }
+                        data-testid="range-mm"
+                      >
+                        {displayedUltrasoundMm === null
+                          ? "Out of range"
+                          : `${value(displayedUltrasoundMm)} mm`}
+                      </dd>
                     </div>
                     <div title="Acceleration along the IMU x, y, and z axes.">
                       <dt>acceleration ax/ay/az</dt>
@@ -2707,46 +2750,71 @@ export function DashboardApp() {
             </section>
           </div>
 
-          <ResizableSeparator
-            label="Resize upper and lower monitor regions"
-            maximum={75}
-            minimum={35}
-            onChange={(next) => setLayoutValue("topHeightPercent", next)}
-            orientation="horizontal"
-            value={monitorSettings.layout.topHeightPercent}
-          />
+          {plotsOpen ? (
+            <ResizableSeparator
+              label="Resize upper and lower monitor regions"
+              maximum={75}
+              minimum={35}
+              onChange={(next) => setLayoutValue("topHeightPercent", next)}
+              orientation="horizontal"
+              value={monitorSettings.layout.topHeightPercent}
+            />
+          ) : (
+            <div aria-hidden="true" className="plot-separator-placeholder" />
+          )}
 
           <div className="dashboard-region bottom-region">
             <section
-              aria-label="Signal histories"
+              aria-labelledby="plots-panel-title"
               className="plots-panel dashboard-pane"
             >
-              {sample && visiblePlots.length > 0 ? (
-                <div className="strip-chart-stack">
-                  {visiblePlots.map((plot) => (
-                    <section className="strip-chart" key={plot.id}>
-                      <SignalPlot
-                        active={monitorSurfaceActive}
-                        annotations={annotations}
-                        definition={plot}
-                        onAddAnnotation={
-                          activeRunId || latestRun ? addAnnotation : undefined
-                        }
-                        onAnnotationDraftChange={setAnnotationDraftActive}
-                        samples={displayedRunSamples}
-                        showAnnotations={annotationsVisible}
-                        timeWindowS={monitorSettings.timeWindowS}
-                      />
-                    </section>
-                  ))}
-                </div>
-              ) : (
-                <div className="telemetry-placeholder" role="status">
-                  {sample
-                    ? "Choose at least one signal in Controls."
-                    : "Signal histories appear when telemetry connects."}
-                </div>
-              )}
+              <div className="section-heading plots-heading">
+                <h2 id="plots-panel-title">Plots</h2>
+                <small>{visiblePlots.length} selected</small>
+                <button
+                  aria-controls="plots-panel-content"
+                  aria-expanded={plotsOpen}
+                  aria-label={`${plotsOpen ? "Collapse" : "Expand"} plots`}
+                  className="panel-collapse-button"
+                  onClick={() => setPlotsOpen((current) => !current)}
+                  title={`${plotsOpen ? "Collapse" : "Expand"} plots`}
+                  type="button"
+                >
+                  <span aria-hidden="true">{plotsOpen ? "⌃" : "⌄"}</span>
+                </button>
+              </div>
+              <div
+                className="plots-content"
+                hidden={!plotsOpen}
+                id="plots-panel-content"
+              >
+                {plotsOpen && sample && visiblePlots.length > 0 ? (
+                  <div className="strip-chart-stack">
+                    {visiblePlots.map((plot) => (
+                      <section className="strip-chart" key={plot.id}>
+                        <SignalPlot
+                          active={monitorSurfaceActive && plotsOpen}
+                          annotations={annotations}
+                          definition={plot}
+                          onAddAnnotation={
+                            activeRunId || latestRun ? addAnnotation : undefined
+                          }
+                          onAnnotationDraftChange={setAnnotationDraftActive}
+                          samples={displayedRunSamples}
+                          showAnnotations={annotationsVisible}
+                          timeWindowS={monitorSettings.timeWindowS}
+                        />
+                      </section>
+                    ))}
+                  </div>
+                ) : plotsOpen ? (
+                  <div className="telemetry-placeholder" role="status">
+                    {sample
+                      ? "Choose at least one signal in Controls."
+                      : "Signal histories appear when telemetry connects."}
+                  </div>
+                ) : null}
+              </div>
             </section>
           </div>
         </main>

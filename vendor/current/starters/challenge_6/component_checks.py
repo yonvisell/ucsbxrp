@@ -9,6 +9,7 @@ from sensor_model import SensorModel
 from wheel_speed_controller import WheelSpeedController
 
 from ucsb_xrp.component_checks import run_component_checks
+from ucsb_xrp.student_api import RangeSafetyControllerBase
 
 
 run_component_checks(
@@ -27,6 +28,9 @@ def check_range_safety_controller():
     print("USE request, measured speed, range, and every configured setting")
     try:
         controller = RangeSafetyController(0.20, 400.0, 120.0, 250.0)
+        if not isinstance(controller, RangeSafetyControllerBase):
+            print("FAIL RangeSafetyController must extend RangeSafetyControllerBase")
+            return
         far = controller.update(220.0, 0.0, 1000.0)
         missing = controller.update(220.0, 0.0, None)
         zero = controller.update(0.0, 80.0, 1000.0)

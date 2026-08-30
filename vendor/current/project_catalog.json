@@ -11,14 +11,12 @@
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       }
     ],
     "published": true
@@ -31,31 +29,26 @@
     "short_label": "2 · Turn and Return",
     "summary": "Turn, return to the start, and estimate position and heading.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_1",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       }
     ],
     "published": true
@@ -68,37 +61,31 @@
     "short_label": "3 · Waypoint Courier",
     "summary": "Visit the assigned map positions in order and finish at the requested heading.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_2",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       },
       {
         "name": "NavigationController",
         "file": "navigation_controller.py",
-        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
       }
     ],
     "published": true
@@ -111,43 +98,36 @@
     "short_label": "4 · Mapped Route",
     "summary": "Plan and follow a route around known obstacles.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_3",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       },
       {
         "name": "NavigationController",
         "file": "navigation_controller.py",
-        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
       },
       {
         "name": "GridPlanner",
         "file": "grid_planner.py",
-        "selection_flag": "USE_STUDENT_GRID_PLANNER",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
       }
     ],
     "published": true
@@ -160,43 +140,36 @@
     "short_label": "5 · Delivery Mission",
     "summary": "Use range measurements to choose an available route and deliver.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_4",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       },
       {
         "name": "NavigationController",
         "file": "navigation_controller.py",
-        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
       },
       {
         "name": "GridPlanner",
         "file": "grid_planner.py",
-        "selection_flag": "USE_STUDENT_GRID_PLANNER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
       }
     ],
     "published": true
@@ -209,49 +182,41 @@
     "short_label": "6 · Range-Constrained Stopping",
     "summary": "Use measured speed and ultrasound range to stop with a defined clearance margin.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_5",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       },
       {
         "name": "NavigationController",
         "file": "navigation_controller.py",
-        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
       },
       {
         "name": "GridPlanner",
         "file": "grid_planner.py",
-        "selection_flag": "USE_STUDENT_GRID_PLANNER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
       },
       {
         "name": "RangeSafetyController",
         "file": "range_safety_controller.py",
-        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER"
       }
     ],
     "published": true
@@ -264,55 +229,46 @@
     "short_label": "7 · Wall-Range Pose Correction",
     "summary": "Correct odometry position from stationary observations of two known walls.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_6",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       },
       {
         "name": "NavigationController",
         "file": "navigation_controller.py",
-        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
       },
       {
         "name": "GridPlanner",
         "file": "grid_planner.py",
-        "selection_flag": "USE_STUDENT_GRID_PLANNER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
       },
       {
         "name": "RangeSafetyController",
         "file": "range_safety_controller.py",
-        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER"
       },
       {
         "name": "PoseCorrector",
         "file": "pose_corrector.py",
-        "selection_flag": "USE_STUDENT_POSE_CORRECTOR",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_POSE_CORRECTOR"
       }
     ],
     "published": true
@@ -325,61 +281,51 @@
     "short_label": "8 · Multi-Stop Route Planning",
     "summary": "Choose and execute the least-cost order for three required service stops.",
     "entrypoint": "main.py",
-    "predecessor_id": "challenge_7",
     "components": [
       {
         "name": "SensorModel",
         "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
       },
       {
         "name": "WheelSpeedController",
         "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
-        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
         "name": "Odometry",
         "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_ODOMETRY"
       },
       {
         "name": "NavigationController",
         "file": "navigation_controller.py",
-        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
       },
       {
         "name": "GridPlanner",
         "file": "grid_planner.py",
-        "selection_flag": "USE_STUDENT_GRID_PLANNER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
       },
       {
         "name": "RangeSafetyController",
         "file": "range_safety_controller.py",
-        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER"
       },
       {
         "name": "PoseCorrector",
         "file": "pose_corrector.py",
-        "selection_flag": "USE_STUDENT_POSE_CORRECTOR",
-        "carry_forward": true
+        "selection_flag": "USE_STUDENT_POSE_CORRECTOR"
       },
       {
         "name": "VisitOrderPlanner",
         "file": "visit_order_planner.py",
-        "selection_flag": "USE_STUDENT_VISIT_ORDER_PLANNER",
-        "carry_forward": false
+        "selection_flag": "USE_STUDENT_VISIT_ORDER_PLANNER"
       }
     ],
     "published": true
@@ -461,6 +407,33 @@
     "label": "Complete Challenge 8 · Multi-Stop Route Planning",
     "short_label": "Complete 8 · Multi-Stop Route Planning",
     "summary": "Run Challenge 8 with every supplied reference class selected.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "challenge_9",
+    "kind": "challenge",
+    "source": "starters/challenge_9",
+    "label": "Experimental Challenge 9 · Arena Circuit",
+    "short_label": "Experimental 9 · Arena Circuit",
+    "summary": "Follow a visible closed circuit using local left/right reflectance feedback.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "LineFollower",
+        "file": "line_follower.py",
+        "selection_flag": "USE_STUDENT_LINE_FOLLOWER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "complete_challenge_9",
+    "kind": "complete-challenge",
+    "source": "starters/challenge_9",
+    "label": "Complete Experimental Challenge 9 · Arena Circuit",
+    "short_label": "Complete Experimental 9 · Arena Circuit",
+    "summary": "Run experimental Challenge 9 with the supplied line follower.",
     "entrypoint": "main.py",
     "published": true
   },

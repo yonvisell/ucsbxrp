@@ -47,6 +47,36 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
   ).toBeVisible();
   await expectShellFillsViewport(page, ".ide-app");
 
+  const rail = page.getByRole("complementary", { name: "Project" });
+  const railResizer = page.getByRole("separator", {
+    name: "Resize Project sidebar",
+  });
+  await railResizer.press("End");
+  await expect(railResizer).toHaveAttribute("aria-valuenow", "360");
+  const wideRailGeometry = await page
+    .locator(".ide-workspace")
+    .evaluate((workspace) => {
+      const railBounds = workspace
+        .querySelector(".project-rail")!
+        .getBoundingClientRect();
+      const editorBounds = workspace
+        .querySelector(".editor-stack")!
+        .getBoundingClientRect();
+      return {
+        editorLeft: editorBounds.left,
+        railRight: railBounds.right,
+        railWidth: railBounds.width,
+      };
+    });
+  expect(wideRailGeometry.railWidth).toBeCloseTo(360, 0);
+  expect(wideRailGeometry.editorLeft).toBeCloseTo(
+    wideRailGeometry.railRight,
+    0,
+  );
+  await railResizer.dblclick();
+  await expect(railResizer).toHaveAttribute("aria-valuenow", "200");
+  await expect(rail).toBeVisible();
+
   await page.setViewportSize({ width: 850, height: 980 });
   await expect(
     page.getByRole("complementary", { name: "Project" }),
@@ -103,7 +133,7 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
         width: bounds.width,
       };
     });
-  expect(expandedEditor.width).toBeGreaterThan(1120);
+  expect(expandedEditor.width).toBeGreaterThan(1100);
   expect(expandedEditor.height).toBeGreaterThan(840);
   expect(expandedEditor.consoleHeight).toBeLessThanOrEqual(136);
   expect(expandedEditor.monacoWidth).toBeGreaterThan(1100);

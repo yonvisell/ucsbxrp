@@ -8,8 +8,8 @@ UCSB-XRP provides the common structure used by the course robot programs. It
 connects motion commands to the XRP motors, converts encoder readings to
 physical units, estimates pose, follows world-coordinate destinations, creates
 an occupancy grid from a dimensioned map, and plans a route through free cells.
-Extension projects also use measured stopping envelopes, known-wall position
-correction, and bounded multi-stop ordering.
+Catalog projects may also use local line following, measured stopping
+envelopes, known-wall position correction, and bounded multi-stop ordering.
 
 XRPBot is the only UCSB-XRP class that calls XRPLib directly. Most programs use
 Robot and the higher-level controllers rather than accessing XRPBot.
@@ -37,7 +37,7 @@ XRPBot
     returns RawSensors
 
 SensorModel
-    converts encoder, time, range, and USER-button readings to wheel position,
+    converts encoder, time, optional range and reflectance, and USER-button readings to wheel position,
     wheel-travel increments, regularized wheel speed, elapsed time, range, and
     button state in Measurements
 
@@ -62,7 +62,10 @@ DeliveryMission
     combines stationary range observation, map selection, planning, and
     navigation for the final course task
 
-Challenge-specific extension components
+Project-specific components
+
+LineFollower
+    converts normalized left/right reflectance to local MotionCommand values
 
 RangeSafetyController
     limits requested speed using measured speed and available forward range
@@ -105,9 +108,10 @@ robot_config.py
 
 sensor_model.py, wheel_speed_controller.py, differential_drive.py,
 odometry.py, navigation_controller.py, grid_planner.py,
-range_safety_controller.py, pose_corrector.py, visit_order_planner.py
-    Each file defines the class named by the file. Early challenges include
-    only the classes introduced so far.
+range_safety_controller.py, pose_corrector.py, visit_order_planner.py,
+line_follower.py
+    Each file defines the class named by the file. Each challenge includes the
+    component set needed by its current task; the catalog order is provisional.
 
 course_setup.py
     Selects the supplied class or the class in the named project file for each
@@ -119,7 +123,16 @@ challenge.py
 
 world.json
     Defines the project worlds used by Python, the simulator, and the Monitor:
-    bounds, initial pose, obstacles, changeable features, and named markers.
+    bounds, initial pose, obstacles, optional floor tracks, changeable features,
+    and named markers.
+
+Arena Circuit is a standalone catalog project. It assumes the sampled Robot loop,
+MotionCommand, and supplied
+wheel/drive components, but not the optional range, mapping,
+localization-correction, or multi-stop extensions. Its challenge-local
+LineFollower receives ReflectanceReadings (left and right, normalized from 0 on
+a light floor to 1 on a dark line) and returns a MotionCommand. The project
+keeps lap recognition in main.py and line-control policy in line_follower.py.
 
 Task values belong in challenge.py. Robot measurements and reusable controller
 settings belong in robot_config.py. World geometry belongs in world.json and is
@@ -164,9 +177,9 @@ course_setup.py contains one explicit Boolean per component:
     USE_STUDENT_NAVIGATION_CONTROLLER = False
     USE_STUDENT_GRID_PLANNER = False
 
-The extension projects add one selector when each focused component is
-introduced:
+Projects add a selector when they use a focused component:
 
+    USE_STUDENT_LINE_FOLLOWER = False
     USE_STUDENT_RANGE_SAFETY_CONTROLLER = False
     USE_STUDENT_POSE_CORRECTOR = False
     USE_STUDENT_VISIT_ORDER_PLANNER = False
@@ -174,8 +187,9 @@ introduced:
 False selects the supplied class and True selects the class in the named
 project file. The file initially selects all supplied classes;
 change one named flag at a time after the corresponding class passes its
-software tests. Early challenge projects contain only the flags for components
-introduced so far.
+software tests. The current challenge catalog contains more candidate projects
+than one course offering may use, and its numbering is not a required teaching
+order.
 
 
 PHYSICAL XRP SETUP AND PROJECT RUNS
@@ -237,12 +251,12 @@ STARTING AND STOPPING ROBOT
 make_robot() constructs Robot with the selected SensorModel,
 WheelSpeedController, DifferentialDrive, and Odometry classes.
 
-Robot.start(initial_pose) resets the encoders and component state and returns
+Robot.start(initial_pose, read_reflectance=False) resets the encoders and component state and returns
 the first RobotState. An IDE-managed Run begins immediately because selecting
 Run is the start action. A program launched directly on the XRP waits for a
 USER-button press and release before resetting.
 
-Robot.step(command) runs one sample period and returns the next RobotState.
+Robot.step(command, read_range=False, read_reflectance=False) runs one sample period and returns the next RobotState.
 Robot maintains absolute, wrap-safe sample deadlines internally. A loop that
 calls Robot.step() does not call sleep_ms(). If calculation overruns
 one deadline, Robot records the overrun and advances to the next future sample
@@ -281,6 +295,10 @@ left_speed_mm_s, right_speed_mm_s
     Regularized wheel-speed estimates derived from recent encoder position
     changes and sample times. The response time comes from
     RobotConfig.wheel_speed_filter_time_constant_ms.
+
+reflectance
+    Optional ReflectanceReadings with left and right normalized from 0 on a
+    light floor to 1 on a dark line.
 
 wheel_speeds
     A WheelSpeeds value containing the two measured wheel speeds.
@@ -443,7 +461,7 @@ the stationary observation, map selection, planning, and navigation sequence.
 
 main.py
 
-    from challenge import DELIVERY_TASK, MAXIMUM_NAVIGATION_STEPS
+    from challenge import DELIVERY_TASK
     from course_setup import (
         make_grid_planner,
         make_navigation_controller,
@@ -458,7 +476,6 @@ main.py
             task=DELIVERY_TASK,
             navigation=make_navigation_controller(NAVIGATION_CONFIG),
             planner=make_grid_planner(),
-            maximum_navigation_steps=MAXIMUM_NAVIGATION_STEPS,
         )
         final_state = mission.run(make_robot(ROBOT_CONFIG))
         print("result:", mission.result)
@@ -472,11 +489,12 @@ main.py
 
     run_delivery()
 
-DeliveryMission.result is "delivered" after successful navigation, "no_path"
-when the selected map has no route to the destination, or "step_limit" when
-the explicit project-owned navigation bound is reached. DeliveryMission has no
-hidden default step limit; each moving course project states its bound in
-student-readable code.
+DeliveryMission.result is "delivered" only after measured terminal pose
+evidence satisfies the configured destination tolerances. It is "no_path"
+when no route is available, "invalid_path" when the planner returns an invalid
+route, or "destination_not_reached" when navigation reports completion outside
+the destination tolerances. The IDE Stop control is the operator interruption
+path; DeliveryMission imposes no arbitrary navigation-step limit.
 
 The read-only range_estimate_mm, feature_blocked, planned_path, and
 navigation_step_count fields make the mission's observation, map choice, route,

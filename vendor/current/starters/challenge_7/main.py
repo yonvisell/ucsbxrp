@@ -1,26 +1,28 @@
 # Challenge 7: correct planar position with two known-wall range observations.
 
-from math import sqrt
-
 from challenge import (
     DESTINATION,
-    MAXIMUM_NAVIGATION_STEPS,
-    MAXIMUM_SETTLE_STEPS,
-    MAXIMUM_TURN_STEPS,
     MINIMUM_USABLE_RANGE_COUNT,
     ODOMETRY_INITIAL_POSE,
     RANGE_SAMPLE_COUNT,
     SENSOR_FORWARD_OFFSET_MM,
     STOPPED_SPEED_MM_S,
     WALL_OBSERVATION_HEADING_TOLERANCE_RAD,
-    X_WALL_MM,
     X_SCAN_HEADING_RAD,
+    X_WALL_IS_POSITIVE,
+    X_WALL_MM,
     Y_SCAN_HEADING_RAD,
+    Y_WALL_IS_POSITIVE,
     Y_WALL_MM,
 )
 from course_setup import make_navigation_controller, make_pose_corrector, make_robot
 from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
-from ucsb_xrp import MotionCommand, STOP_COMMAND, wrap_angle_rad
+from ucsb_xrp import (
+    MotionCommand,
+    STOP_COMMAND,
+    distance_to_goal,
+    wrap_angle_rad,
+)
 
 
 def wheels_are_stopped(state):
@@ -53,7 +55,7 @@ def collect_stationary_range(robot, state, expected_heading_rad):
 
 
 def turn_to_heading(robot, state, target_heading_rad):
-    for _ in range(MAXIMUM_TURN_STEPS):
+    while True:
         error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
         if abs(error) <= NAVIGATION_CONFIG.heading_tolerance_rad:
             return state
@@ -61,21 +63,26 @@ def turn_to_heading(robot, state, target_heading_rad):
         state = robot.step(
             MotionCommand(0.0, direction * NAVIGATION_CONFIG.turn_rate_rad_s)
         )
-    raise RuntimeError("The localization scan turn exceeded its step limit")
 
 
 def settle(robot, state):
-    for _ in range(MAXIMUM_SETTLE_STEPS):
+    while not wheels_are_stopped(state):
         state = robot.step(STOP_COMMAND)
-        if wheels_are_stopped(state):
-            return state
-    raise RuntimeError("The drivetrain did not settle at the localization station")
+    return state
 
 
-def position_residual_mm(pose, goal):
-    dx_mm = pose.x_mm - goal.x_mm
-    dy_mm = pose.y_mm - goal.y_mm
-    return sqrt(dx_mm * dx_mm + dy_mm * dy_mm)
+def destination_is_reached(corrected_pose, raw_pose):
+    if (
+        distance_to_goal(corrected_pose, DESTINATION)
+        > NAVIGATION_CONFIG.position_tolerance_mm
+    ):
+        return False
+    if DESTINATION.heading_rad is None:
+        return True
+    heading_error = wrap_angle_rad(
+        DESTINATION.heading_rad - raw_pose.heading_rad
+    )
+    return abs(heading_error) <= NAVIGATION_CONFIG.heading_tolerance_rad
 
 
 def run_challenge():
@@ -93,8 +100,9 @@ def run_challenge():
         )
         if x_range_mm is None:
             raise RuntimeError("No usable x-wall range observation")
-        x_corrected = corrector.observe_x(state.pose, x_range_mm, X_WALL_MM, True)
-        print("x_corrected_pose:", x_corrected)
+        corrector.observe_x(
+            state.pose, x_range_mm, X_WALL_MM, X_WALL_IS_POSITIVE
+        )
 
         state = turn_to_heading(robot, state, Y_SCAN_HEADING_RAD)
         state = settle(robot, state)
@@ -103,30 +111,35 @@ def run_challenge():
         )
         if y_range_mm is None:
             raise RuntimeError("No usable y-wall range observation")
-        corrected = corrector.observe_y(state.pose, y_range_mm, Y_WALL_MM, True)
-        print("xy_corrected_pose:", corrected)
+        corrector.observe_y(
+            state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE
+        )
 
         navigation.start((DESTINATION,))
-        for _ in range(MAXIMUM_NAVIGATION_STEPS):
+        while not navigation.is_complete():
             corrected = corrector.corrected_pose(state.pose)
             state = robot.step(navigation.update(corrected))
-            if navigation.is_complete():
-                break
-        else:
-            raise RuntimeError("Corrected-pose navigation exceeded its step limit")
 
-        print("Challenge 7 complete")
-        print("raw_final_pose:", state.pose)
         corrected_final_pose = corrector.corrected_pose(state.pose)
-        print("corrected_final_pose:", corrected_final_pose)
-        print(
-            "raw_odometry_goal_residual_mm:",
-            position_residual_mm(state.pose, DESTINATION),
+        result = (
+            "complete"
+            if destination_is_reached(corrected_final_pose, state.pose)
+            else "destination_not_reached"
         )
         print(
-            "corrected_goal_residual_mm:",
-            position_residual_mm(corrected_final_pose, DESTINATION),
+            "Challenge 7: result={} x_range_mm={} y_range_mm={} "
+            "corrected_residual_mm={} raw_final_pose={} "
+            "corrected_final_pose={}".format(
+                result,
+                x_range_mm,
+                y_range_mm,
+                distance_to_goal(corrected_final_pose, DESTINATION),
+                state.pose,
+                corrected_final_pose,
+            )
         )
+        if result != "complete":
+            raise RuntimeError("Corrected navigation did not reach the destination")
         return state
     finally:
         robot.stop()

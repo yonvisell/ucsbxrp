@@ -64,12 +64,12 @@ export {
   DEFAULT_COURSE_PROJECT,
   DEFAULT_COURSE_PROJECT_TEMPLATE_ID,
   STAGE_ONE_PROJECT,
-  createNextChallengeProject,
+  describeChallengeProjectTransition,
   courseProjectTemplate,
   courseStarter,
-  nextChallengeTemplate,
 } from "./course-project";
 export type {
+  ChallengeTransition,
   CourseComponentTemplate,
   CourseProjectKind,
   CourseProjectTemplate,

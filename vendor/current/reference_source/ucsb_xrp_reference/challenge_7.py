@@ -3,42 +3,7 @@
 from math import isfinite
 
 from ucsb_xrp.records import Pose
-
-
-class PoseCorrectorBase:
-    """Contract for retaining known-wall translation corrections.
-
-    Mission code is responsible for accepting observations only while the
-    robot is stationary and aligned with the stated wall normal. Implementors
-    correct position only and preserve the raw odometry heading.
-    """
-
-    __slots__ = ("sensor_forward_offset_mm",)
-
-    def __init__(self, sensor_forward_offset_mm):
-        if isinstance(sensor_forward_offset_mm, bool) or not isinstance(
-            sensor_forward_offset_mm, (int, float)
-        ):
-            raise TypeError("sensor_forward_offset_mm must be numeric")
-        if not isfinite(sensor_forward_offset_mm) or sensor_forward_offset_mm < 0.0:
-            raise ValueError("sensor_forward_offset_mm must be finite and nonnegative")
-        self.sensor_forward_offset_mm = float(sensor_forward_offset_mm)
-
-    def reset(self, raw_pose):
-        """Clear retained corrections and establish the raw odometry frame."""
-        raise NotImplementedError
-
-    def corrected_pose(self, raw_pose):
-        """Return raw_pose with the retained x/y translation applied."""
-        raise NotImplementedError
-
-    def observe_x(self, raw_pose, range_mm, wall_x_mm, facing_positive_x):
-        """Update x from one accepted x-normal known-wall observation."""
-        raise NotImplementedError
-
-    def observe_y(self, raw_pose, range_mm, wall_y_mm, facing_positive_y):
-        """Update y from one accepted y-normal known-wall observation."""
-        raise NotImplementedError
+from ucsb_xrp.student_api import PoseCorrectorBase
 
 
 class PoseCorrector(PoseCorrectorBase):

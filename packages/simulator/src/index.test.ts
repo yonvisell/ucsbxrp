@@ -36,6 +36,13 @@ const challengeSevenWorldSource = readFileSync(
   ),
   "utf8",
 );
+const challengeNineWorldSource = readFileSync(
+  new URL(
+    "../../../vendor/current/starters/challenge_9/world.json",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("deterministic XRP planar simulator", () => {
   it("uses the centered 10 ft by 4 ft course arena by default", () => {
@@ -258,6 +265,20 @@ describe("project world configuration", () => {
         },
       ],
     });
+
+  it("samples Challenge 9 track and finish geometry as normalized darkness", () => {
+    const catalog = parseWorldCatalog(challengeNineWorldSource);
+    const world = catalog.worlds[0]!;
+    const simulator = new XrpSimulator(simulatorConfigForWorld(world));
+    simulator.reset(world.initialPose);
+
+    expect(world.tracks).toHaveLength(2);
+    expect(simulator.state.leftReflectance).toBe(1);
+    expect(simulator.state.rightReflectance).toBe(1);
+    simulator.reset({ xMm: 0, yMm: 0, headingRad: 0 });
+    expect(simulator.state.leftReflectance).toBe(0);
+    expect(simulator.state.rightReflectance).toBe(0);
+  });
 
   it("retains an optional final heading on a named waypoint", () => {
     const catalog = parseWorldCatalog(

@@ -13,15 +13,12 @@ from wheel travel with the robot's measured position and heading.
 which stop a phase that makes no progress. Use these names; do not repeat the
 current distances or headings elsewhere.
 
-## Continue from Challenge 1
+## Reuse work in another challenge
 
-Open the completed Challenge 1 project and select **Continue to Challenge 2 ·
-Turn and Return…**. The new project carries forward
-[`sensor_model.py`](sensor_model.py),
-[`wheel_speed_controller.py`](wheel_speed_controller.py), and their selections.
-The supplied `DifferentialDrive` and `Odometry` classes are initially
-selected for [`differential_drive.py`](differential_drive.py) and
-[`odometry.py`](odometry.py). The Challenge 1 project remains unchanged.
+Choose **Start another challenge…** in the IDE. Review the **Preserve**,
+**Replace**, and **Add** lists before creating the separate project; they show
+exactly which files will carry forward and which task files come from the
+selected challenge. This project remains unchanged.
 
 ## What you implement
 
@@ -36,9 +33,10 @@ Implement two new classes:
   increments; `pose` returns the latest estimate. Use measured wheel travel,
   not requested speeds, motor commands, or simulator ground truth.
 
-Continue to correct the two Challenge 1 files if turn-and-return results expose
-a measurement or control problem. Keep the effective track width and other
-robot-specific values in [`robot_config.py`](robot_config.py).
+If turn-and-return results expose a measurement or control problem, revise
+`sensor_model.py` or `wheel_speed_controller.py` as needed. Keep the effective
+track width and other robot-specific values in
+[`robot_config.py`](robot_config.py).
 
 ## Project modules
 
@@ -102,7 +100,3 @@ or failing result, repeat **Test components**, and then set the matching
    position and heading errors.
 5. On the physical course, record the estimated final pose and wheel travel,
    then measure final position and heading independently.
-
-After completing this challenge, select **Continue to Challenge 3 · Waypoint
-Courier…**. The new project carries forward the four component files and their
-selections; the Challenge 2 project remains unchanged.

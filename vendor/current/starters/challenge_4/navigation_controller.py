@@ -1,11 +1,14 @@
-# Calculate robot motion for an ordered sequence of world-coordinate goals.
+# Receive NavigationGoal sequences and Pose samples, retain route progress,
+# and return one MotionCommand for each update.
 
 from ucsb_xrp import MotionCommand, STOP_COMMAND
 from ucsb_xrp.student_api import NavigationControllerBase
 
 
 class NavigationController(NavigationControllerBase):
-    # Store which goal is active so repeated update() calls advance the route.
+    # Keep an active-goal index and an explicit turn, drive, or align mode.
+    # position_tolerance_mm advances a goal; heading_tolerance_rad accepts a
+    # bearing or final heading; realign_heading_rad returns drive to turn.
 
     def start(self, goals):
         # Store the NavigationGoal values in order. Goal positions use world

@@ -156,6 +156,10 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
       get_range_mm() {
         return advanceSimulator().rangeMm;
       },
+      get_reflectance(side: "left" | "right") {
+        const state = advanceSimulator();
+        return side === "left" ? state.leftReflectance : state.rightReflectance;
+      },
       is_button_pressed() {
         return advanceSimulator().buttonPressed;
       },

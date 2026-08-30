@@ -76,6 +76,7 @@ class SensorModel(SensorModelBase):
             0.0,
             raw.range_mm,
             raw.button_pressed,
+            raw.reflectance,
         )
 
     def update(self, raw):
@@ -144,6 +145,7 @@ class SensorModel(SensorModelBase):
             self._right_speed_mm_s,
             raw.range_mm,
             raw.button_pressed,
+            raw.reflectance,
         )
 
     def estimate_range(self, samples, minimum_usable):

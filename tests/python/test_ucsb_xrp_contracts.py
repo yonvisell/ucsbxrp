@@ -8,19 +8,28 @@ import unittest
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT / "vendor" / "current"))
+sys.path.insert(
+    0,
+    str(REPOSITORY_ROOT / "vendor" / "current" / "reference_source"),
+)
 
 from ucsb_xrp import (  # noqa: E402
     DriveCommand,
+    LineFollowerBase as ExportedLineFollowerBase,
     Measurements,
     MotionCommand,
     MotorEfforts,
     NavigationConfig,
     NavigationGoal,
     Pose,
+    PoseCorrectorBase as ExportedPoseCorrectorBase,
     RawSensors,
+    RangeSafetyControllerBase as ExportedRangeSafetyControllerBase,
+    ReflectanceReadings,
     RobotConfig,
     RobotState,
     STOP_COMMAND,
+    VisitOrderPlannerBase as ExportedVisitOrderPlannerBase,
     WheelSpeeds,
     XRPBot,
     bearing_to_goal,
@@ -31,8 +40,21 @@ from ucsb_xrp import (  # noqa: E402
     load_world,
 )
 from ucsb_xrp.student_api import (  # noqa: E402
+    LineFollowerBase,
+    PoseCorrectorBase,
+    RangeSafetyControllerBase,
     SensorModelBase,
+    VisitOrderPlannerBase,
     WheelSpeedControllerBase,
+)
+from ucsb_xrp_reference.challenge_6 import (  # noqa: E402
+    RangeSafetyControllerBase as LegacyRangeSafetyControllerBase,
+)
+from ucsb_xrp_reference.challenge_7 import (  # noqa: E402
+    PoseCorrectorBase as LegacyPoseCorrectorBase,
+)
+from ucsb_xrp_reference.challenge_8 import (  # noqa: E402
+    VisitOrderPlannerBase as LegacyVisitOrderPlannerBase,
 )
 from ucsb_xrp._run_control import (  # noqa: E402
     ProgramStopped,
@@ -87,12 +109,25 @@ class FakeRangefinder:
         return self.distance_cm
 
 
+class FakeReflectance:
+    def __init__(self, left=0.2, right=0.8):
+        self.left = left
+        self.right = right
+
+    def get_left(self):
+        return self.left
+
+    def get_right(self):
+        return self.right
+
+
 class FakeDevices:
     def __init__(self):
         self.left_motor = FakeMotor(count=12)
         self.right_motor = FakeMotor(count=-9)
         self.board = FakeBoard(pressed=True)
         self.rangefinder = FakeRangefinder(distance_cm=25.5)
+        self.reflectance = FakeReflectance()
 
 
 def calibrated_config(**changes):
@@ -131,6 +166,9 @@ class RecordContractTests(unittest.TestCase):
             RawSensors(0, 0, 0, 0.0, False)
         with self.assertRaises(TypeError):
             RawSensors(0, 0, 0, None, 1)
+        self.assertEqual(ReflectanceReadings(0, 1), ReflectanceReadings(0.0, 1.0))
+        with self.assertRaises(ValueError):
+            ReflectanceReadings(-0.01, 0.5)
 
     def test_pose_and_navigation_goal_normalize_headings(self):
         pose = Pose(1, 2, math.pi)
@@ -303,6 +341,28 @@ class StudentInterfaceContractTests(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             controller.update(None, None)
 
+    def test_extension_bases_are_public_with_reference_module_aliases(self):
+        line_follower = LineFollowerBase({})
+        range_controller = RangeSafetyControllerBase(0.2, 300.0, 120.0, 250.0)
+        corrector = PoseCorrectorBase(70.0)
+        planner = VisitOrderPlannerBase()
+
+        self.assertIs(ExportedLineFollowerBase, LineFollowerBase)
+        self.assertIs(LegacyRangeSafetyControllerBase, RangeSafetyControllerBase)
+        self.assertIs(LegacyPoseCorrectorBase, PoseCorrectorBase)
+        self.assertIs(LegacyVisitOrderPlannerBase, VisitOrderPlannerBase)
+        self.assertIs(ExportedRangeSafetyControllerBase, RangeSafetyControllerBase)
+        self.assertIs(ExportedPoseCorrectorBase, PoseCorrectorBase)
+        self.assertIs(ExportedVisitOrderPlannerBase, VisitOrderPlannerBase)
+        with self.assertRaises(NotImplementedError):
+            range_controller.update(100.0, 0.0, 500.0)
+        with self.assertRaises(NotImplementedError):
+            corrector.corrected_pose(Pose(0.0, 0.0, 0.0))
+        with self.assertRaises(NotImplementedError):
+            planner.plan(((0,),), 0, (), 0)
+        with self.assertRaises(NotImplementedError):
+            line_follower.update(ReflectanceReadings(0.5, 0.5), 0.02)
+
 
 class XRPBotContractTests(unittest.TestCase):
     def setUp(self):
@@ -342,12 +402,23 @@ class XRPBotContractTests(unittest.TestCase):
         self.assertEqual(mirrored["rangeMm"], 255.0)
         self.assertTrue(mirrored["buttonPressed"])
 
+    def test_read_normalizes_optional_reflectance_path(self):
+        bot, _devices = self.make_bot()
+        self.assertIsNone(bot.read().reflectance)
+        sample = bot.read(include_reflectance=True)
+        self.assertEqual(sample.reflectance, ReflectanceReadings(0.2, 0.8))
+        mirrored = course_telemetry.hardware_snapshot()
+        self.assertEqual(mirrored["leftReflectance"], 0.2)
+        self.assertEqual(mirrored["rightReflectance"], 0.8)
+
     def test_rangefinder_sentinel_and_nonfinite_values_become_missing(self):
         bot, devices = self.make_bot()
-        for raw_value in (65535, 0, -1, float("nan"), float("inf"), "bad"):
+        for raw_value in (400.1, 65535, 0, -1, float("nan"), float("inf"), "bad"):
             with self.subTest(raw_value=raw_value):
                 devices.rangefinder.distance_cm = raw_value
                 self.assertIsNone(bot.read(include_range=True).range_mm)
+        devices.rangefinder.distance_cm = 400.0
+        self.assertEqual(bot.read(include_range=True).range_mm, 4000.0)
 
     def test_range_reads_preserve_but_do_not_block_on_auxiliary_diagnostics(self):
         devices = FakeDevices()

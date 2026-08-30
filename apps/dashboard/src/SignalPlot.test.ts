@@ -10,6 +10,7 @@ import {
   signalPlotTitle,
   signalXAxis,
 } from "./SignalPlot";
+import { normalizeTelemetryUltrasound } from "./ultrasound-range";
 
 function sample(
   tMs: number,
@@ -87,6 +88,36 @@ describe("monitor signal plots", () => {
       [-7, 90],
       [0, 90],
     ]);
+  });
+
+  it("does not plot unavailable or XRPLib-timeout ultrasound values", () => {
+    const data = signalPlotData(
+      [
+        sample(0, { rangeMm: 240 }),
+        sample(10, { rangeMm: 4_001 }),
+        sample(20, { rangeMm: 655_350 }),
+        sample(40, { rangeMm: Number.NaN }),
+        sample(60, { rangeMm: null }),
+      ],
+      "range",
+      5,
+    );
+
+    expect(data[0]?.values).toEqual([
+      [-0.06, 240],
+      [-0.05, null],
+      [-0.04, null],
+      [-0.02, null],
+      [0, null],
+    ]);
+  });
+
+  it("normalizes legacy range sentinels before Monitor capture", () => {
+    const original = sample(0, { rangeMm: 240 });
+    expect(normalizeTelemetryUltrasound(original)).toBe(original);
+    expect(
+      normalizeTelemetryUltrasound(sample(0, { rangeMm: 655_350 })).rangeMm,
+    ).toBeNull();
   });
 
   it("plots the wheel-speed estimates supplied by SensorModel", () => {

@@ -2,22 +2,7 @@
 
 from math import isfinite
 
-
-class VisitOrderPlannerBase:
-    """Contract for a bounded, directed visit-order optimization."""
-
-    __slots__ = ()
-
-    def plan(self, cost_table, start_index, required_indices, finish_index):
-        """Return the least-cost complete route, or None when none exists.
-
-        ``cost_table[a][b]`` is the directed cost from node ``a`` to node
-        ``b``; ``None`` marks an unavailable directed segment. The result
-        starts at ``start_index``, contains each required index exactly once,
-        and ends at ``finish_index``. Equal-cost routes are resolved by
-        lexicographic tuple order.
-        """
-        raise NotImplementedError
+from ucsb_xrp.student_api import VisitOrderPlannerBase
 
 
 class VisitOrderPlanner(VisitOrderPlannerBase):

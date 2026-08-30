@@ -17,10 +17,15 @@ import {
 
 import type { MonitorAnnotation } from "./monitor-export";
 import {
+  normalizeUltrasoundRangeMm,
+  UNAVAILABLE_ULTRASOUND_FAN_MM,
+} from "./ultrasound-range";
+import {
   worldMarkerLabelPosition,
   worldMarkerVisualStyle,
 } from "./world-marker-visual";
 import { WorldTrailGeometry } from "./world-trail-geometry";
+import { worldTrackColor, worldTrackSegments } from "./world-track-geometry";
 
 export { worldTrailSegmentPoints } from "./world-trail-geometry";
 
@@ -338,6 +343,41 @@ function addBoundedGrid(
   scene.add(yAxisLabel);
 }
 
+function addWorldTracks(
+  scene: THREE.Scene,
+  tracks: NonNullable<WorldDefinition["tracks"]>,
+): void {
+  for (const track of tracks) {
+    const material = new THREE.MeshBasicMaterial({
+      color: worldTrackColor(track.darkness),
+      side: THREE.DoubleSide,
+    });
+    for (const { start, end } of worldTrackSegments(track)) {
+      const deltaX = end.xMm - start.xMm;
+      const deltaY = end.yMm - start.yMm;
+      const segment = new THREE.Mesh(
+        new THREE.PlaneGeometry(Math.hypot(deltaX, deltaY), track.widthMm),
+        material,
+      );
+      segment.position.set(
+        (start.xMm + end.xMm) / 2,
+        (start.yMm + end.yMm) / 2,
+        -5,
+      );
+      segment.rotation.z = Math.atan2(deltaY, deltaX);
+      scene.add(segment);
+    }
+    for (const point of track.points) {
+      const joint = new THREE.Mesh(
+        new THREE.CircleGeometry(track.widthMm / 2, 20),
+        material,
+      );
+      joint.position.set(point.xMm, point.yMm, -5);
+      scene.add(joint);
+    }
+  }
+}
+
 function addRobotModel(scene: THREE.Scene): THREE.Group {
   const robot = new THREE.Group();
   const chassisMaterial = new THREE.MeshStandardMaterial({
@@ -478,6 +518,7 @@ export function WorldView({
   worldSelectionDisabled = false,
   showAnnotations = true,
 }: WorldViewProps) {
+  const normalizedRangeMm = normalizeUltrasoundRangeMm(sample.rangeMm);
   const world =
     catalog.worlds.find((candidate) => candidate.id === selectedWorldId) ??
     catalog.worlds[0]!;
@@ -552,6 +593,7 @@ export function WorldView({
     floor.position.z = -12;
     scene.add(floor);
     addBoundedGrid(scene, world.bounds);
+    addWorldTracks(scene, world.tracks ?? []);
 
     for (const obstacle of world.obstacles) {
       const width = obstacle.maximumXmm - obstacle.minimumXmm;
@@ -918,7 +960,7 @@ export function WorldView({
 
     range.fill.geometry.dispose();
     range.outline.geometry.dispose();
-    if (sample.rangeMm === null) {
+    if (!sample.poseAvailable) {
       range.group.visible = false;
     } else {
       range.group.visible = true;
@@ -932,12 +974,21 @@ export function WorldView({
       );
       range.group.position.set(origin.xMm, origin.yMm, 3);
       range.group.rotation.z = sample.headingRad;
-      const geometry = rangeSectorGeometry(sample.rangeMm);
+      const rangeUnavailable = normalizedRangeMm === null;
+      range.fill.material.color.set(rangeUnavailable ? "#b83b35" : "#b98a29");
+      range.fill.material.opacity = rangeUnavailable ? 0.14 : 0.11;
+      range.outline.material.color.set(
+        rangeUnavailable ? "#a02d27" : "#765000",
+      );
+      range.outline.material.opacity = rangeUnavailable ? 0.45 : 0.68;
+      const geometry = rangeSectorGeometry(
+        normalizedRangeMm ?? UNAVAILABLE_ULTRASOUND_FAN_MM,
+      );
       range.fill.geometry = geometry.fill;
       range.outline.geometry = geometry.outline;
     }
     renderRef.current?.();
-  }, [active, sample, world]);
+  }, [active, normalizedRangeMm, sample, world]);
 
   useEffect(() => {
     if (!active) return;
@@ -987,6 +1038,9 @@ export function WorldView({
       data-testid="world-view"
       data-ultrasonic-field-of-view-deg={XRP_ULTRASONIC_FIELD_OF_VIEW_DEG}
       data-ultrasonic-origin-offset-mm={XRP_ULTRASONIC_SENSOR_OFFSET_MM}
+      data-ultrasonic-state={
+        normalizedRangeMm === null ? "unavailable" : "valid"
+      }
       data-xrp-footprint-mm={`${XRP_CHASSIS_LENGTH_MM} × ${XRP_CHASSIS_WIDTH_MM}`}
       ref={viewRef}
     >
@@ -1069,6 +1123,11 @@ export function WorldView({
         {!sample.poseAvailable ? (
           <span>Preview · no published pose</span>
         ) : null}
+        {sample.poseAvailable && normalizedRangeMm === null ? (
+          <span className="ultrasound-unavailable" role="status">
+            Ultrasound out of range
+          </span>
+        ) : null}
         {sample.collision ? <strong>Contact</strong> : null}
       </div>
       <div className="world-canvas" ref={hostRef}>
@@ -1079,7 +1138,7 @@ export function WorldView({
           Major grid lines and values are labeled every 500 millimeters.
         </span>
         <div
-          aria-label="World line legend: royal blue is path; ochre cone is ultrasound distance"
+          aria-label="World line legend: royal blue is path; ochre cone is ultrasound distance; short red fan means ultrasound is out of range"
           className="world-legend"
         >
           <span>
@@ -1094,6 +1153,16 @@ export function WorldView({
               <path d="M1 5 L17 1 M1 5 L17 9" />
             </svg>{" "}
             ultrasound distance
+          </span>
+          <span>
+            <svg
+              aria-hidden="true"
+              className="ultrasound-cone unavailable"
+              viewBox="0 0 18 10"
+            >
+              <path d="M1 5 L10 2 M1 5 L10 8" />
+            </svg>{" "}
+            out of range
           </span>
         </div>
       </div>

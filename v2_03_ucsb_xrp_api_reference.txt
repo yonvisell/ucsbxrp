@@ -1,7 +1,7 @@
 UCSB XRP API REFERENCE
-API version: 0.4.0-dev
+API version: 0.5.0-dev
 
-Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six recurring component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Three extension components address range-constrained stopping, known-wall position correction, and bounded multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.
+Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six reusable component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Catalog projects may add focused components for line following, range-constrained stopping, known-wall position correction, or multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.
 
 UNITS AND COORDINATE CONVENTIONS
 - Distances, positions, wheel travel, and range use millimeters (mm).
@@ -12,11 +12,11 @@ UNITS AND COORDINATE CONVENTIONS
 
 CLASSES YOU IMPLEMENT
 
-You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot and DeliveryMission call the appropriate methods, so the rest of the project does not change when course_setup.py selects the class from that project file.
+You implement each class in its named project file. Inherit the listed base class without changing its public methods. Robot, DeliveryMission, or the project loop calls the appropriate methods, so the rest of that project does not change when course_setup.py selects the class from its project file.
 
 SensorModel
 -----------
-Convert encoder counts and device time into wheel positions, wheel-travel increments, regularized wheel-speed estimates, and elapsed sample time while preserving ultrasonic range and USER-button state. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() combines repeated ultrasonic readings.
+Convert encoder counts and device time into wheel positions, wheel-travel increments, regularized wheel-speed estimates, and elapsed sample time while preserving optional range and reflectance plus USER-button state. Robot calls reset() once at the start of a run and update() after each hardware sample; estimate_range() combines repeated ultrasonic readings.
 Role: Class you implement
 Project file: sensor_model.py
 Base class: SensorModelBase
@@ -34,7 +34,7 @@ Establish the encoder and time origins for a new run.
 Signature: reset(raw: RawSensors) -> Measurements
 Parameters:
 - raw (RawSensors): First hardware sample after Robot resets the encoders.
-Returns: Measurements - A measurement at raw.time_ms with zero positions, increments, speeds, and dt_s, while preserving raw.range_mm and raw.button_pressed.
+Returns: Measurements - A measurement at raw.time_ms with zero positions, increments, speeds, and dt_s, while preserving raw.range_mm, raw.reflectance, and raw.button_pressed.
 Required behavior:
 - Prepare update() to process the next chronological sample.
 - Reset all wheel-speed estimator history so the first reported speeds are zero.
@@ -45,15 +45,15 @@ update()
 Convert the next hardware sample into physical measurements.
 Signature: update(raw: RawSensors) -> Measurements
 Parameters:
-- raw (RawSensors): Next encoder, device-time, range, and USER-button sample.
-Returns: Measurements - Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, range, and button state.
+- raw (RawSensors): Next encoder, device-time, optional range and reflectance, and USER-button sample.
+Returns: Measurements - Cumulative wheel positions from the reset values, the latest unsmoothed wheel increments, wheel-speed estimates from recent encoder samples, elapsed time, optional range and reflectance, and button state.
 Required behavior:
 - Apply the configured encoder signs, wheel diameter, and encoder counts per revolution.
 - Calculate dt_s from consecutive device timestamps with elapsed_time_s().
 - Do not smooth left_increment_mm or right_increment_mm; odometry uses the measured increments.
 - Estimate wheel speed from recent encoder samples or an equivalent estimator whose response is set by wheel_speed_filter_time_constant_ms. The exact estimator algorithm is not prescribed.
 - If no positive time has elapsed, report dt_s as zero without dividing by zero; positions and increments still follow the new encoder counts.
-- Preserve raw.range_mm and raw.button_pressed in the returned Measurements.
+- Preserve raw.range_mm, raw.reflectance, and raw.button_pressed in the returned Measurements.
 Exceptions:
 - RuntimeError if reset() has not been called.
 - TypeError if raw is not a RawSensors value.
@@ -257,17 +257,50 @@ Required behavior:
 Exceptions:
 - TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell.
 
-CHALLENGE-SPECIFIC EXTENSION COMPONENTS
+PROJECT-SPECIFIC COMPONENTS
 
-These focused components are introduced in Challenges 6–8 and then carried forward. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.
+Catalog projects use these focused components when their learning objective requires them. Challenge numbers do not define a mandatory sequence. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.
+
+LineFollower
+------------
+Convert normalized left and right floor-reflectance readings into a local MotionCommand that keeps a dark line under the robot.
+Role: Class you implement
+Project file: line_follower.py
+Base class: LineFollowerBase
+Import: from line_follower import LineFollower
+Class declaration: LineFollower(settings: dict)
+State between calls: After reset(), retain the preceding line error and any integral or derivative state used by the chosen feedback law. line_error exposes the latest left-minus-right reading difference.
+Constructor parameters:
+- settings (dict): Project-readable gains, speed limits, integral limit, and turn-slowdown settings used by the implementation. The base class stores the same mapping as self.settings.
+
+reset()
+Clear retained feedback state before a run.
+Signature: reset() -> None
+Required behavior:
+- Set line_error and retained integral and preceding-error state to zero.
+
+update()
+Return the next local motion request from one reflectance sample.
+Signature: update(reflectance: ReflectanceReadings, dt_s: float) -> MotionCommand
+Parameters:
+- reflectance (ReflectanceReadings): Normalized left and right readings: 0 is a light floor and 1 is a dark line.
+- dt_s (float; s): Elapsed sample interval used by derivative or integral terms.
+Returns: MotionCommand - Forward speed and turn rate for the next Robot.step() call.
+Required behavior:
+- Use positive left-minus-right line error for a positive counterclockwise turn request.
+- Keep forward speed and turn rate within the visible project settings.
+- Do not use a stored world-coordinate route; this component is local reflectance feedback.
+Notes:
+- LineFollowerBase is imported from ucsb_xrp and supplies settings plus resettable feedback state.
 
 RangeSafetyController
 ---------------------
 Limit a nonnegative forward-speed request using measured forward speed and available forward range.
 Role: Class you implement
 Project file: range_safety_controller.py
+Base class: RangeSafetyControllerBase
 Import: from range_safety_controller import RangeSafetyController
-Signature: RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)
+Class declaration: RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)
 State between calls: Retain the configured response time, minimum deceleration, stopping margin, and maximum speed.
 
 update()
@@ -290,8 +323,9 @@ PoseCorrector
 Retain a planar translation from raw odometry coordinates into a map frame. Known-wall observations correct one position coordinate at a time; heading remains the raw odometry heading.
 Role: Class you implement
 Project file: pose_corrector.py
+Base class: PoseCorrectorBase
 Import: from pose_corrector import PoseCorrector
-Signature: PoseCorrector(sensor_forward_offset_mm)
+Class declaration: PoseCorrector(sensor_forward_offset_mm)
 State between calls: After reset(), retain independent x and y translation corrections.
 
 reset()
@@ -331,8 +365,9 @@ VisitOrderPlanner
 Choose a least-cost order for a bounded set of required service stops.
 Role: Class you implement
 Project file: visit_order_planner.py
+Base class: VisitOrderPlannerBase
 Import: from visit_order_planner import VisitOrderPlanner
-Signature: VisitOrderPlanner()
+Class declaration: VisitOrderPlanner()
 State between calls: None is required between calls.
 
 plan()
@@ -378,29 +413,31 @@ Exceptions:
 
 start()
 Reset encoders and components and begin a run.
-Signature: start(initial_pose: Pose) -> RobotState
+Signature: start(initial_pose: Pose, read_reflectance: bool = False) -> RobotState
 Parameters:
 - initial_pose (Pose): Known starting pose.
+- read_reflectance (bool; default False): Include left/right floor reflectance in the initial sample.
 Returns: RobotState - Initial zero-travel measurement and pose.
 Required behavior:
 - An IDE-managed Run begins immediately. A project launched directly on the XRP waits for the USER button.
 Exceptions:
-- TypeError if initial_pose is not a Pose value.
+- TypeError if initial_pose is not a Pose value or read_reflectance is not Boolean.
 - Hardware or component exceptions raised while resetting or taking the initial sample.
 
 step()
 Execute one complete robot control cycle.
-Signature: step(command: MotionCommand, read_range: bool = False) -> RobotState
+Signature: step(command: MotionCommand, read_range: bool = False, read_reflectance: bool = False) -> RobotState
 Parameters:
 - command (MotionCommand): Requested body motion.
 - read_range (bool; default False): Request an ultrasonic reading for this sample.
+- read_reflectance (bool; default False): Request left/right floor reflectance for this sample.
 Returns: RobotState - New measurements and odometry pose.
 Required behavior:
 - Stops the motors before re-raising an exception from the cycle.
 - Maintains the configured absolute sample schedule; do not add sleep_ms() inside the control loop.
 Exceptions:
 - RuntimeError if start() has not been called.
-- TypeError if command is not MotionCommand or read_range is not Boolean.
+- TypeError if command is not MotionCommand or either read flag is not Boolean.
 - Hardware or component exceptions raised during the sample; Robot attempts to stop the motors before re-raising them.
 
 estimate_range()
@@ -464,18 +501,32 @@ DATA TYPES
 
 These read-only records store sensor readings, motion requests, controller outputs, pose, and planning data passed between UCSBXRP classes.
 
+ReflectanceReadings
+-------------------
+Store normalized readings from the left and right downward-facing sensors.
+Role: Read-only value
+Import: from ucsb_xrp import ReflectanceReadings
+Constructor: ReflectanceReadings(left, right)
+Readable fields:
+- left (float): Left reflectance, from 0 for a light floor to 1 for a dark line.
+- right (float): Right reflectance, from 0 for a light floor to 1 for a dark line.
+Exceptions:
+- TypeError if either reading is Boolean or nonnumeric.
+- ValueError if either reading is nonfinite or outside [0, 1].
+
 RawSensors
 ----------
 Store one direct hardware sample.
 Role: Read-only value
 Import: from ucsb_xrp import RawSensors
-Constructor: RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed)
+Constructor: RawSensors(time_ms, left_encoder_count, right_encoder_count, range_mm, button_pressed, reflectance=None)
 Readable fields:
 - time_ms (int; ms): Device timestamp.
 - left_encoder_count (int; count): Left encoder count relative to the latest reset.
 - right_encoder_count (int; count): Right encoder count relative to the latest reset.
 - range_mm (float | None; mm): Ultrasonic range, or None when unavailable or not requested.
 - button_pressed (bool): Current USER-button state.
+- reflectance (ReflectanceReadings | None): Floor readings, or None when unavailable or not requested.
 Exceptions:
 - TypeError if time_ms or an encoder count is not an integer, button_pressed is not Boolean, or range_mm is Boolean or nonnumeric.
 - ValueError if time_ms is negative or range_mm is nonfinite or not greater than zero.
@@ -485,7 +536,7 @@ Measurements
 Store sensor-derived motion and range values for one sample.
 Role: Read-only value
 Import: from ucsb_xrp import Measurements
-Constructor: Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed)
+Constructor: Measurements(time_ms, dt_s, left_position_mm, right_position_mm, left_increment_mm, right_increment_mm, left_speed_mm_s, right_speed_mm_s, range_mm, button_pressed, reflectance=None)
 Readable fields:
 - time_ms (int; ms): Device timestamp.
 - dt_s (float; s): Elapsed time from the preceding sample.
@@ -497,6 +548,7 @@ Readable fields:
 - right_speed_mm_s (float; mm/s): Right-wheel speed estimate formed from recent encoder samples.
 - range_mm (float | None; mm): Range reading or None.
 - button_pressed (bool): USER-button state.
+- reflectance (ReflectanceReadings | None): Preserved floor readings, or None.
 - wheel_speeds (WheelSpeeds): Left and right speed estimates as one value.
 Exceptions:
 - TypeError if a numeric argument is Boolean or nonnumeric, time_ms is not an integer, or button_pressed is not Boolean.
@@ -1040,24 +1092,21 @@ DeliveryMission
 Perform range observation, map update, route planning, and navigation for a DeliveryTask.
 Role: Class supplied by UCSBXRP
 Import: from ucsb_xrp import DeliveryMission
-Constructor: DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner, maximum_navigation_steps: int | None = None)
-State between calls: Retain task, the explicit optional navigation bound, the latest observation and route evidence, the executed navigation-step count, and result. result is None before run(), no_path when planning finds no route, step_limit when the explicit bound is reached, and delivered after navigation completes.
+Constructor: DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)
+State between calls: Retain task, the latest observation and route evidence, the executed navigation-step count, and result. result is None before run(), no_path when no route is available, invalid_path when the planner returns an invalid route, destination_not_reached when navigation reports completion outside the destination tolerances, and delivered only after measured terminal evidence satisfies those tolerances.
 Constructor parameters:
 - task (DeliveryTask): Mission settings.
 - navigation (NavigationController): Selected navigation component.
 - planner (GridPlanner): Selected grid-planning component.
-- maximum_navigation_steps (int | None; default None): Positive project-owned Robot.step bound, or None for no library-imposed bound. Moving course projects should pass a visible explicit bound.
 Readable fields:
 - task (DeliveryTask): Mission definition.
-- maximum_navigation_steps (int | None): Explicit navigation bound, if supplied.
 - range_estimate_mm (float | None; mm): Latest combined stationary range observation. None means no usable estimate was available or run() has not yet reached the observation.
 - feature_blocked (bool | None): Latest blocked/open classification for task.observed_feature_name, or None before classification.
 - planned_path (GridPath | None): Latest route returned by the planner. None means no route was found or planning has not yet occurred.
 - navigation_step_count (int): Number of Robot.step navigation cycles executed by the latest run(), excluding stationary observation samples.
-- result (str | None): delivered, no_path, step_limit, or None before completion.
+- result (str | None): delivered, no_path, invalid_path, destination_not_reached, or None before completion.
 Exceptions:
-- TypeError if task is not DeliveryTask, navigation and planner do not provide the required public methods, or maximum_navigation_steps has the wrong type.
-- ValueError if maximum_navigation_steps is below one.
+- TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods.
 
 run()
 Run the supplied delivery sequence and always attempt robot.stop().
@@ -1066,7 +1115,7 @@ Parameters:
 - robot (Robot): Assembled robot service.
 Returns: RobotState - Last robot state.
 Exceptions:
-- Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising. Reaching maximum_navigation_steps returns the last state with result set to step_limit rather than raising.
+- Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising. The IDE Stop control is the operator interruption path for a moving run.
 
 LOW-LEVEL XRP ACCESS AND NUMERICAL FUNCTIONS
 
@@ -1086,13 +1135,14 @@ Exceptions:
 - Hardware exception if XRP devices cannot be initialized or stopped.
 
 read()
-Read encoders, time, button state, and optionally range.
-Signature: read(include_range: bool = False) -> RawSensors
+Read encoders, time, button state, and optional range and reflectance.
+Signature: read(include_range: bool = False, include_reflectance: bool = False) -> RawSensors
 Parameters:
 - include_range (bool; default False): Read the ultrasonic sensor on this sample.
+- include_reflectance (bool; default False): Read the left and right reflectance sensors on this sample.
 Returns: RawSensors - Direct hardware sample.
 Exceptions:
-- TypeError if include_range is not Boolean.
+- TypeError if either include flag is not Boolean.
 - Hardware or run-stop exception while reading the XRP.
 
 reset_encoders()

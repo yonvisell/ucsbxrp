@@ -4,6 +4,16 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { seedWorkingFolder, type TestProject } from "./working-folder";
 
+test("uses a compact 10 px editor default with an 8 px minimum", async ({
+  page,
+}) => {
+  await page.goto("/ide/");
+  await page.getByRole("button", { name: "Settings" }).click();
+  const editorFont = page.getByLabel(/Editor font size/);
+  await expect(editorFont).toHaveValue("10");
+  await expect(editorFont).toHaveAttribute("min", "8");
+});
+
 function obstacleTurnProjectWithWrongRangeType(): TestProject {
   const templateFile = (path: string) =>
     readFileSync(
@@ -110,10 +120,7 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   });
 
   await page.goto("/ide/");
-  await expect(page.getByRole("tab", { name: "main.py" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(page.getByTestId("current-file")).toHaveText("main.py");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();
 
@@ -159,10 +166,7 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
   );
 
   await page.reload();
-  await expect(page.getByRole("tab", { name: "main.py" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(page.getByTestId("current-file")).toHaveText("main.py");
   await expect(
     page.getByTestId("python-editor").locator(".view-lines"),
   ).toContainText("Edited source ran");
@@ -374,9 +378,7 @@ test("opens an oversized folder but prevents compilation and virtual execution",
   await expect(problems).toContainText("at most 48");
   await page.getByRole("tab", { name: /Compiler output/ }).click();
   const compilerOutput = page.getByRole("tabpanel");
-  await expect(compilerOutput).toContainText(
-    "Captured MicroPython output · unfiltered",
-  );
+  await expect(compilerOutput).toContainText("MicroPython compiler");
   await expect(compilerOutput).toContainText("This project has 49 files");
 
   await page.getByRole("button", { name: "Run", exact: true }).click();

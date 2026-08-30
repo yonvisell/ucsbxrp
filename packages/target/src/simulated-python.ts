@@ -81,6 +81,24 @@ class Rangefinder:
         distance_mm = xrp_sim_bridge.get_range_mm()
         return 65535 if distance_mm is None else float(distance_mm) / 10.0
 `,
+  "XRPLib/reflectance.py": `import xrp_sim_bridge
+
+
+class Reflectance:
+    _instance = None
+
+    @classmethod
+    def get_default_reflectance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_left(self):
+        return float(xrp_sim_bridge.get_reflectance("left"))
+
+    def get_right(self):
+        return float(xrp_sim_bridge.get_reflectance("right"))
+`,
   "XRPLib/imu.py": `import xrp_sim_bridge
 
 

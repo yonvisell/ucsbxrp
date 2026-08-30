@@ -4,6 +4,7 @@ import {
   worldById,
   type AxisAlignedRectangle,
   type WorldDefinition,
+  type WorldTrack,
 } from "./world";
 
 export {
@@ -18,6 +19,7 @@ export type {
   WorldDefinition,
   WorldMarker,
   WorldObstacle,
+  WorldTrack,
 } from "./world";
 
 export interface Pose2d {
@@ -38,6 +40,11 @@ export const XRP_ULTRASONIC_SENSOR_OFFSET_MM = 70;
 export const XRP_ULTRASONIC_FIELD_OF_VIEW_DEG = 15;
 export const XRP_ULTRASONIC_FIELD_OF_VIEW_RAD = Math.PI / 12;
 export const XRP_ULTRASONIC_RAY_COUNT = 9;
+// Provisional virtual geometry for the experimental Challenge 9. Physical
+// sensor placement remains a course-surface calibration item.
+export const XRP_REFLECTANCE_SENSOR_FORWARD_OFFSET_MM = 55;
+export const XRP_REFLECTANCE_SENSOR_LATERAL_OFFSET_MM = 12;
+export const XRP_REFLECTANCE_SENSOR_FOOTPRINT_RADIUS_MM = 4;
 
 export const XRP_ULTRASONIC_RAY_OFFSETS_RAD: readonly number[] = Object.freeze(
   Array.from({ length: XRP_ULTRASONIC_RAY_COUNT }, (_, index) => {
@@ -53,6 +60,29 @@ export function ultrasonicSensorOrigin(
   return {
     xMm: pose.xMm + offsetMm * Math.cos(pose.headingRad),
     yMm: pose.yMm + offsetMm * Math.sin(pose.headingRad),
+  };
+}
+
+export function reflectanceSensorPositions(
+  pose: Pose2d,
+  forwardOffsetMm = XRP_REFLECTANCE_SENSOR_FORWARD_OFFSET_MM,
+  lateralOffsetMm = XRP_REFLECTANCE_SENSOR_LATERAL_OFFSET_MM,
+): { left: Point2d; right: Point2d } {
+  const forwardX = Math.cos(pose.headingRad);
+  const forwardY = Math.sin(pose.headingRad);
+  const leftX = -forwardY;
+  const leftY = forwardX;
+  const centerX = pose.xMm + forwardOffsetMm * forwardX;
+  const centerY = pose.yMm + forwardOffsetMm * forwardY;
+  return {
+    left: {
+      xMm: centerX + lateralOffsetMm * leftX,
+      yMm: centerY + lateralOffsetMm * leftY,
+    },
+    right: {
+      xMm: centerX - lateralOffsetMm * leftX,
+      yMm: centerY - lateralOffsetMm * leftY,
+    },
   };
 }
 
@@ -90,6 +120,7 @@ export function simulatorConfigForWorld(
   return {
     worldBounds: world.bounds,
     obstacles: world.obstacles,
+    tracks: world.tracks ?? [],
     includeWorldBoundaryInRange: world.includeArenaBoundaryInRange !== false,
   };
 }
@@ -116,6 +147,10 @@ export interface XrpSimulatorConfig {
   temperatureC: number;
   worldBounds: AxisAlignedRectangle;
   obstacles: readonly AxisAlignedRectangle[];
+  tracks: readonly WorldTrack[];
+  reflectanceSensorForwardOffsetMm: number;
+  reflectanceSensorLateralOffsetMm: number;
+  reflectanceSensorFootprintRadiusMm: number;
   includeWorldBoundaryInRange: boolean;
 }
 
@@ -131,6 +166,8 @@ export interface XrpSimulatorState {
   rightEncoderCount: number;
   collision: boolean;
   rangeMm: number | null;
+  leftReflectance: number;
+  rightReflectance: number;
   buttonPressed: boolean;
   accelerationMg: [number, number, number];
   angularRateMdps: [number, number, number];
@@ -156,6 +193,11 @@ export const DEFAULT_XRP_SIMULATOR_CONFIG: XrpSimulatorConfig = {
   temperatureC: 27,
   worldBounds: COURSE_ARENA_BOUNDS,
   obstacles: [],
+  tracks: [],
+  reflectanceSensorForwardOffsetMm: XRP_REFLECTANCE_SENSOR_FORWARD_OFFSET_MM,
+  reflectanceSensorLateralOffsetMm: XRP_REFLECTANCE_SENSOR_LATERAL_OFFSET_MM,
+  reflectanceSensorFootprintRadiusMm:
+    XRP_REFLECTANCE_SENSOR_FOOTPRINT_RADIUS_MM,
   includeWorldBoundaryInRange: true,
 };
 
@@ -246,6 +288,70 @@ function rayRectangleDistance(
   return entry >= 0 ? entry : exit;
 }
 
+function pointSegmentDistance(point: Point2d, start: Point2d, end: Point2d) {
+  const dx = end.xMm - start.xMm;
+  const dy = end.yMm - start.yMm;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) {
+    return Math.hypot(point.xMm - start.xMm, point.yMm - start.yMm);
+  }
+  const fraction = clamp(
+    ((point.xMm - start.xMm) * dx + (point.yMm - start.yMm) * dy) /
+      lengthSquared,
+    0,
+    1,
+  );
+  return Math.hypot(
+    point.xMm - (start.xMm + fraction * dx),
+    point.yMm - (start.yMm + fraction * dy),
+  );
+}
+
+function trackDarknessAt(
+  point: Point2d,
+  tracks: readonly WorldTrack[],
+  footprintRadiusMm: number,
+) {
+  let result = 0;
+  for (const track of tracks) {
+    let distance = Infinity;
+    for (let index = 1; index < track.points.length; index += 1) {
+      distance = Math.min(
+        distance,
+        pointSegmentDistance(
+          point,
+          track.points[index - 1]!,
+          track.points[index]!,
+        ),
+      );
+    }
+    if (track.closed) {
+      distance = Math.min(
+        distance,
+        pointSegmentDistance(
+          point,
+          track.points[track.points.length - 1]!,
+          track.points[0]!,
+        ),
+      );
+    }
+    const halfWidth = track.widthMm / 2;
+    const coverage =
+      footprintRadiusMm === 0
+        ? distance <= halfWidth
+          ? 1
+          : 0
+        : clamp(
+            (halfWidth + footprintRadiusMm - distance) /
+              (2 * footprintRadiusMm),
+            0,
+            1,
+          );
+    result = Math.max(result, coverage * track.darkness);
+  }
+  return result;
+}
+
 export class XrpSimulator {
   readonly config: XrpSimulatorConfig;
   private leftDistanceMm = 0;
@@ -264,6 +370,12 @@ export class XrpSimulator {
       obstacles: (
         config.obstacles ?? DEFAULT_XRP_SIMULATOR_CONFIG.obstacles
       ).map((obstacle) => ({ ...obstacle })),
+      tracks: (config.tracks ?? DEFAULT_XRP_SIMULATOR_CONFIG.tracks).map(
+        (track) => ({
+          ...track,
+          points: track.points.map((point) => ({ ...point })),
+        }),
+      ),
     };
     if (!validRectangle(this.config.worldBounds)) {
       throw new Error("Simulator world bounds must form a valid rectangle");
@@ -273,6 +385,7 @@ export class XrpSimulator {
     }
     this.currentState = this.initialState();
     this.updateRange();
+    this.updateReflectance();
   }
 
   get state(): XrpSimulatorState {
@@ -293,6 +406,7 @@ export class XrpSimulator {
       pose: { ...pose, headingRad: wrapAngle(pose.headingRad) },
     };
     this.updateRange();
+    this.updateReflectance();
     return this.state;
   }
 
@@ -396,6 +510,7 @@ export class XrpSimulator {
       ],
     };
     this.updateRange();
+    this.updateReflectance();
     return this.state;
   }
 
@@ -456,6 +571,24 @@ export class XrpSimulator {
       closest <= this.config.maximumRangeMm ? closest : null;
   }
 
+  private updateReflectance(): void {
+    const positions = reflectanceSensorPositions(
+      this.currentState.pose,
+      this.config.reflectanceSensorForwardOffsetMm,
+      this.config.reflectanceSensorLateralOffsetMm,
+    );
+    this.currentState.leftReflectance = trackDarknessAt(
+      positions.left,
+      this.config.tracks,
+      this.config.reflectanceSensorFootprintRadiusMm,
+    );
+    this.currentState.rightReflectance = trackDarknessAt(
+      positions.right,
+      this.config.tracks,
+      this.config.reflectanceSensorFootprintRadiusMm,
+    );
+  }
+
   private initialState(): XrpSimulatorState {
     return {
       tMs: 0,
@@ -469,6 +602,8 @@ export class XrpSimulator {
       rightEncoderCount: 0,
       collision: false,
       rangeMm: null,
+      leftReflectance: 0,
+      rightReflectance: 0,
       buttonPressed: false,
       accelerationMg: [0, 0, 1000],
       angularRateMdps: [0, 0, 0],

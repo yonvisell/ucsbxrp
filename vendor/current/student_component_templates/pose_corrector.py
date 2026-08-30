@@ -1,6 +1,6 @@
 # Correct odometry position from stationary observations of known walls.
 
-from ucsb_xrp_reference.challenge_7 import PoseCorrectorBase
+from ucsb_xrp.student_api import PoseCorrectorBase
 
 
 class PoseCorrector(PoseCorrectorBase):

@@ -11,8 +11,7 @@ The current task is defined in two files:
 - [`world.json`](world.json) defines the arena, obstacles, initial pose, and
   destination.
 - [`challenge.py`](challenge.py) loads `ARENA_MAP`, `INITIAL_POSE`, and
-  `DESTINATION`, and defines `GRID_RESOLUTION_MM`, `CLEARANCE_MM`, and the
-  visible `MAXIMUM_NAVIGATION_STEPS` mission limit.
+  `DESTINATION`, and defines `GRID_RESOLUTION_MM` and `CLEARANCE_MM`.
 
 Use these names. Do not copy the current geometry or grid values into your
 planner. `CLEARANCE_MM` is the required distance from a candidate cell center
@@ -31,13 +30,12 @@ Select each case from the Monitor **World** menu before a virtual run:
 
 The last two cases must end without robot motion.
 
-## Continue from Challenge 3
+## Reuse work in another challenge
 
-Open the completed Challenge 3 project and select **Continue to Challenge 4 ·
-Mapped Route…**. The new project carries forward the five earlier component
-files and their selections. [`grid_planner.py`](grid_planner.py) begins with
-the supplied `GridPlanner` selected. The Challenge 3 project remains
-unchanged.
+Choose **Start another challenge…** in the IDE. Review the **Preserve**,
+**Replace**, and **Add** lists before creating the separate project; they show
+how existing component, calibration, helper, and task files will be handled.
+The current project remains unchanged.
 
 ## What you implement
 
@@ -73,14 +71,15 @@ files**, regardless of which classes are selected for a complete robot run.
 
 - [`main.py`](main.py) constructs the grid, requests and validates a path,
   converts a successful path to navigation goals, and only then constructs the
-  robot. It reports each route-goal arrival, rejects premature completion, and
-  stops when the stated navigation-step limit is reached.
+  robot. The final navigation goal uses the exact assigned destination rather
+  than merely its grid-cell center, and the measured final pose is checked
+  before completion is reported.
 - [`component_checks.py`](component_checks.py) checks direct, detour, one-cell,
   invalid-endpoint, and disconnected cases without starting a robot.
 - `OccupancyGrid` supplies coordinate conversion, blocked-cell tests, and the
   free cells sharing a side with a given cell.
 - `GridPath.to_goals()` converts the cell path into the world-coordinate goals
-  used by the carried-forward `NavigationController`.
+  used by the selected `NavigationController`.
 
 ## How the program runs
 
@@ -114,12 +113,8 @@ set `USE_STUDENT_GRID_PLANNER` to `True` in `course_setup.py`.
    The program performs the same check before it permits motion.
 3. Confirm separately that an unavailable endpoint and a disconnected map
    return `None` without motion.
-4. Repeat the valid route with the classes from all five carried-forward
-   component project files selected; assess path validity separately from
-   navigation and pose-estimation performance.
+4. Repeat the valid route with the classes from the other component project
+   files selected; assess path validity separately from navigation and
+   pose-estimation performance.
 5. For the physical run, match the arena to `world.json`, start at the marked
    pose, and compare the planned route, estimated trajectory, and observed path.
-
-After completing this challenge, select **Continue to Challenge 5 · Delivery
-Mission…**. The new project carries forward all six component files and their
-selections; the Challenge 4 project remains unchanged.

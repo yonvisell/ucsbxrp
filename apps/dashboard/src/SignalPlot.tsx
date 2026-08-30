@@ -24,6 +24,7 @@ import {
 } from "@ucsb-xrp/target";
 
 import type { MonitorAnnotation } from "./monitor-export";
+import { normalizeUltrasoundRangeMm } from "./ultrasound-range";
 
 echarts.use([
   LineChart,
@@ -183,7 +184,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
       {
         label: "d_range",
         color: "#205f99",
-        value: (sample) => sample.rangeMm,
+        value: (sample) => normalizeUltrasoundRangeMm(sample.rangeMm),
       },
     ],
   },

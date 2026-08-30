@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_WORLD_CATALOG, type TelemetrySample } from "@ucsb-xrp/target";
 
@@ -7,7 +7,9 @@ import {
   createSignalPlotsSvg,
   monitorAnnotationsToCsv,
   monitorRunToCsv,
+  webmExportSupported,
   worldCanvasTransform,
+  worldCanvasTracks,
   worldReplayPlan,
   type MonitorAnnotation,
 } from "./monitor-export";
@@ -142,6 +144,33 @@ describe("monitor exports", () => {
     ).toThrow("no published robot pose");
   });
 
+  it("requires manual canvas-frame capture before offering WebM export", () => {
+    class FakeCanvasElement {}
+    Object.defineProperty(FakeCanvasElement.prototype, "captureStream", {
+      configurable: true,
+      value: () => undefined,
+    });
+    class FakeCaptureTrack {}
+    class FakeMediaRecorder {
+      static isTypeSupported(type: string) {
+        return type.startsWith("video/webm");
+      }
+    }
+    vi.stubGlobal("HTMLCanvasElement", FakeCanvasElement);
+    vi.stubGlobal("CanvasCaptureMediaStreamTrack", FakeCaptureTrack);
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+    try {
+      expect(webmExportSupported()).toBe(false);
+      Object.defineProperty(FakeCaptureTrack.prototype, "requestFrame", {
+        configurable: true,
+        value: () => undefined,
+      });
+      expect(webmExportSupported()).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("uses one physical scale for both axes in world animations", () => {
     const world = DEFAULT_WORLD_CATALOG.worlds[0]!;
     const transform = worldCanvasTransform(world, 960, 720);
@@ -156,5 +185,53 @@ describe("monitor exports", () => {
     );
     expect(transform.worldWidthPx).toBeLessThanOrEqual(960 - 56);
     expect(transform.worldHeightPx).toBeLessThanOrEqual(720 - 56);
+  });
+
+  it("maps open and closed floor tracks into exported-frame coordinates", () => {
+    const base = DEFAULT_WORLD_CATALOG.worlds[0]!;
+    const world = {
+      ...base,
+      tracks: [
+        {
+          type: "line" as const,
+          widthMm: 20,
+          darkness: 1,
+          closed: false,
+          points: [
+            { xMm: -100, yMm: -50 },
+            { xMm: 100, yMm: -50 },
+          ],
+        },
+        {
+          type: "line" as const,
+          widthMm: 10,
+          darkness: 0.5,
+          closed: true,
+          points: [
+            { xMm: 0, yMm: 0 },
+            { xMm: 50, yMm: 0 },
+            { xMm: 50, yMm: 50 },
+          ],
+        },
+      ],
+    };
+    const rendered = worldCanvasTracks(world, 960, 720);
+    const transform = worldCanvasTransform(world, 960, 720);
+
+    expect(rendered.map((track) => track.closed)).toEqual([false, true]);
+    expect(rendered.map((track) => track.color)).toEqual([
+      "#323232",
+      "#909090",
+    ]);
+    expect(rendered[0]!.widthPx).toBeCloseTo(20 * transform.scalePxPerMm);
+    expect(rendered[0]!.points[0]).toEqual({
+      xPx:
+        transform.worldLeftPx +
+        (-100 - world.bounds.minimumXmm) * transform.scalePxPerMm,
+      yPx:
+        transform.worldTopPx +
+        transform.worldHeightPx -
+        (-50 - world.bounds.minimumYmm) * transform.scalePxPerMm,
+    });
   });
 });

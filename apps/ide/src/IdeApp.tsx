@@ -1,7 +1,10 @@
 import Editor, { type OnMount } from "@monaco-editor/react";
 import {
+  type CSSProperties,
   type ChangeEvent,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -15,8 +18,7 @@ import {
   PhysicalTargetClient,
   VirtualTargetClient,
   checkCourseProjectSyntax,
-  createNextChallengeProject,
-  nextChallengeTemplate,
+  describeChallengeProjectTransition,
   physicalEndpointCandidates,
   targetPreferenceForPhysicalNetwork,
   testCourseProjectComponents,
@@ -26,6 +28,7 @@ import {
   type TargetRunState,
   type SynchronizedProject,
   type CourseProjectKind,
+  type ChallengeTransition,
   type CheckResult,
   type PythonDiagnostic,
 } from "@ucsb-xrp/target";
@@ -135,6 +138,7 @@ interface CompilerTranscript {
 interface IdeSettings {
   editorFontSize: number;
   consoleFontSize: number;
+  projectRailWidth: number;
   tabSize: 2 | 4;
   wordWrap: "off" | "on";
   minimap: boolean;
@@ -142,7 +146,8 @@ interface IdeSettings {
 
 type PathOperation = "rename" | "duplicate";
 
-type ProjectCreationPurpose = "new-project" | "next-challenge" | "save-current";
+type ProjectCreationPurpose =
+  "new-project" | "challenge-transition" | "save-current";
 
 type WorkingFolderAccessState = "none" | "needs-permission" | "connected";
 
@@ -154,6 +159,16 @@ interface ProjectFolderConflictState {
 const settingsKey = "ucsb-xrp-ide-settings-v2";
 const completeChallengesPreferenceKey = "ucsb-xrp-show-complete-challenges-v1";
 const maximumSessionLogEntries = 5_000;
+const minimumProjectRailWidth = 160;
+const maximumProjectRailWidth = 360;
+const defaultProjectRailWidth = 200;
+
+function clampProjectRailWidth(width: number): number {
+  return Math.min(
+    maximumProjectRailWidth,
+    Math.max(minimumProjectRailWidth, Math.round(width)),
+  );
+}
 
 function uniquePythonDiagnostics(
   diagnostics: readonly PythonDiagnostic[],
@@ -219,8 +234,9 @@ function consoleSourceLocation(
   };
 }
 const defaultSettings: IdeSettings = {
-  editorFontSize: 13,
+  editorFontSize: 10,
   consoleFontSize: 12,
+  projectRailWidth: defaultProjectRailWidth,
   tabSize: 4,
   wordWrap: "off",
   minimap: false,
@@ -235,7 +251,7 @@ function loadSettings(): IdeSettings {
     return {
       editorFontSize:
         typeof value.editorFontSize === "number" &&
-        value.editorFontSize >= 10 &&
+        value.editorFontSize >= 8 &&
         value.editorFontSize <= 20
           ? value.editorFontSize
           : defaultSettings.editorFontSize,
@@ -245,6 +261,12 @@ function loadSettings(): IdeSettings {
         value.consoleFontSize <= 16
           ? value.consoleFontSize
           : defaultSettings.consoleFontSize,
+      projectRailWidth:
+        typeof value.projectRailWidth === "number" &&
+        value.projectRailWidth >= minimumProjectRailWidth &&
+        value.projectRailWidth <= maximumProjectRailWidth
+          ? value.projectRailWidth
+          : defaultSettings.projectRailWidth,
       tabSize: value.tabSize === 2 ? 2 : 4,
       wordWrap: value.wordWrap === "on" ? "on" : "off",
       minimap: value.minimap === true,
@@ -496,7 +518,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   );
   const [projectSessionReady, setProjectSessionReady] = useState(false);
   const [activePath, setActivePath] = useState(initialProject.entrypoint);
-  const [openPaths, setOpenPaths] = useState([initialProject.entrypoint]);
   const [markdownPreviewOpen, setMarkdownPreviewOpen] = useState(
     initialProject.entrypoint.endsWith(".md"),
   );
@@ -575,12 +596,10 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const [pendingProject, setPendingProject] = useState<ProjectSnapshot | null>(
     null,
   );
+  const [pendingChallengeTransition, setPendingChallengeTransition] =
+    useState<ChallengeTransition | null>(null);
   const [projectCreationPurpose, setProjectCreationPurpose] =
     useState<ProjectCreationPurpose>("new-project");
-  const [
-    continueToNextChallengeAfterSave,
-    setContinueToNextChallengeAfterSave,
-  ] = useState(false);
   const [pathOperation, setPathOperation] = useState<PathOperation | null>(
     null,
   );
@@ -1348,7 +1367,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         setFolderDirty(metadataNeedsWrite);
         setFolderSaveState(metadataNeedsWrite ? "pending" : "current");
         setActivePath(resolvedSession.project.entrypoint);
-        setOpenPaths([resolvedSession.project.entrypoint]);
         replacePendingFolderDeletions(() => new Set());
         return result;
       };
@@ -1362,7 +1380,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         setFolderDirty(false);
         setFolderSaveState("browser");
         setActivePath(resolvedSession.project.entrypoint);
-        setOpenPaths([resolvedSession.project.entrypoint]);
       };
       const preserveInitialDraftIfNeeded = () => {
         if (
@@ -1551,7 +1568,18 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const useThisIde = useCallback(() => {
     target.setProjectRunProvider(provideProjectRunSnapshot, { takeover: true });
   }, [provideProjectRunSnapshot, target]);
+  const activeProjectTemplate = useMemo(
+    () =>
+      project.templateId
+        ? COURSE_PROJECT_TEMPLATES.find(
+            (template) => template.id === project.templateId,
+          )
+        : undefined,
+    [project.templateId],
+  );
   const projectCheckFile = checkFileForProject(project);
+  const challengeComponentChecksAvailable =
+    activeProjectTemplate?.kind === "challenge" && projectCheckFile !== null;
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -1568,11 +1596,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const compilerTranscriptIsCurrent =
     compilerTranscript?.projectId === projectSession.projectId &&
     compilerTranscript.revision === projectSession.revision;
-  const followingChallenge = useMemo(
-    () =>
-      project.templateId ? nextChallengeTemplate(project.templateId) : null,
-    [project.templateId],
-  );
   const programOutput = useMemo(
     () => consoleEntries.filter((entry) => entry.category === "program"),
     [consoleEntries],
@@ -1584,10 +1607,47 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const canDeleteActiveFile =
     projectFiles.length > 1 && activePath !== project.entrypoint;
 
-  const openFile = useCallback((path: string) => {
-    setOpenPaths((paths) => (paths.includes(path) ? paths : [...paths, path]));
-    setActivePath(path);
-  }, []);
+  const beginProjectRailResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const startX = event.clientX;
+      const startWidth = settings.projectRailWidth;
+      const move = (pointerEvent: PointerEvent) => {
+        const width = clampProjectRailWidth(
+          startWidth + pointerEvent.clientX - startX,
+        );
+        setSettings((current) => ({ ...current, projectRailWidth: width }));
+      };
+      const finish = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", finish);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", finish, { once: true });
+    },
+    [settings.projectRailWidth],
+  );
+
+  const resizeProjectRailFromKeyboard = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      let nextWidth: number | null = null;
+      if (event.key === "Home") nextWidth = minimumProjectRailWidth;
+      if (event.key === "End") nextWidth = maximumProjectRailWidth;
+      if (event.key === "ArrowLeft") {
+        nextWidth = settings.projectRailWidth - (event.shiftKey ? 16 : 4);
+      }
+      if (event.key === "ArrowRight") {
+        nextWidth = settings.projectRailWidth + (event.shiftKey ? 16 : 4);
+      }
+      if (nextWidth === null) return;
+      event.preventDefault();
+      const width = clampProjectRailWidth(nextWidth);
+      setSettings((current) => ({ ...current, projectRailWidth: width }));
+    },
+    [settings.projectRailWidth],
+  );
+
+  const openFile = useCallback((path: string) => setActivePath(path), []);
 
   const openEditorLocation = useCallback(
     (location: { path: string; line: number; column: number }) => {
@@ -1834,26 +1894,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     target,
   ]);
 
-  const closeFile = useCallback(
-    (path: string) => {
-      setOpenPaths((paths) => {
-        if (paths.length === 1) {
-          return paths;
-        }
-        const index = paths.indexOf(path);
-        const remaining = paths.filter((candidate) => candidate !== path);
-        if (path === activePath) {
-          setActivePath(
-            remaining[Math.min(index, remaining.length - 1)] ??
-              project.entrypoint,
-          );
-        }
-        return remaining;
-      });
-    },
-    [activePath, project.entrypoint],
-  );
-
   const updateActiveFile = useCallback(
     (content: string) => {
       if (!workingFolder) return;
@@ -2053,7 +2093,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   ]);
 
   const testComponents = useCallback(async () => {
-    if (!workingFolder || componentCheckRunning || projectCheckFile === null) {
+    if (
+      !workingFolder ||
+      !challengeComponentChecksAvailable ||
+      componentCheckRunning ||
+      isRunning ||
+      projectCommandActive
+    ) {
       return;
     }
     componentCheckRunningRef.current = true;
@@ -2121,7 +2167,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       setComponentCheckRunning(false);
       retryPendingOfflineShellReload();
     }
-  }, [componentCheckRunning, projectCheckFile, workingFolder]);
+  }, [
+    challengeComponentChecksAvailable,
+    componentCheckRunning,
+    isRunning,
+    projectCheckFile,
+    projectCommandActive,
+    workingFolder,
+  ]);
 
   const runTarget = useCallback(async () => {
     if (
@@ -2307,7 +2360,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       setFolderSaveState("current");
       publishProjectSession(reconciliation.session);
       setActivePath(reconciliation.session.project.entrypoint);
-      setOpenPaths([reconciliation.session.project.entrypoint]);
       const folderNeedsWrite =
         result.project.session === undefined ||
         reconciliation.session.source === "browser-draft" ||
@@ -2405,7 +2457,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           setFolderDirty(false);
           setFolderSaveState("browser");
           setActivePath(preview.project.entrypoint);
-          setOpenPaths([preview.project.entrypoint]);
           setProjectChoices(choices);
           setProjectChooserError("");
           setProjectChooserLoading(false);
@@ -2607,9 +2658,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const cancelProjectCreation = useCallback(() => {
     setNewProjectOpen(false);
     setPendingProject(null);
+    setPendingChallengeTransition(null);
     setSelectedTemplateId("");
     setProjectCreationPurpose("new-project");
-    setContinueToNextChallengeAfterSave(false);
     setNewProjectDraft("");
     setNewProjectError("");
   }, []);
@@ -2652,7 +2703,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       );
       publishProjectSession(reconciliation.session);
       setActivePath(reconciliation.session.project.entrypoint);
-      setOpenPaths([reconciliation.session.project.entrypoint]);
       setWorkingFolder(rememberedFolder);
       const folderNeedsWrite =
         opened.project.session === undefined ||
@@ -2788,7 +2838,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       );
       publishProjectSession(projectFolderConflict.folderSession);
       setActivePath(projectFolderConflict.folderSession.project.entrypoint);
-      setOpenPaths([projectFolderConflict.folderSession.project.entrypoint]);
       replacePendingFolderDeletions(() => new Set());
       folderDirtyRef.current = false;
       setFolderDirty(false);
@@ -2864,7 +2913,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       await stageOpenedProject(restored.project, restored.projectId);
       publishProjectSession(restored);
       setActivePath(restored.project.entrypoint);
-      setOpenPaths([restored.project.entrypoint]);
       setWorkingFolder(null);
       setRememberedFolder(null);
       setRememberedFolderCanAttach(false);
@@ -3046,11 +3094,37 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     }
     setSelectedTemplateId("");
     setPendingProject(null);
+    setPendingChallengeTransition(null);
     setProjectCreationPurpose("new-project");
     setNewProjectDraft("");
     setNewProjectError("");
     setNewProjectOpen(true);
   }, []);
+
+  const openChallengeTransitionDialog = useCallback(() => {
+    if (
+      targetStateRef.current === "loading" ||
+      targetStateRef.current === "running"
+    ) {
+      setOperationDetail(
+        "Stop the current run before creating a different challenge Project.",
+      );
+      return;
+    }
+    if (activeProjectTemplate?.kind !== "challenge" || !project.templateId) {
+      setOperationDetail(
+        "Open a student challenge before carrying work forward.",
+      );
+      return;
+    }
+    setSelectedTemplateId("");
+    setPendingProject(null);
+    setPendingChallengeTransition(null);
+    setProjectCreationPurpose("challenge-transition");
+    setNewProjectDraft("");
+    setNewProjectError("");
+    setNewProjectOpen(true);
+  }, [activeProjectTemplate?.kind, project.templateId]);
 
   const selectProjectTemplate = useCallback(
     (templateId: string) => {
@@ -3060,81 +3134,57 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       );
       if (!template) {
         setPendingProject(null);
+        setPendingChallengeTransition(null);
         setNewProjectDraft("");
         return;
       }
-      const snapshot: ProjectSnapshot = {
-        name: template.project.name ?? template.id.replaceAll("_", "-"),
-        entrypoint: template.project.entrypoint,
-        files: { ...template.project.files },
-        templateId: template.id,
-      };
+      let snapshot: ProjectSnapshot;
+      if (projectCreationPurpose === "challenge-transition") {
+        if (!project.templateId || template.kind !== "challenge") {
+          setPendingProject(null);
+          setPendingChallengeTransition(null);
+          setNewProjectDraft("");
+          setNewProjectError("Choose a different student challenge.");
+          return;
+        }
+        try {
+          const transition = describeChallengeProjectTransition(
+            project.templateId,
+            template.id,
+            project,
+          );
+          setPendingChallengeTransition(transition);
+          snapshot = {
+            ...transition.project,
+            name:
+              transition.project.name ??
+              template.project.name ??
+              template.id.replaceAll("_", "-"),
+            templateId: template.id,
+          };
+        } catch (error) {
+          setPendingProject(null);
+          setPendingChallengeTransition(null);
+          setNewProjectDraft("");
+          setNewProjectError(errorDetail(error));
+          return;
+        }
+      } else {
+        snapshot = {
+          name: template.project.name ?? template.id.replaceAll("_", "-"),
+          entrypoint: template.project.entrypoint,
+          files: { ...template.project.files },
+          templateId: template.id,
+        };
+        setPendingChallengeTransition(null);
+        setProjectCreationPurpose("new-project");
+      }
       setPendingProject(snapshot);
-      setProjectCreationPurpose("new-project");
       setNewProjectDraft(suggestedProjectFolderName(snapshot.name));
       setNewProjectError("");
     },
-    [availableProjectTemplates],
+    [availableProjectTemplates, project, projectCreationPurpose],
   );
-
-  const prepareNextChallengeCreation = useCallback(
-    async (sourceProject: ProjectSnapshot) => {
-      if (!sourceProject.templateId) {
-        throw new Error("This project is not part of the challenge sequence.");
-      }
-      const nextTemplate = nextChallengeTemplate(sourceProject.templateId);
-      if (!nextTemplate) {
-        throw new Error("This is the final challenge in the sequence.");
-      }
-      const next = createNextChallengeProject(
-        sourceProject.templateId,
-        sourceProject,
-      );
-      await prepareProjectCreation(
-        {
-          ...next,
-          name: next.name ?? nextTemplate.shortLabel,
-          templateId: nextTemplate.id,
-        },
-        "next-challenge",
-      );
-      return nextTemplate;
-    },
-    [prepareProjectCreation],
-  );
-
-  const startNextChallenge = useCallback(async () => {
-    if (!project.templateId || !followingChallenge) return;
-    if (!workingFolder) {
-      setContinueToNextChallengeAfterSave(true);
-      setOperationDetail(
-        `Save ${project.name} as a project, then the IDE will continue to ${followingChallenge.label}.`,
-      );
-      await saveProjectFiles();
-      return;
-    }
-    if (!workspaceFolder) {
-      setOperationDetail(
-        "Choose the Working folder for the next challenge project.",
-      );
-      if (!(await ensureWorkingFolderAccess(undefined, false))) return;
-    }
-    try {
-      await prepareNextChallengeCreation(project);
-    } catch (error) {
-      setOperationDetail(
-        `The next challenge could not be created: ${errorDetail(error)}`,
-      );
-    }
-  }, [
-    followingChallenge,
-    prepareNextChallengeCreation,
-    project,
-    saveProjectFiles,
-    ensureWorkingFolderAccess,
-    workingFolder,
-    workspaceFolder,
-  ]);
 
   const createNamedProject = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -3222,7 +3272,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             ? openingPathForNewProject(pendingProject)
             : nextSession.project.entrypoint;
         setActivePath(openingPath);
-        setOpenPaths([openingPath]);
         setWorkingFolder(folder);
         setRememberedFolder(folder);
         setRememberedFolderCanAttach(true);
@@ -3233,33 +3282,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         setCheckDetail("Current files have not been checked.");
         setSyncOk(null);
         setSyncDetail("Run will load the current project into XRP memory.");
-        const shouldContinueToNextChallenge =
-          projectCreationPurpose === "save-current" &&
-          continueToNextChallengeAfterSave;
-        if (shouldContinueToNextChallenge) {
-          setContinueToNextChallengeAfterSave(false);
-          try {
-            const nextTemplate = await prepareNextChallengeCreation(
-              nextSession.project,
-            );
-            setOperationDetail(
-              `Saved ${nextSession.project.name} in ${folder.name}. Name the ${nextTemplate.label} project to continue.`,
-            );
-          } catch (error) {
-            cancelProjectCreation();
-            setOperationDetail(
-              `Saved ${nextSession.project.name} in ${folder.name}, but the next challenge could not be prepared: ${errorDetail(error)}`,
-            );
-          }
-        } else {
-          const completedPurpose = projectCreationPurpose;
-          cancelProjectCreation();
-          setOperationDetail(
-            completedPurpose === "save-current"
-              ? `Saved ${nextSession.project.name} in ${folder.name}.`
-              : `Created ${folder.name}.`,
-          );
-        }
+        const completedPurpose = projectCreationPurpose;
+        cancelProjectCreation();
+        setOperationDetail(
+          completedPurpose === "save-current"
+            ? `Saved ${nextSession.project.name} in ${folder.name}.`
+            : `Created ${folder.name}.`,
+        );
       } catch (error) {
         setNewProjectError(errorDetail(error));
       } finally {
@@ -3269,11 +3298,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     [
       beginFolderInteraction,
       cancelProjectCreation,
-      continueToNextChallengeAfterSave,
       finishFolderInteraction,
       newProjectDraft,
       pendingProject,
-      prepareNextChallengeCreation,
       preserveBrowserDraft,
       projectCreationPurpose,
       publishProjectSession,
@@ -3427,15 +3454,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           }
           return next;
         });
-        if (pathOperation === "rename") {
-          setOpenPaths((paths) =>
-            paths.map((path) => (path === activePath ? nextPath : path)),
-          );
-        } else {
-          setOpenPaths((paths) =>
-            paths.includes(nextPath) ? paths : [...paths, nextPath],
-          );
-        }
         setActivePath(nextPath);
         setFolderDirty(true);
         setOperationDetail(
@@ -3471,10 +3489,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       replacePendingFolderDeletions(
         (current) => new Set([...current, deletePath]),
       );
-      setOpenPaths((paths) => {
-        const remaining = paths.filter((path) => path !== deletePath);
-        return remaining.length > 0 ? remaining : [nextProject.entrypoint];
-      });
       if (activePath === deletePath) {
         setActivePath(nextProject.entrypoint);
       }
@@ -3724,24 +3738,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         (template) => template.id === pendingProject.templateId,
       )
     : null;
-  const pendingTemplatePredecessor = pendingTemplate?.predecessorId
-    ? COURSE_PROJECT_TEMPLATES.find(
-        (template) => template.id === pendingTemplate.predecessorId,
-      )
-    : null;
-  const progressingToNextChallenge =
-    projectCreationPurpose === "next-challenge";
-  const carriedFiles =
-    progressingToNextChallenge && pendingTemplate
-      ? pendingTemplate.components
-          .filter((component) => component.carryForward)
-          .map((component) => component.file)
-      : [];
-  const followingChallengeCarriedFiles = followingChallenge
-    ? followingChallenge.components
-        .filter((component) => component.carryForward)
-        .map((component) => component.file)
-    : [];
+  const preparingChallengeTransition =
+    projectCreationPurpose === "challenge-transition";
 
   if (!projectSessionReady || !targetPreferenceReady) {
     return (
@@ -3930,6 +3928,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
 
       <main
         className={`ide-workspace ${projectPanelOpen ? "" : "project-collapsed"}`}
+        style={
+          {
+            "--project-rail-width": `${settings.projectRailWidth}px`,
+          } as CSSProperties
+        }
       >
         {projectPanelOpen ? (
           <aside className="project-rail panel" aria-label="Project">
@@ -4058,64 +4061,6 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   ) : null}
                 </div>
                 <div
-                  aria-label="Project actions"
-                  className="project-actions"
-                  role="group"
-                >
-                  <button
-                    aria-label="Open project…"
-                    className="open-folder-button"
-                    disabled={!supportsWorkingFolders() || isRunning}
-                    onClick={() => void openProject()}
-                    title={
-                      isRunning
-                        ? "Stop the current run before opening another Project."
-                        : "Open an existing UCSBXRP project with read-write access. Changes save to its folder automatically."
-                    }
-                  >
-                    Open project…
-                  </button>
-                  <button
-                    aria-label="New project…"
-                    disabled={isRunning}
-                    onClick={openProjectTemplateDialog}
-                    title={
-                      isRunning
-                        ? "Stop the current run before creating another Project."
-                        : "Create a new project from a course challenge, demo, or tutorial."
-                    }
-                  >
-                    New project…
-                  </button>
-                  <small className="project-template-hint">
-                    New project contains challenges, demos, and tutorials.
-                  </small>
-                  {!workingFolder &&
-                  rememberedFolder &&
-                  rememberedFolderCanAttach ? (
-                    <button
-                      className="project-storage-action"
-                      disabled={isRunning}
-                      onClick={reconnectWorkingFolder}
-                      title={`Reconnect ${rememberedFolder.name} with read-write access and resume automatic saving.`}
-                    >
-                      Reconnect project folder…
-                    </button>
-                  ) : null}
-                  {!workingFolder &&
-                  rememberedWorkspaceFolder &&
-                  workingFolderAccessState === "needs-permission" ? (
-                    <button
-                      className="project-storage-action"
-                      disabled={isRunning}
-                      onClick={() => void ensureWorkingFolderAccess()}
-                      title={`Restore read-write access to ${rememberedWorkspaceFolder.name}, reopen its active Project, and restore its XRP connection.`}
-                    >
-                      Reconnect Working folder…
-                    </button>
-                  ) : null}
-                </div>
-                <div
                   aria-label="Create or import project files"
                   className="file-create-actions"
                   role="group"
@@ -4155,27 +4100,101 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     type="file"
                   />
                 </div>
-                <div className="course-project-actions">
-                  {projectCheckFile ? (
+                <div
+                  aria-label="Project actions"
+                  className="project-actions"
+                  role="group"
+                >
+                  <small className="project-template-hint">
+                    New project: Open challenges, demos, or tutorials
+                  </small>
+                  <button
+                    aria-label="New project…"
+                    disabled={isRunning}
+                    onClick={openProjectTemplateDialog}
+                    title={
+                      isRunning
+                        ? "Stop the current run before creating another Project."
+                        : "Create a new project from a course challenge, demo, or tutorial."
+                    }
+                  >
+                    New project…
+                  </button>
+                  <button
+                    aria-label="Open project…"
+                    className="open-folder-button"
+                    disabled={!supportsWorkingFolders() || isRunning}
+                    onClick={() => void openProject()}
+                    title={
+                      isRunning
+                        ? "Stop the current run before opening another Project."
+                        : "Open an existing UCSBXRP project with read-write access. Changes save to its folder automatically."
+                    }
+                  >
+                    Open project…
+                  </button>
+                  {!workingFolder &&
+                  rememberedFolder &&
+                  rememberedFolderCanAttach ? (
                     <button
-                      className="component-check-button"
-                      disabled={!workingFolder || componentCheckRunning}
-                      onClick={() => void testComponents()}
-                      title="Run this challenge's component checks in MicroPython without starting either robot. PASS, NOT IMPLEMENTED, and FAIL results appear in Program output."
+                      className="project-storage-action"
+                      disabled={isRunning}
+                      onClick={reconnectWorkingFolder}
+                      title={`Reconnect ${rememberedFolder.name} with read-write access and resume automatic saving.`}
                     >
-                      {componentCheckRunning
-                        ? "Testing components…"
-                        : "Test components"}
+                      Reconnect project folder…
                     </button>
                   ) : null}
-                  {followingChallenge ? (
+                  {!workingFolder &&
+                  rememberedWorkspaceFolder &&
+                  workingFolderAccessState === "needs-permission" ? (
                     <button
-                      className="next-challenge-button"
+                      className="project-storage-action"
                       disabled={isRunning}
-                      onClick={() => void startNextChallenge()}
-                      title={`Continue in a separate ${followingChallenge.label} project. Copies ${followingChallengeCarriedFiles.join(", ")} from this project; this project remains unchanged.`}
+                      onClick={() => void ensureWorkingFolderAccess()}
+                      title={`Restore read-write access to ${rememberedWorkspaceFolder.name}, reopen its active Project, and restore its XRP connection.`}
                     >
-                      Continue to {followingChallenge.label}…
+                      Reconnect Working folder…
+                    </button>
+                  ) : null}
+                </div>
+                <div className="course-project-actions">
+                  <button
+                    aria-describedby="component-check-help"
+                    className="component-check-button"
+                    disabled={
+                      !workingFolder ||
+                      !challengeComponentChecksAvailable ||
+                      componentCheckRunning ||
+                      isRunning ||
+                      projectCommandActive
+                    }
+                    onClick={() => void testComponents()}
+                    title={
+                      !challengeComponentChecksAvailable
+                        ? "Open a student challenge to test its class implementations."
+                        : isRunning
+                          ? "Stop the current robot run before testing challenge components."
+                          : projectCommandActive
+                            ? "Wait for the current project action to finish."
+                            : "Run supplied input/output checks in MicroPython without running an XRP."
+                    }
+                  >
+                    {componentCheckRunning
+                      ? "Testing components…"
+                      : "Test components"}
+                  </button>
+                  <small id="component-check-help">
+                    Test the class implementations for this challenge
+                  </small>
+                  {activeProjectTemplate?.kind === "challenge" ? (
+                    <button
+                      className="challenge-transition-button"
+                      disabled={isRunning}
+                      onClick={openChallengeTransitionDialog}
+                      title="Choose another student challenge, preview every file change, and create it as a separate project. This project remains unchanged."
+                    >
+                      Start another challenge…
                     </button>
                   ) : null}
                 </div>
@@ -4227,16 +4246,33 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             </div>
           </aside>
         ) : null}
+        {projectPanelOpen ? (
+          <div
+            aria-label="Resize Project sidebar"
+            aria-orientation="vertical"
+            aria-valuemax={maximumProjectRailWidth}
+            aria-valuemin={minimumProjectRailWidth}
+            aria-valuenow={settings.projectRailWidth}
+            className="project-rail-resizer"
+            onDoubleClick={() =>
+              setSettings((current) => ({
+                ...current,
+                projectRailWidth: defaultProjectRailWidth,
+              }))
+            }
+            onKeyDown={resizeProjectRailFromKeyboard}
+            onPointerDown={beginProjectRailResize}
+            role="separator"
+            tabIndex={0}
+            title="Drag to resize the Project sidebar. Double-click to reset."
+          />
+        ) : null}
 
         <section
           className={`editor-stack ${outputPanelOpen ? "" : "output-collapsed"}`}
         >
           <div className="editor-panel panel">
-            <div
-              className="editor-tabbar"
-              role="tablist"
-              aria-label="Open files"
-            >
+            <div className="editor-toolbar">
               {!projectPanelOpen ? (
                 <button
                   className="project-reopen"
@@ -4246,32 +4282,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   Project ›
                 </button>
               ) : null}
-              {openPaths.map((path) => (
-                <div
-                  className={`editor-tab ${path === activePath ? "active" : ""}`}
-                  key={path}
-                  role="presentation"
-                >
-                  <button
-                    aria-selected={path === activePath}
-                    className="tab-select"
-                    onClick={() => setActivePath(path)}
-                    role="tab"
-                    title={path}
-                  >
-                    <span>{path.split("/").at(-1)}</span>
-                  </button>
-                  <button
-                    aria-label={`Close ${path}`}
-                    className="tab-close"
-                    disabled={openPaths.length === 1}
-                    onClick={() => closeFile(path)}
-                    title={`Close ${path}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              <strong
+                className="current-file-heading"
+                data-testid="current-file"
+                title={activePath}
+              >
+                {activePath}
+              </strong>
               {folderSaveState === "error" || folderSaveState === "saving" ? (
                 <span className="autosave-label">
                   {folderSaveState === "error" ? "Save failed" : "Saving…"}
@@ -4459,7 +4476,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     setOutputPanelOpen(true);
                   }}
                   role="tab"
-                  title="Show the exact, unfiltered text returned by the latest MicroPython compile."
+                  title="Show output from the latest MicroPython compile."
                 >
                   Compiler output
                 </button>
@@ -4590,8 +4607,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               <div className="problems-panel" role="tabpanel">
                 {pythonDiagnostics.length === 0 ? (
                   <span className="console-placeholder">
-                    Compile the current files to list exact Python source
-                    problems here.
+                    Compile the current files to list Python source problems
+                    here.
                   </span>
                 ) : (
                   <ol className="problem-list">
@@ -4650,7 +4667,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 {compilerTranscript ? (
                   <>
                     <div className="compiler-output-heading">
-                      <strong>Captured MicroPython output · unfiltered</strong>
+                      <strong>MicroPython compiler</strong>
                       <span>
                         {compilerTranscript.ok ? "Passed" : "Failed"} ·{" "}
                         {compilerTranscriptIsCurrent
@@ -4658,12 +4675,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                           : "earlier Project revision"}
                       </span>
                     </div>
-                    <pre>{compilerTranscript.lines.join("\n")}</pre>
+                    <pre style={{ fontSize: `${settings.consoleFontSize}px` }}>
+                      {compilerTranscript.lines.join("\n")}
+                    </pre>
                   </>
                 ) : (
                   <span className="console-placeholder">
-                    Compile to see the complete, unfiltered MicroPython output
-                    here.
+                    Compile to view MicroPython compiler output here.
                   </span>
                 )}
               </div>
@@ -4842,7 +4860,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             </span>
             <input
               max="20"
-              min="10"
+              min="8"
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
@@ -5075,42 +5093,65 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <h2 id="new-project-title">
               {projectCreationPurpose === "save-current"
                 ? "Save project"
-                : progressingToNextChallenge
-                  ? "Next challenge project"
+                : preparingChallengeTransition
+                  ? "Start another challenge"
                   : "New project"}
             </h2>
-            {projectCreationPurpose === "new-project" ? (
+            {projectCreationPurpose === "new-project" ||
+            preparingChallengeTransition ? (
               <label className="dialog-field" htmlFor="new-project-template">
-                <span>Start with</span>
+                <span>
+                  {preparingChallengeTransition ? "Challenge" : "Start with"}
+                </span>
                 <select
                   autoFocus
                   id="new-project-template"
-                  aria-label="Project template"
+                  aria-label={
+                    preparingChallengeTransition
+                      ? "Challenge"
+                      : "Project template"
+                  }
                   onChange={(event) =>
                     selectProjectTemplate(event.target.value)
                   }
                   value={selectedTemplateId}
                 >
                   <option value="">
-                    Choose a challenge, demo, or tutorial…
+                    {preparingChallengeTransition
+                      ? "Choose another challenge…"
+                      : "Choose a challenge, demo, or tutorial…"}
                   </option>
-                  {templateGroups
-                    .filter((group) =>
-                      availableProjectTemplates.some(
-                        (template) => template.kind === group.kind,
-                      ),
-                    )
-                    .map((group) => (
-                      <optgroup key={group.kind} label={group.label}>
-                        {availableProjectTemplates
-                          .filter((template) => template.kind === group.kind)
-                          .map((template) => (
-                            <option key={template.id} value={template.id}>
-                              {template.shortLabel}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
+                  {preparingChallengeTransition
+                    ? availableProjectTemplates
+                        .filter(
+                          (template) =>
+                            template.kind === "challenge" &&
+                            template.id !== project.templateId,
+                        )
+                        .map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.shortLabel}
+                          </option>
+                        ))
+                    : templateGroups
+                        .filter((group) =>
+                          availableProjectTemplates.some(
+                            (template) => template.kind === group.kind,
+                          ),
+                        )
+                        .map((group) => (
+                          <optgroup key={group.kind} label={group.label}>
+                            {availableProjectTemplates
+                              .filter(
+                                (template) => template.kind === group.kind,
+                              )
+                              .map((template) => (
+                                <option key={template.id} value={template.id}>
+                                  {template.shortLabel}
+                                </option>
+                              ))}
+                          </optgroup>
+                        ))}
                 </select>
               </label>
             ) : null}
@@ -5134,30 +5175,58 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     projects remain separate.
                   </p>
                 ) : null}
-                {pendingTemplatePredecessor ? (
-                  <p className="dialog-context">
-                    In the course sequence, continue from{" "}
-                    <strong>{pendingTemplatePredecessor.shortLabel}</strong> so
-                    your earlier component files carry forward. Creating this
-                    template here starts an independent project.
-                  </p>
-                ) : null}
               </div>
             ) : null}
             <p className="dialog-context">
               {projectCreationPurpose === "save-current"
                 ? `Save ${pendingProject?.name ?? project.name}${workspaceFolder ? ` in ${workspaceFolder.name}` : " in a Working folder"}.`
-                : progressingToNextChallenge
-                  ? `Create a separate project${workspaceFolder ? ` in ${workspaceFolder.name}` : ""}. It carries ${carriedFiles.join(", ")} from ${project.name}.`
+                : preparingChallengeTransition
+                  ? `Review the file changes below, then create a separate project${workspaceFolder ? ` in ${workspaceFolder.name}` : ""}. ${project.name} remains unchanged.`
                   : pendingProject
                     ? `Create this project${workspaceFolder ? ` in ${workspaceFolder.name}` : " after choosing a Working folder"}.`
                     : "Choose a challenge, demo, or tutorial."}
             </p>
+            {preparingChallengeTransition && pendingChallengeTransition ? (
+              <div
+                aria-label="Challenge project file changes"
+                className="challenge-transition-preview"
+                role="group"
+              >
+                <div>
+                  <strong>Preserve</strong>
+                  <span>{pendingChallengeTransition.preserve.join(", ")}</span>
+                </div>
+                {pendingChallengeTransition.merge.length > 0 ? (
+                  <div>
+                    <strong>Merge robot calibration</strong>
+                    <span>{pendingChallengeTransition.merge.join(", ")}</span>
+                  </div>
+                ) : null}
+                <div>
+                  <strong>Replace for the new task</strong>
+                  <span>{pendingChallengeTransition.replace.join(", ")}</span>
+                </div>
+                <div>
+                  <strong>Add</strong>
+                  <span>{pendingChallengeTransition.add.join(", ")}</span>
+                </div>
+                {pendingChallengeTransition.omit.length > 0 ? (
+                  <div>
+                    <strong>Leave in the source project</strong>
+                    <span>{pendingChallengeTransition.omit.join(", ")}</span>
+                  </div>
+                ) : null}
+                <small>
+                  course_setup.py receives the selected challenge structure;
+                  only component files that it uses are copied.
+                </small>
+              </div>
+            ) : null}
             <label htmlFor="new-project-folder">Name</label>
             <input
               aria-describedby="new-project-help"
               aria-invalid={newProjectError ? "true" : undefined}
-              autoFocus={projectCreationPurpose !== "new-project"}
+              autoFocus={projectCreationPurpose === "save-current"}
               disabled={!pendingProject}
               id="new-project-folder"
               onChange={(event) => {

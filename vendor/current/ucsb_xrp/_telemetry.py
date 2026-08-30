@@ -38,7 +38,12 @@ _hardware_latest = None
 _drive_latest = DriveCommand(0.0, 0.0)
 
 
-def publish_raw_sensors(raw_sensors, range_sampled=False, diagnostics=None):
+def publish_raw_sensors(
+    raw_sensors,
+    range_sampled=False,
+    diagnostics=None,
+    reflectance_sampled=False,
+):
     """Mirror hardware values already read by the student program.
 
     The browser service runs on the other RP2350 core and must not read the
@@ -51,6 +56,8 @@ def publish_raw_sensors(raw_sensors, range_sampled=False, diagnostics=None):
         raise TypeError("raw_sensors must be a RawSensors value")
     if not isinstance(range_sampled, bool):
         raise TypeError("range_sampled must be True or False")
+    if not isinstance(reflectance_sampled, bool):
+        raise TypeError("reflectance_sampled must be True or False")
     previous = {} if _hardware_latest is None else _hardware_latest
     snapshot = {
         "leftEncoderCount": raw_sensors.left_encoder_count,
@@ -61,6 +68,24 @@ def publish_raw_sensors(raw_sensors, range_sampled=False, diagnostics=None):
             else previous.get("rangeMm")
         ),
         "buttonPressed": raw_sensors.button_pressed,
+        "leftReflectance": (
+            None
+            if reflectance_sampled and raw_sensors.reflectance is None
+            else (
+                raw_sensors.reflectance.left
+                if reflectance_sampled
+                else previous.get("leftReflectance")
+            )
+        ),
+        "rightReflectance": (
+            None
+            if reflectance_sampled and raw_sensors.reflectance is None
+            else (
+                raw_sensors.reflectance.right
+                if reflectance_sampled
+                else previous.get("rightReflectance")
+            )
+        ),
         "accelerationMg": previous.get("accelerationMg"),
         "angularRateMdps": previous.get("angularRateMdps"),
         "temperatureC": previous.get("temperatureC"),
@@ -92,6 +117,8 @@ def publish_drive_command(command):
             "rightEncoderCount": 0,
             "rangeMm": None,
             "buttonPressed": False,
+            "leftReflectance": None,
+            "rightReflectance": None,
             "accelerationMg": None,
             "angularRateMdps": None,
             "temperatureC": None,
@@ -166,6 +193,16 @@ def publish_state(
         ),
         "rangeMm": state.measurements.range_mm,
         "buttonPressed": state.measurements.button_pressed,
+        "leftReflectance": (
+            None
+            if state.measurements.reflectance is None
+            else state.measurements.reflectance.left
+        ),
+        "rightReflectance": (
+            None
+            if state.measurements.reflectance is None
+            else state.measurements.reflectance.right
+        ),
         # The physical-service wire keys remain stable for older app builds.
         "leftEffort": 0.0 if drive_command is None else drive_command.left,
         "rightEffort": 0.0 if drive_command is None else drive_command.right,

@@ -152,6 +152,24 @@ micropython.FS.writeFile(
         return 24.75
 `,
 );
+micropython.FS.writeFile(
+  "/XRPLib/reflectance.py",
+  `class Reflectance:
+    _instance = None
+
+    @classmethod
+    def get_default_reflectance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_left(self):
+        return 0.25
+
+    def get_right(self):
+        return 0.75
+`,
+);
 
 function runPythonChecked(source) {
   try {
@@ -187,6 +205,7 @@ from ucsb_xrp import (
     OccupancyGrid,
     Pose,
     RawSensors,
+    ReflectanceReadings,
     RobotConfig,
     WheelSpeeds,
     XRPBot,
@@ -201,6 +220,7 @@ from ucsb_xrp_reference import (
     SensorModel,
     WheelSpeedController,
 )
+from ucsb_xrp_reference.challenge_9 import LineFollower
 
 assert RobotConfig().max_drive_command == 1.0
 assert RobotConfig().wheel_speed_filter_time_constant_ms == 80.0
@@ -215,6 +235,19 @@ configured = XRPBot(
 configured.set_drive(DriveCommand(0.9, -0.7))
 sample = configured.read(include_range=True)
 assert abs(sample.range_mm - 247.5) < 0.001
+reflectance_sample = configured.read(include_reflectance=True)
+assert reflectance_sample.reflectance == ReflectanceReadings(0.25, 0.75)
+line_command = LineFollower({
+    "cruise_speed_mm_s": 100.0,
+    "minimum_speed_mm_s": 45.0,
+    "kp_rad_s": 1.8,
+    "ki_rad_s2": 0.0,
+    "kd_rad": 0.0,
+    "integral_limit_s": 0.5,
+    "maximum_turn_rate_rad_s": 1.4,
+    "turn_slowdown": 0.45,
+}).update(reflectance_sample.reflectance, 0.02)
+assert line_command.turn_rate_rad_s < 0.0
 assert abs(Pose(0, 0, math.pi).heading_rad + math.pi) < 0.00001
 assert -math.pi <= wrap_angle_rad(14.0) < math.pi
 

@@ -406,13 +406,9 @@ def _catalog_components(entry, project_id):
                 "name": _python_class_name(item.get("name")),
                 "file": _safe_component_path(item.get("file")),
                 "selection_flag": _selection_flag(item.get("selection_flag")),
-                "carry_forward": item.get("carry_forward"),
             }
         except AuthoringError as error:
             errors.append(prefix + ": " + str(error))
-            continue
-        if not isinstance(component["carry_forward"], bool):
-            errors.append(prefix + ": carry_forward must be true or false")
             continue
         for value, seen, label in (
             (component["file"], files, "file"),
@@ -459,7 +455,6 @@ def _draft_components(source, spec):
             "name": declared["class_name"],
             "file": declared["file"],
             "selection_flag": declared["selection_flag"],
-            "carry_forward": False,
         }
         components.append(component)
         by_file[component["file"]] = component

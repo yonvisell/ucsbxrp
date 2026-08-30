@@ -14,6 +14,8 @@ const simulatorState: XrpSimulatorState = {
   rightWheelSpeedMmS: 104,
   leftEncoderCount: 30,
   rightEncoderCount: 34,
+  leftReflectance: 0.25,
+  rightReflectance: 0.75,
   collision: false,
   rangeMm: 800,
   buttonPressed: false,

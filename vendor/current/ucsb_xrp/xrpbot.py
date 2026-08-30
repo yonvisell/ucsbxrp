@@ -4,7 +4,7 @@ from ._validation import isfinite
 from ._run_control import check_stop
 from ._telemetry import publish_drive_command, publish_raw_sensors
 from .config import RobotConfig
-from .records import DriveCommand, RawSensors
+from .records import DriveCommand, RawSensors, ReflectanceReadings
 from .utils import clamp
 
 try:
@@ -36,7 +36,14 @@ def _relative_encoder_count(count, zero):
 class _XRPLibDevices:
     """Lazy adapter around only the upstream devices the course uses."""
 
-    __slots__ = ("left_motor", "right_motor", "board", "rangefinder", "imu")
+    __slots__ = (
+        "left_motor",
+        "right_motor",
+        "board",
+        "rangefinder",
+        "reflectance",
+        "imu",
+    )
 
     def __init__(self):
         from XRPLib.board import Board
@@ -47,6 +54,14 @@ class _XRPLibDevices:
         self.right_motor = EncodedMotor.get_default_encoded_motor(index=2)
         self.board = Board.get_default_board()
         self.rangefinder = Rangefinder.get_default_rangefinder()
+        try:
+            from XRPLib.reflectance import Reflectance
+
+            self.reflectance = Reflectance.get_default_reflectance()
+        except Exception:
+            # Older course runtimes remain usable for challenges that do not
+            # request reflectance. Challenge 9 reports an unavailable reading.
+            self.reflectance = None
         try:
             from XRPLib.imu import IMU
 
@@ -88,10 +103,12 @@ class XRPBot:
     def config(self):
         return self._config
 
-    def read(self, include_range=False):
+    def read(self, include_range=False, include_reflectance=False):
         check_stop()
         if not isinstance(include_range, bool):
             raise TypeError("include_range must be True or False")
+        if not isinstance(include_reflectance, bool):
+            raise TypeError("include_reflectance must be True or False")
 
         range_mm = None
         if include_range:
@@ -101,9 +118,17 @@ class XRPBot:
                 and not isinstance(range_cm, bool)
                 and isfinite(float(range_cm))
                 and range_cm > 0.0
-                and range_cm < 65535
+                and range_cm <= 400.0
             ):
                 range_mm = float(range_cm) * 10.0
+
+        reflectance = None
+        reflectance_device = getattr(self._devices, "reflectance", None)
+        if include_reflectance and reflectance_device is not None:
+            reflectance = ReflectanceReadings(
+                reflectance_device.get_left(),
+                reflectance_device.get_right(),
+            )
 
         now_ms = int(self._ticks_ms())
         raw = RawSensors(
@@ -118,18 +143,20 @@ class XRPBot:
             ),
             range_mm=range_mm,
             button_pressed=bool(self._devices.board.is_button_pressed()),
+            reflectance=reflectance,
         )
         try:
             publish_raw_sensors(
                 raw,
                 range_sampled=include_range,
+                reflectance_sampled=include_reflectance,
                 # Range is part of the control decision. Keep optional
                 # battery/IMU I2C reads out of that critical path; their last
                 # snapshot remains available and the next non-range read
                 # refreshes it immediately when due.
                 diagnostics=(
                     None
-                    if include_range
+                    if include_range or include_reflectance
                     else self._read_diagnostics(now_ms)
                 ),
             )

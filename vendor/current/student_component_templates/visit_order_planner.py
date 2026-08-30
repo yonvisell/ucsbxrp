@@ -1,6 +1,6 @@
 # Choose the least-cost order for a bounded set of required service stops.
 
-from ucsb_xrp_reference.challenge_8 import VisitOrderPlannerBase
+from ucsb_xrp.student_api import VisitOrderPlannerBase
 
 
 class VisitOrderPlanner(VisitOrderPlannerBase):

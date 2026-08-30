@@ -38,7 +38,7 @@ class ChallengeAuthoringTests(unittest.TestCase):
     def test_published_catalog_is_complete(self):
         self.assertEqual(AUTHORING.catalog_errors(ROOT), [])
 
-    def test_catalog_has_eight_ordered_published_challenges(self):
+    def test_catalog_includes_standalone_experimental_nine(self):
         entries = [
             entry
             for entry in AUTHORING.read_catalog(ROOT)
@@ -55,6 +55,7 @@ class ChallengeAuthoringTests(unittest.TestCase):
                 "challenge_6",
                 "challenge_7",
                 "challenge_8",
+                "challenge_9",
             ],
         )
 
@@ -255,7 +256,6 @@ class ChallengeAuthoringTests(unittest.TestCase):
                     "name": "RouteAnalyzer",
                     "file": "route_analyzer.py",
                     "selection_flag": "USE_STUDENT_ROUTE_ANALYZER",
-                    "carry_forward": False,
                 },
             )
             self.assertEqual(AUTHORING.project_errors(draft_root, entry), [])

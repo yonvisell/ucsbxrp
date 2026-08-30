@@ -19,15 +19,14 @@ The virtual task deliberately initializes odometry with a translated position
 error while the robot begins at the marked physical pose. [`world.json`](world.json)
 defines the walls, start, scan marker, and destination. [`challenge.py`](challenge.py)
 defines the odometry initial pose, wall coordinates, sensor offset, scan
-heading, and bounded run settings.
+headings, wall sides, observation settings, and terminal tolerances.
 
-## Continue from Challenge 6
+## Reuse work in another challenge
 
-Open the completed Challenge 6 project and select **Continue to Challenge 7 ·
-Wall-Range Pose Correction…**. The new project carries forward all seven
-earlier component files and their selections. [`pose_corrector.py`](pose_corrector.py)
-begins with the supplied `PoseCorrector` selected. The Challenge 6 project
-remains unchanged.
+Choose **Start another challenge…** in the IDE. Review the **Preserve**,
+**Replace**, and **Add** lists before creating the separate project; they show
+how existing component, calibration, helper, and task files will be handled.
+The current project remains unchanged.
 
 ## What you implement
 
@@ -43,16 +42,18 @@ Wall identity, scan direction, and sensor offset are supplied. A wall-range
 sample does not identify a landmark, estimate heading, or determine a complete
 pose by itself.
 `PoseCorrectorBase` validates the sensor offset and states the four required
-methods; your class retains only the translation state.
+methods; your class retains only the translation state. Import the base from
+`ucsb_xrp.student_api` as shown in the starter.
 
 ## Provided files and tools
 
 - [`main.py`](main.py) commands and verifies the known x and y cardinal
   headings, requires each wheel independently to settle, rejects observations
   outside the stated heading tolerance, applies the two corrections, navigates
-  using corrected poses, and always stops in `finally`.
-- The six earlier robot components and `NavigationController` are supplied by
-  default. `RangeSafetyController` is carried forward from Challenge 6.
+  using corrected poses, verifies the corrected terminal position and raw
+  odometry heading, and always stops in `finally`.
+- The robot components and `NavigationController` are selected independently
+  in `course_setup.py`.
 - [`component_checks.py`](component_checks.py) varies sensor offsets, wall
   coordinates and wall sides, exercises sequential x/y corrections and reset,
   verifies retained translation and heading, and rejects invalid range.
@@ -74,8 +75,8 @@ corrected Pose + destination         -> NavigationController -> Robot motion
 
 1. Pass the PoseCorrector component checks without moving either robot.
 2. Run the supplied corrector in **Localization station** and compare raw and
-   corrected poses before navigation. Program output reports both raw-odometry
-   and corrected-pose residuals at the destination.
+   corrected poses before navigation. Program output reports the corrected
+   residual and both terminal poses.
 3. Confirm that **Missing y reference** reports an unavailable observation and
    stops.
 4. Select your corrector and repeat the complete virtual route.

@@ -1,5 +1,7 @@
 """Delivery-task record and supplied Challenge 5 mission sequence."""
 
+from math import sqrt
+
 from ._validation import (
     require_bool,
     require_int,
@@ -7,7 +9,8 @@ from ._validation import (
     require_positive,
 )
 from .maps import ArenaMap, OccupancyGrid
-from .records import NavigationGoal, Pose, STOP_COMMAND, _ValueRecord
+from .records import GridPath, NavigationGoal, Pose, STOP_COMMAND, _ValueRecord
+from .utils import wrap_angle_rad
 
 
 class DeliveryTask(_ValueRecord):
@@ -133,13 +136,12 @@ class DeliveryTask(_ValueRecord):
 
 
 class DeliveryMission:
-    """Supplied observation, planning, and delivery orchestration."""
+    """Observe the route, plan it, follow it, and verify delivery."""
 
     __slots__ = (
         "_task",
         "_navigation",
         "_planner",
-        "_maximum_navigation_steps",
         "_range_estimate_mm",
         "_feature_blocked",
         "_planned_path",
@@ -147,34 +149,23 @@ class DeliveryMission:
         "_result",
     )
 
-    def __init__(
-        self,
-        task,
-        navigation,
-        planner,
-        maximum_navigation_steps=None,
-    ):
+    def __init__(self, task, navigation, planner):
         if not isinstance(task, DeliveryTask):
             raise TypeError("task must be a DeliveryTask")
         if not all(
             callable(getattr(navigation, name, None))
             for name in ("start", "update", "is_complete")
         ):
-            raise TypeError("navigation must implement the NavigationController interface")
+            raise TypeError(
+                "navigation must implement the NavigationController interface"
+            )
+        if getattr(navigation, "config", None) is None:
+            raise TypeError("navigation must expose its NavigationConfig as config")
         if not callable(getattr(planner, "plan", None)):
             raise TypeError("planner must implement the GridPlanner interface")
         self._task = task
         self._navigation = navigation
         self._planner = planner
-        self._maximum_navigation_steps = (
-            None
-            if maximum_navigation_steps is None
-            else require_int(
-                "maximum_navigation_steps",
-                maximum_navigation_steps,
-                minimum=1,
-            )
-        )
         self._range_estimate_mm = None
         self._feature_blocked = None
         self._planned_path = None
@@ -188,10 +179,6 @@ class DeliveryMission:
     @property
     def result(self):
         return self._result
-
-    @property
-    def maximum_navigation_steps(self):
-        return self._maximum_navigation_steps
 
     @property
     def range_estimate_mm(self):
@@ -208,6 +195,35 @@ class DeliveryMission:
     @property
     def navigation_step_count(self):
         return self._navigation_step_count
+
+    @staticmethod
+    def _path_is_valid(path, grid, start, goal):
+        if not isinstance(path, GridPath):
+            return False
+        if path.cells[0] != start or path.cells[-1] != goal:
+            return False
+        for cell in path.cells:
+            if grid.is_blocked(cell):
+                return False
+        for first, second in zip(path.cells, path.cells[1:]):
+            if second not in grid.neighbors(first):
+                return False
+        return True
+
+    def _destination_is_reached(self, pose):
+        destination = self.task.destination
+        position_error_mm = sqrt(
+            (pose.x_mm - destination.x_mm) ** 2
+            + (pose.y_mm - destination.y_mm) ** 2
+        )
+        if position_error_mm > self._navigation.config.position_tolerance_mm:
+            return False
+        if destination.heading_rad is None:
+            return True
+        heading_error_rad = wrap_angle_rad(
+            pose.heading_rad - destination.heading_rad
+        )
+        return abs(heading_error_rad) <= self._navigation.config.heading_tolerance_rad
 
     def run(self, robot):
         self._range_estimate_mm = None
@@ -247,26 +263,36 @@ class DeliveryMission:
                 self.task.destination.x_mm,
                 self.task.destination.y_mm,
             )
+            if (
+                start is None
+                or goal is None
+                or grid.is_blocked(start)
+                or grid.is_blocked(goal)
+            ):
+                self._result = "no_path"
+                return state
             path = self._planner.plan(grid, start, goal)
             self._planned_path = path
             if path is None:
                 self._result = "no_path"
                 return state
+            if not self._path_is_valid(path, grid, start, goal):
+                self._result = "invalid_path"
+                return state
 
-            goals = path.to_goals(grid, self.task.destination.heading_rad)
+            goals = list(path.to_goals(grid))
+            goals[-1] = self.task.destination
             self._navigation.start(goals)
             steps = 0
             while not self._navigation.is_complete():
-                if (
-                    self.maximum_navigation_steps is not None
-                    and steps >= self.maximum_navigation_steps
-                ):
-                    self._result = "step_limit"
-                    return state
                 state = robot.step(self._navigation.update(state.pose))
                 steps += 1
                 self._navigation_step_count = steps
-            self._result = "delivered"
+            self._result = (
+                "delivered"
+                if self._destination_is_reached(state.pose)
+                else "destination_not_reached"
+            )
             return state
         finally:
             robot.stop()

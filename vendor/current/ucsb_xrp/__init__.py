@@ -13,6 +13,7 @@ from .records import (
     NavigationGoal,
     Pose,
     RawSensors,
+    ReflectanceReadings,
     RobotState,
     STOP_COMMAND,
     WheelSpeeds,
@@ -23,9 +24,13 @@ from .straight_line import StraightLineController
 from .student_api import (
     DifferentialDriveBase,
     GridPlannerBase,
+    LineFollowerBase,
     NavigationControllerBase,
     OdometryBase,
+    PoseCorrectorBase,
+    RangeSafetyControllerBase,
     SensorModelBase,
+    VisitOrderPlannerBase,
     WheelSpeedControllerBase,
 )
 from .utils import (
@@ -38,7 +43,7 @@ from .utils import (
 from .xrpbot import XRPBot
 from .world import ProjectWorld, load_world
 
-__version__ = "0.4.0-dev"
+__version__ = "0.5.0-dev"
 
 __all__ = (
     "ArenaMap",
@@ -49,11 +54,14 @@ __all__ = (
     "GridCell",
     "GridPath",
     "GridPlannerBase",
+    "LineFollowerBase",
     "NavigationConfig",
     "NavigationControllerBase",
     "RobotConfig",
     "OccupancyGrid",
     "OdometryBase",
+    "PoseCorrectorBase",
+    "RangeSafetyControllerBase",
     "Rectangle",
     "Measurements",
     "MotionCommand",
@@ -62,11 +70,13 @@ __all__ = (
     "Pose",
     "ProjectWorld",
     "RawSensors",
+    "ReflectanceReadings",
     "Robot",
     "RobotState",
     "SensorModelBase",
     "STOP_COMMAND",
     "StraightLineController",
+    "VisitOrderPlannerBase",
     "WheelSpeeds",
     "WheelSpeedControllerBase",
     "XRPBot",

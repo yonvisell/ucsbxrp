@@ -98,13 +98,14 @@ test("imports every generated complete challenge without student files", async (
       "make_route_cost_grid_planner",
       "make_visit_order_planner",
     ],
+    ["make_line_follower", "make_robot"],
   ] as const;
 
-  for (let number = 1; number <= 8; number += 1) {
+  for (let number = 1; number <= 9; number += 1) {
     await createTemplateProject(page, `complete_challenge_${number}`);
     await expect(
       page.getByRole("button", { name: "Test components" }),
-    ).toHaveCount(0);
+    ).toBeDisabled();
     await page
       .getByRole("button", { name: "Open main.py (main file)" })
       .click();
@@ -436,6 +437,78 @@ test("runs hardware-free student component checks without changing the target", 
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+});
+
+test("previews and preserves student files when starting another challenge", async ({
+  page,
+}) => {
+  await seedWorkingFolder(page, { folderName: "Challenge-Transition-Test" });
+  await page.goto("/ide/");
+  await createTemplateProject(page, "challenge_1");
+  for (const path of ["helpers.py", "notes.txt"]) {
+    await page.getByRole("button", { name: "New file…", exact: true }).click();
+    await page.getByLabel("Project-relative path").fill(path);
+    await page.getByRole("button", { name: "Create file" }).click();
+  }
+
+  await page.getByRole("button", { name: "Start another challenge…" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Start another challenge" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Challenge", { exact: true })
+    .selectOption("challenge_2");
+  const preview = page.getByRole("group", {
+    name: "Challenge project file changes",
+  });
+  await expect(preview).toContainText("Preserve");
+  await expect(preview).toContainText("helpers.py");
+  await expect(preview).toContainText("notes.txt");
+  await expect(preview).toContainText("Merge robot calibration");
+  await expect(preview).toContainText("robot_config.py");
+  await expect(preview).toContainText("Replace for the new task");
+  await expect(preview).toContainText("main.py");
+  await expect(preview).toContainText("Add");
+  await expect(preview).toContainText("differential_drive.py");
+
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.getByTestId("project-name")).toHaveText(
+    "2 · Turn and Return",
+  );
+  await expect(
+    page.getByRole("button", { name: "Open helpers.py" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Open notes.txt" }),
+  ).toBeVisible();
+});
+
+test("challenge_9 follows the visible circuit for one virtual lap", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await seedWorkingFolder(page, { folderName: "Starter-challenge_9" });
+  await page.goto("/ide/");
+  await createTemplateProject(page, "challenge_9");
+
+  await page.getByRole("button", { name: "Compile" }).click();
+  await expect(page.getByTestId("check-result")).toContainText(
+    "compiled successfully",
+  );
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText(
+    "Challenge 9 complete: one circuit with the line retained",
+    { timeout: 50_000 },
+  );
+  await expect(page.getByTestId("target-status")).toContainText(
+    "Virtual XRP · ready",
+  );
+  expect(errors).toEqual([]);
 });
 
 for (const starter of starters) {

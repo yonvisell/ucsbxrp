@@ -8,6 +8,7 @@ from pose_corrector import PoseCorrector
 from sensor_model import SensorModel
 from ucsb_xrp import Pose
 from ucsb_xrp.component_checks import run_component_checks
+from ucsb_xrp.student_api import PoseCorrectorBase
 from wheel_speed_controller import WheelSpeedController
 
 
@@ -26,6 +27,9 @@ def check_pose_corrector():
     print("PoseCorrector varied wall observations")
     try:
         corrector = PoseCorrector(50.0)
+        if not isinstance(corrector, PoseCorrectorBase):
+            print("FAIL PoseCorrector must extend PoseCorrectorBase")
+            return
         raw = Pose(120.0, -75.0, 0.31)
         corrector.reset(raw)
         after_x = corrector.observe_x(raw, 780.0, 1000.0, True)

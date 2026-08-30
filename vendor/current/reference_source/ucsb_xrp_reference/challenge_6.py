@@ -2,50 +2,7 @@
 
 from math import isfinite, sqrt
 
-
-class RangeSafetyControllerBase:
-    """Contract for a forward-range speed limiter.
-
-    Inputs and outputs use millimeters and seconds. ``update`` must return a
-    finite, nonnegative forward speed no greater than the requested speed or
-    configured maximum. Missing range must return zero.
-    """
-
-    __slots__ = (
-        "response_time_s",
-        "minimum_deceleration_mm_s2",
-        "stop_margin_mm",
-        "maximum_speed_mm_s",
-    )
-
-    def __init__(
-        self,
-        response_time_s,
-        minimum_deceleration_mm_s2,
-        stop_margin_mm,
-        maximum_speed_mm_s,
-    ):
-        values = (
-            response_time_s,
-            minimum_deceleration_mm_s2,
-            stop_margin_mm,
-            maximum_speed_mm_s,
-        )
-        if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in values):
-            raise TypeError("range-safety settings must be numeric")
-        values = tuple(float(value) for value in values)
-        if any(not isfinite(value) for value in values):
-            raise ValueError("range-safety settings must be finite")
-        if values[0] < 0.0 or values[1] <= 0.0 or values[2] < 0.0 or values[3] <= 0.0:
-            raise ValueError("range-safety settings are outside their allowed range")
-        self.response_time_s = values[0]
-        self.minimum_deceleration_mm_s2 = values[1]
-        self.stop_margin_mm = values[2]
-        self.maximum_speed_mm_s = values[3]
-
-    def update(self, requested_speed_mm_s, measured_speed_mm_s, range_mm):
-        """Return the safe forward-speed request in millimeters per second."""
-        raise NotImplementedError
+from ucsb_xrp.student_api import RangeSafetyControllerBase
 
 
 class RangeSafetyController(RangeSafetyControllerBase):

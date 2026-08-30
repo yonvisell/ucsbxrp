@@ -13,7 +13,7 @@
   position: relative;
   display: grid;
   min-height: 0;
-  grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-columns: var(--project-rail-width, 200px) minmax(0, 1fr);
   gap: 0;
   overflow: hidden;
   padding: 0;
@@ -32,6 +32,33 @@
   border-radius: 0;
   background: var(--panel);
   box-shadow: none;
+}
+
+.project-rail-resizer {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--project-rail-width, 200px) - 5px);
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.project-rail-resizer::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: transparent;
+  content: "";
+}
+
+.project-rail-resizer:hover::after,
+.project-rail-resizer:focus-visible::after {
+  width: 2px;
+  background: var(--brand);
 }
 
 .project-rail-body {
@@ -82,7 +109,7 @@
 }
 
 .project-template-hint {
-  padding: 0 3px 2px;
+  padding: 1px 3px 3px;
   color: var(--quiet);
   font-size: var(--font-sm);
   line-height: 1.25;
@@ -92,7 +119,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
-  border-top: 1px solid var(--line);
   padding: 3px;
 }
 
@@ -104,7 +130,7 @@
   font-size: var(--font-sm);
 }
 
-.next-challenge-button {
+.challenge-transition-button {
   width: 100%;
   min-height: 20px;
   margin: 0;
@@ -117,12 +143,18 @@
 .course-project-actions {
   display: grid;
   gap: 3px;
-  border-top: 1px solid var(--line);
-  padding: 3px;
+  border-top: 2px solid var(--line-bright);
+  padding: 5px 3px 3px;
 }
 
 .course-project-actions:empty {
   display: none;
+}
+
+.course-project-actions > small {
+  color: var(--quiet);
+  font-size: var(--font-xs);
+  line-height: 1.25;
 }
 
 .working-folder-shortcut {
@@ -394,64 +426,24 @@
   border-radius: 0;
 }
 
-.editor-tabbar {
+.editor-toolbar {
   display: flex;
   min-width: 0;
   align-items: stretch;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   border-bottom: 1px solid var(--line);
 }
 
-.editor-tab {
-  display: flex;
+.current-file-heading {
+  align-self: center;
   min-width: 0;
-  align-items: stretch;
-  border-right: 1px solid var(--line);
-  color: var(--muted);
-  font-size: var(--font-sm);
-}
-
-.editor-tab.active {
-  border-top: 2px solid var(--brand);
-  background: var(--panel);
-  color: var(--ink);
-}
-
-.tab-select,
-.tab-close {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.tab-select {
-  display: flex;
-  min-width: 74px;
-  max-width: 170px;
-  align-items: center;
-  gap: 0;
   overflow: hidden;
-  padding: 0 0.35rem 0 0.65rem;
+  padding: 0 0.65rem;
+  color: var(--ink);
+  font-size: var(--font-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.tab-select span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tab-close {
-  padding: 0 0.48rem;
-  color: var(--quiet);
-  font-size: 0.85rem;
-}
-
-.tab-select:hover:not(:disabled),
-.tab-close:hover:not(:disabled) {
-  border: 0;
-  background: #edf3f3;
 }
 
 .autosave-label {
@@ -1389,6 +1381,36 @@
   color: var(--ink);
 }
 
+.challenge-transition-preview {
+  display: grid;
+  max-height: min(250px, 34dvh);
+  gap: 4px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 6px;
+  background: var(--panel-raised);
+}
+
+.challenge-transition-preview > div {
+  display: grid;
+  gap: 1px;
+}
+
+.challenge-transition-preview strong {
+  color: var(--ink);
+  font-size: var(--font-sm);
+}
+
+.challenge-transition-preview span,
+.challenge-transition-preview small {
+  min-height: 0;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1481,15 +1503,15 @@
   .ide-app {
     overflow: hidden;
   }
-
-  .ide-workspace {
-    grid-template-columns: 180px minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 900px) {
   .ide-workspace {
-    grid-template-columns: clamp(148px, 26vw, 180px) minmax(0, 1fr);
+    grid-template-columns: var(--project-rail-width, 200px) minmax(0, 1fr);
+  }
+
+  .project-rail-resizer {
+    left: calc(var(--project-rail-width, 200px) - 5px);
   }
 
   .ide-workspace.project-collapsed {

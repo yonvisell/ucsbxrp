@@ -113,9 +113,17 @@ export function downloadBlob(blob: Blob, fileName: string): void {
 }
 
 export function webmExportSupported(): boolean {
+  const canvasCaptureTrack = (
+    globalThis as typeof globalThis & {
+      CanvasCaptureMediaStreamTrack?: { prototype: object };
+    }
+  ).CanvasCaptureMediaStreamTrack;
   return (
     typeof MediaRecorder !== "undefined" &&
+    typeof HTMLCanvasElement !== "undefined" &&
     "captureStream" in HTMLCanvasElement.prototype &&
+    canvasCaptureTrack !== undefined &&
+    "requestFrame" in canvasCaptureTrack.prototype &&
     ["video/webm;codecs=vp8", "video/webm;codecs=vp9", "video/webm"].some(
       (type) => MediaRecorder.isTypeSupported(type),
     )

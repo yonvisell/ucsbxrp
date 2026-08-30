@@ -86,12 +86,13 @@ export function GuideApp() {
                 plots. Both views show the same target and Run/Stop state.
               </li>
             </ol>
-            <h3>Course sequence</h3>
+            <h3>Suggested first-use path</h3>
             <p>
-              Complete Tutorials 1–5 in order before Challenge 1. Tutorial
-              checks run without either robot. Run Tutorials 2–5 on the Virtual
-              XRP after their checks pass. Tutorial 5 identifies the bounded
-              motor test to perform on a commissioned Physical XRP. The full{" "}
+              Use Tutorials 1–4 as needed for Python, project, and Monitor
+              orientation. Their checks run without either robot, and their
+              examples run on the Virtual XRP. Complete Tutorial 5 before the
+              first Physical XRP run; it identifies the bounded raised-wheel
+              check. The full{" "}
               <a href="#project-lists">tutorial, challenge, and demo lists</a>{" "}
               are below.
             </p>
@@ -172,13 +173,14 @@ export function GuideApp() {
               choose the same Working folder; the files remain on the computer.
             </p>
             <p>
-              When you are ready to continue, select the visible{" "}
-              <strong>Continue to Challenge…</strong> action. The IDE creates a
-              separate project for the next challenge, copies the named
-              component project files used in the current project, and preserves
-              which class is selected in <code>course_setup.py</code>. Each
-              newly introduced component project file begins with its supplied
-              class selected. The current project is not changed.
+              To reuse work in a different challenge, select{" "}
+              <strong>Start another challenge…</strong>. Choose the target and
+              inspect the <strong>Preserve</strong>, <strong>Merge</strong>,
+              <strong> Replace</strong>, <strong>Add</strong>, and
+              <strong> Leave in the source project</strong> lists before
+              creating a separate project. The current project is not changed.
+              Use <strong>New project…</strong> instead when you want a clean
+              template.
             </p>
             <div
               className="project-catalog"
@@ -196,6 +198,13 @@ export function GuideApp() {
                       </li>
                     ))}
                 </ol>
+                <p>
+                  The catalog contains more challenge candidates than a single
+                  course offering may use; numbering is an identifier, not a
+                  required teaching order. Experimental Challenge 9 is a
+                  standalone line-following project that assumes the sampled
+                  Robot loop and supplied wheel/drive components.
+                </p>
               </section>
               <section>
                 <h3>Tutorials</h3>
@@ -260,7 +269,8 @@ export function GuideApp() {
                 <code>world.json</code>
                 <span>
                   Defines one or more named worlds: arena size, initial pose,
-                  obstacles, changeable features, and markers.
+                  obstacles, optional floor tracks, changeable features, and
+                  markers.
                 </span>
               </div>
               <div>
@@ -317,6 +327,53 @@ export function GuideApp() {
               arena; changing the displayed world does not change the physical
               surroundings.
             </div>
+            <details className="world-schema">
+              <summary>Recognized world.json fields</summary>
+              <p>
+                The root contains <code>default_world</code> and a{" "}
+                <code>worlds</code> list. Each world contains <code>id</code>,{" "}
+                <code>label</code>, <code>bounds</code> ({" "}
+                <code>minimum_x_mm</code>, <code>minimum_y_mm</code>,{" "}
+                <code>maximum_x_mm</code>, <code>maximum_y_mm</code>), and may
+                contain <code>initial_pose</code> (<code>x_mm</code>,{" "}
+                <code>y_mm</code>, <code>heading_rad</code>),{" "}
+                <code>obstacles</code>, <code>tracks</code>,{" "}
+                <code>markers</code>, and{" "}
+                <code>range_sensor.include_arena_boundary</code>.
+              </p>
+              <ul>
+                <li>
+                  An obstacle has type <code>wall</code> or <code>block</code>,
+                  the four millimeter bounds, and optional <code>label</code>{" "}
+                  and <code>feature</code> name.
+                </li>
+                <li>
+                  A floor track has type <code>line</code>,{" "}
+                  <code>width_mm</code>, <code>darkness</code> from 0 (light) to
+                  1 (dark), optional <code>name</code> and <code>label</code>, a{" "}
+                  <code>closed</code> Boolean, and two or more{" "}
+                  <code>points</code> with <code>x_mm</code> and{" "}
+                  <code>y_mm</code>.
+                </li>
+                <li>
+                  Marker types <code>start_line</code> and{" "}
+                  <code>finish_line</code> use <code>x1_mm</code>,{" "}
+                  <code>y1_mm</code>, <code>x2_mm</code>, and <code>y2_mm</code>
+                  . <code>start_box</code> and <code>finish_box</code> use the
+                  four bounds. <code>waypoint</code> uses <code>x_mm</code>,{" "}
+                  <code>y_mm</code>, and optional <code>heading_rad</code>;{" "}
+                  <code>marker</code> uses <code>x_mm</code> and{" "}
+                  <code>y_mm</code>. Every marker may have a <code>name</code>{" "}
+                  and <code>label</code>.
+                </li>
+              </ul>
+              <p>
+                Coordinates and dimensions are millimeters; headings are
+                radians. Geometry must lie inside its world bounds. The Author
+                graphic editor covers bounds, pose, obstacles, and markers; use
+                Advanced world.json for tracks and other supported fields.
+              </p>
+            </details>
             <p>
               Course distances and linear speeds use <code>mm</code> and{" "}
               <code>mm/s</code>. Headings and turn rates use <code>rad</code>{" "}
@@ -954,6 +1011,14 @@ export function GuideApp() {
                   <td>Ground-truth pose</td>
                   <td>Available for display and evaluation only</td>
                   <td>Not supplied by the robot</td>
+                </tr>
+                <tr>
+                  <td>Floor reflectance</td>
+                  <td>Computed from optional world tracks (0 light, 1 dark)</td>
+                  <td>
+                    Optional left/right sensors; calibrate for tape, floor,
+                    mounting, and ambient light
+                  </td>
                 </tr>
               </tbody>
             </table>

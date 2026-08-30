@@ -45,6 +45,65 @@ async function readRunAutosave(page: Page, fileName: string): Promise<string> {
   );
 }
 
+async function decodeExportedWorldAnimation(page: Page): Promise<{
+  height: number;
+  readyState: number;
+  width: number;
+}> {
+  return page.evaluate(async (folderName) => {
+    const root = await navigator.storage.getDirectory();
+    const workspace = await root.getDirectoryHandle(folderName);
+    const project = await workspace.getDirectoryHandle("Expanding-Spiral");
+    const exportsFolder = await project.getDirectoryHandle("exports");
+    let webm: File | null = null;
+    for await (const [name, handle] of exportsFolder.entries()) {
+      if (handle.kind === "file" && name.endsWith(".webm")) {
+        webm = await handle.getFile();
+      }
+    }
+    if (!webm) throw new Error("Missing exported WebM");
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "auto";
+    const url = URL.createObjectURL(webm);
+    video.src = url;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(
+          () => reject(new Error("Timed out decoding exported WebM")),
+          2_000,
+        );
+        video.addEventListener(
+          "loadeddata",
+          () => {
+            window.clearTimeout(timeout);
+            resolve();
+          },
+          { once: true },
+        );
+        video.addEventListener(
+          "error",
+          () => {
+            window.clearTimeout(timeout);
+            reject(new Error("Exported WebM did not decode"));
+          },
+          { once: true },
+        );
+        video.load();
+      });
+      return {
+        height: video.videoHeight,
+        readyState: video.readyState,
+        width: video.videoWidth,
+      };
+    } finally {
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+    }
+  }, monitorWorkspace);
+}
+
 test("keeps one completed run ready for notes and every export", async ({
   context,
   page: ide,
@@ -178,6 +237,10 @@ test("keeps one completed run ready for notes and every export", async ({
   ).find((file) => file.name.endsWith(".webm"));
   expect(webmFile?.name).toMatch(/^xrp-world-animation-.*\.webm$/);
   expect(webmFile?.byteLength ?? 0).toBeGreaterThan(1_000);
+  const decodedWebm = await decodeExportedWorldAnimation(monitor);
+  expect(decodedWebm.width).toBe(960);
+  expect(decodedWebm.height).toBe(720);
+  expect(decodedWebm.readyState).toBeGreaterThanOrEqual(2);
 
   await monitor
     .locator(".monitor-controls")
@@ -531,11 +594,20 @@ test("selects plotted signals from the Monitor controls", async ({
     .getByRole("heading", { name: "Live telemetry", exact: true })
     .boundingBox();
   expect(liveControlsBox?.y).toBeLessThan(telemetryHeadingBox?.y ?? 0);
-  await expect(page.locator("details.live-controls-panel")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Live controls", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".live-controls-panel summary")).toHaveCount(0);
+  const collapseLiveControls = page.getByRole("button", {
+    name: "Collapse live controls",
+  });
+  await expect(collapseLiveControls).toHaveAttribute("aria-expanded", "true");
+  await collapseLiveControls.click();
+  await expect(
+    page.getByRole("button", { name: "Expand live controls" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#live-controls-content")).toBeHidden();
+  await page.getByRole("button", { name: "Expand live controls" }).click();
+  await expect(page.locator("#live-controls-content")).toBeVisible();
 
   const worldValuesSeparator = page.getByRole("separator", {
     name: "Resize world and live telemetry",
@@ -559,6 +631,16 @@ test("selects plotted signals from the Monitor controls", async ({
     "strip-chart-range": 180,
   });
 
+  const plotSeparator = page.getByRole("separator", {
+    name: "Resize upper and lower monitor regions",
+  });
+  await expect(plotSeparator).toBeVisible();
+  await page.getByRole("button", { name: "Collapse plots" }).click();
+  await expect(plotSeparator).toHaveCount(0);
+  await expect(page.locator("#plots-panel-content")).toBeHidden();
+  await page.getByRole("button", { name: "Expand plots" }).click();
+  await expect(page.getByTestId("strip-chart-range")).toBeVisible();
+
   await page.getByLabel("Strip chart time window").fill("6");
   await expect(page.getByText("6 s", { exact: true })).toBeVisible();
 
@@ -566,6 +648,29 @@ test("selects plotted signals from the Monitor controls", async ({
   await expect(
     page.getByRole("button", { name: "Open monitor controls" }),
   ).toBeVisible();
+  const collapsedGeometry = await page.evaluate(() => {
+    const workspace = document
+      .querySelector<HTMLElement>(".monitor-workspace")!
+      .getBoundingClientRect();
+    const dashboard = document
+      .querySelector<HTMLElement>(".dashboard-grid")!
+      .getBoundingClientRect();
+    const restore = document
+      .querySelector<HTMLElement>(".monitor-controls-restore")!
+      .getBoundingClientRect();
+    return {
+      dashboardX: dashboard.x,
+      restoreHeight: restore.height,
+      restoreWidth: restore.width,
+      workspaceX: workspace.x,
+    };
+  });
+  expect(collapsedGeometry.dashboardX).toBeCloseTo(
+    collapsedGeometry.workspaceX,
+    0,
+  );
+  expect(collapsedGeometry.restoreWidth).toBe(24);
+  expect(collapsedGeometry.restoreHeight).toBe(24);
   await page.getByRole("button", { name: "Open monitor controls" }).click();
   await expect(
     page.getByRole("heading", { name: "Plot signals", exact: true }),

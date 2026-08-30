@@ -105,7 +105,9 @@ class passes its checks.
    clear. Then run the marked lane and record distance, elapsed time, requested
    and measured speed, and drive command.
 
-After completing this challenge, select **Continue to Challenge 2 · Turn and
-Return…**. The IDE creates a separate project and carries forward
-`sensor_model.py`, `wheel_speed_controller.py`, and their component selections.
-The Challenge 1 project remains unchanged.
+## Reuse work in another challenge
+
+Choose **Start another challenge…** in the IDE. Review the **Preserve**,
+**Replace**, and **Add** lists before creating the separate project; they show
+exactly which files will carry forward and which task files come from the
+selected challenge. This project remains unchanged.

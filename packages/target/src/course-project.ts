@@ -1,5 +1,5 @@
 import type { CourseProject } from "./types";
-import catalogSource from "../../../vendor/current/project_catalog.json?raw";
+import catalogEntries from "../../../vendor/current/project_catalog.json" with { type: "json" };
 
 export interface CourseStarter {
   id: string;
@@ -16,12 +16,10 @@ export interface CourseComponentTemplate {
   name: string;
   file: string;
   selectionFlag: string;
-  carryForward: boolean;
 }
 
 export interface CourseProjectTemplate extends CourseStarter {
   kind: CourseProjectKind;
-  predecessorId: string | null;
   components: readonly CourseComponentTemplate[];
 }
 
@@ -69,17 +67,15 @@ interface CatalogEntry {
   short_label: string;
   summary: string;
   entrypoint: string;
-  predecessor_id?: string;
   components?: Array<{
     name: string;
     file: string;
     selection_flag: string;
-    carry_forward: boolean;
   }>;
   published: boolean;
 }
 
-const catalog = (JSON.parse(catalogSource) as CatalogEntry[]).filter(
+const catalog = (catalogEntries as CatalogEntry[]).filter(
   (entry) => entry.published,
 );
 
@@ -122,6 +118,9 @@ function completeCourseSetup(componentNames: ReadonlySet<string>): string {
   if (componentNames.has("VisitOrderPlanner")) {
     lines.push("from ucsb_xrp_reference.challenge_8 import VisitOrderPlanner");
   }
+  if (componentNames.has("LineFollower")) {
+    lines.push("from ucsb_xrp_reference.challenge_9 import LineFollower");
+  }
   lines.push(
     "",
     "",
@@ -152,6 +151,14 @@ function completeCourseSetup(componentNames: ReadonlySet<string>): string {
       "",
       "def make_route_cost_grid_planner():",
       "    return GridPlanner()",
+    );
+  }
+  if (componentNames.has("LineFollower")) {
+    lines.push(
+      "",
+      "",
+      "def make_line_follower(settings):",
+      "    return LineFollower(settings)",
     );
   }
   if (componentNames.has("RangeSafetyController")) {
@@ -276,14 +283,12 @@ export const COURSE_PROJECT_TEMPLATES: readonly CourseProjectTemplate[] =
         label: entry.label,
         shortLabel: entry.short_label,
         summary: entry.summary,
-        predecessorId: entry.predecessor_id ?? null,
         components: Object.freeze(
           (entry.components ?? []).map((component) =>
             Object.freeze({
               name: component.name,
               file: component.file,
               selectionFlag: component.selection_flag,
-              carryForward: component.carry_forward,
             }),
           ),
         ),
@@ -317,16 +322,6 @@ export function courseProjectTemplate(
   return template;
 }
 
-export function nextChallengeTemplate(
-  currentTemplateId: string,
-): CourseProjectTemplate | null {
-  return (
-    COURSE_PROJECT_TEMPLATES.find(
-      (template) => template.predecessorId === currentTemplateId,
-    ) ?? null
-  );
-}
-
 function selectStudentComponent(source: string, selectionFlag: string): string {
   if (!/^[A-Z][A-Z0-9_]*$/.test(selectionFlag)) {
     throw new Error(`Invalid component selection flag '${selectionFlag}'`);
@@ -342,10 +337,10 @@ function selectStudentComponent(source: string, selectionFlag: string): string {
   return source.replace(assignment, "$1True$2");
 }
 
-function studentComponentIsSelected(
+function studentComponentSelection(
   source: string,
   selectionFlag: string,
-): boolean {
+): boolean | null {
   if (!/^[A-Z][A-Z0-9_]*$/.test(selectionFlag)) {
     throw new Error(`Invalid component selection flag '${selectionFlag}'`);
   }
@@ -355,41 +350,143 @@ function studentComponentIsSelected(
   );
   const match = source.match(assignment);
   if (!match) {
-    throw new Error(`The current challenge does not declare ${selectionFlag}`);
+    return null;
   }
   return match[1] === "True";
 }
 
-/** Create the next self-contained challenge while preserving declared student work. */
-export function createNextChallengeProject(
-  currentTemplateId: string,
-  currentProject: CourseProject,
-): CourseProject {
-  const next = nextChallengeTemplate(currentTemplateId);
-  if (!next) {
-    throw new Error(`No challenge follows '${currentTemplateId}'`);
+export interface ChallengeTransition {
+  project: CourseProject;
+  preserve: readonly string[];
+  merge: readonly string[];
+  replace: readonly string[];
+  add: readonly string[];
+  omit: readonly string[];
+}
+
+const replacedChallengeTaskFiles = new Set([
+  "README.md",
+  "main.py",
+  "challenge.py",
+  "world.json",
+  "component_checks.py",
+]);
+
+const allChallengeComponentFiles = new Set(
+  catalog
+    .filter((entry) => entry.kind === "challenge")
+    .flatMap((entry) => entry.components ?? [])
+    .map((component) => component.file),
+);
+
+function assignedConstructorBlock(
+  source: string,
+  variable: string,
+  constructor: string,
+): string | null {
+  const assignment = new RegExp(
+    `^${variable}\\s*=\\s*${constructor}\\(`,
+    "m",
+  ).exec(source);
+  if (!assignment) return null;
+  const opening = source.indexOf("(", assignment.index);
+  let depth = 0;
+  for (let index = opening; index < source.length; index += 1) {
+    if (source[index] === "(") depth += 1;
+    if (source[index] === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(assignment.index, index + 1);
+      }
+    }
   }
-  const files = { ...next.project.files };
+  throw new Error(`${variable} has an unterminated ${constructor}(...) value`);
+}
+
+function mergeRobotCalibration(
+  currentSource: string,
+  targetSource: string,
+): string {
+  const currentBlock = assignedConstructorBlock(
+    currentSource,
+    "ROBOT_CONFIG",
+    "RobotConfig",
+  );
+  const targetBlock = assignedConstructorBlock(
+    targetSource,
+    "ROBOT_CONFIG",
+    "RobotConfig",
+  );
+  if (currentBlock === null || targetBlock === null) return targetSource;
+  return targetSource.replace(targetBlock, currentBlock);
+}
+
+/**
+ * Build and describe a separate project for another challenge.
+ *
+ * The task definition is replaced. Robot calibration, components consumed by
+ * the selected target, helpers, notes, and other student-created files remain
+ * intact. Component files irrelevant to the target stay in the source project.
+ */
+export function describeChallengeProjectTransition(
+  currentTemplateId: string,
+  targetTemplateId: string,
+  currentProject: CourseProject,
+): ChallengeTransition {
+  const current = courseProjectTemplate(currentTemplateId);
+  const target = courseProjectTemplate(targetTemplateId);
+  if (current.kind !== "challenge" || target.kind !== "challenge") {
+    throw new Error("Challenge transitions require two student challenges");
+  }
+  if (currentTemplateId === targetTemplateId) {
+    throw new Error("Choose a different challenge project");
+  }
+  const files = { ...target.project.files };
+  const preserved = new Set<string>();
+  const merged = new Set<string>();
+  const replaced = new Set<string>();
+  const added = new Set<string>();
+  const omitted = new Set<string>();
   let courseSetup = files["course_setup.py"];
   const currentCourseSetup = currentProject.files["course_setup.py"];
   if (courseSetup === undefined) {
-    throw new Error(`${next.label} does not contain course_setup.py`);
+    throw new Error(`${target.label} does not contain course_setup.py`);
   }
   if (currentCourseSetup === undefined) {
     throw new Error("The current challenge does not contain course_setup.py");
   }
-  for (const component of next.components.filter(
-    (candidate) => candidate.carryForward,
-  )) {
-    const studentSource = currentProject.files[component.file];
-    if (studentSource === undefined) {
-      throw new Error(
-        `The current project does not contain ${component.file} for ${component.name}`,
-      );
+  const targetComponentFiles = new Set(
+    target.components.map((component) => component.file),
+  );
+
+  for (const [path, source] of Object.entries(currentProject.files)) {
+    if (path === "course_setup.py" || replacedChallengeTaskFiles.has(path)) {
+      continue;
     }
-    files[component.file] = studentSource;
     if (
-      studentComponentIsSelected(currentCourseSetup, component.selectionFlag)
+      allChallengeComponentFiles.has(path) &&
+      !targetComponentFiles.has(path)
+    ) {
+      omitted.add(path);
+      continue;
+    }
+    if (path === "robot_config.py" && files[path] !== undefined) {
+      files[path] = mergeRobotCalibration(source, files[path]);
+      merged.add(path);
+      continue;
+    }
+    files[path] = source;
+    preserved.add(path);
+  }
+
+  for (const component of target.components) {
+    const studentSource = currentProject.files[component.file];
+    if (studentSource !== undefined) {
+      files[component.file] = studentSource;
+      preserved.add(component.file);
+    }
+    if (
+      studentComponentSelection(currentCourseSetup, component.selectionFlag)
     ) {
       courseSetup = selectStudentComponent(
         courseSetup,
@@ -398,10 +495,25 @@ export function createNextChallengeProject(
     }
   }
   files["course_setup.py"] = courseSetup;
+  for (const path of Object.keys(files)) {
+    if (preserved.has(path) || merged.has(path)) continue;
+    if (path === "course_setup.py" || path in currentProject.files) {
+      replaced.add(path);
+    } else {
+      added.add(path);
+    }
+  }
   return {
-    name: next.project.name,
-    entrypoint: next.project.entrypoint,
-    files,
+    project: {
+      name: target.project.name,
+      entrypoint: target.project.entrypoint,
+      files,
+    },
+    preserve: Object.freeze([...preserved].sort()),
+    merge: Object.freeze([...merged].sort()),
+    replace: Object.freeze([...replaced].sort()),
+    add: Object.freeze([...added].sort()),
+    omit: Object.freeze([...omitted].sort()),
   };
 }
 

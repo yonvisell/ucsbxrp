@@ -39,7 +39,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.46"
+COURSE_RELEASE = "2026.08-dev.47"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -1075,8 +1075,7 @@ def _read_hardware():
             EncodedMotor.get_default_encoded_motor(index=2).get_position_counts()
         )
         raw_range_cm = Rangefinder.get_default_rangefinder().distance()
-        if isinstance(raw_range_cm, (int, float)) and raw_range_cm > 0:
-            values["rangeMm"] = float(raw_range_cm) * 10.0
+        values["rangeMm"] = _normalize_range_mm(raw_range_cm)
         board = Board.get_default_board()
         values["buttonPressed"] = bool(board.is_button_pressed())
         values["batteryV"] = float(board.get_battery_voltage())
@@ -1088,6 +1087,16 @@ def _read_hardware():
         values["sensorError"] = type(exc).__name__ + ": " + str(exc)
     _last_hardware = values
     return values
+
+
+def _normalize_range_mm(raw_range_cm):
+    """Convert one XRPLib range reading, rejecting its timeout sentinel."""
+    if isinstance(raw_range_cm, bool) or not isinstance(raw_range_cm, (int, float)):
+        return None
+    range_cm = float(raw_range_cm)
+    if not math.isfinite(range_cm) or range_cm <= 0 or range_cm > 400:
+        return None
+    return range_cm * 10.0
 
 
 def _empty_hardware():

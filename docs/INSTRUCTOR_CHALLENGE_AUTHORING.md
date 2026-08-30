@@ -34,7 +34,11 @@ Choose the published challenge whose mission flow is closest to the new task:
 - Challenge 2 for explicit straight and turn segments;
 - Challenge 3 for ordered world-coordinate goals;
 - Challenge 4 for a route through a known map; or
-- Challenge 5 for stationary observation followed by planning and navigation.
+- Challenge 5 for stationary observation followed by planning and navigation;
+- Challenge 6 for range-constrained forward motion;
+- Challenge 7 for stationary known-wall pose correction;
+- Challenge 8 for multi-stop route ordering; or
+- Challenge 9 for local two-sensor line following.
 
 The selected challenge supplies working Python, component selectors,
 configuration, and component checks. It is a structural baseline, not a claim
@@ -84,8 +88,8 @@ Keeping adjustable values in `challenge.py`, `robot_config.py`, or `world.json`
 prevents the instructions from becoming inconsistent when an instructor tunes
 the task.
 
-`world.json` is the sole source for world bounds, initial pose, obstacles, and
-markers. Distances use millimeters and headings use radians. The simulator and
+`world.json` is the sole source for world bounds, initial pose, obstacles,
+optional floor tracks, and markers. Distances use millimeters and headings use radians. The simulator and
 Monitor read the same file that Python accesses through `load_world()`.
 
 Use the visual world editor for ordinary changes. Select a world, then add or
@@ -138,6 +142,22 @@ with the visual editor; this reference is useful for review and extension:
     { "type": "wall", "minimum_x_mm": -500, "minimum_y_mm": -609.6, "maximum_x_mm": -450, "maximum_y_mm": 0 },
     { "type": "block", "feature": "gate", "minimum_x_mm": 100, "minimum_y_mm": -100, "maximum_x_mm": 200, "maximum_y_mm": 100 }
   ],
+  "tracks": [
+    {
+      "type": "line",
+      "name": "test_loop",
+      "label": "Test loop",
+      "width_mm": 18,
+      "darkness": 1,
+      "closed": true,
+      "points": [
+        { "x_mm": -500, "y_mm": -250 },
+        { "x_mm": 500, "y_mm": -250 },
+        { "x_mm": 500, "y_mm": 250 },
+        { "x_mm": -500, "y_mm": 250 }
+      ]
+    }
+  ],
   "markers": [
     { "type": "start_line", "x1_mm": -1100, "y1_mm": -450, "x2_mm": -1100, "y2_mm": -250 },
     { "type": "start_box", "minimum_x_mm": -1250, "minimum_y_mm": -500, "maximum_x_mm": -1050, "maximum_y_mm": -300 },
@@ -148,6 +168,12 @@ with the visual editor; this reference is useful for review and extension:
   ]
 }
 ```
+
+Each track is a polyline drawn on the floor and sampled by the virtual
+reflectance sensors. `type` is `"line"`; `points` contains at least two
+world-coordinate points; `width_mm` is positive; `darkness` is from 0 (light)
+to 1 (dark); and `closed` joins the final point to the first. Tracks currently
+use **Advanced world.json** rather than the graphic editor.
 
 The optional `files` object maps project-relative names to complete replacement
 text. Leave it empty to retain the copied working source. Use it when a new

@@ -11,6 +11,16 @@ export interface WorldObstacle extends AxisAlignedRectangle {
   feature?: string;
 }
 
+export interface WorldTrack {
+  type: "line";
+  name?: string;
+  label?: string;
+  widthMm: number;
+  darkness: number;
+  closed: boolean;
+  points: readonly { xMm: number; yMm: number }[];
+}
+
 interface WorldMarkerBase {
   name?: string;
   label?: string;
@@ -56,6 +66,8 @@ export interface WorldDefinition {
   initialPose: { xMm: number; yMm: number; headingRad: number };
   obstacles: readonly WorldObstacle[];
   markers: readonly WorldMarker[];
+  /** Floor-darkness geometry sampled by the optional reflectance sensors. */
+  tracks?: readonly WorldTrack[];
   /** Whether the rectangular arena edge is an ultrasonic reflector. */
   includeArenaBoundaryInRange?: boolean;
 }
@@ -297,6 +309,66 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
   if (new Set(featureNames).size !== featureNames.length) {
     throw new Error(`worlds[${index}] obstacle feature names must be unique`);
   }
+  const tracks = arrayValue(
+    item.tracks ?? [],
+    `worlds[${index}].tracks`,
+    8,
+  ).map((value, trackIndex): WorldTrack => {
+    const name = `worlds[${index}].tracks[${trackIndex}]`;
+    const source = objectValue(value, name);
+    if (source.type !== "line") {
+      throw new Error(`${name}.type must be line`);
+    }
+    const widthMm = numberValue(source.width_mm, `${name}.width_mm`);
+    const darkness = numberValue(source.darkness, `${name}.darkness`);
+    const closed = booleanValue(source.closed ?? false, `${name}.closed`);
+    if (widthMm <= 0) throw new Error(`${name}.width_mm must be positive`);
+    if (darkness < 0 || darkness > 1) {
+      throw new Error(`${name}.darkness must be within [0, 1]`);
+    }
+    const points = arrayValue(source.points, `${name}.points`, 128).map(
+      (point, pointIndex) => {
+        const pointName = `${name}.points[${pointIndex}]`;
+        const item = objectValue(point, pointName);
+        const result = {
+          xMm: numberValue(item.x_mm, `${pointName}.x_mm`),
+          yMm: numberValue(item.y_mm, `${pointName}.y_mm`),
+        };
+        if (!pointInside(bounds, result.xMm, result.yMm)) {
+          throw new Error(`${pointName} must be inside the world bounds`);
+        }
+        return result;
+      },
+    );
+    if (points.length < (closed ? 3 : 2)) {
+      throw new Error(`${name}.points does not define a usable line`);
+    }
+    for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+      const previous = points[pointIndex - 1]!;
+      const current = points[pointIndex]!;
+      if (previous.xMm === current.xMm && previous.yMm === current.yMm) {
+        throw new Error(`${name}.points must not repeat adjacent points`);
+      }
+    }
+    return {
+      type: "line",
+      name:
+        source.name === undefined
+          ? undefined
+          : identifier(source.name, `${name}.name`),
+      label: optionalLabel(source.label, `${name}.label`),
+      widthMm,
+      darkness,
+      closed,
+      points,
+    };
+  });
+  const trackNames = tracks.flatMap((track) =>
+    track.name === undefined ? [] : [track.name],
+  );
+  if (new Set(trackNames).size !== trackNames.length) {
+    throw new Error(`worlds[${index}] track names must be unique`);
+  }
   const markers = arrayValue(
     item.markers ?? [],
     `worlds[${index}].markers`,
@@ -428,6 +500,7 @@ function parseWorld(value: unknown, index: number): WorldDefinition {
     bounds,
     initialPose,
     obstacles,
+    tracks,
     markers,
     ...(rangeSensor?.include_arena_boundary === undefined
       ? {}

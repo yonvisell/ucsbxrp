@@ -392,6 +392,7 @@ class RobotAndMissionTests(unittest.TestCase):
 
         class OneStepNavigation:
             def __init__(self):
+                self.config = navigation_config()
                 self.complete = True
                 self.goals = ()
 
@@ -414,7 +415,6 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertIsNone(mission.feature_blocked)
         self.assertIsNone(mission.planned_path)
         self.assertEqual(mission.navigation_step_count, 0)
-        self.assertIsNone(mission.maximum_navigation_steps)
 
         result = mission.run(robot)
 
@@ -427,7 +427,7 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertGreaterEqual(len(navigation.goals), 1)
         self.assertTrue(robot.stopped)
 
-    def test_delivery_mission_exposes_and_honors_only_explicit_step_limit(self):
+    def test_delivery_mission_rejects_invalid_planner_path_and_always_stops(self):
         arena = ArenaMap(
             (0, 0, 300, 200),
             features={"gate": (100, 0, 200, 100)},
@@ -480,31 +480,110 @@ class RobotAndMissionTests(unittest.TestCase):
             def stop(self):
                 self.stopped = True
 
-        class NeverCompleteNavigation:
+        class Navigation:
+            def __init__(self):
+                self.config = navigation_config()
+
             def start(self, _goals):
-                pass
+                raise AssertionError("an invalid path must not be executed")
 
             def update(self, _pose):
-                return STOP_COMMAND
+                raise AssertionError("an invalid path must not be executed")
 
             def is_complete(self):
-                return False
+                return True
+
+        class WrongEndpointPlanner:
+            def plan(self, _grid, start, _goal):
+                return GridPath((start,))
 
         robot = Robot()
-        mission = DeliveryMission(
-            task,
-            NeverCompleteNavigation(),
-            GridPlanner(),
-            maximum_navigation_steps=2,
-        )
+        mission = DeliveryMission(task, Navigation(), WrongEndpointPlanner())
 
         result = mission.run(robot)
 
-        self.assertEqual(mission.maximum_navigation_steps, 2)
-        self.assertEqual(mission.navigation_step_count, 2)
-        self.assertEqual(mission.result, "step_limit")
+        self.assertEqual(mission.navigation_step_count, 0)
+        self.assertEqual(mission.result, "invalid_path")
         self.assertIsNotNone(mission.planned_path)
         self.assertEqual(result, robot.state)
+        self.assertTrue(robot.stopped)
+
+    def test_delivery_mission_rejects_premature_navigation_completion(self):
+        arena = ArenaMap(
+            (0, 0, 300, 200),
+            features={"gate": (100, 0, 200, 100)},
+        )
+        task = DeliveryTask(
+            initial_pose=Pose(50, 150, 0),
+            arena=arena,
+            grid_resolution_mm=100,
+            clearance_mm=0,
+            destination=NavigationGoal(250, 150, 0),
+            observed_feature_name="gate",
+            range_sample_count=1,
+            minimum_usable_range_count=1,
+            blocked_range_threshold_mm=100,
+            assume_blocked_without_range=False,
+        )
+
+        class Robot:
+            def __init__(self):
+                self.state = RobotState(
+                    Measurements(0, 0, 0, 0, 0, 0, 0, 0, None, False),
+                    task.initial_pose,
+                )
+                self.stopped = False
+
+            def start(self, _pose):
+                return self.state
+
+            def step(self, _command, read_range=False):
+                self.state = RobotState(
+                    Measurements(
+                        self.state.measurements.time_ms + 20,
+                        0.02,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        200 if read_range else None,
+                        False,
+                    ),
+                    self.state.pose,
+                )
+                return self.state
+
+            def estimate_range(self, samples, _minimum):
+                return samples[0]
+
+            def stop(self):
+                self.stopped = True
+
+        class PrematureNavigation:
+            def __init__(self):
+                self.config = navigation_config()
+                self.goals = ()
+
+            def start(self, goals):
+                self.goals = tuple(goals)
+
+            def update(self, _pose):
+                raise AssertionError("a completed navigator must not be stepped")
+
+            def is_complete(self):
+                return True
+
+        robot = Robot()
+        navigation = PrematureNavigation()
+        mission = DeliveryMission(task, navigation, GridPlanner())
+
+        result = mission.run(robot)
+
+        self.assertEqual(mission.result, "destination_not_reached")
+        self.assertEqual(result.pose, task.initial_pose)
+        self.assertEqual(navigation.goals[-1], task.destination)
         self.assertTrue(robot.stopped)
 
 

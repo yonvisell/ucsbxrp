@@ -17,6 +17,11 @@ import {
   worldMarkerLabelPosition,
   worldMarkerVisualStyle,
 } from "./world-marker-visual";
+import {
+  normalizeUltrasoundRangeMm,
+  UNAVAILABLE_ULTRASOUND_FAN_MM,
+} from "./ultrasound-range";
+import { worldTrackColor } from "./world-track-geometry";
 
 export {
   createMonitorAnnotation,
@@ -276,6 +281,13 @@ export interface WorldCanvasTransform {
   readonly worldHeightPx: number;
 }
 
+export interface WorldCanvasTrack {
+  readonly closed: boolean;
+  readonly color: string;
+  readonly points: readonly { xPx: number; yPx: number }[];
+  readonly widthPx: number;
+}
+
 /** Preserve world geometry while centering it in the fixed video canvas. */
 export function worldCanvasTransform(
   world: WorldDefinition,
@@ -298,6 +310,35 @@ export function worldCanvasTransform(
     worldWidthPx,
     worldHeightPx,
   };
+}
+
+/** Convert declared floor tracks to fixed-canvas coordinates for video frames. */
+export function worldCanvasTracks(
+  world: WorldDefinition,
+  canvasWidth: number,
+  canvasHeight: number,
+  marginPx = 28,
+): readonly WorldCanvasTrack[] {
+  const transform = worldCanvasTransform(
+    world,
+    canvasWidth,
+    canvasHeight,
+    marginPx,
+  );
+  return (world.tracks ?? []).map((track) => ({
+    closed: track.closed,
+    color: worldTrackColor(track.darkness),
+    points: track.points.map((point) => ({
+      xPx:
+        transform.worldLeftPx +
+        (point.xMm - world.bounds.minimumXmm) * transform.scalePxPerMm,
+      yPx:
+        transform.worldTopPx +
+        transform.worldHeightPx -
+        (point.yMm - world.bounds.minimumYmm) * transform.scalePxPerMm,
+    })),
+    widthPx: track.widthMm * transform.scalePxPerMm,
+  }));
 }
 
 export function worldReplayPlan(
@@ -418,6 +459,25 @@ function drawWorldFrame(
     transform.worldHeightPx,
   );
 
+  for (const track of worldCanvasTracks(world, width, height)) {
+    const first = track.points[0];
+    if (!first) continue;
+    context.save();
+    context.strokeStyle = track.color;
+    context.lineWidth = Math.max(1, track.widthPx);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.setLineDash([]);
+    context.beginPath();
+    context.moveTo(first.xPx, first.yPx);
+    for (const point of track.points.slice(1)) {
+      context.lineTo(point.xPx, point.yPx);
+    }
+    if (track.closed) context.closePath();
+    context.stroke();
+    context.restore();
+  }
+
   for (const obstacle of world.obstacles) {
     context.fillStyle = "#a7423c";
     context.fillRect(
@@ -511,7 +571,10 @@ function drawWorldFrame(
   }
   context.stroke();
 
-  if (sample.rangeMm !== null) {
+  if (sample.poseAvailable) {
+    const normalizedRangeMm = normalizeUltrasoundRangeMm(sample.rangeMm);
+    const rangeUnavailable = normalizedRangeMm === null;
+    const drawnRangeMm = normalizedRangeMm ?? UNAVAILABLE_ULTRASOUND_FAN_MM;
     const sensor = ultrasonicSensorOrigin(
       {
         xMm: sample.xMm,
@@ -521,8 +584,12 @@ function drawWorldFrame(
       XRP_ULTRASONIC_SENSOR_OFFSET_MM,
     );
     const halfAngle = XRP_ULTRASONIC_FIELD_OF_VIEW_RAD / 2;
-    context.fillStyle = "rgba(185, 138, 41, 0.11)";
-    context.strokeStyle = "#765000";
+    context.fillStyle = rangeUnavailable
+      ? "rgba(184, 59, 53, 0.14)"
+      : "rgba(185, 138, 41, 0.11)";
+    context.strokeStyle = rangeUnavailable
+      ? "rgba(160, 45, 39, 0.55)"
+      : "#765000";
     context.lineWidth = 3;
     context.beginPath();
     context.moveTo(x(sensor.xMm), y(sensor.yMm));
@@ -532,8 +599,8 @@ function drawWorldFrame(
         halfAngle +
         (index / 16) * XRP_ULTRASONIC_FIELD_OF_VIEW_RAD;
       context.lineTo(
-        x(sensor.xMm + sample.rangeMm * Math.cos(angle)),
-        y(sensor.yMm + sample.rangeMm * Math.sin(angle)),
+        x(sensor.xMm + drawnRangeMm * Math.cos(angle)),
+        y(sensor.yMm + drawnRangeMm * Math.sin(angle)),
       );
     }
     context.closePath();
@@ -602,6 +669,10 @@ function drawWorldFrame(
     14,
     44,
   );
+  if (normalizeUltrasoundRangeMm(sample.rangeMm) === null) {
+    context.fillStyle = "#a02d27";
+    context.fillText("Ultrasound: out of range", 224, 44);
+  }
 }
 
 function supportedWebmType(): string {
@@ -616,6 +687,50 @@ function supportedWebmType(): string {
     if (MediaRecorder.isTypeSupported(type)) return type;
   }
   throw new Error("This browser does not provide a WebM video encoder.");
+}
+
+export async function validateWebmBlob(blob: Blob): Promise<void> {
+  if (blob.size === 0) {
+    throw new Error("The browser produced an empty WebM animation.");
+  }
+  const video = document.createElement("video");
+  const url = URL.createObjectURL(blob);
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = url;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(
+        () => reject(new Error("The WebM animation could not be decoded.")),
+        2_000,
+      );
+      const finish = (result: "decoded" | "failed") => {
+        window.clearTimeout(timeout);
+        if (result === "decoded") resolve();
+        else
+          reject(
+            new Error("The browser produced an unreadable WebM animation."),
+          );
+      };
+      video.addEventListener("loadeddata", () => finish("decoded"), {
+        once: true,
+      });
+      video.addEventListener("error", () => finish("failed"), { once: true });
+      video.load();
+    });
+    if (
+      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+      video.videoWidth !== 960 ||
+      video.videoHeight !== 720
+    ) {
+      throw new Error("The browser produced an invalid WebM animation frame.");
+    }
+  } finally {
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export async function createWorldReplayWebm(options: {
@@ -652,30 +767,95 @@ export async function createWorldReplayWebm(options: {
     requestFrame?: () => void;
   };
   if (!videoTrack) throw new Error("The browser did not create a video track.");
+  if (typeof videoTrack.requestFrame !== "function") {
+    stream.getTracks().forEach((track) => track.stop());
+    throw new Error("This browser cannot add frames to a WebM animation.");
+  }
   const recorder = new MediaRecorder(stream, {
     mimeType: supportedWebmType(),
     videoBitsPerSecond: 3_000_000,
   });
   const chunks: Blob[] = [];
+  let firstError: Error | null = null;
+  let startEventReceived = false;
+  let completionSettled = false;
+  const rememberError = (error: unknown) => {
+    if (firstError) return firstError;
+    firstError = error instanceof Error ? error : new Error(String(error));
+    return firstError;
+  };
   recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);
   };
-  const completed = new Promise<Blob>((resolve, reject) => {
-    recorder.onerror = () => reject(new Error("WebM encoding failed."));
-    recorder.onstop = () =>
-      resolve(new Blob(chunks, { type: recorder.mimeType || "video/webm" }));
-  });
+  let rejectStarted: (error: Error) => void = () => undefined;
   const started = new Promise<void>((resolve, reject) => {
-    recorder.addEventListener("start", () => resolve(), { once: true });
+    rejectStarted = reject;
     recorder.addEventListener(
-      "error",
-      () => reject(new Error("The WebM encoder did not start.")),
+      "start",
+      () => {
+        startEventReceived = true;
+        resolve();
+      },
       { once: true },
     );
   });
-  recorder.start(250);
+  let rejectCompleted: (error: Error) => void = () => undefined;
+  const completed = new Promise<Blob>((resolve, reject) => {
+    rejectCompleted = reject;
+    recorder.addEventListener(
+      "stop",
+      () => {
+        completionSettled = true;
+        resolve(new Blob(chunks, { type: recorder.mimeType || "video/webm" }));
+      },
+      { once: true },
+    );
+  });
+  recorder.addEventListener("error", (event) => {
+    const detail = (event as Event & { error?: DOMException }).error;
+    const error = rememberError(
+      new Error(detail?.message || "WebM encoding failed."),
+    );
+    completionSettled = true;
+    rejectStarted(error);
+    rejectCompleted(error);
+  });
+  // Both promises can be rejected by one encoder event before this task awaits
+  // the second one. Attach handlers immediately to avoid transient unhandled
+  // rejection reports while preserving the original error below.
+  void started.catch(() => undefined);
+  void completed.catch(() => undefined);
+  let blob: Blob | null = null;
   try {
+    // Seed the zero-rate capture track before waiting for MediaRecorder's
+    // start event. Chromium does not dispatch that event until the track has
+    // produced an initial frame.
+    drawWorldFrame(
+      context,
+      replaySamples,
+      0,
+      options.annotations ?? [],
+      options.world,
+      plan,
+    );
+    recorder.start(250);
+    videoTrack.requestFrame();
+    let startTimeout = 0;
+    try {
+      await Promise.race([
+        started,
+        new Promise<never>((_resolve, reject) => {
+          startTimeout = window.setTimeout(
+            () => reject(new Error("The WebM encoder did not start.")),
+            1_500,
+          );
+        }),
+      ]);
+    } finally {
+      window.clearTimeout(startTimeout);
+    }
     for (let frame = 0; frame < plan.frameCount; frame += 1) {
+      if (firstError) throw firstError;
       drawWorldFrame(
         context,
         replaySamples,
@@ -684,19 +864,33 @@ export async function createWorldReplayWebm(options: {
         options.world,
         plan,
       );
-      videoTrack.requestFrame?.();
-      if (frame === 0) await started;
+      videoTrack.requestFrame();
       options.onProgress?.((frame + 1) / plan.frameCount);
       await new Promise((resolve) =>
         window.setTimeout(resolve, 1_000 / plan.framesPerSecond),
       );
     }
+  } catch (error: unknown) {
+    rememberError(error);
   } finally {
-    recorder.stop();
+    if (recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch (error: unknown) {
+        rememberError(error);
+      }
+    }
+    if (startEventReceived || completionSettled) {
+      try {
+        blob = await completed;
+      } catch (error: unknown) {
+        rememberError(error);
+      }
+    }
+    stream.getTracks().forEach((track) => track.stop());
   }
-  const blob = await completed.finally(() =>
-    stream.getTracks().forEach((track) => track.stop()),
-  );
-  if (blob.size === 0) throw new Error("The browser produced an empty video.");
+  if (firstError) throw firstError;
+  if (!blob) throw new Error("The WebM encoder stopped without a video.");
+  await validateWebmBlob(blob);
   return blob;
 }

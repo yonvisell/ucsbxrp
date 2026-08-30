@@ -1,7 +1,7 @@
 # UCSB XRP course tools
 
 This repository contains the `ucsb_xrp` MicroPython library, supplied reference
-bytecode, eight challenge projects, five demos, five guided Python and MicroPython
+bytecode, nine challenge projects, five demos, five guided Python and MicroPython
 tutorial projects, a browser IDE, the XRP Monitor, a repeatable physics-based
 virtual XRP, and the on-robot
 service used to run the same projects on a SparkFun RP2350 XRP. The five
@@ -32,7 +32,7 @@ npm run dev
 - UCSB XRP API: `http://127.0.0.1:5173/reference/`
 
 The IDE starts with the expanding-spiral demo. **New project…** creates any of
-the eight challenges, five robot demos, or a staged MicroPython tutorial as an
+the nine challenges, five robot demos, or a staged MicroPython tutorial as an
 ordinary editable project. The demos include obstacle-triggered turning, an
 expanding spiral with two live parameters, random 90-degree motion, Roomba-style
 avoidance, and a waypoint-drawn UCSB logo. Select **complete challenges** on
@@ -40,9 +40,10 @@ Home to reveal ready-to-run variants that use every supplied reference class.
 Those reference demonstrations omit student component files and component
 checks so they cannot be mistaken for unfinished student projects.
 Select **Virtual XRP** for immediate use or **Physical XRP** for a robot
-hotspot or an existing local network. Later challenges retain all components
-introduced so far; students carry their completed methods forward and enable
-each named `USE_STUDENT_*` switch independently.
+hotspot or an existing local network. Challenge numbers are catalog identifiers,
+not a required teaching sequence. **Start another challenge…** creates a
+separate selected project after previewing preserved work, merged robot
+calibration, target task files, new files, and source-only component files.
 
 ## IDE workflow
 
@@ -77,8 +78,8 @@ folder.
   connection, so Run can start the same project revision again immediately.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
-Settings are collapsible and include editor/output font size (13/12 px default,
-10 px minimum), indentation, word wrap, code overview, target selection, and
+Settings are collapsible and include editor/output font size (10/12 px default,
+8 px minimum), indentation, word wrap, code overview, target selection, and
 the XRP Wi-Fi mode and existing-Wi-Fi address. Status, Program output, and
 the connection/compilation System log are separate tabs.
 
@@ -98,8 +99,9 @@ battery, and contact state. Program output and the complete target-event history
 remain in the IDE terminal. For the virtual XRP, choose **Open field** or **Delivery
 gate blocked**; the second scene exercises Challenge 5 observation and
 replanning. The world uses the production XRP's dimensioned footprint, a
-coordinate grid labeled in millimetres, and a small legend for the green path
-and ochre ultrasound ray. The compact left sidebar collapses to a narrow rail and selects a
+coordinate grid labeled in millimetres, and a small legend for the royal-blue
+path and ultrasound fan. When range is unavailable, a faint red fan makes that
+state visible. The controls sidebar collapses to a small overlay restore button and selects a
 2–30 second scrolling history for wheel speed, normalized drive command,
 ultrasound distance,
 acceleration, or yaw rate. Signals can be combined or hidden for the
@@ -240,10 +242,11 @@ works on current Windows and macOS without a command-line Git installation.
 
 ## Course library
 
-The five core challenges are Straight Run, Turn and Return, Waypoint Courier,
-Mapped Route, and Delivery Mission. Three extension challenges add
-Range-Constrained Stopping, Wall-Range Pose Correction, and Multi-Stop Route
-Planning. Students progressively implement six recurring components:
+The challenge catalog currently includes Straight Run, Turn and Return,
+Waypoint Courier, Mapped Route, Delivery Mission, Range-Constrained Stopping,
+Wall-Range Pose Correction, Multi-Stop Route Planning, and Arena Circuit. One
+course offering may select only a subset and may assign a different order.
+Six reusable components appear across the mapped-motion projects:
 
 - `SensorModel`
 - `WheelSpeedController`
@@ -252,9 +255,10 @@ Planning. Students progressively implement six recurring components:
 - `NavigationController`
 - `GridPlanner`
 
-The extension challenges add focused `RangeSafetyController`, `PoseCorrector`,
-and `VisitOrderPlanner` project components while carrying the six recurring
-components forward.
+Focused projects add `LineFollower`, `RangeSafetyController`, `PoseCorrector`,
+or `VisitOrderPlanner`. The IDE copies only the components consumed by a
+selected target project and leaves unrelated files in the unchanged source
+project.
 
 Supplied services are `XRPBot`, `Robot`, `StraightLineController`, `ArenaMap`,
 `OccupancyGrid`, and `DeliveryMission`. `DriveCommand(left, right)` is the

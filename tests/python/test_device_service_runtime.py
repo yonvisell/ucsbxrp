@@ -2140,6 +2140,16 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(result["sample"], result["samples"][0])
         self.assertEqual(result["sample"]["rangeMm"], 300.0)
 
+    def test_range_normalization_rejects_timeout_and_invalid_readings(self):
+        normalize = self.service._normalize_range_mm
+
+        self.assertEqual(normalize(31), 310.0)
+        self.assertEqual(normalize(31.25), 312.5)
+        self.assertEqual(normalize(400), 4000.0)
+        for invalid in (None, True, False, 0, -1, 401, 65535, 65536, float("nan"), float("inf")):
+            with self.subTest(invalid=invalid):
+                self.assertIsNone(normalize(invalid))
+
     def test_idle_telemetry_coalesces_one_global_sample_for_one_cadence(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
         first_hardware = {

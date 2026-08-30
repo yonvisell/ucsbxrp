@@ -1,13 +1,15 @@
 # Wheeled Robotics with the XRP: Course and Library Summary
 
-This ten-week laboratory course introduces mobile robotics through five core
-challenges and three extension challenges completed in pairs on the XRP robot. Students begin with
-motor and encoder measurements, then add feedback control, differential-drive
+This ten-week laboratory course introduces mobile robotics through a catalog of
+core and extension challenges completed in pairs on the XRP robot. A typical
+offering begins with motor and encoder measurements, then adds feedback control, differential-drive
 kinematics, odometry, waypoint navigation, range sensing, occupancy grids, and
-grid-based path planning. The same compact MicroPython project grows across the
-course; each challenge retains the components developed in earlier challenges.
+grid-based path planning. The current catalog contains more candidates than one
+course offering will necessarily use, and its numbering is not yet the final
+teaching order. The IDE can carry compatible component work into any selected
+challenge while leaving the source project unchanged.
 
-## Challenge progression
+## Challenge catalog
 
 1. **Straight Run** — Drive an open straight course and stop at a specified
    distance. After obtaining repeatable motion, complete a timed run as close as
@@ -50,6 +52,9 @@ course; each challenge retains the components developed in earlier challenges.
    arena, choose the least-cost order for three required stops, execute the
    combined route, and return to the depot. Students implement the bounded
    `VisitOrderPlanner` with deterministic tie-breaking.
+9. **Arena Circuit** — Follow a dark closed line for one continuous lap using
+   normalized left and right reflectance measurements. Students implement a
+   local `LineFollower`; lap recognition remains visible in `main.py`.
 
 The physical work uses three continuing environments: an open lane for
 Straight Run, one marked open floor area for Turn and Return and Waypoint
@@ -67,23 +72,22 @@ project file:
 - `NavigationController`
 - `GridPlanner`
 
-The extension projects add `RangeSafetyController`, `PoseCorrector`, and
-`VisitOrderPlanner` in their corresponding named files. Later projects carry
-them forward in the same way.
+Focused catalog projects add `LineFollower`, `RangeSafetyController`,
+`PoseCorrector`, or `VisitOrderPlanner` in their corresponding named files.
 
 The class in each component project file has the same public methods and return
 types as its supplied counterpart. Project templates inherit the corresponding
 base class from `ucsb_xrp.student_api`. In `course_setup.py`, one named
 `USE_STUDENT_*` Boolean independently selects each class. A flag starts as
 `False` for the supplied class and changes to `True` only after the class in
-that project file passes its software tests. Early challenge projects include
-only the flags for classes introduced so far.
+that project file passes its software tests. Each candidate project includes
+the component set needed by its present task; that inventory may change when
+the final course order is selected.
 
 Each class you implement has a literal file: `sensor_model.py`,
 `wheel_speed_controller.py`, `differential_drive.py`, `odometry.py`,
-`navigation_controller.py`, `grid_planner.py`, `range_safety_controller.py`,
-`pose_corrector.py`, or `visit_order_planner.py`. A challenge project includes
-only the components introduced so far. Robot-specific measurements and
+`navigation_controller.py`, `grid_planner.py`, `line_follower.py`,
+`range_safety_controller.py`, `pose_corrector.py`, or `visit_order_planner.py`. Robot-specific measurements and
 reusable controller settings belong in `robot_config.py`; challenge values
 belong in `challenge.py`; `main.py` constructs the selected objects and runs
 the task.
@@ -107,8 +111,8 @@ make_navigation_controller(config)
 make_grid_planner()
 ```
 
-A normal run calls `Robot.start(initial_pose)`, repeatedly calls
-`Robot.step(command, read_range=False)`, and places `Robot.stop()` in a
+A normal run calls `Robot.start(initial_pose, read_reflectance=False)`, repeatedly calls
+`Robot.step(command, read_range=False, read_reflectance=False)`, and places `Robot.stop()` in a
 `finally` clause. Each step returns a `RobotState` containing the newest
 `Measurements` and `Pose`. `Robot` maintains absolute, wrap-safe sample
 deadlines; loops that call `Robot.step()` do not call `sleep_ms()`.
@@ -153,13 +157,15 @@ ArenaMap
 The supplied `DeliveryMission` adds stationary range observation and selection
 of one named map feature before planning and navigation. Its readable range
 estimate, blocked/open decision, planned path, navigation-step count, and
-result (`"delivered"`, `"no_path"`, or `"step_limit"`) make the supplied
-orchestration inspectable without constraining a student component invisibly.
+result (`"delivered"`, `"no_path"`, `"invalid_path"`, or
+`"destination_not_reached"`) make the supplied orchestration inspectable.
+The IDE Stop control, rather than an arbitrary hidden iteration bound, is the
+operator interruption path.
 
 ## Public records and conventions
 
 The public records imported from `ucsb_xrp` are `RobotConfig`,
-`NavigationConfig`, `DeliveryTask`, `RawSensors`, `Measurements`, `Pose`,
+`NavigationConfig`, `DeliveryTask`, `ReflectanceReadings`, `RawSensors`, `Measurements`, `Pose`,
 `RobotState`, `MotionCommand`, `WheelSpeeds`, `DriveCommand`,
 `NavigationGoal`, `GridCell`, `GridPath`, `Rectangle`, and `ProjectWorld`.
 `load_world()` reads the project's `world.json` and returns the selected
@@ -187,7 +193,7 @@ vertical edge with the requested cell.
 
 - `SensorModel.reset(raw)` and `update(raw)` convert encoder counts and time to
   wheel position, wheel-travel increments, regularized wheel speed, and elapsed
-  time while preserving range and USER-button readings in `Measurements`;
+  time while preserving optional range and reflectance plus USER-button readings in `Measurements`;
   `estimate_range(samples, minimum_usable)` returns a median range estimate or
   `None` after rejecting unusable readings.
 - `WheelSpeedController.update(target, measured)` returns bounded
@@ -203,6 +209,17 @@ vertical edge with the requested cell.
 
 These interfaces let each component be tested with known input records before
 it is selected for a physical robot run.
+
+## Line-following component
+
+Arena Circuit is a standalone catalog project. It assumes the sampled `Robot` loop and supplied
+wheel/drive components, but not the optional range, mapping,
+localization-correction, or multi-stop extensions. A challenge-local
+`LineFollower.update(reflectance, dt_s)` maps
+normalized left/right floor readings (0 light, 1 dark) to `MotionCommand` using
+visible local feedback. The virtual world supplies an in-arena closed dark
+track and finish bar; physical use requires calibration for the installed
+sensor geometry, tape, floor, height, and ambient light.
 
 ## IDE, Monitor, and robot selection
 

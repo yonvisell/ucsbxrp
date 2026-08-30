@@ -116,13 +116,15 @@ class Robot:
         """Milliseconds by which the latest calculation exceeded its period."""
         return self._last_overrun_ms
 
-    def start(self, initial_pose):
+    def start(self, initial_pose, read_reflectance=False):
         if not isinstance(initial_pose, Pose):
             raise TypeError("initial_pose must be a Pose")
+        if not isinstance(read_reflectance, bool):
+            raise TypeError("read_reflectance must be True or False")
         if not _managed_start:
             self._bot.wait_for_button()
         self._bot.reset_encoders()
-        raw = self._bot.read(include_range=False)
+        raw = self._read_sensors(False, read_reflectance)
         measurements = self._sensor_model.reset(raw)
         self._wheel_controller.reset()
         pose = self._odometry.reset(initial_pose)
@@ -135,13 +137,15 @@ class Robot:
         )
         return self._state
 
-    def step(self, command, read_range=False):
+    def step(self, command, read_range=False, read_reflectance=False):
         if self._state is None:
             raise RuntimeError("call start(initial_pose) before step(command)")
         if not isinstance(command, MotionCommand):
             raise TypeError("command must be a MotionCommand")
         if not isinstance(read_range, bool):
             raise TypeError("read_range must be True or False")
+        if not isinstance(read_reflectance, bool):
+            raise TypeError("read_reflectance must be True or False")
 
         try:
             target = self._differential_drive.wheel_speeds(command)
@@ -155,7 +159,7 @@ class Robot:
             self._last_overrun_ms = max(0, -remaining_ms)
             if remaining_ms > 0:
                 self._sleep_ms(remaining_ms)
-            raw = self._bot.read(include_range=read_range)
+            raw = self._read_sensors(read_range, read_reflectance)
             measurements = self._sensor_model.update(raw)
             pose = self._odometry.update(
                 measurements.left_increment_mm,
@@ -201,6 +205,16 @@ class Robot:
         apply_updates()
         if self._state is not None:
             publish_state(self._state, DriveCommand(0.0, 0.0))
+
+    def _read_sensors(self, include_range, include_reflectance):
+        if include_reflectance:
+            return self._bot.read(
+                include_range=include_range,
+                include_reflectance=True,
+            )
+        # Preserve compatibility with existing test and instructor adapters
+        # whose read method predates the optional reflectance argument.
+        return self._bot.read(include_range=include_range)
 
     def _advance_deadline(self):
         """Advance one or more absolute periods without catch-up bursts."""

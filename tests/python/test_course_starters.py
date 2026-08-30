@@ -573,7 +573,7 @@ class CourseStarterTests(unittest.TestCase):
                 sys.modules.pop(name, None)
             sys.modules.update(saved_modules)
 
-    def test_all_eight_starters_are_complete_compilable_projects(self):
+    def test_all_core_and_experimental_starters_are_compilable_projects(self):
         directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())
         self.assertEqual(
             [path.name for path in directories],
@@ -586,6 +586,7 @@ class CourseStarterTests(unittest.TestCase):
                 "challenge_6",
                 "challenge_7",
                 "challenge_8",
+                "challenge_9",
             ],
         )
         component_files = (
@@ -602,15 +603,25 @@ class CourseStarterTests(unittest.TestCase):
         for directory in directories:
             paths = {path.name: path for path in directory.glob("*.py")}
             challenge_number = int(directory.name.rsplit("_", 1)[1])
-            component_count = (2, 4, 5, 6, 6, 7, 8, 9)[challenge_number - 1]
-            required = {
-                "challenge.py",
-                "component_checks.py",
-                "course_setup.py",
-                "main.py",
-                "robot_config.py",
-                *component_files[:component_count],
-            }
+            if challenge_number == 9:
+                required = {
+                    "challenge.py",
+                    "component_checks.py",
+                    "course_setup.py",
+                    "line_follower.py",
+                    "main.py",
+                    "robot_config.py",
+                }
+            else:
+                component_count = (2, 4, 5, 6, 6, 7, 8, 9)[challenge_number - 1]
+                required = {
+                    "challenge.py",
+                    "component_checks.py",
+                    "course_setup.py",
+                    "main.py",
+                    "robot_config.py",
+                    *component_files[:component_count],
+                }
             self.assertEqual(set(paths), required, directory.name)
             for name, path in paths.items():
                 with self.subTest(challenge=directory.name, file=name):
@@ -1215,41 +1226,25 @@ class CourseStarterTests(unittest.TestCase):
                 for term in prescriptive_terms:
                     self.assertNotIn(term, readme.lower())
 
-    def test_challenge_progression_text_matches_the_catalog(self):
-        catalog = json.loads(
-            (ROOT / "vendor/current/project_catalog.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        challenges = {
-            entry["id"]: entry
-            for entry in catalog
-            if entry["kind"] == "challenge" and entry["published"]
-        }
-        for challenge_number in range(2, 6):
+    def test_challenge_reuse_text_is_order_independent(self):
+        for challenge_number in range(3, 9):
             challenge_id = "challenge_%d" % challenge_number
-            entry = challenges[challenge_id]
             readme = (STARTERS / challenge_id / "README.md").read_text(
                 encoding="utf-8"
             )
-            previous_number = challenge_number - 1
-            heading = "## Continue from Challenge %d" % previous_number
+            heading = "## Reuse work in another challenge"
             self.assertIn(heading, readme)
-            start_section = readme.split(heading, 1)[1].split("\n## ", 1)[0]
-            normalized = " ".join(start_section.split())
+            section = readme.split(heading, 1)[1].split("\n## ", 1)[0]
+            normalized = " ".join(section.split())
             with self.subTest(challenge=challenge_id):
-                self.assertIn("Continue to " + entry["label"], normalized)
-                self.assertIn("new project", normalized)
-                self.assertIn(
-                    "Challenge %d project remains unchanged" % previous_number,
-                    normalized,
-                )
-                self.assertIn("selections", normalized)
-                for component in entry["components"]:
-                    self.assertIn("`%s`" % component["file"], readme)
-                    if not component["carry_forward"]:
-                        self.assertIn("`%s`" % component["file"], start_section)
-                        self.assertIn("supplied", normalized)
+                self.assertIn("Start another challenge…", normalized)
+                self.assertIn("Preserve", normalized)
+                self.assertIn("Replace", normalized)
+                self.assertIn("Add", normalized)
+                self.assertIn("separate project", normalized)
+                self.assertIn("current project remains unchanged", normalized)
+                self.assertNotIn("Continue from Challenge", readme)
+                self.assertNotIn("Continue to Challenge", readme)
 
     def test_mapped_route_states_results_without_prescribing_search_algorithm(self):
         readme = (STARTERS / "challenge_4" / "README.md").read_text(

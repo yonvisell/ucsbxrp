@@ -25,7 +25,7 @@ import {
 } from "./project-validation";
 import { EMPTY_RUNTIME_STATE, parseRuntimeState } from "./runtime-controls";
 import { parseWorldCatalog } from "@ucsb-xrp/simulator";
-import courseRelease from "../../../vendor/current/release.json";
+import courseRelease from "../../../vendor/current/release.json" with { type: "json" };
 
 export const CURRENT_COURSE_RELEASE = courseRelease.release_id;
 export const CURRENT_ROBOT_RELEASE_SEQUENCE = courseRelease.release_sequence;
