@@ -2,7 +2,7 @@
 
 API version: `0.4.0-dev`.
 
-Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.
+Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six recurring component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Three extension components address range-constrained stopping, known-wall position correction, and bounded multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.
 
 ## Units and coordinate conventions
 
@@ -495,6 +495,189 @@ plan(grid: OccupancyGrid, start: GridCell | None, goal: GridCell | None) -> Grid
 
 - TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell.
 
+## Challenge-specific extension components
+
+These focused components are introduced in Challenges 6–8 and then carried forward. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.
+
+### `RangeSafetyController`
+
+Limit a nonnegative forward-speed request using measured forward speed and available forward range.
+
+- **Role:** Class you implement
+- **Project file:** `range_safety_controller.py`
+- **Import:** `from range_safety_controller import RangeSafetyController`
+
+**Signature**
+
+```python
+RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)
+```
+
+**State between calls:**
+
+Retain the configured response time, minimum deceleration, stopping margin, and maximum speed.
+
+#### `update()`
+
+Return a forward-speed request that preserves the configured stopping margin.
+
+```python
+update(requested_speed_mm_s: float, measured_speed_mm_s: float, range_mm: float | None) -> float
+```
+
+**Parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `requested_speed_mm_s` | `float` | — | mm/s | Nominal requested forward speed. |
+| `measured_speed_mm_s` | `float` | — | mm/s | Latest measured forward speed. |
+| `range_mm` | `float | None` | — | mm | Filtered forward range, or None when unavailable. |
+
+**Returns:** `float` — A nonnegative request no greater than the nominal request or configured maximum.
+
+**Required behavior**
+
+- Return zero when range is unavailable or the configured stopping margin cannot be preserved.
+- Include the configured response interval and minimum deceleration when deciding whether continued motion is admissible.
+- Do not command reverse motion as part of this component.
+
+**Notes**
+
+- The project class inherits RangeSafetyControllerBase, which validates and stores the four constructor settings.
+
+### `PoseCorrector`
+
+Retain a planar translation from raw odometry coordinates into a map frame. Known-wall observations correct one position coordinate at a time; heading remains the raw odometry heading.
+
+- **Role:** Class you implement
+- **Project file:** `pose_corrector.py`
+- **Import:** `from pose_corrector import PoseCorrector`
+
+**Signature**
+
+```python
+PoseCorrector(sensor_forward_offset_mm)
+```
+
+**State between calls:**
+
+After reset(), retain independent x and y translation corrections.
+
+#### `reset()`
+
+Clear prior translation corrections and establish the initial corrected pose.
+
+```python
+reset(raw_pose: Pose) -> Pose
+```
+
+**Parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `raw_pose` | `Pose` | — | — | Current uncorrected odometry pose. |
+
+**Returns:** `Pose` — Initial corrected pose with the raw heading preserved.
+
+#### `observe_x()`
+
+Use a known x-normal wall observation to update only the x correction.
+
+```python
+observe_x(raw_pose: Pose, range_mm: float, wall_x_mm: float, facing_positive_x: bool) -> Pose
+```
+
+**Returns:** `Pose` — Corrected pose with the inferred x coordinate.
+
+**Required behavior**
+
+- Infer x from the known wall coordinate, sensor offset, range, and facing direction without changing the retained y correction.
+
+#### `observe_y()`
+
+Use a known y-normal wall observation to update only the y correction.
+
+```python
+observe_y(raw_pose: Pose, range_mm: float, wall_y_mm: float, facing_positive_y: bool) -> Pose
+```
+
+**Returns:** `Pose` — Corrected pose with the inferred y coordinate.
+
+**Required behavior**
+
+- Infer y from the known wall coordinate, sensor offset, range, and facing direction without changing the retained x correction.
+
+#### `corrected_pose()`
+
+Apply the retained translation to a raw odometry pose.
+
+```python
+corrected_pose(raw_pose: Pose) -> Pose
+```
+
+**Parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `raw_pose` | `Pose` | — | — | Current uncorrected odometry pose. |
+
+**Returns:** `Pose` — Translated pose with raw_pose.heading_rad unchanged.
+
+**Required behavior**
+
+- reset() must have been called before this method.
+
+**Notes**
+
+- The project class inherits PoseCorrectorBase, which validates and stores sensor_forward_offset_mm.
+
+### `VisitOrderPlanner`
+
+Choose a least-cost order for a bounded set of required service stops.
+
+- **Role:** Class you implement
+- **Project file:** `visit_order_planner.py`
+- **Import:** `from visit_order_planner import VisitOrderPlanner`
+
+**Signature**
+
+```python
+VisitOrderPlanner()
+```
+
+**State between calls:**
+
+None is required between calls.
+
+#### `plan()`
+
+Return the least-cost complete visit order.
+
+```python
+plan(cost_table, start_index: int, required_indices: sequence[int], finish_index: int) -> tuple[int, ...] | None
+```
+
+**Parameters**
+
+| Name | Type | Default | Unit | Description |
+| --- | --- | --- | --- | --- |
+| `cost_table` | `sequence[sequence[float | None]]` | — | — | Square pairwise route-cost table; None marks an unavailable directed connection. |
+| `start_index` | `int` | — | — | First node in the returned order. |
+| `required_indices` | `sequence[int]` | — | — | Distinct stops to visit exactly once. |
+| `finish_index` | `int` | — | — | Final node; it may equal start_index. |
+
+**Returns:** `tuple[int, ...] | None` — Start, every required stop exactly once, and finish in least-cost order, or None when no complete order is reachable.
+
+**Required behavior**
+
+- Sum only available pairwise costs along a candidate order.
+- Break equal-cost ties by lexicographic tuple order.
+- Reject duplicate required stops and indices outside the table.
+
+**Notes**
+
+- The project class inherits VisitOrderPlannerBase.
+
 ## Robot services
 
 Use Robot for ordinary course programs. It assembles the selected components and performs the timed sequence of motor commands, sensor readings, measurements, and odometry in each Robot.step() call.
@@ -611,7 +794,9 @@ estimate_range(samples, minimum_usable: int) -> float | None
 
 **Exceptions**
 
-- Exceptions raised by the selected SensorModel.
+- TypeError if samples cannot be iterated, an element is not a number or None, or minimum_usable is not an integer. This catches program values such as a string before they can be mistaken for a missing sensor reading.
+- ValueError if minimum_usable is less than 1.
+- Exceptions raised by the selected SensorModel after input validation.
 
 #### `stop()`
 
@@ -1767,12 +1952,12 @@ Perform range observation, map update, route planning, and navigation for a Deli
 **Constructor**
 
 ```python
-DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)
+DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner, maximum_navigation_steps: int | None = None)
 ```
 
 **State between calls:**
 
-Retain task and result. result is None before run(), no_path when planning finds no route, and delivered after navigation completes.
+Retain task, the explicit optional navigation bound, the latest observation and route evidence, the executed navigation-step count, and result. result is None before run(), no_path when planning finds no route, step_limit when the explicit bound is reached, and delivered after navigation completes.
 
 **Constructor parameters**
 
@@ -1781,17 +1966,24 @@ Retain task and result. result is None before run(), no_path when planning finds
 | `task` | `DeliveryTask` | — | — | Mission settings. |
 | `navigation` | `NavigationController` | — | — | Selected navigation component. |
 | `planner` | `GridPlanner` | — | — | Selected grid-planning component. |
+| `maximum_navigation_steps` | `int | None` | None | — | Positive project-owned Robot.step bound, or None for no library-imposed bound. Moving course projects should pass a visible explicit bound. |
 
 **Readable fields**
 
 | Name | Type | Default | Unit | Description |
 | --- | --- | --- | --- | --- |
 | `task` | `DeliveryTask` | — | — | Mission definition. |
-| `result` | `str | None` | — | — | delivered, no_path, or None before completion. |
+| `maximum_navigation_steps` | `int | None` | — | — | Explicit navigation bound, if supplied. |
+| `range_estimate_mm` | `float | None` | — | mm | Latest combined stationary range observation. None means no usable estimate was available or run() has not yet reached the observation. |
+| `feature_blocked` | `bool | None` | — | — | Latest blocked/open classification for task.observed_feature_name, or None before classification. |
+| `planned_path` | `GridPath | None` | — | — | Latest route returned by the planner. None means no route was found or planning has not yet occurred. |
+| `navigation_step_count` | `int` | — | — | Number of Robot.step navigation cycles executed by the latest run(), excluding stationary observation samples. |
+| `result` | `str | None` | — | — | delivered, no_path, step_limit, or None before completion. |
 
 **Exceptions**
 
-- TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods.
+- TypeError if task is not DeliveryTask, navigation and planner do not provide the required public methods, or maximum_navigation_steps has the wrong type.
+- ValueError if maximum_navigation_steps is below one.
 
 #### `run()`
 
@@ -1811,8 +2003,7 @@ run(robot: Robot) -> RobotState
 
 **Exceptions**
 
-- RuntimeError if navigation does not complete within 30,000 Robot steps.
-- Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising.
+- Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising. Reaching maximum_navigation_steps returns the last state with result set to step_limit rather than raising.
 
 ## Low-level XRP access and numerical functions
 

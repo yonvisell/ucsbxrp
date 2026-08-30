@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "apiVersion": "0.4.0-dev",
   "title": "UCSB XRP API reference",
-  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.",
+  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six recurring component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Three extension components address range-constrained stopping, known-wall position correction, and bounded multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.",
   "publicModules": {
     "ucsb_xrp": [
       "ArenaMap",
@@ -514,6 +514,191 @@
       ]
     },
     {
+      "id": "challenge-extension-components",
+      "title": "Challenge-specific extension components",
+      "introduction": "These focused components are introduced in Challenges 6–8 and then carried forward. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.",
+      "entries": [
+        {
+          "id": "range-safety-controller",
+          "name": "RangeSafetyController",
+          "symbols": ["RangeSafetyController", "RangeSafetyControllerBase"],
+          "kind": "project component",
+          "projectFile": "range_safety_controller.py",
+          "purpose": "Limit a nonnegative forward-speed request using measured forward speed and available forward range.",
+          "state": "Retain the configured response time, minimum deceleration, stopping margin, and maximum speed.",
+          "signature": "RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)",
+          "methods": [
+            {
+              "id": "method-range-safety-controller-update",
+              "name": "update",
+              "signature": "update(requested_speed_mm_s: float, measured_speed_mm_s: float, range_mm: float | None) -> float",
+              "summary": "Return a forward-speed request that preserves the configured stopping margin.",
+              "parameters": [
+                {
+                  "name": "requested_speed_mm_s",
+                  "type": "float",
+                  "units": "mm/s",
+                  "description": "Nominal requested forward speed."
+                },
+                {
+                  "name": "measured_speed_mm_s",
+                  "type": "float",
+                  "units": "mm/s",
+                  "description": "Latest measured forward speed."
+                },
+                {
+                  "name": "range_mm",
+                  "type": "float | None",
+                  "units": "mm",
+                  "description": "Filtered forward range, or None when unavailable."
+                }
+              ],
+              "returns": {
+                "type": "float",
+                "description": "A nonnegative request no greater than the nominal request or configured maximum."
+              },
+              "requiredBehavior": [
+                "Return zero when range is unavailable or the configured stopping margin cannot be preserved.",
+                "Include the configured response interval and minimum deceleration when deciding whether continued motion is admissible.",
+                "Do not command reverse motion as part of this component."
+              ]
+            }
+          ],
+          "notes": [
+            "The project class inherits RangeSafetyControllerBase, which validates and stores the four constructor settings."
+          ]
+        },
+        {
+          "id": "pose-corrector",
+          "name": "PoseCorrector",
+          "symbols": ["PoseCorrector", "PoseCorrectorBase"],
+          "kind": "project component",
+          "projectFile": "pose_corrector.py",
+          "purpose": "Retain a planar translation from raw odometry coordinates into a map frame. Known-wall observations correct one position coordinate at a time; heading remains the raw odometry heading.",
+          "state": "After reset(), retain independent x and y translation corrections.",
+          "signature": "PoseCorrector(sensor_forward_offset_mm)",
+          "methods": [
+            {
+              "id": "method-pose-corrector-reset",
+              "name": "reset",
+              "signature": "reset(raw_pose: Pose) -> Pose",
+              "summary": "Clear prior translation corrections and establish the initial corrected pose.",
+              "parameters": [
+                {
+                  "name": "raw_pose",
+                  "type": "Pose",
+                  "description": "Current uncorrected odometry pose."
+                }
+              ],
+              "returns": {
+                "type": "Pose",
+                "description": "Initial corrected pose with the raw heading preserved."
+              }
+            },
+            {
+              "id": "method-pose-corrector-observe-x",
+              "name": "observe_x",
+              "signature": "observe_x(raw_pose: Pose, range_mm: float, wall_x_mm: float, facing_positive_x: bool) -> Pose",
+              "summary": "Use a known x-normal wall observation to update only the x correction.",
+              "returns": {
+                "type": "Pose",
+                "description": "Corrected pose with the inferred x coordinate."
+              },
+              "requiredBehavior": [
+                "Infer x from the known wall coordinate, sensor offset, range, and facing direction without changing the retained y correction."
+              ]
+            },
+            {
+              "id": "method-pose-corrector-observe-y",
+              "name": "observe_y",
+              "signature": "observe_y(raw_pose: Pose, range_mm: float, wall_y_mm: float, facing_positive_y: bool) -> Pose",
+              "summary": "Use a known y-normal wall observation to update only the y correction.",
+              "returns": {
+                "type": "Pose",
+                "description": "Corrected pose with the inferred y coordinate."
+              },
+              "requiredBehavior": [
+                "Infer y from the known wall coordinate, sensor offset, range, and facing direction without changing the retained x correction."
+              ]
+            },
+            {
+              "id": "method-pose-corrector-corrected-pose",
+              "name": "corrected_pose",
+              "signature": "corrected_pose(raw_pose: Pose) -> Pose",
+              "summary": "Apply the retained translation to a raw odometry pose.",
+              "parameters": [
+                {
+                  "name": "raw_pose",
+                  "type": "Pose",
+                  "description": "Current uncorrected odometry pose."
+                }
+              ],
+              "returns": {
+                "type": "Pose",
+                "description": "Translated pose with raw_pose.heading_rad unchanged."
+              },
+              "requiredBehavior": [
+                "reset() must have been called before this method."
+              ]
+            }
+          ],
+          "notes": [
+            "The project class inherits PoseCorrectorBase, which validates and stores sensor_forward_offset_mm."
+          ]
+        },
+        {
+          "id": "visit-order-planner",
+          "name": "VisitOrderPlanner",
+          "symbols": ["VisitOrderPlanner", "VisitOrderPlannerBase"],
+          "kind": "project component",
+          "projectFile": "visit_order_planner.py",
+          "purpose": "Choose a least-cost order for a bounded set of required service stops.",
+          "state": "None is required between calls.",
+          "signature": "VisitOrderPlanner()",
+          "methods": [
+            {
+              "id": "method-visit-order-planner-plan",
+              "name": "plan",
+              "signature": "plan(cost_table, start_index: int, required_indices: sequence[int], finish_index: int) -> tuple[int, ...] | None",
+              "summary": "Return the least-cost complete visit order.",
+              "parameters": [
+                {
+                  "name": "cost_table",
+                  "type": "sequence[sequence[float | None]]",
+                  "description": "Square pairwise route-cost table; None marks an unavailable directed connection."
+                },
+                {
+                  "name": "start_index",
+                  "type": "int",
+                  "description": "First node in the returned order."
+                },
+                {
+                  "name": "required_indices",
+                  "type": "sequence[int]",
+                  "description": "Distinct stops to visit exactly once."
+                },
+                {
+                  "name": "finish_index",
+                  "type": "int",
+                  "description": "Final node; it may equal start_index."
+                }
+              ],
+              "returns": {
+                "type": "tuple[int, ...] | None",
+                "description": "Start, every required stop exactly once, and finish in least-cost order, or None when no complete order is reachable."
+              },
+              "requiredBehavior": [
+                "Sum only available pairwise costs along a candidate order.",
+                "Break equal-cost ties by lexicographic tuple order.",
+                "Reject duplicate required stops and indices outside the table."
+              ]
+            }
+          ],
+          "notes": ["The project class inherits VisitOrderPlannerBase."]
+        }
+      ]
+    },
+    {
       "id": "robot-services",
       "title": "Robot services",
       "introduction": "Use Robot for ordinary course programs. It assembles the selected components and performs the timed sequence of motor commands, sensor readings, measurements, and odometry in each Robot.step() call.",
@@ -659,7 +844,11 @@
                 "type": "float | None",
                 "description": "Range estimate in mm, or None."
               },
-              "exceptions": ["Exceptions raised by the selected SensorModel."]
+              "exceptions": [
+                "TypeError if samples cannot be iterated, an element is not a number or None, or minimum_usable is not an integer. This catches program values such as a string before they can be mistaken for a missing sensor reading.",
+                "ValueError if minimum_usable is less than 1.",
+                "Exceptions raised by the selected SensorModel after input validation."
+              ]
             },
             {
               "id": "method-robot-stop",
@@ -2200,8 +2389,8 @@
           "symbols": ["DeliveryMission"],
           "kind": "supplied class",
           "purpose": "Perform range observation, map update, route planning, and navigation for a DeliveryTask.",
-          "state": "Retain task and result. result is None before run(), no_path when planning finds no route, and delivered after navigation completes.",
-          "signature": "DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner)",
+          "state": "Retain task, the explicit optional navigation bound, the latest observation and route evidence, the executed navigation-step count, and result. result is None before run(), no_path when planning finds no route, step_limit when the explicit bound is reached, and delivered after navigation completes.",
+          "signature": "DeliveryMission(task: DeliveryTask, navigation: NavigationController, planner: GridPlanner, maximum_navigation_steps: int | None = None)",
           "parameters": [
             {
               "name": "task",
@@ -2217,10 +2406,17 @@
               "name": "planner",
               "type": "GridPlanner",
               "description": "Selected grid-planning component."
+            },
+            {
+              "name": "maximum_navigation_steps",
+              "type": "int | None",
+              "default": "None",
+              "description": "Positive project-owned Robot.step bound, or None for no library-imposed bound. Moving course projects should pass a visible explicit bound."
             }
           ],
           "exceptions": [
-            "TypeError if task is not DeliveryTask or navigation and planner do not provide the required public methods."
+            "TypeError if task is not DeliveryTask, navigation and planner do not provide the required public methods, or maximum_navigation_steps has the wrong type.",
+            "ValueError if maximum_navigation_steps is below one."
           ],
           "properties": [
             {
@@ -2229,9 +2425,35 @@
               "description": "Mission definition."
             },
             {
+              "name": "maximum_navigation_steps",
+              "type": "int | None",
+              "description": "Explicit navigation bound, if supplied."
+            },
+            {
+              "name": "range_estimate_mm",
+              "type": "float | None",
+              "units": "mm",
+              "description": "Latest combined stationary range observation. None means no usable estimate was available or run() has not yet reached the observation."
+            },
+            {
+              "name": "feature_blocked",
+              "type": "bool | None",
+              "description": "Latest blocked/open classification for task.observed_feature_name, or None before classification."
+            },
+            {
+              "name": "planned_path",
+              "type": "GridPath | None",
+              "description": "Latest route returned by the planner. None means no route was found or planning has not yet occurred."
+            },
+            {
+              "name": "navigation_step_count",
+              "type": "int",
+              "description": "Number of Robot.step navigation cycles executed by the latest run(), excluding stationary observation samples."
+            },
+            {
               "name": "result",
               "type": "str | None",
-              "description": "delivered, no_path, or None before completion."
+              "description": "delivered, no_path, step_limit, or None before completion."
             }
           ],
           "methods": [
@@ -2252,8 +2474,7 @@
                 "description": "Last robot state."
               },
               "exceptions": [
-                "RuntimeError if navigation does not complete within 30,000 Robot steps.",
-                "Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising."
+                "Exceptions raised by Robot, SensorModel, GridPlanner, NavigationController, or map construction. DeliveryMission always attempts robot.stop() before returning or re-raising. Reaching maximum_navigation_steps returns the last state with result set to step_limit rather than raising."
               ]
             }
           ]

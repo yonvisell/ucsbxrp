@@ -259,86 +259,97 @@ Exceptions:
 
 CHALLENGE-SPECIFIC EXTENSION COMPONENTS
 
-These focused components are introduced in Challenges 6-8 and then carried
-forward. Each named project class and supplied reference class has the same
-constructor and public methods. course_setup.py selects between them with the
-corresponding USE_STUDENT_* Boolean.
+These focused components are introduced in Challenges 6–8 and then carried forward. Each named project class and supplied reference class has the same constructor and public methods; course_setup.py selects between them with the corresponding USE_STUDENT_* Boolean.
 
 RangeSafetyController
 ---------------------
-Limit a nonnegative forward-speed request using measured forward speed and
-available forward range.
-Role: Class you implement in Challenge 6
+Limit a nonnegative forward-speed request using measured forward speed and available forward range.
+Role: Class you implement
 Project file: range_safety_controller.py
 Import: from range_safety_controller import RangeSafetyController
-Constructor: RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)
+Signature: RangeSafetyController(response_time_s, minimum_deceleration_mm_s2, stop_margin_mm, maximum_speed_mm_s)
+State between calls: Retain the configured response time, minimum deceleration, stopping margin, and maximum speed.
 
 update()
+Return a forward-speed request that preserves the configured stopping margin.
 Signature: update(requested_speed_mm_s: float, measured_speed_mm_s: float, range_mm: float | None) -> float
 Parameters:
 - requested_speed_mm_s (float; mm/s): Nominal requested forward speed.
 - measured_speed_mm_s (float; mm/s): Latest measured forward speed.
 - range_mm (float | None; mm): Filtered forward range, or None when unavailable.
-Returns: float - A nonnegative forward-speed request no greater than the
-requested speed or configured maximum.
+Returns: float - A nonnegative request no greater than the nominal request or configured maximum.
 Required behavior:
-- Return zero when range is unavailable or the configured stopping margin
-  cannot be preserved.
-- Include the configured response interval and minimum deceleration when
-  deciding whether continued motion is admissible.
+- Return zero when range is unavailable or the configured stopping margin cannot be preserved.
+- Include the configured response interval and minimum deceleration when deciding whether continued motion is admissible.
 - Do not command reverse motion as part of this component.
+Notes:
+- The project class inherits RangeSafetyControllerBase, which validates and stores the four constructor settings.
 
 PoseCorrector
 -------------
-Retain a planar translation from raw odometry coordinates into a map frame.
-Known-wall observations correct one position coordinate at a time; heading
-remains the raw odometry heading.
-Role: Class you implement in Challenge 7
+Retain a planar translation from raw odometry coordinates into a map frame. Known-wall observations correct one position coordinate at a time; heading remains the raw odometry heading.
+Role: Class you implement
 Project file: pose_corrector.py
 Import: from pose_corrector import PoseCorrector
-Constructor: PoseCorrector(sensor_forward_offset_mm)
+Signature: PoseCorrector(sensor_forward_offset_mm)
+State between calls: After reset(), retain independent x and y translation corrections.
 
 reset()
+Clear prior translation corrections and establish the initial corrected pose.
 Signature: reset(raw_pose: Pose) -> Pose
-Required behavior: Clear prior translation corrections and establish the raw
-pose as the initial corrected pose.
+Parameters:
+- raw_pose (Pose): Current uncorrected odometry pose.
+Returns: Pose - Initial corrected pose with the raw heading preserved.
 
 observe_x()
+Use a known x-normal wall observation to update only the x correction.
 Signature: observe_x(raw_pose: Pose, range_mm: float, wall_x_mm: float, facing_positive_x: bool) -> Pose
-Required behavior: Infer x from the known x-normal wall, sensor offset, range,
-and facing direction; update x correction only and return the corrected pose.
+Returns: Pose - Corrected pose with the inferred x coordinate.
+Required behavior:
+- Infer x from the known wall coordinate, sensor offset, range, and facing direction without changing the retained y correction.
 
 observe_y()
+Use a known y-normal wall observation to update only the y correction.
 Signature: observe_y(raw_pose: Pose, range_mm: float, wall_y_mm: float, facing_positive_y: bool) -> Pose
-Required behavior: Infer y from the known y-normal wall, sensor offset, range,
-and facing direction; update y correction only and return the corrected pose.
+Returns: Pose - Corrected pose with the inferred y coordinate.
+Required behavior:
+- Infer y from the known wall coordinate, sensor offset, range, and facing direction without changing the retained x correction.
 
 corrected_pose()
+Apply the retained translation to a raw odometry pose.
 Signature: corrected_pose(raw_pose: Pose) -> Pose
-Required behavior: Apply the retained x and y translation and preserve
-raw_pose.heading_rad. reset() must have been called first.
+Parameters:
+- raw_pose (Pose): Current uncorrected odometry pose.
+Returns: Pose - Translated pose with raw_pose.heading_rad unchanged.
+Required behavior:
+- reset() must have been called before this method.
+Notes:
+- The project class inherits PoseCorrectorBase, which validates and stores sensor_forward_offset_mm.
 
 VisitOrderPlanner
 -----------------
 Choose a least-cost order for a bounded set of required service stops.
-Role: Class you implement in Challenge 8
+Role: Class you implement
 Project file: visit_order_planner.py
 Import: from visit_order_planner import VisitOrderPlanner
+Signature: VisitOrderPlanner()
+State between calls: None is required between calls.
 
 plan()
+Return the least-cost complete visit order.
 Signature: plan(cost_table, start_index: int, required_indices: sequence[int], finish_index: int) -> tuple[int, ...] | None
 Parameters:
-- cost_table: Square pairwise route-cost table; None marks an unavailable
-  directed connection.
+- cost_table (sequence[sequence[float | None]]): Square pairwise route-cost table; None marks an unavailable directed connection.
 - start_index (int): First node in the returned order.
 - required_indices (sequence[int]): Distinct stops to visit exactly once.
 - finish_index (int): Final node; it may equal start_index.
-Returns: tuple[int, ...] | None - Start, every required stop exactly once, and
-finish in least-cost order, or None when no complete order is reachable.
+Returns: tuple[int, ...] | None - Start, every required stop exactly once, and finish in least-cost order, or None when no complete order is reachable.
 Required behavior:
 - Sum only available pairwise costs along a candidate order.
 - Break equal-cost ties by lexicographic tuple order.
 - Reject duplicate required stops and indices outside the table.
+Notes:
+- The project class inherits VisitOrderPlannerBase.
 
 ROBOT SERVICES
 
@@ -400,9 +411,7 @@ Parameters:
 - minimum_usable (int): Minimum number of usable readings required.
 Returns: float | None - Range estimate in mm, or None.
 Exceptions:
-- TypeError if samples cannot be iterated, an element is not a number or None,
-  or minimum_usable is not an integer. This catches program values such as a
-  string before they can be mistaken for a missing sensor reading.
+- TypeError if samples cannot be iterated, an element is not a number or None, or minimum_usable is not an integer. This catches program values such as a string before they can be mistaken for a missing sensor reading.
 - ValueError if minimum_usable is less than 1.
 - Exceptions raised by the selected SensorModel after input validation.
 
@@ -1037,7 +1046,7 @@ Constructor parameters:
 - task (DeliveryTask): Mission settings.
 - navigation (NavigationController): Selected navigation component.
 - planner (GridPlanner): Selected grid-planning component.
-- maximum_navigation_steps (int | None): Positive project-owned Robot.step bound, or None for no library-imposed bound. Moving course projects should pass a visible explicit bound.
+- maximum_navigation_steps (int | None; default None): Positive project-owned Robot.step bound, or None for no library-imposed bound. Moving course projects should pass a visible explicit bound.
 Readable fields:
 - task (DeliveryTask): Mission definition.
 - maximum_navigation_steps (int | None): Explicit navigation bound, if supplied.

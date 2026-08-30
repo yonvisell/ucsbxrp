@@ -935,11 +935,34 @@ def catalog_errors(root, project_id=None, include_drafts=False):
     catalog = read_catalog(root)
     errors = []
     ids = [entry.get("id") for entry in catalog]
-    sources = [entry.get("source") for entry in catalog]
     if len(set(ids)) != len(ids):
         errors.append("project catalog ids must be unique")
-    if len(set(sources)) != len(sources):
-        errors.append("project catalog sources must be unique")
+    entries_by_source = {}
+    for entry in catalog:
+        entries_by_source.setdefault(entry.get("source"), []).append(entry)
+    for source_entries in entries_by_source.values():
+        if len(source_entries) == 1:
+            continue
+        challenges = [
+            entry for entry in source_entries if entry.get("kind") == "challenge"
+        ]
+        complete_challenges = [
+            entry
+            for entry in source_entries
+            if entry.get("kind") == "complete-challenge"
+        ]
+        paired_complete_view = (
+            len(source_entries) == 2
+            and len(challenges) == 1
+            and len(complete_challenges) == 1
+            and complete_challenges[0].get("id")
+            == "complete_" + str(challenges[0].get("id"))
+        )
+        if not paired_complete_view:
+            errors.append(
+                "project catalog sources must be unique except for a challenge and its complete view"
+            )
+            break
     entries = catalog
     if project_id is not None:
         entries = [catalog_entry(catalog, project_id)]

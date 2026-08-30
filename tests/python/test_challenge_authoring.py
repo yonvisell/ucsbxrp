@@ -38,7 +38,7 @@ class ChallengeAuthoringTests(unittest.TestCase):
     def test_published_catalog_is_complete(self):
         self.assertEqual(AUTHORING.catalog_errors(ROOT), [])
 
-    def test_catalog_has_five_ordered_published_challenges(self):
+    def test_catalog_has_eight_ordered_published_challenges(self):
         entries = [
             entry
             for entry in AUTHORING.read_catalog(ROOT)
@@ -46,8 +46,32 @@ class ChallengeAuthoringTests(unittest.TestCase):
         ]
         self.assertEqual(
             [entry["id"] for entry in entries],
-            ["challenge_1", "challenge_2", "challenge_3", "challenge_4", "challenge_5"],
+            [
+                "challenge_1",
+                "challenge_2",
+                "challenge_3",
+                "challenge_4",
+                "challenge_5",
+                "challenge_6",
+                "challenge_7",
+                "challenge_8",
+            ],
         )
+
+    def test_catalog_rejects_unrelated_entries_that_share_a_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            draft_root = self.make_draft_root(directory)
+            catalog_path = draft_root / "vendor/current/project_catalog.json"
+            entries = json.loads(catalog_path.read_text(encoding="utf-8"))
+            duplicate = dict(entries[0])
+            duplicate["id"] = "challenge_duplicate"
+            entries.append(duplicate)
+            catalog_path.write_text(json.dumps(entries), encoding="utf-8")
+
+            self.assertIn(
+                "project catalog sources must be unique except for a challenge and its complete view",
+                AUTHORING.catalog_errors(draft_root),
+            )
 
     def test_new_challenge_remains_a_checked_draft(self):
         with tempfile.TemporaryDirectory() as directory:
