@@ -4010,18 +4010,18 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             <div className="project-rail-body">
               <div className="project-root" title={projectStorageDetail}>
                 <strong data-testid="project-name">{project.name}</strong>
-                <div className="project-location">
-                  <span>{workingFolderName ?? "Working folder"} ›</span>
-                  <strong data-testid="project-folder">
-                    {workingFolder ? workingFolder.name : "Not selected"}
-                  </strong>
-                </div>
                 <small
                   className="project-save-state"
                   data-testid="project-save-state"
                 >
                   {projectStorageSummary}
                 </small>
+                <strong
+                  className="visually-hidden"
+                  data-testid="project-folder"
+                >
+                  {workingFolder ? workingFolder.name : "Not selected"}
+                </strong>
               </div>
               <div className="file-list">
                 {projectFiles.map((path) => (

@@ -857,11 +857,10 @@ export function WorldView({
           spans.horizontalMm.toFixed(1);
         viewRef.current.dataset.verticalSpanMm = spans.verticalMm.toFixed(1);
       }
-      const arenaPixelHeight = (worldHeightMm / spans.verticalMm) * height;
-      const arenaBottomPx = (height + arenaPixelHeight) / 2;
-      host.style.setProperty(
-        "--world-legend-bottom",
-        `${Math.max(3, height - arenaBottomPx + 4).toFixed(1)}px`,
+      const arenaPixelWidth = (worldWidthMm / spans.horizontalMm) * width;
+      viewRef.current?.style.setProperty(
+        "--world-arena-left",
+        `${Math.max(3, (width - arenaPixelWidth) / 2).toFixed(1)}px`,
       );
       requestRender();
     };
@@ -1137,34 +1136,24 @@ export function WorldView({
           {world.bounds.minimumYmm} to {world.bounds.maximumYmm} millimeters.
           Major grid lines and values are labeled every 500 millimeters.
         </span>
-        <div
-          aria-label="World line legend: royal blue is path; ochre cone is ultrasound distance; short red fan means ultrasound is out of range"
-          className="world-legend"
-        >
-          <span>
-            <i className="path-line" /> path
-          </span>
-          <span>
-            <svg
-              aria-hidden="true"
-              className="ultrasound-cone"
-              viewBox="0 0 18 10"
-            >
-              <path d="M1 5 L17 1 M1 5 L17 9" />
-            </svg>{" "}
-            ultrasound distance
-          </span>
-          <span>
-            <svg
-              aria-hidden="true"
-              className="ultrasound-cone unavailable"
-              viewBox="0 0 18 10"
-            >
-              <path d="M1 5 L10 2 M1 5 L10 8" />
-            </svg>{" "}
-            out of range
-          </span>
-        </div>
+      </div>
+      <div
+        aria-label="World line legend: royal blue is path; ochre cone is ultrasound distance"
+        className="world-legend"
+      >
+        <span>
+          <i className="path-line" /> path
+        </span>
+        <span>
+          <svg
+            aria-hidden="true"
+            className="ultrasound-cone"
+            viewBox="0 0 18 10"
+          >
+            <path d="M1 5 L17 1 M1 5 L17 9" />
+          </svg>{" "}
+          ultrasound distance
+        </span>
       </div>
     </div>
   );

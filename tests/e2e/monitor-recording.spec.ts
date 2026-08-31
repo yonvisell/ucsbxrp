@@ -529,7 +529,7 @@ test("selects plotted signals from the Monitor controls", async ({
   expect(brandStyle.nameColor).toBe("rgb(118, 80, 0)");
   await expect(page.locator(".app-header").first()).toHaveCSS(
     "background-color",
-    "rgb(237, 234, 223)",
+    "rgb(238, 246, 250)",
   );
   expect(brandStyle.typography.slice(0, 3)).toEqual(
     brandStyle.typography.slice(3),
@@ -557,6 +557,17 @@ test("selects plotted signals from the Monitor controls", async ({
   ).toBeVisible();
   await expect(page.getByTestId("wheel-speed-plot")).toBeVisible();
   await expect(page.getByTestId("strip-chart-motor-effort")).toBeVisible();
+  const showTargetValues = page.getByRole("checkbox", {
+    name: "Show target values",
+  });
+  await expect(showTargetValues).not.toBeChecked();
+  await expect(
+    page
+      .getByTestId("wheel-speed-plot")
+      .locator("xpath=..")
+      .locator(".signal-series-legend i"),
+  ).toHaveCount(2);
+  await showTargetValues.check();
   expect(
     await page
       .getByTestId("wheel-speed-plot")
@@ -566,18 +577,6 @@ test("selects plotted signals from the Monitor controls", async ({
         lines.map((line) => getComputedStyle(line).borderTopStyle),
       ),
   ).toEqual(["solid", "dashed", "dotted", "dotted"]);
-  const showTargetValues = page.getByRole("checkbox", {
-    name: "Show target values",
-  });
-  await expect(showTargetValues).toBeChecked();
-  await showTargetValues.uncheck();
-  await expect(
-    page
-      .getByTestId("wheel-speed-plot")
-      .locator("xpath=..")
-      .locator(".signal-series-legend i"),
-  ).toHaveCount(2);
-  await showTargetValues.check();
   expect(await visiblePlotHeights(page)).toEqual({
     "wheel-speed-plot": 180,
     "strip-chart-motor-effort": 180,
@@ -673,6 +672,34 @@ test("selects plotted signals from the Monitor controls", async ({
     "strip-chart-motor-effort": 180,
     "strip-chart-range": 180,
   });
+  await expect(
+    page.getByRole("heading", { name: "Plots", exact: true }),
+  ).toHaveCount(0);
+  const plotViewport = await page
+    .locator(".plots-content")
+    .evaluate((plots) => ({
+      clientHeight: plots.clientHeight,
+      scrollHeight: plots.scrollHeight,
+    }));
+  expect(plotViewport.scrollHeight).toBeGreaterThan(plotViewport.clientHeight);
+  const worldLegendGeometry = await page.evaluate(() => {
+    const canvas = document
+      .querySelector<HTMLElement>(".world-canvas")!
+      .getBoundingClientRect();
+    const legend = document
+      .querySelector<HTMLElement>(".world-legend")!
+      .getBoundingClientRect();
+    return {
+      canvasBottom: canvas.bottom,
+      legendLeft: legend.left,
+      legendTop: legend.top,
+    };
+  });
+  expect(worldLegendGeometry.legendTop).toBeGreaterThanOrEqual(
+    worldLegendGeometry.canvasBottom - 1,
+  );
+  expect(worldLegendGeometry.legendLeft).toBeGreaterThan(0);
+  await expect(page.locator(".world-legend")).not.toContainText("out of range");
   await page.getByRole("checkbox", { name: /Drive command/ }).uncheck();
   await expect(page.getByTestId("strip-chart-motor-effort")).toHaveCount(0);
   expect(await visiblePlotHeights(page)).toEqual({

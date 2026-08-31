@@ -14,7 +14,8 @@
   --page: #ffffff;
   --panel: #ffffff;
   --panel-raised: #f1f3f4;
-  --header-bg: #edeadf;
+  --header-bg: #eef6fa;
+  --secondary-header-bg: #f1f3f4;
   --line: #adb5ba;
   --line-bright: #737f88;
   --pane-line: #4f5a61;
@@ -925,6 +926,13 @@ input[type="range"]:disabled {
   gap: 3px;
   overflow: hidden;
   padding: 1px 4px;
+  background: var(--secondary-header-bg);
+}
+
+.app-shell.embedded-app .app-header button:not(:disabled),
+.app-shell.embedded-app .app-header select:not(:disabled),
+.app-shell.embedded-app .app-header .split-workspace-link {
+  background: var(--panel);
 }
 
 .app-shell.embedded-app .app-header .toolbar {

@@ -135,7 +135,8 @@ function completedRunOutput(run: MonitorRunDataset): string {
   ].join("\n");
 }
 
-const monitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
+const monitorSettingsKey = "ucsb-xrp-monitor-settings-v4";
+const previousMonitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
 const maximumPlotSamples = 1_800;
 const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
 const loadMonitorExport = () => import("./monitor-export");
@@ -277,7 +278,7 @@ interface MonitorSettings {
 
 const defaultMonitorSettings: MonitorSettings = {
   timeWindowS: 10,
-  showTargetValues: true,
+  showTargetValues: false,
   plots: {
     "wheel-speed": true,
     "wheel-distance": false,
@@ -308,8 +309,11 @@ function boundedPercent(
 
 function loadMonitorSettings(): MonitorSettings {
   try {
+    const currentSettings = window.localStorage.getItem(monitorSettingsKey);
     const stored = JSON.parse(
-      window.localStorage.getItem(monitorSettingsKey) ?? "null",
+      currentSettings ??
+        window.localStorage.getItem(previousMonitorSettingsKey) ??
+        "null",
     ) as Partial<MonitorSettings> | null;
     const timeWindowS = Number(stored?.timeWindowS);
     return {
@@ -318,6 +322,7 @@ function loadMonitorSettings(): MonitorSettings {
           ? timeWindowS
           : defaultMonitorSettings.timeWindowS,
       showTargetValues:
+        currentSettings !== null &&
         typeof stored?.showTargetValues === "boolean"
           ? stored.showTargetValues
           : defaultMonitorSettings.showTargetValues,
@@ -2810,25 +2815,21 @@ export function DashboardApp() {
           )}
 
           <div className="dashboard-region bottom-region">
+            <button
+              aria-controls="plots-panel-content"
+              aria-expanded={plotsOpen}
+              aria-label={`${plotsOpen ? "Collapse" : "Expand"} plots`}
+              className="plots-toggle"
+              onClick={() => setPlotsOpen((current) => !current)}
+              title={`${plotsOpen ? "Collapse" : "Expand"} plots`}
+              type="button"
+            >
+              <span aria-hidden="true">{plotsOpen ? "⌃" : "⌄"}</span>
+            </button>
             <section
-              aria-labelledby="plots-panel-title"
+              aria-label="Signal plots"
               className="plots-panel dashboard-pane"
             >
-              <div className="section-heading plots-heading">
-                <h2 id="plots-panel-title">Plots</h2>
-                <small>{visiblePlots.length} selected</small>
-                <button
-                  aria-controls="plots-panel-content"
-                  aria-expanded={plotsOpen}
-                  aria-label={`${plotsOpen ? "Collapse" : "Expand"} plots`}
-                  className="panel-collapse-button"
-                  onClick={() => setPlotsOpen((current) => !current)}
-                  title={`${plotsOpen ? "Collapse" : "Expand"} plots`}
-                  type="button"
-                >
-                  <span aria-hidden="true">{plotsOpen ? "⌃" : "⌄"}</span>
-                </button>
-              </div>
               <div
                 className="plots-content"
                 hidden={!plotsOpen}

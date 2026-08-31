@@ -33,10 +33,10 @@ test("specification editor validates and downloads the complete curriculum examp
   );
   await expect(
     page.getByLabel("Starting challenge").locator("option"),
-  ).toHaveCount(8);
+  ).toHaveCount(9);
   await expect(
     page.getByLabel("Starting challenge").locator("option").last(),
-  ).toHaveAttribute("value", "challenge_8");
+  ).toHaveAttribute("value", "challenge_9");
   await expect(page.getByLabel("Challenge ID")).toHaveValue("challenge_6");
   await expect(
     page.getByLabel("Program sequence — one step per line"),

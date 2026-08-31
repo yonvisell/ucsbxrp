@@ -626,10 +626,7 @@ export function SignalPlot({
         ref={elementRef}
         role="img"
       />
-      <div
-        aria-hidden="true"
-        className={`signal-y-unit ${compactLayout ? "compact" : ""}`}
-      >
+      <div aria-hidden="true" className="signal-y-unit">
         {definition.unit}
       </div>
       <div

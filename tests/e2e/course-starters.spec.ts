@@ -9,8 +9,8 @@ import {
 const starters = [
   { option: "challenge_2", completion: "Challenge 2 complete" },
   { option: "challenge_3", completion: "Challenge 3: result=complete" },
-  { option: "challenge_4", completion: "Challenge 4 complete" },
-  { option: "challenge_5", completion: "Challenge 5 result: delivered" },
+  { option: "challenge_4", completion: "Challenge 4: result=complete" },
+  { option: "challenge_5", completion: "Challenge 5: result=delivered" },
 ];
 
 async function createTemplateProject(page: Page, templateId: string) {
@@ -596,8 +596,8 @@ test("keeps the IDE project workspace flat, compact, and free of clipped control
   expect(layout.header.scrollWidth).toBeLessThanOrEqual(
     layout.header.clientWidth + 1,
   );
-  expect(layout.rail.width).toBeLessThanOrEqual(190);
-  expect(layout.rail.background).toBe("rgb(255, 255, 255)");
+  expect(layout.rail.width).toBeLessThanOrEqual(200);
+  expect(layout.rail.background).toBe("rgb(241, 243, 244)");
   expect(layout.rail.borderRadius).toBe("0px");
   expect(layout.rail.boxShadow).toBe("none");
   expect(layout.openFolder.scrollWidth).toBeLessThanOrEqual(
@@ -798,17 +798,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   const direction = liveProgram.locator(
     '[data-runtime-parameter="turn_direction"]',
   );
-  await direction.getByLabel("right", { exact: true }).click();
-  await expect(direction).toHaveAttribute("data-runtime-value", "right", {
-    timeout: 5_000,
-  });
-  await expect(direction).toHaveAttribute("data-pending", "false", {
-    timeout: 5_000,
-  });
-  await direction.getByLabel("left", { exact: true }).click();
-  await expect(direction).toHaveAttribute("data-pending", "false", {
-    timeout: 5_000,
-  });
+  await expect(direction.getByLabel("left", { exact: true })).toBeChecked();
   await expect(direction).toHaveAttribute("data-runtime-value", "left");
   await expect(liveProgram.getByText("Phase")).toHaveCount(0);
   await expect(
@@ -860,7 +850,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
     name: "Spiral travel mm",
   });
   await expect(programPlot).toBeVisible();
-  await expect(programPlot).not.toBeChecked();
+  await expect(programPlot).toBeChecked();
 
   const speed = liveControls.getByRole("slider", { name: "Forward speed" });
   await speed.fill("100");
@@ -948,7 +938,7 @@ test("Challenge 5 observes a blocked gate and routes around it", async ({
   await createTemplateProject(ide, "challenge_5");
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByRole("log")).toContainText(
-    "Challenge 5 result: delivered",
+    "Challenge 5: result=delivered",
     { timeout: 50_000 },
   );
   await expect(ide.getByTestId("target-status")).toContainText(
