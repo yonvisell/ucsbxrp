@@ -78,8 +78,8 @@ folder.
   connection, so Run can start the same project revision again immediately.
 - **XRP Monitor** opens live telemetry and the world view in another tab.
 
-Settings are collapsible and include editor/output font size (10 pt default,
-8 pt minimum), indentation, word wrap, code overview, target selection, and
+Settings are collapsible and include editor/output font size (10 px default,
+8 px minimum), indentation, word wrap, code overview, target selection, and
 the XRP Wi-Fi mode and existing-Wi-Fi address. Status, Program output, and
 the connection/compilation System log are separate tabs.
 

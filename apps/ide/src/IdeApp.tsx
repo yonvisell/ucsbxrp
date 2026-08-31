@@ -138,8 +138,8 @@ interface CompilerTranscript {
 }
 
 interface IdeSettings {
-  editorFontSizePt: number;
-  consoleFontSizePt: number;
+  editorFontSizePx: number;
+  consoleFontSizePx: number;
   projectRailWidth: number;
   tabSize: 2 | 4;
   wordWrap: "off" | "on";
@@ -158,7 +158,8 @@ interface ProjectFolderConflictState {
   folderDigest: string;
 }
 
-const settingsKey = "ucsb-xrp-ide-settings-v3";
+const settingsKey = "ucsb-xrp-ide-settings-v4";
+const pointSettingsKey = "ucsb-xrp-ide-settings-v3";
 const legacySettingsKey = "ucsb-xrp-ide-settings-v2";
 const completeChallengesPreferenceKey = "ucsb-xrp-show-complete-challenges-v1";
 const maximumSessionLogEntries = 5_000;
@@ -237,8 +238,8 @@ function consoleSourceLocation(
   };
 }
 const defaultSettings: IdeSettings = {
-  editorFontSizePt: 10,
-  consoleFontSizePt: 10,
+  editorFontSizePx: 10,
+  consoleFontSizePx: 10,
   projectRailWidth: defaultProjectRailWidth,
   tabSize: 4,
   wordWrap: "off",
@@ -247,27 +248,38 @@ const defaultSettings: IdeSettings = {
 function loadSettings(): IdeSettings {
   try {
     const current = localStorage.getItem(settingsKey);
-    const raw = current ?? localStorage.getItem(legacySettingsKey);
+    const raw =
+      current ??
+      localStorage.getItem(pointSettingsKey) ??
+      localStorage.getItem(legacySettingsKey);
     if (!raw) {
       return defaultSettings;
     }
-    const legacyPixels = current === null;
-    const value = JSON.parse(raw) as Partial<IdeSettings>;
+    const value = JSON.parse(raw) as Partial<IdeSettings> & {
+      editorFontSizePt?: number;
+      consoleFontSizePt?: number;
+      editorFontSize?: number;
+      consoleFontSize?: number;
+    };
+    const editorFontSizePx =
+      value.editorFontSizePx ?? value.editorFontSizePt ?? value.editorFontSize;
+    const consoleFontSizePx =
+      value.consoleFontSizePx ??
+      value.consoleFontSizePt ??
+      value.consoleFontSize;
     return {
-      editorFontSizePt:
-        !legacyPixels &&
-        typeof value.editorFontSizePt === "number" &&
-        value.editorFontSizePt >= 8 &&
-        value.editorFontSizePt <= 20
-          ? value.editorFontSizePt
-          : defaultSettings.editorFontSizePt,
-      consoleFontSizePt:
-        !legacyPixels &&
-        typeof value.consoleFontSizePt === "number" &&
-        value.consoleFontSizePt >= 8 &&
-        value.consoleFontSizePt <= 16
-          ? value.consoleFontSizePt
-          : defaultSettings.consoleFontSizePt,
+      editorFontSizePx:
+        typeof editorFontSizePx === "number" &&
+        editorFontSizePx >= 8 &&
+        editorFontSizePx <= 20
+          ? editorFontSizePx
+          : defaultSettings.editorFontSizePx,
+      consoleFontSizePx:
+        typeof consoleFontSizePx === "number" &&
+        consoleFontSizePx >= 8 &&
+        consoleFontSizePx <= 16
+          ? consoleFontSizePx
+          : defaultSettings.consoleFontSizePx,
       projectRailWidth:
         typeof value.projectRailWidth === "number" &&
         value.projectRailWidth >= minimumProjectRailWidth &&
@@ -290,10 +302,6 @@ function persistSettings(settings: IdeSettings): void {
     // The IDE remains usable when browser storage is unavailable; preferences
     // then last only for the current page.
   }
-}
-
-function pointsToPixels(points: number): number {
-  return (points * 4) / 3;
 }
 
 function errorDetail(error: unknown): string {
@@ -4413,11 +4421,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       automaticLayout: true,
                       detectIndentation: false,
                       fontFamily: "SFMono-Regular, Consolas, monospace",
-                      fontSize: pointsToPixels(settings.editorFontSizePt),
+                      fontSize: settings.editorFontSizePx,
                       insertSpaces: true,
-                      lineHeight: Math.round(
-                        pointsToPixels(settings.editorFontSizePt) * 1.5,
-                      ),
+                      lineHeight: Math.round(settings.editorFontSizePx * 1.5),
                       minimap: { enabled: settings.minimap },
                       padding: { top: 5 },
                       readOnly: activeFileReadOnly,
@@ -4730,7 +4736,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       </span>
                     </div>
                     <pre
-                      style={{ fontSize: `${settings.consoleFontSizePt}pt` }}
+                      style={{ fontSize: `${settings.consoleFontSizePx}px` }}
                     >
                       {compilerTranscript.lines.join("\n")}
                     </pre>
@@ -4746,7 +4752,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 className="console-output"
                 role="log"
                 aria-live="polite"
-                style={{ fontSize: `${settings.consoleFontSizePt}pt` }}
+                style={{ fontSize: `${settings.consoleFontSizePx}px` }}
               >
                 {visibleConsoleEntries.length === 0 ? (
                   <span className="console-placeholder">
@@ -4912,7 +4918,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           ) : null}
           <label className="setting-row">
             <span>
-              Editor font size <strong>{settings.editorFontSizePt} pt</strong>
+              Editor font size <strong>{settings.editorFontSizePx} px</strong>
             </span>
             <input
               max="20"
@@ -4920,16 +4926,16 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
-                  editorFontSizePt: Number(event.target.value),
+                  editorFontSizePx: Number(event.target.value),
                 }))
               }
               type="range"
-              value={settings.editorFontSizePt}
+              value={settings.editorFontSizePx}
             />
           </label>
           <label className="setting-row">
             <span>
-              Output font size <strong>{settings.consoleFontSizePt} pt</strong>
+              Output font size <strong>{settings.consoleFontSizePx} px</strong>
             </span>
             <input
               max="16"
@@ -4937,11 +4943,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               onChange={(event) =>
                 setSettings((current) => ({
                   ...current,
-                  consoleFontSizePt: Number(event.target.value),
+                  consoleFontSizePx: Number(event.target.value),
                 }))
               }
               type="range"
-              value={settings.consoleFontSizePt}
+              value={settings.consoleFontSizePx}
             />
           </label>
           <label className="setting-row">

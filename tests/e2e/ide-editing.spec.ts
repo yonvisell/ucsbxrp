@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { seedWorkingFolder, type TestProject } from "./working-folder";
 
-test("keeps exact point-size preferences across a new Project and reload", async ({
+test("keeps exact screen-size preferences across a new Project and reload", async ({
   page,
 }) => {
   await seedWorkingFolder(page, {
@@ -35,8 +35,8 @@ test("keeps exact point-size preferences across a new Project and reload", async
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(editorPixels).toBeCloseTo(12, 1);
-  expect(outputPixels).toBeCloseTo(12, 1);
+  expect(editorPixels).toBeCloseTo(9, 1);
+  expect(outputPixels).toBeCloseTo(9, 1);
 
   await page.getByRole("button", { name: "New project…" }).click();
   await page.getByLabel("Project template").selectOption("demo_random_snake");
