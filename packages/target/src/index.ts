@@ -24,6 +24,7 @@ export { PROJECT_WORLD_FILE, worldCatalogForProject } from "./project-world";
 export {
   TelemetryRecorder,
   telemetryRecordingToCsv,
+  telemetryRecordingMetadata,
 } from "./telemetry-recording";
 export type { TelemetryRecordingSnapshot } from "./telemetry-recording";
 export {
@@ -109,4 +110,5 @@ export type {
   TargetEvent,
   TargetRunState,
   TelemetrySample,
+  TelemetryObservationKind,
 } from "./types";

@@ -22,6 +22,60 @@ The active `v2_` documents define the learning sequence and component
 responsibilities. Implementations and exact APIs can improve when the coordinated
 change makes student reasoning or instructor operation clearer.
 
+## Classroom session and recovery boundaries
+
+The September 2026 reliability revision preserves the public Python API and
+adds these cross-application constraints:
+
+- A Project selection commits its folder capability, source session, and target
+  settings together. Another page's shared selection does not retarget an
+  already open IDE. IndexedDB retains Working-folder capabilities and a bounded
+  project-ID-to-folder capability registry; ordinary serialized settings remain
+  in `.ucsbxrp.json`. Recovery records hold complete per-tab unsaved snapshots,
+  separate from normal active-project selection.
+- Project writes require a browser lock, native exclusive streams, and unique
+  on-disk writer tickets. Writers publish choosing/ticket state, wait in ticket
+  order with a bounded deadline, and recheck admission before mutation. Orphan
+  tickets never expire into overlapping writes; explicit recovery requires the
+  user to close other editors and confirm the exact records. A complete
+  previous/intended commit record precedes source mutation. These mechanisms
+  coordinate cooperating UCSBXRP clients; arbitrary external programs cannot
+  be excluded atomically by browser APIs. Native cross-browser filesystem
+  behavior remains subject to platform qualification.
+- Project chooser reads drain the current editor's queued commits before
+  inspection. Monitor reads retry active writers and bracket source reads with
+  exact metadata-generation checks; they reject a stable content-digest mismatch
+  for IDE review. A failed read retains the selected capability and offers
+  Refresh. Read retries never recover or remove another writer's records.
+- Target coordinators isolate endpoints and invalidate obsolete operations.
+  Stop can interrupt pending Run preparation. The robot service checks boot,
+  control-session, and generation identity before state-changing operations;
+  observers may read status and request Stop. Takeover requires a stopped robot.
+- Run boundaries carry stable run/project/revision identity independently of
+  bounded console output. Monitor binds archives to that source capability,
+  deduplicates on disk, and finds the matching retained run before editing
+  notes. Annotation additions merge into the saved run without replacing its
+  samples or other notes; interrupted changes retain a journal. Failed note
+  saves retain a separate downloadable copy and an ordinary navigation guard.
+  An unresolved or ambiguous destination requires manual export.
+- Compiler startup and execution have separate deadlines. Virtual sleeps and
+  computation advance one monotonic simulator clock; long sleeps are chunked.
+  Runtime output and HTTP input are bounded. Physical plot values are sampled
+  with their corresponding telemetry rows.
+- Setup attempts carry cancellation epochs through serial/network work and
+  workspace publication. Runtime assets are verified before entering the
+  watchdog-sensitive transaction. Bootstrap/config replacement uses rename
+  over an existing destination, and HTTP parsing is course-owned around the
+  unchanged pinned `phew` dependency.
+- A warmed offline cache establishes readiness locally. Active documents pin
+  their release assets across updates. A workspace parent adopts updates only
+  after all embedded applications pass their own reload guard. Documentation
+  opens beside those applications, preserving their execution and source.
+
+These are implementation constraints, not physical qualification claims. The
+revision harness and evidence ledger are local operational documents under
+`outputs/revisions/2026-09-14/`.
+
 ## 2. Browser applications
 
 One Vite production build contains the IDE, Monitor, commissioning wizard,
@@ -38,8 +92,8 @@ The IDE is the programming surface. It provides:
   metadata;
 - one grouped project catalog containing the five cumulative challenges,
   sensor-driven obstacle-turn and expanding-spiral demos, and a staged
-  MicroPython tutorial; an empty Working folder receives an editable Expanding
-  Spiral project;
+  MicroPython tutorial; an empty Working folder offers explicit creation of a
+  numbered Project containing the Expanding spiral program;
 - local Monaco workers, course-API completion/hover/signature/definition help,
   and exact-release MicroPython compilation;
 - explicit **Compile**, one stateful Run/Stop control, and Reset; physical Run
@@ -56,8 +110,8 @@ Project state is represented as `{name, entrypoint, files}` at every execution
 boundary. The entrypoint, file paths, and file contents produce one SHA-256
 revision identifier; the display name does not affect whether the robot has the
 current code. Length-prefixing makes that calculation unambiguous. The shared
-target publishes only `{name, entrypoint, revision, stale}` to the UI; source
-remains inside the target boundary. Paths are normalized and Python sources are
+target publishes `{name, entrypoint, revision, stale, projectId?}` to the UI;
+source remains inside the target boundary. Paths are normalized and Python sources are
 compiled before synchronization or execution.
 Each runnable project may contain `world.json`. It is a bounded declarative
 catalog of named worlds: millimeter bounds, initial pose, rectangular blocks or
@@ -85,8 +139,8 @@ session or digest fields remains importable. When a Working folder is active,
 loading a template first asks for the child-directory name and writes the
 complete project immediately. Without a Working folder, catalog projects can be
 previewed but not edited, compiled, or run. Any Python file can be selected as
-its entrypoint. IndexedDB retains only the non-serializable browser capability
-for the Working folder. The folder's `.ucsbxrp.json` file is the serialized
+its entrypoint. IndexedDB retains non-serializable Working-folder capabilities and a bounded
+project-ID-to-folder capability registry for exact run destinations. The folder's `.ucsbxrp.json` file is the serialized
 source for its active Project, robot profile, and course application settings.
 An active Project therefore cannot exist independently of its Working folder.
 Selecting another Working folder resolves that folder's own configuration and
@@ -95,17 +149,19 @@ survive, one explicit Reconnect gesture restores it.
 Folder writes enter one serialized, revision/epoch-checked persistence queue
 without a fixed debounce delay. Superseded queued snapshots are coalesced so an
 older edit cannot overwrite a newer edit or explicit save. Before
-overwriting source, the previous complete project is rotated through four JSON
-generations in the project's `UCSB_XRP_Autosaves`.
+overwriting source, a complete commit journal preserves the previous and
+intended snapshots. Four checkpoint generations in `UCSB_XRP_Autosaves` retain
+meaningful prior editing intervals instead of rotating at every keystroke.
 Each project also has a stable project ID, monotonic content revision, saved
 revision, and update time in `.ucsb-xrp-project.json`. IDE startup first obtains
 the Working-folder capability, then reads `.ucsbxrp.json` and opens that named
-direct-child Project. A missing configuration in an empty folder creates and
-opens Expanding Spiral. A current-release browser recovery record is retained
+direct-child Project. An empty folder offers a numbered Project dialog, with no creation until
+approved. A verified physical target remains selected after creation. A current-release browser recovery record is retained
 only for exceptional unsaved work; earlier browser project/configuration keys
 are ignored rather than migrated. The selected folder files remain
-authoritative. Monitor derives the same active Project through the Working
-folder configuration for run archives.
+authoritative. Monitor resolves archives using the executing run's immutable project ID,
+revision, and registered native folder capability. Current shared selection
+does not redirect a completed or active run archive.
 
 Successful compilation has one ephemeral authority: the SHA-256 digest of the
 exact Project bytes in the current browser tab. Run compares the current bytes
@@ -135,8 +191,9 @@ a user-selected folder. Meaningful controller, installation, reset, and
 network-probe events append to the same password-free log.
 Raw serial traffic is not retained.
 
-One user-selected Web Serial connection enters the MicroPython raw REPL. The
-wizard then performs a credential-free controller inspection, maintains any
+The wizard fetches and verifies the required setup assets before one
+user-selected Web Serial connection enters the MicroPython raw REPL. It
+then performs a credential-free controller inspection, maintains any
 already-active hardware watchdog, and checks the exact RP2350 board and
 MicroPython version. An incompatible or absent runtime branches to the pinned
 official UF2 image: the controller enters its bootloader, the user selects the
@@ -144,16 +201,17 @@ temporary firmware volume, the browser writes the hash-verified image, and the
 wizard inspects the re-enumerated controller again.
 
 The production build generates one commissioning manifest from the exact file
-map used by `scripts/provision_xrp.py`. Each destination has a byte count and
-SHA-256 digest. The browser hashes existing files, fetches and independently
-hashes only changed payloads, writes through a temporary name, re-hashes every
-destination, and import-checks `ucsb_xrp`, the on-robot service, and required
+map used by `scripts/install_xrp_service.py`. Each destination has a byte count
+and SHA-256 digest. After asset preflight, the browser hashes existing files and
+writes only changed payloads through temporary names. It verifies each temporary
+file before atomic rename over its destination, checks installed hashes, and
+import-checks `ucsb_xrp`, the on-robot service, and required
 XRPLib modules. Repeating the operation therefore repairs drift without
 rewriting matching files. New robots default to their device-specific hotspot;
 an optional team last name produces `UCSB-XRP-NAME`. Repairs retain a valid
 existing profile unless the user chooses hotspot or station mode. Station
-credentials move directly from the page to the XRP over USB and are neither
-persisted nor returned to the page.
+credentials move directly from the page to the XRP over USB and are not
+persisted in browser storage or returned in status replies.
 
 The XRP remains connected by USB throughout inspection and installation. USB
 is the firmware, repair, and network-configuration path; the installed HTTP
@@ -166,8 +224,10 @@ station join that fell back to a robot hotspot cannot provide the unreachable
 station route. After verification, the wizard writes the robot profile to
 `.ucsbxrp.json`, displays a clear completion state, and waits for the student to
 choose **Open IDE**. It creates no localStorage handoff record. The IDE then
-reads the same Working-folder configuration. An empty Working folder receives
-Expanding Spiral; an existing folder reopens its configured active Project. The
+reads the same Working-folder configuration. An empty Working folder offers
+explicit creation of a numbered Project containing Expanding spiral while
+preserving the verified physical target; an existing folder reopens its
+configured active Project. The
 Working folder itself is never imported as a project. The wizard cannot silently choose
 an operating-system Wi-Fi network or bypass browser folder, serial-device,
 firmware-volume, and local-network permissions; these are the only intentional
@@ -227,8 +287,17 @@ connected and records the run, but pauses chart, Three.js, resize, and runtime
 control rendering until its pane becomes visible. Reactivation backfills the
 bounded active recording once, so a long hidden interval does not erase the
 earlier live trail. A successful Reset is an explicit recording boundary: the
-pre-Reset run is completed and archived, the displayed history is cleared, and
-only then may the reset-state sample appear.
+pre-Reset run is completed and archived, the live world path is cleared, and
+only then may the reset-state sample appear. Its completed recording, output
+and notes remain available for plots and export until the next Run or explicit
+Clear run. Archive acknowledgement or failure stays bound to that retained run;
+Reset does not discard the manual recovery copy.
+For a physical target, command acknowledgement alone is not a recording
+boundary. Controlled Reset verifies control ownership, stops the known run and
+drains its retained telemetry/output before clearing device state. The owner
+uses the authorized telemetry transport; an observer verifies emergency Stop
+through read-only status. Terminal pages with remaining samples or output keep
+the recording open, and current idle telemetry follows the completed run.
 
 ### Guide and visual system
 
@@ -273,8 +342,9 @@ a checkpoint fallback rather than a second synchronization system.
 `runCurrent`, `markProjectStale`, `stop`, `reset`, `setRuntimeParameter`, and
 event subscription. The
 virtual target additionally accepts a world ID from the active project's world
-catalog. Events are typed as status, synchronized-project state, project world,
-runtime state, console, or telemetry; samples
+catalog. Events include status, synchronized-project state, source-bound compiler
+results, controller ownership, live/retained run envelopes, project world,
+runtime state, console, and telemetry; samples
 carry source, sequence/time, pose availability, motion,
 encoders, collision, range, button, IMU, temperature, battery, and sensor-error
 fields.
@@ -290,10 +360,13 @@ One IDE tab is the active source for Run. The first connected IDE owns that
 role until it closes or a student explicitly selects **Use this project** in
 another IDE. Standby IDEs remain fully editable and continue saving their own
 files, but their edits do not mark, prepare, or run a shared target project.
-Every IDE- or Monitor-initiated Run requests the active IDE's current in-memory
-snapshot at that moment; a retained target descriptor is never substituted for
-a missing editor. Ownership is not stored on disk or in browser storage, and a
-closed or nonresponding owner is not silently replaced by another tab.
+When an IDE owns that role, Run requests its current in-memory snapshot with a
+bounded, cancellable wait; a retained target descriptor is never substituted for
+an unresponsive editor. A standalone Monitor with no registered provider reads
+the selected native Project, establishes its durable identity, and binds the
+run to that folder before launch. A delayed standalone read is invalidated by
+Stop, Reset, or a changed folder selection. Editor ownership is not stored on
+disk or in browser storage; a different editor takes over explicitly.
 
 Runtime state is a bounded immutable snapshot: at most 16 validated parameter
 descriptors, 16 watch values, and 16 numerical plot values. For the virtual
@@ -376,35 +449,56 @@ deterministic file installation, mode changes, and recovery.
 The versioned JSON API provides:
 
 - identity, release, capabilities, and the retained project descriptor;
+- controller-session claims, read-only observer state, and stopped takeover;
 - MicroPython compilation;
 - transactional whole-project preparation in alternating RAM volumes;
 - run, stop, lease renewal, and reset;
 - captured stdout/stderr and service events; and
 - polled hardware telemetry and live-program state/parameter updates.
 
-Commands carry bounded request IDs and return correlated, cached replies so a
-retry does not repeat a state-changing operation. Prepare, Run, and Stop repeat
-an interrupted request once with that same ID. If both Prepare replies are
-lost, the browser treats the operation as complete only when the XRP's active
-boot-lifetime manifest reports the exact requested revision. Inputs have explicit file, path,
-and byte limits. Browser CORS and Private Network Access preflights are answered
-by the device. Each boot has an identifier, so clients reset log cursors when
+Check, Prepare, Run, Reset, parameter updates and lease renewal require boot,
+controller-session, control-generation and run identity. A projectless Run also
+names the expected prepared-project revision. One session claims an unowned
+stopped XRP; transfer from a live owner
+requires explicit takeover while execution is stopped. Independent browsers
+without control observe the read-only state/log route and can send Stop scoped
+to the current boot/run. Observer traffic never renews controller or run leases.
+The control lease is normally 6 s, extended to a 10 s startup grace period.
+
+Commands carry bounded request IDs and return correlated replies. The bounded
+reply cache binds each ID to its operation and payload: an exact retry replays
+the acknowledgement without executing again, while different semantics with
+the same ID are rejected. Prepare, Run, and Stop repeat an interrupted request
+once with that same ID. If both Prepare replies are lost, the browser treats
+the operation as complete only when the XRP's active boot-lifetime manifest
+reports the exact requested revision. The device advertises
+a 128 KiB encoded-command limit and a 16 KiB `world.json` limit; project files
+and paths are bounded. A course-owned HTTP admission layer around unchanged
+Phew bounds headers, decoding complexity, concurrent connections and body
+readers, and read/write/idle waits. Browser CORS and Private Network Access
+preflights are answered by the device. Each boot has an identifier, so clients reset log cursors when
 sequence numbers restart. The client uses request deadlines, bounded polling,
-one shared connection, and short repeated discovery probes after an intentional
-reboot; an in-flight telemetry timeout cannot replace the reconnecting status.
+one shared connection per endpoint coordinator, and short repeated discovery
+probes after an intentional reboot; an in-flight telemetry timeout cannot
+replace the reconnecting status.
 The shared client requests active-run telemetry on the course's 20 ms sample
 cadence and returns to 250 ms when idle. Request duration counts toward the
 cadence, so a slower response reduces the request rate instead of accumulating
 work. The physical worker has a stable asset URL and an explicit coordinator
-generation. The XRP admits one `(generation, owner)` poller for a short lease:
-the same owner renews it, a higher generation immediately supersedes an older
-browser release, and stale or duplicate pollers receive a small response
-without reading hardware or draining rings. When stopped, all callers within
-one idle cadence reuse the exact same hardware sample and sequence. Thus an
-open page from an earlier release cannot multiply peripheral reads or delay a
-Run command, while a closed current poller yields ownership in less than one
-second. The XRP buffers the 50 Hz course samples and retained output,
-then returns them in small cursor-ordered pages. A client requests the next
+generation. Telemetry first checks the current controller session, control
+generation, boot and run; an unauthorized request is rejected before poll
+arbitration or hardware/ring work. Within that authorized session, a separate
+`(pollGeneration, pollOwner)` lease serializes generated pollers. Its duration
+is 750 ms after response serialization. The same pair renews it; a higher poll
+generation can supersede a lower one within the session, and a competing
+equal/lower pair receives a small refusal response. An expired poll lease is
+cleared on the next eligible request. This subsecond expiry does not transfer
+controller authority, shorten the 6 s control lease, or let a newer browser
+release preempt another session's active run. A successful controller takeover
+clears the previous poll lease. When stopped, admitted polls within one idle
+cadence reuse the exact same hardware sample and sequence. The XRP buffers the
+50 Hz course samples and retained output, then returns them in small
+cursor-ordered pages. A client requests the next
 page immediately while a backlog remains and publishes a terminal state only
 after that backlog is drained. This bounds the single HTTP response that a
 Run, Stop, Reset, or parameter command may have to wait behind. The ring is
@@ -524,7 +618,9 @@ its current specification is reproducible. A cancelled browser reload remains
 pending and can be retried. Commissioning payloads use release-scoped paths and
 the firmware URL includes its complete SHA-256 digest, so a newly active worker
 cannot mix new setup files with an older page. The current and immediately
-preceding complete caches are retained through the handoff.
+preceding complete caches, plus caches pinned by still-open documents, are
+retained through the handoff. Unidentified older clients conservatively defer
+cleanup until they identify or close.
 
 Development disables caching to prevent stale bundles from masking changes.
 Private reference source and instructor credentials are not web assets. This
@@ -542,10 +638,11 @@ shared worker. Requests identify the target address space as local. This keeps
 one physical poller across tabs while satisfying the browser's worker
 permission boundary.
 
-Telemetry recording stores the newest 30,000 copied samples and reports dropped
-older samples. This retains 10 minutes at the 50 Hz virtual rate and about
-30 minutes at the normal 16–17 Hz physical rate; the Monitor reports its
-measured rate and corresponding capacity. CSV export is explicit and
+Telemetry recording stores the newest 30,000 copied observations and reports
+known observation loss and retention eviction. Several virtual observations can
+share a physics step, and catch-up can skip unobserved physics steps without
+losing a publication. Retained duration depends on the actual publication rate;
+export metadata reports its measured span rather than a minimum duration. CSV export is explicit and
 self-describing; it preserves blanks
 for unavailable physical values rather than inventing zero. Manual recordings
 remain session-local until exported. Independently, the Monitor captures every
@@ -569,11 +666,15 @@ before a redundant activation record selects that slot; boot confirms it only
 after successful import and can fall back to the previous confirmed slot.
 Matching files are copied from the inactive release when possible, so a
 same-release repair remains small. The two bootstrap files are separately
-verified and replaced atomically. A reset occurs only after complete readback
-and activation verification.
-The wizard treats an unreachable post-reset Wi-Fi service as incomplete and
-keeps probing without erasing the USB-verified result. A user can reconnect by
-USB and run the same operation again after power loss or browser closure.
+verified and replaced atomically. Successful installation ends with reset after
+complete readback and activation verification; cancellation/failure also closes
+raw REPL through the bounded recovery/reset path.
+The wizard treats an unreachable post-reset Wi-Fi service as incomplete. It
+retains exact installation evidence in the Working folder, waits for the user
+to confirm the computer network, and supports resume after browser closure.
+Back, Exit, folder changes and a new setup attempt invalidate old probes and
+profile writes. A user can also reconnect by USB and repeat repair after power
+loss or interruption.
 
 The dependency set is deliberately small and pinned. Tests cover public Python
 required interfaces, deterministic physics, protocol validation, bytecode parity,

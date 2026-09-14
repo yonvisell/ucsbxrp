@@ -2,7 +2,10 @@ export interface CourseFileHandle {
   readonly kind: "file";
   readonly name: string;
   getFile(): Promise<File>;
-  createWritable(options?: { keepExistingData?: boolean }): Promise<{
+  createWritable(options?: {
+    keepExistingData?: boolean;
+    mode?: "exclusive" | "siloed";
+  }): Promise<{
     write(data: string | Blob): Promise<void>;
     seek?(position: number): Promise<void>;
     abort?(): Promise<void>;
@@ -46,10 +49,14 @@ function announceCourseFolderChanged(): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(courseFolderChangedEvent));
   }
-  if (typeof BroadcastChannel !== "undefined") {
-    const channel = new BroadcastChannel(courseFolderChannelName);
-    channel.postMessage("changed");
-    channel.close();
+  try {
+    if (typeof BroadcastChannel !== "undefined") {
+      const channel = new BroadcastChannel(courseFolderChannelName);
+      channel.postMessage("changed");
+      channel.close();
+    }
+  } catch {
+    /* Managed-browser policy may allow local events but block channels. */
   }
 }
 
@@ -57,10 +64,13 @@ function announceCourseFolderChanged(): void {
 export function subscribeCourseFolderChanged(listener: () => void): () => void {
   const localListener = () => listener();
   window.addEventListener(courseFolderChangedEvent, localListener);
-  const channel =
-    typeof BroadcastChannel === "undefined"
-      ? null
-      : new BroadcastChannel(courseFolderChannelName);
+  let channel: BroadcastChannel | null = null;
+  try {
+    if (typeof BroadcastChannel !== "undefined")
+      channel = new BroadcastChannel(courseFolderChannelName);
+  } catch {
+    /* Same-tab events remain available when the browser denies channels. */
+  }
   if (channel) channel.onmessage = listener;
   return () => {
     window.removeEventListener(courseFolderChangedEvent, localListener);
@@ -184,6 +194,7 @@ async function chooseFolder(id: string): Promise<CourseDirectoryHandle> {
       showDirectoryPicker?: (options: {
         id: string;
         mode: "readwrite";
+        startIn?: "documents";
       }) => Promise<CourseDirectoryHandle>;
     }
   ).showDirectoryPicker;
@@ -192,7 +203,7 @@ async function chooseFolder(id: string): Promise<CourseDirectoryHandle> {
       "Local folders require desktop Chrome or Edge opened from the UCSBXRP course site.",
     );
   }
-  return picker({ id, mode: "readwrite" });
+  return picker({ id, mode: "readwrite", startIn: "documents" });
 }
 
 export async function chooseWorkspaceFolder(): Promise<CourseDirectoryHandle> {
@@ -279,7 +290,7 @@ export async function projectFolderIsInsideCourseFolder(
   try {
     if (courseFolder.resolve) {
       const relativePath = await courseFolder.resolve(projectFolder);
-      return relativePath !== null && relativePath.length > 0;
+      return relativePath !== null && relativePath.length === 1;
     }
   } catch {
     // Fall through to identity checks for compatibility handles and older
@@ -379,8 +390,10 @@ export async function forgetWorkspaceFolder(): Promise<boolean> {
 
 export async function rememberProjectFolder(
   handle: CourseDirectoryHandle,
+  selectedWorkspace?: CourseDirectoryHandle,
 ): Promise<boolean> {
-  const workspace = await loadRememberedWorkspaceFolder();
+  const workspace =
+    selectedWorkspace ?? (await loadRememberedWorkspaceFolder());
   if (!workspace) return false;
   if ((await projectFolderIsInsideCourseFolder(workspace, handle)) !== true) {
     return false;
@@ -573,8 +586,10 @@ export async function updateWorkspaceManifest(
 export async function mutateWorkspaceManifest(
   workspace: CourseDirectoryHandle,
   transform: (current: WorkspaceManifest) => WorkspaceManifest,
+  options: { assertCurrent?: () => void } = {},
 ): Promise<WorkspaceManifest> {
   return withCourseFolderWriteLock("config", async () => {
+    options.assertCurrent?.();
     const loaded = await readWorkspaceManifest(workspace);
     if (loaded.status === "invalid") {
       throw new WorkspaceManifestError(
@@ -590,15 +605,24 @@ export async function mutateWorkspaceManifest(
       loaded.status === "valid"
         ? loaded.manifest
         : { schemaVersion: 1 as const, activeProject: null };
+    options.assertCurrent?.();
     const next = transform(previous);
+    let writable:
+      Awaited<ReturnType<CourseFileHandle["createWritable"]>> | undefined;
     try {
+      options.assertCurrent?.();
       const file = await workspace.getFileHandle(workspaceManifestFile, {
         create: true,
       });
-      const writable = await file.createWritable();
+      writable = await file.createWritable();
+      options.assertCurrent?.();
       await writable.write(`${JSON.stringify(next, null, 2)}\n`);
+      options.assertCurrent?.();
       await writable.close();
     } catch (error) {
+      await writable?.abort?.().catch(() => undefined);
+      if (error instanceof DOMException && error.name === "AbortError")
+        throw error;
       throw new WorkspaceManifestError(
         `${workspaceManifestFile} in Working folder ${workspace.name} could not be written: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -659,12 +683,19 @@ export async function writeCourseTextFile(
   root: CourseDirectoryHandle,
   path: string,
   content: string,
+  options: { assertCurrent?: () => Promise<void> } = {},
 ): Promise<void> {
   const { directory, name } = await directoryForPath(root, path, true);
   const handle = await directory.getFileHandle(name, { create: true });
   const writable = await handle.createWritable();
-  await writable.write(content);
-  await writable.close();
+  try {
+    await writable.write(content);
+    await options.assertCurrent?.();
+    await writable.close();
+  } catch (error) {
+    await writable.abort?.().catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function writeCourseFile(
@@ -716,6 +747,7 @@ function generationPath(entry: RotatingTextEntry, generation: number): string {
 export async function writeRotatingTextBundle(
   root: CourseDirectoryHandle,
   entries: readonly RotatingTextEntry[],
+  options: { assertCurrent?: () => Promise<void> } = {},
 ): Promise<void> {
   for (let generation = autosaveGenerations; generation >= 2; generation -= 1) {
     for (const entry of entries) {
@@ -725,9 +757,10 @@ export async function writeRotatingTextBundle(
       );
       const destination = generationPath(entry, generation);
       if (previous === null) {
+        await options.assertCurrent?.();
         await removeCourseTextFile(root, destination);
       } else {
-        await writeCourseTextFile(root, destination, previous);
+        await writeCourseTextFile(root, destination, previous, options);
       }
     }
   }
@@ -735,14 +768,16 @@ export async function writeRotatingTextBundle(
   for (const entry of entries) {
     const newest = generationPath(entry, 1);
     if (entry.content === null) {
+      await options.assertCurrent?.();
       await removeCourseTextFile(root, newest);
     } else {
-      await writeCourseTextFile(root, newest, entry.content);
+      await writeCourseTextFile(root, newest, entry.content, options);
     }
   }
   await writeCourseTextFile(
     root,
     `${autosaveDirectoryName}/README.txt`,
     autosaveReadme,
+    options,
   );
 }

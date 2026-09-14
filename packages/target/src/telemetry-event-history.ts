@@ -3,9 +3,8 @@ import type { TargetEvent } from "./types";
 export type TelemetryEvent = Extract<TargetEvent, { type: "telemetry" }>;
 
 /**
- * The virtual XRP publishes at 50 Hz, so 10,000 samples retain 200 seconds.
- * Physical telemetry currently arrives more slowly; the common bound leaves
- * at least the same three-minute margin for rates up to 50 Hz.
+ * The ring retains 10,000 observations. Multiple virtual state updates can
+ * share a physics tick; elapsed history depends on actual publication rate.
  */
 export const TARGET_TELEMETRY_HISTORY_LIMIT = 10_000;
 
@@ -13,6 +12,7 @@ export const TARGET_TELEMETRY_HISTORY_LIMIT = 10_000;
 export class TelemetryEventHistory {
   private readonly events: TelemetryEvent[] = [];
   private nextWriteIndex = 0;
+  private discarded = 0;
 
   constructor(readonly maximumEvents = TARGET_TELEMETRY_HISTORY_LIMIT) {
     if (!Number.isInteger(maximumEvents) || maximumEvents < 1) {
@@ -24,9 +24,14 @@ export class TelemetryEventHistory {
     return this.events.length;
   }
 
+  get discardedCount(): number {
+    return this.discarded;
+  }
+
   clear(): void {
     this.events.length = 0;
     this.nextWriteIndex = 0;
+    this.discarded = 0;
   }
 
   retain(event: TelemetryEvent): void {
@@ -36,6 +41,7 @@ export class TelemetryEventHistory {
     }
     this.events[this.nextWriteIndex] = event;
     this.nextWriteIndex = (this.nextWriteIndex + 1) % this.maximumEvents;
+    this.discarded += 1;
   }
 
   *chronological(): IterableIterator<TelemetryEvent> {

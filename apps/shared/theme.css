@@ -1012,3 +1012,20 @@ input[type="range"]:disabled {
   outline: 2px solid var(--brand);
   outline-offset: -1px;
 }
+.operation-status {
+  min-width: 0;
+  max-width: 52ch;
+  font-size: var(--font-xs);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.app-header:has(.operation-status) {
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .app-header:has(.operation-status) {
+    grid-template-rows: minmax(22px, auto) 22px 25px;
+  }
+}

@@ -53,6 +53,59 @@ async function expectVirtualState(
   );
 }
 
+async function readProjectPersistenceState(
+  page: Page,
+  workspaceName: string,
+  projectName: string,
+) {
+  return page.evaluate(
+    async ({ workspaceName, projectName }) => {
+      const workspace = await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle(workspaceName);
+      const project = await workspace.getDirectoryHandle(projectName);
+      const read = async (name: string, directory = project) => {
+        try {
+          return await (
+            await (await directory.getFileHandle(name)).getFile()
+          ).text();
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "NotFoundError")
+            return null;
+          throw error;
+        }
+      };
+      const writers: string[] = [];
+      for await (const [name] of project.entries()) {
+        if (
+          name === ".ucsb-xrp-writer.json" ||
+          (name.startsWith(".ucsb-xrp-writer-") && name.endsWith(".json"))
+        )
+          writers.push(name);
+      }
+      let pendingRun: string | null = null;
+      try {
+        pendingRun = await read(
+          "pending-run.json",
+          await project.getDirectoryHandle("UCSB_XRP_Autosaves"),
+        );
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "NotFoundError"))
+          throw error;
+      }
+      return {
+        writers: writers.sort(),
+        pendingRun,
+        pendingProject: await read(".ucsb-xrp-commit.json"),
+        metadata: await read(".ucsb-xrp-project.json"),
+        main: await read("main.py"),
+        notes: await read("run_notes.md"),
+      };
+    },
+    { workspaceName, projectName },
+  );
+}
+
 /**
  * Seed one saved project whose IndexedDB lookup is released by the test.
  * This models a real folder restore without adding arbitrary timing sleeps.
@@ -284,6 +337,14 @@ async function installMockPhysicalXrp(context: BrowserContext) {
     }
 
     const originalFetch = window.fetch.bind(window);
+    let controlOwner: string | null = null;
+    let controlGeneration = 0;
+    const control = () => ({
+      sessionId: controlOwner,
+      generation: controlGeneration,
+      leaseRemainingMs: 6000,
+      runId: 0,
+    });
     window.fetch = async (input, init) => {
       const url = new URL(
         typeof input === "string"
@@ -316,6 +377,8 @@ async function installMockPhysicalXrp(context: BrowserContext) {
         courseLibraryVersion: currentRelease.ucsb_xrp.version,
         runtimeJson: '{"revision":0,"parameters":[],"watches":[],"plots":[]}',
         project: null,
+        runId: 0,
+        control: control(),
       };
       if (url.pathname.endsWith("/info")) {
         return new Response(
@@ -334,6 +397,8 @@ async function installMockPhysicalXrp(context: BrowserContext) {
             capabilities: [
               "project.check",
               "project.prepare",
+              "logs.poll",
+              "control.session-v1",
               "program.run",
               "program.stop",
               "target.reset",
@@ -343,7 +408,10 @@ async function installMockPhysicalXrp(context: BrowserContext) {
           { headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.pathname.endsWith("/telemetry")) {
+      if (
+        url.pathname.endsWith("/telemetry") ||
+        url.pathname.endsWith("/state")
+      ) {
         return new Response(
           JSON.stringify({
             ...common,
@@ -357,12 +425,46 @@ async function installMockPhysicalXrp(context: BrowserContext) {
           { headers: { "Content-Type": "application/json" } },
         );
       }
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        requestId?: string;
+        sessionId?: string;
+        bootId?: string;
+        controlGeneration?: number;
+        runId?: number;
+        takeover?: boolean;
+      };
+      const claim = url.pathname.endsWith("/control");
+      const code =
+        body.bootId !== common.bootId
+          ? "boot_changed"
+          : claim
+            ? controlOwner && controlOwner !== body.sessionId && !body.takeover
+              ? "control_owned"
+              : null
+            : body.runId !== 0
+              ? "stale_run"
+              : body.sessionId !== controlOwner ||
+                  body.controlGeneration !== controlGeneration
+                ? "control_required"
+                : null;
+      if (claim && !code && body.sessionId !== controlOwner) {
+        controlOwner = body.sessionId ?? null;
+        controlGeneration += 1;
+      }
       return new Response(
         JSON.stringify({
           protocol: currentRelease.service.protocol_version,
-          requestId: "mock-command",
-          ok: true,
-          result: { detail: "accepted", reconnecting: false },
+          requestId: body.requestId,
+          ok: !code,
+          ...(code
+            ? { error: { code, detail: code } }
+            : {
+                result: {
+                  detail: "accepted",
+                  reconnecting: false,
+                  control: control(),
+                },
+              }),
         }),
         { headers: { "Content-Type": "application/json" } },
       );
@@ -438,8 +540,42 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
   await stopButton(ide).click();
   await expectVirtualState(ide, monitor, "ready");
 
+  // Ready means motor execution stopped. The separate completed-run archive
+  // must finish before this ordinary, uninterrupted reload assertion.
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+  await expect(monitor.getByTestId("run-autosave-status")).toHaveText(
+    "Saved automatically to Obstacle-left-obstacle.",
+  );
+  await expect
+    .poll(async () => {
+      const state = await readProjectPersistenceState(
+        ide,
+        "Virtual-Stress-Test",
+        "Obstacle-left-obstacle",
+      );
+      return {
+        writers: state.writers,
+        pendingRun: state.pendingRun,
+        pendingProject: state.pendingProject,
+      };
+    })
+    .toEqual({ writers: [], pendingRun: null, pendingProject: null });
+  const savedBeforeReload = await readProjectPersistenceState(
+    ide,
+    "Virtual-Stress-Test",
+    "Obstacle-left-obstacle",
+  );
+  expect(savedBeforeReload.notes).toBe("");
+  const navigationWarnings: string[] = [];
+  for (const app of [monitor, ide]) {
+    app.on("dialog", async (dialog) => {
+      navigationWarnings.push(dialog.type());
+      await dialog.accept();
+    });
+  }
   await monitor.reload();
   await ide.reload();
+  expect(navigationWarnings).toEqual([]);
   await expectVirtualState(ide, monitor, "ready");
   await expect(ide.getByTestId("project-name")).toHaveText(
     "Obstacle, left, obstacle",
@@ -451,12 +587,143 @@ test("survives a repeated virtual edit, run, stop, and reload session", async ({
     "title",
     /Obstacle, left, obstacle/,
   );
+  expect(
+    await readProjectPersistenceState(
+      ide,
+      "Virtual-Stress-Test",
+      "Obstacle-left-obstacle",
+    ),
+  ).toEqual(savedBeforeReload);
   await runButton(monitor).click();
   await expectVirtualState(ide, monitor, "running");
   await stopButton(monitor).click();
   await expectVirtualState(ide, monitor, "ready");
 
   expect(browserErrors).toEqual([]);
+});
+
+test("accepted reload during a first run archive retains its journal and requires writer recovery", async ({
+  context,
+  page: ide,
+}) => {
+  await seedWorkingFolder(ide, { folderName: "Interrupted-Archive" });
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+  const savedProject = await readProjectPersistenceState(
+    ide,
+    "Interrupted-Archive",
+    "Expanding-Spiral",
+  );
+  const monitor = await context.newPage();
+  await monitor.addInitScript(() => {
+    const createWritable = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function (options) {
+      const writable = await createWritable.call(this, options);
+      if (
+        this.name === "telemetry-1.csv" &&
+        sessionStorage.getItem("pause-first-run-archive") === "armed"
+      ) {
+        writable.close = () =>
+          new Promise<void>(() => {
+            sessionStorage.removeItem("pause-first-run-archive");
+            sessionStorage.setItem("first-run-archive-paused", "yes");
+          });
+      }
+      return writable;
+    };
+  });
+  await monitor.goto("/monitor/");
+  await expectVirtualState(ide, monitor, "ready");
+  await runButton(ide).click();
+  await expectVirtualState(ide, monitor, "running");
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    /[1-9][\d,]* samples/,
+  );
+  await monitor.evaluate(() =>
+    sessionStorage.setItem("pause-first-run-archive", "armed"),
+  );
+  await stopButton(ide).click();
+  await expectVirtualState(ide, monitor, "ready");
+  await expect
+    .poll(() =>
+      monitor.evaluate(() =>
+        sessionStorage.getItem("first-run-archive-paused"),
+      ),
+    )
+    .toBe("yes");
+  const interrupted = await readProjectPersistenceState(
+    ide,
+    "Interrupted-Archive",
+    "Expanding-Spiral",
+  );
+  expect(interrupted.writers).toHaveLength(1);
+  expect(interrupted.pendingProject).toBeNull();
+  expect(interrupted.pendingRun).not.toBeNull();
+  expect(interrupted.metadata).toBe(savedProject.metadata);
+  expect(interrupted.main).toBe(savedProject.main);
+  const recovery = JSON.parse(interrupted.pendingRun!);
+  expect(recovery.runId).toEqual(expect.any(String));
+  expect(recovery.projectId).toBe(
+    JSON.parse(savedProject.metadata!).session.projectId,
+  );
+  expect(recovery.telemetry).toContain("source,pose_available,seq");
+
+  const beforeUnload = monitor.waitForEvent("dialog");
+  const reload = monitor.reload();
+  const warning = await beforeUnload;
+  expect(warning.type()).toBe("beforeunload");
+  await warning.accept();
+  await reload;
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    /[1-9][\d,]* samples/,
+  );
+  await expect(
+    monitor.getByRole("button", {
+      name: "Export run data as CSV",
+      exact: true,
+    }),
+  ).toBeEnabled();
+  expect(
+    await readProjectPersistenceState(
+      ide,
+      "Interrupted-Archive",
+      "Expanding-Spiral",
+    ),
+  ).toEqual(interrupted);
+
+  await monitor.close();
+  await ide.reload();
+  await expect(ide.getByTestId("project-folder")).toHaveText("Not selected");
+  await ide
+    .getByRole("button", {
+      name: "Review pending writers in Expanding-Spiral",
+      exact: true,
+    })
+    .click();
+  const recoveryDialog = ide.getByRole("dialog", {
+    name: "Project writer recovery",
+  });
+  const release = recoveryDialog.getByRole("button", {
+    name: "Release selected writer records",
+  });
+  await expect(release).toBeDisabled();
+  await recoveryDialog
+    .getByLabel("All other editors of this folder are closed.")
+    .check();
+  await release.click();
+  await expect(recoveryDialog).toHaveCount(0);
+  await expect(
+    ide.getByRole("button", {
+      name: "Open Expanding spiral from Expanding-Spiral",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const afterRelease = await readProjectPersistenceState(
+    ide,
+    "Interrupted-Archive",
+    "Expanding-Spiral",
+  );
+  expect(afterRelease).toEqual({ ...interrupted, writers: [] });
 });
 
 test("does not enable Run before the Working folder finishes opening", async ({

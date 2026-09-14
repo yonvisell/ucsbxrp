@@ -40,6 +40,32 @@ function harness(maximumSamples = 3) {
 }
 
 describe("PlotSampleHistory", () => {
+  it("measures observation publication rather than physics advancement and preserves same-time variants", () => {
+    const retained: TelemetrySample[] = [];
+    for (let observationSeq = 0; observationSeq <= 6; observationSeq++) {
+      appendTelemetryRateSample(retained, {
+        ...sample(Math.floor(observationSeq / 3)),
+        observationSeq,
+      });
+    }
+    expect(retained).toHaveLength(7);
+    expect(recentTelemetryRateHz(retained)).toBe(150);
+    appendTelemetryRateSample(retained, { ...retained.at(-1)! });
+    expect(retained).toHaveLength(7);
+    expect(
+      recentTelemetryRateHz([
+        { ...sample(0), observationSeq: 0 },
+        { ...sample(300), observationSeq: 1 },
+      ]),
+    ).toBeCloseTo(1 / 6);
+    expect(
+      recentTelemetryRateHz([
+        { ...sample(1), observationSeq: 0 },
+        { ...sample(1), observationSeq: 1 },
+      ]),
+    ).toBeNull();
+  });
+
   it("estimates source rate from timestamps and sequence steps", () => {
     expect(
       recentTelemetryRateHz([sample(1), sample(2), sample(3)]),

@@ -14,6 +14,7 @@ from ucsb_xrp import (  # noqa: E402
     RawSensors,
     RobotState,
 )
+from ucsb_xrp import live
 from ucsb_xrp import _telemetry  # noqa: E402
 
 
@@ -39,6 +40,7 @@ class TelemetryBufferTest(unittest.TestCase):
     def setUp(self):
         self.original_ticks_ms = _telemetry._ticks_ms
         _telemetry.clear_state()
+        live.clear()
 
     def tearDown(self):
         _telemetry._ticks_ms = self.original_ticks_ms
@@ -67,6 +69,20 @@ class TelemetryBufferTest(unittest.TestCase):
         public_copy["xMm"] = 999
         self.assertEqual(_telemetry.state_snapshot()["xMm"], 101)
         self.assertEqual(retained[-1]["xMm"], 101)
+
+    def test_plot_values_preserve_acquisition_sequence_after_ring_overflow(self):
+        for value in range(110):
+            live.plot("counter", value, unit="sample")
+            _telemetry.publish_state(robot_state(value))
+        live.plot("counter", 999)
+        values = _telemetry.buffered_state_snapshots()
+        self.assertEqual(len(values), 96)
+        for item in values:
+            self.assertEqual(item["plotValues"][0], ("counter", "Counter", "sample", item["sampleSeq"] - 1))
+        live.clear()
+        _telemetry.clear_state()
+        _telemetry.publish_state(robot_state(0))
+        self.assertEqual(_telemetry.state_snapshot()["plotValues"], ())
 
     def test_mirrors_raw_hardware_and_drive_without_mutating_public_copy(self):
         raw = RawSensors(120, 14, -11, 340.0, True)

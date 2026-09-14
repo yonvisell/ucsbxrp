@@ -392,6 +392,96 @@ test("Monitor Run executes an IDE edit without waiting for stale publication", a
   await expect(ide.getByRole("log")).not.toContainText("old source");
 });
 
+test("Monitor retains its Project folder when opening during a native commit", async ({
+  context,
+  page: ide,
+}) => {
+  await seedWorkingFolder(ide, {
+    folderName: "Monitor-Commit-Read",
+    projectFolderName: "Monitor-Commit-Read",
+    project: {
+      name: "Monitor commit read",
+      entrypoint: "main.py",
+      files: { "main.py": 'print("old source")\n' },
+    },
+  });
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("target-status")).toContainText("ready");
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+  await ide.evaluate(() => {
+    const pause = { waiting: false, release: () => undefined as void };
+    (
+      window as unknown as { monitorReadCommit: typeof pause }
+    ).monitorReadCommit = pause;
+    const createWritable = FileSystemFileHandle.prototype.createWritable;
+    let armed = true;
+    FileSystemFileHandle.prototype.createWritable = async function (options) {
+      const writable = await createWritable.call(this, options);
+      if (this.name === ".ucsb-xrp-project.json" && armed) {
+        armed = false;
+        const close = writable.close.bind(writable);
+        writable.close = async () => {
+          pause.waiting = true;
+          await new Promise<void>((resolve) => {
+            pause.release = resolve;
+          });
+          await close();
+          pause.waiting = false;
+        };
+      }
+      return writable;
+    };
+  });
+  const editor = ide.getByRole("textbox", { name: "main.py editor" });
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await ide.keyboard.insertText('print("saved during Monitor opening")\n');
+  await expect
+    .poll(() =>
+      ide.evaluate(
+        () =>
+          (window as unknown as { monitorReadCommit: { waiting: boolean } })
+            .monitorReadCommit.waiting,
+      ),
+    )
+    .toBe(true);
+
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  const refresh = monitor.getByRole("button", {
+    name: "Refresh Project folder",
+  });
+  await expect(refresh).toBeVisible();
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Could not read a completed save from Monitor-Commit-Read",
+  );
+  const run = monitor.getByRole("button", { name: "Run", exact: true });
+  await expect(run).toHaveAttribute(
+    "title",
+    /Compile and run the current IDE project/,
+  );
+  await ide.evaluate(() =>
+    (
+      window as unknown as { monitorReadCommit: { release: () => void } }
+    ).monitorReadCommit.release(),
+  );
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+  await refresh.click();
+  await expect(refresh).toBeHidden();
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Runs save automatically to Monitor-Commit-Read",
+  );
+  await run.click();
+  await ide.getByRole("tab", { name: "Program output" }).click();
+  await expect(ide.getByRole("log")).toContainText(
+    "saved during Monitor opening",
+  );
+  await expect(ide.getByRole("log")).not.toContainText("old source");
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Saved automatically",
+  );
+});
+
 test("opens an oversized folder but prevents compilation and virtual execution", async ({
   page,
 }) => {
@@ -427,7 +517,7 @@ test("opens an oversized folder but prevents compilation and virtual execution",
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await page.getByRole("tab", { name: /System log/ }).click();
   await expect(page.getByRole("log")).toContainText(
-    "Run found 1 source problem",
+    "This project has 49 files; an XRP project may contain at most 48. Remove or move 1 file, then try again.",
   );
   await page.getByRole("tab", { name: /Program output/ }).click();
   await expect(page.getByRole("log")).not.toContainText("not run");

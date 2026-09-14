@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { PhysicalTargetCoordinator } from "./physical-target-coordinator";
+import { TARGET_TELEMETRY_HISTORY_LIMIT } from "./telemetry-event-history";
 import type {
   PhysicalWorkerCommand,
   PhysicalWorkerMessage,
@@ -234,7 +235,127 @@ function telemetry(seq: number): TelemetrySample {
   };
 }
 
+async function connectPeer(
+  coordinator: PhysicalTargetCoordinator,
+  port: FakePort,
+  endpoint: string,
+  expectedRobotId?: string,
+) {
+  coordinator.handle(port, {
+    type: "connect",
+    requestId: "peer-binding",
+    endpoint,
+    expectedRobotId,
+  });
+  await vi.waitFor(() =>
+    expect(responses(port, "peer-binding")).toHaveLength(1),
+  );
+}
+
 describe("physical target coordinator", () => {
+  it("retains completed physical data and terminal metadata across Reset", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const owner = new FakePort();
+    coordinator.attach(owner);
+    await connectPeer(coordinator, owner, "http://192.168.7.25");
+    target.emit({
+      type: "run",
+      phase: "begin",
+      runId: "finished",
+      startedAtMs: 10,
+      state: "running",
+      detail: "Running",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(42) });
+    target.emit({
+      type: "console",
+      stream: "system",
+      action: "reset",
+      phase: "result",
+      line: "Reset accepted; waiting for the program to stop",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(43) });
+    target.emit({
+      type: "run",
+      phase: "end",
+      runId: "finished",
+      startedAtMs: 10,
+      finishedAtMs: 20,
+      state: "error",
+      detail: "Program exception",
+    });
+    target.emit({
+      type: "console",
+      stream: "system",
+      action: "reset",
+      phase: "result",
+      line: "Reset",
+    });
+    target.emit({ type: "telemetry", sample: telemetry(0) });
+    target.emit({ type: "status", state: "ready", detail: "Reset complete" });
+    const late = new FakePort();
+    coordinator.attach(late);
+    coordinator.handle(late, command({ type: "set-role", role: "monitor" }));
+    await connectPeer(coordinator, late, "http://192.168.7.25");
+    expect(events(late, "run-history").at(-1)).toMatchObject({
+      runId: "finished",
+      state: "error",
+      detail: "Program exception",
+      finishedAtMs: 20,
+      retainedTelemetryDropped: 0,
+    });
+    expect(
+      events(late, "telemetry").map(
+        (event) => event.type === "telemetry" && event.sample.seq,
+      ),
+    ).toEqual([42, 43]);
+    expect(events(late, "status").at(-1)).toMatchObject({
+      state: "ready",
+      detail: "Reset complete",
+    });
+    coordinator.handle(owner, command({ type: "disconnect" }));
+    coordinator.handle(late, command({ type: "disconnect" }));
+  });
+
+  it("reports a known evicted physical prefix when a late Monitor joins", async () => {
+    let target!: FakePhysicalTarget;
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      target = new FakePhysicalTarget(endpoint);
+      return target;
+    });
+    const owner = new FakePort();
+    coordinator.attach(owner);
+    await connectPeer(coordinator, owner, "http://192.168.7.25");
+    target.emit({
+      type: "console",
+      stream: "system",
+      line: "Run",
+      action: "run",
+      phase: "request",
+      requestId: "retained-run",
+    });
+    for (let seq = 0; seq < TARGET_TELEMETRY_HISTORY_LIMIT + 2; seq++)
+      target.emit({ type: "telemetry", sample: telemetry(seq) });
+    target.emit({ type: "status", state: "ready", detail: "Stopped" });
+    const late = new FakePort();
+    coordinator.attach(late);
+    coordinator.handle(late, command({ type: "set-role", role: "monitor" }));
+    await connectPeer(coordinator, late, "http://192.168.7.25");
+    expect(events(late, "run-history").at(-1)).toMatchObject({
+      phase: "end",
+      retainedTelemetryDropped: 2,
+    });
+    expect(events(late, "telemetry")).toHaveLength(
+      TARGET_TELEMETRY_HISTORY_LIMIT,
+    );
+    coordinator.handle(owner, command({ type: "disconnect" }));
+    coordinator.handle(late, command({ type: "disconnect" }));
+  });
+
   it("passes visible-frame poll nudges only to the attached shared target", async () => {
     let target!: FakePhysicalTarget;
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
@@ -297,6 +418,7 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(ide, "connect-with-provider")).toHaveLength(1),
     );
+    await connectPeer(coordinator, monitor, "http://192.168.7.25");
 
     expect(events(ide, "project-provider").at(-1)).toEqual({
       type: "project-provider",
@@ -778,7 +900,7 @@ describe("physical target coordinator", () => {
     ).toEqual([1, 2, 3]);
   });
 
-  it("does not replay a pre-reset path to a later Monitor", async () => {
+  it("keeps pre-reset physical samples inside a completed history envelope", async () => {
     let target!: FakePhysicalTarget;
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
       target = new FakePhysicalTarget(endpoint);
@@ -833,7 +955,13 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(monitor, "monitor-connect")).toHaveLength(1),
     );
-    expect(events(monitor, "telemetry")).toHaveLength(0);
+    expect(events(monitor, "telemetry")).toHaveLength(1);
+    expect(events(monitor, "run-history").at(-1)).toMatchObject({
+      runId: "run-before-reset",
+      state: "ready",
+      detail: "Completed",
+      finishedAtMs: expect.any(Number),
+    });
   });
 
   it("serializes two-tab commands and permits another run after completion", async () => {
@@ -855,6 +983,7 @@ describe("physical target coordinator", () => {
       }),
     );
     await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+    await connectPeer(coordinator, monitor, "http://192.168.4.1");
 
     coordinator.handle(
       ide,
@@ -909,6 +1038,7 @@ describe("physical target coordinator", () => {
       }),
     );
     await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+    await connectPeer(coordinator, monitor, "http://192.168.4.1");
 
     const latestProject: CourseProject = {
       ...project,
@@ -993,6 +1123,7 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(firstIde, "first-connect")).toHaveLength(1),
     );
+    await connectPeer(coordinator, monitor, "http://192.168.4.1");
     coordinator.handle(
       standbyIde,
       command({
@@ -1124,6 +1255,8 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(firstIde, "connect")).toHaveLength(1),
     );
+    await connectPeer(coordinator, monitor, "http://192.168.4.1");
+    await connectPeer(coordinator, secondIde, "http://192.168.4.1");
     coordinator.handle(
       secondIde,
       command({ type: "set-project-run-provider", providesProject: true }),
@@ -1215,6 +1348,7 @@ describe("physical target coordinator", () => {
       }),
     );
     await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+    await connectPeer(coordinator, monitor, "http://192.168.4.1");
 
     coordinator.handle(ide, command({ type: "disconnect" }));
     expect(ide.closed).toBe(true);
@@ -1238,7 +1372,7 @@ describe("physical target coordinator", () => {
     );
   });
 
-  it("changes the shared endpoint once for all attached tabs", async () => {
+  it("keeps different robot endpoints independently bound to their own tabs", async () => {
     const targets: FakePhysicalTarget[] = [];
     const coordinator = new PhysicalTargetCoordinator((endpoint) => {
       const target = new FakePhysicalTarget(endpoint);
@@ -1272,10 +1406,10 @@ describe("physical target coordinator", () => {
     );
 
     expect(targets).toHaveLength(2);
-    expect(targets[0]?.disconnectCalls).toBe(1);
+    expect(targets[0]?.disconnectCalls).toBe(0);
     expect(events(ide, "status").at(-1)).toMatchObject({
       state: "ready",
-      detail: "http://192.168.7.30",
+      detail: "http://192.168.4.1",
     });
     expect(events(monitor, "status").at(-1)).toMatchObject({
       state: "ready",
@@ -1407,6 +1541,7 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() =>
       expect(responses(ide, "initial-connect")).toHaveLength(1),
     );
+    await connectPeer(coordinator, monitor, "http://192.168.7.25", "ROBOT-A");
 
     targets[0]?.emit({
       type: "status",
@@ -1615,6 +1750,7 @@ describe("physical target coordinator", () => {
       }),
     );
     await vi.waitFor(() => expect(responses(ide, "connect")).toHaveLength(1));
+    await connectPeer(coordinator, monitor, "http://192.168.4.1");
 
     target.nextRunError = new Error("project must be prepared");
     coordinator.handle(
@@ -1732,5 +1868,78 @@ describe("physical target coordinator", () => {
       ),
     ).toEqual([1, 2, 3, 4, 5]);
     expect(events(ide, "telemetry")).toHaveLength(0);
+  });
+  it("keeps Stop bound to robot A after robot B connects", async () => {
+    const targets: FakePhysicalTarget[] = [];
+    const coordinator = new PhysicalTargetCoordinator((endpoint) => {
+      const target = new FakePhysicalTarget(endpoint);
+      targets.push(target);
+      return target;
+    });
+    const a = new FakePort(),
+      b = new FakePort();
+    coordinator.attach(a);
+    coordinator.attach(b);
+    await connectPeer(coordinator, a, "http://robot-a");
+    coordinator.handle(a, { type: "run", requestId: "run-a", project });
+    await vi.waitFor(() => expect(targets[0]?.running).toBe(true));
+    await connectPeer(coordinator, b, "http://robot-b");
+    coordinator.handle(a, { type: "stop", requestId: "stop-a" });
+    await vi.waitFor(() => expect(targets[0]?.stopCalls).toBe(1));
+    expect(targets[0]?.disconnectCalls).toBe(0);
+    expect(targets[1]?.stopCalls).toBe(0);
+  });
+
+  it("discards a successful discovery after its last subscriber leaves", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const target = new FakePhysicalTarget("http://robot-a");
+    target.connectGate = gate;
+    const coordinator = new PhysicalTargetCoordinator(() => target);
+    const port = new FakePort();
+    coordinator.attach(port);
+    coordinator.handle(port, {
+      type: "connect",
+      endpoint: target.endpoint,
+      requestId: "connect",
+    });
+    await vi.waitFor(() => expect(target.connectCalls).toBe(1));
+    coordinator.handle(port, { type: "disconnect" });
+    release();
+    await vi.waitFor(() => expect(target.disconnectCalls).toBeGreaterThan(0));
+    expect(responses(port, "connect")).toHaveLength(0);
+  });
+
+  it("cancels queued starts immediately while preserving the in-flight transport boundary", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const target = new FakePhysicalTarget("http://robot-a");
+    target.check = vi.fn(async () => {
+      await gate;
+      return { ok: true, detail: "checked" };
+    });
+    const coordinator = new PhysicalTargetCoordinator(() => target);
+    const port = new FakePort();
+    coordinator.attach(port);
+    await connectPeer(coordinator, port, target.endpoint);
+    coordinator.handle(port, { type: "check", requestId: "check", project });
+    await vi.waitFor(() => expect(target.check).toHaveBeenCalledOnce());
+    coordinator.handle(port, { type: "run", requestId: "queued-run", project });
+    coordinator.handle(port, { type: "stop", requestId: "stop" });
+    expect(responses(port, "queued-run")[0]).toMatchObject({
+      ok: false,
+      errorCode: "operation_cancelled",
+    });
+    expect(events(port, "status").at(-1)).toMatchObject({
+      state: "loading",
+      detail: expect.stringContaining("Stop requested"),
+    });
+    release();
+    await vi.waitFor(() => expect(target.stopCalls).toBe(1));
+    expect(target.runCalls).toBe(0);
   });
 });

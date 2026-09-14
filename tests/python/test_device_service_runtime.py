@@ -16,6 +16,30 @@ ROOT = Path(__file__).resolve().parents[2]
 SERVICE_DIR = ROOT / "device_service/ucsb_xrp_service"
 
 
+def request(data):
+    service = sys.modules["ucsb_xrp_service.service"]
+    manifest = service._read_manifest()
+    return types.SimpleNamespace(data={
+        "bootId": service._boot_id,
+        "sessionId": "test-client",
+        "controlGeneration": service._control_generation,
+        "runId": service._run_id,
+        "expectedProjectRevision": manifest.get("revision") if manifest else None,
+        **data,
+    })
+
+
+def telemetry_request(query):
+    service = sys.modules["ucsb_xrp_service.service"]
+    return types.SimpleNamespace(query={
+        "bootId": service._boot_id,
+        "sessionId": "test-client",
+        "controlGeneration": str(service._control_generation),
+        "runId": str(service._run_id),
+        **query,
+    })
+
+
 class FakeLoop:
     def __init__(self):
         self.tasks = []
@@ -278,6 +302,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._logs.clear()
         self.service._last_reply_by_id.clear()
         self.service._reply_order.clear()
+        self.service._reply_cache_bytes = 0
         self.service._last_hardware = None
         self.service._last_sample = None
         self.service._invalidate_idle_telemetry()
@@ -288,6 +313,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._last_project_module_names = []
         self.service._sample_seq = 0
         self.service._sample_epoch_start_ms = 0
+        self.service._control_session = "test-client"
+        self.service._control_generation = 1
+        self.service._control_deadline = 6100
         self.service._reset_pending = False
         self.service._network_state = None
         self.fake_station._active = True
@@ -299,6 +327,126 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._active_project_path = self.original_active_project_path
         self.service._clear_project_modules = self.original_clear_project_modules
         self.service._stop_motors = self.original_stop_motors
+
+    def test_deferred_reset_cannot_clear_a_new_run(self):
+        self.service._run_id = 2
+        self.service._thread_active = True
+        self.service._state = "running"
+        self.service._sample_seq = 9
+        with patch.object(self.service, "_stop_motors") as stop:
+            asyncio.run(self.service._reset_course_run_after_response(1))
+        self.assertEqual(self.service._state, "running")
+        self.assertEqual(self.service._sample_seq, 9)
+        self.assertTrue(self.service._thread_active)
+        stop.assert_not_called()
+
+    def test_control_claim_takeover_and_observer_mutations(self):
+        service = self.service
+        def claim(session, takeover=False):
+            return json.loads(service.claim_control(types.SimpleNamespace(data={
+                "requestId": session + str(takeover), "sessionId": session,
+                "bootId": service._boot_id, "takeover": takeover,
+            })).body)
+        self.assertEqual(claim("other-client")["error"]["code"], "control_owned")
+        service._thread_active = True
+        self.assertEqual(claim("other-client", True)["error"]["code"], "control_owned")
+        rejected = json.loads(service.set_runtime_parameter(request(data={
+            "requestId": "observer-change", "sessionId": "other-client", "name": "speed", "value": 1,
+        })).body)
+        self.assertEqual(rejected["error"]["code"], "control_required")
+        self.assertEqual(self.live_updates, [])
+        service._thread_active = False
+        result = claim("other-client", True)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["result"]["control"]["generation"], 2)
+        self.assertEqual(service._control_session, "other-client")
+        stale = json.loads(service.reset(request(data={"requestId": "stale-owner"})).body)
+        self.assertEqual(stale["error"]["code"], "control_required")
+
+    def test_control_and_lease_do_not_survive_boot_or_run_changes(self):
+        service = self.service
+        for values, code in [({"bootId": "old-boot"}, "boot_changed"), ({"runId": 99}, "stale_run")]:
+            reply = json.loads(service.renew_lease(request(data={"requestId": code, **values})).body)
+            self.assertEqual(reply["error"]["code"], code)
+        service._control_deadline = 50
+        reply = json.loads(service.renew_lease(request(data={"requestId": "expired-owner"})).body)
+        self.assertEqual(reply["error"]["code"], "control_required")
+        self.assertFalse(service._query_controls_run({"runId": "0", "bootId": service._boot_id, "sessionId": "observer", "controlGeneration": "1"}))
+
+    def test_matching_retry_replays_and_changed_operation_or_body_is_rejected(self):
+        service = self.service
+        calls = []
+        envelope = request(data={"requestId": "same-request", "value": 1})
+        operation = lambda body: calls.append(body["value"]) or {"detail": "done"}
+        first = service._command(envelope, operation, "run")
+        self.assertEqual(service._command(envelope, operation, "run").body, first.body)
+        second = json.loads(service._command(envelope, operation, "stop").body)
+        self.assertEqual(second["error"]["code"], "request_id_reused")
+        envelope.data["value"] = 2
+        third = json.loads(service._command(envelope, operation, "run").body)
+        self.assertEqual(third["error"]["code"], "request_id_reused")
+        self.assertEqual(calls, [1])
+
+    def test_run_is_rejected_while_service_restart_is_pending(self):
+        self.service._reset_pending = True
+        reply = json.loads(self.service.run_project(request(data={"requestId": "during-restart"})).body)
+        self.assertEqual(reply["error"]["code"], "target_restarting")
+        self.assertEqual(self.server.loop.tasks, [])
+
+    def test_plot_descriptor_pages_bound_unicode_metadata_and_retain_order(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        snapshots = tuple({
+            "sampleSeq": sample,
+            "plotValues": tuple(("plot_" + str(plot), "🧪" * 47 + chr(65 + sample), "µ" * 16, sample * 100 + plot) for plot in range(16)),
+        } for sample in range(16))
+        self.service._thread_active = True
+        with patch.object(course_telemetry, "buffered_state_snapshots", side_effect=lambda after: tuple(item for item in snapshots if item["sampleSeq"] > after), create=True):
+            after = -1
+            recovered = []
+            while True:
+                page, _hardware, more = self.service._buffered_course_page(after, 16)
+                self.assertTrue(page)
+                rows = [self.service._sample_plot_values(item) for item in page]
+                descriptors, encoded = self.service._encode_sample_plots(rows)
+                body = self.service._packed_telemetry_response({"samplePlotDescriptors": descriptors, "samplePlots": encoded}, b"", b"").body
+                self.assertLess(len(body), 20_000)
+                for index, row in enumerate(encoded):
+                    recovered.append([value for _descriptor, value in row])
+                after = page[-1]["sampleSeq"]
+                if not more:
+                    break
+        self.assertEqual(recovered, [[sample * 100 + plot for plot in range(16)] for sample in range(16)])
+        descriptors, encoded = self.service._encode_sample_plots([None, [], [{"name": "x", "label": "X", "value": 1}]])
+        self.assertEqual(encoded, [None, [], [[0, 1]]])
+
+    def test_large_world_is_rejected_before_compile_or_ram_mutation(self):
+        body = {"requestId": "oversize-world", "project": {"name": "World", "entrypoint": "main.py", "files": {"main.py": "pass", "world.json": " " * 16385}}}
+        with patch.object(self.service, "_compile_project") as compile_project, patch.object(self.service, "_prepare_ram_project") as prepare:
+            reply = json.loads(self.service.prepare_project(request(body)).body)
+        self.assertEqual(reply["error"]["code"], "project_too_large")
+        compile_project.assert_not_called()
+        prepare.assert_not_called()
+        for index in range(20):
+            self.service._remember_reply(str(index), {"result": "x" * 8000})
+        self.assertLessEqual(self.service._reply_cache_bytes, self.service.REPLY_CACHE_BYTES)
+        self.assertIn("19", self.service._last_reply_by_id)
+
+    def test_observer_and_stale_telemetry_cannot_take_poll_ownership_or_renew(self):
+        self.service._thread_active = True
+        self.service._run_id = 2
+        self.service._telemetry_poll_generation = 1
+        self.service._telemetry_poll_owner = "owner"
+        self.service._telemetry_poll_lease_deadline = 1000
+        deadline = self.service._control_deadline
+        with patch.object(self.service, "_read_hardware") as hardware:
+            for query in ({"sessionId": "observer", "pollGeneration": "999"}, {"runId": "1"}, {"bootId": "old-boot"}):
+                reply = self.service.telemetry(telemetry_request(query))
+                self.assertEqual(reply.status, 409)
+                self.assertEqual(json.loads(reply.body)["error"]["code"], "control_required")
+            hardware.assert_not_called()
+        self.assertEqual(self.service._telemetry_poll_generation, 1)
+        self.assertEqual(self.service._telemetry_poll_owner, "owner")
+        self.assertEqual(self.service._control_deadline, deadline)
 
     def test_info_reports_live_network_address_and_status(self):
         self.service._network_state = {
@@ -356,7 +504,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.service._idle_sample = {"seq": 42}
 
             response = self.service.run_project(
-                types.SimpleNamespace(data={"requestId": "runtime-test"})
+                request(data={"requestId": "runtime-test"})
             )
             reply = json.loads(response.body.decode("utf-8"))
 
@@ -382,7 +530,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
             self.service._thread_active = True
             lease_response = self.service.renew_lease(
-                types.SimpleNamespace(
+                request(
                     data={"requestId": "lease-test", "runId": 1}
                 )
             )
@@ -399,7 +547,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
             with patch.object(self.service.time, "ticks_ms", return_value=5000):
                 self.service.renew_lease(
-                    types.SimpleNamespace(
+                    request(
                         data={"requestId": "lease-test-later", "runId": 1}
                     )
                 )
@@ -553,7 +701,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             patch.object(self.service, "_compile_project") as compile_project,
         ):
             response = self.service.sync(
-                types.SimpleNamespace(
+                request(
                     data={"requestId": "flash-requires-usb", "project": project}
                 )
             )
@@ -594,7 +742,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.service._stop_motors = lambda: None
 
             response = self.service.run_project(
-                types.SimpleNamespace(data={"requestId": "run-boundary"})
+                request(data={"requestId": "run-boundary"})
             )
 
         reply = json.loads(response.body.decode("utf-8"))
@@ -695,7 +843,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 patch.object(self.service, "RAM_PROJECT_MOUNTS", mounts),
             ):
                 response = self.service.prepare_project(
-                    types.SimpleNamespace(
+                    request(
                         data={"requestId": "prepare-nested", "project": project}
                     )
                 )
@@ -734,7 +882,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
                 with patch.object(self.service, "_stop_motors", return_value=None):
                     run_response = self.service.run_project(
-                        types.SimpleNamespace(data={"requestId": "run-prepared"})
+                        request(data={"requestId": "run-prepared"})
                     )
                 run_reply = json.loads(run_response.body.decode("utf-8"))
                 self.assertTrue(run_reply["ok"])
@@ -770,14 +918,13 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 ),
                 patch.object(self.service, "_stop_motors", return_value=None),
             ):
-                response = self.service.run_project(
-                    types.SimpleNamespace(
+                envelope = request(
                         data={
                             "requestId": "run-atomic",
                             "project": project,
                         }
                     )
-                )
+                response = self.service.run_project(envelope)
                 reply = json.loads(response.body.decode("utf-8"))
 
                 self.assertTrue(reply["ok"])
@@ -792,14 +939,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                     "VALUE = 11\n",
                 )
 
-                replay = self.service.run_project(
-                    types.SimpleNamespace(
-                        data={
-                            "requestId": "run-atomic",
-                            "project": project,
-                        }
-                    )
-                )
+                replay = self.service.run_project(envelope)
                 self.assertEqual(replay.body, response.body)
                 self.assertEqual(len(self.server.loop.tasks), 1)
 
@@ -816,7 +956,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._active_ram_manifest = retained
 
         response = self.service.run_project(
-            types.SimpleNamespace(
+            request(
                 data={
                     "requestId": "run-invalid",
                     "project": {
@@ -858,7 +998,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 patch.object(self.service, "RAM_PROJECT_MOUNTS", mounts),
             ):
                 first_response = self.service.prepare_project(
-                    types.SimpleNamespace(
+                    request(
                         data={"requestId": "prepare-first", "project": first_project}
                     )
                 )
@@ -872,7 +1012,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                     side_effect=OSError("simulated RAM write failure"),
                 ):
                     failed_response = self.service.prepare_project(
-                        types.SimpleNamespace(
+                        request(
                             data={
                                 "requestId": "prepare-second",
                                 "project": second_project,
@@ -933,7 +1073,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             ),
         ):
             response = self.service.prepare_project(
-                types.SimpleNamespace(
+                request(
                     data={"requestId": "prepare-lock", "project": project}
                 )
             )
@@ -959,7 +1099,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             ),
         ):
             failed_response = self.service.prepare_project(
-                types.SimpleNamespace(
+                request(
                     data={"requestId": "prepare-lock-failure", "project": project}
                 )
             )
@@ -996,7 +1136,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._idle_sample = {"seq": 43}
 
         response = self.service.reset(
-            types.SimpleNamespace(data={"requestId": "reset-idle"})
+            request(data={"requestId": "reset-idle"})
         )
         result = json.loads(response.body.decode("utf-8"))["result"]
 
@@ -1027,7 +1167,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         sys.modules["uasyncio"].sleep_ms = complete_stop
         try:
             response = self.service.reset(
-                types.SimpleNamespace(data={"requestId": "reset-active"})
+                request(data={"requestId": "reset-active"})
             )
             result = json.loads(response.body.decode("utf-8"))["result"]
 
@@ -1049,7 +1189,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
     def test_stop_requests_cooperative_exit_without_resetting_wifi(self):
         self.service._thread_active = True
         response = self.service.stop(
-            types.SimpleNamespace(data={"requestId": "stop-test"})
+            request(data={"requestId": "stop-test"})
         )
         result = json.loads(response.body.decode("utf-8"))["result"]
 
@@ -1068,7 +1208,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
     def test_stop_falls_back_to_reset_for_noncooperative_code(self):
         self.service._thread_active = True
-        self.service.stop(types.SimpleNamespace(data={"requestId": "stop-fallback"}))
+        self.service.stop(request(data={"requestId": "stop-fallback"}))
 
         asyncio.run(self.server.loop.tasks.pop())
         asyncio.run(self.server.loop.tasks.pop())
@@ -1083,7 +1223,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
     def test_acknowledged_stop_does_not_reset_during_cleanup(self):
         self.service._run_id = 4
         self.service._thread_active = True
-        self.service.stop(types.SimpleNamespace(data={"requestId": "stop-ack"}))
+        self.service.stop(request(data={"requestId": "stop-ack"}))
 
         asyncio.run(self.server.loop.tasks.pop())
         self.service._stop_acknowledged_run_id = 4
@@ -1250,7 +1390,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         )
         run = json.loads(
             self.service.run_project(
-                types.SimpleNamespace(data={"requestId": "run-before-prepare"})
+                request(data={"requestId": "run-before-prepare"})
             ).body.decode("utf-8")
         )
 
@@ -1413,8 +1553,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             patch.object(self.service, "_read_hardware") as read_hardware,
         ):
             response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
                         "afterLogSeq": "0",
                         "afterSampleSeq": "2",
                         "runId": "0",
@@ -1530,11 +1669,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             patch.object(self.service, "_sample_epoch_start_ms", 0),
         ):
             legacy_body = self.service.telemetry(
-                types.SimpleNamespace(query={})
+                telemetry_request(query={})
             ).body.decode("utf-8")
             compact_body = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={"sampleEncoding": self.service.COMPACT_TELEMETRY_ENCODING}
+                telemetry_request(query={"sampleEncoding": self.service.COMPACT_TELEMETRY_ENCODING}
                 )
             ).body.decode("utf-8")
 
@@ -1583,6 +1721,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "sampleSeq": sequence,
                 "sampleTimeMs": sequence * 20,
                 "xMm": float(sequence),
+                "plotValues": (("counter", "Counter", "sample", sequence),),
             }
             for sequence in range(1, 35)
         ]
@@ -1663,8 +1802,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             ),
         ):
             first_response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
                         "afterSampleSeq": "0",
                         "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
                         "includeUpdates": "0",
@@ -1672,8 +1810,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 )
             )
             second_response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
                         "afterSampleSeq": "16",
                         "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
                         "includeUpdates": "0",
@@ -1681,8 +1818,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 )
             )
             third_response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
                         "afterSampleSeq": "32",
                         "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
                         "includeUpdates": "0",
@@ -1690,8 +1826,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 )
             )
             authoritative_response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
                         "afterSampleSeq": "34",
                         "sampleEncoding": self.service.PACKED_TELEMETRY_ENCODING,
                         "includeUpdates": "1",
@@ -1700,7 +1835,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
             legacy = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(query={"afterSampleSeq": "0"})
+                    telemetry_request(query={"afterSampleSeq": "0"})
                 ).body.decode("utf-8")
             )
 
@@ -1720,7 +1855,11 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(first["s"], 2)
         self.assertEqual(first["r"], 3)
         self.assertNotIn("project", first)
-        self.assertLess(len(first_response.body), 1_300)
+        self.assertLess(len(first_response.body), 1_800)
+        self.assertEqual(first["samplePlotDescriptors"], [{"name": "counter", "label": "Counter", "unit": "sample"}])
+        self.assertEqual(first["samplePlots"], [[[0, index]] for index in range(1, 17)])
+        self.assertEqual(second["samplePlots"], [[[0, index]] for index in range(17, 33)])
+        self.assertEqual(third["samplePlots"], [[[0, 33]], [[0, 34]]])
         self.assertEqual([row[1] for row in first_rows], list(range(1, 17)))
         self.assertEqual(first_rows[0][0:6], (20, 1, 1, 18, 1.0, -2.5))
         self.assertEqual(first_rows[0][8], 0.0)
@@ -1806,22 +1945,19 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         ):
             first = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                     )
                 ).body.decode("utf-8")
             )
             second = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "8", "afterSampleSeq": "8"}
+                    telemetry_request(query={"afterLogSeq": "8", "afterSampleSeq": "8"}
                     )
                 ).body.decode("utf-8")
             )
             third = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "10", "afterSampleSeq": "10"}
+                    telemetry_request(query={"afterLogSeq": "10", "afterSampleSeq": "10"}
                     )
                 ).body.decode("utf-8")
             )
@@ -1842,11 +1978,11 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
         full_state = json.loads(
             self.service.state(
-                types.SimpleNamespace(query={"afterLogSeq": "0"})
+                telemetry_request(query={"afterLogSeq": "0"})
             ).body.decode("utf-8")
         )
-        self.assertEqual(len(full_state["logs"]), 10)
-        self.assertNotIn("moreLogs", full_state)
+        self.assertEqual(len(full_state["logs"]), 8)
+        self.assertTrue(full_state["moreLogs"])
 
     def test_active_telemetry_poll_renews_only_its_matching_run(self):
         self.service._thread_active = True
@@ -1866,8 +2002,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
 
         with patch.object(self.service.time, "ticks_ms", return_value=500):
             self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
+                        "bootId": self.service._boot_id,
+                        "sessionId": "test-client",
+                        "controlGeneration": "1",
                         "afterLogSeq": "0",
                         "afterSampleSeq": "0",
                         "runId": "6",
@@ -1876,8 +2014,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
             self.assertEqual(self.service._lease_deadline, 150)
             self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
+                        "bootId": self.service._boot_id,
+                        "sessionId": "test-client",
+                        "controlGeneration": "1",
                         "afterLogSeq": "0",
                         "afterSampleSeq": "0",
                         "runId": "7",
@@ -1896,6 +2036,8 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         sample = {"seq": 1}
 
         with (
+            patch.object(self.service, "_query_controls_run", return_value=True),
+            patch.object(self.service, "_renew_control", return_value=None),
             patch.object(
                 self.service, "_state_result", return_value=state_value
             ) as state_result,
@@ -1915,8 +2057,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         ):
             accepted = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={
+                    telemetry_request(query={
                             "afterLogSeq": "0",
                             "afterSampleSeq": "0",
                             "pollGeneration": "12",
@@ -1927,15 +2068,13 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
             legacy = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                     )
                 ).body.decode("utf-8")
             )
             peer = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={
+                    telemetry_request(query={
                             "afterLogSeq": "0",
                             "afterSampleSeq": "0",
                             "pollGeneration": "12",
@@ -2011,6 +2150,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._thread_active = True
         state_value = {"state": "running", "runId": 4, "logs": []}
         with (
+            patch.object(self.service, "_query_controls_run", return_value=True),
+            patch.object(self.service, "_renew_control", return_value=None),
+            patch.object(self.service, "_control_state", return_value={}),
             patch.object(
                 self.service,
                 "_state_result",
@@ -2042,8 +2184,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             ),
         ):
             self.service.telemetry(
-                types.SimpleNamespace(
-                    query={
+                telemetry_request(query={
                         "pollGeneration": "12",
                         "pollOwner": "owner-a",
                     }
@@ -2051,8 +2192,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
             takeover = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={
+                    telemetry_request(query={
                             "pollGeneration": "13",
                             "pollOwner": "owner-b",
                         }
@@ -2061,8 +2201,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
             older = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={
+                    telemetry_request(query={
                             "pollGeneration": "12",
                             "pollOwner": "owner-a",
                         }
@@ -2071,8 +2210,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             )
             renewed = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={
+                    telemetry_request(query={
                             "pollGeneration": "13",
                             "pollOwner": "owner-b",
                         }
@@ -2080,7 +2218,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 ).body.decode("utf-8")
             )
             legacy_after_expiry = json.loads(
-                self.service.telemetry(types.SimpleNamespace(query={})).body.decode(
+                self.service.telemetry(telemetry_request(query={})).body.decode(
                     "utf-8"
                 )
             )
@@ -2129,8 +2267,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             patch.object(self.service, "_read_hardware", return_value=hardware),
         ):
             response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                 )
             )
 
@@ -2170,6 +2307,9 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             "rangeMm": 250.0,
         }
         with (
+            patch.object(self.service, "_query_controls_run", return_value=True),
+            patch.object(self.service, "_renew_control", return_value=None),
+            patch.object(self.service, "_control_state", return_value={}),
             patch.object(
                 course_telemetry,
                 "buffered_state_snapshots",
@@ -2192,29 +2332,25 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         ):
             first = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                     )
                 ).body.decode("utf-8")
             )
             concurrent = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                    telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                     )
                 ).body.decode("utf-8")
             )
             current_cursor = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "0", "afterSampleSeq": "1"}
+                    telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "1"}
                     )
                 ).body.decode("utf-8")
             )
             after_expiry = json.loads(
                 self.service.telemetry(
-                    types.SimpleNamespace(
-                        query={"afterLogSeq": "0", "afterSampleSeq": "1"}
+                    telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "1"}
                     )
                 ).body.decode("utf-8")
             )
@@ -2277,13 +2413,11 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             patch.object(self.service, "_read_hardware", return_value=hardware),
         ):
             retained_response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={"afterLogSeq": "0", "afterSampleSeq": "0"}
+                telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "0"}
                 )
             )
             stopped_response = self.service.telemetry(
-                types.SimpleNamespace(
-                    query={"afterLogSeq": "0", "afterSampleSeq": "8"}
+                telemetry_request(query={"afterLogSeq": "0", "afterSampleSeq": "8"}
                 )
             )
 
@@ -2344,7 +2478,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.service._thread_active = True
 
         response = self.service.set_runtime_parameter(
-            types.SimpleNamespace(
+            request(
                 data={
                     "requestId": "parameter-1",
                     "name": "forward_speed_mm_s",
@@ -2369,7 +2503,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             side_effect=ValueError("unknown live parameter: missing"),
         ):
             response = self.service.set_runtime_parameter(
-                types.SimpleNamespace(
+                request(
                     data={
                         "requestId": "parameter-2",
                         "name": "missing",

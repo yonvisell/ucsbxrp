@@ -69,11 +69,14 @@ export function GuideApp() {
                 folders.
               </li>
               <li>
-                If the Working folder is empty, the IDE creates and opens an
-                Expanding Spiral demo. Otherwise, select{" "}
-                <strong>New project…</strong> to create a project or{" "}
-                <strong>Open project…</strong> to open an existing Project
-                folder.
+                In <strong>Create your first Project</strong>, select the
+                Working folder, check the proposed <code>XRP_Project_01</code>
+                name and location, then select <strong>Create Project</strong>.
+                Occupied names advance to the next unused number. The Project
+                contains the Expanding spiral virtual program. Use
+                <strong> Open existing Project</strong> for prior work, or
+                <strong> Reconnect existing work</strong> when Chrome needs
+                permission again. No USB setup is needed for virtual use.
               </li>
               <li>
                 Leave <strong>Virtual XRP</strong> selected. Select{" "}
@@ -86,6 +89,13 @@ export function GuideApp() {
                 plots. Both views show the same target and Run/Stop state.
               </li>
             </ol>
+            <p>
+              <strong>Use read-only preview</strong> dismisses this offer
+              without creating files. The header&apos;s
+              <strong> Create first Project</strong> button brings it back.
+              Guide and API open beside the workspace; the IDE, Monitor, and
+              Stop remain available while you consult them.
+            </p>
             <h3>Suggested first-use path</h3>
             <p>
               Use Tutorials 1–4 as needed for Python, project, and Monitor
@@ -110,14 +120,17 @@ export function GuideApp() {
                 point, normally <code>main.py</code>.
               </li>
               <li>
-                <strong>Stop</strong> ends the running program. On a physical
-                XRP, the course runtime also commands zero motor drive.
+                <strong>Stop</strong> cancels a pending Run or ends the running
+                program. On a physical XRP, the course runtime also commands
+                zero motor drive.
               </li>
               <li>
                 <strong>Reset</strong> stops the program and clears live values
                 from the selected target. It returns the virtual XRP to its
                 initial pose. On a physical XRP, the Wi-Fi connection remains
-                available for the next Run.
+                available for the next Run. The completed Monitor recording and
+                notes remain available for export until the next Run or
+                <strong> Clear run</strong>.
               </li>
               <li>
                 On a physical XRP, <strong>Run</strong> sends the current
@@ -173,6 +186,40 @@ export function GuideApp() {
               choose the same Working folder; the files remain on the computer.
             </p>
             <p>
+              Wait for the save state to report that files are current. A
+              pending operation names its phase and shows elapsed time for
+              longer waits. Do not repeat Run while compilation or transfer is
+              pending; use Stop to cancel. A failed Stop is not confirmation
+              that the Physical XRP stopped.
+            </p>
+            <h3>Recovery and other open windows</h3>
+            <p>
+              Settings lists retained unsaved copies separately from saved
+              Project files. Export a recovery copy before clearing browser
+              data. An interrupted folder save or externally changed file opens
+              a recovery choice; retain the wanted version as a separate Project
+              before continuing. A cancelled folder or Project choice leaves the
+              current Project selected.
+            </p>
+            <p>
+              <strong>Save pending</strong> can mean another editor is still
+              writing. Let it finish and retry. If every editor of that folder
+              is closed, use <strong>Review pending writers</strong> in the
+              Project chooser or Settings. Confirm only after closing those
+              editors; then choose which complete recovery copy to retain.
+            </p>
+            <p>
+              Use one editing window for a Project. Another IDE can show the
+              same XRP, but <strong>Use this IDE</strong> explicitly selects
+              which source supplies Run. On a Physical XRP, another browser or
+              computer can observe status and request Stop. Take control only
+              after the XRP is stopped. Switching windows does not transfer
+              control automatically. Close extra editors before resolving a save
+              conflict; operating-system folder copies with identical Project
+              identities require a new saved Project copy before automatic run
+              archiving.
+            </p>
+            <p>
               To reuse work in a different challenge, select{" "}
               <strong>Start another challenge…</strong>. Choose the target and
               inspect the <strong>Preserve</strong>, <strong>Merge</strong>,
@@ -181,6 +228,14 @@ export function GuideApp() {
               creating a separate project. The current project is not changed.
               Use <strong>New project…</strong> instead when you want a clean
               template.
+            </p>
+            <p>
+              New Projects record their supplied template and course release.
+              <strong> Settings → Review supplied template</strong> compares
+              that template with this release and can create a separate updated
+              Project. Edited component files, settings, and other student files
+              are preserved; any retained conflicts require manual comparison.
+              Older Projects without provenance remain readable.
             </p>
             <div
               className="project-catalog"
@@ -522,6 +577,13 @@ export function GuideApp() {
               </li>
             </ol>
             <h3>Robot hotspot and station mode</h3>
+            <p>
+              If you exit after USB installation but before Wi-Fi verification,
+              reopen setup and reconnect the same Working folder. The saved
+              setup checkpoint lets you finish the connection check. Follow a
+              requested USB repair if installation was interrupted. Leaving the
+              page does not undo firmware or files already written.
+            </p>
             <table className="network-modes">
               <thead>
                 <tr>
@@ -563,6 +625,13 @@ export function GuideApp() {
               Settings to repair the course runtime or change networks. Setup
               verifies and saves a new address; do not substitute an example
               address from another robot.
+            </p>
+            <p>
+              Physical transfer accepts at most 48 project files, a 16 KiB
+              <code> world.json</code>, and a 128 KiB encoded command. Keep
+              projects compact; simplify a world or remove unused project files
+              if the IDE reports a transfer limit. Virtual execution does not
+              establish that a larger project fits the controller.
             </p>
           </GuideSection>
 
@@ -607,8 +676,8 @@ export function GuideApp() {
             </dl>
             <p>
               Choose signals and a time window under <strong>Controls</strong>.{" "}
-              <strong>Clear plots</strong> starts a new visible history without
-              resetting the robot. Drag a separator to resize the world,
+              <strong>Clear run</strong> clears the displayed completed history
+              without resetting the robot. Drag a separator to resize the world,
               telemetry, or plots.
             </p>
             <p>
@@ -619,6 +688,24 @@ export function GuideApp() {
               its telemetry and notes. While the program is active, the plots
               show that run as it develops. When it stops or completes, Monitor
               retains the completed run for inspection and export.
+            </p>
+            <p>
+              Automatic archives belong to the Project that supplied the Run,
+              even if another window later selects a different Project. Notes
+              update that same saved run while it remains among the four saved
+              generations. If Monitor cannot verify the destination, or a run
+              has rotated out, export the displayed data and notes before
+              closing the page. The save message states the actual outcome.
+            </p>
+            <p>
+              Virtual data includes physics steps, actuator changes, and course
+              state updates. Several observations can share the same simulation
+              time and physics sequence number. CSV <code>observation_seq</code>
+              preserves their order; <code>physics_step_seq</code> identifies
+              the physics step. On the physical XRP, <code>seq</code> identifies
+              an acquired sensor sample. Use <code>t_s</code> to measure elapsed
+              time, and use distinct timestamps when estimating rates; do not
+              infer duration from the number of CSV rows.
             </p>
             <ol className="procedure">
               <li>
@@ -735,6 +822,13 @@ export function GuideApp() {
               application update does not replace Project folders. After a page
               reopens, reconnect the Working folder if requested and wait for
               the selected XRP to report ready before running.
+            </p>
+            <p>
+              A complete cached release remains usable when the computer is
+              connected to Wi-Fi but the internet does not respond. An older
+              open workspace keeps its required files during an update. Export
+              any retained run or notes, then use <strong>Clear run</strong>
+              when you are ready to let Monitor adopt a waiting update.
             </p>
           </GuideSection>
 

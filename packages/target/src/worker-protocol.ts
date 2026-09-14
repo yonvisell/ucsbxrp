@@ -9,9 +9,11 @@ import type {
   ProjectRevisionNotice,
   PythonDiagnostic,
   RuntimeParameterValue,
+  RuntimePlot,
   RuntimeState,
   SynchronizedProject,
   TargetEvent,
+  TelemetryObservationKind,
 } from "./types";
 import type {
   ProjectRunSnapshotRequest,
@@ -19,6 +21,9 @@ import type {
 } from "./project-run-provider";
 
 export interface CourseTelemetryState {
+  /** Source publication identity/time; neither implies sensor acquisition. */
+  publicationSeq?: number;
+  publishedAtMs?: number;
   estimatedXmm: number;
   estimatedYmm: number;
   estimatedHeadingRad: number;
@@ -30,6 +35,7 @@ export interface CourseTelemetryState {
   requestedTurnRateRadS: number | null;
   targetLeftWheelSpeedMmS: number | null;
   targetRightWheelSpeedMmS: number | null;
+  plotValues?: RuntimePlot[];
 }
 
 export type TargetWorkerRole = "ide" | "monitor";
@@ -43,6 +49,8 @@ export type TargetWorkerCommand =
       role?: TargetWorkerRole;
     }
   | { type: "disconnect" }
+  | { type: "reserve-run"; requestId: string }
+  | { type: "cancel-run"; requestId: string; operationEpoch: number }
   | {
       type: "set-project-run-provider";
       providesProject: boolean;
@@ -57,6 +65,7 @@ export type TargetWorkerCommand =
   | {
       type: "prepare-run";
       requestId: string;
+      operationEpoch?: number;
       project?: CourseProject;
       descriptor?: SynchronizedProject;
       projectId?: string;
@@ -113,6 +122,7 @@ export type TargetWorkerMessage =
       ok: true;
       result?: {
         runId?: number;
+        operationEpoch?: number;
         scenario?: SimulationScenario;
         world?: WorldDefinition;
         project?: CourseProject;
@@ -134,6 +144,7 @@ export interface RuntimeWorkerRequest {
   scenario?: SimulationScenario;
   world?: WorldDefinition;
   liveParameterBuffer?: SharedArrayBuffer;
+  cancellationBuffer?: SharedArrayBuffer;
 }
 
 export type RuntimeWorkerMessage =
@@ -144,9 +155,18 @@ export type RuntimeWorkerMessage =
       diagnostics?: PythonDiagnostic[];
     }
   | { type: "effort"; side: "left" | "right"; effort: number }
-  | { type: "simulator-state"; state: XrpSimulatorState }
+  | {
+      type: "simulator-state";
+      state: XrpSimulatorState;
+      observationKind?: TelemetryObservationKind;
+    }
   | { type: "course-state"; state: CourseTelemetryState }
   | { type: "console"; stream: "stdout" | "stderr"; line: string }
+  | {
+      type: "console-batch";
+      lines: { stream: "stdout" | "stderr"; line: string }[];
+      omitted: number;
+    }
   | {
       type: "check-complete";
       detail: string;

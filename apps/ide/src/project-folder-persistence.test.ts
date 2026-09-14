@@ -76,6 +76,42 @@ function setup(
 }
 
 describe("ProjectFolderPersistenceController", () => {
+  it("keeps a read waiting for writes queued while the preceding commit finishes", async () => {
+    const finish: (() => void)[] = [];
+    const harness = setup({
+      permission: async () => "granted",
+      save: async () => {
+        await new Promise<void>((resolve) => finish.push(resolve));
+        return {
+          changed: true,
+          removedFiles: 0,
+          contentDigest: "b".repeat(64),
+        };
+      },
+    });
+    const first = harness.controller.saveAutomatically(
+      folder,
+      harness.session,
+      1,
+    );
+    await vi.waitFor(() => expect(finish).toHaveLength(1));
+    let readReady = false;
+    const waiting = harness.controller.waitForWrites().then(() => {
+      readReady = true;
+    });
+    const second = harness.controller.saveAutomatically(
+      folder,
+      harness.session,
+      1,
+    );
+    finish[0]!();
+    await vi.waitFor(() => expect(finish).toHaveLength(2));
+    expect(readReady).toBe(false);
+    finish[1]!();
+    await Promise.all([first, second, waiting]);
+    expect(readReady).toBe(true);
+  });
+
   it("runs only one Project-folder write at a time", async () => {
     let releaseFirst!: () => void;
     let active = 0;
@@ -330,7 +366,7 @@ describe("ProjectFolderPersistenceController", () => {
       exactRevision: true,
     });
     expect(save).toHaveBeenCalledTimes(2);
-    expect(save.mock.calls[1]?.[3]).toEqual({
+    expect(save.mock.calls[1]?.[3]).toMatchObject({
       expectedBaseDigest: "2".repeat(64),
     });
   });
@@ -374,3 +410,33 @@ function harnessProject() {
     files: { "main.py": "print('folder')\n" },
   };
 }
+
+it("does not write a new session through a captured old folder after a binding change", async () => {
+  const harness = setup();
+  harness.setWorkingFolder({ name: "other" } as CourseDirectoryHandle);
+  await expect(
+    harness.controller.saveManually(folder, harness.session),
+  ).resolves.toEqual({ status: "cancelled" });
+  expect(harness.save).not.toHaveBeenCalled();
+});
+
+it("fences a native close when the same project identity moves to another folder", async () => {
+  let fence!: () => void;
+  let release!: () => void;
+  const harness = setup({
+    save: async (_folder, _snapshot, _deleted, options) => {
+      fence = options!.assertCurrent!;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      fence();
+      return { changed: true, removedFiles: 0, contentDigest: "d".repeat(64) };
+    },
+  });
+  const save = harness.controller.saveManually(folder, harness.session);
+  const rejected = expect(save).rejects.toThrow("Project selection changed");
+  await vi.waitFor(() => expect(fence).toBeTypeOf("function"));
+  harness.setWorkingFolder({ name: "moved" } as CourseDirectoryHandle);
+  release();
+  await rejected;
+});

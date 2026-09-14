@@ -6,12 +6,50 @@ import hashlib
 import json
 import sys
 import time
+import uuid
+from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
 class ProbeError(RuntimeError):
     pass
+
+
+_control_contexts = {}
+
+
+def claim_control_session(base_url, info=None):
+    """Claim only an unowned device; instructor probes never take over silently."""
+    if info is None:
+        info, _ = request_json(base_url, "/api/v1/info")
+    if "control.session-v1" not in info.get("capabilities", []):
+        raise ProbeError("Update the XRP before using the current control-session probe")
+    previous = _control_contexts.get(base_url)
+    session = previous["sessionId"] if previous and previous["bootId"] == info.get("bootId") else uuid.uuid4().hex
+    request_id = "probe-control-" + uuid.uuid4().hex
+    reply, _ = request_json(base_url, "/api/v1/control", method="POST", body={
+        "requestId": request_id, "sessionId": session, "bootId": info.get("bootId"), "takeover": False,
+    })
+    if reply.get("requestId") != request_id or not reply.get("ok"):
+        raise ProbeError(reply.get("error", {}).get("detail", "Could not claim XRP control"))
+    result = reply["result"]
+    context = {"bootId": info["bootId"], "sessionId": session,
+        "controlGeneration": result["control"]["generation"], "runId": result["runId"],
+        "expectedProjectRevision": (info.get("project") or {}).get("revision")}
+    _control_contexts[base_url] = context
+    return context
+
+
+def telemetry_path(base_url, after_log_seq=0, after_sample_seq=0, run_id=None):
+    context = _control_contexts.get(base_url)
+    if context is None:
+        raise ProbeError("Claim XRP control before polling a probe run")
+    query = {"afterLogSeq": after_log_seq, "afterSampleSeq": after_sample_seq,
+        "runId": context["runId"] if run_id is None else run_id,
+        "bootId": context["bootId"], "sessionId": context["sessionId"],
+        "controlGeneration": context["controlGeneration"]}
+    return "/api/v1/telemetry?" + urlencode(query)
 
 
 def project_revision(project):
@@ -53,12 +91,15 @@ def request_json(base_url, path, method="GET", body=None, timeout=2.0):
 
 
 def command(base_url, name, counter, **values):
-    request_id = "probe-{}-{}".format(int(time.time()), counter)
+    context = _control_contexts.get(base_url)
+    if context is None:
+        context = claim_control_session(base_url)
+    request_id = "probe-{}-{}".format(counter, uuid.uuid4().hex)
     reply, _ = request_json(
         base_url,
         "/api/v1/" + name,
         method="POST",
-        body=dict(values, requestId=request_id),
+        body=dict(context, **dict(values, requestId=request_id)),
         timeout=3.0,
     )
     if reply.get("requestId") != request_id:
@@ -66,7 +107,12 @@ def command(base_url, name, counter, **values):
     if not reply.get("ok"):
         error = reply.get("error", {})
         raise ProbeError(error.get("detail", "{} failed".format(name)))
-    return reply.get("result", {})
+    result = reply.get("result", {})
+    if "runId" in result:
+        context["runId"] = result["runId"]
+    if isinstance(result.get("project"), dict):
+        context["expectedProjectRevision"] = result["project"].get("revision")
+    return result
 
 
 def wait_for_service(base_url, timeout_s=8.0):
@@ -105,11 +151,7 @@ def wait_for_program(
     observed_logs = []
     attempt = 0
     while time.monotonic() < deadline:
-        path = (
-            "/api/v1/telemetry?afterLogSeq={}&afterSampleSeq={}&runId={}".format(
-                cursor["logSeq"], cursor["sampleSeq"], run_id
-            )
-        )
+        path = telemetry_path(base_url, cursor["logSeq"], cursor["sampleSeq"], run_id)
         state, _ = request_json(base_url, path)
         for entry in state.get("logs", []):
             sequence = entry.get("seq")
@@ -228,6 +270,7 @@ def run_probe(address, include_reset=False):
     telemetry_cursor = {}
 
     info = wait_for_service(base_url)
+    claim_control_session(base_url, info)
     if "project.current" not in info.get("capabilities", []):
         raise ProbeError("service does not advertise retained-project discovery")
     evidence["service"] = info

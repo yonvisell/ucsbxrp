@@ -267,16 +267,9 @@ def _atomic_json(path, value):
     temporary = path + ".tmp"
     with open(temporary, "w") as handle:
         json.dump(value, handle)
-    try:
-        os.rename(temporary, path)
-    except OSError:
-        # RP2's LittleFS normally replaces the destination atomically. Retain
-        # compatibility with VFS implementations that require its removal.
-        try:
-            os.remove(path)
-        except OSError:
-            pass
-        os.rename(temporary, path)
+    # Supported RP2350 LittleFS replaces a destination atomically. If that
+    # operation fails, preserve the previous boot marker for recovery.
+    os.rename(temporary, path)
 
 
 def _clear_managed_modules():

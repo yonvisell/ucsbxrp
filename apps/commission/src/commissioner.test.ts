@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   FirmwareRequiredError,
@@ -11,6 +12,9 @@ import {
   robotHostnameForId,
   requireMatchingCommissioningRelease,
   stationNetworkError,
+  writeDeviceFile,
+  prepareCommissioningAssets,
+  maintainCommissioningWatchdog,
   type CommissioningManifest,
 } from "./commissioner";
 import type { MicroPythonSession, ReplResult } from "./web-serial";
@@ -311,6 +315,10 @@ class FakeSession implements MicroPythonSession {
       this.temporaryData = [];
       return result();
     }
+    if (code.startsWith("f.close()")) {
+      this.files.set(this.temporaryPath, Uint8Array.from(this.temporaryData));
+      return result();
+    }
     if (code.includes("os.remove(p)")) {
       const pathsSource = code.match(/for p in (\[[^\n]+\]):/)?.[1];
       if (pathsSource) {
@@ -334,6 +342,7 @@ class FakeSession implements MicroPythonSession {
         JSON.parse(rename[2]!) as string,
         Uint8Array.from(this.temporaryData),
       );
+      this.files.delete(this.temporaryPath);
       return result();
     }
     return result();
@@ -354,6 +363,151 @@ class FakeSession implements MicroPythonSession {
 }
 
 describe("browser XRP commissioning", () => {
+  it("preserves real filesystem destinations across interrupted atomic replacement", async () => {
+    for (const destination of [
+      "/main.py",
+      "/course_boot.py",
+      "/xrp_wifi.json",
+      "/course_runtime/active.0.json",
+      "/course_runtime/active.1.json",
+    ]) {
+      const session = new FakeSession(
+        new Map([[destination, encoder.encode("previous")]]),
+      );
+      await writeDeviceFile(
+        session,
+        destination,
+        encoder.encode("replacement"),
+      );
+      const program = String.raw`
+import ast, builtins, contextlib, io, json, os, pathlib, sys, tempfile, types
+payload=json.load(sys.stdin)
+with tempfile.TemporaryDirectory() as root:
+ destination=pathlib.Path(root+payload['destination'])
+ destination.parent.mkdir(parents=True,exist_ok=True)
+ destination.write_text('previous')
+ sys.modules['machine']=types.SimpleNamespace(WDT=lambda **kw:types.SimpleNamespace(feed=lambda:None))
+ original_rename=os.rename
+ def rename(source,target):
+  if payload['boundary']=='before': raise RuntimeError('power lost before rename')
+  original_rename(source,target)
+  raise RuntimeError('power lost after rename')
+ os.rename=rename
+ class Paths(ast.NodeTransformer):
+  def visit_Constant(self,node):
+   if isinstance(node.value,str) and node.value.startswith('/'): return ast.copy_location(ast.Constant(root+node.value),node)
+   return node
+ scope={}
+ try:
+  with contextlib.redirect_stdout(io.StringIO()):
+   for code in payload['commands']:
+    tree=ast.fix_missing_locations(Paths().visit(ast.parse(code)))
+    exec(compile(tree,'commissioning','exec'),scope)
+ except RuntimeError: pass
+ print(json.dumps({'exists':destination.exists(),'content':destination.read_text() if destination.exists() else None}))
+`;
+      for (const boundary of ["before", "after"]) {
+        const observed = JSON.parse(
+          execFileSync("python3", ["-c", program], {
+            input: JSON.stringify({
+              destination,
+              commands: session.commands,
+              boundary,
+            }),
+            encoding: "utf8",
+          }),
+        ) as { exists: boolean; content: string };
+        expect(observed).toEqual({
+          exists: true,
+          content: boundary === "before" ? "previous" : "replacement",
+        });
+      }
+    }
+  });
+
+  it("keeps watchdog feeds serialized during downloads beyond the watchdog interval", async () => {
+    vi.useFakeTimers();
+    try {
+      const session = new FakeSession();
+      const feeds: number[] = [Date.now()];
+      const execute = session.execute.bind(session);
+      session.execute = async (code) => {
+        if (code.includes(".feed()")) feeds.push(Date.now());
+        return execute(code);
+      };
+      const result = commissionDevice({
+        session,
+        manifest: manifest(),
+        manifestUrl,
+        robotId: "4c91fae8f1775aa4",
+        network: { mode: "keep" },
+        fetch: (async (input) => {
+          await new Promise((resolve) => setTimeout(resolve, 10_000));
+          return fetchReleaseAsset(input);
+        }) as typeof fetch,
+      });
+      await vi.advanceTimersByTimeAsync(10_001);
+      await result;
+      expect(feeds.length).toBeGreaterThan(5);
+      expect(
+        Math.max(
+          ...feeds.slice(1).map((value, index) => value - feeds[index]!),
+        ),
+      ).toBeLessThanOrEqual(2_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("bounds a stalled asset body and cancels preparation before USB work", async () => {
+    vi.useFakeTimers();
+    try {
+      const promise = prepareCommissioningAssets(manifest(), manifestUrl, {
+        fetch: (async () => ({
+          ok: true,
+          arrayBuffer: () => new Promise(() => undefined),
+        })) as unknown as typeof fetch,
+      });
+      const rejection = expect(promise).rejects.toThrow("20 seconds");
+      await vi.advanceTimersByTimeAsync(20_001);
+      await rejection;
+      const cancellation = new AbortController();
+      cancellation.abort();
+      await expect(
+        prepareCommissioningAssets(manifest(), manifestUrl, {
+          signal: cancellation.signal,
+          fetch: fetchReleaseAsset,
+        }),
+      ).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not enqueue concurrent watchdog exchanges", async () => {
+    vi.useFakeTimers();
+    let release: (() => void) | undefined;
+    const execute = vi.fn(
+      () =>
+        new Promise<ReplResult>((resolve) => {
+          release = () => resolve(result());
+        }),
+    );
+    const stop = maintainCommissioningWatchdog({
+      execute,
+    } as unknown as MicroPythonSession);
+    try {
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(execute).toHaveBeenCalledTimes(1);
+      release?.();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(execute).toHaveBeenCalledTimes(2);
+      release?.();
+    } finally {
+      stop();
+      vi.useRealTimers();
+    }
+  });
   it("rejects mixed page and commissioning releases before USB work", () => {
     expect(() =>
       requireMatchingCommissioningRelease(manifest(), "2026.08-dev.29"),
@@ -718,7 +872,7 @@ describe("browser XRP commissioning", () => {
           return new Response(courseFile);
         }) as typeof fetch,
       }),
-    ).rejects.toThrow("Readback verification failed");
+    ).rejects.toThrow("readback verification failed");
     expect(session.files.has("/course_runtime/active.0.json")).toBe(false);
     expect(session.reset).toBe(true);
     expect(session.closed).toBe(true);

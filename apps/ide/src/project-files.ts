@@ -11,8 +11,33 @@ import {
   supportsCourseFolders,
   withCourseFolderWriteLock,
   writeRotatingTextBundle,
+  readCourseTextFile,
+  writeCourseTextFile,
   type CourseDirectoryHandle,
 } from "../../shared/course-folder";
+
+import {
+  assertProjectWriterCurrent,
+  beginProjectCommit,
+  finishProjectCommit,
+  pendingProjectCommit,
+  retainObservedProjectCommit,
+  projectCommitFile,
+  ProjectCommitRecoveryError,
+  withProjectNativeWrite,
+  type PendingProjectCommit,
+} from "./project-native-write";
+
+import {
+  validProjectProvenance,
+  type ProjectProvenance,
+} from "./project-provenance";
+
+import {
+  isProjectWriterRecordFile,
+  inspectProjectWriters,
+  type ProjectWriterRecord,
+} from "./project-writer-admission";
 
 export type { CourseDirectoryHandle } from "../../shared/course-folder";
 
@@ -39,6 +64,7 @@ export interface ProjectSnapshot extends CourseProject {
   templateId?: string;
   /** Optional until a legacy project is opened as a revisioned session. */
   session?: ProjectSessionMetadata;
+  provenance?: ProjectProvenance;
 }
 
 export type ProjectFolderIntegrity =
@@ -60,9 +86,14 @@ export interface ProjectFolderCandidate {
   projectName: string;
   entrypoint: string;
   fileCount: number;
+  problem?: string;
+  recovery?: PendingProjectCommit;
+  writerRecords?: ProjectWriterRecord[];
+  backups?: ProjectSnapshot[];
+  externalChange?: { snapshot: ProjectSnapshot; digest: string };
 }
 
-const projectMetadataFile = ".ucsb-xrp-project.json";
+export const projectMetadataFile = ".ucsb-xrp-project.json";
 const sha256Pattern = /^[0-9a-f]{64}$/;
 const windowsReservedName = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 const readableExtensions = new Set([
@@ -87,8 +118,18 @@ const generatedProjectDirectories = new Set([
   autosaveDirectoryName.toLowerCase(),
   "exports",
 ]);
-const maximumFiles = 250;
-const maximumFileBytes = 1024 * 1024;
+export const maximumFiles = 250;
+export const maximumFileBytes = 1024 * 1024;
+export const maximumProjectBytes = 4 * 1024 * 1024;
+const maximumScanEntries = 2_000;
+const maximumDepth = 12;
+const internalProjectFiles = new Set([
+  projectMetadataFile,
+  projectCommitFile,
+  ".ucsb-xrp-writer.json",
+  ".ucsb-xrp-write-lock",
+]);
+const checkpointTimes = new WeakMap<object, number>();
 const courseRepositoryMarkers = new Set([
   "AGENTS.md",
   "CODEX_IMPLEMENTATION_PROMPT.md",
@@ -169,6 +210,7 @@ interface ProjectFolderMetadata {
   templateId?: string;
   session?: ProjectSessionMetadata;
   contentDigest?: string;
+  provenance?: ProjectProvenance;
 }
 
 class ProjectFolderMetadataError extends Error {
@@ -201,7 +243,10 @@ async function readProjectFolderMetadata(
 
   let value: unknown;
   try {
-    value = JSON.parse(await (await handle.getFile()).text()) as unknown;
+    const file = await handle.getFile();
+    if (file.size > 64 * 1024)
+      throw new Error("Project metadata exceeds the supported size.");
+    value = JSON.parse(await file.text()) as unknown;
   } catch {
     throw new ProjectFolderMetadataError(
       `This folder has invalid UCSBXRP project information in ${projectMetadataFile}. Choose another project folder, or create a new project and import its files.`,
@@ -243,6 +288,11 @@ async function readProjectFolderMetadata(
   ) {
     throw invalidMetadata();
   }
+  if (
+    value.provenance !== undefined &&
+    !validProjectProvenance(value.provenance)
+  )
+    throw invalidMetadata();
   const session = recoveredSessionMetadata(value.session);
   if (
     value.session !== undefined &&
@@ -256,6 +306,9 @@ async function readProjectFolderMetadata(
 
   return {
     entrypoint,
+    ...(validProjectProvenance(value.provenance)
+      ? { provenance: value.provenance }
+      : {}),
     ...(typeof value.name === "string" ? { name: value.name } : {}),
     ...(typeof value.templateId === "string"
       ? { templateId: value.templateId }
@@ -298,7 +351,12 @@ export async function isCourseRepositoryFolder(
   root: CourseDirectoryHandle,
 ): Promise<boolean> {
   let markerCount = 0;
+  let scanned = 0;
   for await (const [name] of root.entries()) {
+    if (++scanned > maximumScanEntries)
+      throw new Error(
+        "Folder scan limit reached. Choose a folder with fewer unrelated entries.",
+      );
     if (courseRepositoryMarkers.has(name)) {
       markerCount += 1;
       if (markerCount >= 2) {
@@ -310,6 +368,8 @@ export async function isCourseRepositoryFolder(
 }
 
 export function projectPathError(path: string): string | null {
+  if (path.trim() && path.endsWith(" "))
+    return "File and folder names cannot end with a space.";
   const normalized = path.trim().replaceAll("\\", "/");
   if (!normalized) {
     return "Enter a file name.";
@@ -333,11 +393,7 @@ export function projectPathError(path: string): string | null {
   if (parts.some((part) => part.length > 255)) {
     return "Each file or folder name must be 255 characters or fewer.";
   }
-  if (
-    parts.some(
-      (part) => part.toLowerCase() === projectMetadataFile.toLowerCase(),
-    )
-  ) {
+  if (parts.some((part) => part.toLowerCase().startsWith(".ucsb-xrp-"))) {
     return "That name is reserved for UCSBXRP project settings.";
   }
   if (generatedProjectDirectories.has(parts[0]!.toLowerCase())) {
@@ -351,6 +407,8 @@ export function normalizedProjectPath(path: string): string {
 }
 
 export function projectFolderNameError(name: string): string | null {
+  if (name.trim() && name.endsWith(" "))
+    return "The folder name cannot end with a space.";
   const normalized = name.trim();
   if (!normalized) {
     return "Enter a project folder name.";
@@ -381,8 +439,25 @@ export function projectFilePathExists(
   files: Record<string, string>,
   requestedPath: string,
 ): boolean {
-  const foldedPath = normalizedProjectPath(requestedPath).toLowerCase();
-  return Object.keys(files).some((path) => path.toLowerCase() === foldedPath);
+  const canonical = (path: string) => path.normalize("NFC").toLowerCase();
+  const requested = normalizedProjectPath(requestedPath);
+  const foldedPath = canonical(requested);
+  return Object.keys(files).some((path) => {
+    const folded = canonical(path);
+    if (
+      folded === foldedPath ||
+      folded.startsWith(foldedPath + "/") ||
+      foldedPath.startsWith(folded + "/")
+    )
+      return true;
+    const left = path.split("/");
+    const right = requested.split("/");
+    for (let i = 0; i < Math.min(left.length, right.length) - 1; i += 1) {
+      if (canonical(left[i]!) !== canonical(right[i]!)) break;
+      if (left[i] !== right[i]) return true;
+    }
+    return false;
+  });
 }
 
 export function suggestedProjectFolderName(name: string): string {
@@ -524,7 +599,12 @@ async function likelyDirectProjectChildren(
   // Finish enumerating the parent before opening any child. Some browser file
   // system implementations can skip a sibling when a child is queried while
   // the parent's asynchronous iterator is still active.
+  let scanned = 0;
   for await (const [name, handle] of root.entries()) {
+    if (++scanned > maximumScanEntries)
+      throw new Error(
+        "Folder scan limit reached. Choose a folder with fewer unrelated entries.",
+      );
     if (
       handle.kind === "directory" &&
       !name.startsWith(".") &&
@@ -561,7 +641,12 @@ export async function listDirectProjectFolders(
   root: CourseDirectoryHandle,
 ): Promise<ProjectFolderCandidate[]> {
   const directories: Array<[string, CourseDirectoryHandle]> = [];
+  let scanned = 0;
   for await (const [name, handle] of root.entries()) {
+    if (++scanned > maximumScanEntries)
+      throw new Error(
+        "Folder scan limit reached. Choose a folder with fewer unrelated entries.",
+      );
     if (
       handle.kind === "directory" &&
       !name.startsWith(".") &&
@@ -572,19 +657,97 @@ export async function listDirectProjectFolders(
   }
 
   const projects: ProjectFolderCandidate[] = [];
+  let candidateBytes = 0;
   for (const [folderName, folder] of directories) {
+    // A Working folder may also contain unrelated personal directories. Do not
+    // recursively scan their contents just to establish that they are not Projects.
+    let recognized = false;
+    let accessFailure: unknown;
+    for (const name of [projectMetadataFile, projectCommitFile]) {
+      try {
+        await folder.getFileHandle(name);
+        recognized = true;
+        break;
+      } catch (error) {
+        if (!isNotFoundError(error)) {
+          accessFailure = error;
+          break;
+        }
+      }
+    }
+    if (accessFailure) {
+      projects.push({
+        folder,
+        folderName,
+        projectName: folderName,
+        entrypoint: "",
+        fileCount: 0,
+        problem: `This folder could not be inspected. Restore access before deciding whether it contains a Project. ${accessFailure instanceof Error ? accessFailure.message : String(accessFailure)}`,
+      });
+      continue;
+    }
+    if (!recognized) continue;
     try {
-      const opened = await readProjectFolder(folder);
+      const opened = await readProjectFolder(folder, {
+        consumeBytes: (bytes) => {
+          candidateBytes += bytes;
+          if (candidateBytes > 16 * 1024 * 1024)
+            throw new Error(
+              "Working-folder Project scan exceeded 16 MB. Move older Projects to another Working folder, then reopen this chooser. No incomplete Project was opened.",
+            );
+        },
+      });
+      const writerRecords = await inspectProjectWriters(folder);
       projects.push({
         folder,
         folderName,
         projectName: opened.project.name,
         entrypoint: opened.project.entrypoint,
         fileCount: Object.keys(opened.project.files).length,
+        ...(writerRecords.length
+          ? {
+              writerRecords,
+              problem:
+                "A browser still has a pending Project writer record. Close other editors, then review writer recovery before saving.",
+            }
+          : {}),
+        ...(opened.integrity === "changed-after-save"
+          ? {
+              problem:
+                "Files changed outside UCSBXRP after the last verified save. Download a copy, then explicitly open the changed files or recover an earlier checkpoint.",
+              externalChange: {
+                snapshot: opened.project,
+                digest: opened.contentDigest,
+              },
+              backups: await readProjectBackups(folder),
+            }
+          : {}),
       });
-    } catch {
-      // A Working folder may also contain notes, exports, or incomplete
-      // folders. They remain untouched and are not presented as projects.
+    } catch (error) {
+      // A recognizable but damaged project must remain visible for recovery.
+      let recognizable = error instanceof ProjectCommitRecoveryError;
+      if (!recognizable) {
+        try {
+          await folder.getFileHandle(projectMetadataFile);
+          recognizable = true;
+        } catch {
+          /* Ordinary unrelated folders are not projects. */
+        }
+      }
+      if (recognizable)
+        projects.push({
+          folder,
+          folderName,
+          projectName: folderName,
+          entrypoint: "",
+          fileCount: 0,
+          problem: error instanceof Error ? error.message : String(error),
+          ...(error instanceof ProjectCommitRecoveryError
+            ? { recovery: error.commit }
+            : {}),
+          backups: await readProjectBackups(folder),
+          writerRecords: await inspectProjectWriters(folder),
+        });
     }
   }
 
@@ -649,7 +812,15 @@ export async function projectContentDigest(
 
 export async function readProjectFolder(
   root: CourseDirectoryHandle,
+  options: {
+    allowPendingCommit?: boolean;
+    consumeBytes?: (bytes: number) => void;
+  } = {},
 ): Promise<FolderReadResult> {
+  if (!options.allowPendingCommit) {
+    const pending = await pendingProjectCommit(root);
+    if (pending) throw new ProjectCommitRecoveryError(pending);
+  }
   if (await isCourseRepositoryFolder(root)) {
     throw new Error(
       "Choose a UCSBXRP project folder, not the UCSBXRP course software repository.",
@@ -664,12 +835,23 @@ export async function readProjectFolder(
   const metadata = await readProjectFolderMetadata(root);
   const files: Record<string, string> = {};
   let skipped = 0;
+  let scanned = 0;
+  let totalBytes = 0;
+  const pathSpellings = new Map<string, string>();
 
   const visit = async (
     directory: CourseDirectoryHandle,
     prefix: string,
   ): Promise<void> => {
+    if (prefix.split("/").length > maximumDepth)
+      throw new Error(
+        `Project nesting exceeds ${maximumDepth} folders. Move unrelated data outside this Project.`,
+      );
     for await (const [name, handle] of directory.entries()) {
+      if (++scanned > maximumScanEntries)
+        throw new Error(
+          "Project scan limit reached. Move unrelated data outside this Project; no incomplete project was opened.",
+        );
       if (handle.kind === "directory") {
         if (generatedProjectDirectories.has(name.toLowerCase())) {
           continue;
@@ -681,27 +863,45 @@ export async function readProjectFolder(
         await visit(handle, `${prefix}${name}/`);
         continue;
       }
-      if (name === projectMetadataFile) {
-        if (prefix !== "") {
+      if (internalProjectFiles.has(name) || isProjectWriterRecordFile(name)) {
+        if (name === projectMetadataFile && prefix !== "") {
           throw new Error(
             `This project folder contains another UCSBXRP project folder (${prefix.slice(0, -1)}). Choose one project folder at a time.`,
           );
         }
         continue;
       }
-      if (
-        Object.keys(files).length >= maximumFiles ||
-        !readableExtensions.has(fileExtension(name))
-      ) {
+      if (!readableExtensions.has(fileExtension(name))) {
         skipped += 1;
         continue;
       }
+      if (Object.keys(files).length >= maximumFiles)
+        throw new Error(
+          `The Project exceeds ${maximumFiles} supported files. No incomplete project was opened.`,
+        );
       const file = await handle.getFile();
-      if (file.size > maximumFileBytes) {
-        skipped += 1;
-        continue;
-      }
+      if (file.size > maximumFileBytes)
+        throw new Error(
+          `${prefix}${name} exceeds the 1 MB file limit. No incomplete project was opened.`,
+        );
+      options.consumeBytes?.(file.size);
+      totalBytes += file.size;
+      if (totalBytes > maximumProjectBytes)
+        throw new Error(
+          "The Project exceeds the 4 MB source limit. Move large data outside the Project; no incomplete project was opened.",
+        );
       const path = `${prefix}${name}`;
+      const parts = path.split("/");
+      for (let index = 1; index <= parts.length; index += 1) {
+        const spelling = parts.slice(0, index).join("/");
+        const canonical = spelling.normalize("NFC").toLowerCase();
+        const previous = pathSpellings.get(canonical);
+        if (previous && previous !== spelling)
+          throw new Error(
+            `The project contains names that differ only by capitalization or Unicode form: ${previous}, ${spelling}. Rename one before opening.`,
+          );
+        pathSpellings.set(canonical, spelling);
+      }
       const pathError = projectPathError(path);
       if (pathError) {
         throw new Error(
@@ -734,21 +934,12 @@ export async function readProjectFolder(
     );
   }
   const projectName = metadata.name ?? root.name;
-  const inferredTemplateId = COURSE_PROJECT_TEMPLATES.find(
-    (template) => template.project.name === projectName,
-  )?.id;
-  const preferredTemplateId = COURSE_PROJECT_TEMPLATES.some(
-    (template) => template.id === metadata.templateId,
-  )
-    ? metadata.templateId
-    : undefined;
   const project: ProjectSnapshot = {
     name: projectName,
+    ...(metadata.provenance ? { provenance: metadata.provenance } : {}),
     entrypoint: metadata.entrypoint,
     files,
-    ...(preferredTemplateId || inferredTemplateId
-      ? { templateId: preferredTemplateId ?? inferredTemplateId }
-      : {}),
+    ...(metadata.templateId ? { templateId: metadata.templateId } : {}),
   };
   const contentDigest = await projectContentDigest(project);
   return {
@@ -786,20 +977,152 @@ async function directoryForPath(
   return { directory, name };
 }
 
+export function validateProjectSnapshot(
+  value: unknown,
+): asserts value is ProjectSnapshot {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    !value.name.trim() ||
+    typeof value.entrypoint !== "string" ||
+    !isRecord(value.files)
+  )
+    throw new Error("The recovery file does not contain a complete Project.");
+  const files = value.files;
+  const paths = Object.keys(files);
+  if (!paths.length || paths.length > maximumFiles)
+    throw new Error(
+      `A Project must contain 1–${maximumFiles} supported files.`,
+    );
+  let bytes = 0;
+  const checked: Record<string, string> = {};
+  for (const path of paths) {
+    const content = files[path];
+    const error = projectPathError(path);
+    if (
+      typeof content !== "string" ||
+      normalizedProjectPath(path) !== path ||
+      error ||
+      !readableExtensions.has(fileExtension(path)) ||
+      path.split("/").length > maximumDepth
+    )
+      throw new Error(
+        `${path}: ${error ?? "Unsupported file content or path."}`,
+      );
+    if (projectFilePathExists(checked, path))
+      throw new Error(`Conflicting file or folder names: ${path}.`);
+    const size = new TextEncoder().encode(content).byteLength;
+    bytes += size;
+    if (size > maximumFileBytes || bytes > maximumProjectBytes)
+      throw new Error(
+        "Project source exceeds the 1 MB per-file or 4 MB total limit.",
+      );
+    checked[path] = content;
+  }
+  if (!value.entrypoint.endsWith(".py") || !(value.entrypoint in files))
+    throw new Error("The Project main Python file is missing.");
+  if (
+    value.provenance !== undefined &&
+    !validProjectProvenance(value.provenance)
+  )
+    throw new Error("The Project template provenance is invalid.");
+  if (value.session !== undefined && !recoveredSessionMetadata(value.session))
+    throw new Error("The Project recovery identity is invalid.");
+}
+
+export async function readProjectBackups(
+  root: CourseDirectoryHandle,
+): Promise<ProjectSnapshot[]> {
+  const snapshots: ProjectSnapshot[] = [];
+  try {
+    const backups = await root.getDirectoryHandle(autosaveDirectoryName);
+    for (let index = 1; index <= 4; index += 1) {
+      try {
+        const file = await (
+          await backups.getFileHandle(`project-${index}.json`)
+        ).getFile();
+        if (file.size > maximumProjectBytes * 3) continue;
+        const value = JSON.parse(await file.text()) as { project?: unknown };
+        validateProjectSnapshot(value.project);
+        snapshots.push(value.project);
+      } catch {
+        /* Keep every other readable complete checkpoint available. */
+      }
+    }
+  } catch {
+    /* The chooser still exposes the damaged candidate and its explanation. */
+  }
+  return snapshots;
+}
+
+async function compareNativeFileBeforeClose(
+  root: CourseDirectoryHandle,
+  handle: Awaited<ReturnType<CourseDirectoryHandle["getFileHandle"]>>,
+  path: string,
+  expected: string,
+  intended: string,
+): Promise<void> {
+  let observedText: string | null = null;
+  try {
+    const file = await handle.getFile();
+    if (
+      file.size > (path === projectMetadataFile ? 64 * 1024 : maximumFileBytes)
+    )
+      throw new Error("The changed native file exceeds the supported size.");
+    observedText = await file.text();
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error;
+  }
+  // Identical incoming bytes are harmless, including a native editor that
+  // independently saved the same correction while this stream was buffered.
+  if (observedText === expected || observedText === intended) return;
+  let observed: FolderReadResult;
+  try {
+    observed = await readProjectFolder(root, { allowPendingCommit: true });
+  } catch (error) {
+    throw new Error(
+      `${path} changed in another program before this save committed. No complete observed Project snapshot could be read. The pending file was not replaced; keep this folder and its existing recovery copies. ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  await retainObservedProjectCommit(root, observed.project);
+  throw new ProjectFolderConflictError(
+    observed.project,
+    observed.contentDigest,
+  );
+}
+
 async function writeProjectFiles(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
+  previous?: ProjectSnapshot | null,
+  assertCurrent?: () => void,
 ): Promise<void> {
   for (const [path, content] of Object.entries(project.files)) {
+    if (previous?.files[path] === content) continue;
     const error = projectPathError(path);
     if (error) {
       throw new Error(`${path}: ${error}`);
     }
+    assertCurrent?.();
     const { directory, name } = await directoryForPath(root, path);
     const handle = await directory.getFileHandle(name, { create: true });
+    const expected = previous
+      ? (previous.files[path] ?? "")
+      : await (await handle.getFile()).text();
     const writable = await handle.createWritable();
-    await writable.write(content);
-    await writable.close();
+    try {
+      assertCurrent?.();
+      await writable.write(content);
+      assertCurrent?.();
+      await assertProjectWriterCurrent(root);
+      await compareNativeFileBeforeClose(root, handle, path, expected, content);
+      await assertProjectWriterCurrent(root);
+      assertCurrent?.();
+      await writable.close();
+    } catch (error) {
+      await writable.abort?.().catch(() => undefined);
+      throw error;
+    }
   }
 }
 
@@ -807,44 +1130,90 @@ async function writeProjectMetadata(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
   contentDigest: string,
+  assertCurrent?: () => void,
+  expectedMetadata?: string | null,
 ): Promise<void> {
   const metadata = await root.getFileHandle(projectMetadataFile, {
     create: true,
   });
+  const expected =
+    expectedMetadata === undefined
+      ? await (await metadata.getFile()).text()
+      : (expectedMetadata ?? "");
+  const content = `${JSON.stringify(
+    {
+      name: project.name,
+      entrypoint: project.entrypoint,
+      ...(project.templateId ? { templateId: project.templateId } : {}),
+      contentDigest,
+      ...(project.provenance ? { provenance: project.provenance } : {}),
+      ...(project.session
+        ? {
+            session: {
+              ...project.session,
+              savedRevision: project.session.revision,
+              baseDigest: contentDigest,
+            },
+          }
+        : {}),
+    },
+    null,
+    2,
+  )}\n`;
   const writable = await metadata.createWritable();
-  await writable.write(
-    `${JSON.stringify(
-      {
-        name: project.name,
-        entrypoint: project.entrypoint,
-        ...(project.templateId ? { templateId: project.templateId } : {}),
-        contentDigest,
-        ...(project.session
-          ? {
-              session: {
-                ...project.session,
-                savedRevision: project.session.revision,
-                baseDigest: contentDigest,
-              },
-            }
-          : {}),
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  await writable.close();
+  try {
+    assertCurrent?.();
+    await writable.write(content);
+    assertCurrent?.();
+    await assertProjectWriterCurrent(root);
+    await compareNativeFileBeforeClose(
+      root,
+      metadata,
+      projectMetadataFile,
+      expected,
+      content,
+    );
+    await assertProjectWriterCurrent(root);
+    assertCurrent?.();
+    await writable.close();
+  } catch (error) {
+    await writable.abort?.().catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function writeProjectFolder(
   root: CourseDirectoryHandle,
   project: ProjectSnapshot,
 ): Promise<void> {
-  const contentDigest = await projectContentDigest(project);
-  await writeProjectFiles(root, project);
-  // Metadata is the commit marker. Writing it last makes a partial multi-file
-  // update detectable the next time the folder is read.
-  await writeProjectMetadata(root, project, contentDigest);
+  validateProjectSnapshot(project);
+  await withProjectNativeWrite(
+    root,
+    project.session?.projectId ?? root.name,
+    async () => {
+      const pending = await pendingProjectCommit(root);
+      if (pending) throw new ProjectCommitRecoveryError(pending);
+      const contentDigest = await projectContentDigest(project);
+      const commit: PendingProjectCommit = {
+        transactionId: crypto.randomUUID(),
+        createdAt: Date.now(),
+        previous: null,
+        intended: project,
+        deletedPaths: [],
+      };
+      await beginProjectCommit(root, commit);
+      await writeProjectFiles(root, project);
+      await writeProjectMetadata(root, project, contentDigest);
+      const verified = await readProjectFolder(root, {
+        allowPendingCommit: true,
+      });
+      if (verified.contentDigest !== contentDigest)
+        throw new Error(
+          "The new Project could not be verified. Its complete intended files remain available for recovery.",
+        );
+      await finishProjectCommit(root, commit.transactionId);
+    },
+  );
 }
 
 export async function createProjectFolder(
@@ -852,29 +1221,50 @@ export async function createProjectFolder(
   requestedName: string,
   project: ProjectSnapshot,
 ): Promise<CourseDirectoryHandle> {
-  const error = projectFolderNameError(requestedName);
-  if (error) {
-    throw new Error(error);
-  }
-  const name = requestedName.trim();
-  try {
-    await workspace.getDirectoryHandle(name);
-    throw new Error(
-      `A folder named ${name} already exists. Open it as a project or choose another name.`,
-    );
-  } catch (folderError) {
-    if (!(
-      typeof folderError === "object" &&
-      folderError !== null &&
-      "name" in folderError &&
-      folderError.name === "NotFoundError"
-    )) {
-      throw folderError;
-    }
-  }
-  const folder = await workspace.getDirectoryHandle(name, { create: true });
-  await writeProjectFolder(folder, project);
-  return folder;
+  return withProjectNativeWrite(
+    workspace,
+    `create:${workspace.name}`,
+    async () => {
+      validateProjectSnapshot(project);
+      const error = projectFolderNameError(requestedName);
+      if (error) {
+        throw new Error(error);
+      }
+      const name = requestedName.trim();
+      let scanned = 0;
+      for await (const [existing] of workspace.entries()) {
+        if (++scanned > maximumScanEntries)
+          throw new Error(
+            "The Working folder contains too many entries to allocate a Project safely.",
+          );
+        if (
+          existing.normalize("NFC").toLowerCase() ===
+          name.normalize("NFC").toLowerCase()
+        )
+          throw new Error(
+            `A folder named ${existing} already exists. Choose another name, including different capitalization.`,
+          );
+      }
+      try {
+        await workspace.getDirectoryHandle(name);
+        throw new Error(
+          `A folder named ${name} already exists. Open it as a project or choose another name.`,
+        );
+      } catch (folderError) {
+        if (!(
+          typeof folderError === "object" &&
+          folderError !== null &&
+          "name" in folderError &&
+          folderError.name === "NotFoundError"
+        )) {
+          throw folderError;
+        }
+      }
+      const folder = await workspace.getDirectoryHandle(name, { create: true });
+      await writeProjectFolder(folder, project);
+      return folder;
+    },
+  );
 }
 
 export async function ensureProjectFolder(
@@ -882,35 +1272,54 @@ export async function ensureProjectFolder(
   requestedName: string,
   project: ProjectSnapshot,
 ): Promise<{ folder: CourseDirectoryHandle; created: boolean }> {
-  const error = projectFolderNameError(requestedName);
-  if (error) {
-    throw new Error(error);
-  }
-  const baseName = requestedName.trim();
-  for (let index = 1; index <= 100; index += 1) {
-    const name = index === 1 ? baseName : `${baseName}-${index}`;
-    try {
-      const existing = await workspace.getDirectoryHandle(name);
-      if (await hasProjectFolderMetadata(existing)) {
-        return { folder: existing, created: false };
+  return withProjectNativeWrite(
+    workspace,
+    `create:${workspace.name}`,
+    async () => {
+      validateProjectSnapshot(project);
+      const error = projectFolderNameError(requestedName);
+      if (error) {
+        throw new Error(error);
       }
-    } catch (folderError) {
-      if (!(
-        typeof folderError === "object" &&
-        folderError !== null &&
-        "name" in folderError &&
-        folderError.name === "NotFoundError"
-      )) {
-        throw folderError;
+      const baseName = requestedName.trim();
+      const existingNames = new Set<string>();
+      let scanned = 0;
+      for await (const [name] of workspace.entries()) {
+        if (++scanned > maximumScanEntries)
+          throw new Error(
+            "The Working folder contains too many entries to allocate a Project safely.",
+          );
+        existingNames.add(name.normalize("NFC").toLowerCase());
       }
-      const folder = await workspace.getDirectoryHandle(name, {
-        create: true,
-      });
-      await writeProjectFolder(folder, project);
-      return { folder, created: true };
-    }
-  }
-  throw new Error(`No available project folder name begins with ${baseName}.`);
+      for (let index = 1; index <= 100; index += 1) {
+        const name = index === 1 ? baseName : `${baseName}-${index}`;
+        try {
+          const existing = await workspace.getDirectoryHandle(name);
+          if (await hasProjectFolderMetadata(existing)) {
+            return { folder: existing, created: false };
+          }
+        } catch (folderError) {
+          if (!(
+            typeof folderError === "object" &&
+            folderError !== null &&
+            "name" in folderError &&
+            folderError.name === "NotFoundError"
+          )) {
+            throw folderError;
+          }
+          if (existingNames.has(name.normalize("NFC").toLowerCase())) continue;
+          const folder = await workspace.getDirectoryHandle(name, {
+            create: true,
+          });
+          await writeProjectFolder(folder, project);
+          return { folder, created: true };
+        }
+      }
+      throw new Error(
+        `No available project folder name begins with ${baseName}.`,
+      );
+    },
+  );
 }
 
 export async function removeProjectFolderFiles(
@@ -930,6 +1339,7 @@ export async function removeProjectFolderFiles(
       for (const part of parts) {
         directory = await directory.getDirectoryHandle(part);
       }
+      await assertProjectWriterCurrent(root);
       await directory.removeEntry(name);
       removed += 1;
     } catch (error) {
@@ -954,7 +1364,8 @@ export function sameProjectContents(
   if (
     first.name !== second.name ||
     first.entrypoint !== second.entrypoint ||
-    first.templateId !== second.templateId
+    first.templateId !== second.templateId ||
+    JSON.stringify(first.provenance) !== JSON.stringify(second.provenance)
   ) {
     return false;
   }
@@ -981,6 +1392,7 @@ export interface ProjectFolderSaveOptions {
    * second external edit still causes another conflict instead of being lost.
    */
   expectedBaseDigest?: string;
+  assertCurrent?: () => void;
 }
 
 export class ProjectFolderConflictError extends Error {
@@ -1016,6 +1428,9 @@ async function saveProjectFolderWithAutosaveUnlocked(
   deletedPaths: Iterable<string> = [],
   options: ProjectFolderSaveOptions = {},
 ): Promise<ProjectFolderSaveResult> {
+  validateProjectSnapshot(project);
+  options.assertCurrent?.();
+  const expectedMetadata = await readCourseTextFile(root, projectMetadataFile);
   let previous: FolderReadResult | null = null;
   try {
     previous = await readProjectFolder(root);
@@ -1028,6 +1443,17 @@ async function saveProjectFolderWithAutosaveUnlocked(
     }
   }
 
+  if (
+    previous?.project.session &&
+    project.session &&
+    previous.project.session.projectId !== project.session.projectId &&
+    options.expectedBaseDigest === undefined
+  ) {
+    throw new ProjectFolderConflictError(
+      previous.project,
+      previous.contentDigest,
+    );
+  }
   const contentsChanged =
     previous === null || !sameProjectContents(previous.project, project);
   const metadataChanged =
@@ -1056,7 +1482,14 @@ async function saveProjectFolderWithAutosaveUnlocked(
         previous?.contentDigest ?? (await projectContentDigest(project)),
     };
   }
-  if (previous && contentsChanged) {
+  const pending = await pendingProjectCommit(root);
+  if (pending) throw new ProjectCommitRecoveryError(pending);
+  const now = Date.now();
+  const rotateCheckpoint =
+    previous &&
+    contentsChanged &&
+    now - (checkpointTimes.get(root) ?? 0) >= 60_000;
+  if (previous && rotateCheckpoint) {
     await writeRotatingTextBundle(root, [
       {
         baseName: "project",
@@ -1071,22 +1504,56 @@ async function saveProjectFolderWithAutosaveUnlocked(
         )}\n`,
       },
     ]);
+    checkpointTimes.set(root, now);
   }
   const contentDigest = await projectContentDigest(project);
-  await writeProjectFiles(root, project);
+  const commit: PendingProjectCommit = {
+    transactionId: crypto.randomUUID(),
+    createdAt: now,
+    previous: previous?.project ?? null,
+    intended: project,
+    deletedPaths: Array.from(deletedPaths),
+  };
+  options.assertCurrent?.();
+  await beginProjectCommit(root, commit);
+  const justBeforeWrite = await readProjectFolder(root, {
+    allowPendingCommit: true,
+  });
+  if (previous && justBeforeWrite.contentDigest !== previous.contentDigest) {
+    await finishProjectCommit(root, commit.transactionId);
+    throw new ProjectFolderConflictError(
+      justBeforeWrite.project,
+      justBeforeWrite.contentDigest,
+    );
+  }
+  await writeProjectFiles(
+    root,
+    project,
+    previous?.project,
+    options.assertCurrent,
+  );
+  options.assertCurrent?.();
   const removedFiles = contentsChanged
-    ? await removeProjectFolderFiles(root, deletedPaths)
+    ? await removeProjectFolderFiles(root, commit.deletedPaths)
     : 0;
   // Deletions are part of the same logical update, so the commit marker must
   // be written after them rather than describing a mixed folder state.
-  await writeProjectMetadata(root, project, contentDigest);
-  const verified = await readProjectFolder(root);
+  options.assertCurrent?.();
+  await writeProjectMetadata(
+    root,
+    project,
+    contentDigest,
+    options.assertCurrent,
+    expectedMetadata,
+  );
+  const verified = await readProjectFolder(root, { allowPendingCommit: true });
   if (verified.contentDigest !== contentDigest) {
     throw new ProjectFolderConflictError(
       verified.project,
       verified.contentDigest,
     );
   }
+  await finishProjectCommit(root, commit.transactionId);
   return { changed: true, removedFiles, contentDigest };
 }
 
@@ -1096,7 +1563,59 @@ export async function saveProjectFolderWithAutosave(
   deletedPaths: Iterable<string> = [],
   options: ProjectFolderSaveOptions = {},
 ): Promise<ProjectFolderSaveResult> {
-  return withCourseFolderWriteLock("project", () =>
-    saveProjectFolderWithAutosaveUnlocked(root, project, deletedPaths, options),
+  return withProjectNativeWrite(
+    root,
+    project.session?.projectId ?? root.name,
+    () =>
+      saveProjectFolderWithAutosaveUnlocked(
+        root,
+        project,
+        deletedPaths,
+        options,
+      ),
   );
+}
+
+/** Export candidates remain available even when an interrupted native commit cannot resume. */
+export async function recoverProjectFolder(
+  root: CourseDirectoryHandle,
+  choice: "previous" | "intended",
+): Promise<void> {
+  await withProjectNativeWrite(root, root.name, async () => {
+    const commit = await pendingProjectCommit(root);
+    const snapshot =
+      choice === "previous" ? commit?.previous : commit?.intended;
+    if (!commit || !snapshot)
+      throw new Error("That complete Project recovery version is unavailable.");
+    validateProjectSnapshot(snapshot);
+    const expectedMetadata = await readCourseTextFile(
+      root,
+      projectMetadataFile,
+    );
+    const digest = await projectContentDigest(snapshot);
+    await writeProjectFiles(root, snapshot);
+    const knownPaths = new Set([
+      ...Object.keys(commit.previous?.files ?? {}),
+      ...Object.keys(commit.intended.files),
+    ]);
+    await removeProjectFolderFiles(
+      root,
+      [...knownPaths].filter((path) => !(path in snapshot.files)),
+    );
+    await writeProjectMetadata(
+      root,
+      snapshot,
+      digest,
+      undefined,
+      expectedMetadata,
+    );
+    const verified = await readProjectFolder(root, {
+      allowPendingCommit: true,
+    });
+    if (verified.contentDigest !== digest)
+      throw new Error(
+        "Project recovery did not verify. All recovery snapshots were retained.",
+      );
+    await finishProjectCommit(root, commit.transactionId);
+  });
 }

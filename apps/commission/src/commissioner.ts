@@ -130,7 +130,96 @@ const RUNTIME_STATE_MARKER = "__UCSB_XRP_RUNTIME_STATE__=";
 const VERIFY_MARKER = "__UCSB_XRP_VERIFY__=";
 const NETWORK_RESULT_MARKER = "__UCSB_XRP_NETWORK__=";
 const NETWORK_HOSTNAME_MARKER = "__UCSB_XRP_NETWORK_HOSTNAME__=";
-const INSTALL_WATCHDOG_MS = 8_388;
+export const INSTALL_WATCHDOG_MS = 8_388;
+
+async function boundedAsset<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation(controller.signal),
+      new Promise<never>((_resolve, reject) => {
+        const stop = () =>
+          reject(new DOMException("Setup preparation cancelled", "AbortError"));
+        controller.signal.addEventListener("abort", stop, { once: true });
+        if (controller.signal.aborted) stop();
+        timer = setTimeout(() => {
+          reject(
+            new Error(
+              "A setup file did not finish loading within 20 seconds. Retry preparation.",
+            ),
+          );
+          controller.abort();
+        }, 20_000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  }
+}
+
+export async function prepareCommissioningAssets(
+  manifest: CommissioningManifest,
+  manifestUrl: URL,
+  options: { fetch?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<ReadonlyMap<string, Uint8Array>> {
+  const assets = new Map<string, Uint8Array>();
+  const entries = [
+    ...manifest.runtime.files,
+    ...manifest.bootstrapFiles,
+    manifest.runtime.manifest,
+  ];
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, entries.length) }, async () => {
+      while (cursor < entries.length) {
+        options.signal?.throwIfAborted();
+        const entry = entries[cursor++]!;
+        assets.set(
+          entry.url,
+          await fetchVerifiedAsset(
+            manifestUrl,
+            entry,
+            options.fetch ?? globalThis.fetch,
+            options.signal,
+          ),
+        );
+      }
+    }),
+  );
+  return assets;
+}
+
+/** Keep raw REPL serialized while browser work is pending. Remote long loops feed themselves. */
+export function maintainCommissioningWatchdog(
+  session: MicroPythonSession,
+  onError: (error: unknown) => void = () => undefined,
+): () => void {
+  let pending = false;
+  let stopped = false;
+  const timer = setInterval(() => {
+    if (pending || stopped) return;
+    pending = true;
+    void feedCommissioningWatchdog(session)
+      .catch((error: unknown) => {
+        if (!stopped) onError(error);
+      })
+      .finally(() => {
+        pending = false;
+      });
+  }, 2_000);
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+}
 const textEncoder = new TextEncoder();
 export const HOTSPOT_SSID_PREFIX = "UCSB-XRP-";
 
@@ -266,15 +355,18 @@ export async function loadCommissioningManifest(
   manifestUrl: URL,
   fetchImplementation: typeof fetch = globalThis.fetch,
 ): Promise<CommissioningManifest> {
-  const response = await fetchImplementation(manifestUrl, {
-    cache: "no-store",
+  const value: unknown = await boundedAsset(async (signal) => {
+    const response = await fetchImplementation(manifestUrl, {
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Commissioning release could not be loaded (${response.status}).`,
+      );
+    }
+    return response.json();
   });
-  if (!response.ok) {
-    throw new Error(
-      `Commissioning release could not be loaded (${response.status}).`,
-    );
-  }
-  const value: unknown = await response.json();
   assertManifest(value);
   return value;
 }
@@ -318,9 +410,10 @@ export async function inspectDevice(
   const modules = pythonLiteral(manifest.xrplib.requiredModules);
   const result = await session.execute(
     `import binascii, json, machine, os, sys\n` +
+      `__ucsb_commission_wd=machine.WDT(timeout=${INSTALL_WATCHDOG_MS})\n__ucsb_commission_wd.feed()\n` +
       `mods=[]\n` +
       `for name in ${modules}:\n` +
-      ` try:\n  __import__(name)\n  mods.append(name)\n` +
+      ` try:\n  __ucsb_commission_wd.feed()\n  __import__(name)\n  mods.append(name)\n` +
       ` except Exception:\n  pass\n` +
       `v=sys.implementation.version\n` +
       `u=os.uname()\n` +
@@ -391,7 +484,8 @@ export async function feedCommissioningWatchdog(
 
 function remoteHashCode(paths: readonly string[]): string {
   return (
-    `import binascii, hashlib, json\n` +
+    `import binascii, hashlib, json, machine\n` +
+    `wd=machine.WDT(timeout=${INSTALL_WATCHDOG_MS})\nwd.feed()\n` +
     `out={}\n` +
     `for p in ${pythonLiteral(paths)}:\n` +
     ` try:\n` +
@@ -400,7 +494,7 @@ function remoteHashCode(paths: readonly string[]): string {
     `  while True:\n` +
     `   b=f.read(1024)\n` +
     `   if not b: break\n` +
-    `   h.update(b)\n` +
+    `   h.update(b)\n   wd.feed()\n` +
     `  f.close()\n` +
     `  out[p]=binascii.hexlify(h.digest()).decode()\n` +
     ` except OSError:\n  out[p]=None\n` +
@@ -434,23 +528,29 @@ async function fetchVerifiedAsset(
   manifestUrl: URL,
   entry: { url: string; bytes: number; sha256: string },
   fetchImplementation: typeof fetch,
+  signal?: AbortSignal,
 ): Promise<Uint8Array> {
-  const response = await fetchImplementation(new URL(entry.url, manifestUrl));
-  if (!response.ok) {
-    throw new Error(
-      `Commissioning file could not be loaded (${response.status}).`,
+  return boundedAsset(async (requestSignal) => {
+    const response = await fetchImplementation(
+      new URL(entry.url, manifestUrl),
+      { signal: requestSignal },
     );
-  }
-  const data = new Uint8Array(await response.arrayBuffer());
-  if (
-    data.byteLength !== entry.bytes ||
-    (await sha256(data)) !== entry.sha256
-  ) {
-    throw new Error(
-      "A commissioning file failed its browser-side integrity check.",
-    );
-  }
-  return data;
+    if (!response.ok) {
+      throw new Error(
+        `Commissioning file could not be loaded (${response.status}).`,
+      );
+    }
+    const data = new Uint8Array(await response.arrayBuffer());
+    if (
+      data.byteLength !== entry.bytes ||
+      (await sha256(data)) !== entry.sha256
+    ) {
+      throw new Error(
+        "A commissioning file failed its browser-side integrity check.",
+      );
+    }
+    return data;
+  }, signal);
 }
 
 function base64(data: Uint8Array): string {
@@ -461,7 +561,7 @@ function base64(data: Uint8Array): string {
   return btoa(binary);
 }
 
-async function writeDeviceFile(
+export async function writeDeviceFile(
   session: MicroPythonSession,
   destination: string,
   data: Uint8Array,
@@ -487,11 +587,16 @@ async function writeDeviceFile(
     );
   }
   checkedResult(
+    await session.execute("f.close()\nwd.feed()"),
+    `Closing ${destination}`,
+  );
+  const expectedHash = await sha256(data);
+  if ((await remoteHashes(session, [temporary]))[temporary] !== expectedHash) {
+    throw new Error(`Staged readback verification failed for ${destination}.`);
+  }
+  checkedResult(
     await session.execute(
-      `f.close()\n` +
-        `try: os.remove(${pythonLiteral(destination)})\n` +
-        `except OSError: pass\n` +
-        `os.rename(${pythonLiteral(temporary)},${pythonLiteral(destination)})\n` +
+      `os.rename(${pythonLiteral(temporary)},${pythonLiteral(destination)})\n` +
         `wd.feed()`,
     ),
     `Finishing ${destination}`,
@@ -739,7 +844,8 @@ async function applyNetworkSelection(
         `if c.get('hostname')!=${pythonLiteral(hostname)}:\n` +
         ` c['hostname']=${pythonLiteral(hostname)}\n` +
         ` f=open(t,'w')\n json.dump(c,f)\n f.close()\n` +
-        ` try: os.remove(p)\n except OSError: pass\n` +
+        ` v=json.load(open(t))\n` +
+        ` if v!=c: raise ValueError('Network profile readback failed')\n` +
         ` os.rename(t,p)\n` +
         `print(${pythonLiteral(NETWORK_HOSTNAME_MARKER)}+c['hostname'])`,
     );
@@ -763,7 +869,8 @@ async function verifyInstalledRuntime(
   slot: RuntimeSlot,
 ): Promise<void> {
   const result = await session.execute(
-    `import gc, json, sys\n` +
+    `import gc, json, sys, machine\n` +
+      `wd=machine.WDT(timeout=${INSTALL_WATCHDOG_MS})\nwd.feed()\n` +
       `for name in tuple(sys.modules):\n` +
       ` if name=='ucsb_xrp' or name.startswith('ucsb_xrp.') or name=='ucsb_xrp_reference' or name.startswith('ucsb_xrp_reference.') or name=='ucsb_xrp_service' or name.startswith('ucsb_xrp_service.'):\n` +
       `  del sys.modules[name]\n` +
@@ -774,7 +881,7 @@ async function verifyInstalledRuntime(
       `import ucsb_xrp, ucsb_xrp_service\n` +
       `mods=[]\n` +
       `for name in ${pythonLiteral(manifest.xrplib.requiredModules)}:\n` +
-      ` __import__(name)\n mods.append(name)\n` +
+      ` wd.feed()\n __import__(name)\n mods.append(name)\n` +
       `v={'library':ucsb_xrp.__version__,'protocol':ucsb_xrp_service.PROTOCOL_VERSION,'modules':mods}\n` +
       `print(${pythonLiteral(VERIFY_MARKER)}+json.dumps(v))`,
     20_000,
@@ -873,22 +980,56 @@ export async function commissionDevice(options: {
   network: NetworkSelection;
   onProgress?: ProgressReporter;
   fetch?: typeof fetch;
+  preparedAssets?: ReadonlyMap<string, Uint8Array>;
+  signal?: AbortSignal;
 }): Promise<CommissioningResult> {
   const {
-    session,
+    session: rawSession,
     manifest,
     manifestUrl,
     robotId,
     network,
     onProgress = () => undefined,
     fetch: fetchImplementation = globalThis.fetch,
+    preparedAssets,
+    signal,
   } = options;
+  const session: MicroPythonSession = {
+    execute: (code, timeout) => {
+      signal?.throwIfAborted();
+      return rawSession.execute(code, timeout);
+    },
+    executeWithoutFollow: (code) => {
+      signal?.throwIfAborted();
+      return rawSession.executeWithoutFollow(code);
+    },
+    resetAndClose: () => rawSession.resetAndClose(),
+    close: () => rawSession.close(),
+  };
+  const getAsset = async (entry: {
+    url: string;
+    bytes: number;
+    sha256: string;
+  }) => {
+    signal?.throwIfAborted();
+    const data = preparedAssets?.get(entry.url);
+    if (data) {
+      if (
+        data.byteLength !== entry.bytes ||
+        (await sha256(data)) !== entry.sha256
+      )
+        throw new Error("Prepared setup file failed verification.");
+      return data;
+    }
+    return fetchVerifiedAsset(manifestUrl, entry, fetchImplementation, signal);
+  };
   if (network.mode === "station") {
     const issue = stationNetworkError(network.ssid, network.password);
     if (issue) throw new Error(issue);
   }
   const hostname = robotHostnameForId(robotId);
   let resetStarted = false;
+  const releaseWatchdog = maintainCommissioningWatchdog(rawSession);
   try {
     onProgress({
       phase: "compare",
@@ -990,29 +1131,17 @@ export async function commissionDevice(options: {
         Promise.all(
           runtimeChanged.map(async (entry) => ({
             entry,
-            data: await fetchVerifiedAsset(
-              manifestUrl,
-              entry,
-              fetchImplementation,
-            ),
+            data: await getAsset(entry),
           })),
         ),
         Promise.all(
           bootstrapChanged.map(async (entry) => ({
             entry,
-            data: await fetchVerifiedAsset(
-              manifestUrl,
-              entry,
-              fetchImplementation,
-            ),
+            data: await getAsset(entry),
           })),
         ),
         publishRuntimeManifest
-          ? fetchVerifiedAsset(
-              manifestUrl,
-              manifest.runtime.manifest,
-              fetchImplementation,
-            )
+          ? getAsset(manifest.runtime.manifest)
           : Promise.resolve<Uint8Array | null>(null),
       ]);
 
@@ -1055,7 +1184,7 @@ export async function commissionDevice(options: {
     for (const { entry, data } of runtimeDownloads) {
       onProgress({
         phase: "install",
-        detail: "Writing the new course runtime…",
+        detail: `Writing ${entry.path}…`,
         completed: installed,
         total: totalChanged,
       });
@@ -1170,6 +1299,8 @@ export async function commissionDevice(options: {
       }
     }
     throw error;
+  } finally {
+    releaseWatchdog();
   }
 }
 
@@ -1214,17 +1345,21 @@ export async function installFirmware(options: {
   fetch?: typeof fetch;
   writeWaitMs?: number;
   closeWaitMs?: number;
+  signal?: AbortSignal;
 }): Promise<void> {
   const firmware = options.manifest.micropython.firmware;
   const data = await fetchVerifiedAsset(
     options.manifestUrl,
     firmware,
     options.fetch ?? globalThis.fetch,
+    options.signal,
   );
+  options.signal?.throwIfAborted();
   const handle = await options.volume.getFileHandle(firmware.asset, {
     create: true,
   });
   const writable = await handle.createWritable();
+  options.signal?.throwIfAborted();
   // A complete UF2 transfer makes the RP2350 reboot and remove its temporary
   // volume. Depending on the macOS/Chrome version, either write() or close()
   // can remain pending after that expected removal. The caller accepts the
@@ -1239,6 +1374,7 @@ export async function installFirmware(options: {
       state: "pending" as const,
     })),
   ]);
+  options.signal?.throwIfAborted();
   if (writeResult.state === "error") throw writeResult.error;
   if (writeResult.state === "pending") return;
 
@@ -1252,6 +1388,7 @@ export async function installFirmware(options: {
       state: "pending" as const,
     })),
   ]);
+  options.signal?.throwIfAborted();
   if (outcome.state === "error") throw outcome.error;
 }
 

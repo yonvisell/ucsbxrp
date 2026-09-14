@@ -3,6 +3,13 @@ import {
   type OfflineShellReloadRequest,
   type PrepareForOfflineShellReload,
 } from "./offline-release-coordinator";
+import {
+  findCachedShell,
+  isShellManifest,
+  verifyShellCache,
+  withDeadline,
+  type CachedShellManifest,
+} from "./offline-cache";
 
 export type OfflineShellState =
   "development" | "installing" | "ready" | "unsupported" | "error";
@@ -19,12 +26,6 @@ interface OfflineShellRegistrationOptions {
   reloadWithoutAppState?: boolean;
 }
 
-interface OfflineManifest {
-  version: string;
-  cache_name: string;
-  assets: Array<{ url: string }>;
-}
-
 export const OFFLINE_SHELL_EVENT = "ucsb-xrp:offline-shell-state";
 export const OFFLINE_SHELL_RELEASE_EVENT = "ucsb-xrp:release-ready";
 const offlineShellVersionKey = "ucsb-xrp-offline-shell-version-v1";
@@ -34,6 +35,91 @@ const courseShellCachePrefix = "ucsb-xrp-course-shell-";
 let offlinePreparation: Promise<void> = Promise.resolve();
 let loadedOfflineShellVersion: string | null = null;
 let releaseChannel: BroadcastChannel | null = null;
+let documentCacheName: string | null = null;
+let applicationReloadGuard: PrepareForOfflineShellReload | null = null;
+
+/** The workspace remains mounted until every embedded app has saved and stopped. */
+export async function prepareEmbeddedApplicationsForReload(
+  request: OfflineShellReloadRequest,
+): Promise<boolean> {
+  const frames = Array.from(document.querySelectorAll("iframe"));
+  const results = await Promise.all(
+    frames.map(
+      (frame) =>
+        new Promise<boolean>((resolve) => {
+          const child = frame.contentWindow;
+          if (
+            !child ||
+            new URL(frame.src, window.location.href).origin !==
+              window.location.origin
+          ) {
+            resolve(false);
+            return;
+          }
+          const id = crypto.randomUUID();
+          const finish = (ready: boolean) => {
+            clearTimeout(timer);
+            window.removeEventListener("message", receive);
+            resolve(ready);
+          };
+          const receive = (event: MessageEvent) => {
+            if (
+              event.source === child &&
+              event.origin === window.location.origin &&
+              event.data?.type === "ucsb-xrp-frame-reload-result" &&
+              event.data.id === id
+            )
+              finish(event.data.ready === true);
+          };
+          const timer = setTimeout(() => finish(false), 2_000);
+          window.addEventListener("message", receive);
+          child.postMessage(
+            { type: "ucsb-xrp-frame-reload-query", id, request },
+            window.location.origin,
+          );
+        }),
+    ),
+  );
+  return results.every(Boolean);
+}
+
+function notifyParentReloadState() {
+  if (window.parent !== window)
+    window.parent.postMessage(
+      { type: "ucsb-xrp-frame-reload-retry" },
+      window.location.origin,
+    );
+}
+
+function storedSetting(kind: "localStorage" | "sessionStorage", key: string) {
+  try {
+    return window[kind].getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storeSetting(
+  kind: "localStorage" | "sessionStorage",
+  key: string,
+  value: string | null,
+): boolean {
+  try {
+    if (value === null) window[kind].removeItem(key);
+    else window[kind].setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function identifyDocumentCache() {
+  if (!documentCacheName) return;
+  navigator.serviceWorker.controller?.postMessage({
+    type: "ucsb-xrp-shell-client",
+    cacheName: documentCacheName,
+  });
+}
 
 interface OfflineShellReleaseSignal {
   type: "release-ready";
@@ -49,16 +135,16 @@ interface NavigationApi {
 }
 
 function storeReloadMarkers(version: string) {
-  window.sessionStorage.setItem(offlineShellReloadKey, version);
-  window.sessionStorage.setItem(isolationReloadKey, version);
+  storeSetting("sessionStorage", offlineShellReloadKey, version);
+  storeSetting("sessionStorage", isolationReloadKey, version);
 }
 
 function removeMatchingReloadMarkers(version: string) {
-  if (window.sessionStorage.getItem(offlineShellReloadKey) === version) {
-    window.sessionStorage.removeItem(offlineShellReloadKey);
+  if (storedSetting("sessionStorage", offlineShellReloadKey) === version) {
+    storeSetting("sessionStorage", offlineShellReloadKey, null);
   }
-  if (window.sessionStorage.getItem(isolationReloadKey) === version) {
-    window.sessionStorage.removeItem(isolationReloadKey);
+  if (storedSetting("sessionStorage", isolationReloadKey) === version) {
+    storeSetting("sessionStorage", isolationReloadKey, null);
   }
 }
 
@@ -174,12 +260,19 @@ export function virtualRunNeedsPreparation(
 export function registerOfflineShellBeforeReload(
   handler: PrepareForOfflineShellReload,
 ): () => void {
-  return reloadCoordinator.registerBeforeReload(handler);
+  applicationReloadGuard = handler;
+  const unregister = reloadCoordinator.registerBeforeReload(handler);
+  notifyParentReloadState();
+  return () => {
+    unregister();
+    if (applicationReloadGuard === handler) applicationReloadGuard = null;
+  };
 }
 
 /** Retry a deferred update after the program stops or a project save finishes. */
 export function retryPendingOfflineShellReload() {
   reloadCoordinator.retry();
+  notifyParentReloadState();
 }
 
 function requestOfflineShellReload(request: OfflineShellReloadRequest) {
@@ -209,7 +302,7 @@ function peerReleaseNeedsReload(version: string): boolean {
   return offlineShellUpdateNeedsReload(
     loadedOfflineShellVersion,
     version,
-    window.sessionStorage.getItem(offlineShellReloadKey),
+    storedSetting("sessionStorage", offlineShellReloadKey),
   );
 }
 
@@ -221,13 +314,58 @@ function receiveReleaseReady(version: string) {
 }
 
 function startReleaseCoordination(basePath: string) {
-  loadedOfflineShellVersion = window.localStorage.getItem(
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (event.origin !== window.location.origin) return;
+    if (
+      event.data?.type === "ucsb-xrp-frame-reload-query" &&
+      event.source === window.parent &&
+      window.parent !== window &&
+      typeof event.data.id === "string"
+    ) {
+      const { id, request } = event.data;
+      if (
+        !request ||
+        typeof request.version !== "string" ||
+        !["release-update", "isolation"].includes(request.reason)
+      )
+        return;
+      const guard = applicationReloadGuard;
+      void Promise.resolve()
+        .then(() => guard?.(request) ?? false)
+        .catch(() => false)
+        .then((ready) => {
+          window.parent.postMessage(
+            {
+              type: "ucsb-xrp-frame-reload-result",
+              id,
+              ready: ready === true && guard === applicationReloadGuard,
+            },
+            window.location.origin,
+          );
+        });
+    } else if (
+      event.data?.type === "ucsb-xrp-frame-reload-retry" &&
+      Array.from(document.querySelectorAll("iframe")).some(
+        (frame) => frame.contentWindow === event.source,
+      )
+    ) {
+      reloadCoordinator.retry();
+    }
+  });
+  loadedOfflineShellVersion = storedSetting(
+    "localStorage",
     offlineShellVersionKey,
   );
   if (typeof BroadcastChannel !== "undefined") {
     releaseChannel?.close();
-    releaseChannel = new BroadcastChannel(`ucsb-xrp-release-ready:${basePath}`);
-    releaseChannel.addEventListener(
+    try {
+      releaseChannel = new BroadcastChannel(
+        `ucsb-xrp-release-ready:${basePath}`,
+      );
+    } catch {
+      releaseChannel = null;
+    }
+    releaseChannel?.addEventListener(
       "message",
       (event: MessageEvent<unknown>) => {
         if (isReleaseSignal(event.data)) {
@@ -240,13 +378,28 @@ function startReleaseCoordination(basePath: string) {
   // A suspended tab can miss a channel message. The version already stored by
   // the installing tab provides the same deterministic check when it returns.
   const reconcileKnownRelease = () => {
-    const version = window.localStorage.getItem(offlineShellVersionKey);
+    const version = storedSetting("localStorage", offlineShellVersionKey);
     if (version !== null && peerReleaseNeedsReload(version)) {
       requestOfflineShellReload({ version, reason: "release-update" });
     }
   };
   window.addEventListener("pageshow", reconcileKnownRelease);
   window.addEventListener("focus", reconcileKnownRelease);
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      identifyDocumentCache,
+    );
+    navigator.serviceWorker.addEventListener(
+      "message",
+      (event: MessageEvent) => {
+        if (event.data?.type === "ucsb-xrp-shell-identify")
+          identifyDocumentCache();
+      },
+    );
+    window.addEventListener("pageshow", identifyDocumentCache);
+    window.addEventListener("focus", identifyDocumentCache);
+  }
 }
 
 function announceReleaseReady(version: string) {
@@ -403,11 +556,21 @@ async function waitForWorker(worker: ServiceWorker) {
   }
 
   await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      worker.removeEventListener("statechange", handleStateChange);
+      reject(
+        new Error(
+          "Course download is taking too long. Reconnect to the internet and retry.",
+        ),
+      );
+    }, 90_000);
     const handleStateChange = () => {
       if (worker.state === "activated") {
+        clearTimeout(timer);
         worker.removeEventListener("statechange", handleStateChange);
         resolve();
       } else if (worker.state === "redundant") {
+        clearTimeout(timer);
         worker.removeEventListener("statechange", handleStateChange);
         reject(new Error("The new offline worker became redundant"));
       }
@@ -417,38 +580,38 @@ async function waitForWorker(worker: ServiceWorker) {
 }
 
 async function verifyPrecache(manifestUrl: string) {
-  const response = await fetch(manifestUrl, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Offline manifest request failed (${response.status})`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4_000);
+  try {
+    const response = await fetch(manifestUrl, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok)
+      throw new Error(`Offline manifest request failed (${response.status})`);
+    const manifest: unknown = await response.json();
+    if (!isShellManifest(manifest))
+      throw new Error("Offline manifest is malformed");
+    await verifyShellCache(caches, manifest, manifestUrl);
+    return manifest;
+  } finally {
+    clearTimeout(timer);
   }
-  const manifest = (await response.json()) as OfflineManifest;
-  if (
-    typeof manifest.version !== "string" ||
-    typeof manifest.cache_name !== "string" ||
-    !Array.isArray(manifest.assets)
-  ) {
-    throw new Error("Offline manifest is malformed");
-  }
+}
 
-  if (!(await caches.has(manifest.cache_name))) {
-    throw new Error("Offline cache was not created");
-  }
-  const cache = await caches.open(manifest.cache_name);
-  const cachedUrls = new Set(
-    (await cache.keys()).map((request) => request.url),
-  );
-  const requiredUrls = [
-    manifestUrl,
-    ...manifest.assets.map((asset) =>
-      new URL(asset.url, window.location.origin).toString(),
-    ),
-  ];
-  const missingUrl = requiredUrls.find((url) => !cachedUrls.has(url));
-  if (missingUrl !== undefined) {
-    throw new Error(`Offline cache is incomplete: ${missingUrl}`);
-  }
-
-  return manifest;
+function currentDocumentAssets(basePath: string): string[] {
+  return [
+    ...Array.from(document.scripts, (script) => script.src),
+    ...Array.from(document.styleSheets, (sheet) => sheet.href ?? ""),
+  ]
+    .filter(Boolean)
+    .map((source) => new URL(source, window.location.href))
+    .filter(
+      (url) =>
+        url.origin === window.location.origin &&
+        url.pathname.startsWith(`${basePath}assets/`),
+    )
+    .map((url) => url.pathname);
 }
 
 async function installOfflineShell(basePath: string) {
@@ -465,45 +628,69 @@ async function installOfflineShell(basePath: string) {
   const hasActiveWorker = () =>
     registration?.active !== null && registration?.active !== undefined;
 
-  if (navigator.onLine || !hasActiveWorker()) {
-    try {
-      registration = await navigator.serviceWorker.register(workerUrl, {
-        scope: basePath,
-        updateViaCache: "none",
-      });
-      // register() may reuse a long-lived registration without immediately
-      // checking its script. Ask explicitly while online so a classroom tab
-      // left open between sessions receives the current build promptly.
-      if (navigator.onLine && hasActiveWorker()) {
-        registration = await registration.update();
-      }
-    } catch (error) {
-      if (!hasActiveWorker()) {
-        throw error;
+  const cached = hasActiveWorker()
+    ? await findCachedShell(
+        caches,
+        manifestUrl,
+        currentDocumentAssets(basePath),
+      )
+    : null;
+  if (cached) {
+    documentCacheName = cached.cache_name;
+    loadedOfflineShellVersion = cached.version;
+    identifyDocumentCache();
+    publishState("ready", { version: cached.version });
+  }
+
+  try {
+    if (navigator.onLine || !hasActiveWorker()) {
+      try {
+        registration = await withDeadline(
+          navigator.serviceWorker.register(workerUrl, {
+            scope: basePath,
+            updateViaCache: "none",
+          }),
+          5_000,
+          "Course update check timed out.",
+        );
+        // register() may reuse a long-lived registration without immediately
+        // checking its script. Ask explicitly while online so a classroom tab
+        // left open between sessions receives the current build promptly.
+        if (navigator.onLine && hasActiveWorker()) {
+          registration = await withDeadline(
+            registration.update(),
+            5_000,
+            "Course update check timed out.",
+          );
+        }
+      } catch (error) {
+        if (!hasActiveWorker()) {
+          throw error;
+        }
       }
     }
+    if (registration === undefined) {
+      throw new Error("Offline worker registration is unavailable");
+    }
+    const changingWorker = registration.installing ?? registration.waiting;
+    if (changingWorker !== null) {
+      await waitForWorker(changingWorker);
+    }
+    await withDeadline(
+      navigator.serviceWorker.ready,
+      10_000,
+      "The offline copy could not start. Reload to retry.",
+    );
+    const manifest = await verifyPrecache(manifestUrl);
+    acceptVerifiedShell(manifest, basePath);
+  } catch (error) {
+    if (!cached) throw error;
+    // A failed update never withdraws a separately verified cached release.
   }
-  if (registration === undefined) {
-    throw new Error("Offline worker registration is unavailable");
-  }
-  const changingWorker = registration.installing ?? registration.waiting;
-  if (changingWorker !== null) {
-    await waitForWorker(changingWorker);
-  }
-  await navigator.serviceWorker.ready;
-  const manifest = await verifyPrecache(manifestUrl);
-  const documentAssets = [
-    ...Array.from(document.scripts, (script) => script.src),
-    ...Array.from(document.styleSheets, (sheet) => sheet.href ?? ""),
-  ]
-    .filter((source) => source !== "")
-    .map((source) => new URL(source, window.location.href))
-    .filter(
-      (url) =>
-        url.origin === window.location.origin &&
-        url.pathname.startsWith(`${basePath}assets/`),
-    )
-    .map((url) => url.pathname);
+}
+
+function acceptVerifiedShell(manifest: CachedShellManifest, basePath: string) {
+  const documentAssets = currentDocumentAssets(basePath);
   const manifestAssets = manifest.assets.map(
     (asset) => new URL(asset.url, window.location.origin).pathname,
   );
@@ -511,7 +698,11 @@ async function installOfflineShell(basePath: string) {
     documentAssets,
     manifestAssets,
   );
-  window.localStorage.setItem(offlineShellVersionKey, manifest.version);
+  if (!documentCacheName && !documentNeedsReload) {
+    documentCacheName = manifest.cache_name;
+    identifyDocumentCache();
+  }
+  storeSetting("localStorage", offlineShellVersionKey, manifest.version);
   publishState("ready", { version: manifest.version });
   announceReleaseReady(manifest.version);
 
@@ -520,13 +711,14 @@ async function installOfflineShell(basePath: string) {
   const updateNeedsReload = offlineShellUpdateNeedsReload(
     loadedOfflineShellVersion,
     manifest.version,
-    window.sessionStorage.getItem(offlineShellReloadKey),
+    storedSetting("sessionStorage", offlineShellReloadKey),
   );
-  const isolationNeedsReload = offlineShellIsolationNeedsReload(
-    globalThis.crossOriginIsolated,
-    manifest.version,
-    window.sessionStorage.getItem(isolationReloadKey),
-  );
+  const isolationNeedsReload =
+    offlineShellIsolationNeedsReload(
+      globalThis.crossOriginIsolated,
+      manifest.version,
+      storedSetting("sessionStorage", isolationReloadKey),
+    ) && storeSetting("sessionStorage", "ucsb-xrp-storage-check", "available");
   if (documentNeedsReload || updateNeedsReload || isolationNeedsReload) {
     requestOfflineShellReload({
       version: manifest.version,

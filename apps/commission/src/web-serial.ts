@@ -26,6 +26,32 @@ export interface ExpectedUsbController {
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
+const MAX_SERIAL_BYTES = 128 * 1024;
+
+async function serialDeadline<T>(
+  work: Promise<T>,
+  timeoutMs = 10_000,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                "The USB operation did not finish in time. Reconnect the XRP.",
+              ),
+            ),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function serialApi(): SerialApiLike | null {
   return (
@@ -123,7 +149,20 @@ export class SerialByteConnection {
   constructor(readonly port: SerialPortLike) {}
 
   async open(baudRate = 115_200): Promise<void> {
-    await this.port.open({ baudRate, bufferSize: 4_096 });
+    let abandoned = false;
+    const opening = this.port
+      .open({ baudRate, bufferSize: 4_096 })
+      .then(async () => {
+        // Web Serial has no cancellation API for open(). Release a port that
+        // resolves only after the caller's deadline rather than leaving it held.
+        if (abandoned) await this.port.close();
+      });
+    try {
+      await serialDeadline(opening);
+    } catch (error) {
+      abandoned = true;
+      throw error;
+    }
     if (!this.port.readable || !this.port.writable) {
       throw new Error("The selected USB device has no serial data streams.");
     }
@@ -143,6 +182,9 @@ export class SerialByteConnection {
           break;
         }
         if (value) {
+          if (this.buffered.length + value.length > MAX_SERIAL_BYTES) {
+            throw new Error("USB output exceeded the setup response limit.");
+          }
           this.buffered.push(...value);
           this.notifyData();
         }
@@ -193,8 +235,10 @@ export class SerialByteConnection {
     if (!this.writer) {
       throw new Error("The XRP serial connection is not open.");
     }
-    await this.writer.write(
-      typeof value === "string" ? textEncoder.encode(value) : value,
+    await serialDeadline(
+      this.writer.write(
+        typeof value === "string" ? textEncoder.encode(value) : value,
+      ),
     );
   }
 
@@ -203,6 +247,8 @@ export class SerialByteConnection {
   }
 
   async readExact(count: number, timeoutMs = 10_000): Promise<Uint8Array> {
+    if (count < 0 || count > MAX_SERIAL_BYTES)
+      throw new Error("USB response exceeds the setup limit.");
     const result: number[] = [];
     const deadline = Date.now() + timeoutMs;
     while (result.length < count) {
@@ -231,6 +277,8 @@ export class SerialByteConnection {
     const deadline = Date.now() + timeoutMs;
     while (!bytesEndWith(result, suffix)) {
       while (this.buffered.length > 0 && !bytesEndWith(result, suffix)) {
+        if (result.length >= MAX_SERIAL_BYTES)
+          throw new Error("USB response exceeds the setup limit.");
         result.push(this.buffered.shift()!);
       }
       if (bytesEndWith(result, suffix)) {
@@ -248,12 +296,12 @@ export class SerialByteConnection {
   async close(): Promise<void> {
     this.closing = true;
     try {
-      await this.reader?.cancel();
+      await serialDeadline(Promise.resolve(this.reader?.cancel()), 1_000);
     } catch {
       // A reset may have already removed the USB endpoint.
     }
     try {
-      await this.pumpPromise;
+      await serialDeadline(Promise.resolve(this.pumpPromise), 1_000);
     } catch {
       // The read loop records its useful error before completing.
     }
@@ -262,7 +310,7 @@ export class SerialByteConnection {
     this.writer?.releaseLock();
     this.writer = null;
     try {
-      await this.port.close();
+      await serialDeadline(this.port.close(), 1_000);
     } catch {
       // A hard reset can close the platform port before the browser does.
     }
@@ -371,6 +419,8 @@ export class RawReplSession implements MicroPythonSession {
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closed)
+      return Promise.reject(new Error("The USB setup session is closed."));
     const result = this.operation.then(operation, operation);
     const tracked = result.then(
       (value) => value,
@@ -459,7 +509,11 @@ export class RawReplSession implements MicroPythonSession {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
-    await this.operation;
+    try {
+      await serialDeadline(this.operation, 12_000);
+    } catch {
+      /* Closing releases a stalled transport. */
+    }
     await this.connection.close();
   }
 }
@@ -493,15 +547,15 @@ export async function openRawRepl(
 }
 
 export async function touchUf2Bootloader(port: SerialPortLike): Promise<void> {
-  await port.open({ baudRate: 1_200 });
+  await serialDeadline(port.open({ baudRate: 1_200 }));
   try {
     if (!port.setSignals) {
       throw new Error("This browser cannot place the XRP in firmware mode.");
     }
-    await port.setSignals({ dataTerminalReady: true });
+    await serialDeadline(port.setSignals({ dataTerminalReady: true }));
     await sleep(50);
-    await port.setSignals({ dataTerminalReady: false });
+    await serialDeadline(port.setSignals({ dataTerminalReady: false }));
   } finally {
-    await port.close();
+    await serialDeadline(port.close(), 1_000);
   }
 }

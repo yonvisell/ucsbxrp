@@ -129,6 +129,25 @@ class CourseBootTest(unittest.TestCase):
         )
         self.assertTrue(self.course_boot.runtime_identity()["confirmed"])
 
+    def test_marker_rename_failure_never_removes_previous_confirmed_runtime(self):
+        older = self._activation("a", 4, "release-4", 4)
+        newer = self._activation("b", 5, "release-5", 5)
+        self._write("active.0.json", older)
+        self._write("confirmed.json", older)
+        marker = str(self.runtime_root / "confirmed.json")
+        original_rename = self.course_boot.os.rename
+        for after_replace in (False, True):
+            self._write("confirmed.json", older)
+            def interrupted(source, destination):
+                if after_replace:
+                    original_rename(source, destination)
+                raise OSError("simulated power loss")
+            with patch.object(self.course_boot.os, "rename", side_effect=interrupted):
+                with self.assertRaises(OSError):
+                    self.course_boot._atomic_json(marker, newer)
+            actual = json.loads(Path(marker).read_text())
+            self.assertEqual(actual, newer if after_replace else older)
+
     def test_synchronous_candidate_failure_falls_back_to_confirmed_runtime(self):
         older = self._activation("a", 4, "release-4", 4)
         newer = self._activation("b", 5, "release-5", 5)

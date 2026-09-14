@@ -38,6 +38,36 @@ test("IDE fills the window and reclaims editor width during live resizing", asyn
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const parent = await (
+          await navigator.storage.getDirectory()
+        ).getDirectoryHandle("Workspace-Layout");
+        const project = await parent.getDirectoryHandle("Expanding-Spiral");
+        const metadata = JSON.parse(
+          await (
+            await (
+              await project.getFileHandle(".ucsb-xrp-project.json")
+            ).getFile()
+          ).text(),
+        );
+        const pending: string[] = [];
+        for (const directory of [parent, project]) {
+          for await (const [name] of directory.entries()) {
+            if (
+              name === ".ucsb-xrp-commit.json" ||
+              name === ".ucsb-xrp-writer.json" ||
+              (name.startsWith(".ucsb-xrp-writer-") && name.endsWith(".json"))
+            )
+              pending.push(name);
+          }
+        }
+        return { identified: Boolean(metadata.session?.projectId), pending };
+      }),
+    )
+    .toEqual({ identified: true, pending: [] });
   await page.reload();
   await expect(page.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
@@ -301,7 +331,7 @@ test("workspace opens in IDE mode unless the user selects another layout", async
     "data-monitor-surface",
     "paused",
   );
-  await expect(page).toHaveURL(/mode=ide/);
+  expect(new URL(page.url()).searchParams.get("mode") ?? "ide").toBe("ide");
 });
 
 test("phone-width IDE keeps the output action inside its console header", async ({

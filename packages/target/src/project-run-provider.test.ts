@@ -45,7 +45,7 @@ describe("ProjectRunProviderBroker", () => {
     expect(broker.hasProvider()).toBe(false);
   });
 
-  it("releases an IDE that no longer answers snapshot requests", async () => {
+  it("times out a delayed request without revoking the selected IDE", async () => {
     vi.useFakeTimers();
     try {
       const providerUnavailable = vi.fn();
@@ -56,14 +56,12 @@ describe("ProjectRunProviderBroker", () => {
       broker.register("closed-ide");
 
       const pending = broker.request();
-      const rejection = expect(pending).rejects.toThrow(
-        "did not provide the current project",
-      );
-      await vi.advanceTimersByTimeAsync(1_000);
+      const rejection = expect(pending).rejects.toThrow("has not replied yet");
+      await vi.advanceTimersByTimeAsync(5_000);
 
       await rejection;
-      expect(broker.hasProvider()).toBe(false);
-      expect(providerUnavailable).toHaveBeenCalledOnce();
+      expect(broker.hasProvider()).toBe(true);
+      expect(providerUnavailable).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

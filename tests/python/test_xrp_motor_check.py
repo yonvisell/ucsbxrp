@@ -22,6 +22,10 @@ class XrpMotorCheckTest(unittest.TestCase):
         self.assertNotIn("reset_encoder_position", source)
         self.assertNotIn("while True", source)
 
+    def test_motion_requires_an_explicit_gate_before_network_access(self):
+        with self.assertRaisesRegex(MOTOR_CHECK.ProbeError, "--allow-motion"):
+            MOTOR_CHECK.run_check("no-device")
+
     def test_encoder_differences_preserve_wheel_order(self):
         self.assertEqual(MOTOR_CHECK.differences([12, -4], [2, -7]), [10, 3])
 

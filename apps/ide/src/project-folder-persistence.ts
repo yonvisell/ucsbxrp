@@ -124,7 +124,11 @@ export class ProjectFolderPersistenceController {
   }
 
   async waitForWrites(): Promise<void> {
-    await this.writeQueue;
+    let pending: Promise<void>;
+    do {
+      pending = this.writeQueue;
+      await pending;
+    } while (pending !== this.writeQueue);
   }
 
   saveManually(
@@ -137,8 +141,12 @@ export class ProjectFolderPersistenceController {
       session,
       writeEpoch,
       requirePermission: false,
-      beforeWrite: () => this.isExactSession(writeEpoch, session),
-      afterWrite: () => this.isCurrentProject(writeEpoch, session),
+      beforeWrite: () =>
+        this.dependencies.getWorkingFolder() === folder &&
+        this.isExactSession(writeEpoch, session),
+      afterWrite: () =>
+        this.dependencies.getWorkingFolder() === folder &&
+        this.isCurrentProject(writeEpoch, session),
       exactRevision: () =>
         this.dependencies.getCurrentSession().revision === session.revision,
       applyDeletionsWhenSuperseded: false,
@@ -159,9 +167,12 @@ export class ProjectFolderPersistenceController {
       permissionMessage:
         "Reconnect the project folder to resume automatic saves.",
       beforeWrite: () =>
+        this.dependencies.getWorkingFolder() === folder &&
         this.dependencies.getProjectVersion() === projectVersion &&
         this.isExactSession(writeEpoch, session),
-      afterWrite: () => this.isCurrentProject(writeEpoch, session),
+      afterWrite: () =>
+        this.dependencies.getWorkingFolder() === folder &&
+        this.isCurrentProject(writeEpoch, session),
       exactRevision: () =>
         this.dependencies.getProjectVersion() === projectVersion &&
         this.dependencies.getCurrentSession().revision === session.revision,
@@ -208,8 +219,12 @@ export class ProjectFolderPersistenceController {
       // Conflict resolution is already an explicit user action. Preserve its
       // existing behavior of waiting behind an active write, then applying the
       // selected IDE snapshot.
-      beforeWrite: () => true,
-      afterWrite: () => this.isCurrentProject(writeEpoch, session),
+      beforeWrite: () =>
+        this.dependencies.getWorkingFolder() === folder &&
+        this.isExactSession(writeEpoch, session),
+      afterWrite: () =>
+        this.dependencies.getWorkingFolder() === folder &&
+        this.isCurrentProject(writeEpoch, session),
       exactRevision: () =>
         this.dependencies.getCurrentSession().revision === session.revision,
       applyDeletionsWhenSuperseded: true,
@@ -339,6 +354,13 @@ export class ProjectFolderPersistenceController {
         deletedPaths,
         {
           ...(expectedBaseDigest ? { expectedBaseDigest } : {}),
+          assertCurrent: () => {
+            if (!request.afterWrite())
+              throw new DOMException(
+                "Project selection changed before the save committed.",
+                "AbortError",
+              );
+          },
         },
       );
       this.committedWrites.set(request.folder, {

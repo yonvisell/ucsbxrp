@@ -16,6 +16,7 @@ export class TelemetryRecorder {
   private droppedSamples = 0;
   private lastCapturedSequence: number | null = null;
   private lastCapturedSource: TelemetrySample["source"] | null = null;
+  private lastCapturedIdentity: "observation" | "physical" | null = null;
   private active = false;
 
   constructor(readonly maximumSamples = 30_000) {
@@ -42,6 +43,7 @@ export class TelemetryRecorder {
     this.droppedSamples = 0;
     this.lastCapturedSequence = null;
     this.lastCapturedSource = null;
+    this.lastCapturedIdentity = null;
     this.active = true;
   }
 
@@ -56,6 +58,7 @@ export class TelemetryRecorder {
     this.droppedSamples = 0;
     this.lastCapturedSequence = null;
     this.lastCapturedSource = null;
+    this.lastCapturedIdentity = null;
     this.active = false;
   }
 
@@ -63,15 +66,32 @@ export class TelemetryRecorder {
     if (!this.active) {
       return;
     }
+    const observationIdentity =
+      Number.isSafeInteger(sample.observationSeq) &&
+      sample.observationSeq! >= 0;
+    const identity = observationIdentity
+      ? "observation"
+      : sample.source === "physical"
+        ? "physical"
+        : null;
+    const sequence = observationIdentity
+      ? sample.observationSeq!
+      : identity === "physical"
+        ? sample.seq
+        : null;
     if (
+      identity !== null &&
+      identity === this.lastCapturedIdentity &&
       this.lastCapturedSource === sample.source &&
       this.lastCapturedSequence !== null &&
-      sample.seq > this.lastCapturedSequence + 1
+      sequence !== null &&
+      sequence > this.lastCapturedSequence + 1
     ) {
-      this.droppedSamples += sample.seq - this.lastCapturedSequence - 1;
+      this.droppedSamples += sequence - this.lastCapturedSequence - 1;
     }
+    this.lastCapturedIdentity = identity;
     this.lastCapturedSource = sample.source;
-    this.lastCapturedSequence = sample.seq;
+    this.lastCapturedSequence = sequence;
     const copy = copySample(sample);
     if (this.samples.length < this.maximumSamples) {
       this.samples.push(copy);
@@ -142,6 +162,55 @@ const csvColumns = [
   "target_left_wheel_speed_mm_s",
   "target_right_wheel_speed_mm_s",
 ] as const;
+
+const observationColumns = [
+  "observation_seq",
+  "observation_kind",
+  "physics_step_seq",
+  "course_snapshot_seq",
+  "course_published_at_s",
+] as const;
+
+/** Additive metadata for exported observations; no acquisition time is inferred. */
+export function telemetryRecordingMetadata(
+  recording: TelemetryRecordingSnapshot,
+) {
+  const times = recording.samples.map((sample) => sample.tMs);
+  let minimumMs = Infinity;
+  let maximumMs = -Infinity;
+  for (const time of times) {
+    minimumMs = Math.min(minimumMs, time);
+    maximumMs = Math.max(maximumMs, time);
+  }
+  return {
+    provenanceVersion: 1,
+    retainedObservations: recording.samples.length,
+    retainedTimeSpanSeconds: times.length ? (maximumMs - minimumMs) / 1000 : 0,
+    knownDroppedObservations: recording.droppedSamples,
+    rowSemantics:
+      "Each row is one retained observation; distinct updates can share a physics step and timestamp.",
+    identities: {
+      observation_seq:
+        "Monotonic virtual observation order within the target session; replay preserves the identity.",
+      observation_kind:
+        "Source of the update: initial, physics, actuator, course, stop, reset, or unspecified state.",
+      seq: "Legacy virtual state sequence, or physical sensor-acquisition sequence; virtual Stop may advance this without advancing physics.",
+      physics_step_seq:
+        "Exact virtual integration step; blank for physical or unavailable data.",
+      course_snapshot_seq:
+        "Course-state publication identity within this run; blank when unavailable.",
+      course_published_at_s:
+        "Program-clock time of course-state publication, not sensor acquisition time; blank when unavailable.",
+      t_s: "Virtual physics time or physical device sample time, in seconds; it is not a uniform row interval.",
+    },
+    lossAccounting:
+      "Counts known retained-history eviction and observation-identity gaps; physical acquisition seq is the legacy fallback. Virtual physics-step gaps alone do not establish lost observations.",
+    acquisitionTime:
+      "A combined virtual row has no asserted common sensor acquisition time. Course publication time does not supply one.",
+    retention:
+      "Capacity is bounded by observation count. The retained time span depends on actual publication rate; no minimum duration is guaranteed.",
+  };
+}
 
 function copySample(sample: TelemetrySample): TelemetrySample {
   return {
@@ -244,10 +313,21 @@ export function telemetryRecordingToCsv(
         (column) =>
           sample.plotValues?.find((plot) => plot.name === column.name)?.value,
       ),
+      sample.observationSeq,
+      sample.observationKind,
+      sample.physicsStepSeq,
+      sample.courseSnapshotSeq,
+      sample.coursePublishedAtMs === undefined
+        ? undefined
+        : sample.coursePublishedAtMs / 1000,
     ]
       .map(csvValue)
       .join(","),
   );
-  const headers = [...csvColumns, ...plotColumns.map(plotCsvHeader)];
+  const headers = [
+    ...csvColumns,
+    ...plotColumns.map(plotCsvHeader),
+    ...observationColumns,
+  ];
   return `${headers.join(",")}\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
 }

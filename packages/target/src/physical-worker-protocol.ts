@@ -58,6 +58,7 @@ export type PhysicalWorkerCommand =
     }
   | { type: "stop"; requestId: string }
   | { type: "reset"; requestId: string }
+  | { type: "claim-control"; requestId: string }
   | {
       type: "set-runtime-parameter";
       requestId: string;

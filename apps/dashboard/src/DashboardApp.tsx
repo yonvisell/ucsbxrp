@@ -11,6 +11,8 @@ import {
   DEFAULT_WORLD_CATALOG,
   PhysicalTargetClient,
   VirtualTargetClient,
+  TelemetryRecorder,
+  telemetryRecordingMetadata,
   describeProject,
   physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
@@ -27,6 +29,7 @@ import {
 } from "@ucsb-xrp/target";
 
 import { AppNavigation } from "../../shared/AppNavigation";
+import { OperationStatus } from "../../shared/OperationStatus";
 import { isEmbeddedApplication } from "../../shared/embedded-application";
 import { ResetIcon, RunStopIcon } from "../../shared/HeaderIcons";
 import { SplitWorkspaceLink } from "../../shared/SplitWorkspaceLink";
@@ -42,19 +45,31 @@ import {
 import { DiagnosticLogWriter } from "../../shared/diagnostic-log";
 import {
   courseFolderPermission,
-  autosaveDirectoryName,
   loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
   requestCourseFolderPermission,
   subscribeCourseFolderChanged,
   withCourseFolderWriteLock,
   writeCourseFile,
-  writeCourseTextFile,
-  writeRotatingTextBundle,
   type CourseDirectoryHandle,
   type CourseFileHandle,
 } from "../../shared/course-folder";
-import { readProjectFolder } from "../../ide/src/project-files";
+import {
+  loadProjectBinding,
+  rememberProjectBinding,
+  resolveProjectFolderById,
+} from "../../shared/project-binding";
+import {
+  saveRunArchive,
+  saveRunAnnotations,
+  type RunArchive,
+} from "./monitor-run-archive";
+import { saveProjectFolderWithAutosave } from "../../ide/src/project-files";
+import { readProjectFolderWhenIdle } from "../../ide/src/project-folder-reader";
+import {
+  createProjectSession,
+  snapshotForProjectSession,
+} from "../../ide/src/project-session";
 import {
   SIGNAL_PLOTS,
   SignalPlot,
@@ -103,6 +118,63 @@ interface ReplayedRunBuffer {
   output: MonitorRunOutput[];
 }
 
+interface RunFolderResolution {
+  folder: CourseDirectoryHandle | null;
+  error?: string;
+}
+
+function projectFromRun(
+  event: Extract<TargetEvent, { type: "run" | "run-history" }>,
+): SynchronizedProject | null {
+  if (!event.projectRevision || !event.projectName || !event.entrypoint)
+    return null;
+  return {
+    projectId: event.projectId,
+    name: event.projectName,
+    revision: event.projectRevision,
+    entrypoint: event.entrypoint,
+    stale: false,
+  };
+}
+
+async function resolveRunFolder(
+  project: SynchronizedProject | null,
+): Promise<RunFolderResolution> {
+  try {
+    if (!project?.projectId)
+      throw new Error(
+        "This run has no saved Project identity. Export it before closing this page.",
+      );
+    const binding = await loadProjectBinding(project.projectId);
+    if (binding) return { folder: binding.folder };
+    const workspace = await loadRememberedWorkspaceFolder();
+    return {
+      folder: workspace
+        ? await resolveProjectFolderById(workspace, project.projectId)
+        : null,
+    };
+  } catch (error) {
+    return {
+      folder: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function archiveForRun(run: MonitorRunDataset): RunArchive {
+  if (!run.project?.projectId)
+    throw new Error(
+      "This run has no saved Project identity. Export it before closing this page.",
+    );
+  return {
+    runId: run.id,
+    projectId: run.project.projectId,
+    metadata: `${JSON.stringify(completedRunMetadata(run), null, 2)}\n`,
+    telemetry: monitorRunToCsv(run.recording, run.annotations),
+    output: completedRunOutput(run),
+  };
+}
+
 function completedRunMetadata(run: MonitorRunDataset) {
   return {
     schemaVersion: 2,
@@ -117,6 +189,8 @@ function completedRunMetadata(run: MonitorRunDataset) {
     project: run.project,
     telemetrySamples: run.recording.samples.length,
     droppedTelemetrySamples: run.recording.droppedSamples,
+    telemetry: telemetryRecordingMetadata(run.recording),
+    droppedOutputLines: run.droppedOutputLines ?? 0,
     annotations: run.annotations,
   };
 }
@@ -138,7 +212,6 @@ function completedRunOutput(run: MonitorRunDataset): string {
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v4";
 const previousMonitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
 const maximumPlotSamples = 1_800;
-const lastArchivedRunKey = "ucsb-xrp-last-archived-run-v1";
 const loadMonitorExport = () => import("./monitor-export");
 const emptyRuntimeState: RuntimeState = {
   revision: 0,
@@ -676,6 +749,7 @@ export function DashboardApp() {
   const [runStarting, setRunStarting] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [latestRun, setLatestRun] = useState<MonitorRunDataset | null>(null);
+  const [worldHistoryCleared, setWorldHistoryCleared] = useState(false);
   const [runtimeState, setRuntimeState] =
     useState<RuntimeState>(emptyRuntimeState);
   const [availableProgramPlots, setAvailableProgramPlots] = useState(
@@ -691,6 +765,8 @@ export function DashboardApp() {
   const [autosaveFolder, setAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [folderInteractionRevision, setFolderInteractionRevision] = useState(0);
+  const [folderReadError, setFolderReadError] = useState("");
+  const refreshFolderRef = useRef<() => void>(() => undefined);
   const [rememberedAutosaveFolder, setRememberedAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
   const [runAutosaveDetail, setRunAutosaveDetail] = useState(
@@ -704,7 +780,15 @@ export function DashboardApp() {
   const [exportDetail, setExportDetail] = useState("");
   const nextConsoleId = useRef(1);
   const autosaveFolderRef = useRef<CourseDirectoryHandle | null>(null);
-  const activeRunFolderRef = useRef<CourseDirectoryHandle | null>(null);
+  const autosaveWorkspaceRef = useRef<CourseDirectoryHandle | null>(null);
+  const activeRunFolderRef = useRef<Promise<RunFolderResolution> | null>(null);
+  const latestRunDestinationRef = useRef<Promise<RunFolderResolution> | null>(
+    null,
+  );
+  const [control, setControl] = useState<Extract<
+    TargetEvent,
+    { type: "control" }
+  > | null>(null);
   const latestRunFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const diagnosticFolderRef = useRef<CourseDirectoryHandle | null>(null);
   const autosaveFolderRemembered = useRef(false);
@@ -714,6 +798,7 @@ export function DashboardApp() {
   const runArchiveQueue = useRef<Promise<void>>(Promise.resolve());
   const targetStateRef = useRef<TargetRunState>("disconnected");
   const runStartingRef = useRef(false);
+  const runPreflightEpochRef = useRef(0);
   const exportActiveRef = useRef(false);
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
@@ -721,11 +806,21 @@ export function DashboardApp() {
   const latestRuntimeStateRef = useRef<RuntimeState>(emptyRuntimeState);
   const folderInteractionCountRef = useRef(0);
   const runArchiveCountRef = useRef(0);
+  const pendingRunNotesRef = useRef(
+    new Map<
+      string,
+      {
+        runId: string;
+        project: SynchronizedProject | null;
+        annotations: readonly MonitorAnnotation[];
+      }
+    >(),
+  );
+  const [, refreshPendingRunNotes] = useState(0);
   const targetCommandCountRef = useRef(0);
   const annotationDraftIdsRef = useRef(new Set<string>());
   const telemetryRateSamplesRef = useRef<TelemetrySample[]>([]);
   const nextRunIdRef = useRef(1);
-  const observedRunRequestIdsRef = useRef(new Set<string>());
   const replayedRunRef = useRef<ReplayedRunBuffer | null>(null);
   const diagnosticWriteErrorShownRef = useRef(false);
   const diagnosticLog = useMemo(
@@ -828,10 +923,14 @@ export function DashboardApp() {
   }, [targetState]);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      monitorSettingsKey,
-      JSON.stringify(monitorSettings),
-    );
+    try {
+      window.localStorage.setItem(
+        monitorSettingsKey,
+        JSON.stringify(monitorSettings),
+      );
+    } catch {
+      /* Plot controls remain usable for this session. */
+    }
   }, [monitorSettings]);
 
   useEffect(() => {
@@ -921,8 +1020,16 @@ export function DashboardApp() {
     let refreshRevision = 0;
     const refreshFolder = async (preserveUnrememberedFolder = false) => {
       beginFolderInteraction();
+      const revision = ++refreshRevision;
+      const assertCurrent = () => {
+        if (disposed || revision !== refreshRevision)
+          throw new DOMException(
+            "Project folder selection changed.",
+            "AbortError",
+          );
+      };
+      setFolderReadError("");
       try {
-        const revision = ++refreshRevision;
         const workspace = await loadRememberedWorkspaceFolder();
         if (disposed || revision !== refreshRevision) {
           return;
@@ -982,12 +1089,28 @@ export function DashboardApp() {
           return;
         }
         if (permission === "granted") {
-          const opened = await readProjectFolder(folder);
+          const opened = await readProjectFolderWhenIdle(folder, {
+            assertCurrent,
+            onWait: () =>
+              setRunAutosaveDetail(
+                `Waiting for ${folder.name} to finish saving…`,
+              ),
+          });
           if (disposed || revision !== refreshRevision) {
             return;
           }
-          const descriptor = await describeProject(opened.project);
+          const descriptor = {
+            ...(await describeProject(opened.project)),
+            projectId: opened.project.session?.projectId,
+          };
+          if (workspace && descriptor.projectId)
+            await rememberProjectBinding(descriptor.projectId, {
+              workspace,
+              folder,
+            });
+          if (disposed || revision !== refreshRevision) return;
           autosaveFolderRef.current = folder;
+          autosaveWorkspaceRef.current = workspace;
           setAutosaveFolder(folder);
           if (currentProjectRef.current === null) {
             currentProjectRef.current = descriptor;
@@ -1002,15 +1125,13 @@ export function DashboardApp() {
           );
         }
       } catch (error: unknown) {
-        if (disposed) return;
+        if (disposed || revision !== refreshRevision || wasCancelled(error))
+          return;
         const detail = error instanceof Error ? error.message : String(error);
-        autosaveFolderRemembered.current = false;
         autosaveFolderRef.current = null;
-        setRememberedAutosaveFolder(null);
         setAutosaveFolder(null);
-        setRunAutosaveDetail(
-          `Open the IDE to reconnect the Working folder. ${detail}`,
-        );
+        setFolderReadError(detail);
+        setRunAutosaveDetail(`Project folder could not be read. ${detail}`);
         diagnosticLog.record({
           event: "working-folder.open-failed",
           level: "error",
@@ -1021,6 +1142,8 @@ export function DashboardApp() {
         finishFolderInteraction();
       }
     };
+    const retryFolder = () => void refreshFolder();
+    refreshFolderRef.current = retryFolder;
     const folderChanged = () => {
       const sharedFolderCanChange = autosaveFolderRemembered.current;
       diagnosticFolderRef.current = null;
@@ -1036,96 +1159,48 @@ export function DashboardApp() {
     const unsubscribe = subscribeCourseFolderChanged(folderChanged);
     return () => {
       disposed = true;
+      if (refreshFolderRef.current === retryFolder)
+        refreshFolderRef.current = () => undefined;
+      runPreflightEpochRef.current += 1;
       unsubscribe();
       void diagnosticLog.flush();
     };
   }, [beginFolderInteraction, diagnosticLog, finishFolderInteraction]);
 
   const archiveCompletedRun = useCallback(
-    (run: MonitorRunDataset, folder: CourseDirectoryHandle | null) => {
-      const recording = run.recording;
-      if (!folder) {
-        setRunAutosaveDetail(
-          "Run data was not saved; reconnect the Project folder in the IDE.",
-        );
-        diagnosticLog.record({
-          event: "run.archive-skipped",
-          level: "warning",
-          message: `Run ${run.id} was not saved because no Project folder was available.`,
-        });
-        return;
-      }
-
-      const firstSample = recording.samples[0];
-      const lastSample = recording.samples.at(-1);
-      const fingerprint = JSON.stringify({
-        id: run.id,
-        source: run.target,
-        revision: run.project?.revision ?? null,
-        first: firstSample ? [firstSample.seq, firstSample.tMs] : null,
-        last: lastSample ? [lastSample.seq, lastSample.tMs] : null,
-        outputCount: run.output.length,
-        firstOutput: run.output[0]?.line ?? null,
-        lastOutput: run.output.at(-1)?.line ?? null,
-      });
-      const metadata = completedRunMetadata(run);
-      const outputText = completedRunOutput(run);
-
-      const writeArchive = async (): Promise<boolean> => {
-        try {
-          if (localStorage.getItem(lastArchivedRunKey) === fingerprint) {
-            return true;
-          }
-        } catch {
-          // The folder write remains useful when localStorage is unavailable.
-        }
-        await writeRotatingTextBundle(folder, [
-          { baseName: "run", extension: "txt", content: outputText },
-          {
-            baseName: "telemetry",
-            extension: "csv",
-            content: monitorRunToCsv(recording, run.annotations),
-          },
-          {
-            baseName: "run",
-            extension: "json",
-            content: `${JSON.stringify(metadata, null, 2)}\n`,
-          },
-        ]);
-        try {
-          localStorage.setItem(lastArchivedRunKey, fingerprint);
-        } catch {
-          // The files are already complete.
-        }
-        return true;
-      };
-
-      const queued = runArchiveQueue.current.then(async () => {
-        return withCourseFolderWriteLock("run", writeArchive);
-      });
+    (run: MonitorRunDataset, destination: Promise<RunFolderResolution>) => {
       runArchiveCountRef.current += 1;
+      const queued = runArchiveQueue.current.then(async () => {
+        const resolved = await destination;
+        if (!resolved.folder)
+          throw new Error(
+            resolved.error ??
+              "Reconnect the run's Project folder in the IDE, or export the displayed run.",
+          );
+        await saveRunArchive(resolved.folder, archiveForRun(run));
+        if (runDatasetController.latest?.id === run.id)
+          latestRunFolderRef.current = resolved.folder;
+        return resolved.folder;
+      });
       runArchiveQueue.current = queued.then(
         () => undefined,
         () => undefined,
       );
       void queued
-        .then((saved) => {
-          setRunAutosaveDetail(
-            saved
-              ? `Saved automatically to ${folder.name}.`
-              : "Not saved because the project folder changed.",
-          );
+        .then((folder) => {
+          if (runDatasetController.latest?.id === run.id)
+            setRunAutosaveDetail(`Saved automatically to ${folder.name}.`);
           diagnosticLog.record({
-            event: saved ? "run.archive-saved" : "run.archive-skipped",
-            level: saved ? "info" : "warning",
-            message: saved
-              ? `Run ${run.id} was saved to Project folder ${folder.name}.`
-              : `Run ${run.id} was not saved because the Project folder changed.`,
+            event: "run.archive-saved",
+            message: `Run ${run.id} was saved to Project folder ${folder.name}.`,
           });
         })
         .catch((error: unknown) => {
           const detail = error instanceof Error ? error.message : String(error);
-          setRunAutosaveDetail(`Run save failed: ${detail}`);
+          if (runDatasetController.latest?.id === run.id)
+            setRunAutosaveDetail(
+              `Run save failed: ${detail} Export the displayed run to retain it.`,
+            );
           diagnosticLog.record({
             event: "run.archive-failed",
             level: "error",
@@ -1141,20 +1216,26 @@ export function DashboardApp() {
           retryPendingOfflineShellReload();
         });
     },
-    [diagnosticLog],
+    [diagnosticLog, runDatasetController],
   );
 
   const finishActiveRun = useCallback(
-    (finalState: TargetRunState, finalDetail: string) => {
+    (
+      finalState: TargetRunState,
+      finalDetail: string,
+      finishedAtMs = Date.now(),
+    ) => {
       const run = runDatasetController.complete(
         finalState,
         finalDetail,
-        new Date().toISOString(),
+        new Date(finishedAtMs).toISOString(),
       );
       if (!run) return null;
-      const runFolder = activeRunFolderRef.current;
+      const runFolder =
+        activeRunFolderRef.current ?? Promise.resolve({ folder: null });
       activeRunFolderRef.current = null;
-      latestRunFolderRef.current = runFolder;
+      latestRunFolderRef.current = null;
+      latestRunDestinationRef.current = runFolder;
       setActiveRunId(null);
       setLatestRun(run);
       setActiveRunWorldBackfill(null);
@@ -1188,37 +1269,39 @@ export function DashboardApp() {
     [archiveCompletedRun, diagnosticLog, runDatasetController],
   );
 
-  const clearDisplayedRun = useCallback(
-    (options?: { clearLiveTelemetry?: boolean }) => {
-      runDatasetController.clear();
-      setActiveRunId(null);
-      setLatestRun(null);
-      setActiveRunWorldBackfill(null);
-      latestRunFolderRef.current = null;
-      if (options?.clearLiveTelemetry) {
-        telemetryRateSamplesRef.current = [];
-        monitorVisualHistory.clearAll();
-      } else {
-        monitorVisualHistory.clearHistory();
-      }
-      annotationsRef.current = [];
-      setAnnotations([]);
-      setExportDetail("");
-      retryPendingOfflineShellReload();
-    },
-    [monitorVisualHistory, runDatasetController],
-  );
+  const clearDisplayedRun = useCallback(() => {
+    runDatasetController.clear();
+    setActiveRunId(null);
+    setLatestRun(null);
+    setWorldHistoryCleared(false);
+    setActiveRunWorldBackfill(null);
+    latestRunFolderRef.current = null;
+    monitorVisualHistory.clearHistory();
+    annotationsRef.current = [];
+    setAnnotations([]);
+    setExportDetail("");
+    retryPendingOfflineShellReload();
+  }, [monitorVisualHistory, runDatasetController]);
 
   const beginRunDataset = useCallback(
     (
       source: TelemetrySample["source"],
-      identity?: { id: string; startedAtMs?: number; replayed?: boolean },
+      identity?: {
+        id: string;
+        startedAtMs?: number;
+        replayed?: boolean;
+        project?: SynchronizedProject | null;
+      },
     ): string => {
       if (runDatasetController.activeId) {
         return runDatasetController.activeId;
       }
       const runId =
         identity?.id ?? `${source}-${Date.now()}-${nextRunIdRef.current++}`;
+      const project =
+        identity?.project !== undefined
+          ? identity.project
+          : currentProjectRef.current;
       const catalog = worldCatalogRef.current;
       const selectedWorld =
         catalog.worlds.find(
@@ -1227,23 +1310,33 @@ export function DashboardApp() {
       runDatasetController.begin({
         id: runId,
         target: source,
-        project: currentProjectRef.current,
+        project,
         worldId: selectedWorld.id,
         world: selectedWorld,
         startedAt: new Date(identity?.startedAtMs ?? Date.now()).toISOString(),
       });
-      activeRunFolderRef.current = autosaveFolderRef.current;
+      activeRunFolderRef.current = resolveRunFolder(project);
       setActiveRunId(runId);
+      setWorldHistoryCleared(false);
       setActiveRunWorldBackfill(null);
       monitorVisualHistory.clearHistory();
       annotationsRef.current = [];
       setAnnotations([]);
       setExportDetail("");
       setRunAutosaveDetail(
-        autosaveFolderRef.current
-          ? `Will save automatically to ${autosaveFolderRef.current.name}.`
-          : "Run data will not be saved; reconnect the Project folder in the IDE.",
+        project?.projectId
+          ? `Locating the Project folder for ${project.name}…`
+          : "Run folder identity is unavailable. Export this run before closing the page.",
       );
+      void activeRunFolderRef.current.then((resolved) => {
+        if (runDatasetController.activeId !== runId) return;
+        setRunAutosaveDetail(
+          resolved.folder
+            ? `Will save automatically to ${resolved.folder.name}.`
+            : (resolved.error ??
+                "Reconnect the run's Project folder or export this run."),
+        );
+      });
       if (!identity?.replayed) {
         diagnosticLog.record({
           event: "run.started",
@@ -1261,25 +1354,53 @@ export function DashboardApp() {
     [diagnosticLog, monitorVisualHistory, runDatasetController],
   );
 
-  const updateSavedRunAnnotations = useCallback((run: MonitorRunDataset) => {
-    const folder = latestRunFolderRef.current;
-    if (!folder) return;
-    const update = runArchiveQueue.current.then(async () => {
-      await withCourseFolderWriteLock("run", async () => {
-        await writeCourseTextFile(
-          folder,
-          `${autosaveDirectoryName}/telemetry-1.csv`,
-          monitorRunToCsv(run.recording, run.annotations),
-        );
-        await writeCourseTextFile(
-          folder,
-          `${autosaveDirectoryName}/run-1.json`,
-          `${JSON.stringify(completedRunMetadata(run), null, 2)}\n`,
-        );
+  const updateSavedRunAnnotations = useCallback(
+    (run: MonitorRunDataset) => {
+      const pending = {
+        runId: run.id,
+        project: run.project,
+        annotations: run.annotations,
+      };
+      pendingRunNotesRef.current.set(run.id, pending);
+      refreshPendingRunNotes((revision) => revision + 1);
+      const destination =
+        latestRunDestinationRef.current ?? resolveRunFolder(run.project);
+      runArchiveCountRef.current += 1;
+      const update = runArchiveQueue.current.then(async () => {
+        const resolved = await destination;
+        if (!resolved.folder)
+          throw new Error(
+            resolved.error ??
+              "Reconnect the run's Project folder or export the displayed run with its notes.",
+          );
+        await saveRunAnnotations(resolved.folder, archiveForRun(run));
+        if (pendingRunNotesRef.current.get(run.id) === pending) {
+          pendingRunNotesRef.current.delete(run.id);
+          refreshPendingRunNotes((revision) => revision + 1);
+        }
+        if (runDatasetController.latest?.id === run.id)
+          setRunAutosaveDetail(
+            `Saved notes for this run to ${resolved.folder.name}.`,
+          );
       });
-    });
-    runArchiveQueue.current = update.catch(() => undefined);
-  }, []);
+      runArchiveQueue.current = update.catch(() => undefined);
+      void update
+        .catch((error: unknown) => {
+          if (runDatasetController.latest?.id === run.id)
+            setRunAutosaveDetail(
+              error instanceof Error ? error.message : String(error),
+            );
+        })
+        .finally(() => {
+          runArchiveCountRef.current = Math.max(
+            0,
+            runArchiveCountRef.current - 1,
+          );
+          retryPendingOfflineShellReload();
+        });
+    },
+    [runDatasetController],
+  );
 
   useEffect(() => {
     if (!targetPreferenceReady) {
@@ -1321,6 +1442,14 @@ export function DashboardApp() {
     const unsubscribe = target.subscribe((event: TargetEvent) => {
       if (event.type === "telemetry") {
         const normalizedSample = normalizeTelemetryUltrasound(event.sample);
+        if (
+          event.replayed !== true &&
+          normalizedSample.observationKind === "reset" &&
+          !runDatasetController.isActive
+        ) {
+          setWorldHistoryCleared(true);
+          setActiveRunWorldBackfill(null);
+        }
         const rateSamples = telemetryRateSamplesRef.current;
         appendTelemetryRateSample(rateSamples, normalizedSample);
 
@@ -1338,6 +1467,19 @@ export function DashboardApp() {
             annotationsRef.current = [];
             setAnnotations([]);
           }
+        }
+      } else if (event.type === "control") {
+        setControl(event);
+      } else if (event.type === "run") {
+        if (event.phase === "begin") {
+          beginRunDataset(target.kind, {
+            id: event.runId,
+            startedAtMs: event.startedAtMs,
+            project: projectFromRun(event),
+          });
+        } else if (runDatasetController.activeId === event.runId) {
+          runDatasetController.reportDroppedOutput(event.droppedOutputLines);
+          finishActiveRun(event.state, event.detail, event.finishedAtMs);
         }
       } else if (event.type === "status") {
         targetStateRef.current = event.state;
@@ -1357,14 +1499,27 @@ export function DashboardApp() {
                   id: retained.runId,
                   startedAtMs: retained.startedAtMs,
                   replayed: true,
+                  project: projectFromRun(retained),
                 }
               : undefined,
           );
+          if (retained) {
+            runDatasetController.reportRetainedTelemetryDropped(
+              retained.retainedTelemetryDropped,
+            );
+          }
         }
         const nextRunActive =
           isActiveRunState(event.state) ||
           (event.state === "connecting" && runDatasetController.isActive);
-        if (!nextRunActive && runDatasetController.isActive) {
+        if (
+          !nextRunActive &&
+          runDatasetController.isActive &&
+          !(
+            target.kind === "physical" &&
+            (event.state === "error" || event.state === "disconnected")
+          )
+        ) {
           finishActiveRun(event.state, event.detail);
         }
         setTargetState(event.state);
@@ -1459,10 +1614,24 @@ export function DashboardApp() {
               catalog.worlds.find(
                 (world) => world.id === selectedWorldIdRef.current,
               ) ?? catalog.worlds[0]!;
+            const replayRecorder = new TelemetryRecorder();
+            replayRecorder.start();
+            for (const retainedSample of replayed.samples) {
+              replayRecorder.capture(retainedSample);
+            }
+            const recording = replayRecorder.stop();
+            const retainedDropped =
+              event.retainedTelemetryDropped ??
+              replayed.boundary.retainedTelemetryDropped ??
+              0;
+            const knownPrefixLoss =
+              Number.isSafeInteger(retainedDropped) && retainedDropped >= 0
+                ? retainedDropped
+                : 0;
             const restored = runDatasetController.restore({
               id: event.runId,
               target: target.kind,
-              project: currentProjectRef.current,
+              project: projectFromRun(event),
               worldId: selectedWorld.id,
               world: selectedWorld,
               startedAt: new Date(event.startedAtMs).toISOString(),
@@ -1472,15 +1641,22 @@ export function DashboardApp() {
               finalState: event.state,
               finalDetail: event.detail,
               recording: {
-                schemaVersion: 3,
-                samples: replayed.samples,
-                droppedSamples: 0,
+                ...recording,
+                droppedSamples: recording.droppedSamples + knownPrefixLoss,
               },
               output: replayed.output,
+              droppedOutputLines: event.droppedOutputLines ?? 0,
               annotations: [],
             });
             activeRunFolderRef.current = null;
             latestRunFolderRef.current = null;
+            latestRunDestinationRef.current = resolveRunFolder(
+              restored.project,
+            );
+            void latestRunDestinationRef.current.then((resolved) => {
+              if (runDatasetController.latest?.id === restored.id)
+                latestRunFolderRef.current = resolved.folder;
+            });
             setActiveRunId(null);
             setLatestRun(restored);
             annotationsRef.current = [];
@@ -1492,13 +1668,22 @@ export function DashboardApp() {
           }
         }
       } else if (event.type === "console") {
+        const completedReplay = replayedRunRef.current?.boundary;
+        const resetAfterRetainedRun =
+          completedReplay?.finishedAtMs !== undefined &&
+          event.timestampMs !== undefined &&
+          event.timestampMs >= completedReplay.startedAtMs;
         if (
           event.action === "reset" &&
           event.phase === "result" &&
-          event.replayed !== true
+          (event.replayed !== true || resetAfterRetainedRun)
         ) {
-          finishActiveRun("ready", "Run ended by Reset");
-          clearDisplayedRun({ clearLiveTelemetry: true });
+          if (event.replayed !== true && target.kind !== "physical")
+            finishActiveRun("ready", "Run ended by Reset");
+          setWorldHistoryCleared(true);
+          setActiveRunWorldBackfill(null);
+          telemetryRateSamplesRef.current = [];
+          monitorVisualHistory.clearAll();
         }
         if (!projectProviderAvailableRef.current) {
           diagnosticLog.record({
@@ -1522,32 +1707,6 @@ export function DashboardApp() {
             }),
           });
         }
-        if (
-          event.action === "run" &&
-          event.phase === "request" &&
-          event.replayed !== true
-        ) {
-          const requestIdentity = event.requestId ?? event.eventId;
-          const observed = observedRunRequestIdsRef.current;
-          if (!requestIdentity || !observed.has(requestIdentity)) {
-            if (requestIdentity) {
-              observed.add(requestIdentity);
-              while (observed.size > 32) {
-                observed.delete(observed.values().next().value!);
-              }
-            }
-            // Run may be pressed in either IDE or Monitor. The target's
-            // structured Run event is the shared start boundary; Reset and
-            // connection transitions do not emit it and therefore cannot
-            // create an empty or mislabeled run.
-            beginRunDataset(target.kind, {
-              id:
-                requestIdentity ??
-                `${target.kind}-${event.timestampMs ?? Date.now()}`,
-              startedAtMs: event.timestampMs,
-            });
-          }
-        }
         const entry = {
           id: event.eventId ?? `monitor-target-${nextConsoleId.current++}`,
           stream: event.stream,
@@ -1567,6 +1726,7 @@ export function DashboardApp() {
     beginTargetCommand();
     targetStateRef.current = "connecting";
     setTargetState("connecting");
+    setTargetDetail(`Connecting to ${target.kind} XRP…`);
     telemetryRateSamplesRef.current = [];
     monitorVisualHistory.clearAll();
     currentProjectRef.current = null;
@@ -1596,6 +1756,7 @@ export function DashboardApp() {
     return () => {
       disposed = true;
       finishActiveRun("disconnected", "Target connection changed");
+      runPreflightEpochRef.current += 1;
       unsubscribe();
       for (const timer of runtimeUpdateTimers.current.values()) {
         clearTimeout(timer);
@@ -1609,7 +1770,6 @@ export function DashboardApp() {
   }, [
     beginTargetCommand,
     beginRunDataset,
-    clearDisplayedRun,
     diagnosticLog,
     finishActiveRun,
     finishTargetCommand,
@@ -1622,6 +1782,9 @@ export function DashboardApp() {
   ]);
 
   const reset = async () => {
+    runPreflightEpochRef.current += 1;
+    runStartingRef.current = false;
+    setRunStarting(false);
     beginTargetCommand();
     try {
       await target.reset();
@@ -1643,16 +1806,26 @@ export function DashboardApp() {
 
   const canRunCurrent =
     targetPreferenceReady &&
-    autosaveFolder !== null &&
+    (projectProviderAvailable || autosaveFolder !== null) &&
+    (control === null || control.owned) &&
     !virtualRuntimePreparing &&
     (targetState === "ready" ||
       (target.kind === "virtual" && targetState === "error"));
 
   const runOrStop = async () => {
-    const stopping = targetState === "running" || targetState === "loading";
-    if (runStarting || (!stopping && !canRunCurrent)) {
+    const stopping =
+      runStarting ||
+      runDatasetController.isActive ||
+      targetState === "running" ||
+      targetState === "loading";
+    if (!stopping && !canRunCurrent) {
       return;
     }
+    const epoch = ++runPreflightEpochRef.current;
+    const assertCurrent = () => {
+      if (runPreflightEpochRef.current !== epoch)
+        throw new DOMException("Run preparation was cancelled.", "AbortError");
+    };
     beginTargetCommand();
     try {
       if (stopping) {
@@ -1660,17 +1833,57 @@ export function DashboardApp() {
       } else {
         runStartingRef.current = true;
         setRunStarting(true);
-        beginRunDataset(target.kind);
         if (projectProviderAvailable) {
           await target.runCurrent();
         } else {
           const folder = autosaveFolderRef.current;
+          const workspace = autosaveWorkspaceRef.current;
           if (!folder) {
             throw new Error(
               "Choose a Working folder and project in the IDE before running.",
             );
           }
-          const opened = await readProjectFolder(folder);
+          const assertFolderCurrent = () => {
+            assertCurrent();
+            if (
+              autosaveFolderRef.current !== folder ||
+              autosaveWorkspaceRef.current !== workspace
+            )
+              throw new DOMException(
+                "The selected Project changed during Run preparation. Run the selected Project again.",
+                "AbortError",
+              );
+          };
+          let opened = await readProjectFolderWhenIdle(folder, {
+            assertCurrent: assertFolderCurrent,
+          });
+          assertFolderCurrent();
+          if (!opened.project.session) {
+            const session = createProjectSession(opened.project, {
+              source: "folder",
+              baseDigest: opened.contentDigest,
+            });
+            await saveProjectFolderWithAutosave(
+              folder,
+              snapshotForProjectSession(session),
+              [],
+              { assertCurrent: assertFolderCurrent },
+            );
+            assertFolderCurrent();
+            opened = await readProjectFolderWhenIdle(folder, {
+              assertCurrent: assertFolderCurrent,
+            });
+          }
+          assertFolderCurrent();
+          if (!workspace || !opened.project.session)
+            throw new Error(
+              "Reconnect this Project in the IDE before running; its saved identity is unavailable.",
+            );
+          await rememberProjectBinding(opened.project.session.projectId, {
+            workspace,
+            folder,
+          });
+          assertFolderCurrent();
           await target.run(
             opened.project,
             monitorProjectId(folder, opened.project.session),
@@ -1678,8 +1891,9 @@ export function DashboardApp() {
         }
       }
     } catch (error: unknown) {
+      if (runPreflightEpochRef.current !== epoch) return;
       const detail = error instanceof Error ? error.message : String(error);
-      finishActiveRun("error", detail);
+      if (target.kind !== "physical") finishActiveRun("error", detail);
       targetStateRef.current = "error";
       setTargetState("error");
       setTargetDetail(detail);
@@ -1690,8 +1904,10 @@ export function DashboardApp() {
         message: `${target.kind} XRP Run command failed: ${detail}`,
       });
     } finally {
-      runStartingRef.current = false;
-      setRunStarting(false);
+      if (runPreflightEpochRef.current === epoch) {
+        runStartingRef.current = false;
+        setRunStarting(false);
+      }
       finishTargetCommand();
     }
   };
@@ -1880,6 +2096,18 @@ export function DashboardApp() {
   ];
 
   const addAnnotation = (sampleAtNote: TelemetrySample, label: string) => {
+    const noteRunId =
+      runDatasetController.activeId ?? runDatasetController.latest?.id;
+    if (
+      pendingRunNotesRef.current.size >= 64 &&
+      noteRunId &&
+      !pendingRunNotesRef.current.has(noteRunId)
+    ) {
+      setRunAutosaveDetail(
+        "Download and discard retained unsaved notes before adding notes to another run.",
+      );
+      return;
+    }
     const annotation = createMonitorAnnotation(
       [sampleAtNote],
       sampleAtNote.tMs,
@@ -2046,9 +2274,32 @@ export function DashboardApp() {
   const topRegionStyle = {
     "--monitor-primary-width": `${monitorSettings.layout.worldWidthPercent}%`,
   } as CSSProperties;
-  const isRunning = targetState === "running" || targetState === "loading";
+  const isRunning =
+    runStarting ||
+    activeRunId !== null ||
+    targetState === "running" ||
+    targetState === "loading";
   targetStateRef.current = targetState;
   runStartingRef.current = runStarting;
+
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (
+        !runStartingRef.current &&
+        !runDatasetController.isActive &&
+        !exportActiveRef.current &&
+        runArchiveCountRef.current === 0 &&
+        annotationDraftIdsRef.current.size === 0 &&
+        pendingRunNotesRef.current.size === 0 &&
+        (!runDatasetController.latest || latestRunFolderRef.current)
+      )
+        return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [runDatasetController]);
 
   useEffect(
     () =>
@@ -2064,7 +2315,9 @@ export function DashboardApp() {
           exportActive: exportActiveRef.current,
           recordingActive: runDatasetController.isActive,
           retainedRecording: runDatasetController.latest !== null,
-          retainedAnnotations: annotationsRef.current.length > 0,
+          retainedAnnotations:
+            annotationsRef.current.length > 0 ||
+            pendingRunNotesRef.current.size > 0,
           annotationDraftActive: annotationDraftIdsRef.current.size > 0,
           folderInteractionActive: folderInteractionCountRef.current > 0,
           saveActive: runArchiveCountRef.current > 0,
@@ -2086,7 +2339,8 @@ export function DashboardApp() {
         exportActive: exportState !== "idle",
         recordingActive: activeRunId !== null,
         retainedRecording: latestRun !== null,
-        retainedAnnotations: annotations.length > 0,
+        retainedAnnotations:
+          annotations.length > 0 || pendingRunNotesRef.current.size > 0,
         annotationDraftActive: annotationDraftIdsRef.current.size > 0,
         folderInteractionActive: folderInteractionCountRef.current > 0,
         saveActive: runArchiveCountRef.current > 0,
@@ -2160,10 +2414,15 @@ export function DashboardApp() {
       : "No project selected");
   const physicalConnectionFailed =
     target.kind === "physical" && targetState === "error";
+  const showRecovery =
+    physicalConnectionFailed ||
+    Boolean(folderReadError) ||
+    Boolean(control && !control.owned) ||
+    (!autosaveFolder && !projectProviderAvailable);
 
   return (
     <div
-      className={`app-shell ${embeddedApplication ? "embedded-app" : ""} ${physicalConnectionFailed ? "monitor-recovery-visible" : ""}`}
+      className={`app-shell ${embeddedApplication ? "embedded-app" : ""} ${showRecovery ? "monitor-recovery-visible" : ""}`}
       data-monitor-surface={monitorSurfaceActive ? "active" : "paused"}
     >
       <header className="app-header">
@@ -2176,7 +2435,7 @@ export function DashboardApp() {
           <button
             aria-label={isRunning ? "Stop" : "Run"}
             className={`command-run-button monitor-run-button header-icon-button ${isRunning ? "danger-button" : "primary-button"}`}
-            disabled={runStarting || (!isRunning && !canRunCurrent)}
+            disabled={!isRunning && !canRunCurrent}
             onClick={runOrStop}
             title={
               isRunning
@@ -2185,7 +2444,7 @@ export function DashboardApp() {
                   ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
                   : runStarting
                     ? "Compiling the default project before Run."
-                    : !autosaveFolder
+                    : !autosaveFolder && !projectProviderAvailable
                       ? rememberedAutosaveFolder
                         ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
                         : "Choose a Working folder and create or open a project in the IDE before running."
@@ -2220,6 +2479,19 @@ export function DashboardApp() {
           <SplitWorkspaceLink />
         </div>
         <div className="header-statuses">
+          {runStarting ||
+          targetState === "connecting" ||
+          targetState === "loading" ||
+          targetState === "error" ? (
+            <OperationStatus
+              pending={targetState !== "error"}
+              phase={
+                runStarting && targetState === "ready"
+                  ? "Preparing the project for Run. Stop cancels this request."
+                  : targetDetail
+              }
+            />
+          ) : null}
           <div
             aria-live="polite"
             className="connection-pill"
@@ -2236,23 +2508,64 @@ export function DashboardApp() {
         </div>
       </header>
 
-      {physicalConnectionFailed ? (
-        <section className="monitor-connection-recovery" role="alert">
-          <div>
-            <strong>Physical XRP connection lost</strong>
-            <span>{targetDetail}</span>
-          </div>
-          <button
-            className="primary-button"
-            onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
-            type="button"
-          >
-            Reconnect XRP
-          </button>
-          <a href="../commission/" target="_top">
-            Set up or repair XRP
-          </a>
-        </section>
+      {showRecovery ? (
+        <div className="monitor-notices">
+          {folderReadError ? (
+            <section className="monitor-connection-recovery" role="status">
+              <span>{folderReadError}</span>
+              <button onClick={() => refreshFolderRef.current()} type="button">
+                Refresh Project folder
+              </button>
+              <a href="../workspace/?mode=ide" target="_top">
+                Open IDE
+              </a>
+            </section>
+          ) : null}
+          {control && !control.owned ? (
+            <section className="monitor-connection-recovery" role="status">
+              <span>{control.detail}</span>
+              {control.canTakeover && target.claimControl ? (
+                <button
+                  onClick={() =>
+                    void target.claimControl!().catch((error: unknown) =>
+                      setTargetDetail(String(error)),
+                    )
+                  }
+                >
+                  Take control of this XRP
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+          {!autosaveFolder && !projectProviderAvailable ? (
+            <section className="monitor-connection-recovery" role="status">
+              <span>
+                Create or open a Project to run a program and save its data.
+              </span>
+              <a href="../workspace/?mode=ide" target="_top">
+                Open IDE
+              </a>
+            </section>
+          ) : null}
+          {physicalConnectionFailed ? (
+            <section className="monitor-connection-recovery" role="alert">
+              <div>
+                <strong>Physical XRP connection lost</strong>
+                <span>{targetDetail}</span>
+              </div>
+              <button
+                className="primary-button"
+                onClick={() => setConnectionAttempt((attempt) => attempt + 1)}
+                type="button"
+              >
+                Reconnect XRP
+              </button>
+              <a href="../commission/" target="_top">
+                Set up or repair XRP
+              </a>
+            </section>
+          ) : null}
+        </div>
       ) : null}
 
       <div
@@ -2404,6 +2717,35 @@ export function DashboardApp() {
                       {runAutosaveDetail}
                     </span>
                   </div>
+                  {[...pendingRunNotesRef.current.values()].map((pending) => (
+                    <div className="recording-actions" key={pending.runId}>
+                      <span>
+                        Unsaved notes: {pending.project?.name ?? pending.runId}
+                      </span>
+                      <button
+                        onClick={() =>
+                          downloadBlob(
+                            new Blob(
+                              [JSON.stringify(pending, null, 2) + "\n"],
+                              { type: "application/json" },
+                            ),
+                            `UCSBXRP-notes-${pending.runId}.json`,
+                          )
+                        }
+                      >
+                        Download retained notes
+                      </button>
+                      <button
+                        onClick={() => {
+                          pendingRunNotesRef.current.delete(pending.runId);
+                          refreshPendingRunNotes((revision) => revision + 1);
+                          retryPendingOfflineShellReload();
+                        }}
+                      >
+                        Discard retained notes
+                      </button>
+                    </div>
+                  ))}
                   {!autosaveFolder && rememberedAutosaveFolder ? (
                     <div className="recording-actions">
                       <button
@@ -2443,6 +2785,12 @@ export function DashboardApp() {
                   </div>
                   <div className="export-section">
                     <h3>Export</h3>
+                    {latestRun?.recording.samples[0]?.source === "virtual" ? (
+                      <p className="annotation-hint">
+                        Virtual updates may share a timestamp. CSV
+                        observation_seq preserves their order.
+                      </p>
+                    ) : null}
                     <div
                       className="export-actions"
                       aria-label="Export data and views"
@@ -2526,17 +2874,21 @@ export function DashboardApp() {
             <section className="world-panel dashboard-pane">
               <WorldView
                 active={monitorSurfaceActive}
-                annotations={annotations}
+                annotations={worldHistoryCleared ? [] : annotations}
                 catalog={worldCatalog}
-                historyBackfill={activeRunWorldBackfill}
-                historySource={displayedRunHistorySource}
+                historyBackfill={
+                  worldHistoryCleared ? null : activeRunWorldBackfill
+                }
+                historySource={
+                  worldHistoryCleared ? null : displayedRunHistorySource
+                }
                 onWorldChange={
                   target.kind === "virtual"
                     ? (nextWorldId) => void changeWorld(nextWorldId)
                     : undefined
                 }
                 sample={worldSample}
-                samples={displayedRunSamples}
+                samples={worldHistoryCleared ? [] : displayedRunSamples}
                 selectedWorldId={selectedWorldId}
                 worldSelectionDisabled={
                   targetState === "loading" || targetState === "running"
@@ -2742,8 +3094,18 @@ export function DashboardApp() {
                             {sample.rightEncoderCount}
                           </dd>
                         </div>
-                        <div title="Recent telemetry sample rate calculated from XRP or simulator timestamps.">
-                          <dt>telemetry sample rate</dt>
+                        <div
+                          title={
+                            sample.source === "virtual"
+                              ? "Recent virtual observation rate over simulator time. Distinct updates can share one physics step and timestamp."
+                              : "Recent sensor-acquisition rate calculated from physical XRP sample timestamps."
+                          }
+                        >
+                          <dt>
+                            {sample.source === "virtual"
+                              ? "observation rate"
+                              : "telemetry sample rate"}
+                          </dt>
                           <dd data-testid="telemetry-rate">
                             {telemetryRateHz === null
                               ? "—"

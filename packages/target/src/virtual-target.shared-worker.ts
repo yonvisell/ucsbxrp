@@ -31,8 +31,9 @@ import type {
   SynchronizedProject,
   TargetEvent,
   TargetRunState,
+  TelemetryObservationKind,
 } from "./types";
-import { virtualTelemetrySample } from "./virtual-telemetry";
+import { VirtualObservations } from "./virtual-observations";
 
 declare const self: SharedWorkerGlobalScope;
 
@@ -44,12 +45,16 @@ let simulatorState: XrpSimulatorState = simulator.reset(
   currentWorld.initialPose,
 );
 const events = new VirtualTargetEventHub();
+const sessionId = crypto.randomUUID();
 const runOwnerLease = new RunOwnerLease<MessagePort>(1_600);
 const projectRunProvider = new ProjectRunProviderBroker<MessagePort>(
   (port, request) => send(port, request),
   () => publishProjectProviderState(),
 );
 let activeRunId = 0;
+let operationEpoch = 0;
+let pendingRunEpoch: number | null = null;
+let pendingRunOwner: MessagePort | null = null;
 let currentState: TargetRunState = "ready";
 let currentDetail = "Virtual target ready";
 let currentProject: CourseProject | null = null;
@@ -58,6 +63,10 @@ let currentProjectId: string | null = null;
 let runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
 let runtimeSlots: Record<string, number> = {};
 let courseTelemetryState: CourseTelemetryState | null = null;
+const observations = new VirtualObservations();
+let latestTelemetryEvent: Extract<TargetEvent, { type: "telemetry" }> | null =
+  null;
+let latestPhysicsStepSeq = simulatorState.seq;
 
 function send(port: MessagePort, message: TargetWorkerMessage): void {
   events.send(port, message);
@@ -72,6 +81,21 @@ function broadcastMessage(message: TargetWorkerMessage): void {
 }
 
 function status(state: TargetRunState, detail: string): void {
+  const run = events.runEnvelope();
+  if (
+    (state === "ready" || state === "error") &&
+    run &&
+    run.finishedAtMs === undefined
+  ) {
+    broadcast({
+      ...run,
+      type: "run",
+      phase: "end",
+      state,
+      detail,
+      finishedAtMs: Date.now(),
+    });
+  }
   currentState = state;
   currentDetail = detail;
   broadcast({ type: "status", state, detail });
@@ -100,14 +124,31 @@ function clearRuntimeState(): void {
 }
 
 function telemetryEvent(): Extract<TargetEvent, { type: "telemetry" }> {
-  return {
+  return (latestTelemetryEvent ??= {
     type: "telemetry",
-    sample: virtualTelemetrySample(
+    sample: observations.capture(
       simulatorState,
       courseTelemetryState,
-      runtimeState.plots,
+      "initial",
+    ),
+  });
+}
+
+function publishTelemetryObservation(
+  kind: TelemetryObservationKind,
+  physicsStepSeq = simulatorState.seq,
+): void {
+  latestPhysicsStepSeq = physicsStepSeq;
+  latestTelemetryEvent = {
+    type: "telemetry",
+    sample: observations.capture(
+      simulatorState,
+      courseTelemetryState,
+      kind,
+      physicsStepSeq,
     ),
   };
+  broadcast(latestTelemetryEvent);
 }
 
 function stopRuntime(): void {
@@ -132,10 +173,14 @@ function stopRuntime(): void {
     accelerationMg: [0, 0, 1000],
     angularRateMdps: [0, 0, 0],
   };
-  broadcast(telemetryEvent());
+  publishTelemetryObservation("stop", latestPhysicsStepSeq);
 }
 
 function invalidateRun(detail: string): void {
+  operationEpoch += 1;
+  pendingRunEpoch = null;
+  pendingRunOwner = null;
+  projectRunProvider.cancelPending();
   const stoppedRunId = activeRunId;
   activeRunId += 1;
   runOwnerLease.clear();
@@ -180,14 +225,18 @@ function storeProject(
   currentProject = project;
   currentProjectId =
     projectId ?? (retainedIdentityMatches ? currentProjectId : null);
-  currentProjectDescriptor = { ...descriptor, stale: false };
+  currentProjectDescriptor = {
+    ...descriptor,
+    stale: false,
+    ...(currentProjectId ? { projectId: currentProjectId } : {}),
+  };
   broadcast({ type: "project", project: currentProjectDescriptor });
   broadcast({
     type: "world",
     catalog: currentCatalog,
     selectedWorldId: currentScenario,
   });
-  broadcast(telemetryEvent());
+  publishTelemetryObservation("reset");
 }
 
 function stageProject(
@@ -234,7 +283,7 @@ function stageProject(
     catalog: currentCatalog,
     selectedWorldId: currentScenario,
   });
-  broadcast(telemetryEvent());
+  publishTelemetryObservation("reset");
   return null;
 }
 
@@ -273,6 +322,31 @@ function prepareRuntime(
   port: MessagePort,
   command: Extract<TargetWorkerCommand, { type: "prepare-run" }>,
 ): void {
+  if (
+    command.operationEpoch !== undefined &&
+    (command.operationEpoch !== operationEpoch ||
+      pendingRunEpoch !== operationEpoch)
+  ) {
+    send(port, {
+      type: "response",
+      requestId: command.requestId,
+      ok: false,
+      error: "Run cancelled by a later Stop, Reset, or connection change.",
+    });
+    return;
+  }
+  if (
+    command.operationEpoch === undefined &&
+    (currentState === "running" || currentState === "loading")
+  ) {
+    send(port, {
+      type: "response",
+      requestId: command.requestId,
+      ok: false,
+      error: "A run is already active. Stop it before starting again.",
+    });
+    return;
+  }
   if (command.project && command.descriptor) {
     storeProject(command.project, command.descriptor, command.projectId);
   }
@@ -294,6 +368,8 @@ function prepareRuntime(
     });
     return;
   }
+  pendingRunEpoch = null;
+  pendingRunOwner = null;
   const previousRunId = activeRunId;
   activeRunId += 1;
   if (previousRunId > 0) {
@@ -306,7 +382,7 @@ function prepareRuntime(
   clearRuntimeState();
   simulatorState = simulator.reset(currentWorld.initialPose);
   runOwnerLease.begin(port, activeRunId, performance.now());
-  broadcast(telemetryEvent());
+  publishTelemetryObservation("initial");
   broadcast({
     type: "console",
     stream: "system",
@@ -341,13 +417,38 @@ function handleRuntimeMessage(
   if (message.type === "runtime-ready") {
     status("loading", `MicroPython ${message.version} · compiling the project`);
   } else if (message.type === "compile-complete") {
+    if (currentProjectDescriptor) {
+      broadcast({
+        type: "compile-result",
+        projectId: currentProjectId ?? undefined,
+        projectRevision: currentProjectDescriptor.revision,
+        result: {
+          ok: true,
+          detail: message.detail,
+          diagnostics: message.diagnostics ?? [],
+          compilerOutput: [message.detail],
+        },
+      });
+    }
+    broadcast({
+      type: "run",
+      phase: "begin",
+      runId: `virtual-${sessionId}-run-${runId}`,
+      startedAtMs: Date.now(),
+      state: "running",
+      detail: "Program running on the virtual XRP",
+      ...(currentProjectId ? { projectId: currentProjectId } : {}),
+      projectName: currentProjectDescriptor?.name,
+      projectRevision: currentProjectDescriptor?.revision,
+      entrypoint: currentProjectDescriptor?.entrypoint,
+    });
     broadcast({
       type: "console",
       stream: "system",
       line: `Compilation passed · ${message.detail}`,
       action: "validate",
       phase: "result",
-      requestId: `virtual-compile-${runId}`,
+      requestId: `virtual-${sessionId}-compile-${runId}`,
     });
     broadcast({
       type: "console",
@@ -355,7 +456,7 @@ function handleRuntimeMessage(
       line: `Starting ${currentProjectDescriptor?.name ?? "project"} (${currentProjectDescriptor?.entrypoint ?? "main.py"}) on the virtual XRP`,
       action: "run",
       phase: "request",
-      requestId: `virtual-run-${runId}`,
+      requestId: `virtual-${sessionId}-run-${runId}`,
     });
     status("running", "Program running on the virtual XRP");
   } else if (message.type === "effort") {
@@ -363,9 +464,25 @@ function handleRuntimeMessage(
     // after each effort change.
   } else if (message.type === "simulator-state") {
     simulatorState = message.state;
-    broadcast(telemetryEvent());
+    publishTelemetryObservation(message.observationKind ?? "state");
   } else if (message.type === "course-state") {
     courseTelemetryState = message.state;
+    publishTelemetryObservation("course", latestPhysicsStepSeq);
+  } else if (message.type === "console-batch") {
+    for (const line of message.lines)
+      handleRuntimeMessage(port, runId, { type: "console", ...line });
+    if (message.omitted) {
+      events.discardedOutput(message.omitted);
+      broadcast({
+        type: "console",
+        stream: "system",
+        line: `${message.omitted} output lines omitted to keep controls responsive. Use watches or telemetry for sampled values.`,
+        omittedOutputLines: message.omitted,
+        action: "run",
+        phase: "output",
+        requestId: `virtual-${sessionId}-run-${runId}`,
+      });
+    }
   } else if (message.type === "console") {
     broadcast({
       type: "console",
@@ -373,7 +490,7 @@ function handleRuntimeMessage(
       line: message.line,
       action: "run",
       phase: "output",
-      requestId: `virtual-run-${runId}`,
+      requestId: `virtual-${sessionId}-run-${runId}`,
     });
   } else if (message.type === "runtime-state") {
     runtimeState = message.state;
@@ -388,7 +505,7 @@ function handleRuntimeMessage(
       line: "Program completed; drive command is zero",
       action: "run",
       phase: "result",
-      requestId: `virtual-run-${runId}`,
+      requestId: `virtual-${sessionId}-run-${runId}`,
     });
     status("ready", "Program completed; drive command is zero");
     broadcastMessage({ type: "terminate-runtime", runId });
@@ -396,6 +513,19 @@ function handleRuntimeMessage(
     runOwnerLease.clear();
     stopRuntime();
     const compiling = message.stage === "compile";
+    if (compiling && currentProjectDescriptor) {
+      broadcast({
+        type: "compile-result",
+        projectId: currentProjectId ?? undefined,
+        projectRevision: currentProjectDescriptor.revision,
+        result: {
+          ok: false,
+          detail: message.detail,
+          diagnostics: message.diagnostics ?? [],
+          compilerOutput: [message.rawDetail ?? message.detail],
+        },
+      });
+    }
     broadcast({
       type: "console",
       stream: "stderr",
@@ -405,8 +535,8 @@ function handleRuntimeMessage(
       action: compiling ? "validate" : "run",
       phase: "error",
       requestId: compiling
-        ? `virtual-compile-${runId}`
-        : `virtual-run-${runId}`,
+        ? `virtual-${sessionId}-compile-${runId}`
+        : `virtual-${sessionId}-run-${runId}`,
     });
     if (!compiling) {
       broadcast({
@@ -415,7 +545,7 @@ function handleRuntimeMessage(
         line: "Program stopped after a MicroPython exception",
         action: "run",
         phase: "error",
-        requestId: `virtual-run-${runId}`,
+        requestId: `virtual-${sessionId}-run-${runId}`,
       });
     }
     status(
@@ -430,6 +560,13 @@ function handleRuntimeMessage(
 
 function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
   if (command.type === "disconnect") {
+    if (pendingRunOwner === port) {
+      operationEpoch += 1;
+      pendingRunEpoch = null;
+      pendingRunOwner = null;
+      projectRunProvider.cancelPending();
+      status("ready", "Run cancelled because its window disconnected");
+    }
     const providerChanged = projectRunProvider.unregister(port);
     if (runOwnerLease.ownsPort(port)) {
       invalidateRun("Run owner disconnected; drive command set to zero");
@@ -486,6 +623,36 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     }
   } else if (command.type === "publish-console") {
     broadcast(command.event);
+  } else if (command.type === "reserve-run") {
+    if (currentState === "running" || currentState === "loading") {
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: false,
+        error:
+          "A run is already starting or running. Stop it before starting again.",
+      });
+    } else {
+      operationEpoch += 1;
+      pendingRunEpoch = operationEpoch;
+      pendingRunOwner = port;
+      status("loading", "Reading the selected project before starting…");
+      send(port, {
+        type: "response",
+        requestId: command.requestId,
+        ok: true,
+        result: { operationEpoch },
+      });
+    }
+  } else if (command.type === "cancel-run") {
+    if (pendingRunEpoch === command.operationEpoch) {
+      operationEpoch += 1;
+      pendingRunEpoch = null;
+      pendingRunOwner = null;
+      projectRunProvider.cancelPending();
+      status("ready", "Run cancelled before the program started");
+    }
+    send(port, { type: "response", requestId: command.requestId, ok: true });
   } else if (command.type === "prepare-run") {
     prepareRuntime(port, command);
   } else if (command.type === "store-project") {
@@ -579,7 +746,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       catalog: currentCatalog,
       selectedWorldId: currentScenario,
     });
-    broadcast(telemetryEvent());
+    publishTelemetryObservation("reset");
     status("ready", "Virtual environment changed and XRP reset");
     broadcast({
       type: "console",
@@ -652,6 +819,10 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       });
     }
   } else if (command.type === "stop") {
+    operationEpoch += 1;
+    pendingRunEpoch = null;
+    pendingRunOwner = null;
+    projectRunProvider.cancelPending();
     const stoppedRunId = activeRunId;
     activeRunId += 1;
     runOwnerLease.clear();
@@ -674,6 +845,10 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     status("ready", "Stopped");
     send(port, { type: "response", requestId: command.requestId, ok: true });
   } else if (command.type === "reset") {
+    operationEpoch += 1;
+    pendingRunEpoch = null;
+    pendingRunOwner = null;
+    projectRunProvider.cancelPending();
     const stoppedRunId = activeRunId;
     activeRunId += 1;
     runOwnerLease.clear();
@@ -685,6 +860,9 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
         runId: stoppedRunId,
       });
     }
+    // Close the retained run after its zero-effort observation and before the
+    // new origin. Later reset/idle state belongs only to the live display.
+    status("ready", "Run ended by Reset");
     broadcast({
       type: "console",
       stream: "system",
@@ -697,7 +875,7 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
     // the new origin sample so Monitors archive only pre-Reset run data and
     // then render the cleared course state as the start of no run.
     simulatorState = simulator.reset(currentWorld.initialPose);
-    broadcast(telemetryEvent());
+    publishTelemetryObservation("reset");
     status("ready", "Virtual XRP reset");
     send(port, { type: "response", requestId: command.requestId, ok: true });
   }

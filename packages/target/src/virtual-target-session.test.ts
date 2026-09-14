@@ -36,12 +36,23 @@ function channel(): [DuplexPort, DuplexPort] {
   return [client, server];
 }
 
-type RuntimeOutcome = "complete" | "error" | "pending";
+type RuntimeOutcome =
+  | "complete"
+  | "error"
+  | "pending"
+  | "startup-stalled"
+  | "compile-stalled"
+  | "compile-error";
 
 class FakeRuntimeWorker {
   static nextOutcome: RuntimeOutcome = "complete";
   static completedRuns = 0;
   static runProjects: CourseProject[] = [];
+  static cancellationBuffers: Int32Array[] = [];
+  static nextOutputBatch: {
+    lines: { stream: "stdout" | "stderr"; line: string }[];
+    omitted: number;
+  } | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   terminated = false;
@@ -49,6 +60,7 @@ class FakeRuntimeWorker {
   postMessage(request: {
     mode: "check" | "test" | "run";
     project?: CourseProject;
+    cancellationBuffer?: SharedArrayBuffer;
   }): void {
     if (request.mode === "check") {
       this.emit({
@@ -66,13 +78,50 @@ class FakeRuntimeWorker {
     }
 
     const outcome = FakeRuntimeWorker.nextOutcome;
+    if (request.cancellationBuffer)
+      FakeRuntimeWorker.cancellationBuffers.push(
+        new Int32Array(request.cancellationBuffer),
+      );
     if (request.project) FakeRuntimeWorker.runProjects.push(request.project);
     FakeRuntimeWorker.nextOutcome = "complete";
+    if (outcome === "startup-stalled") return;
     this.emit({ type: "runtime-ready", version: "1.28.0" });
+    if (outcome === "compile-stalled") return;
+    if (outcome === "compile-error") {
+      this.emit({
+        type: "error",
+        stage: "compile",
+        detail: 'File "/project/main.py", line 1\nSyntaxError: invalid syntax',
+        rawDetail:
+          'Traceback (most recent call last):\n  File "<stdin>", line 3\n  File "/project/main.py", line 1\nSyntaxError: invalid syntax',
+        diagnostics: [
+          {
+            source: "micropython",
+            phase: "compile",
+            severity: "error",
+            message: "SyntaxError: invalid syntax",
+            path: "main.py",
+            start: { line: 1, column: 1 },
+            raw: [
+              'File "/project/main.py", line 1',
+              "SyntaxError: invalid syntax",
+            ],
+          },
+        ],
+      });
+      return;
+    }
     this.emit({
       type: "compile-complete",
       detail: "1 Python file compiled with MicroPython 1.28.0",
     });
+    if (FakeRuntimeWorker.nextOutputBatch) {
+      this.emit({
+        type: "console-batch",
+        ...FakeRuntimeWorker.nextOutputBatch,
+      });
+      FakeRuntimeWorker.nextOutputBatch = null;
+    }
     this.emit({
       type: "console",
       stream: outcome === "error" ? "stderr" : "stdout",
@@ -111,6 +160,8 @@ describe("virtual target shared session", () => {
     FakeRuntimeWorker.nextOutcome = "complete";
     FakeRuntimeWorker.completedRuns = 0;
     FakeRuntimeWorker.runProjects = [];
+    FakeRuntimeWorker.cancellationBuffers = [];
+    FakeRuntimeWorker.nextOutputBatch = null;
 
     const scope: {
       onconnect?: (event: MessageEvent) => void;
@@ -138,6 +189,296 @@ describe("virtual target shared session", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
+
+  it("keeps run identifiers distinct when the shared-worker session restarts", async () => {
+    const runInFreshSession = async () => {
+      const scope: { onconnect?: (event: MessageEvent) => void } = {};
+      vi.resetModules();
+      vi.stubGlobal("self", scope);
+      await import("./virtual-target.shared-worker");
+      vi.stubGlobal(
+        "SharedWorker",
+        class {
+          readonly port: DuplexPort;
+          constructor() {
+            const [client, server] = channel();
+            this.port = client;
+            scope.onconnect?.({ ports: [server] } as unknown as MessageEvent);
+          }
+        },
+      );
+      const { VirtualTargetClient } = await import("./virtual-target");
+      const target = new VirtualTargetClient();
+      const events: TargetEvent[] = [];
+      target.subscribe((event) => events.push(event));
+      try {
+        await target.connect();
+        await target.run(project, "project-a");
+        return events.find(
+          (event): event is Extract<TargetEvent, { type: "run" }> =>
+            event.type === "run" && event.phase === "begin",
+        )!.runId;
+      } finally {
+        target.disconnect();
+      }
+    };
+    const first = await runInFreshSession();
+    const second = await runInFreshSession();
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/^virtual-.+-run-1$/);
+    expect(second).toMatch(/^virtual-.+-run-1$/);
+  });
+
+  it("identifies omitted program output and retains its exact count for a late Monitor", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ide = new VirtualTargetClient();
+    const lateMonitor = new VirtualTargetClient();
+    const live: TargetEvent[] = [];
+    const replay: TargetEvent[] = [];
+    ide.subscribe((event) => live.push(event));
+    lateMonitor.subscribe((event) => replay.push(event));
+    try {
+      await ide.connect();
+      FakeRuntimeWorker.nextOutputBatch = {
+        lines: [{ stream: "stdout", line: "first retained line" }],
+        omitted: 98_765,
+      };
+      await ide.run(project, "output-project");
+      const run = live.find(
+        (event): event is Extract<TargetEvent, { type: "run" }> =>
+          event.type === "run" && event.phase === "begin",
+      )!;
+      const diagnostic = live.find(
+        (event): event is Extract<TargetEvent, { type: "console" }> =>
+          event.type === "console" && event.omittedOutputLines !== undefined,
+      )!;
+      expect(diagnostic).toMatchObject({
+        stream: "system",
+        action: "run",
+        phase: "output",
+        requestId: run.runId,
+        omittedOutputLines: 98_765,
+      });
+      expect(diagnostic.line).toContain("98765 output lines omitted");
+      await lateMonitor.connect();
+      expect(replay).toContainEqual({ ...diagnostic, replayed: true });
+      expect(
+        replay.find(
+          (event) => event.type === "run-history" && event.phase === "end",
+        ),
+      ).toMatchObject({
+        runId: run.runId,
+        projectId: "output-project",
+        droppedOutputLines: 98_765,
+        finishedAtMs: expect.any(Number),
+      });
+    } finally {
+      lateMonitor.disconnect();
+      ide.disconnect();
+    }
+  });
+
+  it.each<RuntimeOutcome>(["pending", "complete", "error"])(
+    "keeps a %s run's final observations before Reset and replays the current origin separately",
+    async (outcome) => {
+      const { VirtualTargetClient } = await import("./virtual-target");
+      const owner = new VirtualTargetClient();
+      const late = new VirtualTargetClient();
+      const live: TargetEvent[] = [];
+      const replay: TargetEvent[] = [];
+      owner.subscribe((event) => live.push(event));
+      late.subscribe((event) => replay.push(event));
+      try {
+        await owner.connect();
+        FakeRuntimeWorker.nextOutcome = outcome;
+        await owner.run(project, "reset-project");
+        const begin = live.findIndex(
+          (event) => event.type === "run" && event.phase === "begin",
+        );
+        const originalEnd = live.find(
+          (event) => event.type === "run" && event.phase === "end",
+        );
+        await owner.reset();
+        const end = live.findIndex(
+          (event) => event.type === "run" && event.phase === "end",
+        );
+        const boundary = live[end] as Extract<TargetEvent, { type: "run" }>;
+        expect(end).toBeGreaterThan(begin);
+        if (originalEnd) expect(boundary).toEqual(originalEnd);
+        else
+          expect(boundary).toMatchObject({
+            detail: "Run ended by Reset",
+            finishedAtMs: expect.any(Number),
+          });
+        const runSamples = live
+          .slice(begin + 1, end)
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample);
+        expect(runSamples.length).toBeGreaterThan(0);
+        expect(runSamples.at(-1)?.observationKind).toBe("stop");
+        expect(
+          live
+            .slice(end + 1)
+            .some(
+              (event) =>
+                event.type === "telemetry" &&
+                event.sample.observationKind === "reset",
+            ),
+        ).toBe(true);
+        await late.connect();
+        const historyEnd = replay.findIndex(
+          (event) => event.type === "run-history" && event.phase === "end",
+        );
+        expect(replay[historyEnd]).toMatchObject({
+          runId: boundary.runId,
+          projectId: "reset-project",
+          state: boundary.state,
+          detail: boundary.detail,
+          finishedAtMs: boundary.finishedAtMs,
+        });
+        expect(
+          replay
+            .slice(0, historyEnd)
+            .filter((event) => event.type === "telemetry")
+            .map((event) => event.sample),
+        ).toEqual(runSamples);
+        expect(replay.slice(historyEnd + 1)).toContainEqual(
+          expect.objectContaining({
+            type: "telemetry",
+            sample: expect.objectContaining({
+              tMs: 0,
+              seq: 0,
+              observationKind: "reset",
+            }),
+          }),
+        );
+        expect(
+          replay
+            .slice(historyEnd + 1)
+            .filter((event) => event.type === "telemetry")
+            .every((event) => event.replayed !== true),
+        ).toBe(true);
+      } finally {
+        late.disconnect();
+        owner.disconnect();
+      }
+    },
+  );
+
+  it("delivers source-bound compiler diagnostics to the IDE when a Monitor requests invalid code", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const { describeProject } = await import("./project-identity");
+    const ide = new VirtualTargetClient();
+    const monitor = new VirtualTargetClient();
+    const events: TargetEvent[] = [];
+    const invalid = {
+      ...project,
+      files: { "main.py": "def broken(:\n    pass\n" },
+    };
+    ide.subscribe((event) => events.push(event));
+    ide.setProjectRunProvider(() => ({
+      projectId: "invalid-project",
+      revision: 7,
+      project: invalid,
+    }));
+    try {
+      await ide.connect();
+      await monitor.connect();
+      await ide.markProjectStale(invalid, "invalid-project");
+      FakeRuntimeWorker.nextOutcome = "compile-error";
+      await monitor.runCurrent();
+      const compiler = events.find(
+        (event): event is Extract<TargetEvent, { type: "compile-result" }> =>
+          event.type === "compile-result",
+      )!;
+      expect(compiler).toMatchObject({
+        projectId: "invalid-project",
+        projectRevision: (await describeProject(invalid)).revision,
+        result: {
+          ok: false,
+          diagnostics: [{ path: "main.py", start: { line: 1, column: 1 } }],
+        },
+      });
+      expect(compiler.result.compilerOutput!.join("\n")).toContain("<stdin>");
+      expect(
+        events.some((event) => event.type === "run" && event.phase === "begin"),
+      ).toBe(false);
+      expect(
+        events.some(
+          (event) => event.type === "status" && event.state === "running",
+        ),
+      ).toBe(false);
+      expect(events.at(-1)).toMatchObject({ type: "status", state: "ready" });
+    } finally {
+      monitor.disconnect();
+      ide.disconnect();
+    }
+  });
+
+  it("starts isolated runtime cancellation flags clear and sets only the stopped run's flag", async () => {
+    vi.stubGlobal("crossOriginIsolated", true);
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const target = new VirtualTargetClient();
+    try {
+      await target.connect();
+      FakeRuntimeWorker.nextOutcome = "pending";
+      await target.run(project, "project-a");
+      const first = FakeRuntimeWorker.cancellationBuffers[0]!;
+      expect(Atomics.load(first, 0)).toBe(0);
+      await vi.advanceTimersByTimeAsync(800);
+      expect(Atomics.load(first, 0)).toBe(0);
+      await target.stop();
+      expect(Atomics.load(first, 0)).toBe(1);
+      FakeRuntimeWorker.nextOutcome = "pending";
+      await target.run(project, "project-a");
+      const second = FakeRuntimeWorker.cancellationBuffers[1]!;
+      expect(second.buffer).not.toBe(first.buffer);
+      expect(Atomics.load(second, 0)).toBe(0);
+      await target.stop();
+      expect(Atomics.load(second, 0)).toBe(1);
+    } finally {
+      target.disconnect();
+    }
+  });
+
+  it.each(["startup-stalled", "compile-stalled"] as const)(
+    "bounds %s Run and allows a subsequent explicit retry",
+    async (outcome) => {
+      const { VirtualTargetClient } = await import("./virtual-target");
+      const target = new VirtualTargetClient();
+      const events: TargetEvent[] = [];
+      target.subscribe((event) => events.push(event));
+      try {
+        await target.connect();
+        FakeRuntimeWorker.nextOutcome = outcome;
+        await target.run(project, "project-a");
+        const limit = outcome === "startup-stalled" ? 15_000 : 2_500;
+        await vi.advanceTimersByTimeAsync(limit - 1);
+        expect(
+          events.filter((event) => event.type === "status").at(-1),
+        ).toMatchObject({ state: "loading" });
+        await vi.advanceTimersByTimeAsync(1);
+        expect(
+          events.filter((event) => event.type === "status").at(-1),
+        ).toMatchObject({ state: "ready" });
+        expect(
+          events.some(
+            (event) =>
+              event.type === "console" && /try Run again/.test(event.line),
+          ),
+        ).toBe(true);
+        FakeRuntimeWorker.nextOutcome = "pending";
+        await target.run(project, "project-a");
+        await vi.advanceTimersByTimeAsync(16_000);
+        expect(
+          events.filter((event) => event.type === "status").at(-1),
+        ).toMatchObject({ state: "running" });
+        await target.stop();
+      } finally {
+        target.disconnect();
+      }
+    },
+  );
 
   it("shares state in either app order and supports success, error, then rerun", async () => {
     const { VirtualTargetClient } = await import("./virtual-target");
@@ -592,6 +933,36 @@ describe("virtual target shared session", () => {
     await expect(monitor.runCurrent()).rejects.toThrow("No active IDE project");
 
     firstIde.disconnect();
+    monitor.disconnect();
+  });
+  it("never starts an old asynchronous IDE snapshot after Reset", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ide = new VirtualTargetClient(),
+      monitor = new VirtualTargetClient();
+    let release!: (value: {
+      projectId: string;
+      revision: number;
+      project: CourseProject;
+    }) => void;
+    const snapshot = new Promise<{
+      projectId: string;
+      revision: number;
+      project: CourseProject;
+    }>((resolve) => {
+      release = resolve;
+    });
+    ide.setProjectRunProvider(() => snapshot);
+    await ide.connect();
+    await ide.markProjectStale(project, "project-a");
+    await monitor.connect();
+    const pending = monitor.runCurrent();
+    const cancelled = expect(pending).rejects.toThrow(/cancelled/i);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    await ide.reset();
+    release({ projectId: "project-a", revision: 1, project });
+    await cancelled;
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(0);
+    ide.disconnect();
     monitor.disconnect();
   });
 });

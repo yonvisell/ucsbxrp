@@ -38,6 +38,14 @@ test("shows one clear folder-backed project model on first IDE use", async ({
 }) => {
   await page.goto("/ide/");
 
+  const firstProject = page.getByRole("dialog", {
+    name: "Create your first Project",
+  });
+  await expect(firstProject).toBeVisible();
+  await firstProject
+    .getByRole("button", { name: "Use read-only preview" })
+    .click();
+
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
   await expect(page.getByTestId("project-folder")).toHaveText("Not selected");
   await expect(page.getByTestId("project-save-state")).toHaveText(
@@ -86,7 +94,7 @@ test("shows one clear folder-backed project model on first IDE use", async ({
   await expect(page.getByRole("button", { name: "Compile" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Compile" })).toHaveAttribute(
     "title",
-    "Compile the recovered browser copy. Reconnect the Working folder before editing or saving.",
+    "Compile the supplied preview. Create a Project to edit, save, and run it.",
   );
   await expect(
     page.getByRole("button", { name: "Run", exact: true }),
@@ -104,6 +112,11 @@ test("creates, saves, and remembers a named project in a new Working folder", as
 }) => {
   await provideEmptyWorkingFolder(page, "First-Use-Work");
   await page.goto("/ide/");
+
+  await page
+    .getByRole("dialog", { name: "Create your first Project" })
+    .getByRole("button", { name: "Use read-only preview" })
+    .click();
 
   await page.getByRole("button", { name: "New project…" }).click();
   await page.getByLabel("Project template").selectOption("demo_spiral");
@@ -215,6 +228,168 @@ test("Open project lists only direct UCSBXRP projects and remembers the selectio
   ).toMatchObject({ activeProject: "beta-folder" });
 });
 
+test("Open project waits for its own commit and refreshes completed foreign writers", async ({
+  page,
+}) => {
+  await seedWorkingFolder(page, {
+    folderName: "Chooser-Commit",
+    projectFolderName: "alpha-folder",
+    project: {
+      name: "Alpha drive",
+      entrypoint: "main.py",
+      files: { "main.py": 'print("alpha")\n' },
+    },
+  });
+  await page.addInitScript(() => {
+    const pause: {
+      armed: boolean;
+      waiting: boolean;
+      release: () => void;
+    } = { armed: true, waiting: false, release: () => undefined };
+    (
+      window as unknown as {
+        projectCommitPause: {
+          armed: boolean;
+          waiting: boolean;
+          release: () => void;
+        };
+      }
+    ).projectCommitPause = pause;
+    const createWritable = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function (options) {
+      const writable = await createWritable.call(this, options);
+      if (this.name === ".ucsb-xrp-project.json" && pause.armed) {
+        pause.armed = false;
+        const close = writable.close.bind(writable);
+        writable.close = async () => {
+          pause.waiting = true;
+          await new Promise<void>((resolve) => {
+            pause.release = resolve;
+          });
+          try {
+            await close();
+          } finally {
+            pause.waiting = false;
+          }
+        };
+      }
+      return writable;
+    };
+  });
+  const waitForCommit = () =>
+    expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as unknown as {
+                projectCommitPause: { waiting: boolean };
+              }
+            ).projectCommitPause.waiting,
+        ),
+      )
+      .toBe(true);
+  const releaseCommit = () =>
+    page.evaluate(() =>
+      (
+        window as unknown as {
+          projectCommitPause: { release: () => void };
+        }
+      ).projectCommitPause.release(),
+    );
+  const dialog = page.getByRole("dialog", { name: "Open project" });
+  const alpha = dialog.getByRole("button", {
+    name: "Open Alpha drive from alpha-folder",
+  });
+  const pendingWriter = dialog.getByRole("button", {
+    name: "Review pending writers in alpha-folder",
+  });
+
+  await page.goto("/ide/");
+  await expect(page.getByTestId("project-name")).toHaveText("Alpha drive");
+  await waitForCommit();
+  await page.getByRole("button", { name: "Open project…" }).click();
+  await expect(dialog).toContainText("Finishing the current Project save…");
+  await expect(pendingWriter).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await releaseCommit();
+  await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
+  await expect(dialog).toBeHidden();
+
+  await page.evaluate(() => {
+    (
+      window as unknown as { projectCommitPause: { armed: boolean } }
+    ).projectCommitPause.armed = true;
+  });
+  const savedSource = 'print("alpha after the held commit")\n';
+  const editor = page.getByRole("textbox", { name: "main.py editor" });
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await page.keyboard.insertText(savedSource);
+  await waitForCommit();
+  await page.getByRole("button", { name: "Open project…" }).click();
+  await expect(dialog).toContainText("Finishing the current Project save…");
+  await releaseCommit();
+  await expect(alpha).toBeVisible();
+  await expect(pendingWriter).toHaveCount(0);
+  await expect(dialog.getByText("Needs recovery", { exact: true })).toHaveCount(
+    0,
+  );
+  const retained = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const workspace = await root.getDirectoryHandle("Chooser-Commit");
+    const folder = await workspace.getDirectoryHandle("alpha-folder");
+    const names: string[] = [];
+    for await (const name of folder.keys()) names.push(name);
+    const source = await (
+      await (await folder.getFileHandle("main.py")).getFile()
+    ).text();
+    const writer = {
+      schemaVersion: 1,
+      owner: "fixture-foreign-writer",
+      choosing: false,
+      ticket: 1,
+      createdAt: Date.now(),
+    };
+    const writerText = JSON.stringify(writer) + "\n";
+    const handle = await folder.getFileHandle(
+      ".ucsb-xrp-writer-fixture-foreign-writer.json",
+      { create: true },
+    );
+    const writable = await handle.createWritable();
+    await writable.write(writerText);
+    await writable.close();
+    return { names, source, writerText };
+  });
+  expect(retained.source).toBe(savedSource);
+  expect(retained.names).not.toContain(".ucsb-xrp-commit.json");
+  expect(
+    retained.names.filter(
+      (name) => name.startsWith(".ucsb-xrp-writer-") && name.endsWith(".json"),
+    ),
+  ).toEqual([]);
+  await dialog.getByRole("button", { name: "Refresh projects" }).click();
+  await expect(pendingWriter).toBeVisible();
+  await expect(alpha).toHaveCount(0);
+  const foreign = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const workspace = await root.getDirectoryHandle("Chooser-Commit");
+    const folder = await workspace.getDirectoryHandle("alpha-folder");
+    const name = ".ucsb-xrp-writer-fixture-foreign-writer.json";
+    const text = await (
+      await (await folder.getFileHandle(name)).getFile()
+    ).text();
+    // Simulate the other writer completing normally; the chooser never owns
+    // permission to clear this record itself merely because time has elapsed.
+    await folder.removeEntry(name);
+    return text;
+  });
+  expect(foreign).toBe(retained.writerText);
+  await dialog.getByRole("button", { name: "Refresh projects" }).click();
+  await expect(alpha).toBeVisible();
+  await expect(pendingWriter).toHaveCount(0);
+});
+
 test("cancelling Working-folder selection leaves the current project unchanged", async ({
   page,
 }) => {
@@ -227,6 +402,10 @@ test("cancelling Working-folder selection leaves the current project unchanged",
     });
   });
   await page.goto("/ide/");
+  await page
+    .getByRole("dialog", { name: "Create your first Project" })
+    .getByRole("button", { name: "Use read-only preview" })
+    .click();
   await page.getByRole("button", { name: "New project…" }).click();
   await page.getByLabel("Project template").selectOption("demo_spiral");
   await page.getByLabel("Name").fill("Cancelled-Spiral");
@@ -266,6 +445,10 @@ test("rejects the course repository without exposing its source files", async ({
     });
   });
   await page.goto("/ide/");
+  await page
+    .getByRole("dialog", { name: "Create your first Project" })
+    .getByRole("button", { name: "Use read-only preview" })
+    .click();
   await page.getByRole("button", { name: "Open project…" }).click();
   await page
     .getByRole("dialog", { name: "Open project" })
@@ -273,8 +456,8 @@ test("rejects the course repository without exposing its source files", async ({
     .click();
 
   await expect(
-    page.getByText(/not the UCSBXRP course software repository/),
-  ).toBeVisible();
+    page.getByRole("dialog", { name: "Open project" }).getByRole("alert"),
+  ).toContainText("not the course software repository");
   await expect(
     page.getByRole("button", { name: /Open AGENTS\.md/ }),
   ).toHaveCount(0);

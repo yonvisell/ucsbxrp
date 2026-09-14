@@ -153,6 +153,7 @@ export async function loadWorkspaceTargetPreference(
 export async function updateWorkspaceTargetPreference(
   update: RobotProfileUpdate,
   workspace?: CourseDirectoryHandle | null,
+  options: { assertCurrent?: () => void } = {},
 ): Promise<RobotProfile> {
   const folder = workspace ?? (await loadRememberedWorkspaceFolder());
   if (!folder) {
@@ -160,9 +161,13 @@ export async function updateWorkspaceTargetPreference(
   }
 
   let updated = DEFAULT_TARGET_PREFERENCE;
-  await mutateWorkspaceManifest(folder, (current) => {
-    updated = update(targetPreferenceFromWorkspaceManifest(current));
-    return workspaceManifestForTargetPreference(current, updated);
-  });
+  await mutateWorkspaceManifest(
+    folder,
+    (current) => {
+      updated = update(targetPreferenceFromWorkspaceManifest(current));
+      return workspaceManifestForTargetPreference(current, updated);
+    },
+    options,
+  );
   return updated;
 }

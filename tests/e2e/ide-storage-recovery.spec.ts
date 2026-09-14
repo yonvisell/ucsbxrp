@@ -95,6 +95,10 @@ test("denied Working-folder permission remains a visible reconnect action", asyn
   });
 
   await ide.goto("/ide/");
+  await ide
+    .getByRole("dialog", { name: "Create your first Project" })
+    .getByRole("button", { name: "Use read-only preview", exact: true })
+    .click();
   await ide.getByRole("button", { name: "Open project…" }).click();
   const dialog = ide.getByRole("dialog", { name: "Open project" });
   await expect(dialog).toContainText(
@@ -208,6 +212,10 @@ test("creating a project in a recommended older folder keeps Virtual XRP selecte
     ide.getByRole("option", { name: "Physical XRP · reconnect folder" }),
   ).toBeDisabled();
 
+  await ide
+    .getByRole("dialog", { name: "Create your first Project" })
+    .getByRole("button", { name: "Use read-only preview", exact: true })
+    .click();
   await ide.getByRole("button", { name: "New project…" }).click();
   await ide.getByLabel("Project template").selectOption("demo_spiral");
   await ide.getByLabel("Name").fill("New-Virtual-Project");

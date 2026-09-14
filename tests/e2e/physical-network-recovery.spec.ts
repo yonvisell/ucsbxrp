@@ -2,6 +2,9 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 
+import { describeProject } from "../../packages/target/src/project-identity";
+import type { CourseProject } from "../../packages/target/src/types";
+
 import { readWorkspaceManifest, seedWorkingFolder } from "./working-folder";
 
 const release = JSON.parse(
@@ -30,6 +33,28 @@ let serviceSampleSeq = 0;
 let resetTelemetryEpoch = false;
 let readySamplePending = false;
 let resetPollStage = 0;
+let stopCompletionAllowed = true;
+let stopPending = false;
+let serviceRunId = 0;
+let controlOwner: string | null = null;
+let controlGeneration = 0;
+let serviceProject: Awaited<ReturnType<typeof describeProject>> | null = null;
+const control = () => ({
+  sessionId: controlOwner,
+  generation: controlGeneration,
+  leaseRemainingMs: 6000,
+  runId: serviceRunId,
+});
+
+test.beforeEach(() => {
+  controlOwner = null;
+  controlGeneration = 0;
+  serviceRunId = 0;
+  serviceProject = null;
+  resetPollStage = 0;
+  stopCompletionAllowed = true;
+  stopPending = false;
+});
 
 async function seedPhysicalWorkspace(
   page: import("@playwright/test").Page,
@@ -65,6 +90,7 @@ test.beforeAll(async () => {
       response.end();
       return;
     }
+    if (serviceState === "running" && serviceRunId === 0) serviceRunId = 1;
     const common = {
       bootId: "network-recovery-boot",
       courseRelease: release.release_id,
@@ -77,7 +103,9 @@ test.beforeAll(async () => {
       serviceVersion: release.service.version,
       protocol: 1,
       runtimeJson: '{"revision":0,"parameters":[],"watches":[],"plots":[]}',
-      project: null,
+      project: serviceProject ? { ...serviceProject, lifetime: "boot" } : null,
+      runId: serviceRunId,
+      control: control(),
     };
     if (request.method === "POST") {
       const chunks: Buffer[] = [];
@@ -88,8 +116,81 @@ test.beforeAll(async () => {
         Buffer.concat(chunks).toString("utf8"),
       ) as {
         requestId?: string;
+        bootId?: string;
+        sessionId?: string;
+        controlGeneration?: number;
+        runId?: number;
+        takeover?: boolean;
+        expectedProjectRevision?: string;
+        project?: CourseProject;
       };
       const command = url.pathname.split("/").pop() ?? "";
+      const reject = (code: string) => {
+        response.writeHead(200, responseHeaders);
+        response.end(
+          JSON.stringify({
+            protocol: 1,
+            requestId: requestBody.requestId,
+            ok: false,
+            error: { code, detail: code },
+          }),
+        );
+      };
+      if (requestBody.bootId !== common.bootId) {
+        reject("boot_changed");
+        return;
+      }
+      if (command === "control") {
+        if (
+          requestBody.sessionId !== controlOwner &&
+          ((controlOwner && !requestBody.takeover) || serviceState !== "ready")
+        ) {
+          reject("control_owned");
+          return;
+        }
+        if (requestBody.sessionId !== controlOwner) {
+          controlGeneration += 1;
+          controlOwner = requestBody.sessionId ?? null;
+        }
+        response.writeHead(200, responseHeaders);
+        response.end(
+          JSON.stringify({
+            protocol: 1,
+            requestId: requestBody.requestId,
+            ok: true,
+            result: { control: control() },
+          }),
+        );
+        return;
+      }
+      if (requestBody.runId !== serviceRunId) {
+        reject("stale_run");
+        return;
+      }
+      if (
+        command !== "stop" &&
+        (requestBody.sessionId !== controlOwner ||
+          requestBody.controlGeneration !== controlGeneration)
+      ) {
+        reject("control_required");
+        return;
+      }
+      if (command === "run") {
+        if (serviceState !== "ready") {
+          reject("program_active");
+          return;
+        }
+        if (requestBody.project)
+          serviceProject = await describeProject(requestBody.project);
+        else if (
+          requestBody.expectedProjectRevision !== serviceProject?.revision
+        ) {
+          reject("project_revision_mismatch");
+          return;
+        }
+        serviceRunId += 1;
+        serviceState = "running";
+      }
       const commandRejected =
         (command === "stop" || command === "reset") &&
         command === rejectedCommand;
@@ -109,7 +210,8 @@ test.beforeAll(async () => {
         return;
       }
       if (command === "stop") {
-        serviceState = "ready";
+        if (stopCompletionAllowed) serviceState = "ready";
+        else stopPending = true;
       }
       if (command === "reset") {
         resetPollStage = 1;
@@ -127,6 +229,29 @@ test.beforeAll(async () => {
                 : `${command} accepted`,
             reconnecting: false,
             runtimeJson: common.runtimeJson,
+            runId: serviceRunId,
+            project: serviceProject
+              ? { ...serviceProject, lifetime: "boot" }
+              : null,
+          },
+        }),
+      );
+      return;
+    }
+    if (
+      url.pathname.endsWith("/telemetry") &&
+      (url.searchParams.get("sessionId") !== controlOwner ||
+        Number(url.searchParams.get("controlGeneration")) !==
+          controlGeneration ||
+        Number(url.searchParams.get("runId")) !== serviceRunId ||
+        url.searchParams.get("bootId") !== common.bootId)
+    ) {
+      response.writeHead(409, responseHeaders);
+      response.end(
+        JSON.stringify({
+          error: {
+            code: "control_required",
+            detail: "A current control session is required",
           },
         }),
       );
@@ -135,7 +260,15 @@ test.beforeAll(async () => {
     const infoRequest = url.pathname.endsWith("/info");
     let responseState: "loading" | "ready" | "running" = serviceState;
     let completedResetThisPoll = false;
-    if (!infoRequest && resetPollStage === 1) {
+    if (!infoRequest && stopPending) {
+      if (stopCompletionAllowed) {
+        stopPending = false;
+        serviceState = "ready";
+        responseState = "ready";
+      } else {
+        responseState = "loading";
+      }
+    } else if (!infoRequest && resetPollStage === 1) {
       responseState = "loading";
       resetPollStage = 2;
     } else if (!infoRequest && resetPollStage === 2) {
@@ -198,6 +331,9 @@ test.beforeAll(async () => {
           capabilities: [
             "project.check",
             "project.prepare",
+            "project.run",
+            "logs.poll",
+            "control.session-v1",
             "program.run",
             "program.stop",
             "target.reset",
@@ -213,12 +349,7 @@ test.beforeAll(async () => {
               : responseState === "loading"
                 ? "Resetting program state"
                 : "Physical XRP ready",
-          runId:
-            responseState === "running" ||
-            responseState === "loading" ||
-            resetTelemetryEpoch
-              ? 1
-              : 0,
+          runId: serviceRunId,
           logs: [],
           samples: nextSample ? [nextSample] : [],
           moreSamples: false,
@@ -418,7 +549,7 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
   page: ide,
 }) => {
   reachable = true;
-  serviceState = "running";
+  serviceState = "ready";
   serviceSampleSeq = 0;
   resetTelemetryEpoch = false;
   readySamplePending = false;
@@ -427,6 +558,11 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
   try {
     await seedPhysicalWorkspace(ide);
     await ide.goto("/ide/");
+    await expect(ide.getByTestId("target-status")).toContainText(
+      "Physical XRP · ready",
+    );
+    serviceRunId = 1;
+    serviceState = "running";
     const monitor = await context.newPage();
     await monitor.goto("/monitor/");
     await expect(monitor.getByTestId("target-status")).toContainText(
@@ -442,14 +578,32 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
       )
       .toBeGreaterThan(2);
 
+    const recordedSamples = async () => {
+      const text = await monitor.getByTestId("recording-count").innerText();
+      return Number(
+        text.match(/([\d,]+) samples/)?.[1]?.replaceAll(",", "") ?? 0,
+      );
+    };
+    const samplesBeforeReset = await recordedSamples();
+    stopCompletionAllowed = false;
     await ide
       .locator(".app-header")
       .getByRole("button", { name: "Reset", exact: true })
       .click();
 
+    await expect.poll(() => stopPending).toBe(true);
+    await expect(monitor.getByTestId("target-status")).toContainText(
+      "Physical XRP · loading",
+    );
+    await expect(
+      monitor.getByRole("button", { name: "Export run data as CSV" }),
+    ).toBeDisabled();
+    await expect.poll(recordedSamples).toBeGreaterThan(samplesBeforeReset);
+    stopCompletionAllowed = true;
     await expect(monitor.getByTestId("target-status")).toContainText(
       "Physical XRP · ready",
     );
+    await expect.poll(() => resetTelemetryEpoch).toBe(true);
     await expect(monitor.getByTestId("world-view")).toHaveAttribute(
       "data-path-point-count",
       "0",
@@ -461,11 +615,72 @@ test("physical Reset from the IDE clears the Monitor world path", async ({
       0,
     );
     await expect(monitor.getByTestId("range-mm")).toHaveText("300.0 mm");
+    await expect(
+      monitor.getByRole("button", { name: "Export run data as CSV" }),
+    ).toBeEnabled();
   } finally {
     serviceState = "ready";
     serviceSampleSeq = 0;
     resetTelemetryEpoch = false;
     readySamplePending = false;
     resetPollStage = 0;
+    stopCompletionAllowed = true;
+    stopPending = false;
+  }
+});
+
+test("enforces control across two independent browsers while preserving observer Stop", async ({
+  browser,
+  page: owner,
+}) => {
+  reachable = true;
+  serviceState = "ready";
+  rejectedCommand = null;
+  await seedPhysicalWorkspace(owner);
+  await owner.goto("/ide/");
+  const run = (page: import("@playwright/test").Page) =>
+    page
+      .locator(".app-header")
+      .getByRole("button", { name: "Run", exact: true });
+  await expect(run(owner)).toBeEnabled();
+  await run(owner).click();
+  await expect.poll(() => serviceState).toBe("running");
+  const independent = await browser.newContext({
+    baseURL: new URL(owner.url()).origin,
+  });
+  try {
+    const observer = await independent.newPage();
+    await seedPhysicalWorkspace(observer);
+    await observer.goto("/ide/");
+    await expect(observer.getByTestId("target-status")).toContainText(
+      "Physical XRP · running",
+    );
+    await expect(run(observer)).toHaveCount(0);
+    const originalOwner = controlOwner;
+    await observer
+      .locator(".app-header")
+      .getByRole("button", { name: "Stop", exact: true })
+      .click();
+    await expect(observer.getByTestId("target-status")).toContainText(
+      "Physical XRP · ready",
+    );
+    expect(controlOwner).toBe(originalOwner);
+    await expect(run(observer)).toBeDisabled();
+    await observer
+      .getByRole("button", { name: "Take control", exact: true })
+      .click();
+    await expect.poll(() => controlOwner).not.toBe(originalOwner);
+    await expect(run(observer)).toBeEnabled();
+    await run(observer).click();
+    await expect.poll(() => serviceRunId).toBe(2);
+    await expect(run(owner)).toHaveCount(0);
+    await owner
+      .locator(".app-header")
+      .getByRole("button", { name: "Stop", exact: true })
+      .click();
+    await expect.poll(() => serviceState).toBe("ready");
+  } finally {
+    await independent.close();
+    serviceState = "ready";
   }
 });

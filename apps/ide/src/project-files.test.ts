@@ -4,6 +4,7 @@ import { courseProjectTemplate } from "@ucsb-xrp/target";
 
 import {
   createProjectFolder,
+  recoverProjectFolder,
   deleteProjectFile,
   duplicateProjectFile,
   ensureProjectFolder,
@@ -197,7 +198,7 @@ describe("project paths", () => {
     "main.py",
     "student/sensor_model.py",
     "config/robot.json",
-    " spaced name.txt ",
+    "spaced name.txt",
   ])("accepts a valid project-relative path: %s", (path) => {
     expect(projectPathError(path)).toBeNull();
   });
@@ -487,7 +488,7 @@ describe("project-folder reads", () => {
     );
   });
 
-  it("lists only valid direct projects inside a Working folder", async () => {
+  it("lists valid projects and exposes damaged direct projects for recovery", async () => {
     const project = (folderName: string, projectName: string) =>
       new ReadonlyDirectoryHandle(folderName, [
         [
@@ -531,6 +532,12 @@ describe("project-folder reads", () => {
         projectName: "Alpha project",
         entrypoint: "main.py",
         fileCount: 1,
+      },
+      {
+        folderName: "malformed",
+        projectName: "malformed",
+        entrypoint: "",
+        fileCount: 0,
       },
       {
         folderName: "zeta-folder",
@@ -613,8 +620,14 @@ describe("project-folder reads", () => {
       },
     };
 
-    await writeProjectFolder(root, project);
-    await removeProjectFolderFiles(root, ["obsolete.py", "missing.py"]);
+    await writeProjectFolder(root, {
+      ...project,
+      files: { ...project.files, "obsolete.py": "print('remove me')\n" },
+    });
+    await saveProjectFolderWithAutosave(root, project, [
+      "obsolete.py",
+      "missing.py",
+    ]);
 
     expect(files.get("main.py")).toBe("print('new')\n");
     expect(files.has("obsolete.py")).toBe(false);
@@ -775,6 +788,8 @@ describe("project-folder reads", () => {
     expect(projectFolderNameError("  ")).toContain("Enter");
     expect(projectFolderNameError("CON")).toContain("reserved by Windows");
     expect(projectFolderNameError("spiral.")).toContain("period or space");
+    expect(projectFolderNameError("spiral ")).toContain("space");
+    expect(projectPathError("main.py ")).toContain("space");
     expect(suggestedProjectFolderName("Expanding spiral! ")).toBe(
       "Expanding-spiral",
     );
@@ -925,7 +940,7 @@ describe("project-folder reads", () => {
     expect(backups[0]![1]).toContain("print('Git edit')");
   });
 
-  it("retains the four prior complete project states before automatic overwrite", async () => {
+  it("retains an editing checkpoint beyond several successive keystroke saves", async () => {
     const files = new Map<string, string>();
     const root = new WritableDirectoryHandle("course-project", files);
     await writeProjectFolder(root, {
@@ -949,10 +964,10 @@ describe("project-folder reads", () => {
       return backup.project?.files?.["main.py"];
     });
     expect(savedSources).toEqual([
-      "print('revision 4')\n",
-      "print('revision 3')\n",
-      "print('revision 2')\n",
-      "print('revision 1')\n",
+      "print('original')\n",
+      undefined,
+      undefined,
+      undefined,
     ]);
     const reopened = await readProjectFolder(root);
     expect(reopened.project.files).toEqual({
@@ -960,4 +975,143 @@ describe("project-folder reads", () => {
     });
     expect(reopened.skipped).toBe(0);
   });
+  it("retains both complete versions after one source write fails and restores either choice", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("fault-project", files);
+    const before = {
+      name: "Fault project",
+      entrypoint: "main.py",
+      files: { "main.py": "old main", "helper.py": "old helper" },
+    };
+    await writeProjectFolder(root, before);
+    const original = root.getFileHandle.bind(root);
+    let fail = true;
+    root.getFileHandle = async (name, options) => {
+      const handle = await original(name, options);
+      if (name === "helper.py" && options?.create && fail) {
+        fail = false;
+        throw new DOMException("Disk disconnected", "NotAllowedError");
+      }
+      return handle;
+    };
+    const intended = {
+      ...before,
+      files: { "main.py": "new main", "helper.py": "new helper" },
+    };
+    await expect(saveProjectFolderWithAutosave(root, intended)).rejects.toThrow(
+      "Disk disconnected",
+    );
+    await expect(readProjectFolder(root)).rejects.toThrow(
+      "save did not finish",
+    );
+    const marker = JSON.parse(files.get(".ucsb-xrp-commit.json")!);
+    expect(marker.previous.files).toEqual(before.files);
+    expect(marker.intended.files).toEqual(intended.files);
+    await recoverProjectFolder(root, "previous");
+    expect((await readProjectFolder(root)).project.files).toEqual(before.files);
+    expect(files.has(".ucsb-xrp-commit.json")).toBe(false);
+  });
+
+  it("does not overwrite a file modified after the initial conflict check", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("external-edit", files);
+    const before = {
+      name: "External edit",
+      entrypoint: "main.py",
+      files: { "main.py": "old" },
+    };
+    await writeProjectFolder(root, before);
+    const original = root.getFileHandle.bind(root);
+    let changed = false;
+    root.getFileHandle = async (name, options) => {
+      if (name === ".ucsb-xrp-commit.json" && options?.create && !changed) {
+        files.set("main.py", "external");
+        changed = true;
+      }
+      return original(name, options);
+    };
+    await expect(
+      saveProjectFolderWithAutosave(root, {
+        ...before,
+        files: { "main.py": "IDE" },
+      }),
+    ).rejects.toBeInstanceOf(ProjectFolderConflictError);
+    expect(files.get("main.py")).toBe("external");
+  });
+
+  it("leaves unchanged source files untouched during a normal save", async () => {
+    const files = new Map<string, string>();
+    const root = new WritableDirectoryHandle("incremental", files);
+    const before = {
+      name: "Incremental",
+      entrypoint: "main.py",
+      files: { "main.py": "old", "helper.py": "unchanged" },
+    };
+    await writeProjectFolder(root, before);
+    const original = root.getFileHandle.bind(root);
+    const writes: string[] = [];
+    root.getFileHandle = async (name, options) => {
+      if (options?.create) writes.push(name);
+      return original(name, options);
+    };
+    await saveProjectFolderWithAutosave(root, {
+      ...before,
+      files: { ...before.files, "main.py": "new" },
+    });
+    expect(writes).toContain("main.py");
+    expect(writes).not.toContain("helper.py");
+  });
+
+  it("rejects oversized and case-colliding source without opening a partial project", async () => {
+    const files = new Map<string, string>([
+      [
+        ".ucsb-xrp-project.json",
+        JSON.stringify({ name: "Bounded", entrypoint: "main.py" }),
+      ],
+      ["main.py", "small"],
+      ["large.py", "x".repeat(1024 * 1024 + 1)],
+    ]);
+    const root = new WritableDirectoryHandle("bounded", files);
+    await expect(readProjectFolder(root)).rejects.toThrow("1 MB");
+    files.delete("large.py");
+    files.set("Student/a.py", "a");
+    files.set("student/b.py", "b");
+    await expect(readProjectFolder(root)).rejects.toThrow("capitalization");
+  });
+
+  it("rejects new Project directory names that differ only in capitalization", async () => {
+    const workspace = new WritableDirectoryHandle(
+      "Projects",
+      new Map([["Lab/notes.txt", "preserved"]]),
+    );
+    await expect(
+      createProjectFolder(workspace, "lab", {
+        name: "New",
+        entrypoint: "main.py",
+        files: { "main.py": "new" },
+      }),
+    ).rejects.toThrow("already exists");
+  });
+});
+
+it("retains explicit template provenance through native save/open and later edits", async () => {
+  const { stampProjectProvenance } = await import("./project-provenance");
+  const template = courseProjectTemplate("demo_spiral");
+  const project = await stampProjectProvenance(
+    { ...template.project, name: "Student copy", templateId: template.id },
+    template,
+    "dev.47",
+  );
+  const files = new Map<string, string>();
+  const root = new WritableDirectoryHandle("Project", files);
+  await writeProjectFolder(root, project);
+  const opened = await readProjectFolder(root);
+  expect(opened.project.provenance).toEqual(project.provenance);
+  await saveProjectFolderWithAutosave(root, {
+    ...opened.project,
+    files: { ...opened.project.files, "notes.md": "student notes" },
+  });
+  expect((await readProjectFolder(root)).project.provenance).toEqual(
+    project.provenance,
+  );
 });

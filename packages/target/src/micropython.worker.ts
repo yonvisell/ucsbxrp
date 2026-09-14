@@ -16,6 +16,8 @@ import {
 import { prepareProject } from "./project-validation";
 import { MAX_RUNTIME_PARAMETERS, parseRuntimeState } from "./runtime-controls";
 import { SIMULATED_XRPLIB_FILES } from "./simulated-python";
+import { SimulationClock } from "./simulation-clock";
+import { RuntimeOutput } from "./runtime-output";
 import type {
   RuntimeWorkerMessage,
   RuntimeWorkerRequest,
@@ -73,14 +75,18 @@ function telemetryNumber(value: unknown): number | null {
 }
 
 self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
+  const output = new RuntimeOutput((lines, omitted) =>
+    post({ type: "console-batch", lines, omitted }),
+  );
   const world = event.data.world ?? defaultWorld(event.data.scenario);
   const simulator = new XrpSimulator(simulatorConfigForWorld(world));
   simulator.reset(world.initialPose);
   let leftEncoderOrigin = 0;
   let rightEncoderOrigin = 0;
-  let lastSimulationTime = performance.now();
-  let pendingSimulationMs = 0;
-  let explicitSimulationClock = false;
+  const clock = new SimulationClock(simulator.config.fixedStepMs);
+  const cancellation = event.data.cancellationBuffer
+    ? new Int32Array(event.data.cancellationBuffer)
+    : null;
   const liveValuesAreShared = event.data.liveParameterBuffer !== undefined;
   const liveValues = event.data.liveParameterBuffer
     ? new Int32Array(event.data.liveParameterBuffer)
@@ -96,30 +102,19 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
     liveValuesAreShared ? Atomics.load(liveValues, slot) : liveValues[slot]!;
   const liveSlots = new Map<string, number>();
   let programStarted = false;
+  let coursePublicationSeq = 0;
   let diagnosticProjectPaths: string[] = [];
-  const postSimulatorState = () =>
-    post({ type: "simulator-state", state: simulator.state });
-  const advanceSimulator = (requestedElapsedMs?: number) => {
-    const now = performance.now();
-    const elapsedMs =
-      requestedElapsedMs === undefined
-        ? explicitSimulationClock
-          ? 0
-          : Math.max(0, Math.min(now - lastSimulationTime, 5000))
-        : Math.max(0, Math.min(Number(requestedElapsedMs), 5000));
-    if (requestedElapsedMs !== undefined) {
-      explicitSimulationClock = true;
-    }
-    lastSimulationTime = now;
-    pendingSimulationMs += elapsedMs;
-    const steps = Math.floor(
-      pendingSimulationMs / simulator.config.fixedStepMs,
+  const postSimulatorState = (
+    observationKind: "initial" | "physics" | "actuator" | "stop" = "physics",
+  ) =>
+    post({ type: "simulator-state", state: simulator.state, observationKind });
+  const advanceSimulator = () => {
+    output.flush();
+    const steps = clock.advance(
+      () => simulator.step(),
+      () => !cancellation || Atomics.load(cancellation, 0) === 0,
     );
-    for (let index = 0; index < steps; index += 1) {
-      simulator.step();
-    }
     if (steps > 0) {
-      pendingSimulationMs -= steps * simulator.config.fixedStepMs;
       postSimulatorState();
     }
     return simulator.state;
@@ -129,15 +124,21 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
     const runtime = await loadMicroPython({
       heapsize: 2 * 1024 * 1024,
       url: micropythonWasmUrl,
-      stdout: (line) => post({ type: "console", stream: "stdout", line }),
-      stderr: (line) => post({ type: "console", stream: "stderr", line }),
+      stdout: (line) =>
+        event.data.mode === "run"
+          ? output.write("stdout", line)
+          : post({ type: "console", stream: "stdout", line }),
+      stderr: (line) =>
+        event.data.mode === "run"
+          ? output.write("stderr", line)
+          : post({ type: "console", stream: "stderr", line }),
     });
     runtime.registerJsModule("xrp_sim_bridge", {
       set_motor_effort(side: "left" | "right", effort: number) {
         advanceSimulator();
         post({ type: "effort", side, effort });
         simulator.setMotorEffort(side, effort);
-        postSimulatorState();
+        postSimulatorState("actuator");
       },
       get_encoder_count(side: "left" | "right") {
         const state = advanceSimulator();
@@ -175,8 +176,11 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
       get_battery_v() {
         return advanceSimulator().batteryV;
       },
-      advance_simulator(elapsedMs?: number) {
-        advanceSimulator(elapsedMs);
+      advance_simulator() {
+        advanceSimulator();
+      },
+      program_time_ms() {
+        return clock.elapsedMs();
       },
       set_runtime_version(version: string) {
         runtimeVersion = String(version);
@@ -225,6 +229,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         requestedTurnRateRadS: unknown,
         targetLeftWheelSpeedMmS: unknown,
         targetRightWheelSpeedMmS: unknown,
+        plotValuesJson?: unknown,
       ) {
         const estimatedX = telemetryNumber(estimatedXmm);
         const estimatedY = telemetryNumber(estimatedYmm);
@@ -251,6 +256,8 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         post({
           type: "course-state",
           state: {
+            publicationSeq: coursePublicationSeq++,
+            publishedAtMs: clock.elapsedMs(),
             estimatedXmm: estimatedX,
             estimatedYmm: estimatedY,
             estimatedHeadingRad: estimatedHeading,
@@ -262,6 +269,12 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
             requestedTurnRateRadS: telemetryNumber(requestedTurnRateRadS),
             targetLeftWheelSpeedMmS: telemetryNumber(targetLeftWheelSpeedMmS),
             targetRightWheelSpeedMmS: telemetryNumber(targetRightWheelSpeedMmS),
+            plotValues:
+              plotValuesJson === undefined
+                ? []
+                : parseRuntimeState(
+                    `{"revision":0,"parameters":[],"watches":[],"plots":${String(plotValuesJson)}}`,
+                  ).plots,
           },
         });
       },
@@ -359,12 +372,10 @@ exec(
       diagnostics: [],
     });
 
-    postSimulatorState();
+    postSimulatorState("initial");
     // Program time begins here. Loading MicroPython and copying project files
     // must not move the virtual robot before the student's code starts.
-    lastSimulationTime = performance.now();
-    pendingSimulationMs = 0;
-    explicitSimulationClock = false;
+    clock.reset();
     const entrypoint = project.entrypoint;
     programStarted = true;
     runtime.runPython(`
@@ -374,15 +385,24 @@ import time
 import xrp_sim_bridge
 
 __ucsb_original_sleep_ms = time.sleep_ms
-__ucsb_original_sleep = time.sleep
+__ucsb_tick_period = time.ticks_add(0, -1) + 1
 def __ucsb_simulated_sleep_ms(duration_ms):
-    __ucsb_original_sleep_ms(duration_ms)
-    xrp_sim_bridge.advance_simulator(duration_ms)
+    if duration_ms < 0:
+        return __ucsb_original_sleep_ms(duration_ms)
+    __ucsb_deadline = xrp_sim_bridge.program_time_ms() + duration_ms
+    while True:
+        __ucsb_remaining = __ucsb_deadline - xrp_sim_bridge.program_time_ms()
+        if __ucsb_remaining <= 0:
+            break
+        __ucsb_original_sleep_ms(max(1, min(20, int(__ucsb_remaining))))
+        xrp_sim_bridge.advance_simulator()
+    xrp_sim_bridge.advance_simulator()
 def __ucsb_simulated_sleep(duration_s):
-    __ucsb_original_sleep(duration_s)
-    xrp_sim_bridge.advance_simulator(duration_s * 1000.0)
+    __ucsb_simulated_sleep_ms(duration_s * 1000.0)
 time.sleep_ms = __ucsb_simulated_sleep_ms
 time.sleep = __ucsb_simulated_sleep
+time.ticks_ms = lambda: int(xrp_sim_bridge.program_time_ms()) % __ucsb_tick_period
+time.ticks_us = lambda: int(xrp_sim_bridge.program_time_ms() * 1000) % __ucsb_tick_period
 
 sys.path.insert(0, "/project")
 sys.path.insert(1, "/")
@@ -401,11 +421,13 @@ exec(
 `);
     advanceSimulator();
     simulator.stop();
-    postSimulatorState();
+    postSimulatorState("stop");
+    output.flush();
     post({ type: "run-complete" });
   } catch (error) {
+    output.flush();
     simulator.stop();
-    postSimulatorState();
+    postSimulatorState("stop");
     const rawDetail = rawErrorDetail(error);
     const detail = errorDetail(error);
     const phase = programStarted ? "runtime" : "compile";

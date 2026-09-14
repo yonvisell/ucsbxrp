@@ -9,6 +9,22 @@ export interface SynchronizedProject {
   entrypoint: string;
   revision: string;
   stale: boolean;
+  projectId?: string;
+}
+
+export interface TargetRunEnvelope {
+  runId: string;
+  startedAtMs: number;
+  finishedAtMs?: number;
+  state: TargetRunState;
+  detail: string;
+  projectId?: string;
+  projectName?: string;
+  projectRevision?: string;
+  entrypoint?: string;
+  droppedOutputLines?: number;
+  /** Known shared-ring evictions preceding a retained replay, not live loss. */
+  retainedTelemetryDropped?: number;
 }
 
 export interface ProjectRunSnapshot {
@@ -17,7 +33,8 @@ export interface ProjectRunSnapshot {
   project: CourseProject;
 }
 
-export type ProjectRunProvider = () => ProjectRunSnapshot;
+export type ProjectRunProvider = () =>
+  ProjectRunSnapshot | Promise<ProjectRunSnapshot>;
 
 export interface ProjectRevisionNotice {
   projectId: string;
@@ -115,6 +132,8 @@ export interface TargetConsoleMetadata {
   targetTimeMs?: number;
   /** True when the coordinator is restoring an earlier console line. */
   replayed?: boolean;
+  /** A program-output truncation diagnostic, including on the system stream. */
+  omittedOutputLines?: number;
   action?:
     | "connect"
     | "validate"
@@ -133,6 +152,15 @@ export interface TelemetrySample {
   tMs: number;
   seq: number;
   source: "virtual" | "physical";
+  /** Publication order within a target session; replay preserves this identity. */
+  observationSeq?: number;
+  observationKind?: TelemetryObservationKind;
+  /** Exact virtual integration step, separate from the legacy state sequence. */
+  physicsStepSeq?: number;
+  /** Identity of the most recent course-state publication in this run. */
+  courseSnapshotSeq?: number;
+  /** Program clock at course-state publication, not sensor acquisition time. */
+  coursePublishedAtMs?: number;
   /**
    * Compatibility pose used by existing Monitor releases. It is simulator
    * ground truth for the virtual XRP and student odometry for a physical XRP.
@@ -173,7 +201,18 @@ export interface TelemetrySample {
   sensorError: string | null;
 }
 
+export type TelemetryObservationKind =
+  "initial" | "physics" | "actuator" | "course" | "stop" | "reset" | "state";
+
 export type TargetEvent =
+  | ({ type: "run"; phase: "begin" | "end" } & TargetRunEnvelope)
+  | {
+      type: "control";
+      owned: boolean;
+      ownerPresent: boolean;
+      canTakeover: boolean;
+      detail: string;
+    }
   | {
       type: "status";
       state: TargetRunState;
@@ -190,6 +229,13 @@ export type TargetEvent =
       project: SynchronizedProject | null;
     }
   | {
+      /** The compiler result for the exact source admitted by Run. */
+      type: "compile-result";
+      projectId?: string;
+      projectRevision: string;
+      result: CheckResult;
+    }
+  | {
       type: "project-provider";
       active: boolean;
       available: boolean;
@@ -203,16 +249,11 @@ export type TargetEvent =
       catalog: WorldCatalog;
       selectedWorldId: string;
     }
-  | {
+  | ({
       /** Delimits one retained run while a newly opened Monitor catches up. */
       type: "run-history";
       phase: "begin" | "end";
-      runId: string;
-      startedAtMs: number;
-      finishedAtMs?: number;
-      state: TargetRunState;
-      detail: string;
-    }
+    } & TargetRunEnvelope)
   | {
       type: "physical-network";
       mode: "access_point" | "station";
@@ -250,6 +291,7 @@ export interface TargetClient {
   markProjectStale(project: CourseProject, projectId?: string): Promise<void>;
   stop(): Promise<void>;
   reset(): Promise<void>;
+  claimControl?(): Promise<void>;
   setRuntimeParameter(
     name: string,
     value: RuntimeParameterValue,

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-import { seedWorkingFolder } from "./working-folder";
+import { readWorkspaceExports, seedWorkingFolder } from "./working-folder";
 
 test("landing page exposes the instructor tools as compact text links", async ({
   page,
@@ -606,13 +606,22 @@ test("the authoring UI creates a new stopping-response challenge, runs it, and e
     )
     .toBeGreaterThan(900);
 
-  const downloadEvent = monitor.waitForEvent("download");
+  const projectFolderName = (await ide
+    .getByTestId("project-folder")
+    .textContent())!.trim();
+  await expect(monitor.getByTestId("run-autosave-status")).toHaveText(
+    `Saved automatically to ${projectFolderName}.`,
+  );
   await monitor.getByRole("button", { name: "Export run data as CSV" }).click();
-  const download = await downloadEvent;
-  expect(download.suggestedFilename()).toMatch(/^xrp-telemetry-.*\.csv$/);
-  const downloadPath = await download.path();
-  expect(downloadPath).not.toBeNull();
-  const csv = readFileSync(downloadPath!, "utf8");
+  const exported = () =>
+    readWorkspaceExports(monitor, {
+      folderName: "Instructor-Authoring-Work",
+      projectFolderName,
+    });
+  await expect.poll(async () => (await exported()).length).toBe(1);
+  const file = (await exported())[0]!;
+  expect(file.name).toMatch(/^xrp-telemetry-.*\.csv$/);
+  const csv = file.text!;
   expect(csv.split("\n").length).toBeGreaterThan(10);
   expect(csv).toContain("target_left_wheel_speed_mm_s");
 });

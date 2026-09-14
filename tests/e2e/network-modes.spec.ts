@@ -5,6 +5,26 @@ import { readWorkspaceManifest, seedWorkingFolder } from "./working-folder";
 test("shows the one commissioned XRP network from the Working folder", async ({
   page,
 }) => {
+  // This test inspects saved settings; keep its illustrative device address
+  // entirely inside the test, even on a computer using that private subnet.
+  await page.addInitScript(() => {
+    Reflect.deleteProperty(globalThis, "SharedWorker");
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const address =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (
+        address.startsWith("http://") &&
+        new URL(address).origin !== location.origin
+      )
+        return Promise.reject(new TypeError("Test XRP is unavailable"));
+      return originalFetch(input, init);
+    };
+  });
   await seedWorkingFolder(page, {
     robot: {
       id: "network-mode-test-xrp",

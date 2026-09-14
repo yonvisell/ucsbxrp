@@ -256,7 +256,7 @@ describe("course-folder autosaves", () => {
     ).resolves.toBe(true);
     await expect(
       projectFolderIsInsideCourseFolder(course, nestedProject),
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
     await expect(
       projectFolderIsInsideCourseFolder(course, unrelated),
     ).resolves.toBe(false);

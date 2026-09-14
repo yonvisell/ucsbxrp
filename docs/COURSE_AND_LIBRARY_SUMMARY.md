@@ -265,20 +265,28 @@ an optional fleet interface to the same exact release file set.
 
 ## Current implementation note
 
-No contradiction was found among the three active `v2_` documents. The current
-browser/device bundle is `2026.08-dev.42`. That release includes a pinned,
-unmodified XRPLib and its `phew` dependency. It was installed on an erased
-RP2350 restored to official SparkFun/WPILib firmware, using an empty Working
-folder. Native Chrome then verified Pink, created the default and a second
-Project, ran both from IDE and Monitor, retained program output and physical
-telemetry, and repeated setup without changing installed files or Project
-selection. These results do not constitute physical floor calibration or a
-cold installed-app reopen on the robot hotspot.
+The local classroom-reliability bundle is `2026.09-dev.48`, following
+`2026.08-dev.47`; its implementation and validation record is retained in
+`outputs/revisions/2026-09-14/IMPLEMENTATION_STATUS.md`. The public course API,
+units, student component ownership, and challenge content are unchanged.
+Catalog numbering remains a candidate organization, not a prescribed teaching
+sequence; Arena Circuit is an experimental additional candidate.
+
+First use offers a numbered Project in an explicitly selected Working folder.
+The default program runs on the Virtual XRP without USB setup. Folder-backed
+edits save automatically; interrupted or conflicting writes retain a recovery
+choice. Guide and API can remain beside the active workspace. Run archives and
+notes retain the source Project and run identity across other open windows.
+
+The revision introduces device command ownership and therefore requires its
+matching robot service before physical qualification. No physical XRP was
+attached during this revision. Browser execution, emulated network/serial
+checks, and host-side tests do not establish physical watchdog timing,
+installation interruption recovery, Stop latency, or floor calibration.
 
 Reference algorithms remain revisable; course outcomes, units, component
 responsibilities, and the concise student workflow are the compatibility
 target. Physical floor calibration is kept in per-robot configuration rather
-than promoted into the public API.
-`MotorEfforts`, `XRPBot.set_efforts()`, and the earlier RobotConfig effort
-field names remain compatibility aliases for saved pre-0.3 projects; current
-course material uses the drive-command vocabulary.
+than promoted into the public API. `MotorEfforts`, `XRPBot.set_efforts()`, and
+the earlier RobotConfig effort field names remain compatibility aliases for
+saved pre-0.3 projects; current course material uses drive-command vocabulary.

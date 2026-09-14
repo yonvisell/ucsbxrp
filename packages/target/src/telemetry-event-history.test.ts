@@ -34,9 +34,8 @@ function event(seq: number) {
 }
 
 describe("telemetry event history", () => {
-  it("retains more than three minutes at the 50 Hz virtual rate", () => {
+  it("bounds retention by observation count without assuming a publication rate", () => {
     expect(TARGET_TELEMETRY_HISTORY_LIMIT).toBe(10_000);
-    expect(TARGET_TELEMETRY_HISTORY_LIMIT / 50).toBeGreaterThanOrEqual(180);
   });
 
   it("keeps exactly the newest bounded events in chronological order", () => {
@@ -44,12 +43,14 @@ describe("telemetry event history", () => {
     for (const seq of [1, 2, 3, 4, 5]) history.retain(event(seq));
 
     expect(history.size).toBe(3);
+    expect(history.discardedCount).toBe(2);
     expect([...history.chronological()].map((item) => item.sample.seq)).toEqual(
       [3, 4, 5],
     );
 
     history.clear();
     expect(history.size).toBe(0);
+    expect(history.discardedCount).toBe(0);
     expect([...history.chronological()]).toEqual([]);
   });
 

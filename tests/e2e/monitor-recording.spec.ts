@@ -431,6 +431,7 @@ test("collects a run automatically and explains animation availability", async (
 
 test("active reset archives the run before clearing its world path", async ({
   page,
+  context,
 }) => {
   await page.goto("/monitor/");
   await page
@@ -459,6 +460,74 @@ test("active reset archives the run before clearing its world path", async ({
   const xColumn = columns.indexOf("x_mm");
   expect(xColumn).toBeGreaterThanOrEqual(0);
   expect(Number(rows.at(-1)!.split(",")[xColumn])).toBeGreaterThan(0);
+  const exportCsv = page.getByRole("button", {
+    name: "Export run data as CSV",
+  });
+  await expect(exportCsv).toBeEnabled();
+  await exportCsv.click();
+  await expect(page.getByText(/Saved .*xrp-telemetry-.*\.csv$/)).toBeVisible();
+  const exported = (
+    await readWorkspaceExports(page, { folderName: monitorWorkspace })
+  ).find((file) => file.name.endsWith(".csv"));
+  expect(exported?.text).toBe(archivedCsv);
+  const lateMonitor = await context.newPage();
+  await lateMonitor.addInitScript(() => {
+    Object.defineProperty(window, "showSaveFilePicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getFileHandle(
+          "reset-late.csv",
+          { create: true },
+        ),
+    });
+  });
+  await lateMonitor.goto("/monitor/");
+  await expect(lateMonitor.getByTestId("recording-count")).toContainText(
+    "Expanding spiral ·",
+  );
+  await expect(lateMonitor.getByTestId("world-view")).toHaveAttribute(
+    "data-path-point-count",
+    "0",
+  );
+  await expect
+    .poll(async () =>
+      Number.parseFloat(await lateMonitor.getByTestId("x-mm").innerText()),
+    )
+    .toBe(0);
+  await expect(
+    lateMonitor.getByRole("button", { name: "Export run data as CSV" }),
+  ).toBeEnabled();
+  // Allow either the resolved Project destination or the ordinary picker
+  // path while its saved capability is still being resolved.
+  await lateMonitor
+    .getByRole("button", { name: "Export run data as CSV" })
+    .click();
+  await expect(lateMonitor.getByText(/Saved .*\.csv$/)).toBeVisible();
+  const replayedCsv = await lateMonitor.evaluate(async (folderName) => {
+    const root = await navigator.storage.getDirectory();
+    try {
+      return (
+        await (await root.getFileHandle("reset-late.csv")).getFile()
+      ).text();
+    } catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotFoundError")
+        throw error;
+      const workspace = await root.getDirectoryHandle(folderName);
+      const project = await workspace.getDirectoryHandle("Expanding-Spiral");
+      const exports = await project.getDirectoryHandle("exports");
+      const candidates: string[] = [];
+      for await (const [name, handle] of exports.entries()) {
+        if (handle.kind === "file" && name.endsWith(".csv"))
+          candidates.push(name);
+      }
+      candidates.sort();
+      return (
+        await (await exports.getFileHandle(candidates.at(-1)!)).getFile()
+      ).text();
+    }
+  }, monitorWorkspace);
+  expect(replayedCsv).toBe(archivedCsv);
+  await lateMonitor.close();
   await page
     .locator(".app-header")
     .getByRole("button", { name: "Run", exact: true })
@@ -482,6 +551,71 @@ test("active reset archives the run before clearing its world path", async ({
   expect(path.segments).toBeGreaterThan(0);
   expect(path.segments).toBeLessThan(path.points);
   expect(path.maximumSegmentMm).toBeLessThan(50);
+});
+
+test("Reset preserves data and notes for manual export after an archive write fails", async ({
+  page,
+}) => {
+  await page.goto("/monitor/");
+  await page.getByRole("button", { name: "Run", exact: true }).click();
+  await expect
+    .poll(async () =>
+      recordedCount(await page.getByTestId("recording-count").textContent()),
+    )
+    .toBeGreaterThan(3);
+  await page
+    .getByTestId("wheel-speed-plot")
+    .click({ button: "right", position: { x: 160, y: 60 } });
+  await page.getByLabel("Note label").fill("Retain this Reset note");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.evaluate(() => {
+    const original = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = function (options) {
+      if (this.name === "pending-run.json")
+        return Promise.reject(
+          new DOMException("Archive permission denied", "NotAllowedError"),
+        );
+      return original.call(this, options);
+    };
+    Object.defineProperty(window, "showSaveFilePicker", {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getFileHandle(
+          "reset-recovery.csv",
+          { create: true },
+        ),
+    });
+  });
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page.getByTestId("run-autosave-status")).toContainText(
+    "Run save failed:",
+  );
+  await expect(page.getByTestId("run-autosave-status")).toContainText(
+    "Archive permission denied",
+  );
+  await expect(page.getByTestId("world-view")).toHaveAttribute(
+    "data-path-point-count",
+    "0",
+  );
+  await expect(
+    page.getByRole("button", { name: "Hide notes · 1" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Export run data as CSV" }).click();
+  await expect(
+    page.getByText("Saved reset-recovery.csv", { exact: true }),
+  ).toBeVisible();
+  const recovered = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    return (
+      await (await root.getFileHandle("reset-recovery.csv")).getFile()
+    ).text();
+  });
+  expect(recovered).toContain("Retain this Reset note");
+  const rows = recovered.trim().split("\n");
+  const xColumn = rows[0]!.split(",").indexOf("x_mm");
+  expect(rows.length).toBeGreaterThan(4);
+  expect(xColumn).toBeGreaterThanOrEqual(0);
+  expect(Number(rows.at(-1)!.split(",")[xColumn])).toBeGreaterThan(0);
 });
 
 test("selects plotted signals from the Monitor controls", async ({

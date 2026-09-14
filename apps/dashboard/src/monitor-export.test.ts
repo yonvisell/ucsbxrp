@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_WORLD_CATALOG, type TelemetrySample } from "@ucsb-xrp/target";
+import {
+  DEFAULT_WORLD_CATALOG,
+  telemetryRecordingToCsv,
+  type TelemetrySample,
+} from "@ucsb-xrp/target";
+
+import { csvRows, decodeCsvCell } from "./csv-records";
 
 import {
   createMonitorAnnotation,
@@ -114,6 +120,75 @@ describe("monitor exports", () => {
     expect(rows[0]).toMatch(/,note$/);
     expect(rows[1]).toMatch(/,$/);
     expect(rows[2]).toMatch(/,turn & inspect$/);
+  });
+
+  it("anchors new notes to one exact observation when physics sequences and times repeat", () => {
+    const variants = [
+      {
+        ...sample(20, 1),
+        seq: 1,
+        observationSeq: 10,
+        physicsStepSeq: 1,
+        leftEffort: 0.2,
+      },
+      {
+        ...sample(20, 1),
+        seq: 1,
+        observationSeq: 11,
+        physicsStepSeq: 1,
+        leftEffort: 0.4,
+      },
+    ];
+    const note = createMonitorAnnotation(variants, 20, "first update", 123)!;
+    expect(note).toMatchObject({
+      observationSeq: 10,
+      physicsStepSeq: 1,
+      seq: 1,
+    });
+    const csv = monitorRunToCsv(
+      { schemaVersion: 3, samples: variants, droppedSamples: 0 },
+      [note],
+    )
+      .trimEnd()
+      .split("\n");
+    expect(csv[1]).toMatch(/,first update$/);
+    expect(csv[2]).toMatch(/,$/);
+    expect(monitorAnnotationsToCsv([note])).toContain(
+      "observation_seq,physics_step_seq",
+    );
+    expect(monitorAnnotationsToCsv([note])).toContain(",10,1\n");
+  });
+
+  it("preserves multiline sensor fields and attaches notes to their CSV records", () => {
+    const recording = {
+      schemaVersion: 3 as const,
+      samples: [
+        {
+          ...sample(0, 0),
+          sensorError: 'Sensor failed, "retry"\nCheck cable\r\nAgain',
+        },
+        sample(20, 1),
+      ],
+      droppedSamples: 0,
+    };
+    const note = createMonitorAnnotation(
+      recording.samples,
+      20,
+      'Second record, "inspect"\nThen retry',
+      123,
+    )!;
+    const original = csvRows(telemetryRecordingToCsv(recording));
+    const exported = csvRows(monitorRunToCsv(recording, [note]));
+
+    expect(exported).toHaveLength(3);
+    for (let index = 0; index < original.length; index++) {
+      expect(exported[index]!.cells.slice(0, -1)).toEqual(
+        original[index]!.cells,
+      );
+      expect(exported[index]!.ending).toBe(original[index]!.ending);
+    }
+    expect(decodeCsvCell(exported[1]!.cells.at(-1)!)).toBe("");
+    expect(decodeCsvCell(exported[2]!.cells.at(-1)!)).toBe(note.label);
   });
 
   it("bounds long world replays and preserves real time for short ones", () => {

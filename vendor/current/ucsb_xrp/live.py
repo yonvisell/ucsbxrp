@@ -36,6 +36,7 @@ _plots_by_name = {}
 _revision = 0
 _runtime_json = '{"revision":0,"parameters":[],"watches":[],"plots":[]}'
 _snapshot_dirty = False
+_sample_plots = ()
 
 
 def _acquire():
@@ -323,7 +324,7 @@ def watch(name, value, unit="", label=None):
 
 def plot(name, value, unit="", label=None):
     """Stage one numeric value for an optional Monitor strip plot."""
-    global _snapshot_dirty
+    global _snapshot_dirty, _sample_plots
     name = _clean_text(name, "name", 32, identifier=True)
     label = _clean_text(label or _default_label(name), "label", 48)
     unit = "" if unit == "" else _clean_text(unit, "unit", 16)
@@ -349,6 +350,12 @@ def plot(name, value, unit="", label=None):
             else:
                 existing.pop("unit", None)
         _snapshot_dirty = True
+        # Immutable tuples share descriptor strings without retaining a mutable
+        # runtime dictionary in every physical telemetry-ring sample.
+        _sample_plots = tuple(
+            (item["name"], item["label"], item.get("unit", ""), item["value"])
+            for item in _plots
+        )
     finally:
         _release()
 
@@ -399,9 +406,14 @@ def runtime_snapshot_json():
     return _runtime_json
 
 
+def _plot_sample_snapshot():
+    """Return the immutable values published before this acquisition boundary."""
+    return _sample_plots
+
+
 def clear():
     """Clear state before a new physical project starts."""
-    global _revision, _snapshot_dirty
+    global _revision, _snapshot_dirty, _sample_plots
     _acquire()
     try:
         _parameters[:] = []
@@ -410,6 +422,7 @@ def clear():
         _watches_by_name.clear()
         _plots[:] = []
         _plots_by_name.clear()
+        _sample_plots = ()
         _revision = 0
         _snapshot_dirty = False
         _refresh_snapshot()

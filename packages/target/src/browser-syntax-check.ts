@@ -9,6 +9,7 @@ import type { CheckResult, CourseProject } from "./types";
  * A stalled worker must fail fast enough that Compile still feels interactive.
  */
 export const BROWSER_SYNTAX_CHECK_TIMEOUT_MS = 2_500;
+export const BROWSER_RUNTIME_STARTUP_TIMEOUT_MS = 15_000;
 
 const MAX_CHECK_OUTPUT_LINES = 2_000;
 
@@ -86,6 +87,7 @@ export function startCourseProjectSyntaxCheck(
   let worker: Worker | null = null;
   let timeout: ReturnType<typeof setTimeout> | null = null;
   let settled = false;
+  let runtimeReady = false;
   let rejectResult: ((reason: Error) => void) | null = null;
 
   const output: string[] = [];
@@ -127,13 +129,27 @@ export function startCourseProjectSyntaxCheck(
     timeout = setTimeout(() => {
       rejectOnce(
         new Error(
-          `MicroPython project check timed out after ${BROWSER_SYNTAX_CHECK_TIMEOUT_MS / 1_000} seconds`,
+          `MicroPython runtime did not finish loading within ${BROWSER_RUNTIME_STARTUP_TIMEOUT_MS / 1_000} seconds. Check the connection or offline setup, then try Compile again.`,
         ),
       );
-    }, BROWSER_SYNTAX_CHECK_TIMEOUT_MS);
+    }, BROWSER_RUNTIME_STARTUP_TIMEOUT_MS);
 
     worker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
       const message = event.data;
+      if (message.type === "runtime-ready" && !runtimeReady) {
+        runtimeReady = true;
+        if (timeout !== null) clearTimeout(timeout);
+        timeout = setTimeout(
+          () =>
+            rejectOnce(
+              new Error(
+                `MicroPython project check timed out after ${BROWSER_SYNTAX_CHECK_TIMEOUT_MS / 1_000} seconds`,
+              ),
+            ),
+          BROWSER_SYNTAX_CHECK_TIMEOUT_MS,
+        );
+        return;
+      }
       if (message.type === "console") {
         if (output.length < MAX_CHECK_OUTPUT_LINES) output.push(message.line);
         return;

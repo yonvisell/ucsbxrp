@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import courseRelease from "../../../vendor/current/release.json";
+import { SetupAttempt } from "./setup-attempt";
+import {
+  clearSetupCheckpoint,
+  loadSetupCheckpoint,
+  saveSetupCheckpoint,
+  type SetupCheckpoint,
+} from "./setup-checkpoint";
 
 import {
   localNetworkRequestInit,
@@ -37,6 +44,8 @@ import {
   inspectDevice,
   installFirmware,
   loadCommissioningManifest,
+  prepareCommissioningAssets,
+  maintainCommissioningWatchdog,
   requireMatchingCommissioningRelease,
   robotHostnameForId,
   hotspotSsidForLastName,
@@ -134,25 +143,47 @@ async function fetchXrpService(
   path: string,
   requestName: string,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
+  const abort = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(
-      `${endpoint}${path}`,
-      localNetworkRequestInit(endpoint, {
-        cache: "no-store",
-        method: "GET",
-        signal: controller.signal,
+    return await Promise.race([
+      (async () => {
+        const response = await fetch(
+          `${endpoint}${path}`,
+          localNetworkRequestInit(endpoint, {
+            cache: "no-store",
+            method: "GET",
+            signal: controller.signal,
+          }),
+        );
+        const body = await response.arrayBuffer();
+        return new Response(body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      })(),
+      new Promise<never>((_resolve, reject) => {
+        const cancelled = () =>
+          reject(new DOMException("Connection check cancelled", "AbortError"));
+        controller.signal.addEventListener("abort", cancelled, { once: true });
+        if (controller.signal.aborted) cancelled();
       }),
-    );
+    ]);
   } catch (error: unknown) {
+    if (signal?.aborted) throw error;
     if (controller.signal.aborted) {
       throw new XrpServiceProbeTimeoutError(requestName, timeoutMs);
     }
     throw error;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
 }
 
@@ -322,14 +353,19 @@ export function CommissionApp() {
   const [setupLogCopied, setSetupLogCopied] = useState(false);
   const [diagnosticLogReady, setDiagnosticLogReady] = useState(false);
   const [navigationDestination, setNavigationDestination] = useState("");
+  const [firmwareWriting, setFirmwareWriting] = useState(false);
   const sessionRef = useRef<MicroPythonSession | null>(null);
+  const setupAttemptRef = useRef(new SetupAttempt());
+  const preparedAssetsRef = useRef<ReadonlyMap<string, Uint8Array> | undefined>(
+    undefined,
+  );
+  const checkpointRef = useRef<SetupCheckpoint | null>(null);
   const portRef = useRef<SerialPortLike | null>(null);
   const navigatingRef = useRef(false);
   const wifiCheckInFlightRef = useRef(false);
   const wifiAttemptRef = useRef(0);
   const lastWifiLoggedIssueRef = useRef("");
   const lastInstallProgressPhaseRef = useRef("");
-  const watchdogFeedInFlightRef = useRef(false);
   const folderRef = useRef<CourseDirectoryHandle | null>(null);
   const manifestReleaseRef = useRef(courseRelease.release_id);
   const setupLogEntriesRef = useRef<SetupLogEntry[]>([]);
@@ -585,6 +621,7 @@ export function CommissionApp() {
     void initialize();
     return () => {
       disposed = true;
+      setupAttemptRef.current.invalidate();
       const session = sessionRef.current;
       sessionRef.current = null;
       void session?.resetAndClose();
@@ -592,15 +629,19 @@ export function CommissionApp() {
   }, [bindDiagnosticFolder, manifestUrl, recordSetup]);
 
   const chooseFolder = useCallback(async () => {
+    setupAttemptRef.current.invalidate();
+    const attempt = setupAttemptRef.current.signal;
     setError("");
     beginFolderInteraction();
     try {
       const selected = await chooseWorkspaceFolder();
+      setupAttemptRef.current.requireCurrent(attempt);
       await requireWorkingFolderParent(selected);
       await loadWorkspaceManifest(selected);
       recordSetup("Folder", `Checking write access to ${selected.name}.`);
       await bindDiagnosticFolder(selected);
       const remembered = await replaceRememberedWorkspaceFolder(selected);
+      setupAttemptRef.current.requireCurrent(attempt);
       if (!remembered.remembered) {
         throw new Error(
           "Chrome could not remember this folder. Choose it again.",
@@ -614,11 +655,27 @@ export function CommissionApp() {
         `Write and read verified in ${selected.name}; it is now the Working folder.`,
         "success",
       );
+      const checkpoint = manifest
+        ? await loadSetupCheckpoint(selected, manifest.releaseId)
+        : null;
+      setupAttemptRef.current.requireCurrent(attempt);
+      if (checkpoint) {
+        checkpointRef.current = checkpoint;
+        setInspectedRobotId(checkpoint.robotId);
+        setResult(checkpoint.result);
+        setWifiProbeEnabled(false);
+        setDetail(
+          `USB installation for ${robotHostnameForId(checkpoint.robotId)} was completed. Join ${checkpoint.result.network.ssid}, then resume its connection check.`,
+        );
+        setStage("wifi");
+        return;
+      }
       setDetail(
         "Keep the XRP connected by USB-C through the controller check and course-software update.",
       );
       setStage("usb");
     } catch (folderError) {
+      if (!setupAttemptRef.current.isCurrent(attempt)) return;
       if (!wasCancelled(folderError)) {
         const message = errorDetail(folderError);
         setError(
@@ -642,24 +699,30 @@ export function CommissionApp() {
     bindDiagnosticFolder,
     finishFolderInteraction,
     recordSetup,
+    manifest,
   ]);
 
   const continueWithFolder = useCallback(async () => {
     const selected = folderRef.current;
     if (!selected) return;
+    setupAttemptRef.current.invalidate();
+    const attempt = setupAttemptRef.current.signal;
     setError("");
     beginFolderInteraction();
     try {
+      // Request permission before any asynchronous folder read consumes the
+      // originating user gesture.
+      const permission = await requestCourseFolderPermission(selected);
+      setupAttemptRef.current.requireCurrent(attempt);
+      if (permission !== "granted") {
+        setError(
+          `Chrome does not currently have write access to ${selected.name}. Reconnect it or choose a different folder.`,
+        );
+        return;
+      }
       await requireWorkingFolderParent(selected);
       await loadWorkspaceManifest(selected);
       if (!folderVerified) {
-        const permission = await requestCourseFolderPermission(selected);
-        if (permission !== "granted") {
-          setError(
-            `Chrome does not currently have write access to ${selected.name}. Reconnect it or choose a different folder.`,
-          );
-          return;
-        }
         recordSetup("Folder", `Checking write access to ${selected.name}.`);
         await bindDiagnosticFolder(selected);
         const remembered = await replaceRememberedWorkspaceFolder(selected);
@@ -673,11 +736,27 @@ export function CommissionApp() {
           "success",
         );
       }
+      const checkpoint = manifest
+        ? await loadSetupCheckpoint(selected, manifest.releaseId)
+        : null;
+      setupAttemptRef.current.requireCurrent(attempt);
+      if (checkpoint) {
+        checkpointRef.current = checkpoint;
+        setInspectedRobotId(checkpoint.robotId);
+        setResult(checkpoint.result);
+        setWifiProbeEnabled(false);
+        setDetail(
+          `USB installation for ${robotHostnameForId(checkpoint.robotId)} was completed. Join ${checkpoint.result.network.ssid}, then resume its connection check; Repair again by USB remains available.`,
+        );
+        setStage("wifi");
+        return;
+      }
       setDetail(
         "Keep the XRP connected by USB-C through the controller check and course-software update.",
       );
       setStage("usb");
     } catch (folderError) {
+      if (!setupAttemptRef.current.isCurrent(attempt)) return;
       const message = errorDetail(folderError);
       setError(message);
       recordSetup("Folder", `Write check failed: ${message}`, "error");
@@ -689,6 +768,7 @@ export function CommissionApp() {
     bindDiagnosticFolder,
     finishFolderInteraction,
     folderVerified,
+    manifest,
     recordSetup,
   ]);
 
@@ -727,6 +807,15 @@ export function CommissionApp() {
   const inspectPort = useCallback(
     async (port: SerialPortLike) => {
       if (!manifest) return;
+      setupAttemptRef.current.invalidate();
+      const attempt = setupAttemptRef.current.signal;
+      setDetail("Preparing and verifying setup files before opening USB…");
+      preparedAssetsRef.current = await prepareCommissioningAssets(
+        manifest,
+        manifestUrl,
+        { signal: attempt },
+      );
+      setupAttemptRef.current.requireCurrent(attempt);
       setError("");
       setInspectedRobotId("");
       setDetail("Checking the XRP controller and course runtime…");
@@ -736,7 +825,12 @@ export function CommissionApp() {
       let session: MicroPythonSession;
       try {
         session = await openRawRepl(port);
+        if (!setupAttemptRef.current.isCurrent(attempt)) {
+          await session.resetAndClose();
+          return;
+        }
       } catch (replError) {
+        if (!setupAttemptRef.current.isCurrent(attempt)) return;
         sessionRef.current = null;
         if (replError instanceof SerialPortOpenError) {
           portRef.current = null;
@@ -768,10 +862,12 @@ export function CommissionApp() {
       sessionRef.current = session;
       try {
         const inspection = await inspectDevice(session, manifest);
+        setupAttemptRef.current.requireCurrent(attempt);
         setInspectedRobotId(inspection.robotId);
         setReplUnavailable(false);
         const profile = await readExistingNetworkProfile(session);
         await feedCommissioningWatchdog(session);
+        setupAttemptRef.current.requireCurrent(attempt);
         setExistingNetwork(profile);
         if (hasUsableNetworkProfile(profile)) {
           setNetworkMode("keep");
@@ -802,6 +898,7 @@ export function CommissionApp() {
         }
         setStage("network");
       } catch (inspectionError) {
+        if (!setupAttemptRef.current.isCurrent(attempt)) return;
         if (inspectionError instanceof FirmwareRequiredError) {
           setReplUnavailable(false);
           setStage("firmware");
@@ -817,7 +914,7 @@ export function CommissionApp() {
         }
       }
     },
-    [manifest, recordSetup],
+    [manifest, manifestUrl, recordSetup],
   );
 
   const selectRobot = useCallback(async () => {
@@ -874,38 +971,34 @@ export function CommissionApp() {
   ]);
 
   useEffect(() => {
-    if ((stage !== "network" && stage !== "firmware") || !sessionRef.current) {
+    if (
+      (stage !== "network" && stage !== "firmware" && stage !== "installing") ||
+      !sessionRef.current
+    )
       return;
-    }
-    const feed = async () => {
-      if (watchdogFeedInFlightRef.current || !sessionRef.current) return;
-      watchdogFeedInFlightRef.current = true;
-      try {
-        await feedCommissioningWatchdog(sessionRef.current);
-      } catch (feedError) {
-        const message = errorDetail(feedError);
-        setError(message);
-        recordSetup("USB", `Serial connection was lost: ${message}`, "error");
-        const failedSession = sessionRef.current;
-        sessionRef.current = null;
-        portRef.current = null;
-        try {
-          await failedSession?.resetAndClose();
-        } catch {
-          // A USB disconnect can close the browser stream before cleanup runs.
-        }
-        setStage("usb");
-      } finally {
-        watchdogFeedInFlightRef.current = false;
-      }
-    };
-    const timer = window.setInterval(() => void feed(), 2_000);
-    return () => clearInterval(timer);
+    const session = sessionRef.current;
+    const attempt = setupAttemptRef.current.signal;
+    return maintainCommissioningWatchdog(session, (feedError) => {
+      if (
+        !setupAttemptRef.current.isCurrent(attempt) ||
+        sessionRef.current !== session
+      )
+        return;
+      setupAttemptRef.current.invalidate();
+      const message = errorDetail(feedError);
+      setError(message);
+      recordSetup("USB", `Serial connection was lost: ${message}`, "error");
+      sessionRef.current = null;
+      portRef.current = null;
+      void session.resetAndClose().catch(() => undefined);
+      setStage("usb");
+    });
   }, [recordSetup, stage]);
 
   const enterFirmwareMode = useCallback(async () => {
     const port = portRef.current;
     if (!port) return;
+    const attempt = setupAttemptRef.current.signal;
     setError("");
     setDetail("Opening the XRP firmware drive…");
     recordSetup("Firmware", "Restarting the controller in firmware mode.");
@@ -923,12 +1016,14 @@ export function CommissionApp() {
       } else {
         await touchUf2Bootloader(port);
       }
+      setupAttemptRef.current.requireCurrent(attempt);
       setStage("firmware-volume");
       setDetail(
         "When the RP2350 drive appears, select it to install the verified course firmware.",
       );
       recordSetup("Firmware", "The RP2350 firmware drive is ready to select.");
     } catch (firmwareModeError) {
+      if (!setupAttemptRef.current.isCurrent(attempt)) return;
       const message = errorDetail(firmwareModeError);
       setError(message);
       recordSetup(
@@ -940,16 +1035,20 @@ export function CommissionApp() {
   }, [recordSetup]);
 
   const writeFirmware = useCallback(async () => {
-    if (!manifest) return;
+    if (!manifest || firmwareWriting) return;
+    const attempt = setupAttemptRef.current.signal;
+    setFirmwareWriting(true);
     setError("");
     try {
       const volume = await chooseFirmwareVolume();
+      setupAttemptRef.current.requireCurrent(attempt);
       setDetail("Writing and verifying the course MicroPython firmware…");
       recordSetup(
         "Firmware",
         "Writing the bundled RP2350 MicroPython firmware.",
       );
-      await installFirmware({ volume, manifest, manifestUrl });
+      await installFirmware({ volume, manifest, manifestUrl, signal: attempt });
+      setupAttemptRef.current.requireCurrent(attempt);
       setDetail("Firmware installed. Waiting for the XRP to reconnect…");
       recordSetup(
         "Firmware",
@@ -958,6 +1057,7 @@ export function CommissionApp() {
       );
       await new Promise((resolve) => window.setTimeout(resolve, 1_500));
       const port = await waitForReenumeratedPort(manifest.controller);
+      setupAttemptRef.current.requireCurrent(attempt);
       if (port) {
         await inspectPort(port);
       } else {
@@ -971,16 +1071,20 @@ export function CommissionApp() {
         );
       }
     } catch (firmwareError) {
+      if (!setupAttemptRef.current.isCurrent(attempt)) return;
       if (!wasCancelled(firmwareError)) {
         const message = errorDetail(firmwareError);
         setError(message);
         recordSetup("Firmware", `Firmware update failed: ${message}`, "error");
       }
+    } finally {
+      setFirmwareWriting(false);
     }
-  }, [inspectPort, manifest, manifestUrl, recordSetup]);
+  }, [firmwareWriting, inspectPort, manifest, manifestUrl, recordSetup]);
 
   const beginCommissioning = useCallback(async () => {
     if (!manifest || !sessionRef.current) return;
+    const attempt = setupAttemptRef.current.signal;
     const namedHotspotRequested =
       hotspotName.ssid !== undefined &&
       hotspotName.ssid !== existingNetwork?.accessPointSsid;
@@ -1009,13 +1113,17 @@ export function CommissionApp() {
     );
     try {
       await waitForOfflineShell();
+      setupAttemptRef.current.requireCurrent(attempt);
       const completed = await commissionDevice({
         session: sessionRef.current,
         manifest,
         manifestUrl,
         robotId: inspectedRobotId,
         network,
+        preparedAssets: preparedAssetsRef.current,
+        signal: attempt,
         onProgress: (next) => {
+          if (!setupAttemptRef.current.isCurrent(attempt)) return;
           setProgress(next);
           setDetail(next.detail);
           const logKey = `${next.phase}:${next.detail}`;
@@ -1025,6 +1133,7 @@ export function CommissionApp() {
           }
         },
       });
+      setupAttemptRef.current.requireCurrent(attempt);
       sessionRef.current = null;
       setStationPassword("");
       setShowStationPassword(false);
@@ -1034,6 +1143,17 @@ export function CommissionApp() {
           "The Working folder or XRP identity was lost during setup. Select the XRP again.",
         );
       }
+      const checkpoint: SetupCheckpoint = {
+        schemaVersion: 1,
+        robotId: inspectedRobotId,
+        installedAtMs: Date.now(),
+        result: completed,
+      };
+      await saveSetupCheckpoint(workspace, checkpoint, () =>
+        setupAttemptRef.current.requireCurrent(attempt),
+      );
+      checkpointRef.current = checkpoint;
+      setupAttemptRef.current.requireCurrent(attempt);
       setResult(completed);
       wifiAttemptRef.current = 0;
       lastWifiLoggedIssueRef.current = "";
@@ -1066,6 +1186,7 @@ export function CommissionApp() {
       );
       setStage("wifi");
     } catch (commissioningError) {
+      if (!setupAttemptRef.current.isCurrent(attempt)) return;
       const message = errorDetail(commissioningError);
       const failedSession = sessionRef.current;
       sessionRef.current = null;
@@ -1107,6 +1228,8 @@ export function CommissionApp() {
     )
       return;
     wifiCheckInFlightRef.current = true;
+    const attemptContext = setupAttemptRef.current.signal;
+    const workspace = folderRef.current;
     setCheckingWifi(true);
     const attempt = wifiAttemptRef.current + 1;
     wifiAttemptRef.current = attempt;
@@ -1126,11 +1249,13 @@ export function CommissionApp() {
             "/api/v1/info",
             "identity",
             WIFI_INFO_PROBE_TIMEOUT_MS,
+            attemptContext,
           );
           endpoint = candidate;
           response = candidateResponse;
           break;
         } catch (candidateError) {
+          setupAttemptRef.current.requireCurrent(attemptContext);
           lastConnectionError = candidateError;
         }
       }
@@ -1182,6 +1307,7 @@ export function CommissionApp() {
         "/api/v1/state?afterLogSeq=0",
         "state",
         WIFI_STATE_PROBE_TIMEOUT_MS,
+        attemptContext,
       );
       if (!stateResponse.ok) {
         throw new XrpServiceProbeError(
@@ -1197,15 +1323,16 @@ export function CommissionApp() {
         );
       }
       const verifiedAddress = info.address?.trim() || result.network.address;
-      const workspace = folderRef.current;
+      setupAttemptRef.current.requireCurrent(attemptContext);
       if (!workspace) {
         throw new Error(
           "Choose a Working folder before commissioning the XRP.",
         );
       }
       await updateWorkspaceTargetPreference(
-        (current) =>
-          targetPreferenceForCommissionedRobot(current, {
+        (current) => {
+          setupAttemptRef.current.requireCurrent(attemptContext);
+          return targetPreferenceForCommissionedRobot(current, {
             robotId: verifiedRobotId,
             hostname: info.robotName,
             requestedMode: result.network.requested_mode,
@@ -1213,9 +1340,18 @@ export function CommissionApp() {
             address: `http://${verifiedAddress}`,
             ssid: result.network.ssid,
             fallback: result.network.fallback,
-          }),
+          });
+        },
         workspace,
+        {
+          assertCurrent: () =>
+            setupAttemptRef.current.requireCurrent(attemptContext),
+        },
       );
+      setupAttemptRef.current.requireCurrent(attemptContext);
+      if (checkpointRef.current)
+        await clearSetupCheckpoint(workspace, checkpointRef.current);
+      setupAttemptRef.current.requireCurrent(attemptContext);
       setWifiIssue("");
       setWifiNeedsRepair(false);
       setDetail(`${info.robotName} is commissioned and ready.`);
@@ -1227,6 +1363,7 @@ export function CommissionApp() {
       setStage("complete");
       await diagnosticLogRef.current?.flush();
     } catch (probeError) {
+      if (!setupAttemptRef.current.isCurrent(attemptContext)) return;
       if (probeError instanceof WorkspaceManifestError) {
         const issue = probeError.message;
         setError(issue);
@@ -1262,8 +1399,10 @@ export function CommissionApp() {
         );
       }
     } finally {
-      wifiCheckInFlightRef.current = false;
-      setCheckingWifi(false);
+      if (setupAttemptRef.current.isCurrent(attemptContext)) {
+        wifiCheckInFlightRef.current = false;
+        setCheckingWifi(false);
+      }
     }
   }, [inspectedRobotId, manifest, recordSetup, result]);
 
@@ -1291,6 +1430,9 @@ export function CommissionApp() {
   }, [recordSetup, result, wifiProbeEnabled]);
 
   const returnToUsb = useCallback(() => {
+    setupAttemptRef.current.invalidate();
+    wifiCheckInFlightRef.current = false;
+    setCheckingWifi(false);
     setResult(null);
     setWifiAttempts(0);
     setWifiIssue("");
@@ -1329,6 +1471,9 @@ export function CommissionApp() {
   }, []);
 
   const changeWorkingFolder = useCallback(async () => {
+    setupAttemptRef.current.invalidate();
+    wifiCheckInFlightRef.current = false;
+    setCheckingWifi(false);
     setError("");
     await closeUsbSession();
     setExistingNetwork(null);
@@ -1344,8 +1489,7 @@ export function CommissionApp() {
   }, [closeUsbSession]);
 
   const goBack = useCallback(async () => {
-    if (stage === "loading" || stage === "installing" || stage === "complete")
-      return;
+    if (stage === "loading" || stage === "complete") return;
     setError("");
     if (stage === "folder") return;
     if (stage === "usb") {
@@ -1356,6 +1500,8 @@ export function CommissionApp() {
       returnToUsb();
       return;
     }
+    setupAttemptRef.current.invalidate();
+    setDetail("Cancelling setup and returning the XRP to normal startup…");
     await closeUsbSession();
     setExistingNetwork(null);
     setAuthorizedPort(null);
@@ -1365,11 +1511,14 @@ export function CommissionApp() {
 
   const exitSetup = useCallback(
     async (destination: string) => {
-      if (stage === "installing" || navigatingRef.current) return;
+      if (navigatingRef.current) return;
+      setupAttemptRef.current.invalidate();
       const destinationName = navigationDestinationName(destination);
       navigatingRef.current = true;
       setNavigationDestination(destinationName);
-      setDetail(`Closing the USB connection and opening ${destinationName}…`);
+      setDetail(
+        `Cancelling pending setup work, closing USB, and opening ${destinationName}…`,
+      );
       await diagnosticLogRef.current?.flush();
       await closeUsbSession();
       window.location.assign(new URL(destination, window.location.href));
@@ -1890,8 +2039,14 @@ export function CommissionApp() {
 
           {stage === "firmware-volume" ? (
             <div className="commission-actions">
-              <button className="primary-button" onClick={writeFirmware}>
-                Select RP2350 drive
+              <button
+                className="primary-button"
+                onClick={writeFirmware}
+                disabled={firmwareWriting}
+              >
+                {firmwareWriting
+                  ? "Installing firmware…"
+                  : "Select RP2350 drive"}
               </button>
               <p>
                 The drive appears briefly, then the XRP restarts automatically.
@@ -2067,23 +2222,21 @@ export function CommissionApp() {
             >
               {stage !== "folder" ? (
                 <button
-                  disabled={
-                    stage === "installing" || Boolean(navigationDestination)
-                  }
+                  disabled={Boolean(navigationDestination)}
                   onClick={() => void goBack()}
                   type="button"
                 >
-                  {stage === "wifi"
-                    ? "Repair again by USB"
-                    : stage === "usb"
-                      ? "Change Working folder"
-                      : "Back"}
+                  {stage === "installing"
+                    ? "Cancel update"
+                    : stage === "wifi"
+                      ? "Repair again by USB"
+                      : stage === "usb"
+                        ? "Change Working folder"
+                        : "Back"}
                 </button>
               ) : null}
               <button
-                disabled={
-                  stage === "installing" || Boolean(navigationDestination)
-                }
+                disabled={Boolean(navigationDestination)}
                 onClick={() => void exitSetup("../")}
                 type="button"
               >

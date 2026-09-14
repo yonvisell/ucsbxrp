@@ -15,10 +15,10 @@ local web server is required:
 
 - [yonvisell.github.io/ucsbxrp](https://yonvisell.github.io/ucsbxrp/)
 
-For repository development, use the pinned Node.js 24.17.0 (`.nvmrc`) when
-available. The build also supports Node.js 20.19 or newer compatible LTS
-releases, including the Node 20 runtime bundled with Codex. Then
-run:
+For repository development and the complete test suite, use the pinned Node.js
+24.17.0 (`.nvmrc`). The installed test dependencies require Node 22.22.2 or later
+within Node 22, Node 24.15.0 or later within Node 24, or Node 26 or later.
+Then run:
 
 ```sh
 npm install
@@ -31,7 +31,10 @@ npm run dev
 - Getting started: `http://127.0.0.1:5173/guide/`
 - UCSB XRP API: `http://127.0.0.1:5173/reference/`
 
-The IDE starts with the expanding-spiral demo. **New project…** creates any of
+The IDE offers to create a first Project in an approved Working folder, using
+an available name such as `XRP_Project_01`. The native picker initially opens
+Documents. **Use read-only preview** keeps the supplied expanding-spiral demo
+available without creating files. **New project…** creates any of
 the nine challenges, five robot demos, or a staged MicroPython tutorial as an
 ordinary editable project. The demos include obstacle-triggered turning, an
 expanding spiral with two live parameters, random 90-degree motion, Roomba-style
@@ -49,22 +52,23 @@ calibration, target task files, new files, and source-only component files.
 
 A **Working folder** is the parent folder for UCSBXRP work. Each **Current
 project** is stored in one named **Project folder** inside it. After the IDE has
-access to a Working folder, **New project…** asks for the Project folder name,
-creates that folder, and writes the template immediately. **Open project…**
+access to a Working folder, **New project…** suggests an unused Project folder
+name, creates that folder, and writes the template immediately. A name typed by
+the user remains unchanged when choosing another template. **Open project…**
 resumes an existing folder. Source edits then save automatically after a short
 pause; Command/Ctrl+S forces an immediate write.
-The active folder is shown as
-`./<project-folder>` above the file list. Its `UCSB_XRP_Autosaves` subfolder
-retains the four prior complete project states before overwrite and also receives
-monitored run output and telemetry. New, renamed, duplicated, and deleted files
+The Project rail shows the active name and save state; the folder identity is
+available in its details. Its `UCSB_XRP_Autosaves` subfolder retains four prior
+complete checkpoint states and also receives monitored run output and telemetry.
+New, renamed, duplicated, and deleted files
 remain project-relative, and `.ucsb-xrp-project.json` stores the project name and
-main Python file.
+main Python file, durable identity, saved revision, and template provenance.
 
-The copy retained by Chrome is independent of the project folder. Chrome
-remembers folder access when permitted and otherwise offers one reconnect
-action. With no Working folder selected, project changes remain only in that
-browser until the student chooses a Working folder and names the Project
-folder.
+Native Project files are authoritative. Chrome remembers folder capabilities
+when permitted and otherwise offers a reconnect action. Exceptional unsaved work
+is retained separately with recovery/export controls. A conflict or interrupted
+write requires an explicit recovery choice before writing continues. With no
+approved Project, the supplied preview is read-only.
 
 - **Compile** checks the project structure and compiles every Python file with
   MicroPython without running the virtual or physical XRP.
@@ -76,7 +80,8 @@ folder.
 - The reset button stops the selected target and clears its live course state.
   On a physical XRP, it retains the prepared RAM project, boot state, and Wi-Fi
   connection, so Run can start the same project revision again immediately.
-- **XRP Monitor** opens live telemetry and the world view in another tab.
+- **XRP Monitor** opens live telemetry and the world view in the persistent
+  workspace. Guide and API can open alongside it while Run/Stop remain available.
 
 Settings are collapsible and include editor/output font size (10 px default,
 8 px minimum), indentation, word wrap, code overview, target selection, and
@@ -125,10 +130,10 @@ values appear below **Live telemetry** in the right panel, exposing current mode
 estimates, and error terms without periodic debug printing; telemetry remains
 the time-history mechanism.
 
-Recording retains the newest 30,000 samples: at least 10 minutes at the 50 Hz
-virtual rate and about 30 minutes at the usual 16–17 Hz physical rate. The
-Monitor shows the measured rate and corresponding time capacity while
-recording. The exported CSV includes source,
+Recording retains the newest 30,000 observations. Several virtual updates can
+share one physics step, so retained duration depends on the actual publication
+rate. The Monitor shows the measured rate; exported metadata reports the actual
+retained time span and known discarded observations. The exported CSV includes source,
 pose availability, motion, encoders, collision, range, button, IMU,
 temperature, battery, and sensor errors with units in the column names. It uses
 seconds, radians, metres per second squared, and radians per second; course

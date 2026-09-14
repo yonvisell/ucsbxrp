@@ -41,6 +41,123 @@ const reloadVersionKey = "ucsb-xrp-offline-shell-reload-v1";
 const isolationVersionKey = "ucsb-xrp-isolation-reload-v1";
 const pagehideCountKey = "ucsb-xrp-test-pagehide-count";
 
+test("a warmed course stays ready while internet requests stall on an online network", async ({
+  context,
+}) => {
+  const harness = await startTwoReleaseHarness();
+  try {
+    const page = await context.newPage();
+    await page.goto(`${harness.origin}${harness.basePath}`);
+    await expectShellVersion(page, harness.releaseA.version);
+    harness.stallInternet(true);
+    for (const route of ["ide/", "guide/", "monitor/"]) {
+      const started = Date.now();
+      await page.goto(`${harness.origin}${harness.basePath}${route}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-offline-shell-state",
+        "ready",
+        { timeout: 2_000 },
+      );
+      expect(Date.now() - started).toBeLessThan(3_000);
+      expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+    }
+    await page.close();
+  } finally {
+    harness.stallInternet(false);
+    await harness.close();
+  }
+});
+
+test("keeps release A assets through two updates until its busy document closes", async ({
+  context,
+}) => {
+  test.setTimeout(120_000);
+  const harness = await startTwoReleaseHarness();
+  try {
+    const author = await context.newPage();
+    await author.goto(`${harness.origin}${harness.basePath}author/`);
+    await expectShellVersion(author, harness.releaseA.version);
+    await author.getByText("Project-file overrides · 1 file").click();
+    await author.getByLabel("Project file overrides as JSON").fill("{");
+    harness.selectReleaseB();
+    const updater = await context.newPage();
+    await updater.goto(`${harness.origin}${harness.basePath}`);
+    await expectShellVersion(updater, harness.releaseB.version);
+    harness.selectReleaseC();
+    await updater.reload();
+    await expectShellVersion(updater, harness.releaseC.version);
+    await expectShellVersion(author, harness.releaseA.version);
+    await context.setOffline(true);
+    expect(
+      await author.evaluate(
+        async (url) => (await fetch(url)).text(),
+        `${harness.basePath}assets/test-release-a.txt`,
+      ),
+    ).toBe("release A retained asset\n");
+    await author.close();
+    await updater.reload();
+    await expectShellVersion(updater, harness.releaseC.version);
+    await expect
+      .poll(() =>
+        updater.evaluate(
+          (name) => caches.has(name),
+          harness.releaseA.cache_name,
+        ),
+      )
+      .toBe(false);
+    await updater.close();
+  } finally {
+    await context.setOffline(false);
+    await harness.close();
+  }
+});
+
+test("workspace waits for a child Project dialog before adopting an update", async ({
+  context,
+}) => {
+  test.setTimeout(120_000);
+  const harness = await startTwoReleaseHarness();
+  try {
+    const workspace = await context.newPage();
+    await workspace.goto(
+      `${harness.origin}${harness.basePath}workspace/?mode=ide`,
+    );
+    await expectShellVersion(workspace, harness.releaseA.version);
+    const ide = workspace.frameLocator('iframe[title="UCSBXRP IDE"]');
+    const dialog = ide.getByRole("dialog", {
+      name: "Create your first Project",
+    });
+    await expect(dialog).toBeVisible();
+    const originalDocument = await workspace.evaluate(
+      () => performance.timeOrigin,
+    );
+    harness.selectReleaseB();
+    const updater = await context.newPage();
+    await updater.goto(`${harness.origin}${harness.basePath}`);
+    await expectShellVersion(updater, harness.releaseB.version);
+    await expect(workspace.locator("html")).toHaveAttribute(
+      "data-offline-shell-update-version",
+      harness.releaseB.version,
+    );
+    await expectShellVersion(workspace, harness.releaseA.version);
+    expect(await workspace.evaluate(() => performance.timeOrigin)).toBe(
+      originalDocument,
+    );
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Use read-only preview" }).click();
+    await expectShellVersion(workspace, harness.releaseB.version);
+    expect(await workspace.evaluate(() => performance.timeOrigin)).not.toBe(
+      originalDocument,
+    );
+    await workspace.close();
+    await updater.close();
+  } finally {
+    await harness.close();
+  }
+});
+
 function contentType(pathname: string) {
   switch (extname(pathname)) {
     case ".css":
@@ -99,13 +216,19 @@ async function generateRelease(
 }
 
 async function closeServer(server: Server) {
+  server.closeAllConnections();
   await new Promise<void>((resolveClose, rejectClose) => {
     server.close((error) => (error ? rejectClose(error) : resolveClose()));
   });
 }
 
-async function startReleaseServer(activeRoot: () => string, basePath: string) {
+async function startReleaseServer(
+  activeRoot: () => string,
+  basePath: string,
+  isStalled: () => boolean = () => false,
+) {
   const server = createServer(async (request, response) => {
+    if (isStalled()) return;
     try {
       const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
       if (!requestUrl.pathname.startsWith(basePath)) {
@@ -167,7 +290,10 @@ interface TwoReleaseHarness {
   origin: string;
   releaseA: OfflineManifest;
   releaseB: OfflineManifest;
+  releaseC: OfflineManifest;
   selectReleaseB(): void;
+  selectReleaseC(): void;
+  stallInternet(stalled: boolean): void;
   close(): Promise<void>;
 }
 
@@ -177,6 +303,8 @@ async function startTwoReleaseHarness(): Promise<TwoReleaseHarness> {
   );
   const releaseARoot = join(temporaryRoot, "release-a");
   const releaseBRoot = join(temporaryRoot, "release-b");
+  const releaseCRoot = join(temporaryRoot, "release-c");
+  let stalled = false;
   let server: Server | null = null;
   try {
     const builtManifest = JSON.parse(
@@ -186,6 +314,7 @@ async function startTwoReleaseHarness(): Promise<TwoReleaseHarness> {
     expect(basePath).toMatch(/^\/(?:[^/?#]+\/)*$/);
     await cp(resolve("dist"), releaseARoot, { recursive: true });
     await cp(resolve("dist"), releaseBRoot, { recursive: true });
+    await cp(resolve("dist"), releaseCRoot, { recursive: true });
     const releaseA = await generateRelease(
       releaseARoot,
       basePath,
@@ -199,11 +328,18 @@ async function startTwoReleaseHarness(): Promise<TwoReleaseHarness> {
       "release B current asset\n",
     );
     expect(releaseB.version).not.toBe(releaseA.version);
+    const releaseC = await generateRelease(
+      releaseCRoot,
+      basePath,
+      "test-release-c.txt",
+      "release C current asset\n",
+    );
 
     let selectedRoot = releaseARoot;
     const releaseServer = await startReleaseServer(
       () => selectedRoot,
       basePath,
+      () => stalled,
     );
     server = releaseServer.server;
     return {
@@ -211,8 +347,15 @@ async function startTwoReleaseHarness(): Promise<TwoReleaseHarness> {
       origin: releaseServer.origin,
       releaseA,
       releaseB,
+      releaseC,
       selectReleaseB() {
         selectedRoot = releaseBRoot;
+      },
+      selectReleaseC() {
+        selectedRoot = releaseCRoot;
+      },
+      stallInternet(value) {
+        stalled = value;
       },
       async close() {
         await closeServer(releaseServer.server).catch(() => undefined);
@@ -276,6 +419,7 @@ async function createSavedSpiralProject(
     });
   }, workingFolderName);
   await page.goto(ideUrl);
+  await page.getByRole("button", { name: "Use read-only preview" }).click();
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption("demo_spiral");
   await page

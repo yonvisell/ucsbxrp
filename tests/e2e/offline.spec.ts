@@ -101,6 +101,13 @@ test("creates a folder-backed project and reopens the course apps without intern
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
+  const firstProject = ide.getByRole("dialog", {
+    name: "Create your first Project",
+  });
+  await firstProject
+    .getByRole("button", { name: "Use read-only preview" })
+    .click();
+  await expect(firstProject).toHaveCount(0);
   await ide.getByRole("button", { name: "New project…", exact: true }).click();
   await ide.getByLabel("Project template").selectOption("demo_spiral");
   await ide.getByLabel("Name").fill("Offline-Spiral");

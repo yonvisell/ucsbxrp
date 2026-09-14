@@ -112,6 +112,56 @@ const NETWORK_FIRST_PATHS = new Set([
   ${JSON.stringify(manifestUrl)},
   SCOPE_PATH + "course/current/release.json",
 ]);
+const CLIENT_STATE_CACHE = CACHE_PREFIX + "clients";
+
+function isShellCache(name) {
+  return name.startsWith(CACHE_PREFIX) && /^[a-f0-9]{20}$/.test(name.slice(CACHE_PREFIX.length));
+}
+
+function clientRecordUrl(id) {
+  return new URL(SCOPE_PATH + "__shell_clients/" + encodeURIComponent(id), self.location.origin).href;
+}
+
+async function cleanUnusedShells() {
+  const clients = (await self.clients.matchAll({ type: "window", includeUncontrolled: true }))
+    .filter((client) => new URL(client.url).pathname.startsWith(SCOPE_PATH));
+  const records = await caches.open(CLIENT_STATE_CACHE);
+  const liveUrls = new Set(clients.map((client) => clientRecordUrl(client.id)));
+  for (const key of await records.keys()) {
+    if (!liveUrls.has(key.url)) await records.delete(key);
+  }
+  const retained = new Set([CACHE_NAME]);
+  let unknownClient = false;
+  for (const client of clients) {
+    const record = await records.match(clientRecordUrl(client.id));
+    if (!record) {
+      unknownClient = true;
+      client.postMessage({ type: "ucsb-xrp-shell-identify" });
+      continue;
+    }
+    const name = await record.text();
+    if (isShellCache(name)) retained.add(name);
+    else unknownClient = true;
+  }
+  // A suspended/older client cannot answer an identification request yet.
+  // Keep its assets until it responds or disappears from the browser's list.
+  if (unknownClient) return;
+  const names = (await caches.keys()).filter(isShellCache);
+  const previous = names.filter((name) => name !== CACHE_NAME).at(-1);
+  if (previous) retained.add(previous);
+  await Promise.all(names.filter((name) => !retained.has(name)).map((name) => caches.delete(name)));
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "ucsb-xrp-shell-client" || !event.source?.id) return;
+  const name = event.data.cacheName;
+  if (typeof name !== "string" || !isShellCache(name)) return;
+  event.waitUntil((async () => {
+    const records = await caches.open(CLIENT_STATE_CACHE);
+    await records.put(clientRecordUrl(event.source.id), new Response(name));
+    await cleanUnusedShells();
+  })());
+});
 
 function withIsolationHeaders(response) {
   const headers = new Headers(response.headers);
@@ -156,34 +206,28 @@ function navigationFallback(pathname) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90_000);
     try {
       const cache = await caches.open(CACHE_NAME);
       const requests = PRECACHE_URLS.map(
-        (url) => new Request(url, { cache: "reload", credentials: "same-origin" }),
+        (url) => new Request(url, { cache: "reload", credentials: "same-origin", signal: controller.signal }),
       );
       await cache.addAll(requests);
       await self.skipWaiting();
     } catch (error) {
       await caches.delete(CACHE_NAME);
       throw error;
+    } finally {
+      clearTimeout(timeout);
     }
   })());
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    const names = await caches.keys();
-    const previousNames = names.filter(
-      (name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME,
-    );
-    // Keep the immediately preceding shell so a tab opened before an update
-    // can still request one of its content-addressed worker or script files.
-    await Promise.all(
-      previousNames
-        .slice(0, -1)
-        .map((name) => caches.delete(name)),
-    );
     await self.clients.claim();
+    await cleanUnusedShells();
   })());
 });
 
@@ -218,11 +262,17 @@ self.addEventListener("fetch", (event) => {
   const canonicalUrl = url.pathname;
   if (NETWORK_FIRST_PATHS.has(canonicalUrl)) {
     event.respondWith((async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2_500);
       try {
         const response = await fetch(
-          new Request(request, { cache: "no-store" }),
+          new Request(request, { cache: "no-store", signal: controller.signal }),
         );
-        return withIsolationHeaders(response);
+        if (!response.ok) throw new Error("Release information is unavailable online");
+        const body = await response.arrayBuffer();
+        return withIsolationHeaders(new Response(body, {
+          status: response.status, statusText: response.statusText, headers: response.headers,
+        }));
       } catch {
         const cache = await caches.open(CACHE_NAME);
         const response = await cache.match(url.toString(), {
@@ -232,6 +282,8 @@ self.addEventListener("fetch", (event) => {
           throw new Error("Offline release information is unavailable");
         }
         return withIsolationHeaders(response);
+      } finally {
+        clearTimeout(timeout);
       }
     })());
     return;

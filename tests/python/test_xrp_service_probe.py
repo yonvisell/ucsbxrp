@@ -13,6 +13,10 @@ SPEC.loader.exec_module(SERVICE_PROBE)
 
 
 class XrpServiceProbeTest(unittest.TestCase):
+    def setUp(self):
+        SERVICE_PROBE._control_contexts.clear()
+        SERVICE_PROBE._control_contexts["http://xrp"] = {"bootId": "boot", "sessionId": "session", "controlGeneration": 1, "runId": 7}
+
     def test_wait_for_program_drains_ordered_terminal_telemetry_pages(self):
         replies = [
             {
@@ -47,8 +51,8 @@ class XrpServiceProbeTest(unittest.TestCase):
         self.assertEqual(
             paths,
             [
-                "/api/v1/telemetry?afterLogSeq=2&afterSampleSeq=0&runId=7",
-                "/api/v1/telemetry?afterLogSeq=3&afterSampleSeq=1&runId=7",
+                "/api/v1/telemetry?afterLogSeq=2&afterSampleSeq=0&runId=7&bootId=boot&sessionId=session&controlGeneration=1",
+                "/api/v1/telemetry?afterLogSeq=3&afterSampleSeq=1&runId=7&bootId=boot&sessionId=session&controlGeneration=1",
             ],
         )
         self.assertEqual([entry["seq"] for entry in result["logs"]], [3, 4])

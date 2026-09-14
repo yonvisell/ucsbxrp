@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 
@@ -546,6 +546,8 @@ export function WorldView({
   const renderRef = useRef<(() => void) | null>(null);
   const cancelRenderRef = useRef<(() => void) | null>(null);
   const fitWorldRef = useRef<(() => void) | null>(null);
+  const [graphicsError, setGraphicsError] = useState("");
+  const [graphicsAttempt, setGraphicsAttempt] = useState(0);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -568,7 +570,26 @@ export function WorldView({
     camera.lookAt(worldCenterX, worldCenterY, 0);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      setGraphicsError("");
+    } catch {
+      sceneRef.current = null;
+      cameraRef.current = null;
+      setGraphicsError(
+        "The World view needs WebGL graphics. Plots and XRP controls remain available. Enable graphics acceleration in desktop Chrome, then retry.",
+      );
+      return;
+    }
+    const contextLost = (event: Event) => {
+      event.preventDefault();
+      cancelRenderRef.current?.();
+      setGraphicsError(
+        "World graphics were interrupted. The XRP and data recording continue. Retry the World view when ready.",
+      );
+    };
+    renderer.domElement.addEventListener("webglcontextlost", contextLost);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.width = "100%";
     renderer.domElement.style.height = "100%";
@@ -894,6 +915,7 @@ export function WorldView({
         }
       });
       renderer.dispose();
+      renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       host.removeChild(renderer.domElement);
       cameraRef.current = null;
       rendererRef.current = null;
@@ -908,7 +930,14 @@ export function WorldView({
       cancelRenderRef.current = null;
       fitWorldRef.current = null;
     };
-  }, [world, worldCenterX, worldCenterY, worldHeightMm, worldWidthMm]);
+  }, [
+    world,
+    worldCenterX,
+    worldCenterY,
+    worldHeightMm,
+    worldWidthMm,
+    graphicsAttempt,
+  ]);
 
   useEffect(() => {
     if (active) {
@@ -1130,6 +1159,16 @@ export function WorldView({
         {sample.collision ? <strong>Contact</strong> : null}
       </div>
       <div className="world-canvas" ref={hostRef}>
+        {graphicsError ? (
+          <div className="world-graphics-error" role="status">
+            <p>{graphicsError}</p>
+            <button
+              onClick={() => setGraphicsAttempt((attempt) => attempt + 1)}
+            >
+              Retry World view
+            </button>
+          </div>
+        ) : null}
         <span className="visually-hidden" id="world-grid-description">
           The arena spans x from {world.bounds.minimumXmm} to{" "}
           {world.bounds.maximumXmm} millimeters and y from{" "}

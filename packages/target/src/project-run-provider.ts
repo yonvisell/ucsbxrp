@@ -19,7 +19,7 @@ interface PendingSnapshot<Port> {
   timeout: ReturnType<typeof setTimeout>;
 }
 
-const PROVIDER_RESPONSE_TIMEOUT_MS = 1_000;
+export const PROVIDER_RESPONSE_TIMEOUT_MS = 5_000;
 
 /**
  * Correlates one Monitor Run request with the active IDE project snapshot.
@@ -85,23 +85,25 @@ export class ProjectRunProviderBroker<Port> {
     return new Promise<ProjectRunSnapshot>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(requestId);
-        if (this.provider === provider) {
-          this.provider = null;
-          this.rejectForPort(
-            provider,
-            "The active IDE stopped responding before it provided the current project.",
-          );
-          this.onProviderUnavailable();
-        }
         reject(
           new Error(
-            "The IDE did not provide the current project. Keep the IDE open, then try Run again.",
+            "The active IDE has not replied yet. Return to that IDE, let its current operation finish, then try Run again. Its project remains selected.",
           ),
         );
       }, PROVIDER_RESPONSE_TIMEOUT_MS);
       this.pending.set(requestId, { port: provider, resolve, reject, timeout });
       this.send(provider, { type: "project-run-snapshot-request", requestId });
     });
+  }
+
+  cancelPending(
+    detail = "Run cancelled before the IDE supplied its project.",
+  ): void {
+    for (const port of new Set(
+      [...this.pending.values()].map((item) => item.port),
+    )) {
+      this.rejectForPort(port, detail);
+    }
   }
 
   accept(port: Port, response: ProjectRunSnapshotResponse): boolean {

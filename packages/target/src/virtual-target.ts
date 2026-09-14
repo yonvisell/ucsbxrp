@@ -25,6 +25,7 @@ import { MAX_RUNTIME_PARAMETERS } from "./runtime-controls";
 import type { RuntimeParameterValue } from "./types";
 import {
   BROWSER_SYNTAX_CHECK_TIMEOUT_MS,
+  BROWSER_RUNTIME_STARTUP_TIMEOUT_MS,
   startCourseProjectSyntaxCheck,
   type CourseProjectSyntaxCheckHandle,
 } from "./browser-syntax-check";
@@ -71,14 +72,26 @@ export async function testCourseProjectComponents(
       clearTimeout(timeout);
       worker.terminate();
     };
-    const timeout = setTimeout(() => {
+    let runtimeReady = false;
+    let timeout = setTimeout(() => {
       finish();
-      reject(new Error("Component checks timed out"));
-    }, BROWSER_SYNTAX_CHECK_TIMEOUT_MS);
+      reject(
+        new Error(
+          "MicroPython runtime did not finish loading. Check the connection or offline setup, then try component checks again.",
+        ),
+      );
+    }, BROWSER_RUNTIME_STARTUP_TIMEOUT_MS);
     worker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
       const message = event.data;
-      if (message.type === "console") {
-        output.push(message.line);
+      if (message.type === "runtime-ready" && !runtimeReady) {
+        runtimeReady = true;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          finish();
+          reject(new Error("Component checks timed out"));
+        }, BROWSER_SYNTAX_CHECK_TIMEOUT_MS);
+      } else if (message.type === "console") {
+        if (output.length < 2_000) output.push(message.line);
       } else if (message.type === "test-complete") {
         finish();
         resolve({ ok: true, detail: message.detail, output });
@@ -115,6 +128,9 @@ export class VirtualTargetClient implements TargetClient {
   private liveValues: Int32Array | null = null;
   private projectRunProvider: ProjectRunProvider | null = null;
   private pageLifecycleObserved = false;
+  private operationEpoch = 0;
+  private cancellation: Int32Array | null = null;
+  private runtimeStartupTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async connect(): Promise<void> {
     this.observePageLifecycle();
@@ -128,7 +144,7 @@ export class VirtualTargetClient implements TargetClient {
     }
     this.worker = new SharedWorker(
       new URL("./virtual-target.shared-worker.ts", import.meta.url),
-      { type: "module", name: "ucsb-xrp-virtual-target-v5" },
+      { type: "module", name: "ucsb-xrp-virtual-target-v6" },
     );
     this.worker.port.onmessage = (event: MessageEvent<TargetWorkerMessage>) =>
       this.handleMessage(event.data);
@@ -141,6 +157,7 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   disconnect(): void {
+    this.operationEpoch += 1;
     this.stopObservingPageLifecycle();
     if (!this.worker) {
       return;
@@ -257,43 +274,84 @@ export class VirtualTargetClient implements TargetClient {
 
   async run(project: CourseProject, projectId?: string): Promise<void> {
     validatePortableProject(project);
-    const descriptor = await describeProject(project);
-    await this.startRun({
-      type: "prepare-run",
-      project,
-      descriptor,
-      ...(projectId ? { projectId } : {}),
+    await this.withRunReservation(async (operationEpoch, localEpoch) => {
+      const descriptor = await describeProject(project);
+      this.assertOperation(localEpoch);
+      await this.startRun(
+        {
+          type: "prepare-run",
+          operationEpoch,
+          project,
+          descriptor,
+          ...(projectId ? { projectId } : {}),
+        },
+        localEpoch,
+      );
     });
   }
 
   async runCurrent(): Promise<void> {
-    const staged = (await this.request({ type: "get-project" })) as {
-      project?: CourseProject;
-      projectId?: string;
-      storedProjectId?: string;
-      descriptor?: SynchronizedProject;
+    await this.withRunReservation(async (operationEpoch, localEpoch) => {
+      const staged = (await this.request({ type: "get-project" })) as {
+        project?: CourseProject;
+        projectId?: string;
+        storedProjectId?: string;
+        descriptor?: SynchronizedProject;
+      };
+      if (!staged.project || !staged.descriptor) {
+        throw new Error(
+          "No project is ready. Open a project in the IDE first.",
+        );
+      }
+      validatePortableProject(staged.project);
+      const descriptor = await describeProject(staged.project);
+      this.assertOperation(localEpoch);
+      const retainedProjectIsExact =
+        staged.projectId === staged.storedProjectId &&
+        !staged.descriptor.stale &&
+        staged.descriptor.revision === descriptor.revision &&
+        staged.descriptor.name === descriptor.name &&
+        staged.descriptor.entrypoint === descriptor.entrypoint;
+      if (!retainedProjectIsExact) {
+        await this.startRun(
+          {
+            type: "prepare-run",
+            operationEpoch,
+            project: staged.project,
+            descriptor,
+            ...(staged.projectId ? { projectId: staged.projectId } : {}),
+          },
+          localEpoch,
+        );
+        return;
+      }
+      await this.startRun({ type: "prepare-run", operationEpoch }, localEpoch);
+    });
+  }
+
+  private assertOperation(epoch: number): void {
+    if (epoch !== this.operationEpoch || !this.worker)
+      throw new Error("Run cancelled");
+  }
+
+  private async withRunReservation(
+    work: (operationEpoch: number, localEpoch: number) => Promise<void>,
+  ): Promise<void> {
+    const localEpoch = ++this.operationEpoch;
+    const reservation = (await this.request({ type: "reserve-run" })) as {
+      operationEpoch: number;
     };
-    if (!staged.project || !staged.descriptor) {
-      throw new Error("No project is ready. Open a project in the IDE first.");
+    try {
+      this.assertOperation(localEpoch);
+      await work(reservation.operationEpoch, localEpoch);
+    } catch (error) {
+      if (this.worker)
+        await this.request({
+          type: "cancel-run",
+          operationEpoch: reservation.operationEpoch,
+        }).catch(() => undefined);
+      throw error;
     }
-    validatePortableProject(staged.project);
-    const descriptor = await describeProject(staged.project);
-    const retainedProjectIsExact =
-      staged.projectId === staged.storedProjectId &&
-      !staged.descriptor.stale &&
-      staged.descriptor.revision === descriptor.revision &&
-      staged.descriptor.name === descriptor.name &&
-      staged.descriptor.entrypoint === descriptor.entrypoint;
-    if (!retainedProjectIsExact) {
-      await this.startRun({
-        type: "prepare-run",
-        project: staged.project,
-        descriptor,
-        ...(staged.projectId ? { projectId: staged.projectId } : {}),
-      });
-      return;
-    }
-    await this.startRun({ type: "prepare-run" });
   }
 
   setProjectRunProvider(
@@ -317,18 +375,21 @@ export class VirtualTargetClient implements TargetClient {
 
   private async startRun(
     command:
-      | { type: "prepare-run" }
+      | { type: "prepare-run"; operationEpoch?: number }
       | {
           type: "prepare-run";
+          operationEpoch?: number;
           project: CourseProject;
           descriptor: SynchronizedProject;
           projectId?: string;
         },
+    localEpoch = this.operationEpoch,
   ): Promise<void> {
     this.terminateRuntime();
     const { runId, scenario, world, project } = (await this.request(
       command,
     )) as PreparedRun;
+    this.assertOperation(localEpoch);
     let runtimeWorker: Worker;
     try {
       runtimeWorker = this.createMicroPythonWorker(
@@ -352,15 +413,44 @@ export class VirtualTargetClient implements TargetClient {
           Int32Array.BYTES_PER_ELEMENT * MAX_RUNTIME_PARAMETERS,
         ),
       );
+      this.cancellation = new Int32Array(
+        new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT),
+      );
     } else {
       this.liveValues = null;
     }
     this.startRunHeartbeat(runId);
+    let runtimeReady = false;
+    const armDeadline = (durationMs: number, detail: string) => {
+      this.clearRuntimeStartupDeadline();
+      this.runtimeStartupTimeout = setTimeout(() => {
+        if (runtimeWorker !== this.runtimeWorker) return;
+        this.forwardRuntimeMessage(runId, {
+          type: "error",
+          stage: "compile",
+          detail,
+        });
+        this.terminateRuntime(runId);
+      }, durationMs);
+    };
+    armDeadline(
+      BROWSER_RUNTIME_STARTUP_TIMEOUT_MS,
+      "MicroPython runtime did not finish loading within 15 seconds. Check the connection or offline setup, then try Run again.",
+    );
     runtimeWorker.onmessage = (event: MessageEvent<RuntimeWorkerMessage>) => {
       if (runtimeWorker !== this.runtimeWorker) {
         return;
       }
       const message = event.data;
+      if (message.type === "runtime-ready" && !runtimeReady) {
+        runtimeReady = true;
+        armDeadline(
+          BROWSER_SYNTAX_CHECK_TIMEOUT_MS,
+          "MicroPython compilation timed out after 2.5 seconds. Check the project, then try Run again.",
+        );
+      } else if (message.type === "compile-complete") {
+        this.clearRuntimeStartupDeadline();
+      }
       this.forwardRuntimeMessage(runId, message);
       if (message.type === "run-complete" || message.type === "error") {
         this.terminateRuntime(runId);
@@ -376,13 +466,24 @@ export class VirtualTargetClient implements TargetClient {
       });
       this.terminateRuntime(runId);
     };
-    runtimeWorker.postMessage({
-      mode: "run",
-      project: projectWithSelectedWorld(project, scenario),
-      scenario,
-      world,
-      liveParameterBuffer: this.liveValues?.buffer,
-    });
+    try {
+      runtimeWorker.postMessage({
+        mode: "run",
+        project: projectWithSelectedWorld(project, scenario),
+        scenario,
+        world,
+        liveParameterBuffer: this.liveValues?.buffer,
+        cancellationBuffer: this.cancellation?.buffer,
+      });
+    } catch (error) {
+      this.forwardRuntimeMessage(runId, {
+        type: "error",
+        stage: "compile",
+        detail: errorDetail(error),
+      });
+      this.terminateRuntime(runId);
+      throw error;
+    }
   }
 
   async synchronize(project: CourseProject, projectId?: string): Promise<void> {
@@ -420,11 +521,13 @@ export class VirtualTargetClient implements TargetClient {
   }
 
   async stop(): Promise<void> {
+    this.operationEpoch += 1;
     this.terminateRuntime();
     await this.request({ type: "stop" });
   }
 
   async reset(): Promise<void> {
+    this.operationEpoch += 1;
     this.terminateRuntime();
     await this.request({ type: "reset" });
   }
@@ -447,6 +550,8 @@ export class VirtualTargetClient implements TargetClient {
 
   private request(
     command:
+      | { type: "reserve-run" }
+      | { type: "cancel-run"; operationEpoch: number }
       | {
           type: "connect";
           providesProject: boolean;
@@ -454,6 +559,7 @@ export class VirtualTargetClient implements TargetClient {
         }
       | {
           type: "prepare-run";
+          operationEpoch?: number;
           project?: CourseProject;
           descriptor?: SynchronizedProject;
           projectId?: string;
@@ -497,27 +603,37 @@ export class VirtualTargetClient implements TargetClient {
 
   private handleMessage(message: TargetWorkerMessage): void {
     if (message.type === "project-run-snapshot-request") {
-      try {
-        const provider = this.projectRunProvider;
-        if (!provider) {
-          throw new Error(
-            "The IDE is not ready to provide its current project.",
-          );
-        }
-        this.worker?.port.postMessage({
-          type: "project-run-snapshot",
-          requestId: message.requestId,
-          snapshot: provider(),
-        } satisfies TargetWorkerCommand);
-      } catch (error) {
-        this.worker?.port.postMessage({
-          type: "project-run-snapshot",
-          requestId: message.requestId,
-          error: errorDetail(error),
-        } satisfies TargetWorkerCommand);
-      }
+      const worker = this.worker;
+      const provider = this.projectRunProvider;
+      void Promise.resolve()
+        .then(() => {
+          if (!provider)
+            throw new Error(
+              "The IDE is not ready to provide its current project.",
+            );
+          return provider();
+        })
+        .then(
+          (snapshot) => {
+            if (worker && worker === this.worker)
+              worker.port.postMessage({
+                type: "project-run-snapshot",
+                requestId: message.requestId,
+                snapshot,
+              } satisfies TargetWorkerCommand);
+          },
+          (error: unknown) => {
+            if (worker && worker === this.worker)
+              worker.port.postMessage({
+                type: "project-run-snapshot",
+                requestId: message.requestId,
+                error: errorDetail(error),
+              } satisfies TargetWorkerCommand);
+          },
+        );
       return;
     }
+
     if (message.type === "telemetry-batch") {
       for (const event of message.events) {
         this.emit({ ...event, replayed: true });
@@ -629,10 +745,19 @@ export class VirtualTargetClient implements TargetClient {
     ) {
       return;
     }
+    this.clearRuntimeStartupDeadline();
     this.stopRunHeartbeat();
+    if (this.cancellation) Atomics.store(this.cancellation, 0, 1);
     this.runtimeWorker?.terminate();
     this.runtimeWorker = null;
     this.activeRunId = null;
     this.liveValues = null;
+    this.cancellation = null;
+  }
+
+  private clearRuntimeStartupDeadline(): void {
+    if (this.runtimeStartupTimeout !== null)
+      clearTimeout(this.runtimeStartupTimeout);
+    this.runtimeStartupTimeout = null;
   }
 }

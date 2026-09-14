@@ -1,3 +1,5 @@
+import { cloneProjectProvenance } from "./project-provenance";
+
 import {
   sameProjectContents,
   type ProjectSessionMetadata,
@@ -42,7 +44,13 @@ function projectWithoutSessionMetadata(
   project: ProjectSnapshot,
 ): ProjectSnapshot {
   const { session: _session, ...contents } = project;
-  return { ...contents, files: { ...contents.files } };
+  return {
+    ...contents,
+    files: { ...contents.files },
+    ...(contents.provenance
+      ? { provenance: cloneProjectProvenance(contents.provenance) }
+      : {}),
+  };
 }
 
 function checkedNonnegativeInteger(value: number, label: string): number {

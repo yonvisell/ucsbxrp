@@ -1177,3 +1177,12 @@
     border-bottom: 1px solid var(--line);
   }
 }
+.world-graphics-error {
+  position: absolute;
+  inset: 20% 10% auto;
+  z-index: 5;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--pane-line);
+  font-size: var(--font-small);
+}

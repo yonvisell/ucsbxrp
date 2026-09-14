@@ -10,12 +10,9 @@ export interface MonitorVisualSnapshot {
 }
 
 /**
- * Retain one sample per source sequence for the recent-rate estimate.
- *
- * A target may publish the same simulator state again after changing an
- * effort or runtime value. Equal sequence numbers are therefore duplicate
- * observations, not a new telemetry epoch. Only a source change or a strict
- * sequence rollback begins a new epoch.
+ * Retain one entry per observation identity for the recent-rate estimate.
+ * Legacy inputs without observation identity retain their source-sequence
+ * behavior. Physics steps and observation publications are separate clocks.
  */
 export function appendTelemetryRateSample(
   samples: TelemetrySample[],
@@ -26,12 +23,23 @@ export function appendTelemetryRateSample(
     throw new Error("maximumIntervals must be a positive integer");
   }
   const previous = samples.at(-1);
-  if (previous?.source === sample.source && previous.seq === sample.seq) {
+  const sequence = sample.observationSeq ?? sample.seq;
+  const previousSequence = previous?.observationSeq ?? previous?.seq;
+  if (
+    previous?.source === sample.source &&
+    previousSequence === sequence &&
+    (previous.observationSeq === undefined) ===
+      (sample.observationSeq === undefined)
+  ) {
     return;
   }
   if (
     previous &&
-    (previous.source !== sample.source || sample.seq < previous.seq)
+    (previous.source !== sample.source ||
+      sequence < previousSequence! ||
+      sample.tMs < previous.tMs ||
+      (previous.observationSeq === undefined) !==
+        (sample.observationSeq === undefined))
   ) {
     samples.length = 0;
   }
@@ -51,6 +59,18 @@ export function recentTelemetryRateHz(
     throw new Error("maximumIntervals must be a positive integer");
   }
   const recent = samples.slice(-(maximumIntervals + 1));
+  const first = recent[0];
+  const last = recent.at(-1);
+  if (
+    first?.observationSeq !== undefined &&
+    last?.observationSeq !== undefined
+  ) {
+    const elapsed = last.tMs - first.tMs;
+    const observations = last.observationSeq - first.observationSeq;
+    return first.source === last.source && elapsed > 0 && observations > 0
+      ? (1000 * observations) / elapsed
+      : null;
+  }
   const periodsMs: number[] = [];
   for (let index = 1; index < recent.length; index += 1) {
     const previous = recent[index - 1]!;

@@ -1658,7 +1658,9 @@ describe("physical target", () => {
     const target = new PhysicalTargetClient("192.168.7.30");
     try {
       await target.connect();
-      expect(workerNames).toEqual(["ucsb-xrp-physical-target-v17"]);
+      expect(workerNames).toEqual([
+        `ucsb-xrp-physical-target-v${PHYSICAL_POLL_COORDINATOR_GENERATION}`,
+      ]);
       expect(frames).toHaveLength(1);
 
       runFrame();
@@ -2051,7 +2053,9 @@ describe("physical target", () => {
       target.requestPollIfDue();
       await vi.advanceTimersByTimeAsync(0);
       expect(telemetryRequests).toBe(1);
-      expect(requestedUrls[0]).toContain("pollGeneration=17");
+      expect(requestedUrls[0]).toContain(
+        `pollGeneration=${PHYSICAL_POLL_COORDINATOR_GENERATION}`,
+      );
 
       await vi.advanceTimersByTimeAsync(1_000);
       expect(telemetryRequests).toBe(1);
@@ -3341,6 +3345,14 @@ describe("physical target", () => {
         expect.objectContaining({
           type: "console",
           stream: "system",
+          omittedOutputLines: 9,
+          eventId: "boot-a:log-gap:1-9",
+        }),
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          stream: "system",
           line: "after reboot",
           eventId: "boot-b:log:1",
         }),
@@ -3580,6 +3592,225 @@ describe("physical target", () => {
     target.disconnect();
   });
 
+  it("drains authorized packed samples and final output before clearing course state for Reset", async () => {
+    const descriptor = await describeProject({
+      ...project,
+      name: "Reset drain",
+    });
+    const events: TargetEvent[] = [];
+    const requests: string[] = [];
+    let owner: string | null = null;
+    let runId = 0;
+    let stopped = false;
+    let reset = false;
+    let pages = 0;
+    const control = () => ({
+      sessionId: owner,
+      generation: 1,
+      leaseRemainingMs: 6000,
+      runId,
+    });
+    const state = () => ({
+      bootId: "boot-a",
+      runId,
+      state: runId > 0 && !stopped ? "running" : "ready",
+      detail: "Device state",
+      logs: [],
+      control: control(),
+    });
+    const fetchMock = vi.fn(
+      async (input: URL | RequestInfo, init?: RequestInit) => {
+        const url = new URL(String(input));
+        requests.push(url.pathname + url.search);
+        if (url.pathname.endsWith("/info"))
+          return response({
+            protocol: 1,
+            serviceVersion: CURRENT_COURSE_RELEASE,
+            courseRelease: CURRENT_COURSE_RELEASE,
+            bootId: "boot-a",
+            runId,
+            robotName: "xrp-test",
+            address: "192.168.7.30",
+            project: { ...descriptor, lifetime: "boot" },
+            control: control(),
+            capabilities: [
+              "project.check",
+              "project.prepare",
+              "project.current",
+              "program.run",
+              "program.stop",
+              "target.reset",
+              "telemetry.poll",
+              "logs.poll",
+              "control.session-v1",
+              "telemetry.packed-v1",
+            ],
+          });
+        if (url.pathname.endsWith("/state")) return response(state());
+        if (init?.method === "POST") {
+          const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+          const result = (value: unknown) =>
+            response({
+              protocol: 1,
+              requestId: body.requestId,
+              ok: true,
+              result: value,
+            });
+          if (url.pathname.endsWith("/control")) {
+            owner = String(body.sessionId);
+            return result({ control: control() });
+          }
+          expect(body).toMatchObject({
+            bootId: "boot-a",
+            sessionId: owner,
+            controlGeneration: 1,
+            runId,
+          });
+          if (url.pathname.endsWith("/run")) {
+            runId = 1;
+            return result({
+              detail: "Starting main.py",
+              runId,
+              project: { ...descriptor, lifetime: "boot" },
+            });
+          }
+          if (url.pathname.endsWith("/stop")) {
+            stopped = true;
+            return result({ detail: "Stopping program", reconnecting: false });
+          }
+          if (url.pathname.endsWith("/reset")) {
+            expect(pages).toBe(3);
+            expect(
+              events.some(
+                (event) => event.type === "run" && event.phase === "end",
+              ),
+            ).toBe(true);
+            reset = true;
+            return result({
+              detail: "Program state reset",
+              reconnecting: false,
+            });
+          }
+          throw new Error(`Unexpected command ${url.pathname}`);
+        }
+        expect(url.pathname).toBe("/api/v1/telemetry");
+        expect(stopped).toBe(true);
+        expect(url.searchParams.get("sampleEncoding")).toBe("packed-v1");
+        expect(url.searchParams.get("sessionId")).toBe(owner);
+        expect(url.searchParams.get("bootId")).toBe("boot-a");
+        expect(url.searchParams.get("runId")).toBe("1");
+        if (!reset) pages += 1;
+        const seq = reset ? 1 : [1, 3, 4][pages - 1]!;
+        const logSeq = reset ? 4 : [1, 3, 4][pages - 1]!;
+        const row = [
+          reset ? 0 : seq * 20,
+          seq,
+          !reset,
+          seq,
+          0,
+          0,
+          null,
+          null,
+          null,
+          null,
+          0,
+          0,
+          0,
+          0,
+          null,
+          null,
+          seq,
+          seq,
+          null,
+          false,
+        ];
+        return packedTelemetryResponse(
+          {
+            ...state(),
+            state: "ready",
+            detail: reset ? "Program state reset" : "Program stopped",
+            logs: reset
+              ? []
+              : [
+                  {
+                    seq: logSeq,
+                    stream: pages === 3 ? "stderr" : "stdout",
+                    line:
+                      pages === 3
+                        ? "final cleanup output"
+                        : `tail page ${pages}`,
+                  },
+                ],
+            moreSamples: !reset && pages < 3,
+            moreLogs: !reset && pages < 3,
+            sampleShared: [null, null, null, null, null],
+          },
+          [row],
+        );
+      },
+    );
+    const target = new DirectPhysicalTargetClient("192.168.7.30", {
+      fetch: fetchMock as typeof fetch,
+      pollDrivenByVisibleClient: true,
+      pollIntervalMs: 1,
+    });
+    target.subscribe((event) => events.push(event));
+    try {
+      await target.connect();
+      await target.runCurrent();
+      await target.reset();
+      expect(reset).toBe(true);
+      const end = events.findIndex(
+        (event) => event.type === "run" && event.phase === "end",
+      );
+      expect(
+        events
+          .slice(0, end)
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([1, 3]);
+      expect(events.slice(0, end)).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          line: "final cleanup output",
+        }),
+      );
+      expect(events.slice(0, end)).toContainEqual(
+        expect.objectContaining({
+          type: "console",
+          line: "Telemetry gap · 1 sample unavailable",
+        }),
+      );
+      expect(
+        events
+          .slice(end + 1)
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.sample.seq),
+      ).toEqual([4]);
+      expect(
+        requests.filter((path) => path.startsWith("/api/v1/state")),
+      ).toHaveLength(1);
+      target.requestPollIfDue();
+      await vi.waitFor(() =>
+        expect(events).toContainEqual(
+          expect.objectContaining({
+            type: "telemetry",
+            sample: expect.objectContaining({
+              seq: 1,
+              tMs: 0,
+              poseAvailable: false,
+            }),
+          }),
+        ),
+      );
+      expect(
+        requests.filter((path) => path.startsWith("/api/v1/telemetry")).at(-1),
+      ).toContain("afterSampleSeq=0");
+    } finally {
+      target.disconnect();
+    }
+  });
+
   it("restarts the telemetry cursor when Reset starts a new sample epoch", async () => {
     const telemetryRequests: string[] = [];
     const resetSample = {
@@ -3648,7 +3879,12 @@ describe("physical target", () => {
           protocol: 1,
           requestId: body.requestId,
           ok: true,
-          result: { detail: "Resetting program state", reconnecting: false },
+          result: {
+            detail: url.endsWith("/reset")
+              ? "Program state reset"
+              : "Stopping program",
+            reconnecting: false,
+          },
         });
       },
     );
@@ -3683,7 +3919,7 @@ describe("physical target", () => {
         }),
       ),
     );
-    expect(events).not.toContainEqual(
+    expect(events).toContainEqual(
       expect.objectContaining({
         type: "telemetry",
         sample: expect.objectContaining({ seq: 13 }),

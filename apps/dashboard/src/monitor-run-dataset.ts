@@ -27,6 +27,7 @@ export interface MonitorRunDataset {
   finalDetail: string;
   recording: TelemetryRecordingSnapshot;
   output: readonly MonitorRunOutput[];
+  droppedOutputLines?: number;
   annotations: readonly MonitorAnnotation[];
 }
 
@@ -52,6 +53,9 @@ export class MonitorRunDatasetController {
   private output: MonitorRunOutput[] = [];
   private annotations: MonitorAnnotation[] = [];
   private completed: MonitorRunDataset | null = null;
+  private discardedOutput = 0;
+  private upstreamDiscardedOutput = 0;
+  private retainedTelemetryDropped = 0;
 
   constructor(maximumSamples = 30_000) {
     this.recorder = new TelemetryRecorder(maximumSamples);
@@ -75,7 +79,25 @@ export class MonitorRunDatasetController {
 
   /** One bounded copy for a newly visible World; never used per sample/frame. */
   activeRecordingSnapshot(): TelemetryRecordingSnapshot | null {
-    return this.active ? this.recorder.snapshot() : null;
+    return this.active ? this.withRetainedLoss(this.recorder.snapshot()) : null;
+  }
+
+  /** Only the prefix missed before this Monitor joined, not live ring eviction. */
+  reportRetainedTelemetryDropped(count = 0): void {
+    if (!this.active || !Number.isSafeInteger(count) || count < 0) return;
+    this.retainedTelemetryDropped = Math.max(
+      this.retainedTelemetryDropped,
+      count,
+    );
+  }
+
+  private withRetainedLoss(
+    recording: TelemetryRecordingSnapshot,
+  ): TelemetryRecordingSnapshot {
+    return {
+      ...recording,
+      droppedSamples: recording.droppedSamples + this.retainedTelemetryDropped,
+    };
   }
 
   /** Fill a late project descriptor, but reject a different project mid-run. */
@@ -85,7 +107,10 @@ export class MonitorRunDatasetController {
       this.active = { ...this.active, project: { ...project } };
       return true;
     }
-    return this.active.project?.revision === project?.revision;
+    return (
+      this.active.project?.revision === project?.revision &&
+      this.active.project?.projectId === project?.projectId
+    );
   }
 
   currentAnnotations(): readonly MonitorAnnotation[] {
@@ -106,6 +131,9 @@ export class MonitorRunDatasetController {
       world: structuredClone(options.world),
     };
     this.output = [];
+    this.discardedOutput = 0;
+    this.upstreamDiscardedOutput = 0;
+    this.retainedTelemetryDropped = 0;
     this.annotations = [];
     this.completed = null;
     this.recorder.start();
@@ -120,7 +148,15 @@ export class MonitorRunDatasetController {
   addOutput(entry: MonitorRunOutput): void {
     if (!this.active || this.output.some((item) => item.id === entry.id))
       return;
+    if (this.output.length >= 2_000) this.discardedOutput += 1;
     this.output = [...this.output.slice(-1_999), { ...entry }];
+  }
+
+  reportDroppedOutput(count = 0): void {
+    this.upstreamDiscardedOutput = Math.max(
+      this.upstreamDiscardedOutput,
+      count,
+    );
   }
 
   addAnnotation(annotation: MonitorAnnotation): MonitorRunDataset | null {
@@ -148,8 +184,9 @@ export class MonitorRunDatasetController {
       finishedAt,
       finalState,
       finalDetail,
-      recording: this.recorder.stop(),
+      recording: this.withRetainedLoss(this.recorder.stop()),
       output: this.output.map((entry) => ({ ...entry })),
+      droppedOutputLines: this.discardedOutput + this.upstreamDiscardedOutput,
       annotations: this.annotations.map((annotation) => ({ ...annotation })),
     };
     return this.completed;
@@ -159,6 +196,7 @@ export class MonitorRunDatasetController {
   restore(run: MonitorRunDataset): MonitorRunDataset {
     this.recorder.clear();
     this.active = null;
+    this.retainedTelemetryDropped = 0;
     this.output = run.output.map((entry) => ({ ...entry }));
     this.annotations = run.annotations.map((annotation) => ({ ...annotation }));
     this.completed = {
@@ -190,5 +228,6 @@ export class MonitorRunDatasetController {
     this.output = [];
     this.annotations = [];
     this.completed = null;
+    this.retainedTelemetryDropped = 0;
   }
 }

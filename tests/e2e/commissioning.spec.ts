@@ -86,7 +86,7 @@ test("shows the built-in starter as read-only until a Working folder is selected
   await expect(page.getByRole("button", { name: "Compile" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Compile" })).toHaveAttribute(
     "title",
-    "Compile the recovered browser copy. Reconnect the Working folder before editing or saving.",
+    "Compile the supplied preview. Create a Project to edit, save, and run it.",
   );
   await expect(page.getByRole("button", { name: "Run" })).toBeDisabled();
   await expect(
@@ -348,6 +348,18 @@ test("a new Working folder cannot inherit an earlier browser project", async ({
   ).toBeVisible();
   await page.goto("/ide/");
   await expect(page.getByTestId("project-name")).toHaveText("Expanding spiral");
+  const firstProject = page.getByRole("dialog", {
+    name: "Create your first Project",
+  });
+  await expect(firstProject).toBeVisible();
+  await expect(firstProject.getByLabel("Project folder name")).toHaveValue(
+    "XRP_Project_01",
+  );
+  await firstProject.getByLabel("Project folder name").fill("Expanding-Spiral");
+  await firstProject
+    .getByRole("button", { name: "Create Project", exact: true })
+    .click();
+  await expect(firstProject).toHaveCount(0);
   await expect(page.getByTestId("project-folder")).toHaveText(
     "Expanding-Spiral",
   );
@@ -480,7 +492,20 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
     const textEncoder = new TextEncoder();
     const textDecoder = new TextDecoder();
-    const files = new Map<string, Uint8Array>();
+    const files = new Map<string, Uint8Array>(
+      (
+        JSON.parse(
+          sessionStorage.getItem("ucsb-test-device-files") ?? "[]",
+        ) as Array<[string, number[]]>
+      ).map(([name, bytes]) => [name, Uint8Array.from(bytes)]),
+    );
+    Object.defineProperty(window, "__preserveUcsbTestDeviceFiles", {
+      value: () =>
+        sessionStorage.setItem(
+          "ucsb-test-device-files",
+          JSON.stringify([...files].map(([name, bytes]) => [name, [...bytes]])),
+        ),
+    });
 
     const sha256 = async (data: Uint8Array) => {
       const digest = await crypto.subtle.digest(
@@ -717,6 +742,10 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           this.temporaryData = [];
           return { stdout: "", stderr: "" };
         }
+        if (code.startsWith("f.close()")) {
+          files.set(this.temporaryPath, Uint8Array.from(this.temporaryData));
+          return { stdout: "", stderr: "" };
+        }
         const chunk = code.match(/a2b_base64\(("[A-Za-z0-9+/=]+")\)/);
         if (chunk) {
           const binary = atob(JSON.parse(chunk[1]!) as string);
@@ -753,7 +782,8 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
 
     const originalFetch = window.fetch.bind(window);
     let serviceProbeCount = 0;
-    let serviceRobotId = "0000000000000000";
+    let serviceRobotId =
+      sessionStorage.getItem("ucsb-test-device-robot-id") ?? "0000000000000000";
     let serviceResponseDelayMs = 0;
     Object.defineProperty(window, "__ucsbServiceProbeCount", {
       configurable: true,
@@ -763,6 +793,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       configurable: true,
       value: (robotId: string) => {
         serviceRobotId = robotId;
+        sessionStorage.setItem("ucsb-test-device-robot-id", robotId);
       },
     });
     Object.defineProperty(window, "__setUcsbServiceResponseDelay", {
@@ -951,7 +982,51 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
       }
     ).__setUcsbServiceResponseDelay(1_200),
   );
+  const profileBeforeDelayedCheck = await page.evaluate(() =>
+    (
+      window as unknown as {
+        __readUcsbTestCourseFile: (path: string) => Promise<string>;
+      }
+    ).__readUcsbTestCourseFile(".ucsbxrp.json"),
+  );
   await page.getByRole("button", { name: "Check XRP again" }).click();
+  await expect(
+    page.getByRole("button", { name: "Checking…", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Repair again by USB" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Connect the XRP by USB-C" }),
+  ).toBeVisible();
+  await page.waitForTimeout(1_400);
+  await expect(page.getByRole("heading", { name: "XRP ready" })).toHaveCount(0);
+  const unfinished = await page.evaluate(async () => {
+    const scope = window as unknown as {
+      __readUcsbTestCourseFile: (path: string) => Promise<string>;
+      __preserveUcsbTestDeviceFiles: () => void;
+    };
+    scope.__preserveUcsbTestDeviceFiles();
+    return {
+      checkpoint: await scope.__readUcsbTestCourseFile(
+        "UCSB_XRP_Setup_pending.json",
+      ),
+      profile: await scope.__readUcsbTestCourseFile(".ucsbxrp.json"),
+    };
+  });
+  expect(unfinished.checkpoint).toContain("4c91fae8f1775aa4");
+  expect(unfinished.profile).toBe(profileBeforeDelayedCheck);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Choose a Working folder" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Use My XRP Projects" }).click();
+  await expect(
+    page.getByText(
+      /USB installation for ucsb-xrp-4c91fae8f1775aa4 was completed/,
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "I joined UCSB-XRP-4A21 — check XRP" })
+    .click();
   await expect(page.getByRole("heading", { name: "XRP ready" })).toBeVisible({
     timeout: 10_000,
   });
@@ -964,6 +1039,18 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
   await expect(ideFrame.getByTestId("project-name")).toHaveText(
     "Expanding spiral",
   );
+  const firstProject = ideFrame.getByRole("dialog", {
+    name: "Create your first Project",
+  });
+  await expect(firstProject).toBeVisible();
+  await expect(firstProject.getByLabel("Project folder name")).toHaveValue(
+    "XRP_Project_01",
+  );
+  await firstProject.getByLabel("Project folder name").fill("Expanding-Spiral");
+  await firstProject
+    .getByRole("button", { name: "Create Project", exact: true })
+    .click();
+  await expect(firstProject).toHaveCount(0);
   await expect(ideFrame.getByTestId("project-folder")).toHaveText(
     "Expanding-Spiral",
   );

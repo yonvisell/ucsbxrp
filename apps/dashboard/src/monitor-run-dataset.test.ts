@@ -34,6 +34,37 @@ function sample(
 }
 
 describe("Monitor run dataset", () => {
+  it("counts a late Monitor's known lost prefix once, plus internal gaps and local eviction", () => {
+    const controller = new MonitorRunDatasetController(2);
+    const begin = (id: string) =>
+      controller.begin({
+        id,
+        target: "virtual",
+        project: null,
+        worldId: "arena",
+        world: DEFAULT_WORLD_CATALOG.worlds[0]!,
+        startedAt: "start",
+      });
+    begin("late");
+    controller.reportRetainedTelemetryDropped(5);
+    controller.reportRetainedTelemetryDropped(5);
+    controller.reportRetainedTelemetryDropped(-1);
+    controller.reportRetainedTelemetryDropped(NaN);
+    for (const observationSeq of [6, 8, 9]) {
+      controller.capture({ ...sample("virtual", 1), observationSeq });
+    }
+    expect(controller.activeRecordingSnapshot()?.droppedSamples).toBe(7);
+    const recording = controller.complete("ready", "done", "finish")!.recording;
+    expect(recording.samples.map((item) => item.observationSeq)).toEqual([
+      8, 9,
+    ]);
+    expect(recording.droppedSamples).toBe(7);
+    begin("next");
+    controller.capture({ ...sample("virtual", 100), observationSeq: 100 });
+    expect(
+      controller.complete("ready", "done", "finish")!.recording.droppedSamples,
+    ).toBe(0);
+  });
   it("uses one completed dataset for samples, output, and notes", () => {
     const controller = new MonitorRunDatasetController();
     controller.begin({

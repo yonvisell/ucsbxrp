@@ -12,7 +12,9 @@ except ImportError:  # CPython tests
     def _ticks_diff(newer, older):
         return newer - older
 
+import json
 from .records import DriveCommand, RawSensors, RobotState
+from .live import _plot_sample_snapshot
 
 try:
     import xrp_sim_bridge as _browser_bridge
@@ -210,6 +212,7 @@ def publish_state(
         "requestedTurnRateRadS": requested_turn,
         "targetLeftWheelSpeedMmS": target_left,
         "targetRightWheelSpeedMmS": target_right,
+        "plotValues": _plot_sample_snapshot(),
     }
     # Each snapshot is replaced as a whole and is never mutated after this
     # point. The fixed ring therefore adds one pointer assignment to the
@@ -231,6 +234,10 @@ def publish_state(
                 requested_turn,
                 target_left,
                 target_right,
+                json.dumps([
+                    {"name": name, "label": label, "unit": unit, "value": value}
+                    for name, label, unit, value in snapshot["plotValues"]
+                ]),
             )
         except Exception:
             # Diagnostics must never stop a student control loop.

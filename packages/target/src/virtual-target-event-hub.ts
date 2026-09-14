@@ -5,6 +5,7 @@ import {
   type TelemetryEvent,
 } from "./telemetry-event-history";
 import type { TargetEvent } from "./types";
+import { RetainedRun } from "./retained-run";
 
 export interface VirtualWorkerPort {
   postMessage(message: TargetWorkerMessage): void;
@@ -38,6 +39,14 @@ export class VirtualTargetEventHub {
   private readonly retainedConsoleIds = new Set<string>();
   private readonly telemetryHistory = new TelemetryEventHistory();
   private eventSequence = 0;
+  private readonly run = new RetainedRun();
+
+  discardedOutput(count: number): void {
+    this.run.discardedOutput(count);
+  }
+  runEnvelope() {
+    return this.run.snapshot();
+  }
 
   attach(port: VirtualWorkerPort): void {
     this.ports.add(port);
@@ -71,14 +80,21 @@ export class VirtualTargetEventHub {
       rawEvent.type === "console"
         ? this.normalizeConsoleEvent(rawEvent)
         : rawEvent;
+    const beginsRun =
+      (event.type === "run" && event.phase === "begin") ||
+      (event.type === "console" &&
+        event.action === "run" &&
+        event.phase === "request");
+    const previousRunId = beginsRun ? this.run.snapshot()?.runId : undefined;
+    this.run.observe(event);
+    if (beginsRun && this.run.snapshot()?.runId !== previousRunId) {
+      // The lifecycle envelope, rather than optional console output, owns the
+      // history boundary. Failed preflight and idle updates keep the last run.
+      this.telemetryHistory.clear();
+    }
     if (event.type === "console") {
       if (event.eventId && this.retainedConsoleIds.has(event.eventId)) {
         return;
-      }
-      if (event.action === "run" && event.phase === "request") {
-        // Each runtime begins a new telemetry sequence. A late Monitor should
-        // restore this run, not combine it with earlier virtual runs.
-        this.telemetryHistory.clear();
       }
       if (event.eventId) {
         this.retainedConsoleIds.add(event.eventId);
@@ -86,11 +102,12 @@ export class VirtualTargetEventHub {
       this.consoleHistory.push(event);
       if (this.consoleHistory.length > VIRTUAL_CONSOLE_HISTORY_LIMIT) {
         const removed = this.consoleHistory.shift();
+        this.run.discardedOutput();
         if (removed?.eventId) {
           this.retainedConsoleIds.delete(removed.eventId);
         }
       }
-    } else if (event.type === "telemetry") {
+    } else if (event.type === "telemetry" && !this.run.completed) {
       this.telemetryHistory.retain(event);
     }
     for (const port of this.ports) {
@@ -169,7 +186,7 @@ export class VirtualTargetEventHub {
     status: Extract<TargetEvent, { type: "status" }>,
     fallbackTelemetry: TelemetryEvent,
   ): number {
-    const retainedRun = this.retainedRun(status);
+    const retainedRun = this.retainedRun();
     if (retainedRun) {
       this.send(port, {
         type: "event",
@@ -181,7 +198,7 @@ export class VirtualTargetEventHub {
     // run without treating it as a new run or saving it again.
     this.send(port, { type: "event", event: status });
     const replayed = this.replayTelemetry(port);
-    if (this.roles.get(port) === "monitor" && replayed === 0) {
+    if (!retainedRun && this.roles.get(port) === "monitor" && replayed === 0) {
       this.send(port, {
         type: "telemetry-batch",
         events: [fallbackTelemetry],
@@ -198,33 +215,27 @@ export class VirtualTargetEventHub {
         type: "event",
         event: { ...retainedRun, phase: "end" },
       });
+      if (retainedRun.finishedAtMs !== undefined) {
+        // Reset/current idle state is live context, never an acquired row of
+        // the completed run. Identity tracking omits an unchanged final sample.
+        this.send(port, { type: "event", event: fallbackTelemetry });
+      }
     }
     return replayed;
   }
 
-  private retainedRun(
-    status: Extract<TargetEvent, { type: "status" }>,
-  ): Omit<Extract<TargetEvent, { type: "run-history" }>, "phase"> | null {
-    const request = this.consoleHistory.findLast(
-      (event) => event.action === "run" && event.phase === "request",
-    );
-    const runId = request?.requestId ?? request?.eventId;
-    if (!request || !runId) return null;
-    const terminal = this.consoleHistory.findLast(
-      (event) =>
-        event.requestId === runId &&
-        (event.phase === "result" || event.phase === "error"),
-    );
-    return {
-      type: "run-history",
-      runId,
-      startedAtMs: request.timestampMs ?? Date.now(),
-      ...(terminal?.timestampMs === undefined
-        ? {}
-        : { finishedAtMs: terminal.timestampMs }),
-      state: status.state,
-      detail: status.detail,
-    };
+  private retainedRun(): Omit<
+    Extract<TargetEvent, { type: "run-history" }>,
+    "phase"
+  > | null {
+    const run = this.run.snapshot();
+    return run
+      ? {
+          ...run,
+          type: "run-history",
+          retainedTelemetryDropped: this.telemetryHistory.discardedCount,
+        }
+      : null;
   }
 
   replayTelemetry(port: VirtualWorkerPort): number {

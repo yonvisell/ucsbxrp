@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 import time
 
-from xrp_service_probe import ProbeError, command, request_json, wait_for_service
+from xrp_service_probe import ProbeError, claim_control_session, command, request_json, telemetry_path, wait_for_service
 
 
 RESULT_PREFIX = "UCSB_XRP_MOTOR_CHECK="
@@ -77,9 +77,12 @@ def differences(later, earlier):
     return [later[index] - earlier[index] for index in range(2)]
 
 
-def run_check(address):
+def run_check(address, allow_motion=False):
+    if not allow_motion:
+        raise ProbeError("Raise and secure the wheels, then explicitly pass --allow-motion for bounded motor testing")
     base_url = "http://{}".format(address)
     info = wait_for_service(base_url)
+    claim_control_session(base_url, info)
     command(base_url, "prepare", 1, project=motor_project())
     run = command(base_url, "run", 2)
     deadline = time.monotonic() + 12.0
@@ -90,7 +93,7 @@ def run_check(address):
     while time.monotonic() < deadline:
         state, _ = request_json(
             base_url,
-            "/api/v1/telemetry?afterLogSeq={}".format(after_log_seq),
+            telemetry_path(base_url, after_log_seq, run_id=run["runId"]),
         )
         for entry in state.get("logs", []):
             after_log_seq = max(after_log_seq, entry["seq"])
@@ -137,6 +140,7 @@ def run_check(address):
     return {
         "result": "pass",
         "scope": "raised wheels; bounded motor and encoder response",
+        "safetyTier": "raised-wheels-explicit-motion",
         "service": info,
         "harness": {
             "path": str(harness_path),
@@ -156,13 +160,14 @@ def run_check(address):
 def make_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--address", default="192.168.7.30")
+    parser.add_argument("--allow-motion", action="store_true", help="Authorize bounded effort only with the XRP wheels raised and secured")
     return parser
 
 
 def main(argv=None):
     args = make_parser().parse_args(argv)
     try:
-        evidence = run_check(args.address)
+        evidence = run_check(args.address, allow_motion=args.allow_motion)
     except ProbeError as exc:
         print("Motor check error: {}".format(exc), file=sys.stderr)
         return 2

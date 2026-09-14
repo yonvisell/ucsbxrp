@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   BROWSER_SYNTAX_CHECK_TIMEOUT_MS,
+  BROWSER_RUNTIME_STARTUP_TIMEOUT_MS,
   checkCourseProjectSyntax,
 } from "./browser-syntax-check";
 import type { PythonDiagnostic } from "./types";
@@ -165,7 +166,9 @@ describe("standalone browser syntax checking", () => {
 
   it("terminates a stalled worker at the responsive syntax-check ceiling", async () => {
     vi.useFakeTimers();
-    installWorker(() => {});
+    installWorker((worker) =>
+      worker.emit({ type: "runtime-ready", version: "1.28.0" }),
+    );
 
     const result = checkCourseProjectSyntax(project);
     const rejection = expect(result).rejects.toThrow(
@@ -174,6 +177,39 @@ describe("standalone browser syntax checking", () => {
     await vi.advanceTimersByTimeAsync(BROWSER_SYNTAX_CHECK_TIMEOUT_MS);
     await rejection;
     expect(FakeWorker.instance?.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("allows a cold runtime to load before starting the bounded compiler deadline", async () => {
+    vi.useFakeTimers();
+    installWorker(() => {});
+    const result = checkCourseProjectSyntax(project);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(FakeWorker.instance?.terminate).not.toHaveBeenCalled();
+    FakeWorker.instance?.emit({ type: "runtime-ready", version: "1.28.0" });
+    await vi.advanceTimersByTimeAsync(BROWSER_SYNTAX_CHECK_TIMEOUT_MS - 1);
+    FakeWorker.instance?.emit({ type: "check-complete", detail: "Compiled" });
+    await expect(result).resolves.toMatchObject({ ok: true });
+  });
+
+  it("bounds failed startup and reports a recoverable worker-construction failure", async () => {
+    vi.useFakeTimers();
+    installWorker(() => {});
+    const result = checkCourseProjectSyntax(project);
+    const failure = expect(result).rejects.toThrow(
+      /runtime did not finish loading.*try Compile again/,
+    );
+    await vi.advanceTimersByTimeAsync(BROWSER_RUNTIME_STARTUP_TIMEOUT_MS);
+    await failure;
+    vi.stubGlobal(
+      "Worker",
+      class {
+        constructor() {
+          throw new Error("Worker blocked");
+        }
+      },
+    );
+    const target = new VirtualTargetClient();
+    await expect(target.check(project)).rejects.toThrow("Worker blocked");
   });
 
   it("returns portable-project failures without starting a worker", async () => {

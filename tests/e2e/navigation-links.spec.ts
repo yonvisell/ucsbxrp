@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { seedWorkingFolder } from "./working-folder";
 
 const entryPages = [
   "/",
@@ -11,6 +12,55 @@ const entryPages = [
   "/author/",
   "/overview/",
 ];
+
+async function expectHeaderFits(page: Page, description: string) {
+  const { boxes, headerBox } = await page
+    .locator(".app-header")
+    .first()
+    .evaluate((header) => ({
+      headerBox: header.getBoundingClientRect().toJSON() as {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      },
+      boxes: Array.from(header.children)
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            name:
+              element.getAttribute("aria-label") ??
+              element.textContent?.trim().slice(0, 40) ??
+              element.tagName,
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        })
+        .filter((box) => box.right > box.left && box.bottom > box.top),
+    }));
+  for (const box of boxes) {
+    expect(
+      box.left >= headerBox.x - 0.5 &&
+        box.right <= headerBox.x + headerBox.width + 0.5 &&
+        box.top >= headerBox.y - 0.5 &&
+        box.bottom <= headerBox.y + headerBox.height + 0.5,
+      `${description}: ${box.name} escapes the header: ${JSON.stringify({ box, headerBox })}`,
+    ).toBe(true);
+  }
+  for (let first = 0; first < boxes.length; first += 1) {
+    for (let second = first + 1; second < boxes.length; second += 1) {
+      const a = boxes[first]!;
+      const b = boxes[second]!;
+      expect(
+        Math.min(a.right, b.right) - Math.max(a.left, b.left) <= 0.5 ||
+          Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) <= 0.5,
+        `${description}: ${a.name} overlaps ${b.name}`,
+      ).toBe(true);
+    }
+  }
+}
 
 test("student and instructor pages have valid internal links and fragments", async ({
   page,
@@ -100,21 +150,40 @@ test("compact Guide keeps section navigation available", async ({ page }) => {
     .toBeGreaterThanOrEqual(85);
 });
 
-test("IDE contextual documentation replaces the top-level workspace tab", async ({
+test("IDE contextual documentation preserves the workspace and restores its section with Back", async ({
   context,
   page,
 }) => {
+  await seedWorkingFolder(page, { folderName: "Contextual-Documentation" });
   await page.goto("/workspace/?mode=ide");
   const ide = page.frameLocator('iframe[title="UCSBXRP IDE"]');
   await ide.getByRole("button", { name: "Open robot_config.py" }).click();
   const documentation = ide.getByRole("link", { name: "Configuration API" });
   await expect(documentation).toHaveAttribute("target", "_top");
   const pageCount = context.pages().length;
+  const documentTime = () =>
+    page
+      .locator('iframe[title="UCSBXRP IDE"]')
+      .evaluate(
+        (frame) =>
+          (frame as HTMLIFrameElement).contentWindow!.performance.timeOrigin,
+      );
+  const initialDocument = await documentTime();
 
   await documentation.click();
-  await expect(page).toHaveURL(/\/reference\/#configuration$/);
+  await expect(page).toHaveURL(
+    /\/workspace\/\?mode=ide&help=reference#configuration$/,
+  );
   expect(context.pages()).toHaveLength(pageCount);
-  await expect(page.locator("#configuration")).toBeVisible();
+  const reference = page.frameLocator('iframe[title="Course documentation"]');
+  await expect(reference.locator("#configuration")).toBeVisible();
+  await page.getByRole("button", { name: "Close documentation" }).click();
+  await page.goBack();
+  await expect(reference.locator("#configuration")).toBeVisible();
+  await expect(
+    page.locator('iframe[title="Course documentation"]'),
+  ).toHaveAttribute("src", /#configuration$/);
+  expect(await documentTime()).toBe(initialDocument);
 });
 
 test("course pages keep the complete navigation visible without header collisions", async ({
@@ -152,50 +221,67 @@ test("course pages keep the complete navigation visible without header collision
         await expect(header.locator('[aria-current="page"]')).toHaveCount(0);
       }
 
-      const boxes = await header.locator(":scope > *").evaluateAll((elements) =>
-        elements
-          .map((element) => {
-            const rect = element.getBoundingClientRect();
-            return {
-              name:
-                element.getAttribute("aria-label") ??
-                element.textContent?.trim().slice(0, 40) ??
-                element.tagName,
-              left: rect.left,
-              right: rect.right,
-              top: rect.top,
-              bottom: rect.bottom,
-            };
-          })
-          .filter((box) => box.right > box.left && box.bottom > box.top),
-      );
-      const headerBox = await header.boundingBox();
-      expect(headerBox).not.toBeNull();
-      for (const box of boxes) {
-        expect(
-          box.left >= headerBox!.x - 0.5 &&
-            box.right <= headerBox!.x + headerBox!.width + 0.5 &&
-            box.top >= headerBox!.y - 0.5 &&
-            box.bottom <= headerBox!.y + headerBox!.height + 0.5,
-          `${entryPage} at ${width}px: ${box.name} escapes the header`,
-        ).toBe(true);
-      }
-      for (let first = 0; first < boxes.length; first += 1) {
-        for (let second = first + 1; second < boxes.length; second += 1) {
-          const a = boxes[first]!;
-          const b = boxes[second]!;
-          const overlapWidth =
-            Math.min(a.right, b.right) - Math.max(a.left, b.left);
-          const overlapHeight =
-            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-          expect(
-            overlapWidth <= 0.5 || overlapHeight <= 0.5,
-            `${entryPage} at ${width}px: ${a.name} overlaps ${b.name}`,
-          ).toBe(true);
-        }
-      }
+      await expectHeaderFits(page, `${entryPage} at ${width}px`);
     }
   }
+});
+
+test("pending Monitor startup keeps navigation and controls inside its header", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    let released = false;
+    const waiting: (() => void)[] = [];
+    const post = MessagePort.prototype.postMessage;
+    MessagePort.prototype.postMessage = function (
+      message: unknown,
+      options?: Transferable[] | StructuredSerializeOptions,
+    ) {
+      const send = post.bind(this);
+      const resume = () => {
+        if (Array.isArray(options)) send(message, options);
+        else send(message, options);
+      };
+      if (!released && (message as { type?: string })?.type === "connect") {
+        waiting.push(resume);
+      } else {
+        resume();
+      }
+    };
+    (
+      window as unknown as { releaseStartupConnection: () => void }
+    ).releaseStartupConnection = () => {
+      released = true;
+      for (const resume of waiting.splice(0)) resume();
+    };
+  });
+  await page.goto("/monitor/");
+  const header = page.locator(".app-header").first();
+  await expect(header.locator(".operation-status")).toContainText(
+    "Connecting to virtual XRP",
+  );
+  await expect(page.getByTestId("target-status")).toContainText("connecting");
+  await expect(header.locator(".operation-status")).toContainText(/ · \d+ s/);
+  for (const width of [1440, 1120, 1024, 800, 700, 640, 600, 375]) {
+    await page.setViewportSize({ width, height: 850 });
+    await expectHeaderFits(page, `Pending Monitor startup at ${width}px`);
+    await expect(
+      header.getByRole("button", { name: "Run", exact: true }),
+    ).toBeVisible();
+    await expect(
+      header.getByRole("link", { name: "Guide", exact: true }),
+    ).toBeVisible();
+  }
+  await page.evaluate(() =>
+    (
+      window as unknown as { releaseStartupConnection: () => void }
+    ).releaseStartupConnection(),
+  );
+  await expect(page.getByTestId("target-status")).toContainText("ready");
+  await expectHeaderFits(
+    page,
+    "Ready Monitor after startup connection resumes",
+  );
 });
 
 test("course pages use consistent browser-tab titles", async ({ page }) => {

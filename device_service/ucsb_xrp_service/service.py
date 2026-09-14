@@ -7,6 +7,7 @@ dependable on stock MicroPython.
 """
 
 import gc
+import hashlib
 import builtins
 import io
 import json
@@ -39,7 +40,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.08-dev.47"
+COURSE_RELEASE = "2026.09-dev.48"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -63,6 +64,9 @@ TELEMETRY_SAMPLE_BATCH_LIMIT = 24
 COMPACT_TELEMETRY_ENCODING = "row-v1"
 PACKED_TELEMETRY_ENCODING = "packed-v1"
 PACKED_TELEMETRY_SAMPLE_BATCH_LIMIT = 16
+SAMPLE_PLOT_PAGE_BYTES = 16384
+MAX_WORLD_BYTES = 16384
+REPLY_CACHE_BYTES = 32768
 PACKED_TELEMETRY_MAGIC = b"UXT1"
 PACKED_TELEMETRY_ROW_FORMAT = "<IIBB13fiifB"
 PACKED_TELEMETRY_SHARED_FORMAT = "<H8fH"
@@ -110,8 +114,73 @@ _ram_project_volumes = {"a": None, "b": None}
 _last_project_module_names = []
 _last_reply_by_id = {}
 _reply_order = []
+_reply_cache_bytes = 0
+_control_session = None
+_control_generation = 0
+_control_deadline = None
 _network_state = None
 _reset_pending = False
+
+
+def _execution_active():
+    return _thread_active or _launch_pending or _project_job is not None
+
+
+def _control_state():
+    remaining = (
+        max(0, time.ticks_diff(_control_deadline, time.ticks_ms()))
+        if _control_deadline is not None else 0
+    )
+    return {
+        "sessionId": _control_session if remaining or _execution_active() else None,
+        "generation": _control_generation,
+        "leaseRemainingMs": remaining,
+        "runId": _run_id,
+    }
+
+
+def _validate_epoch(body):
+    if body.get("bootId") != _boot_id:
+        raise ProtocolError("boot_changed", "The XRP restarted; reconnect before this operation")
+    if "runId" in body and (type(body["runId"]) is not int or body["runId"] != _run_id):
+        raise ProtocolError("stale_run", "This request belongs to an earlier run")
+
+
+def _authorize_control(body):
+    _validate_epoch(body)
+    if "runId" not in body:
+        raise ProtocolError("stale_run", "An explicit run identity is required")
+    if _reset_pending:
+        raise ProtocolError("target_restarting", "The XRP is restarting; wait for reconnection")
+    control = _control_state()
+    if (
+        not control["sessionId"]
+        or body.get("sessionId") != control["sessionId"]
+        or type(body.get("controlGeneration")) is not int
+        or body.get("controlGeneration") != _control_generation
+        or control["leaseRemainingMs"] <= 0
+    ):
+        raise ProtocolError("control_required", "Another session controls this XRP; claim control while stopped")
+
+
+def _renew_control(duration_ms=LEASE_MS):
+    global _control_deadline
+    candidate = time.ticks_add(time.ticks_ms(), duration_ms)
+    if _control_deadline is None or time.ticks_diff(candidate, _control_deadline) > 0:
+        _control_deadline = candidate
+
+
+def _query_controls_run(query):
+    try:
+        return (
+            query.get("bootId") == _boot_id
+            and query.get("sessionId") == _control_session
+            and int(query.get("controlGeneration", "0")) == _control_generation
+            and int(query.get("runId", "-1")) == _run_id
+            and _control_state()["leaseRemainingMs"] > 0
+        )
+    except (TypeError, ValueError):
+        return False
 
 
 def _runtime_identity():
@@ -202,6 +271,13 @@ def _packed_telemetry_response(
 ):
     """Frame state metadata, shared diagnostics, then fixed-width rows."""
     metadata = json.dumps(value, separators=(",", ":")).encode("utf-8")
+    # A page with long Unicode live descriptors may leave less space for log
+    # lines. Retain those lines for the next cursor page instead of exceeding
+    # the browser's 64 KiB metadata decoder boundary.
+    while len(metadata) > 60000 and value.get("logs"):
+        value["logs"].pop()
+        value["moreLogs"] = True
+        metadata = json.dumps(value, separators=(",", ":")).encode("utf-8")
     body = (
         PACKED_TELEMETRY_MAGIC
         + struct.pack("<I", len(metadata))
@@ -932,6 +1008,7 @@ async def _launch_project_after_response(
     # project code. Later telemetry polls renew the shorter normal lease; the
     # hardware watchdog remains the faster recovery for an interpreter lock.
     _extend_run_lease(STARTUP_LEASE_MS)
+    _renew_control(STARTUP_LEASE_MS)
     _set_state("running", "Running " + entrypoint)
     if _project_job is not None:
         _thread_active = False
@@ -1012,6 +1089,8 @@ async def _reset_course_run_after_response(run_id):
     import uasyncio
 
     await uasyncio.sleep_ms(LAUNCH_AFTER_RESPONSE_MS)
+    if run_id != _run_id or _reset_pending:
+        return
     if _thread_active and run_id == _run_id:
         from ucsb_xrp._run_control import request_stop
 
@@ -1029,7 +1108,17 @@ async def _reset_course_run_after_response(run_id):
         _set_state("error", "Program did not stop; restarting target service")
         _schedule_reset()
         return
-    _clear_course_run_state()
+    if run_id != _run_id or _reset_pending:
+        return
+    execution_lock = _project_execution_lock
+    if execution_lock is not None:
+        execution_lock.acquire()
+    try:
+        if run_id == _run_id and not _execution_active() and not _reset_pending:
+            _clear_course_run_state()
+    finally:
+        if execution_lock is not None:
+            execution_lock.release()
 
 
 async def _request_stop_after_response(run_id):
@@ -1113,6 +1202,16 @@ def _empty_hardware():
     }
 
 
+def _sample_plot_values(pose):
+    values = None if pose is None else pose.get("plotValues")
+    if values is None:
+        return None
+    return [
+        {"name": name, "label": label, "unit": unit, "value": value}
+        for name, label, unit, value in values
+    ]
+
+
 def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
     """Build one wire sample without reading any device."""
     left_count = (
@@ -1189,6 +1288,7 @@ def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
         "temperatureC": hardware["temperatureC"],
         "batteryV": hardware["batteryV"],
         "sensorError": hardware["sensorError"],
+        "plotValues": _sample_plot_values(pose),
     }
 
 
@@ -1319,6 +1419,23 @@ def _buffered_course_page(after_sample_seq, maximum=None):
     more = maximum is not None and len(snapshots) > maximum
     if more:
         snapshots = snapshots[:maximum]
+    descriptors = set()
+    plot_bytes = 0
+    for index, snapshot in enumerate(snapshots):
+        plots = snapshot.get("plotValues") or ()
+        new_descriptors = set((item[0], item[1], item[2]) for item in plots) - descriptors
+        # Count the actual encoded descriptor bytes once per page. Numeric
+        # pairs have a conservative fixed allowance; values are finite.
+        added = len(plots) * 40 + sum(
+            len(json.dumps({"name": item[0], "label": item[1], "unit": item[2]}).encode("utf-8"))
+            for item in new_descriptors
+        )
+        if index and plot_bytes + added > SAMPLE_PLOT_PAGE_BYTES:
+            snapshots = snapshots[:index]
+            more = True
+            break
+        descriptors.update(new_descriptors)
+        plot_bytes += added
     try:
         from ucsb_xrp._telemetry import hardware_snapshot
 
@@ -1478,7 +1595,7 @@ def _runtime_snapshot_json():
         from ucsb_xrp.live import runtime_snapshot_json
 
         value = runtime_snapshot_json()
-        if not isinstance(value, str) or len(value) > 32768:
+        if not isinstance(value, str) or len(value.encode("utf-8")) > 32768:
             raise ValueError("runtime snapshot is invalid")
         return value
     except Exception:
@@ -1497,6 +1614,7 @@ def _state_result(after_log_seq=0, maximum_logs=None):
         "runId": _run_id,
         "project": _read_manifest(),
         "runtimeJson": _runtime_snapshot_json(),
+        "control": _control_state(),
         "logs": logs,
     }
     if maximum_logs is not None:
@@ -1504,27 +1622,97 @@ def _state_result(after_log_seq=0, maximum_logs=None):
     return value
 
 
-def _remember_reply(request_id, value):
+def _encode_sample_plots(rows):
+    descriptors = []
+    by_identity = {}
+    encoded = []
+    for row in rows:
+        if row is None:
+            encoded.append(None)
+            continue
+        values = []
+        for item in row:
+            key = (item["name"], item["label"], item.get("unit", ""))
+            index = by_identity.get(key)
+            if index is None:
+                index = len(descriptors)
+                by_identity[key] = index
+                descriptors.append({"name": key[0], "label": key[1], "unit": key[2]})
+            values.append([index, item["value"]])
+        encoded.append(values)
+    return descriptors, encoded
+
+
+def _remember_reply(request_id, value, fingerprint=None):
+    global _reply_cache_bytes
     if request_id in _last_reply_by_id:
         return
-    _last_reply_by_id[request_id] = value
+    size = len(json.dumps(value).encode("utf-8"))
+    _last_reply_by_id[request_id] = (fingerprint, value, size)
     _reply_order.append(request_id)
-    while len(_reply_order) > 20:
+    _reply_cache_bytes += size
+    while len(_reply_order) > 20 or (len(_reply_order) > 1 and _reply_cache_bytes > REPLY_CACHE_BYTES):
         old = _reply_order.pop(0)
+        _reply_cache_bytes -= _last_reply_by_id[old][2]
         del _last_reply_by_id[old]
 
 
-def _command(request, operation):
+def _validate_network_project(value):
+    # Worlds are repeated in reconnect/telemetry project identity. Bound them
+    # before compile or staging so a valid upload remains a decodable run.
+    if isinstance(value, dict) and isinstance(value.get("files"), dict):
+        world = value["files"].get("world.json")
+        if isinstance(world, str) and len(world.encode("utf-8")) > MAX_WORLD_BYTES:
+            raise ProtocolError("project_too_large", "world.json exceeds the XRP's 16 KiB limit; simplify the world before running")
+    return validate_project(value)
+
+
+def _request_fingerprint(name, body):
+    digest = hashlib.sha256()
+
+    def visit(value, root=False):
+        if isinstance(value, dict):
+            digest.update(b"{")
+            for key in sorted(value):
+                if root and key == "requestId":
+                    continue
+                visit(key)
+                visit(value[key])
+            digest.update(b"}")
+        elif isinstance(value, list):
+            digest.update(b"[")
+            for item in value:
+                visit(item)
+            digest.update(b"]")
+        else:
+            data = json.dumps(value).encode()
+            digest.update(str(len(data)).encode())
+            digest.update(b":")
+            digest.update(data)
+
+    visit(name)
+    visit(body, root=True)
+    return digest.digest()
+
+
+def _command(request, operation, name=None):
     request_id = None
     try:
         body = request.data if isinstance(request.data, dict) else {}
         request_id = validate_request_id(body.get("requestId"))
+        fingerprint = _request_fingerprint(name or getattr(request, "path", "command"), body)
         previous = _last_reply_by_id.get(request_id)
         if previous is not None:
-            return _json_response(previous)
+            if previous[0] != fingerprint:
+                raise ProtocolError("request_id_reused", "A request ID was reused for a different operation")
+            # Exact retries replay acknowledgement only; they never execute work.
+            if "bootId" in body:
+                if body["bootId"] != _boot_id:
+                    raise ProtocolError("boot_changed", "The XRP restarted; reconnect before retrying")
+            return _json_response(previous[1])
         result = operation(body)
         value = protocol_reply(request_id, result=result)
-        _remember_reply(request_id, value)
+        _remember_reply(request_id, value, fingerprint)
         return _json_response(value)
     except ProtocolError as exc:
         return _error_response(request_id, exc.code, exc.detail)
@@ -1568,12 +1756,16 @@ def info(request):
             "robotId": _robot_id(),
             "recoveryWatchdogMs": SERVICE_WATCHDOG_MS,
             "bootId": _boot_id,
+            "runId": _run_id,
             "robotName": network.hostname(),
             "address": network_state.get("address"),
             "network": public_network_state(network_state),
             "project": _read_manifest(),
             "runtimeJson": _runtime_snapshot_json(),
+            "control": _control_state(),
+            "limits": {"maxRequestBodyBytes": 131072, "maxWorldBytes": MAX_WORLD_BYTES},
             "capabilities": [
+                "control.session-v1",
                 "project.check",
                 "project.prepare",
                 "project.run",
@@ -1597,11 +1789,37 @@ def state(request):
         after = int(request.query.get("afterLogSeq", "0"))
     except ValueError:
         after = 0
-    return _json_response(_state_result(after))
+    return _json_response(_state_result(after, TELEMETRY_LOG_BATCH_LIMIT))
+
+
+@server.route("/api/v1/control", methods=["POST"])
+def claim_control(request):
+    def operation(body):
+        global _control_session, _control_generation
+        _validate_epoch(body)
+        if _reset_pending:
+            raise ProtocolError("target_restarting", "The XRP is restarting")
+        session = body.get("sessionId")
+        if not isinstance(session, str) or not 8 <= len(session) <= 96:
+            raise ProtocolError("invalid_session", "A bounded browser session identity is required")
+        control = _control_state()
+        if control["sessionId"] != session:
+            if _execution_active() or (control["sessionId"] and body.get("takeover") is not True):
+                raise ProtocolError("control_owned", "Another browser controls this XRP; stop it before taking control")
+            _control_generation += 1
+            _control_session = session
+            _clear_telemetry_poll_owner()
+        _renew_control()
+        return {"control": _control_state(), "bootId": _boot_id, "runId": _run_id}
+
+    return _command(request, operation, "control")
 
 
 @server.route("/api/v1/telemetry")
 def telemetry(request):
+    # Admission precedes poll-owner arbitration and any sensor/ring access.
+    if not _query_controls_run(request.query):
+        return _error_response(None, "control_required", "Claim control for this boot and run before requesting telemetry", status=409)
     requested_encoding = request.query.get("sampleEncoding")
     compact_requested = requested_encoding == COMPACT_TELEMETRY_ENCODING
     packed_requested = requested_encoding == PACKED_TELEMETRY_ENCODING
@@ -1636,7 +1854,10 @@ def telemetry(request):
         requested_run = int(request.query.get("runId", "0"))
     except ValueError:
         requested_run = 0
-    if _thread_active and requested_run == _run_id:
+    controlling = _query_controls_run(request.query)
+    if controlling:
+        _renew_control()
+    if _thread_active and requested_run == _run_id and controlling:
         # A successful telemetry request is already proof that the controlling
         # browser is present. Renew the run here instead of requiring a second
         # serialized HTTP request before the next poll or a Stop command.
@@ -1664,6 +1885,7 @@ def telemetry(request):
     )
     compact_rows = None
     compact_shared = None
+    sample_plots = None
     if row_encoding_requested and _thread_active:
         snapshots, hardware, more_samples = _buffered_course_page(
             after_sample, sample_limit
@@ -1676,6 +1898,7 @@ def telemetry(request):
                 _compact_course_telemetry_row(item, hardware)
                 for item in snapshots
             ]
+            sample_plots = [_sample_plot_values(item) for item in snapshots]
             if compact_rows:
                 compact_shared = _compact_telemetry_shared(hardware)
             samples = []
@@ -1734,6 +1957,7 @@ def telemetry(request):
             value["sampleEncoding"] = COMPACT_TELEMETRY_ENCODING
         if compact_rows is None:
             compact_rows = [_compact_telemetry_row(item) for item in samples]
+            sample_plots = [item.get("plotValues") for item in samples]
             if compact_rows:
                 compact_shared = _compact_telemetry_shared(samples[-1])
         if compact_shared is not None and not packed_requested:
@@ -1745,6 +1969,9 @@ def telemetry(request):
                 value["sampleCount"] = len(compact_rows)
         else:
             value["sampleRows"] = compact_rows
+        descriptors, plot_rows = _encode_sample_plots(sample_plots)
+        value["samplePlotDescriptors"] = descriptors
+        value["samplePlots"] = plot_rows
     else:
         value["samples"] = samples
         value["sample"] = sample
@@ -1770,11 +1997,15 @@ def telemetry(request):
 @server.route("/api/v1/check", methods=["POST"])
 def check(request):
     def operation(body):
-        project = validate_project(body.get("project"))
+        _authorize_control(body)
+        if _execution_active():
+            raise ProtocolError("target_busy", "Stop the program before checking another project")
+        project = _validate_network_project(body.get("project"))
         checked = _compile_project(project)
+        _renew_control()
         return {"detail": "{} Python files compiled".format(checked)}
 
-    return _command(request, operation)
+    return _command(request, operation, "check")
 
 
 @server.route("/api/v1/sync", methods=["POST"])
@@ -1785,12 +2016,13 @@ def sync(request):
             "persistent project installation requires USB setup/repair",
         )
 
-    return _command(request, operation)
+    return _command(request, operation, "sync")
 
 
 @server.route("/api/v1/prepare", methods=["POST"])
 def prepare_project(request):
     def operation(body):
+        _authorize_control(body)
         if _thread_active or _launch_pending or _project_job is not None:
             raise ProtocolError("target_busy", "stop the program before preparing")
         execution_lock = _project_execution_lock
@@ -1804,10 +2036,11 @@ def prepare_project(request):
                 raise ProtocolError(
                     "target_busy", "stop the program before preparing"
                 )
-            project = validate_project(body.get("project"))
+            project = _validate_network_project(body.get("project"))
             checked = _compile_project(project)
             manifest = _prepare_ram_project(project)
             _set_state("ready", "Project prepared in RAM")
+            _renew_control()
             return {
                 "detail": "Project prepared in RAM",
                 "checked": checked,
@@ -1817,12 +2050,13 @@ def prepare_project(request):
             if execution_lock is not None:
                 execution_lock.release()
 
-    return _command(request, operation)
+    return _command(request, operation, "prepare_project")
 
 
 @server.route("/api/v1/run", methods=["POST"])
 def run_project(request):
     def operation(body):
+        _authorize_control(body)
         global _run_id, _launch_pending, _lease_deadline
         global _stop_acknowledged_run_id
         global _sample_seq, _sample_epoch_start_ms, _last_sample
@@ -1840,11 +2074,13 @@ def run_project(request):
                 # A changed browser project is compiled, staged, and started
                 # under one execution lock. This avoids a second HTTP request
                 # between Prepare and Run on the single-request XRP service.
-                project = validate_project(requested_project)
+                project = _validate_network_project(requested_project)
                 checked = _compile_project(project)
                 manifest = _prepare_ram_project(project)
             else:
                 manifest = _read_manifest()
+                if manifest and body.get("expectedProjectRevision") != manifest["revision"]:
+                    raise ProtocolError("project_revision_mismatch", "The prepared project changed; send the current project again")
             if manifest is None:
                 raise ProtocolError(
                     "no_project", "prepare a project before running"
@@ -1900,12 +2136,13 @@ def run_project(request):
             if execution_lock is not None:
                 execution_lock.release()
 
-    return _command(request, operation)
+    return _command(request, operation, "run_project")
 
 
 @server.route("/api/v1/parameter", methods=["POST"])
 def set_runtime_parameter(request):
     def operation(body):
+        _authorize_control(body)
         if not _thread_active:
             raise ProtocolError("target_idle", "start a program before changing parameters")
         from ucsb_xrp.live import queue_update, runtime_snapshot_json
@@ -1916,23 +2153,26 @@ def set_runtime_parameter(request):
             raise ProtocolError("invalid_parameter", str(exc))
         return {"runtimeJson": runtime_snapshot_json()}
 
-    return _command(request, operation)
+    return _command(request, operation, "set_runtime_parameter")
 
 
 @server.route("/api/v1/lease", methods=["POST"])
 def renew_lease(request):
     def operation(body):
+        _authorize_control(body)
         requested_run = body.get("runId")
         if _thread_active and requested_run == _run_id:
             _extend_run_lease(LEASE_MS)
+        _renew_control()
         return {"state": _state, "runId": _run_id}
 
-    return _command(request, operation)
+    return _command(request, operation, "renew_lease")
 
 
 @server.route("/api/v1/stop", methods=["POST"])
 def stop(request):
     def operation(body):
+        _validate_epoch(body)
         global _launch_pending, _lease_deadline
         _launch_pending = False
         _lease_deadline = None
@@ -1944,12 +2184,13 @@ def stop(request):
         _set_state("ready", "Program already stopped")
         return {"detail": "Program already stopped", "reconnecting": False}
 
-    return _command(request, operation)
+    return _command(request, operation, "stop")
 
 
 @server.route("/api/v1/reset", methods=["POST"])
 def reset(request):
     def operation(body):
+        _authorize_control(body)
         global _launch_pending, _lease_deadline
         _launch_pending = False
         _lease_deadline = None
@@ -1963,7 +2204,7 @@ def reset(request):
         _clear_course_run_state()
         return {"detail": "Program state reset", "reconnecting": False}
 
-    return _command(request, operation)
+    return _command(request, operation, "reset")
 
 
 @server.catchall()
@@ -2126,4 +2367,7 @@ def run(watchdog=None, network_activation=None):
     server.loop.create_task(_feed_service_watchdog(watchdog))
     server.loop.create_task(_watch_run_lease())
     server.loop.create_task(_confirm_runtime_after_server_start())
+    from .http_admission import install as install_http_admission
+
+    install_http_admission(server)
     server.run(host="0.0.0.0", port=80)

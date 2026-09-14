@@ -13,12 +13,28 @@ const starters = [
   { option: "challenge_5", completion: "Challenge 5: result=delivered" },
 ];
 
-async function createTemplateProject(page: Page, templateId: string) {
+async function useReadOnlyPreview(page: Page) {
+  const firstProject = page.getByRole("dialog", {
+    name: "Create your first Project",
+  });
+  await expect(firstProject).toBeVisible();
+  await firstProject
+    .getByRole("button", { name: "Use read-only preview", exact: true })
+    .click();
+  await expect(firstProject).toHaveCount(0);
+}
+
+async function createTemplateProject(
+  page: Page,
+  templateId: string,
+  name?: string,
+) {
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption(templateId);
   await expect(
     page.getByRole("heading", { name: "New project" }),
   ).toBeVisible();
+  if (name) await page.getByLabel("Name", { exact: true }).fill(name);
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByRole("heading", { name: "New project" })).toHaveCount(
     0,
@@ -49,6 +65,7 @@ test("reveals complete challenge demonstrations only when requested on Home", as
   await expect(completeChallenges).not.toBeChecked();
 
   await page.goto("/ide/");
+  await useReadOnlyPreview(page);
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await expect(
     page.locator('option[value="complete_challenge_1"]'),
@@ -58,6 +75,7 @@ test("reveals complete challenge demonstrations only when requested on Home", as
   await page.goto("/");
   await page.getByLabel("complete challenges").check();
   await page.goto("/ide/");
+  await useReadOnlyPreview(page);
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await expect(
     page.locator('optgroup[label="Complete challenge demonstrations"]'),
@@ -153,6 +171,7 @@ test("creates the selected Project when its Working folder is chosen", async ({
     });
   });
   await page.goto("/ide/");
+  await useReadOnlyPreview(page);
 
   await page.getByRole("button", { name: "New project…", exact: true }).click();
   await page.getByLabel("Project template").selectOption("demo_spiral");
@@ -319,6 +338,10 @@ test("holds Virtual Run during the first isolated production refresh", async ({
     "title",
     /preparing the Virtual XRP.*refreshes once automatically/i,
   );
+  // End these deliberately non-isolated clients before disposing the context;
+  // their first service-worker installation can still be preparing a reload.
+  await ide.close();
+  await page.close();
 });
 
 test("runs with declared live defaults if isolation disappears", async ({
@@ -825,7 +848,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
     "Virtual XRP · ready",
   );
 
-  await createTemplateProject(ide, "demo_spiral");
+  await createTemplateProject(ide, "demo_spiral", "Spiral-Live-Controls");
   await ide.getByRole("button", { name: "Compile" }).click();
   await expect(ide.getByTestId("check-result")).toContainText(
     "compiled successfully",

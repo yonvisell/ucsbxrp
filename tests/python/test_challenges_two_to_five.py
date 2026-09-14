@@ -1,3 +1,4 @@
+import json
 import math
 import pathlib
 import sys
@@ -39,6 +40,7 @@ from ucsb_xrp_reference import (  # noqa: E402
 )
 from ucsb_xrp._telemetry import clear_state, state_snapshot  # noqa: E402
 from ucsb_xrp import _telemetry as course_telemetry  # noqa: E402
+from ucsb_xrp import live  # noqa: E402
 from ucsb_xrp.robot import _set_managed_start  # noqa: E402
 
 
@@ -299,19 +301,28 @@ class RobotAndMissionTests(unittest.TestCase):
         bridge = BrowserBridge()
         original_publisher = course_telemetry._publish_browser_state
         course_telemetry._publish_browser_state = bridge.publish_course_state
+        live.clear()
         try:
             robot, _bot = self.make_robot()
             robot.start(Pose(0, 0, 0))
+            live.plot("sample_counter", 37, label="Sample counter", unit="sample")
             robot.step(MotionCommand(100, 0))
+            live.plot("sample_counter", 99, label="Sample counter", unit="sample")
         finally:
             course_telemetry._publish_browser_state = original_publisher
+            live.clear()
 
         published = bridge.calls[-1]
         self.assertEqual(published[:3], (10, 0, 0))
         self.assertAlmostEqual(published[3], 100.0)
         self.assertAlmostEqual(published[4], 100.0)
         self.assertEqual(published[5:7], (10.0, 10.0))
-        self.assertEqual(published[7:], (100, 0, 100.0, 100.0))
+        self.assertEqual(published[7:11], (100, 0, 100.0, 100.0))
+        self.assertEqual(len(published), 12)
+        self.assertEqual(
+            json.loads(published[11]),
+            [{"name": "sample_counter", "label": "Sample counter", "unit": "sample", "value": 37}],
+        )
 
     def test_robot_uses_absolute_wrap_safe_sample_deadlines(self):
         config = RobotConfig(sample_period_ms=20, max_drive_command=0.5)
