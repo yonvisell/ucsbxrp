@@ -2558,18 +2558,24 @@ export function DashboardApp() {
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (
-        !runStartingRef.current &&
-        !runDatasetController.isActive &&
-        !isActiveRunState(targetStateRef.current) &&
-        !exportActiveRef.current &&
-        runArchiveCountRef.current === 0 &&
-        retainedRunArchivesRef.current.size === 0 &&
-        annotationDraftIdsRef.current.size === 0 &&
-        pendingRunNotesRef.current.size === 0 &&
-        (!runDatasetController.latest || latestRunFolderRef.current)
-      )
-        return;
+      const needsProtection =
+        runStartingRef.current ||
+        runDatasetController.isActive ||
+        isActiveRunState(targetStateRef.current) ||
+        exportActiveRef.current ||
+        runArchiveCountRef.current > 0 ||
+        retainedRunArchivesRef.current.size > 0 ||
+        annotationDraftIdsRef.current.size > 0 ||
+        pendingRunNotesRef.current.size > 0 ||
+        (runDatasetController.latest && !latestRunFolderRef.current);
+      if (runStartingRef.current) {
+        // A folder read may precede target.run(), so cancel that local work too.
+        runPreflightEpochRef.current += 1;
+        runStartingRef.current = false;
+        setRunStarting(false);
+        setTargetDetail("Run preparation cancelled. Use Run to start again.");
+      }
+      if (!needsProtection) return;
       event.preventDefault();
       event.returnValue = "";
     };

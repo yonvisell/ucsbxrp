@@ -51,6 +51,11 @@ adds these cross-application constraints:
   Stop can interrupt pending Run preparation. The robot service checks boot,
   control-session, and generation identity before state-changing operations;
   observers may read status and request Stop. Takeover requires a stopped robot.
+- An attempted page departure stops only work owned or being prepared by that
+  departing controller. Target subscriptions remain connected while the browser
+  asks whether to leave, so choosing Stay preserves completion events, recording
+  and subsequent commands. Actual page departure releases the client; physical
+  browser-history suspension and restoration retain their separate lifecycle.
 - Run boundaries carry stable run/project/revision identity independently of
   bounded console output. Monitor binds archives to that source capability,
   deduplicates on disk, and finds the matching retained run before editing
@@ -446,8 +451,8 @@ The UI depends only on this interface. Target-specific details—workers for the
 virtual XRP and a single shared HTTP poller for the physical XRP—stay inside
 their clients. A physical-target `SharedWorker` serializes the device
 connection and broadcasts status and output to IDE and Monitor. Monitor ports
-also receive live telemetry and retained history in ordered batches; IDE ports
-do not receive the high-rate telemetry stream they do not display. Tests and
+also receive live telemetry and retained history in ordered batches. IDE
+recorders subscribe to this stream independently of visible plots. Tests and
 browsers without `SharedWorker` use the same direct client as a fallback. Only
 failure to construct the browser worker selects that fallback; a robot
 discovery error is returned without opening a duplicate connection.

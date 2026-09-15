@@ -189,7 +189,15 @@ export class VirtualTargetClient implements TargetClient {
     if (!event.persisted) this.disconnect();
   };
 
-  private readonly releaseOnBeforeUnload = (): void => this.disconnect();
+  private readonly stopOnBeforeUnload = (): void => {
+    // beforeunload is only an attempted departure: choosing Stay must retain
+    // this port, its Project provider, and terminal/recording events.
+    this.operationEpoch += 1;
+    this.terminateRuntime();
+    this.worker?.port.postMessage({
+      type: "stop-owned-run",
+    } satisfies TargetWorkerCommand);
+  };
 
   private observePageLifecycle(): void {
     if (
@@ -199,7 +207,7 @@ export class VirtualTargetClient implements TargetClient {
     )
       return;
     window.addEventListener("pagehide", this.releaseOnPageHide);
-    window.addEventListener("beforeunload", this.releaseOnBeforeUnload);
+    window.addEventListener("beforeunload", this.stopOnBeforeUnload);
     this.pageLifecycleObserved = true;
   }
 
@@ -211,7 +219,7 @@ export class VirtualTargetClient implements TargetClient {
     )
       return;
     window.removeEventListener("pagehide", this.releaseOnPageHide);
-    window.removeEventListener("beforeunload", this.releaseOnBeforeUnload);
+    window.removeEventListener("beforeunload", this.stopOnBeforeUnload);
     this.pageLifecycleObserved = false;
   }
 

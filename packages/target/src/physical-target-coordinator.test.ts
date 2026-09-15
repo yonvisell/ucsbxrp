@@ -1942,4 +1942,169 @@ describe("physical target coordinator", () => {
     await vi.waitFor(() => expect(target.stopCalls).toBe(1));
     expect(target.runCalls).toBe(0);
   });
+
+  it("keeps Stay connected and stops only the initiating port's physical run", async () => {
+    const target = new FakePhysicalTarget("http://robot-a");
+    const coordinator = new PhysicalTargetCoordinator(() => target);
+    const owner = new FakePort(),
+      observer = new FakePort();
+    coordinator.attach(owner);
+    coordinator.attach(observer);
+    await connectPeer(coordinator, owner, target.endpoint);
+    await connectPeer(coordinator, observer, target.endpoint);
+    coordinator.handle(owner, { type: "run", requestId: "first-run", project });
+    await vi.waitFor(() =>
+      expect(responses(owner, "first-run")[0]).toMatchObject({ ok: true }),
+    );
+    coordinator.handle(observer, { type: "stop-owned-run" });
+    await Promise.resolve();
+    expect(target.stopCalls).toBe(0);
+    target.emit({ type: "telemetry", sample: telemetry(17) });
+    await Promise.resolve();
+    expect(events(observer, "telemetry").at(-1)).toMatchObject({
+      sample: { seq: 17 },
+    });
+
+    coordinator.handle(owner, { type: "stop-owned-run" });
+    await vi.waitFor(() => expect(target.stopCalls).toBe(1));
+    expect(owner.closed).toBe(false);
+    expect(observer.closed).toBe(false);
+    expect(target.disconnectCalls).toBe(0);
+    expect(events(owner, "status").at(-1)).toMatchObject({ state: "ready" });
+    expect(events(observer, "status").at(-1)).toMatchObject({ state: "ready" });
+    coordinator.handle(owner, {
+      type: "run",
+      requestId: "second-run",
+      project,
+    });
+    await vi.waitFor(() =>
+      expect(responses(owner, "second-run")[0]).toMatchObject({ ok: true }),
+    );
+    expect(target.runCalls).toBe(2);
+  });
+
+  it("cancels a held physical Run snapshot despite intervening idle status and keeps its provider available", async () => {
+    const target = new FakePhysicalTarget("http://robot-a");
+    const coordinator = new PhysicalTargetCoordinator(() => target);
+    const provider = new FakePort(),
+      owner = new FakePort();
+    coordinator.attach(provider);
+    coordinator.attach(owner);
+    await connectPeer(coordinator, provider, target.endpoint);
+    await connectPeer(coordinator, owner, target.endpoint);
+    coordinator.handle(provider, {
+      type: "set-project-run-provider",
+      providesProject: true,
+    });
+    coordinator.handle(owner, { type: "run-current", requestId: "held-run" });
+    await vi.waitFor(() =>
+      expect(
+        provider.messages.some(
+          (message) => message.type === "project-run-snapshot-request",
+        ),
+      ).toBe(true),
+    );
+    const request = provider.messages.find(
+      (message) => message.type === "project-run-snapshot-request",
+    )!;
+    if (request.type !== "project-run-snapshot-request")
+      throw new Error("Expected snapshot request");
+    target.emit({
+      type: "status",
+      state: "ready",
+      detail: "Still idle while reading Project",
+    });
+    coordinator.handle(owner, { type: "stop-owned-run" });
+    await vi.waitFor(() =>
+      expect(responses(owner, "held-run")[0]).toMatchObject({
+        ok: false,
+        errorCode: "operation_cancelled",
+      }),
+    );
+    coordinator.handle(provider, {
+      type: "project-run-snapshot",
+      requestId: request.requestId,
+      snapshot: { projectId: "project-a", revision: 1, project },
+    });
+    await vi.waitFor(() => expect(target.stopCalls).toBe(1));
+    expect(target.runCalls).toBe(0);
+    expect(provider.closed).toBe(false);
+    expect(owner.closed).toBe(false);
+    coordinator.handle(owner, { type: "run", requestId: "next-run", project });
+    await vi.waitFor(() =>
+      expect(responses(owner, "next-run")[0]).toMatchObject({ ok: true }),
+    );
+    expect(target.runCalls).toBe(1);
+  });
+
+  it("cancels a queued departing Run without stopping an unrelated active run", async () => {
+    const target = new FakePhysicalTarget("http://robot-a");
+    const coordinator = new PhysicalTargetCoordinator(() => target);
+    const owner = new FakePort(),
+      observer = new FakePort();
+    coordinator.attach(owner);
+    coordinator.attach(observer);
+    await connectPeer(coordinator, owner, target.endpoint);
+    await connectPeer(coordinator, observer, target.endpoint);
+    coordinator.handle(owner, { type: "run", requestId: "owner-run", project });
+    await vi.waitFor(() =>
+      expect(responses(owner, "owner-run")).toHaveLength(1),
+    );
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    target.check = vi.fn(async () => {
+      await gate;
+      return { ok: true, detail: "checked" };
+    });
+    coordinator.handle(observer, {
+      type: "check",
+      requestId: "check",
+      project,
+    });
+    await vi.waitFor(() => expect(target.check).toHaveBeenCalledOnce());
+    coordinator.handle(observer, {
+      type: "run",
+      requestId: "queued-observer-run",
+      project,
+    });
+    coordinator.handle(observer, { type: "stop-owned-run" });
+    release();
+    await vi.waitFor(() =>
+      expect(responses(observer, "queued-observer-run")[0]).toMatchObject({
+        ok: false,
+        errorCode: "operation_cancelled",
+      }),
+    );
+    expect(target.stopCalls).toBe(0);
+    expect(target.runCalls).toBe(1);
+    expect(target.running).toBe(true);
+  });
+
+  it("lets an admitted departure Stop settle before releasing the last physical session", async () => {
+    const target = new FakePhysicalTarget("http://robot-a");
+    const coordinator = new PhysicalTargetCoordinator(() => target);
+    const owner = new FakePort();
+    coordinator.attach(owner);
+    await connectPeer(coordinator, owner, target.endpoint);
+    coordinator.handle(owner, { type: "run", requestId: "run", project });
+    await vi.waitFor(() => expect(responses(owner, "run")).toHaveLength(1));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    target.stop = vi.fn(async () => {
+      await gate;
+      target.running = false;
+      target.emit({ type: "status", state: "ready", detail: "Stopped" });
+    });
+    coordinator.handle(owner, { type: "stop-owned-run" });
+    coordinator.handle(owner, { type: "disconnect" });
+    await vi.waitFor(() => expect(target.stop).toHaveBeenCalledOnce());
+    expect(target.disconnectCalls).toBe(0);
+    release();
+    await vi.waitFor(() => expect(target.disconnectCalls).toBe(1));
+    expect(target.running).toBe(false);
+  });
 });

@@ -1057,6 +1057,14 @@ export function GuideApp() {
               identities require a new saved Project copy before automatic run
               archiving.
             </p>
+            <p>
+              If the browser asks whether to leave, choose <strong>Stay</strong>{" "}
+              to keep the page and its unsaved work open. Attempting to leave
+              the window where you started Run cancels its preparation or stops
+              its program. Wait for its run data to save, then use{" "}
+              <strong>Run</strong> again when ready. Leaving an observing
+              Monitor does not stop another window&apos;s program.
+            </p>
             <h3>Run data has not saved</h3>
             <p>
               Keep the page open. Wait while saving is in progress; if it fails,

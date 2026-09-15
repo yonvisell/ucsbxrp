@@ -45,6 +45,7 @@ type RuntimeOutcome =
   | "compile-error";
 
 class FakeRuntimeWorker {
+  static instances: FakeRuntimeWorker[] = [];
   static nextOutcome: RuntimeOutcome = "complete";
   static completedRuns = 0;
   static runProjects: CourseProject[] = [];
@@ -56,6 +57,10 @@ class FakeRuntimeWorker {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   terminated = false;
+
+  constructor() {
+    FakeRuntimeWorker.instances.push(this);
+  }
 
   postMessage(request: {
     mode: "check" | "test" | "run";
@@ -142,7 +147,7 @@ class FakeRuntimeWorker {
     this.terminated = true;
   }
 
-  private emit(data: unknown): void {
+  emit(data: unknown): void {
     this.onmessage?.({ data } as MessageEvent);
   }
 }
@@ -158,6 +163,7 @@ describe("virtual target shared session", () => {
     vi.useFakeTimers();
     vi.resetModules();
     FakeRuntimeWorker.nextOutcome = "complete";
+    FakeRuntimeWorker.instances = [];
     FakeRuntimeWorker.completedRuns = 0;
     FakeRuntimeWorker.runProjects = [];
     FakeRuntimeWorker.cancellationBuffers = [];
@@ -1019,5 +1025,142 @@ describe("virtual target shared session", () => {
     expect(FakeRuntimeWorker.runProjects).toHaveLength(0);
     ide.disconnect();
     monitor.disconnect();
+  });
+
+  it("stops the departing virtual owner but keeps Stay connected for terminal data and the next Run", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ownerWindow = new EventTarget();
+    vi.stubGlobal("window", ownerWindow);
+    vi.stubGlobal("crossOriginIsolated", true);
+    const owner = new VirtualTargetClient();
+    owner.setTelemetryEnabled(true);
+    owner.setProjectRunProvider(() => ({
+      projectId: "stay-project",
+      revision: 1,
+      project,
+    }));
+    const observed: TargetEvent[] = [];
+    owner.subscribe((event) => observed.push(event));
+    await owner.connect();
+    await owner.markProjectStale(project, "stay-project");
+    FakeRuntimeWorker.nextOutcome = "pending";
+    await owner.runCurrent();
+    const runtime = FakeRuntimeWorker.instances.at(-1)!;
+    expect(runtime.terminated).toBe(false);
+    expect(Atomics.load(FakeRuntimeWorker.cancellationBuffers[0]!, 0)).toBe(0);
+
+    ownerWindow.addEventListener("beforeunload", (event) =>
+      event.preventDefault(),
+    );
+    expect(
+      ownerWindow.dispatchEvent(
+        new Event("beforeunload", { cancelable: true }),
+      ),
+    ).toBe(false);
+    expect(runtime.terminated).toBe(true);
+    expect(Atomics.load(FakeRuntimeWorker.cancellationBuffers[0]!, 0)).toBe(1);
+    expect(
+      observed.filter((event) => event.type === "status").at(-1),
+    ).toMatchObject({ state: "ready" });
+    expect(
+      observed.filter((event) => event.type === "run").at(-1),
+    ).toMatchObject({ phase: "end" });
+    expect(
+      observed.filter((event) => event.type === "telemetry").at(-1),
+    ).toMatchObject({ sample: { leftEffort: 0, rightEffort: 0 } });
+
+    await owner.runCurrent();
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(2);
+    expect(
+      observed.filter((event) => event.type === "run" && event.phase === "end"),
+    ).toHaveLength(2);
+    const pageHide = new Event("pagehide");
+    Object.defineProperty(pageHide, "persisted", { value: false });
+    ownerWindow.dispatchEvent(pageHide);
+    await expect(owner.runCurrent()).rejects.toThrow("not connected");
+    owner.disconnect();
+  });
+
+  it("keeps a provider or observer subscribed without stopping a Monitor-owned runtime on Stay", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const providerWindow = new EventTarget(),
+      monitorWindow = new EventTarget();
+    vi.stubGlobal("window", providerWindow);
+    const provider = new VirtualTargetClient();
+    const providerEvents: TargetEvent[] = [];
+    provider.subscribe((event) => providerEvents.push(event));
+    provider.setProjectRunProvider(() => ({
+      projectId: "monitor-owned",
+      revision: 1,
+      project,
+    }));
+    await provider.connect();
+    await provider.markProjectStale(project, "monitor-owned");
+    vi.stubGlobal("window", monitorWindow);
+    const monitor = new VirtualTargetClient();
+    const monitorEvents: TargetEvent[] = [];
+    monitor.subscribe((event) => monitorEvents.push(event));
+    await monitor.connect();
+    FakeRuntimeWorker.nextOutcome = "pending";
+    await monitor.runCurrent();
+    const runtime = FakeRuntimeWorker.instances.at(-1)!;
+
+    providerWindow.dispatchEvent(
+      new Event("beforeunload", { cancelable: true }),
+    );
+    expect(runtime.terminated).toBe(false);
+    runtime.emit({
+      type: "console",
+      stream: "stdout",
+      line: "received after Stay",
+    });
+    expect(
+      providerEvents.filter((event) => event.type === "console").at(-1),
+    ).toMatchObject({ line: "received after Stay" });
+    expect(
+      monitorEvents.filter((event) => event.type === "status").at(-1),
+    ).toMatchObject({ state: "running" });
+    await monitor.stop();
+    expect(
+      providerEvents.filter((event) => event.type === "run").at(-1),
+    ).toMatchObject({ phase: "end" });
+    await monitor.runCurrent();
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(2);
+    monitor.disconnect();
+    vi.stubGlobal("window", providerWindow);
+    provider.disconnect();
+  });
+
+  it("cancels a departing owner's pending snapshot without detaching or starting its late reply", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ownerWindow = new EventTarget();
+    vi.stubGlobal("window", ownerWindow);
+    const owner = new VirtualTargetClient();
+    let release!: (value: {
+      projectId: string;
+      revision: number;
+      project: CourseProject;
+    }) => void;
+    const snapshot = new Promise<{
+      projectId: string;
+      revision: number;
+      project: CourseProject;
+    }>((resolve) => {
+      release = resolve;
+    });
+    owner.setProjectRunProvider(() => snapshot);
+    await owner.connect();
+    await owner.markProjectStale(project, "pending-stay");
+    const start = owner.runCurrent();
+    const cancelled = expect(start).rejects.toThrow(/cancelled/i);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    ownerWindow.dispatchEvent(new Event("beforeunload", { cancelable: true }));
+    await cancelled;
+    release({ projectId: "pending-stay", revision: 1, project });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(0);
+    await owner.runCurrent();
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(1);
+    owner.disconnect();
   });
 });

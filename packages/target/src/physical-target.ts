@@ -3066,6 +3066,10 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly directPollOwnerId = `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   private projectRunProvider: ProjectRunProvider | null = null;
   private telemetryEnabled = false;
+  private directRunAttempt: { pending: boolean } | null = null;
+  private directState: TargetRunState = "disconnected";
+  private directControlOwned = true;
+  private directDepartureStop: Promise<void> | null = null;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -3082,7 +3086,8 @@ export class PhysicalTargetClient implements TargetClient {
 
   async connect(): Promise<void> {
     this.observePageLifecycle();
-    if (this.directMode) {
+    if (this.directMode || this.direct) {
+      if (this.directDepartureStop) await this.directDepartureStop;
       if (this.direct) {
         await this.direct.connect();
         this.startVisiblePollDriver();
@@ -3168,7 +3173,7 @@ export class PhysicalTargetClient implements TargetClient {
     this.stopVisiblePollDriver();
     this.stopObservingPageLifecycle();
     if (this.direct) {
-      this.direct.disconnect();
+      this.releaseDirectAfterDeparture();
       return;
     }
     this.releaseWorker("Physical target disconnected");
@@ -3195,7 +3200,7 @@ export class PhysicalTargetClient implements TargetClient {
 
   async run(project: CourseProject, projectId?: string): Promise<void> {
     if (this.direct) {
-      await this.direct.run(project, projectId);
+      await this.runDirect(() => this.direct!.run(project, projectId));
       return;
     }
     await this.request({
@@ -3207,7 +3212,7 @@ export class PhysicalTargetClient implements TargetClient {
 
   async runCurrent(): Promise<void> {
     if (this.direct) {
-      await this.direct.runCurrent();
+      await this.runDirect(() => this.direct!.runCurrent());
       return;
     }
     await this.request({ type: "run-current" });
@@ -3305,6 +3310,37 @@ export class PhysicalTargetClient implements TargetClient {
   subscribe(listener: (event: TargetEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  private async runDirect(work: () => Promise<void>): Promise<void> {
+    const attempt =
+      this.directState === "running" || this.directState === "loading"
+        ? null
+        : { pending: true };
+    if (attempt) this.directRunAttempt = attempt;
+    try {
+      await work();
+    } finally {
+      if (attempt) {
+        attempt.pending = false;
+        if (this.directRunAttempt === attempt && this.directState === "ready")
+          this.directRunAttempt = null;
+      }
+    }
+  }
+
+  private releaseDirectAfterDeparture(): void {
+    const direct = this.direct;
+    if (!direct) return;
+    this.stopOnBeforeUnload();
+    if (this.directDepartureStop) {
+      // Keep an already requested Stop alive until its bounded completion.
+      // A departing document cannot guarantee delivery; the device lease is
+      // still the fallback when the browser terminates the entire context.
+      void this.directDepartureStop.then(() => direct.disconnect());
+    } else {
+      direct.disconnect();
+    }
   }
 
   private useDirectClient(): DirectPhysicalTargetClient {
@@ -3566,14 +3602,34 @@ export class PhysicalTargetClient implements TargetClient {
     // keep polling the single-threaded XRP service behind the visible page.
     // Keep the lifecycle listeners so pageshow can establish a fresh port.
     this.pageCacheSuspended = true;
+    this.stopVisiblePollDriver();
     if (this.direct) {
-      this.direct.disconnect();
+      this.releaseDirectAfterDeparture();
     } else {
       this.releaseWorker("Physical target suspended in browser history");
     }
   };
 
-  private readonly releaseOnBeforeUnload = (): void => this.disconnect();
+  private readonly stopOnBeforeUnload = (): void => {
+    if (this.direct) {
+      if (!this.directRunAttempt || this.directDepartureStop) return;
+      if (!this.directControlOwned) {
+        if (this.directRunAttempt.pending)
+          this.direct.interruptPendingCommands();
+        return;
+      }
+      this.directDepartureStop = this.direct
+        .stop()
+        .catch(() => undefined) // The direct target publishes its bounded error.
+        .finally(() => {
+          this.directDepartureStop = null;
+        });
+      return;
+    }
+    this.worker?.port.postMessage({
+      type: "stop-owned-run",
+    } satisfies PhysicalWorkerCommand);
+  };
 
   private readonly resumeOnPageShow = (event: PageTransitionEvent): void => {
     if (!event.persisted) return;
@@ -3681,7 +3737,7 @@ export class PhysicalTargetClient implements TargetClient {
     )
       return;
     window.addEventListener("pagehide", this.releaseOnPageHide);
-    window.addEventListener("beforeunload", this.releaseOnBeforeUnload);
+    window.addEventListener("beforeunload", this.stopOnBeforeUnload);
     window.addEventListener("pageshow", this.resumeOnPageShow);
     window.addEventListener("online", this.resumeOnOnline);
     window.addEventListener("focus", this.resumeOnFocus);
@@ -3706,7 +3762,7 @@ export class PhysicalTargetClient implements TargetClient {
     )
       return;
     window.removeEventListener("pagehide", this.releaseOnPageHide);
-    window.removeEventListener("beforeunload", this.releaseOnBeforeUnload);
+    window.removeEventListener("beforeunload", this.stopOnBeforeUnload);
     window.removeEventListener("pageshow", this.resumeOnPageShow);
     window.removeEventListener("online", this.resumeOnOnline);
     window.removeEventListener("focus", this.resumeOnFocus);
@@ -3731,6 +3787,19 @@ export class PhysicalTargetClient implements TargetClient {
   }
 
   private emit(event: TargetEvent): void {
+    if (this.direct) {
+      if (event.type === "status") {
+        this.directState = event.state;
+        if (event.state === "ready" && !this.directRunAttempt?.pending)
+          this.directRunAttempt = null;
+      } else if (event.type === "run" && event.phase === "end") {
+        this.directRunAttempt = null;
+      } else if (event.type === "control") {
+        this.directControlOwned = event.owned;
+        if (!event.owned && !this.directRunAttempt?.pending)
+          this.directRunAttempt = null;
+      }
+    }
     if (event.type === "console" && event.eventId) {
       if (this.seenConsoleEventIds.has(event.eventId)) {
         return;

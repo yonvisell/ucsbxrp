@@ -29,6 +29,7 @@ export type PhysicalWorkerCommand =
       role?: TargetWorkerRole;
     }
   | { type: "disconnect" }
+  | { type: "stop-owned-run" }
   | {
       type: "set-project-run-provider";
       providesProject: boolean;

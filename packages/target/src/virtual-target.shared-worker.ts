@@ -571,6 +571,15 @@ function handleRuntimeMessage(
 }
 
 function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
+  if (command.type === "stop-owned-run") {
+    if (pendingRunOwner === port || runOwnerLease.ownsPort(port)) {
+      handleCommand(port, {
+        type: "stop",
+        requestId: `departure-${operationEpoch}-${activeRunId}`,
+      });
+    }
+    return;
+  }
   if (command.type === "disconnect") {
     if (pendingRunOwner === port) {
       operationEpoch += 1;

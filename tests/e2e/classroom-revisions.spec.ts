@@ -27,6 +27,7 @@ test("first-use creation checks numbered names, runs, saves, and reopens", async
   const start = performance.now();
   await page.goto("/workspace/?mode=ide");
   const ide = page.frameLocator('iframe[title="UCSBXRP IDE"]');
+  const monitor = page.frameLocator('iframe[title="UCSBXRP Monitor"]');
   const dialog = ide.getByRole("dialog", { name: "Create your first Project" });
   await expect(dialog).toBeVisible();
   const firstDialogMs = performance.now() - start;
@@ -48,13 +49,21 @@ test("first-use creation checks numbered names, runs, saves, and reopens", async
   const creationToReadyMs = performance.now() - creationStartedAt;
   await ide.getByRole("button", { name: "Run", exact: true }).click();
   await expect(ide.getByTestId("target-status")).toContainText("running");
+  await expect(monitor.getByTestId("target-status")).toContainText("running");
   const stop = performance.now();
   await ide.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(ide.getByTestId("target-status")).toContainText("ready");
   const stopLatencyMs = performance.now() - stop;
   await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
-  // IDE-only workspace mode does not expose Monitor's run-status controls.
-  // Check the actual source and any native writes before ordinary navigation.
+  // Both frames record the run, including the Monitor hidden in IDE-only mode.
+  // Its Run command becomes available again after its retained archive settles.
+  await expect(ide.getByTestId("ide-run-save-state")).toHaveText("Run saved");
+  await expect(monitor.getByTestId("target-status")).toContainText("ready");
+  await expect(monitor.locator(".monitor-run-button")).toBeEnabled();
+  await expect(monitor.locator(".monitor-run-button")).toHaveAttribute(
+    "aria-label",
+    "Run",
+  );
   await expect
     .poll(async () =>
       page.evaluate(async () => {

@@ -51,6 +51,7 @@ export type TargetWorkerCommand =
       role?: TargetWorkerRole;
     }
   | { type: "disconnect" }
+  | { type: "stop-owned-run" }
   | { type: "set-role"; role: TargetWorkerRole }
   | { type: "reserve-run"; requestId: string }
   | { type: "cancel-run"; requestId: string; operationEpoch: number }

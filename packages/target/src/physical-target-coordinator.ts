@@ -64,6 +64,10 @@ function errorCode(error: unknown): string | undefined {
 class PhysicalTargetSession {
   private readonly ports = new Set<PhysicalWorkerPort>();
   private readonly roles = new Map<PhysicalWorkerPort, TargetWorkerRole>();
+  private readonly departureEpochs = new Map<PhysicalWorkerPort, number>();
+  private runInitiator: PhysicalWorkerPort | null = null;
+  private runInitiatorStarting = false;
+  private departureStop: Promise<void> | null = null;
   private readonly deliveredConsoleIds = new Map<
     PhysicalWorkerPort,
     { ids: Set<string>; order: string[] }
@@ -118,6 +122,7 @@ class PhysicalTargetSession {
     private readonly makeTarget: PhysicalTargetFactory,
     endpoints: readonly string[],
     robotId?: string,
+    private readonly onEmpty: () => void = () => undefined,
   ) {
     this.bindingEndpoints = endpoints;
     this.bindingRobotId = robotId?.trim().toLowerCase() || null;
@@ -137,12 +142,29 @@ class PhysicalTargetSession {
 
   attach(port: PhysicalWorkerPort): void {
     this.ports.add(port);
+    this.departureEpochs.set(port, 0);
     this.deliveredConsoleIds.set(port, { ids: new Set(), order: [] });
     this.deliveredTelemetry.set(port, new WeakSet());
     this.sendProjectProviderState(port);
   }
 
   handle(port: PhysicalWorkerPort, command: PhysicalWorkerCommand): void {
+    let stoppingForDeparture = false;
+    if (command.type === "stop-owned-run") {
+      this.departureEpochs.set(port, (this.departureEpochs.get(port) ?? 0) + 1);
+      if (this.runInitiator !== port || this.departureStop) return;
+      if (this.latestControl?.type === "control" && !this.latestControl.owned) {
+        this.projectRunProvider.cancelPending();
+        if (this.runInitiatorStarting)
+          this.target?.interruptPendingCommands?.();
+        return;
+      }
+      // Authority belongs to the port that initiated this run, not every port
+      // sharing the browser's device control session. Keep the admitted Stop
+      // alive even if that window actually departs before its response.
+      stoppingForDeparture = true;
+      command = { type: "stop", requestId: `departure-${++this.nextCommand}` };
+    }
     if (command.type === "set-role") {
       if (this.roles.get(port) !== command.role) {
         this.pendingLiveTelemetry.delete(port);
@@ -216,6 +238,7 @@ class PhysicalTargetSession {
       this.roles.set(port, role);
     }
     const generation = this.commandGeneration;
+    const departureEpoch = this.departureEpochs.get(port);
     const admittedAt = Date.now();
     const queueKey = String(++this.nextCommand);
     if (command.type === "set-runtime-parameter")
@@ -233,17 +256,19 @@ class PhysicalTargetSession {
           errorCode: "operation_cancelled",
         });
     };
-    if ("requestId" in command) this.queued.set(queueKey, cancel);
+    if ("requestId" in command && !stoppingForDeparture)
+      this.queued.set(queueKey, cancel);
     const operation = this.commandQueue.then(async () => {
       if ("requestId" in command) this.queued.delete(queueKey);
       if (cancelled) return;
-      if (!this.ports.has(port)) {
+      if (!this.ports.has(port) && !stoppingForDeparture) {
         cancel();
         return;
       }
       if (
         !priority &&
         (generation !== this.commandGeneration ||
+          departureEpoch !== this.departureEpochs.get(port) ||
           Date.now() - admittedAt > 5_000 ||
           (command.type === "set-runtime-parameter" &&
             this.latestParameterRequest.get(command.name) !== queueKey))
@@ -252,23 +277,37 @@ class PhysicalTargetSession {
         return;
       }
       if (priority) this.suppressCancelledEvents = false;
-      await this.execute(port, command, generation);
+      await this.execute(port, command, generation, departureEpoch);
     });
     this.commandQueue = operation.catch(() => undefined);
+    if (stoppingForDeparture) {
+      this.departureStop = operation;
+      void this.commandQueue.then(() => {
+        if (this.departureStop !== operation) return;
+        this.departureStop = null;
+        if (this.ports.size === 0) this.releaseEmptySession();
+      });
+    }
   }
 
   private detach(port: PhysicalWorkerPort): void {
+    this.handle(port, { type: "stop-owned-run" });
     const providerChanged = this.projectRunProvider.unregister(port);
     this.ports.delete(port);
     this.roles.delete(port);
+    this.departureEpochs.delete(port);
     this.pendingLiveTelemetry.delete(port);
     this.deliveredConsoleIds.delete(port);
     this.deliveredTelemetry.delete(port);
     port.close();
     if (providerChanged) this.publishProjectProviderState();
-    if (this.ports.size !== 0) {
+    if (this.ports.size !== 0 || this.departureStop) {
       return;
     }
+    this.releaseEmptySession();
+  }
+
+  private releaseEmptySession(): void {
     this.connectionGeneration += 1;
     this.commandGeneration += 1;
     this.projectRunProvider.cancelPending();
@@ -281,6 +320,7 @@ class PhysicalTargetSession {
     this.resumeRecoveryArmedTarget = null;
     this.resumeRecovery = null;
     this.clearRetainedState();
+    this.onEmpty();
   }
 
   private armResumeRecovery(port: PhysicalWorkerPort): void {
@@ -351,13 +391,16 @@ class PhysicalTargetSession {
       | { type: "set-role" }
       | { type: "poll-frame" }
       | { type: "disconnect" }
+      | { type: "stop-owned-run" }
       | { type: "resume" }
       | { type: "set-project-run-provider" }
       | { type: "project-run-snapshot" }
       | { type: "mark-project-changed" }
     >,
     generation = this.commandGeneration,
+    departureEpoch = this.departureEpochs.get(port),
   ): Promise<void> {
+    let ownsStart = false;
     try {
       if (command.type === "connect") {
         const connectionRequest: PhysicalConnectionRequest = {
@@ -394,6 +437,19 @@ class PhysicalTargetSession {
       }
 
       let result;
+      const startsRun =
+        command.type === "run" || command.type === "run-current";
+      if (
+        startsRun &&
+        this.runInitiator === null &&
+        this.latestStatus.type === "status" &&
+        this.latestStatus.state !== "running" &&
+        this.latestStatus.state !== "loading"
+      ) {
+        this.runInitiator = port;
+        this.runInitiatorStarting = true;
+        ownsStart = true;
+      }
       if (command.type === "check") {
         result = await this.target.check(command.project);
       } else if (command.type === "prepare") {
@@ -402,7 +458,11 @@ class PhysicalTargetSession {
         await this.target.run(command.project, command.projectId);
       } else if (command.type === "run-current") {
         const snapshot = await this.projectRunProvider.request();
-        if (generation !== this.commandGeneration || !this.ports.has(port))
+        if (
+          generation !== this.commandGeneration ||
+          departureEpoch !== this.departureEpochs.get(port) ||
+          !this.ports.has(port)
+        )
           throw new Error("Run cancelled");
         await this.target.run(snapshot.project, snapshot.projectId);
       } else if (command.type === "mark-project-stale") {
@@ -461,6 +521,16 @@ class PhysicalTargetSession {
         // Re-broadcast the shared target state after that response so one tab
         // cannot remain in a private error state while the other is ready.
         this.broadcast(this.latestStatus);
+      }
+    } finally {
+      if (ownsStart) {
+        this.runInitiatorStarting = false;
+        if (
+          this.runInitiator === port &&
+          this.latestStatus.type === "status" &&
+          this.latestStatus.state === "ready"
+        )
+          this.runInitiator = null;
       }
     }
   }
@@ -578,6 +648,8 @@ class PhysicalTargetSession {
     this.latestRuntime = null;
     this.latestWorld = null;
     this.latestControl = null;
+    this.runInitiator = null;
+    this.runInitiatorStarting = false;
     this.run.clear();
   }
 
@@ -626,6 +698,8 @@ class PhysicalTargetSession {
     if (this.run.completed) this.retainingRunTelemetry = false;
     if (event.type === "status") {
       this.latestStatus = event;
+      if (event.state === "ready" && !this.runInitiatorStarting)
+        this.runInitiator = null;
       if (event.state === "error") {
         this.startArmedResumeRecovery();
       }
@@ -647,6 +721,9 @@ class PhysicalTargetSession {
       this.latestWorld = event;
     } else if (event.type === "control") {
       this.latestControl = event;
+      if (!event.owned && !this.runInitiatorStarting) this.runInitiator = null;
+    } else if (event.type === "run" && event.phase === "end") {
+      this.runInitiator = null;
     } else if (event.type === "console") {
       if (event.eventId && this.retainedConsoleIds.has(event.eventId)) {
         return;
@@ -871,6 +948,7 @@ export class PhysicalTargetCoordinator {
             this.makeTarget,
             endpoints,
             command.expectedRobotId,
+            () => this.sessions.delete(currentSession),
           );
           this.sessions.add(session);
         }
@@ -912,7 +990,6 @@ export class PhysicalTargetCoordinator {
     binding.proxy = undefined;
     if (session && proxy) {
       session.handle(proxy, { type: "disconnect" });
-      if (session.size === 0) this.sessions.delete(session);
     }
   }
 }

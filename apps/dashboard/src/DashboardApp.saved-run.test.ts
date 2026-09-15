@@ -33,6 +33,7 @@ const boundary = vi.hoisted(() => ({
   write: vi.fn(),
   download: vi.fn(),
   stop: vi.fn(),
+  run: vi.fn(),
 }));
 vi.mock("@ucsb-xrp/target", async (original) => {
   const actual = await original<typeof import("@ucsb-xrp/target")>();
@@ -50,6 +51,7 @@ vi.mock("@ucsb-xrp/target", async (original) => {
           listener({ type: "status", state: "ready", detail: "Connected" });
       }
       disconnect() {}
+      run = boundary.run;
       async stop() {
         boundary.stop();
         for (const listener of boundary.listeners)
@@ -196,6 +198,7 @@ beforeEach(() => {
   boundary.generation.mockResolvedValue(1);
   boundary.readText.mockResolvedValue(null);
   boundary.write.mockResolvedValue(undefined);
+  boundary.run.mockResolvedValue(undefined);
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value() {
@@ -334,6 +337,32 @@ async function editInitialNote(label: string) {
   await typeNote(label);
   await click("Save note");
 }
+
+describe("cancelled departure during Run preparation", () => {
+  it("invalidates a held Project read while retaining the warning and allowing an explicit retry", async () => {
+    await act(async () => root.render(createElement(DashboardApp)));
+    const opening = deferred<unknown>();
+    boundary.readProject.mockImplementationOnce(() => opening.promise);
+    await click("Run");
+    expect(boundary.run).not.toHaveBeenCalled();
+    await act(async () => {
+      expect(protectedFromUnload()).toBe(true);
+    });
+    expect(
+      host.querySelector<HTMLButtonElement>('[aria-label="Run"]')?.disabled,
+    ).toBe(false);
+    await act(async () =>
+      opening.resolve({ project: { session: { projectId: "project-a" } } }),
+    );
+    expect(boundary.run).not.toHaveBeenCalled();
+    expect(protectedFromUnload()).toBe(false);
+    expect(
+      host.querySelector('[data-testid="recording-count"]')?.textContent,
+    ).toBe("Run a program to collect data.");
+    await click("Run");
+    expect(boundary.run).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("retained archive recovery", () => {
   it("retains the full failed run and newer notes across Clear and a peer Run, then retries only its original destination", async () => {
