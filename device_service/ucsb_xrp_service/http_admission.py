@@ -242,16 +242,18 @@ class Admission:
                 await self.send(writer, response, keep_alive)
                 if not keep_alive:
                     return
-        except (OSError, EOFError):
-            pass
         except Exception as error:
-            if not isinstance(error, HttpError):
+            # Host asyncio can use an OSError-derived TimeoutError. Classify
+            # deadlines before disconnected sockets so they retain HTTP 408.
+            if isinstance(error, TimeoutError):
+                error = HttpError(408, "request_timeout", "The request or response did not complete in time")
+            elif isinstance(error, (OSError, EOFError)):
+                return
+            elif not isinstance(error, HttpError):
                 if isinstance(error, MemoryError):
                     import gc
                     gc.collect()
                     error = HttpError(503, "memory_busy", "The XRP has insufficient memory for this request")
-                elif isinstance(error, (TimeoutError,)):
-                    error = HttpError(408, "request_timeout", "The request or response did not complete in time")
                 else:
                     error = HttpError(400, "invalid_request", "The request could not be completed")
             try:

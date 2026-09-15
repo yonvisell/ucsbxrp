@@ -52,12 +52,32 @@ class HttpAdmissionTest(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         for writer in self.clients:
             writer.close()
-            await writer.wait_closed()
+            try:
+                await writer.wait_closed()
+            except ConnectionResetError:
+                # Rejecting a connection before reading its request can cause
+                # a TCP reset. Response completeness is asserted separately.
+                pass
         await asyncio.sleep(.15)
         self.listener.close()
         await self.listener.wait_closed()
         self.assertEqual(self.admission.connections, 0)
         self.assertEqual(self.admission.body_readers, 0)
+
+    async def read_response(self, reader, timeout=1):
+        async def receive():
+            headers = await reader.readuntil(b'\r\n\r\n')
+            lengths = [line.split(b':', 1)[1].strip() for line in headers.split(b'\r\n')
+                       if line.lower().startswith(b'content-length:')]
+            self.assertEqual(len(lengths), 1)
+            self.assertTrue(lengths[0].isdigit())
+            body = await reader.readexactly(int(lengths[0]))
+            return headers + body
+
+        # The service frames every response. Waiting for EOF instead can lose
+        # an already complete rejection when unread request bytes cause a reset.
+        # A reset or EOF before the declared body ends must still fail the test.
+        return await asyncio.wait_for(receive(), timeout)
 
     async def exchange(self, data, eof=False):
         reader, writer = await asyncio.open_connection("127.0.0.1", self.port)
@@ -66,7 +86,7 @@ class HttpAdmissionTest(unittest.IsolatedAsyncioTestCase):
         await writer.drain()
         if eof:
             writer.write_eof()
-        return await asyncio.wait_for(reader.read(), 1)
+        return await self.read_response(reader)
 
     async def test_fragmented_json_and_keep_alive_use_real_route_registry(self):
         reader, writer = await asyncio.open_connection("127.0.0.1", self.port)
@@ -76,7 +96,7 @@ class HttpAdmissionTest(unittest.IsolatedAsyncioTestCase):
         for offset in range(0, len(first + second), 7):
             writer.write((first + second)[offset:offset + 7])
             await writer.drain()
-        response = await asyncio.wait_for(reader.read(), 1)
+        response = await self.read_response(reader) + await self.read_response(reader)
         self.assertEqual(response.count(b'HTTP/1.1 200'), 2)
         self.assertEqual([row[0] for row in self.dispatched], ['/api/v1/stop', '/api/v1/info'])
 
@@ -96,6 +116,26 @@ class HttpAdmissionTest(unittest.IsolatedAsyncioTestCase):
             self.assertIn(b' 400 ', response)
         response = await self.exchange(b'GET /api/v1/info HTTP/1.1\r\nX-Partial:')
         self.assertIn(b' 408 ', response)
+        self.assertEqual(self.dispatched, [])
+
+    async def test_oserror_timeout_returns_complete_408_without_dispatch(self):
+        class HostTimeout(OSError):
+            pass
+
+        wait_for = self.admission.wait_for
+
+        async def host_wait_for(awaitable, ms):
+            try:
+                return await wait_for(awaitable, ms)
+            except asyncio.TimeoutError as error:
+                raise HostTimeout() from error
+
+        # Python 3.11+ uses the built-in OSError-derived TimeoutError. Model
+        # that hierarchy explicitly so this regression also runs on Python 3.9.
+        with patch.object(transport, "TimeoutError", HostTimeout), patch.object(self.admission, "wait_for", host_wait_for):
+            response = await self.exchange(b'GET /api/v1/info HTTP/1.1\r\nX-Partial:')
+        self.assertIn(b' 408 ', response)
+        self.assertEqual(json.loads(response.split(b'\r\n\r\n', 1)[1])["error"]["code"], "request_timeout")
         self.assertEqual(self.dispatched, [])
 
     async def test_pending_project_body_does_not_reserve_stop_or_health(self):
@@ -167,8 +207,8 @@ class HttpAdmissionTest(unittest.IsolatedAsyncioTestCase):
         health, health_writer = await asyncio.open_connection("127.0.0.1", port)
         health_writer.write(b'GET /api/v1/info HTTP/1.1\r\nConnection: close\r\n\r\n')
         await health_writer.drain()
-        self.assertIn(b' 200 ', await asyncio.wait_for(health.read(), .5))
-        self.assertIn(b' 408 ', await asyncio.wait_for(reader.read(), 2))
+        self.assertIn(b' 200 ', await self.read_response(health, .5))
+        self.assertIn(b' 408 ', await self.read_response(reader, 2))
         elapsed = time.monotonic() - started
         self.assertGreaterEqual(elapsed, 1.4)
         self.assertLess(elapsed, 2.2)
