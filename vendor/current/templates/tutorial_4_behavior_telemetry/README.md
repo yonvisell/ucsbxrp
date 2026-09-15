@@ -117,8 +117,10 @@ Monitor recording is the appropriate source for complete time histories.
 4. Trace that visible change through `next_phase`, `command_for_phase`, or
    `publish_telemetry`. Each **Run** checks these functions before motion.
 
-The supplied loop calls `Robot.step()` at the measured sample rate and always
-calls `robot.stop()` in `finally`. Do not add `sleep()` or `sleep_ms()`.
+The supplied loop calls `Robot.step()` at the measured sample rate and calls
+`robot.stop()` in `finally` after normal completion or a Python exception. The
+target runtime handles the IDE's **Stop** separately; forced termination can
+bypass Python cleanup. Do not add `sleep()` or `sleep_ms()`.
 
 Continue with **Tutorial 5: Physical XRP deployment** after the behavior and
 telemetry work in simulation.

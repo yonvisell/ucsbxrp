@@ -1722,6 +1722,10 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
                 "sampleTimeMs": sequence * 20,
                 "xMm": float(sequence),
                 "plotValues": (("counter", "Counter", "sample", sequence),),
+                "timing": (1000 + sequence * 20, sequence * 20, sequence,
+                    None, None, 0, 1, sequence, -sequence, None,
+                    sequence * 20 + 5, 20, 20, 0, "course", False),
+                "diagnostics": ((1, 2, 3), None, 21, 5.8, None),
             }
             for sequence in range(1, 35)
         ]
@@ -1855,17 +1859,23 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         self.assertEqual(first["s"], 2)
         self.assertEqual(first["r"], 3)
         self.assertNotIn("project", first)
-        self.assertLess(len(first_response.body), 1_800)
+        self.assertLess(len(first_response.body), 6_000)
+        self.assertEqual(first["sampleTiming"], [list(item["timing"]) for item in retained[:16]])
+        self.assertEqual(second["sampleTiming"], [list(item["timing"]) for item in retained[16:32]])
+        self.assertEqual(first["sampleDiagnostics"][0], [[1, 2, 3], None, 21, 5.8, None])
+        self.assertEqual(legacy["samples"][0]["timingValues"], list(retained[0]["timing"]))
+        self.assertEqual(legacy["samples"][0]["batteryV"], 5.8)
         self.assertEqual(first["samplePlotDescriptors"], [{"name": "counter", "label": "Counter", "unit": "sample"}])
         self.assertEqual(first["samplePlots"], [[[0, index]] for index in range(1, 17)])
         self.assertEqual(second["samplePlots"], [[[0, index]] for index in range(17, 33)])
         self.assertEqual(third["samplePlots"], [[[0, 33]], [[0, 34]]])
         self.assertEqual([row[1] for row in first_rows], list(range(1, 17)))
-        self.assertEqual(first_rows[0][0:6], (20, 1, 1, 18, 1.0, -2.5))
+        self.assertEqual(first_rows[0][0:6], (20, 1, 1, 82, 1.0, -2.5))
         self.assertEqual(first_rows[0][8], 0.0)
         self.assertEqual(first_rows[0][15], 0.0)
         self.assertEqual(first_rows[0][17:19], (62, -68))
-        self.assertEqual(first_rows[0][19], 310.0)
+        self.assertEqual(first_rows[0][19], 0.0)
+        self.assertIsNone(legacy["samples"][0]["rangeMm"])
         self.assertEqual(first_shared[0], 1 << 8)
         self.assertEqual(first_shared[7], 27.0)
         self.assertAlmostEqual(first_shared[8], 6.2, places=5)
@@ -1885,6 +1895,7 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
             self.service.info(types.SimpleNamespace()).body.decode("utf-8")
         )
         self.assertIn("telemetry.packed-v1", info["capabilities"])
+        self.assertIn("telemetry.timing-v1", info["capabilities"])
 
     def test_telemetry_pages_backlog_and_defers_the_final_stopped_sample(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]
@@ -2286,6 +2297,41 @@ class DeviceServiceRuntimeTest(unittest.TestCase):
         for invalid in (None, True, False, 0, -1, 401, 65535, 65536, float("nan"), float("inf")):
             with self.subTest(invalid=invalid):
                 self.assertIsNone(normalize(invalid))
+
+    def test_idle_hardware_refresh_keeps_only_final_odometry_from_course_state(self):
+        course_telemetry = sys.modules["ucsb_xrp._telemetry"]
+        pose = {
+            "xMm": 10, "yMm": 20, "headingRad": 0,
+            "leftEffort": 0, "rightEffort": 0,
+            "leftEncoderCount": 1, "rightEncoderCount": 2,
+            "leftWheelSpeedMmS": 0, "rightWheelSpeedMmS": 0,
+            "rangeMm": None, "buttonPressed": False,
+            "diagnostics": ((1, 2, 3), (4, 5, 6), 21, 5.8, None),
+            "timing": (100, 0, 1, None, None, 0, 1, 1, 2, None, 20, 20, 20, 0, "stop", False),
+            "requestedForwardSpeedMmS": 20, "targetLeftWheelSpeedMmS": 20,
+        }
+        hardware = {
+            "leftEncoderCount": 20, "rightEncoderCount": 30,
+            "rangeMm": 300, "buttonPressed": True,
+            "accelerationMg": (7, 8, 9), "angularRateMdps": (10, 11, 12),
+            "temperatureC": 30, "batteryV": 6.2, "sensorError": None,
+            "leftEffort": 0, "rightEffort": 0,
+        }
+        with (
+            patch.object(course_telemetry, "state_snapshot", return_value=pose, create=True),
+            patch.object(self.service, "_idle_hardware_snapshot", return_value=(hardware, 1000)),
+        ):
+            idle = self.service._hardware_sample()
+            historical = self.service._course_sample(pose, hardware)
+        for key, value in hardware.items():
+            self.assertEqual(idle[key], value, key)
+        self.assertEqual((idle["xMm"], idle["yMm"]), (10, 20))
+        self.assertIsNone(idle["timingValues"])
+        self.assertIsNone(idle["requestedForwardSpeedMmS"])
+        self.assertIsNone(idle["targetLeftWheelSpeedMmS"])
+        self.assertIsNone(historical["rangeMm"])
+        self.assertEqual(historical["batteryV"], 5.8)
+        self.assertEqual(historical["timingValues"], pose["timing"])
 
     def test_idle_telemetry_coalesces_one_global_sample_for_one_cadence(self):
         course_telemetry = sys.modules["ucsb_xrp._telemetry"]

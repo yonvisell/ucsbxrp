@@ -36,6 +36,7 @@ import {
 } from "@ucsb-xrp/target";
 
 import { ProjectWriterRecoveryDialog } from "./ProjectWriterRecoveryDialog";
+import { RunArchiveNotice, useRunArchiveRecorder } from "./RunArchiveNotice";
 import {
   inspectProjectWriters,
   ProjectWriterBlockedError,
@@ -49,6 +50,7 @@ import {
   type TemplateUpdateComparison,
 } from "./project-provenance";
 import { FirstProjectDialog } from "./FirstProjectDialog";
+import { ProjectNameEditor } from "./ProjectNameEditor";
 import { ProjectNameDraft } from "./first-project";
 import { OperationStatus } from "../../shared/OperationStatus";
 import { AppNavigation } from "../../shared/AppNavigation";
@@ -470,10 +472,17 @@ function contextHelpForPath(path: string, templateId?: string) {
 const templateGroups: readonly {
   kind: CourseProjectKind;
   label: string;
+  newSequence?: boolean;
 }[] = [
-  { kind: "challenge", label: "Course challenges" },
+  {
+    kind: "challenge",
+    label: "New sequence · Challenges 1–5",
+    newSequence: true,
+  },
+  { kind: "challenge", label: "Original challenges · 1–9", newSequence: false },
   { kind: "complete-challenge", label: "Complete challenge demonstrations" },
-  { kind: "demo", label: "Robot demos" },
+  { kind: "demo", label: "New demonstrations", newSequence: true },
+  { kind: "demo", label: "Robot demos", newSequence: false },
   { kind: "tutorial", label: "Tutorials" },
 ];
 
@@ -483,7 +492,8 @@ function openingPathForNewProject(project: ProjectSnapshot): string {
   );
   return (template?.kind === "challenge" ||
     template?.kind === "complete-challenge" ||
-    template?.kind === "tutorial") &&
+    template?.kind === "tutorial" ||
+    template?.id.startsWith("new_")) &&
     "README.md" in project.files
     ? "README.md"
     : project.entrypoint;
@@ -579,6 +589,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       import.meta.env.PROD,
       globalThis.crossOriginIsolated,
     );
+  const { recorder: runArchiveRecorder, state: runArchiveState } =
+    useRunArchiveRecorder(target);
   const [project, setProjectState] = useState<ProjectSnapshot>(initialProject);
   const [projectSession, setProjectSession] = useState<ProjectSession>(
     initialProjectSession,
@@ -662,6 +674,12 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   const [firstProjectOpen, setFirstProjectOpen] = useState(false);
   const firstProjectOffered = useRef(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [projectNameDraftActive, setProjectNameDraftActive] = useState(false);
+  const projectNameDraftActiveRef = useRef(false);
+  const changeProjectNameDraft = useCallback((active: boolean) => {
+    projectNameDraftActiveRef.current = active;
+    setProjectNameDraftActive(active);
+  }, []);
   const [projectChooserOpen, setProjectChooserOpen] = useState(false);
   const [proposedWorkspaceFolder, setProposedWorkspaceFolder] =
     useState<CourseDirectoryHandle | null>(null);
@@ -1026,6 +1044,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   ]);
 
   const provideProjectRunSnapshot = useCallback(async () => {
+    if (!runArchiveRecorder.canStartRun)
+      throw new Error(
+        "Save or download the previous run data in the IDE before another Run.",
+      );
+    if (!(await runArchiveRecorder.flush()))
+      throw new Error(
+        "Save or download the previous run data in the IDE before another Run.",
+      );
     const folder = workingFolderRef.current;
     if (!folder)
       throw new Error(
@@ -1196,7 +1222,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         targetStateRef.current === "running" ||
         targetStateRef.current === "loading" ||
         targetCommandCountRef.current > 0 ||
-        folderInteractionCountRef.current > 0
+        folderInteractionCountRef.current > 0 ||
+        projectNameDraftActiveRef.current
       ) {
         event.preventDefault();
         event.returnValue = "";
@@ -1896,7 +1923,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   );
   const projectCheckFile = checkFileForProject(project);
   const challengeComponentChecksAvailable =
-    activeProjectTemplate?.kind === "challenge" && projectCheckFile !== null;
+    Boolean(activeProjectTemplate?.components.length) &&
+    projectCheckFile !== null;
   const projectFiles = useMemo(
     () => Object.keys(project.files).sort((a, b) => a.localeCompare(b)),
     [project.files],
@@ -2548,6 +2576,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
 
   const runTarget = useCallback(async () => {
     if (
+      !runArchiveRecorder.canStartRun ||
       !workingFolder ||
       !canRunProject ||
       isRunning ||
@@ -2599,6 +2628,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     canRunProject,
     finishProjectCommand,
     isRunning,
+    runArchiveRecorder,
     target,
     virtualRuntimePreparing,
     workingFolder,
@@ -3434,6 +3464,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             targetCommandActive: targetCommandCountRef.current > 0,
             componentCheckActive: componentCheckRunningRef.current,
             uiDraftActive:
+              projectNameDraftActiveRef.current ||
               firstProjectOpen ||
               templateReview !== null ||
               writerRecovery !== null ||
@@ -3529,6 +3560,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       writerRecovery,
       newFileOpen,
       newProjectOpen,
+      projectNameDraftActive,
       pathOperation,
       projectChooserOpen,
       projectFolderConflict,
@@ -3548,6 +3580,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       folderSaveState !== "permission" &&
       folderSaveState !== "error" &&
       !newProjectOpen &&
+      !projectNameDraftActive &&
       !newFileOpen &&
       pathOperation === null &&
       folderInteractionCountRef.current === 0
@@ -3561,6 +3594,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     folderSaveState,
     newFileOpen,
     newProjectOpen,
+    projectNameDraftActive,
     pathOperation,
     projectProviderActive,
     projectSession.projectId,
@@ -3596,13 +3630,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       targetStateRef.current === "running"
     ) {
       setOperationDetail(
-        "Stop the current run before creating a different challenge Project.",
+        "Stop the current run before continuing in a different Project.",
       );
       return;
     }
-    if (activeProjectTemplate?.kind !== "challenge" || !project.templateId) {
+    if (!activeProjectTemplate?.components.length || !project.templateId) {
       setOperationDetail(
-        "Open a student challenge before carrying work forward.",
+        "Open a Project with student components before carrying work forward.",
       );
       return;
     }
@@ -3613,7 +3647,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
     setNewProjectDraft(projectNameDraftRef.current.reset(null, ""));
     setNewProjectError("");
     setNewProjectOpen(true);
-  }, [activeProjectTemplate?.kind, project.templateId]);
+  }, [activeProjectTemplate?.components.length, project.templateId]);
 
   const selectProjectTemplate = useCallback(
     (templateId: string) => {
@@ -3629,11 +3663,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
       }
       let snapshot: ProjectSnapshot;
       if (projectCreationPurpose === "challenge-transition") {
-        if (!project.templateId || template.kind !== "challenge") {
+        if (!project.templateId || !template.components.length) {
           setPendingProject(null);
           setPendingChallengeTransition(null);
           setNewProjectDraft(projectNameDraftRef.current.select(null, ""));
-          setNewProjectError("Choose a different student challenge.");
+          setNewProjectError(
+            "Choose a different Project with student components.",
+          );
           return;
         }
         try {
@@ -4512,6 +4548,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
             disabled={
               !canStop &&
               (!workingFolder ||
+                !runArchiveRecorder.canStartRun ||
                 !canRunProject ||
                 virtualRuntimePreparing ||
                 projectCommandActive)
@@ -4524,11 +4561,13 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   ? "The current Compile or Run request is still in progress."
                   : virtualRuntimePreparing
                     ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                    : !workingFolder
-                      ? "Choose a Working folder and create or open a project before running."
-                      : target.kind === "physical" && targetState === "error"
-                        ? targetDetail
-                        : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
+                    : !runArchiveRecorder.canStartRun
+                      ? "Save or download the previous run data before another Run."
+                      : !workingFolder
+                        ? "Choose a Working folder and create or open a project before running."
+                        : target.kind === "physical" && targetState === "error"
+                          ? targetDetail
+                          : `Run ${project.entrypoint} on the ${target.kind} XRP (⌘/Ctrl+Enter)`
             }
           >
             <RunStopIcon running={canStop} />
@@ -4551,6 +4590,23 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
           <SplitWorkspaceLink />
         </div>
         <div className="header-statuses">
+          {runArchiveState.phase !== "idle" ? (
+            <span
+              data-testid="ide-run-save-state"
+              role="status"
+              title={runArchiveState.detail}
+            >
+              {runArchiveState.phase === "recording"
+                ? "Recording run…"
+                : runArchiveState.phase === "saving"
+                  ? "Saving run…"
+                  : runArchiveState.phase === "error"
+                    ? "Run not saved"
+                    : runArchiveState.phase === "recovery-confirmed"
+                      ? "Recovery file confirmed"
+                      : "Run saved"}
+            </span>
+          ) : null}
           {projectCommandActive ||
           folderSaveState === "saving" ||
           folderInteractionCountRef.current > 0 ||
@@ -4647,6 +4703,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         </div>
       </header>
 
+      <RunArchiveNotice recorder={runArchiveRecorder} />
+
       {target.kind === "physical" && targetState === "error" ? (
         <section className="connection-recovery" role="alert">
           <div>
@@ -4711,7 +4769,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       path === project.entrypoint ? " (main file)" : ""
                     }`}
                     aria-current={path === activePath ? "true" : undefined}
-                    className={`file-row ${path === activePath ? "active" : ""}`}
+                    className={`file-row ${path === activePath ? "active" : ""} ${path.toLowerCase().endsWith("readme.md") ? "readme-file" : ""}`}
                     key={path}
                     onClick={() => openFile(path)}
                     title={`Open ${path}.`}
@@ -4886,6 +4944,24 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       Reconnect project folder…
                     </button>
                   ) : null}
+                  {workingFolder ? (
+                    <ProjectNameEditor
+                      key={projectSession.projectId}
+                      name={project.name}
+                      folderName={workingFolder.name}
+                      onDraftChange={changeProjectNameDraft}
+                      disabled={
+                        isRunning ||
+                        projectCommandActive ||
+                        Boolean(projectFolderConflict)
+                      }
+                      onRename={(name) => {
+                        applyProjectChange({ ...projectRef.current, name });
+                        setFolderDirty(true);
+                        setOperationDetail(`Saving project name ${name}…`);
+                      }}
+                    />
+                  ) : null}
                   {!workingFolder &&
                   rememberedWorkspaceFolder &&
                   workingFolderAccessState === "needs-permission" ? (
@@ -4913,9 +4989,9 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     onClick={() => void testComponents()}
                     title={
                       !challengeComponentChecksAvailable
-                        ? "Open a student challenge to test its class implementations."
+                        ? "Open a Project with component checks to test its class implementations."
                         : isRunning
-                          ? "Stop the current robot run before testing challenge components."
+                          ? "Stop the current robot run before testing components."
                           : projectCommandActive
                             ? "Wait for the current project action to finish."
                             : "Run supplied input/output checks in MicroPython without running an XRP."
@@ -4926,16 +5002,16 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       : "Test components"}
                   </button>
                   <small id="component-check-help">
-                    Test the class implementations for this challenge
+                    Test the class implementations for this project
                   </small>
-                  {activeProjectTemplate?.kind === "challenge" ? (
+                  {activeProjectTemplate?.components.length ? (
                     <button
                       className="challenge-transition-button"
                       disabled={isRunning}
                       onClick={openChallengeTransitionDialog}
-                      title="Choose another student challenge, preview every file change, and create it as a separate project. This project remains unchanged."
+                      title="Carry compatible component files to another project. Review every file change before creating a separate project."
                     >
-                      Start another challenge…
+                      Continue in another project…
                     </button>
                   ) : null}
                 </div>
@@ -5105,8 +5181,11 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       fontSize: settings.editorFontSizePx,
                       insertSpaces: true,
                       lineHeight: Math.round(settings.editorFontSizePx * 1.5),
+                      lineNumbersMinChars: 3,
+                      lineDecorationsWidth: 9,
+                      glyphMargin: false,
                       minimap: { enabled: settings.minimap },
-                      padding: { top: 5 },
+                      padding: { top: 5, bottom: 5 },
                       readOnly: activeFileReadOnly,
                       renderLineHighlight: "gutter",
                       scrollBeyondLastLine: false,
@@ -5116,7 +5195,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                       wordWrap: settings.wordWrap,
                     }}
                     path={`${projectSession.projectId}/${activePath}`}
-                    theme="vs"
+                    theme="ucsb-xrp"
                     value={project.files[activePath] ?? ""}
                   />
                 )}
@@ -6170,14 +6249,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
               {projectCreationPurpose === "save-current"
                 ? "Save project"
                 : preparingChallengeTransition
-                  ? "Start another challenge"
+                  ? "Continue in another project"
                   : "New project"}
             </h2>
             {projectCreationPurpose === "new-project" ||
             preparingChallengeTransition ? (
               <label className="dialog-field" htmlFor="new-project-template">
                 <span>
-                  {preparingChallengeTransition ? "Challenge" : "Start with"}
+                  {preparingChallengeTransition ? "Next project" : "Start with"}
                 </span>
                 <select
                   autoFocus
@@ -6185,7 +6264,7 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                   disabled={creatingProject}
                   aria-label={
                     preparingChallengeTransition
-                      ? "Challenge"
+                      ? "Next project"
                       : "Project template"
                   }
                   onChange={(event) =>
@@ -6195,14 +6274,14 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                 >
                   <option value="">
                     {preparingChallengeTransition
-                      ? "Choose another challenge…"
+                      ? "Choose another project…"
                       : "Choose a challenge, demo, or tutorial…"}
                   </option>
                   {preparingChallengeTransition
                     ? availableProjectTemplates
                         .filter(
                           (template) =>
-                            template.kind === "challenge" &&
+                            template.components.length > 0 &&
                             template.id !== project.templateId,
                         )
                         .map((template) => (
@@ -6213,14 +6292,22 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
                     : templateGroups
                         .filter((group) =>
                           availableProjectTemplates.some(
-                            (template) => template.kind === group.kind,
+                            (template) =>
+                              template.kind === group.kind &&
+                              (group.newSequence === undefined ||
+                                template.id.startsWith("new_") ===
+                                  group.newSequence),
                           ),
                         )
                         .map((group) => (
-                          <optgroup key={group.kind} label={group.label}>
+                          <optgroup key={group.label} label={group.label}>
                             {availableProjectTemplates
                               .filter(
-                                (template) => template.kind === group.kind,
+                                (template) =>
+                                  template.kind === group.kind &&
+                                  (group.newSequence === undefined ||
+                                    template.id.startsWith("new_") ===
+                                      group.newSequence),
                               )
                               .map((template) => (
                                 <option key={template.id} value={template.id}>

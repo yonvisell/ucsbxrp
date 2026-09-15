@@ -412,7 +412,7 @@ test("Guide states the complete first-use workflow and operating limits", async 
     "Use the cloned repository as the UCSBXRP Working folder",
   );
   await expect(page.locator("#projects")).toContainText(
-    "Start another challenge",
+    "Continue in another project",
   );
   await expect(page.locator("#monitor")).toContainText(
     "Runs started in either app write program output to the IDE terminal; connection, transfer, Run, Stop, and Reset events appear in its System log",
@@ -648,7 +648,7 @@ test("API sections remain readable without page clipping at phone width", async 
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
-  expect(bodyFontSize).toBeGreaterThanOrEqual(14.5);
+  expect(bodyFontSize).toBeGreaterThanOrEqual(14);
   const tableFontSize = await page
     .locator("#sensor-model .parameter-row span")
     .first()

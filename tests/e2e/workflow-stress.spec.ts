@@ -1,7 +1,11 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-import { readWorkspaceManifest, seedWorkingFolder } from "./working-folder";
+import {
+  expandingSpiralProject,
+  readWorkspaceManifest,
+  seedWorkingFolder,
+} from "./working-folder";
 
 const release = JSON.parse(
   readFileSync(
@@ -606,16 +610,10 @@ test("accepted reload during a first run archive retains its journal and require
   context,
   page: ide,
 }) => {
-  await seedWorkingFolder(ide, { folderName: "Interrupted-Archive" });
-  await ide.goto("/ide/");
-  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
-  const savedProject = await readProjectPersistenceState(
-    ide,
-    "Interrupted-Archive",
-    "Expanding-Spiral",
-  );
-  const monitor = await context.newPage();
-  await monitor.addInitScript(() => {
+  // Either the IDE's headless recorder or Monitor can win the archive lock.
+  // Interrupt the first CSV close in both participants, after pending-run.json
+  // has been fully committed, rather than depending on which page writes first.
+  await context.addInitScript(() => {
     const createWritable = FileSystemFileHandle.prototype.createWritable;
     FileSystemFileHandle.prototype.createWritable = async function (options) {
       const writable = await createWritable.call(this, options);
@@ -632,6 +630,42 @@ test("accepted reload during a first run archive retains its journal and require
       return writable;
     };
   });
+  await seedWorkingFolder(ide, { folderName: "Interrupted-Archive" });
+  await ide.goto("/ide/");
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+  const savedProject = await readProjectPersistenceState(
+    ide,
+    "Interrupted-Archive",
+    "Expanding-Spiral",
+  );
+  const readProtectedFiles = () =>
+    ide.evaluate(async (sourcePaths) => {
+      const workspace = await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle("Interrupted-Archive");
+      const project = await workspace.getDirectoryHandle("Expanding-Spiral");
+      const read = async (name: string) =>
+        (await (await project.getFileHandle(name)).getFile()).text();
+      const sources = Object.fromEntries(
+        await Promise.all(
+          sourcePaths.map(async (name) => [name, await read(name)]),
+        ),
+      );
+      const writers: Record<string, string> = {};
+      for await (const [name] of project.entries()) {
+        if (
+          name === ".ucsb-xrp-writer.json" ||
+          (name.startsWith(".ucsb-xrp-writer-") && name.endsWith(".json"))
+        ) {
+          writers[name] = await read(name);
+        }
+      }
+      return { sources, writers };
+    }, Object.keys(expandingSpiralProject.files));
+  const savedFiles = await readProtectedFiles();
+  expect(savedFiles.sources).toEqual(expandingSpiralProject.files);
+  expect(savedFiles.writers).toEqual({});
+  const monitor = await context.newPage();
   await monitor.goto("/monitor/");
   await expectVirtualState(ide, monitor, "ready");
   await runButton(ide).click();
@@ -639,24 +673,40 @@ test("accepted reload during a first run archive retains its journal and require
   await expect(monitor.getByTestId("recording-count")).toContainText(
     /[1-9][\d,]* samples/,
   );
-  await monitor.evaluate(() =>
-    sessionStorage.setItem("pause-first-run-archive", "armed"),
+  const recorders = [ide, monitor];
+  await Promise.all(
+    recorders.map((page) =>
+      page.evaluate(() =>
+        sessionStorage.setItem("pause-first-run-archive", "armed"),
+      ),
+    ),
   );
   await stopButton(ide).click();
   await expectVirtualState(ide, monitor, "ready");
-  await expect
-    .poll(() =>
-      monitor.evaluate(() =>
-        sessionStorage.getItem("first-run-archive-paused"),
+  const pausedRecorders = () =>
+    Promise.all(
+      recorders.map((page) =>
+        page.evaluate(
+          () => sessionStorage.getItem("first-run-archive-paused") === "yes",
+        ),
       ),
-    )
-    .toBe("yes");
+    );
+  await expect
+    .poll(async () => (await pausedRecorders()).some(Boolean))
+    .toBe(true);
+  const paused = await pausedRecorders();
+  expect(paused.filter(Boolean)).toHaveLength(1);
+  const interruptedRecorder = recorders[paused.findIndex(Boolean)]!;
   const interrupted = await readProjectPersistenceState(
     ide,
     "Interrupted-Archive",
     "Expanding-Spiral",
   );
-  expect(interrupted.writers).toHaveLength(1);
+  const interruptedFiles = await readProtectedFiles();
+  const retainedWriters = Object.keys(interruptedFiles.writers).sort();
+  expect(retainedWriters.length).toBeGreaterThan(0);
+  expect(interrupted.writers).toEqual(retainedWriters);
+  expect(interruptedFiles.sources).toEqual(savedFiles.sources);
   expect(interrupted.pendingProject).toBeNull();
   expect(interrupted.pendingRun).not.toBeNull();
   expect(interrupted.metadata).toBe(savedProject.metadata);
@@ -668,12 +718,19 @@ test("accepted reload during a first run archive retains its journal and require
   );
   expect(recovery.telemetry).toContain("source,pose_available,seq");
 
-  const beforeUnload = monitor.waitForEvent("dialog");
-  const reload = monitor.reload();
+  const navigationWarnings: string[] = [];
+  for (const page of recorders) {
+    page.on("dialog", async (dialog) => {
+      navigationWarnings.push(dialog.type());
+      await dialog.accept();
+    });
+  }
+  const beforeUnload = interruptedRecorder.waitForEvent("dialog");
+  const reload = interruptedRecorder.reload();
   const warning = await beforeUnload;
   expect(warning.type()).toBe("beforeunload");
-  await warning.accept();
   await reload;
+  expect(navigationWarnings).toContain("beforeunload");
   await expect(monitor.getByTestId("recording-count")).toContainText(
     /[1-9][\d,]* samples/,
   );
@@ -683,6 +740,27 @@ test("accepted reload during a first run archive retains its journal and require
       exact: true,
     }),
   ).toBeEnabled();
+  // Reload releases the first recorder's browser lock. The other recorder (or
+  // a reopened IDE replay) may briefly create its own ticket, then must reject
+  // the interrupted writer without changing its journal. Wait for this actual
+  // completion boundary, rather than sampling the temporary admission record.
+  await expect(ide.getByTestId("ide-run-save-state")).toHaveText(
+    "Run not saved",
+    { timeout: 10_000 },
+  );
+  const waitForWriteAttempts = () =>
+    expect
+      .poll(
+        async () => {
+          const locks = await ide.evaluate(() => navigator.locks.query());
+          return [...(locks.held ?? []), ...(locks.pending ?? [])]
+            .filter((lock) => lock.name?.startsWith("ucsb-xrp-project:"))
+            .map((lock) => lock.name);
+        },
+        { timeout: 10_000 },
+      )
+      .toEqual([]);
+  await waitForWriteAttempts();
   expect(
     await readProjectPersistenceState(
       ide,
@@ -690,10 +768,12 @@ test("accepted reload during a first run archive retains its journal and require
       "Expanding-Spiral",
     ),
   ).toEqual(interrupted);
+  expect(await readProtectedFiles()).toEqual(interruptedFiles);
 
   await monitor.close();
   await ide.reload();
   await expect(ide.getByTestId("project-folder")).toHaveText("Not selected");
+  await waitForWriteAttempts();
   await ide
     .getByRole("button", {
       name: "Review pending writers in Expanding-Spiral",
@@ -706,6 +786,13 @@ test("accepted reload during a first run archive retains its journal and require
   const release = recoveryDialog.getByRole("button", {
     name: "Release selected writer records",
   });
+  await expect(recoveryDialog).toContainText(
+    `${retainedWriters.length} pending writer records`,
+  );
+  await recoveryDialog
+    .getByText("Selected writer records", { exact: true })
+    .click();
+  await expect(recoveryDialog.locator("code")).toHaveText(retainedWriters);
   await expect(release).toBeDisabled();
   await recoveryDialog
     .getByLabel("All other editors of this folder are closed.")
@@ -724,6 +811,10 @@ test("accepted reload during a first run archive retains its journal and require
     "Expanding-Spiral",
   );
   expect(afterRelease).toEqual({ ...interrupted, writers: [] });
+  expect(await readProtectedFiles()).toEqual({
+    ...interruptedFiles,
+    writers: {},
+  });
 });
 
 test("does not enable Run before the Working folder finishes opening", async ({
@@ -774,6 +865,32 @@ test("preserves the commissioned robot across reloads and rejects another XRP", 
   context,
   page: ide,
 }) => {
+  const settledProject = async () => {
+    await expect(ide.getByTestId("project-folder")).toHaveText(
+      "Expanding-Spiral",
+    );
+    await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+    await expect
+      .poll(async () => {
+        const state = await readProjectPersistenceState(
+          ide,
+          "Physical-Stress-Test",
+          "Expanding-Spiral",
+        );
+        return {
+          writers: state.writers,
+          pendingProject: state.pendingProject,
+          pendingRun: state.pendingRun,
+        };
+      })
+      .toEqual({ writers: [], pendingProject: null, pendingRun: null });
+    await expect(ide.getByRole("dialog")).toHaveCount(0);
+    return readProjectPersistenceState(
+      ide,
+      "Physical-Stress-Test",
+      "Expanding-Spiral",
+    );
+  };
   await installMockPhysicalXrp(context);
   await seedWorkingFolder(ide, {
     folderName: "Physical-Stress-Test",
@@ -818,10 +935,19 @@ test("preserves the commissioned robot across reloads and rejects another XRP", 
         ssid: "COURSE-NETWORK",
       },
     });
+  // Physical ready and the workspace settings do not establish that the first
+  // Project metadata save has finished. These reloads exercise an uninterrupted
+  // saved session; interrupted-writer recovery is covered separately above.
+  const savedProject = await settledProject();
+  expect(savedProject.main).toBe(expandingSpiralProject.files["main.py"]);
+  expect(JSON.parse(savedProject.metadata!).session.projectId).toEqual(
+    expect.any(String),
+  );
   await ide.reload();
   await expect(ide.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );
+  expect(await settledProject()).toEqual(savedProject);
   await ide.getByRole("button", { name: "Settings", exact: true }).click();
   const reloadedSettings = ide.getByTestId("settings-panel");
   const reloadedPhysical = reloadedSettings.getByRole("group", {
@@ -829,6 +955,7 @@ test("preserves the commissioned robot across reloads and rejects another XRP", 
   });
   await expect(reloadedPhysical).toContainText("http://192.168.7.44");
 
+  expect(await settledProject()).toEqual(savedProject);
   await ide.evaluate(() =>
     localStorage.setItem("ucsb-xrp-stress-robot-id", "robot-b"),
   );
@@ -841,6 +968,7 @@ test("preserves the commissioned robot across reloads and rejects another XRP", 
     /robot-b.*robot-a|configured for robot-a/i,
   );
   await expect(runButton(ide)).toBeDisabled();
+  expect(await settledProject()).toEqual(savedProject);
 
   const monitor = await context.newPage();
   await monitor.goto("/monitor/");
@@ -858,6 +986,7 @@ test("preserves the commissioned robot across reloads and rejects another XRP", 
       robot: { id: "robot-a" },
     });
 
+  expect(await settledProject()).toEqual(savedProject);
   await ide.evaluate(() =>
     localStorage.setItem("ucsb-xrp-stress-robot-id", "robot-a"),
   );
@@ -869,4 +998,5 @@ test("preserves the commissioned robot across reloads and rejects another XRP", 
   await expect(monitor.getByTestId("target-status")).toContainText(
     "Physical XRP · ready",
   );
+  expect(await settledProject()).toEqual(savedProject);
 });

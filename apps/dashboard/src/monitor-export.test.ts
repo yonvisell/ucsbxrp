@@ -81,13 +81,19 @@ describe("monitor exports", () => {
       annotation,
     ]);
 
-    expect(svg).toContain('width="1200" height="480"');
-    expect(svg).toContain("Wheel speed • v_L, v_R");
+    expect(svg).toContain('width="1200" height="555"');
+    expect(svg).toContain(
+      '<text x="62" y="14" class="title">Wheel speeds</text>',
+    );
+    expect(svg).toContain("Notes · elapsed run time");
+    expect(svg).not.toContain('class="legend">d_range');
+    expect(svg).toContain("Wheel speeds");
     expect(svg).toContain(">mm/s</text>");
     expect(svg).toContain("measured v_L");
-    expect(svg).toContain("Ultrasound distance • d_range");
+    expect(svg).toContain("Ultrasound distance");
     expect(svg).toContain(">mm</text>");
-    expect(svg).toContain("5.00 s · turn &amp; inspect");
+    expect(svg).toContain("1 · 5.000 s");
+    expect(svg).toContain("turn &amp; inspect");
     expect(svg).toContain("<path");
     expect(svg).not.toContain("NaN");
   });

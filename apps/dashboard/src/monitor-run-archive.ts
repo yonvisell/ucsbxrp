@@ -9,7 +9,11 @@ import {
   assertProjectWriterCurrent,
   withProjectNativeWrite,
 } from "../../ide/src/project-native-write";
-import { mergeArchiveNotes } from "./monitor-archive-notes";
+import {
+  mergeArchiveNotes,
+  validatedAnnotations,
+} from "./monitor-archive-notes";
+import type { MonitorAnnotation } from "./monitor-export-core";
 
 export interface RunArchive {
   runId: string;
@@ -48,6 +52,30 @@ export async function findRunGeneration(
     if (metadata.runId === runId) return generation;
   }
   return null;
+}
+
+/** Read only the notes for this verified retained run; never replace its data. */
+export async function readRunAnnotations(
+  folder: CourseDirectoryHandle,
+  runId: string,
+  projectId: string,
+): Promise<MonitorAnnotation[]> {
+  await verifyRunFolder(folder, projectId);
+  const generation = await findRunGeneration(folder, runId);
+  if (generation === null) return [];
+  const text = await readCourseTextFile(
+    folder,
+    `${autosaveDirectoryName}/run-${generation}.json`,
+  );
+  const metadata = text ? JSON.parse(text) : null;
+  if (metadata?.runId !== runId || metadata?.project?.projectId !== projectId)
+    throw new Error(
+      "The saved run changed while its notes were being read. Reopen the Monitor to retry.",
+    );
+  // previousLabel is a pending edit's comparison base, not a saved draft.
+  return validatedAnnotations(metadata.annotations).map(
+    ({ previousLabel: _previousLabel, ...note }) => note,
+  );
 }
 
 /** A complete recovery copy precedes rotation and remains if any write fails. */

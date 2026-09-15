@@ -55,7 +55,9 @@ the base from `ucsb_xrp.student_api` as shown in the starter.
 - [`main.py`](main.py) collects stationary range samples before motion, runs a
   sampled approach, applies the student's output only when it satisfies the
   documented output requirements, sends stopped commands while the drivetrain
-  settles, and always stops the motors in `finally`. It does not clamp the
+  settles, and calls `robot.stop()` in `finally` after normal completion or a
+  Python exception. The target runtime handles the IDE's **Stop** separately;
+  forced termination can bypass Python cleanup. It does not clamp the
   output, impose a second stopping envelope, or convert a controller stop into
   success. Program output distinguishes `complete`, `early_stop`,
   `stopped_too_close`, and `range_unavailable` from the final measured range.

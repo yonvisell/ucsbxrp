@@ -10,11 +10,7 @@ from ucsb_xrp import MotionCommand, Pose, STOP_COMMAND, live
 STATIONARY_SAMPLE_COUNT = 50
 MOTION_SAMPLE_COUNT = 25
 MOTION_SPEED_MM_S = 60.0
-ENABLE_SHORT_MOTION = live.toggle(
-    "tutorial_enable_short_motion",
-    False,
-    label="Enable short motion",
-)
+ENABLE_SHORT_MOTION = live.toggle("tutorial_enable_short_motion", False, label="Enable short motion")
 
 
 def collect_stationary_samples(robot):
@@ -27,7 +23,7 @@ def collect_stationary_samples(robot):
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
         return tuple(states)
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 
@@ -40,7 +36,7 @@ def run_short_motion(robot):
         for _ in range(MOTION_SAMPLE_COUNT):
             state = robot.step(command)
         return initial_state, state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 
@@ -75,9 +71,7 @@ def run_preflight():
         return report
 
     initial_state, final_state = run_short_motion(robot)
-    wheel_travel_mm = mean_wheel_position_mm(final_state) - mean_wheel_position_mm(
-        initial_state
-    )
+    wheel_travel_mm = mean_wheel_position_mm(final_state) - mean_wheel_position_mm(initial_state)
     print("Short motion check complete")
     print("motion_wheel_travel_mm:", wheel_travel_mm)
     print("final_pose:", final_state.pose)

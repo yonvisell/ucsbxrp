@@ -101,7 +101,9 @@ test("the exact browser runtime preserves elapsed physics across long sleep, sho
   const variants = [
     "sleep_ms(6200)",
     "for i in range(62):\n    sleep_ms(100)",
-    "sleep_ms(20)\nwhile ticks_diff(ticks_ms(), start) < 6200:\n    pass",
+    // Batch small-integer computation between clock reads. Polling the JS clock
+    // bridge on every iteration measures allocation pressure instead of timing.
+    "sleep_ms(20)\naccumulator = 0\nwhile ticks_diff(ticks_ms(), start) < 6200:\n    for value in range(10000):\n        accumulator = (accumulator + value) & 1023",
   ];
   const samples = [];
   for (const variant of variants)

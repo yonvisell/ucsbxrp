@@ -70,45 +70,21 @@ def run_challenge():
     robot = make_robot(ROBOT_CONFIG)
     try:
         state = robot.start(INITIAL_POSE)
-        state = drive_straight(
-            robot,
-            state,
-            OUTBOUND_DISTANCE_MM,
-            "outbound travel",
-        )
-        state = turn_to_heading(
-            robot,
-            state,
-            TURN_HEADING_RAD,
-            "turnaround",
-        )
-        state = drive_straight(
-            robot,
-            state,
-            RETURN_DISTANCE_MM,
-            "return travel",
-        )
-        state = turn_to_heading(
-            robot,
-            state,
-            FINAL_HEADING_RAD,
-            "final heading",
-        )
+        state = drive_straight(robot, state, OUTBOUND_DISTANCE_MM, "outbound travel")
+        state = turn_to_heading(robot, state, TURN_HEADING_RAD, "turnaround")
+        state = drive_straight(robot, state, RETURN_DISTANCE_MM, "return travel")
+        state = turn_to_heading(robot, state, FINAL_HEADING_RAD, "final heading")
         x_error_mm = state.pose.x_mm - INITIAL_POSE.x_mm
         y_error_mm = state.pose.y_mm - INITIAL_POSE.y_mm
         print("Challenge 2 complete")
         print("final_pose:", state.pose)
-        print(
-            "estimated_return_position_error_mm:",
-            sqrt(x_error_mm * x_error_mm + y_error_mm * y_error_mm),
-        )
+        print("estimated_return_position_error_mm:", sqrt(x_error_mm * x_error_mm + y_error_mm * y_error_mm))
         print(
             "estimated_return_heading_error_rad:",
             wrap_angle_rad(state.pose.heading_rad - FINAL_HEADING_RAD),
         )
         return state
-    # Always stop the motors, including when an error ends the program.
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

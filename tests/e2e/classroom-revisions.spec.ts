@@ -22,7 +22,7 @@ test("first-use creation checks numbered names, runs, saves, and reopens", async
     const parent = await (
       await navigator.storage.getDirectory()
     ).getDirectoryHandle("Documents", { create: true });
-    await parent.getDirectoryHandle("XRP_Project_01", { create: true });
+    await parent.getDirectoryHandle("my_demo_spiral_01", { create: true });
   });
   const start = performance.now();
   await page.goto("/workspace/?mode=ide");
@@ -30,18 +30,18 @@ test("first-use creation checks numbered names, runs, saves, and reopens", async
   const dialog = ide.getByRole("dialog", { name: "Create your first Project" });
   await expect(dialog).toBeVisible();
   const firstDialogMs = performance.now() - start;
-  await dialog
-    .getByRole("button", { name: "Choose Working folder", exact: true })
-    .click();
-  await expect(dialog.getByLabel("Project folder name")).toHaveValue(
-    "XRP_Project_02",
-  );
+  await expect(dialog.getByRole("textbox")).toHaveCount(0);
   const creationStartedAt = performance.now();
   await dialog
-    .getByRole("button", { name: "Create Project", exact: true })
+    .getByRole("button", {
+      name: "Choose folder and create Project",
+      exact: true,
+    })
     .click();
   await expect(dialog).toHaveCount(0);
-  await expect(ide.getByTestId("project-folder")).toHaveText("XRP_Project_02");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "my_demo_spiral_02",
+  );
   await expect(ide.getByTestId("target-status")).toContainText(
     "Virtual XRP · ready",
   );
@@ -61,7 +61,7 @@ test("first-use creation checks numbered names, runs, saves, and reopens", async
         const parent = await (
           await navigator.storage.getDirectory()
         ).getDirectoryHandle("Documents");
-        const project = await parent.getDirectoryHandle("XRP_Project_02");
+        const project = await parent.getDirectoryHandle("my_demo_spiral_02");
         const metadata = JSON.parse(
           await (
             await (
@@ -128,7 +128,9 @@ test("first-use creation checks numbered names, runs, saves, and reopens", async
   const reopenStartedAt = performance.now();
   await page.reload();
   expect(navigationWarnings).toEqual([]);
-  await expect(ide.getByTestId("project-folder")).toHaveText("XRP_Project_02");
+  await expect(ide.getByTestId("project-folder")).toHaveText(
+    "my_demo_spiral_02",
+  );
   await expect(dialog).toHaveCount(0);
   const rememberedFolderReopenMs = performance.now() - reopenStartedAt;
   expect(errors).toEqual([]);
@@ -163,7 +165,10 @@ test("cancelled first-use picker keeps preview and a visible retry", async ({
   });
   await expect(dialog).toBeVisible();
   await dialog
-    .getByRole("button", { name: "Choose Working folder", exact: true })
+    .getByRole("button", {
+      name: "Choose folder and create Project",
+      exact: true,
+    })
     .click();
   await expect(dialog.getByRole("alert")).toContainText(
     "No project was created",

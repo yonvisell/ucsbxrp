@@ -9,6 +9,22 @@ course offering will necessarily use, and its numbering is not yet the final
 teaching order. The IDE can carry compatible component work into any selected
 challenge while leaving the source project unchanged.
 
+The 2026-09-14 candidate offering has separate `new_` projects: **Robot Curling**
+(measurement, wheel feedback and an editable distance policy), **Arena Line
+Circuit** (cumulative drive components plus local LineFollower), **Waypoint
+Courier**, **Mapped Route** (motion-free checkoff followed by short virtual
+execution), and **Out-and-Back** (known outbound route, stationary observation
+of one gate, map update and planned return). The **Odometry Calibration** demo
+bridges line following and navigation. Motor characterization, reflectance
+calibration and a motion-free BFS/heapq A* comparison support focused labs.
+The existing catalog below remains available with its original IDs.
+
+For the proposed dated offering and assessment rules, see
+`new_draft_curricular/recommended_changes_2026-09-14.md` and
+`new_draft_curricular/recommended_schedule_2026-09-14.csv`. The supplied drafts
+remain unchanged. The candidate projects use existing public APIs; live IMU
+fusion and camera localization are not required.
+
 ## Challenge catalog
 
 1. **Straight Run** — Drive an open straight course and stop at a specified

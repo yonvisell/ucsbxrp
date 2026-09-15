@@ -14,6 +14,7 @@ import type {
   SynchronizedProject,
   TargetEvent,
   TelemetryObservationKind,
+  TelemetryTiming,
 } from "./types";
 import type {
   ProjectRunSnapshotRequest,
@@ -36,6 +37,7 @@ export interface CourseTelemetryState {
   targetLeftWheelSpeedMmS: number | null;
   targetRightWheelSpeedMmS: number | null;
   plotValues?: RuntimePlot[];
+  timing?: TelemetryTiming;
 }
 
 export type TargetWorkerRole = "ide" | "monitor";
@@ -49,6 +51,7 @@ export type TargetWorkerCommand =
       role?: TargetWorkerRole;
     }
   | { type: "disconnect" }
+  | { type: "set-role"; role: TargetWorkerRole }
   | { type: "reserve-run"; requestId: string }
   | { type: "cancel-run"; requestId: string; operationEpoch: number }
   | {
@@ -161,6 +164,7 @@ export type RuntimeWorkerMessage =
       observationKind?: TelemetryObservationKind;
     }
   | { type: "course-state"; state: CourseTelemetryState }
+  | { type: "sensor-acquisition"; timing: TelemetryTiming }
   | { type: "console"; stream: "stdout" | "stderr"; line: string }
   | {
       type: "console-batch";
@@ -182,6 +186,7 @@ export type RuntimeWorkerMessage =
   | {
       type: "error";
       detail: string;
+      reason?: "memory-limit";
       /** Exact runtime exception text before student-facing presentation. */
       rawDetail?: string;
       stage?: "compile" | "run";

@@ -69,11 +69,7 @@ def run_demo():
                 range_samples.append(state.measurements.range_mm)
                 range_samples = range_samples[-5:]
                 range_mm = robot.estimate_range(range_samples, minimum_usable=3)
-                live.watch(
-                    "range_mm",
-                    range_mm if range_mm is not None else "—",
-                    unit="mm",
-                )
+                live.watch("range_mm", range_mm if range_mm is not None else "—", unit="mm")
                 if range_mm is None:
                     missing_ranges += 1
                     if missing_ranges >= MAXIMUM_CONSECUTIVE_MISSING_RANGES:
@@ -118,7 +114,7 @@ def run_demo():
         print("turns:", turns)
         print("final_pose:", state.pose)
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

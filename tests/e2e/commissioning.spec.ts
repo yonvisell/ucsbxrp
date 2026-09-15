@@ -352,16 +352,13 @@ test("a new Working folder cannot inherit an earlier browser project", async ({
     name: "Create your first Project",
   });
   await expect(firstProject).toBeVisible();
-  await expect(firstProject.getByLabel("Project folder name")).toHaveValue(
-    "XRP_Project_01",
-  );
-  await firstProject.getByLabel("Project folder name").fill("Expanding-Spiral");
+  await expect(firstProject.getByRole("textbox")).toHaveCount(0);
   await firstProject
     .getByRole("button", { name: "Create Project", exact: true })
     .click();
   await expect(firstProject).toHaveCount(0);
   await expect(page.getByTestId("project-folder")).toHaveText(
-    "Expanding-Spiral",
+    "my_demo_spiral_01",
   );
   await expect(
     page.getByRole("button", { name: "Open project…", exact: true }),
@@ -372,7 +369,7 @@ test("a new Working folder cannot inherit an earlier browser project", async ({
   await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
   await page.reload();
   await expect(page.getByTestId("project-folder")).toHaveText(
-    "Expanding-Spiral",
+    "my_demo_spiral_01",
   );
 
   const retained = await page.evaluate(async () => {
@@ -405,7 +402,7 @@ test("a new Working folder cannot inherit an earlier browser project", async ({
     const oldMain = await (await oldProject.getFileHandle("main.py")).getFile();
     const newWorkspace = await root.getDirectoryHandle("new-course");
     const defaultProject =
-      await newWorkspace.getDirectoryHandle("Expanding-Spiral");
+      await newWorkspace.getDirectoryHandle("my_demo_spiral_01");
     const main = await (
       await defaultProject.getFileHandle("main.py")
     ).getFile();
@@ -430,7 +427,7 @@ test("a new Working folder cannot inherit an earlier browser project", async ({
   expect(retained.legacyProject).toBeUndefined();
   expect(retained.oldMain).toBe('print("old project")\n');
   expect(retained.defaultProjectMain).toContain("spiral_winding_turns_per_m");
-  expect(retained.activeProject).toBe("Expanding-Spiral");
+  expect(retained.activeProject).toBe("my_demo_spiral_01");
 });
 
 test("commissions a new XRP from the public wizard and hands it to the IDE", async ({
@@ -1043,16 +1040,13 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     name: "Create your first Project",
   });
   await expect(firstProject).toBeVisible();
-  await expect(firstProject.getByLabel("Project folder name")).toHaveValue(
-    "XRP_Project_01",
-  );
-  await firstProject.getByLabel("Project folder name").fill("Expanding-Spiral");
+  await expect(firstProject.getByRole("textbox")).toHaveCount(0);
   await firstProject
     .getByRole("button", { name: "Create Project", exact: true })
     .click();
   await expect(firstProject).toHaveCount(0);
   await expect(ideFrame.getByTestId("project-folder")).toHaveText(
-    "Expanding-Spiral",
+    "my_demo_spiral_01",
   );
   await expect
     .poll(() =>
@@ -1061,7 +1055,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
           window as unknown as {
             __readUcsbTestCourseFile: (path: string) => Promise<string>;
           }
-        ).__readUcsbTestCourseFile("Expanding-Spiral/main.py"),
+        ).__readUcsbTestCourseFile("my_demo_spiral_01/main.py"),
       ),
     )
     .toContain("spiral_winding_turns_per_m");
@@ -1079,7 +1073,7 @@ test("commissions a new XRP from the public wizard and hands it to the IDE", asy
     )
     .toMatchObject({
       schemaVersion: 1,
-      activeProject: "Expanding-Spiral",
+      activeProject: "my_demo_spiral_01",
       robot: {
         id: "4c91fae8f1775aa4",
         name: "ucsb-xrp-4c91fae8f1775aa4",

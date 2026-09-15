@@ -40,7 +40,7 @@ from .networking import (
 )
 
 
-COURSE_RELEASE = "2026.09-dev.48"
+COURSE_RELEASE = "2026.09-dev.49"
 CONFIG_PATH = "/xrp_wifi.json"
 SLOTS = ("a", "b")
 RAM_PROJECT_MOUNTS = {
@@ -1214,6 +1214,10 @@ def _sample_plot_values(pose):
 
 def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
     """Build one wire sample without reading any device."""
+    pose_available = pose is not None and pose.get("poseAvailable", True)
+    diagnostics = None if pose is None else pose.get("diagnostics")
+    if diagnostics is None:
+        diagnostics = _compact_telemetry_shared(hardware)
     left_count = (
         hardware["leftEncoderCount"]
         if pose is None or pose.get("leftEncoderCount") is None
@@ -1228,14 +1232,14 @@ def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
         "tMs": time_ms,
         "seq": sequence,
         "source": "physical",
-        "poseAvailable": pose is not None,
+        "poseAvailable": pose_available,
         "xMm": 0.0 if pose is None else pose["xMm"],
         "yMm": 0.0 if pose is None else pose["yMm"],
         "headingRad": 0.0 if pose is None else pose["headingRad"],
-        "estimatedPoseAvailable": pose is not None,
-        "estimatedXmm": None if pose is None else pose["xMm"],
-        "estimatedYmm": None if pose is None else pose["yMm"],
-        "estimatedHeadingRad": None if pose is None else pose["headingRad"],
+        "estimatedPoseAvailable": pose_available,
+        "estimatedXmm": pose["xMm"] if pose_available else None,
+        "estimatedYmm": pose["yMm"] if pose_available else None,
+        "estimatedHeadingRad": pose["headingRad"] if pose_available else None,
         "groundTruthPoseAvailable": False,
         "groundTruthXmm": None,
         "groundTruthYmm": None,
@@ -1275,7 +1279,7 @@ def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
         "collision": False,
         "rangeMm": (
             hardware["rangeMm"]
-            if pose is None or pose["rangeMm"] is None
+            if pose is None
             else pose["rangeMm"]
         ),
         "buttonPressed": (
@@ -1283,12 +1287,13 @@ def _sample_value(pose, hardware, sequence, time_ms, left_speed, right_speed):
             if pose is None
             else pose["buttonPressed"]
         ),
-        "accelerationMg": hardware["accelerationMg"],
-        "angularRateMdps": hardware["angularRateMdps"],
-        "temperatureC": hardware["temperatureC"],
-        "batteryV": hardware["batteryV"],
-        "sensorError": hardware["sensorError"],
+        "accelerationMg": diagnostics[0],
+        "angularRateMdps": diagnostics[1],
+        "temperatureC": diagnostics[2],
+        "batteryV": diagnostics[3],
+        "sensorError": diagnostics[4],
         "plotValues": _sample_plot_values(pose),
+        "timingValues": None if pose is None else pose.get("timing"),
     }
 
 
@@ -1382,6 +1387,21 @@ def _hardware_sample():
             left_speed,
             right_speed,
         )
+        # Idle rows combine a fresh hardware view with the final odometry pose;
+        # they are not another acquisition of the completed course state.
+        _idle_sample["timingValues"] = None
+        for key in (
+            "leftEncoderCount", "rightEncoderCount", "rangeMm", "buttonPressed",
+            "accelerationMg", "angularRateMdps", "temperatureC", "batteryV", "sensorError",
+        ):
+            _idle_sample[key] = hardware.get(key)
+        _idle_sample["leftEffort"] = hardware.get("leftEffort", 0.0)
+        _idle_sample["rightEffort"] = hardware.get("rightEffort", 0.0)
+        for key in (
+            "requestedForwardSpeedMmS", "requestedTurnRateRadS",
+            "targetLeftWheelSpeedMmS", "targetRightWheelSpeedMmS",
+        ):
+            _idle_sample[key] = None
         return _idle_sample
 
     try:
@@ -1500,7 +1520,7 @@ def _compact_course_telemetry_row(pose, hardware):
     return [
         time_ms,
         sequence,
-        True,
+        pose.get("poseAvailable", True),
         pose["xMm"],
         pose["yMm"],
         pose["headingRad"],
@@ -1516,7 +1536,7 @@ def _compact_course_telemetry_row(pose, hardware):
         pose.get("rightWheelDistanceMm"),
         left_count,
         right_count,
-        hardware["rangeMm"] if pose["rangeMm"] is None else pose["rangeMm"],
+        pose["rangeMm"],
         pose["buttonPressed"],
     ]
 
@@ -1776,6 +1796,7 @@ def info(request):
                 "telemetry.poll",
                 "telemetry.compact-v1",
                 "telemetry.packed-v1",
+                "telemetry.timing-v1",
                 "logs.poll",
                 "runtime.parameters",
             ],
@@ -1886,6 +1907,8 @@ def telemetry(request):
     compact_rows = None
     compact_shared = None
     sample_plots = None
+    sample_timing = None
+    sample_diagnostics = None
     if row_encoding_requested and _thread_active:
         snapshots, hardware, more_samples = _buffered_course_page(
             after_sample, sample_limit
@@ -1899,6 +1922,8 @@ def telemetry(request):
                 for item in snapshots
             ]
             sample_plots = [_sample_plot_values(item) for item in snapshots]
+            sample_timing = [item.get("timing") for item in snapshots]
+            sample_diagnostics = [item.get("diagnostics") for item in snapshots]
             if compact_rows:
                 compact_shared = _compact_telemetry_shared(hardware)
             samples = []
@@ -1958,6 +1983,8 @@ def telemetry(request):
         if compact_rows is None:
             compact_rows = [_compact_telemetry_row(item) for item in samples]
             sample_plots = [item.get("plotValues") for item in samples]
+            sample_timing = [item.get("timingValues") for item in samples]
+            sample_diagnostics = [_compact_telemetry_shared(item) for item in samples]
             if compact_rows:
                 compact_shared = _compact_telemetry_shared(samples[-1])
         if compact_shared is not None and not packed_requested:
@@ -1972,6 +1999,8 @@ def telemetry(request):
         descriptors, plot_rows = _encode_sample_plots(sample_plots)
         value["samplePlotDescriptors"] = descriptors
         value["samplePlots"] = plot_rows
+        value["sampleTiming"] = sample_timing
+        value["sampleDiagnostics"] = sample_diagnostics
     else:
         value["samples"] = samples
         value["sample"] = sample

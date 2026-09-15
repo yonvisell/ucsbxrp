@@ -84,7 +84,23 @@ export function createSignalPlotsSvg(
   }
   const width = 1_200;
   const sectionHeight = 240;
-  const height = sectionHeight * plots.length;
+  const noteLines = annotations.flatMap((annotation, index) => {
+    const lines = annotation.label.split(/\r?\n/).flatMap((line) =>
+      Array.from(line).reduce<string[]>((wrapped, character, offset) => {
+        const row = Math.floor(offset / 145);
+        wrapped[row] = (wrapped[row] ?? "") + character;
+        return wrapped;
+      }, []),
+    );
+    return [
+      `${index + 1} · ${(annotation.tMs / 1_000).toFixed(3)} s`,
+      ...lines,
+      "",
+    ];
+  });
+  const height =
+    sectionHeight * plots.length +
+    (noteLines.length ? 30 + noteLines.length * 15 : 0);
   const left = 62;
   const right = 18;
   const top = 34;
@@ -118,7 +134,7 @@ export function createSignalPlotsSvg(
 
     body.push(
       `<rect x="0" y="${sectionY}" width="${width}" height="${sectionHeight}" fill="#fff"/>`,
-      `<text x="8" y="${sectionY + 14}" class="title">${xml(signalPlotTitle(definition))}</text>`,
+      `<text x="${left}" y="${sectionY + 14}" class="title">${xml(signalPlotTitle(definition))}</text>`,
     );
     for (let tick = 0; tick <= 4; tick += 1) {
       const value = minimum + ((maximum - minimum) * tick) / 4;
@@ -154,7 +170,7 @@ export function createSignalPlotsSvg(
     );
     for (const [annotationIndex, annotation] of visibleAnnotations.entries()) {
       const annotationX = x((annotation.tMs - latestMs) / 1_000);
-      const label = `${(annotation.tMs / 1_000).toFixed(2)} s · ${annotation.label}`;
+      const label = String(annotations.indexOf(annotation) + 1);
       body.push(
         `<line x1="${annotationX}" y1="${chartTop}" x2="${annotationX}" y2="${chartTop + plotHeight}" class="annotation"/>`,
         `<text x="${Math.min(annotationX + 4, width - 230)}" y="${chartTop + 11 + (annotationIndex % 3) * 11}" class="note">${xml(label)}</text>`,
@@ -182,6 +198,7 @@ export function createSignalPlotsSvg(
               : ""
         }/>`,
       );
+      if (definition.series.length === 1) return;
       const legendWidths = definition.series.map((item) =>
         Math.max(78, item.label.length * 7 + 31),
       );
@@ -190,11 +207,23 @@ export function createSignalPlotsSvg(
         right -
         legendWidths.slice(seriesIndex).reduce((sum, item) => sum + item, 0);
       body.push(
-        `<line x1="${legendX}" y1="${sectionY + 14}" x2="${legendX + 18}" y2="${sectionY + 14}" stroke="${series.color}" stroke-width="2"/>`,
+        `<line x1="${legendX}" y1="${sectionY + 14}" x2="${legendX + 18}" y2="${sectionY + 14}" stroke="${series.color}" stroke-width="2"${series.dash === "dashed" ? ' stroke-dasharray="8 5"' : series.dash === "dotted" ? ' stroke-dasharray="2 4"' : ""}/>`,
         `<text x="${legendX + 23}" y="${sectionY + 17}" class="legend">${xml(series.label)}</text>`,
       );
     });
   });
+
+  if (noteLines.length) {
+    const notesTop = sectionHeight * plots.length;
+    body.push(
+      `<text x="${left}" y="${notesTop + 17}" class="title">Notes · elapsed run time</text>`,
+    );
+    noteLines.forEach((line, index) =>
+      body.push(
+        `<text x="${left}" y="${notesTop + 35 + index * 15}" class="axis">${xml(line)}</text>`,
+      ),
+    );
+  }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">
@@ -633,7 +662,7 @@ function drawWorldFrame(
   context.restore();
 
   context.font = "600 13px system-ui, sans-serif";
-  for (const annotation of annotations) {
+  for (const [annotationIndex, annotation] of annotations.entries()) {
     if (
       !annotation.poseAvailable ||
       annotation.tMs > sample.tMs ||
@@ -643,10 +672,10 @@ function drawWorldFrame(
     }
     const annotationX = x(annotation.xMm);
     const annotationY = y(annotation.yMm);
-    const label = `${(annotation.tMs / 1_000).toFixed(2)} s · ${annotation.label.slice(0, 42)}`;
+    const label = String(annotationIndex + 1);
     context.fillStyle = "#87515d";
     context.beginPath();
-    context.arc(annotationX, annotationY, 4, 0, Math.PI * 2);
+    context.arc(annotationX, annotationY, 2.5, 0, Math.PI * 2);
     context.fill();
     const textWidth = context.measureText(label).width;
     const labelX = Math.min(annotationX + 7, width - textWidth - 8);

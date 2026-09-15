@@ -13,7 +13,9 @@ The route remains inside x = -1200...1120 mm and y = -300...300 mm, within the
 long strokes and 1.3 rad/s for heading corrections. `Robot.step()` supplies the
 only timing. Completing all 28 waypoints is the intended natural finish; 8000
 samples and 13000 mm of measured wheel travel are protective failure guards.
-`finally: robot.stop()` returns both motor commands to zero on every exit.
+`finally: robot.stop()` requests zero motor commands after normal completion
+or a Python exception. The target runtime handles the IDE's **Stop** separately;
+forced termination can bypass Python cleanup.
 
 The same project runs on Virtual XRP or Physical XRP. For a physical run, mark
 the world initial pose accurately in a clear course-sized area and supervise

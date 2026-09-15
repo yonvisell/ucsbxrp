@@ -51,7 +51,9 @@ methods; your class retains only the translation state. Import the base from
   headings, requires each wheel independently to settle, rejects observations
   outside the stated heading tolerance, applies the two corrections, navigates
   using corrected poses, verifies the corrected terminal position and raw
-  odometry heading, and always stops in `finally`.
+  odometry heading, and calls `robot.stop()` in `finally` after normal completion
+  or a Python exception. The target runtime handles the IDE's **Stop** separately;
+  forced termination can bypass Python cleanup.
 - The robot components and `NavigationController` are selected independently
   in `course_setup.py`.
 - [`component_checks.py`](component_checks.py) varies sensor offsets, wall

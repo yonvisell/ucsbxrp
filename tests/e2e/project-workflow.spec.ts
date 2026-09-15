@@ -85,7 +85,7 @@ test("shows one clear folder-backed project model on first IDE use", async ({
     page.getByRole("button", { name: "Test components" }),
   ).toBeDisabled();
   await expect(page.locator("#component-check-help")).toHaveText(
-    "Test the class implementations for this challenge",
+    "Test the class implementations for this project",
   );
   await expect(page.getByTestId("current-file")).toHaveText("main.py");
   await expect(page.getByRole("tablist", { name: "Open files" })).toHaveCount(

@@ -124,7 +124,8 @@ class CourseStarterTests(unittest.TestCase):
         self.assertIn("measured_elapsed_time_s: 0.244", output.getvalue())
 
     def test_demo_and_tutorial_templates_are_complete_compilable_projects(self):
-        directories = sorted(path for path in TEMPLATES.iterdir() if path.is_dir())
+        # New curriculum projects have independent inventory and behavior tests.
+        directories = sorted(path for path in TEMPLATES.iterdir() if path.is_dir() and not path.name.startswith("new_"))
         self.assertEqual(
             [path.name for path in directories],
             [
@@ -302,7 +303,15 @@ class CourseStarterTests(unittest.TestCase):
         preflight_main = (
             TEMPLATES / "tutorial_5_physical_preflight" / "main.py"
         ).read_text(encoding="utf-8")
-        self.assertIn('"tutorial_enable_short_motion",\n    False,', preflight_main)
+        motion_setting = next(
+            node.value for node in ast.parse(preflight_main).body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "ENABLE_SHORT_MOTION"
+                    for target in node.targets)
+        )
+        self.assertEqual(ast.unparse(motion_setting.func), "live.toggle")
+        self.assertEqual(ast.literal_eval(motion_setting.args[0]), "tutorial_enable_short_motion")
+        self.assertIs(ast.literal_eval(motion_setting.args[1]), False)
 
     def test_runnable_tutorial_examples_report_clear_outcomes(self):
         tutorials = sorted(TEMPLATES.glob("tutorial_[1-5]_*"))
@@ -574,7 +583,7 @@ class CourseStarterTests(unittest.TestCase):
             sys.modules.update(saved_modules)
 
     def test_all_core_and_experimental_starters_are_compilable_projects(self):
-        directories = sorted(path for path in STARTERS.iterdir() if path.is_dir())
+        directories = sorted(path for path in STARTERS.glob("challenge_*") if path.is_dir())
         self.assertEqual(
             [path.name for path in directories],
             [
@@ -609,6 +618,7 @@ class CourseStarterTests(unittest.TestCase):
                     "component_checks.py",
                     "course_setup.py",
                     "line_follower.py",
+                    "lap_progress.py",
                     "main.py",
                     "robot_config.py",
                 }
@@ -1195,7 +1205,9 @@ class CourseStarterTests(unittest.TestCase):
             "safety tier",
             "task instance",
         )
-        for directory in sorted(path for path in STARTERS.iterdir() if path.is_dir()):
+        # Retain the earlier course's behavioral-only wording contract. The
+        # revised planning lab explicitly introduces frontier/predecessor terms.
+        for directory in sorted(path for path in STARTERS.glob("challenge_*") if path.is_dir()):
             student_text = "\n".join(
                 path.read_text(encoding="utf-8")
                 for path in directory.iterdir()
@@ -1218,7 +1230,7 @@ class CourseStarterTests(unittest.TestCase):
             r"(?:x_mm|y_mm|heading_rad)\s*[=:]\s*-?\d",
             re.IGNORECASE,
         )
-        for directory in sorted(path for path in STARTERS.iterdir() if path.is_dir()):
+        for directory in sorted(path for path in STARTERS.glob("challenge_*") if path.is_dir()):
             readme = (directory / "README.md").read_text(encoding="utf-8")
             with self.subTest(challenge=directory.name):
                 self.assertIn("`world.json`", readme)

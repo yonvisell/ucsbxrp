@@ -1,4 +1,4 @@
-# Convert encoder, time, range, and button readings into Measurements.
+# Convert encoder, time and optional sensors into Measurements.
 
 from ucsb_xrp import Measurements
 from ucsb_xrp.student_api import SensorModelBase
@@ -12,6 +12,8 @@ class SensorModel(SensorModelBase):
         # in ms, encoder counts, range in mm or None, and the USER-button state.
         # Save the count and time origins needed by update(). Return zero for
         # wheel travel, wheel speed, and elapsed time in this first sample.
+        # Preserve raw.range_mm, raw.button_pressed and raw.reflectance in the
+        # corresponding Measurements fields, including when reflectance is None.
         raise NotImplementedError("Complete SensorModel.reset")
 
     def update(self, raw):
@@ -19,7 +21,8 @@ class SensorModel(SensorModelBase):
         # Wheel positions and increments use mm, speeds use mm/s, and dt_s uses
         # s. Use the encoder signs and geometry in self.config. Estimate speed
         # from several recent positions and times so one encoder-count step does
-        # not appear as a large instantaneous change.
+        # not appear as a large instantaneous change. Preserve raw.range_mm,
+        # raw.button_pressed and raw.reflectance in the returned Measurements.
         raise NotImplementedError("Complete SensorModel.update")
 
     def estimate_range(self, samples, minimum_usable):

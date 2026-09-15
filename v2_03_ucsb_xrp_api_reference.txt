@@ -1,7 +1,7 @@
 UCSB XRP API REFERENCE
 API version: 0.5.0-dev
 
-Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six reusable component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Catalog projects may add focused components for line following, range-constrained stopping, known-wall position correction, or multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.
+Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six reusable component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Catalog projects may add focused components for line following, range-constrained stopping, known-wall position correction, or multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here. The new_ candidate projects use these same interfaces for Robot Curling, cumulative line following, an odometry lab, waypoint navigation, a motion-free planner checkoff and a bounded observed-gate return mission; the existing project IDs remain available.
 
 UNITS AND COORDINATE CONVENTIONS
 - Distances, positions, wheel travel, and range use millimeters (mm).
@@ -76,6 +76,7 @@ from ucsb_xrp import RawSensors
 
 model = SensorModel(ROBOT_CONFIG)
 model.reset(RawSensors(0, 0, 0, None, False))
+# 20 ms later: four left counts and five right counts.
 measurement = model.update(RawSensors(20, 4, 5, None, False))
 print(measurement.left_increment_mm)
 print(measurement.left_speed_mm_s)
@@ -256,6 +257,18 @@ Required behavior:
 - Any route that connects the endpoints through free edge-adjacent cells is accepted.
 Exceptions:
 - TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell.
+
+Check a tiny route without motor motion
+from course_setup import make_grid_planner
+from ucsb_xrp import GridCell, OccupancyGrid
+
+# Row-major cells: the middle cell of the lower row is blocked.
+grid = OccupancyGrid(100.0, 0.0, 0.0, 3, 2,
+                     [False, True, False, False, False, False])
+start = GridCell(0, 0)
+goal = GridCell(2, 0)
+path = make_grid_planner().plan(grid, start, goal)
+print("No route" if path is None else path.cells)
 
 PROJECT-SPECIFIC COMPONENTS
 

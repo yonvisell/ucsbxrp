@@ -167,6 +167,29 @@ describe("monitor signal plots", () => {
     expect(programData[0]?.values).toEqual([[0, 4]]);
   });
 
+  it("does not label older values with a changed program unit", () => {
+    const definition = runtimePlotDefinition({
+      name: "distance",
+      label: "Distance",
+      unit: "m",
+      value: 5,
+    });
+    const values = [
+      { value: 3, unit: "mm" },
+      { value: 5, unit: "m" },
+      { value: 7, unit: "" },
+    ];
+    expect(
+      values.map((value) =>
+        definition.series[0]!.value(
+          sample(0, {
+            plotValues: [{ name: "distance", label: "Distance", ...value }],
+          }),
+        ),
+      ),
+    ).toEqual([null, 5, null]);
+  });
+
   it("preserves missing physical sensor values as chart gaps", () => {
     const data = signalPlotData(
       [sample(0, { rangeMm: null }), sample(100, { rangeMm: 240 })],
@@ -211,7 +234,7 @@ describe("monitor signal plots", () => {
     const drive = SIGNAL_PLOTS.find((plot) => plot.id === "motor-effort")!;
 
     expect(wheelSpeed.axisLabel).toBe("v_L, v_R");
-    expect(signalPlotTitle(wheelSpeed)).toBe("Wheel speed • v_L, v_R");
+    expect(signalPlotTitle(wheelSpeed)).toBe("Wheel speeds");
     expect(wheelSpeed.series.map(({ label }) => label)).toEqual([
       "measured v_L",
       "measured v_R",
@@ -219,7 +242,7 @@ describe("monitor signal plots", () => {
       "target v_R",
     ]);
     expect(drive.axisLabel).toBe("u_L, u_R");
-    expect(signalPlotTitle(drive)).toBe("Drive command: u_L, u_R");
+    expect(signalPlotTitle(drive)).toBe("Drive command");
     expect(drive.series.map(({ label }) => label)).toEqual(["u_L", "u_R"]);
   });
 

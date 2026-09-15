@@ -136,6 +136,89 @@ function physicalSample(
 }
 
 describe("physical target", () => {
+  it("records through the existing physical connection while retaining its Project provider", async () => {
+    const commands: Record<string, unknown>[] = [];
+    let port!: { onmessage: ((event: MessageEvent) => void) | null };
+    class FakeSharedWorker {
+      readonly port = {
+        onmessage: null as ((event: MessageEvent) => void) | null,
+        start() {},
+        close() {},
+        postMessage(command: Record<string, unknown>) {
+          commands.push(command);
+          if (typeof command.requestId === "string")
+            queueMicrotask(() =>
+              this.onmessage?.({
+                data: {
+                  type: "response",
+                  requestId: command.requestId,
+                  ok: true,
+                },
+              } as MessageEvent),
+            );
+        },
+      };
+      constructor() {
+        port = this.port;
+      }
+    }
+    const fetchMock = vi.fn();
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+    vi.stubGlobal("fetch", fetchMock);
+    const target = new PhysicalTargetClient("192.168.7.30");
+    const received: TargetEvent[] = [];
+    target.subscribe((event) => received.push(event));
+    target.setProjectRunProvider(() => ({
+      projectId: "project-a",
+      revision: 1,
+      project,
+    }));
+    target.setTelemetryEnabled(true);
+    try {
+      await target.connect();
+      expect(commands.filter((command) => command.type === "connect")).toEqual([
+        expect.objectContaining({ providesProject: true, role: "monitor" }),
+      ]);
+      port.onmessage?.({
+        data: {
+          type: "telemetry-batch",
+          events: [
+            { type: "telemetry", sample: physicalSample(11) },
+            { type: "telemetry", sample: physicalSample(12) },
+          ],
+        },
+      } as MessageEvent);
+      expect(
+        received
+          .filter((event) => event.type === "telemetry")
+          .map((event) => event.type === "telemetry" && event.sample.seq),
+      ).toEqual([11, 12]);
+      target.setTelemetryEnabled(false);
+      expect(commands.at(-1)).toEqual({ type: "set-role", role: "ide" });
+      target.setTelemetryEnabled(true);
+      target.setProjectRunProvider(() => ({
+        projectId: "project-a",
+        revision: 2,
+        project,
+      }));
+      expect(commands.slice(-2)).toEqual([
+        { type: "set-role", role: "monitor" },
+        {
+          type: "set-project-run-provider",
+          providesProject: true,
+          takeover: false,
+        },
+      ]);
+      expect(
+        commands.filter((command) => command.type === "connect"),
+      ).toHaveLength(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      target.disconnect();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("marks HTTPS-to-HTTP device requests as local-network traffic", () => {
     expect(
       localNetworkRequestInit(

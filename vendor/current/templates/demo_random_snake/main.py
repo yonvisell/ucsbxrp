@@ -59,10 +59,7 @@ def run_demo():
                 result = "Random-snake safety limit reached"
                 break
 
-            target_travel_mm = random.uniform(
-                MINIMUM_SEGMENT_TRAVEL_MM,
-                MAXIMUM_SEGMENT_TRAVEL_MM,
-            )
+            target_travel_mm = random.uniform(MINIMUM_SEGMENT_TRAVEL_MM, MAXIMUM_SEGMENT_TRAVEL_MM)
             segment_travel_mm = 0.0
             live.watch("segment", segment_index + 1)
             live.watch("phase", "forward")
@@ -86,12 +83,8 @@ def run_demo():
                 break
 
             direction = -1.0 if random.unit() < 0.5 else 1.0
-            target_heading_rad = wrap_angle_rad(
-                state.pose.heading_rad + direction * pi / 2.0
-            )
-            heading_error_rad = wrap_angle_rad(
-                target_heading_rad - state.pose.heading_rad
-            )
+            target_heading_rad = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
+            heading_error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
             turn_samples = 0
             live.watch("phase", "turn right" if direction < 0.0 else "turn left")
             while (
@@ -101,15 +94,11 @@ def run_demo():
                 and samples < MAXIMUM_SAMPLES
             ):
                 turn_direction = -1.0 if heading_error_rad < 0.0 else 1.0
-                state = robot.step(
-                    MotionCommand(0.0, turn_direction * TURN_RATE_RAD_S)
-                )
+                state = robot.step(MotionCommand(0.0, turn_direction * TURN_RATE_RAD_S))
                 total_wheel_travel_mm += wheel_travel_mm(state)
                 samples += 1
                 turn_samples += 1
-                heading_error_rad = wrap_angle_rad(
-                    target_heading_rad - state.pose.heading_rad
-                )
+                heading_error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
 
             if abs(heading_error_rad) > TURN_TOLERANCE_RAD:
                 result = "Random-snake turn safety limit reached"
@@ -124,7 +113,7 @@ def run_demo():
         print("seed:", RANDOM_SEED)
         print("final_pose:", state.pose)
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

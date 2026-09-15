@@ -9,6 +9,8 @@ import { csvRows, encodeCsvCell } from "./csv-records";
 export interface MonitorAnnotation {
   id: string;
   label: string;
+  revision?: number;
+  previousLabel?: string;
   source: TelemetrySample["source"];
   seq: number;
   observationSeq?: number;

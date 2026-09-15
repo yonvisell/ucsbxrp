@@ -674,6 +674,21 @@ test("enforces control across two independent browsers while preserving observer
     await run(observer).click();
     await expect.poll(() => serviceRunId).toBe(2);
     await expect(run(owner)).toHaveCount(0);
+    // Saving and ownership status must leave the former controller's Stop
+    // reachable at each supported header layout, including a narrow window.
+    for (const width of [1440, 1024, 768, 375]) {
+      await test.step(`Former-owner Stop is reachable at ${width}px`, async () => {
+        await owner.setViewportSize({ width, height: 900 });
+        await owner
+          .locator(".app-header")
+          .getByRole("button", { name: "Stop", exact: true })
+          .click({ trial: true });
+        await owner.screenshot({
+          path: test.info().outputPath(`observer-stop-${width}px.png`),
+          fullPage: true,
+        });
+      });
+    }
     await owner
       .locator(".app-header")
       .getByRole("button", { name: "Stop", exact: true })

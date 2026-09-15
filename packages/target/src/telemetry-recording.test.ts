@@ -109,7 +109,7 @@ describe("telemetryRecordingToCsv", () => {
     recorder.capture(sample(3));
 
     const csv = telemetryRecordingToCsv(recorder.stop());
-    expect(csv.split("\n")[0]).toBe(
+    expect(csv.split("\n")[0]).toContain(
       "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_wheel_distance_mm,right_wheel_distance_mm,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s,observation_seq,observation_kind,physics_step_seq,course_snapshot_seq,course_published_at_s",
     );
     expect(csv).toContain("virtual,1,3,0.06,4.5,-3,0.30000000000000004");
@@ -139,7 +139,7 @@ describe("telemetryRecordingToCsv", () => {
       .trimEnd()
       .split("\n")[1]!
       .split(",");
-    expect(values.slice(-17, -5)).toEqual([
+    expect(values.slice(27, 39)).toEqual([
       "1",
       "2.8",
       "-1.9",
@@ -197,16 +197,44 @@ describe("telemetryRecordingToCsv", () => {
       .trimEnd()
       .split("\n");
     expect(lines[0]).toMatch(
-      /,program_cross_track_error_mm,observation_seq,observation_kind,physics_step_seq,course_snapshot_seq,course_published_at_s$/,
+      /,program_cross_track_error_mm,observation_seq,observation_kind,physics_step_seq,course_snapshot_seq,course_published_at_s,timing_schema_version/,
     );
-    expect(lines[1]).toMatch(/,12\.5,,,,,$/);
+    expect(lines[1]?.split(",")[39]).toBe("12.5");
   });
 
   it("exports a header-only file for an empty recording", () => {
     const recorder = new TelemetryRecorder();
-    expect(telemetryRecordingToCsv(recorder.snapshot()).split("\n")).toEqual([
-      "source,pose_available,seq,t_s,x_mm,y_mm,heading_rad,left_drive_command,right_drive_command,left_wheel_speed_mm_s,right_wheel_speed_mm_s,left_wheel_distance_mm,right_wheel_distance_mm,left_encoder_count,right_encoder_count,collision,range_mm,button_pressed,acceleration_x_m_s2,acceleration_y_m_s2,acceleration_z_m_s2,angular_rate_x_rad_s,angular_rate_y_rad_s,angular_rate_z_rad_s,temperature_c,battery_v,sensor_error,estimated_pose_available,estimated_x_mm,estimated_y_mm,estimated_heading_rad,ground_truth_pose_available,ground_truth_x_mm,ground_truth_y_mm,ground_truth_heading_rad,requested_forward_speed_mm_s,requested_turn_rate_rad_s,target_left_wheel_speed_mm_s,target_right_wheel_speed_mm_s,observation_seq,observation_kind,physics_step_seq,course_snapshot_seq,course_published_at_s",
-      "",
+    const lines = telemetryRecordingToCsv(recorder.snapshot()).split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^source,pose_available,seq,t_s,/);
+    expect(lines[0]).toContain(",acquired_at_s,acquisition_seq,");
+    expect(lines[0]).toMatch(
+      /,csv_schema_version,recording_dropped_observations$/,
+    );
+    expect(lines[1]).toBe("");
+  });
+
+  it("keeps distinct program signals when their unit-labeled column names collide", () => {
+    const recorder = new TelemetryRecorder();
+    recorder.start();
+    recorder.capture({
+      ...sample(1),
+      plotValues: [
+        { name: "distance", label: "First", value: 12, unit: "mm" },
+        { name: "distance_mm", label: "Second", value: 34, unit: "mm" },
+        { name: "distance_mm__2", label: "Third", value: 56 },
+      ],
+    });
+    const [header, row] = telemetryRecordingToCsv(recorder.stop())
+      .trimEnd()
+      .split("\n")
+      .map((line) => line.split(","));
+    expect(new Set(header).size).toBe(header!.length);
+    expect(row!.slice(39, 42)).toEqual(["12", "34", "56"]);
+    expect(header!.slice(39, 42)).toEqual([
+      "program_distance_mm",
+      "program_distance_mm__2",
+      "program_distance_mm__2__2",
     ]);
   });
 });

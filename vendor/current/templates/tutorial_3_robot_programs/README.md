@@ -68,15 +68,16 @@ Then implement this sequence:
 
 The `finally` block runs after normal completion and after an unexpected
 `robot.start()` or `robot.step()` exception. It therefore provides one reliable
-location for the final stop command. Do not catch those unexpected exceptions;
-their messages are needed for diagnosis.
+location for the final stop command. The target runtime handles the IDE's
+**Stop** separately; forced termination can bypass Python cleanup. Do not catch
+those unexpected Python exceptions; their messages are needed for diagnosis.
 
 ## Robot.step controls the sample time
 
 **Do not call `sleep()`, `sleep_ms()`, or another delay inside a sampled robot
-loop.** `Robot.step()` already waits for the next scheduled sample. It then
-applies the command, reads the XRP, updates measurements and pose, and publishes
-telemetry. An added delay makes the sample interval wrong and changes both the
+loop.** `Robot.step()` computes and applies the motor command using the previous
+measurements, waits for the next scheduled sample, then reads the XRP, updates
+measurements and pose, and publishes telemetry. An added delay makes the sample interval wrong and changes both the
 measured response and total motion.
 
 ## Check and run

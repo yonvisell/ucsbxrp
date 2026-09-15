@@ -11,11 +11,7 @@ SERVICE_STOPS = (
     WORLD.waypoint("stop_c"),
 )
 NODE_GOALS = (
-    NavigationGoal(
-        INITIAL_POSE.x_mm,
-        INITIAL_POSE.y_mm,
-        INITIAL_POSE.heading_rad,
-    ),
+    NavigationGoal(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm, INITIAL_POSE.heading_rad),
 ) + SERVICE_STOPS
 NODE_NAMES = ("depot", "stop_a", "stop_b", "stop_c")
 START_NODE_INDEX = 0

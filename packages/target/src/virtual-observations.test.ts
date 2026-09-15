@@ -130,10 +130,31 @@ describe("virtual observation provenance", () => {
       .trimEnd()
       .split("\n");
     expect(csv[0]).toMatch(
-      /observation_seq,observation_kind,physics_step_seq,course_snapshot_seq,course_published_at_s$/,
+      /observation_seq,observation_kind,physics_step_seq,course_snapshot_seq,course_published_at_s,timing_schema_version/,
     );
-    expect(csv[1]).toMatch(/,4,0,course,1,3,0\.027$/);
-    expect(csv[2]).toMatch(/,5,1,course,1,4,0\.029$/);
-    expect(csv[3]).toMatch(/,4,2,course,1,,$/);
+    expect(csv[1]?.split(",").slice(39, 45)).toEqual([
+      "4",
+      "0",
+      "course",
+      "1",
+      "3",
+      "0.027",
+    ]);
+    expect(csv[2]?.split(",").slice(39, 45)).toEqual([
+      "5",
+      "1",
+      "course",
+      "1",
+      "4",
+      "0.029",
+    ]);
+    expect(csv[3]?.split(",").slice(39, 45)).toEqual([
+      "4",
+      "2",
+      "course",
+      "1",
+      "",
+      "",
+    ]);
   });
 });

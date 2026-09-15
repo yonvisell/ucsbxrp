@@ -17,8 +17,9 @@ of allowing blind forward travel.
 Use the ordinary **Stop** control to end a successful wandering run. The visible
 90000-sample and 190000 mm wheel-travel guards are finite failure backstops,
 approximately one hundred times the former short-run limits; they are not the
-expected terminator. The `finally` block calls `robot.stop()` for normal,
-stopped, and exceptional exits.
+expected terminator. The `finally` block calls `robot.stop()` after normal completion or a Python
+exception. The target runtime handles the IDE's **Stop** separately; forced
+termination can bypass Python cleanup.
 
 The same project runs on Virtual XRP or Physical XRP. A physical run requires
 a supervised, bounded floor area with broad, ultrasound-reflective obstacles;

@@ -41,11 +41,7 @@ TURN_DIRECTION = live.choice(
     options=("left", "right"),
     label="Turn direction",
 )
-RUN_BEHAVIOR = live.toggle(
-    "tutorial_run_behavior",
-    True,
-    label="Run behavior",
-)
+RUN_BEHAVIOR = live.toggle("tutorial_run_behavior", True, label="Run behavior")
 
 
 def next_phase(

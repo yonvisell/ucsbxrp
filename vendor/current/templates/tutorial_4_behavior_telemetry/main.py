@@ -38,9 +38,7 @@ def run_behavior():
             if not RUN_BEHAVIOR.value:
                 phase = DONE
 
-            turned_rad = abs(
-                wrap_angle_rad(state.pose.heading_rad - turn_start_heading_rad)
-            )
+            turned_rad = abs(wrap_angle_rad(state.pose.heading_rad - turn_start_heading_rad))
             previous_phase = phase
             phase = next_phase(
                 phase,
@@ -51,19 +49,14 @@ def run_behavior():
             if previous_phase != TURN and phase == TURN:
                 turn_start_heading_rad = state.pose.heading_rad
 
-            command = command_for_phase(
-                phase,
-                FORWARD_SPEED.value,
-                TURN_RATE.value,
-                TURN_DIRECTION.value,
-            )
+            command = command_for_phase(phase, FORWARD_SPEED.value, TURN_RATE.value, TURN_DIRECTION.value)
             publish_telemetry(state, phase)
             if phase == DONE:
                 break
             state = robot.step(command, read_range=phase == APPROACH)
         else:
             raise RuntimeError("Behavior did not finish within the sample limit")
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
     print("Tutorial 4 behavior complete")
     print("final_pose:", state.pose)

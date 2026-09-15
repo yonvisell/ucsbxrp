@@ -249,7 +249,7 @@ test("renders project README files and keeps their Markdown editable", async ({
       code: inlineCode ? getComputedStyle(inlineCode).fontSize : null,
     };
   });
-  expect(typography).toEqual({ body: "12px", code: "11px" });
+  expect(typography).toEqual({ body: "13px", code: "11px" });
   await expect(preview.getByText("## Objective", { exact: true })).toHaveCount(
     0,
   );
@@ -474,12 +474,14 @@ test("previews and preserves student files when starting another challenge", asy
     await page.getByRole("button", { name: "Create file" }).click();
   }
 
-  await page.getByRole("button", { name: "Start another challenge…" }).click();
+  await page
+    .getByRole("button", { name: "Continue in another project…" })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Start another challenge" }),
+    page.getByRole("heading", { name: "Continue in another project" }),
   ).toBeVisible();
   await page
-    .getByLabel("Challenge", { exact: true })
+    .getByLabel("Next project", { exact: true })
     .selectOption("challenge_2");
   const preview = page.getByRole("group", {
     name: "Challenge project file changes",
@@ -525,7 +527,7 @@ test("challenge_9 follows the visible circuit for one virtual lap", async ({
   );
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByRole("log")).toContainText(
-    "Challenge 9 complete: one circuit with the line retained",
+    "Line circuit: result=complete checkpoints=4/4",
     { timeout: 50_000 },
   );
   await expect(page.getByTestId("target-status")).toContainText(
@@ -783,7 +785,7 @@ test("runs the obstacle-left-obstacle demo on the virtual XRP", async ({
   const liveProgram = monitor.locator(".live-controls-panel");
   await expect(liveProgram).toBeVisible();
   await expect(liveProgram.locator("summary")).toHaveCount(0);
-  await expect(liveProgram).toContainText("5 controls");
+  await expect(liveProgram.locator("[data-runtime-parameter]")).toHaveCount(5);
   const secondApproach = liveProgram.getByRole("checkbox", {
     name: "Drive after turn",
   });
@@ -862,7 +864,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
     "Virtual XRP · running",
   );
   const liveControls = monitor.locator(".live-controls-panel");
-  await expect(liveControls).toContainText("2 controls");
+  await expect(liveControls.getByRole("slider")).toHaveCount(2);
   const openMonitorControls = monitor.getByRole("button", {
     name: "Open monitor controls",
   });
@@ -870,7 +872,7 @@ test("runs the expanding spiral with two live controls and obstacle stopping", a
     await openMonitorControls.click();
   }
   const programPlot = monitor.getByRole("checkbox", {
-    name: "Spiral travel mm",
+    name: "Travel mm",
   });
   await expect(programPlot).toBeVisible();
   await expect(programPlot).toBeChecked();

@@ -24,17 +24,17 @@ export interface CourseProjectTemplate extends CourseStarter {
 }
 
 const rawStarterFiles = {
-  ...(import.meta.glob("../../../vendor/current/starters/challenge_*/*.py", {
+  ...(import.meta.glob("../../../vendor/current/starters/**/*.py", {
     eager: true,
     import: "default",
     query: "?raw",
   }) as Record<string, string>),
-  ...(import.meta.glob("../../../vendor/current/starters/challenge_*/*.md", {
+  ...(import.meta.glob("../../../vendor/current/starters/**/*.md", {
     eager: true,
     import: "default",
     query: "?raw",
   }) as Record<string, string>),
-  ...(import.meta.glob("../../../vendor/current/starters/challenge_*/*.json", {
+  ...(import.meta.glob("../../../vendor/current/starters/**/*.json", {
     eager: true,
     import: "default",
     query: "?raw",
@@ -374,7 +374,6 @@ const replacedChallengeTaskFiles = new Set([
 
 const allChallengeComponentFiles = new Set(
   catalog
-    .filter((entry) => entry.kind === "challenge")
     .flatMap((entry) => entry.components ?? [])
     .map((component) => component.file),
 );
@@ -435,8 +434,10 @@ export function describeChallengeProjectTransition(
 ): ChallengeTransition {
   const current = courseProjectTemplate(currentTemplateId);
   const target = courseProjectTemplate(targetTemplateId);
-  if (current.kind !== "challenge" || target.kind !== "challenge") {
-    throw new Error("Challenge transitions require two student challenges");
+  if (current.components.length === 0 || target.components.length === 0) {
+    throw new Error(
+      "Project transitions require declared student components in both projects",
+    );
   }
   if (currentTemplateId === targetTemplateId) {
     throw new Error("Choose a different challenge project");

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "apiVersion": "0.5.0-dev",
   "title": "UCSB XRP API reference",
-  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six reusable component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Catalog projects may add focused components for line following, range-constrained stopping, known-wall position correction, or multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here.",
+  "introduction": "Each call to Robot.step() performs one control-loop update: it converts a MotionCommand into WheelSpeeds and a DriveCommand, reads the robot sensors, updates Measurements and Pose, and returns a RobotState. Six reusable component classes perform sensor interpretation, wheel-speed control, differential-drive kinematics, odometry, navigation, and path planning. Catalog projects may add focused components for line following, range-constrained stopping, known-wall position correction, or multi-stop ordering. The class you implement in each named project file may use any algorithm that satisfies the required behavior stated here. The new_ candidate projects use these same interfaces for Robot Curling, cumulative line following, an odometry lab, waypoint navigation, a motion-free planner checkoff and a bounded observed-gate return mission; the existing project IDs remain available.",
   "publicModules": {
     "ucsb_xrp": [
       "ArenaMap",
@@ -179,7 +179,7 @@
           ],
           "example": {
             "title": "Measure one encoder update",
-            "code": "from robot_config import ROBOT_CONFIG\nfrom sensor_model import SensorModel\nfrom ucsb_xrp import RawSensors\n\nmodel = SensorModel(ROBOT_CONFIG)\nmodel.reset(RawSensors(0, 0, 0, None, False))\nmeasurement = model.update(RawSensors(20, 4, 5, None, False))\nprint(measurement.left_increment_mm)\nprint(measurement.left_speed_mm_s)"
+            "code": "from robot_config import ROBOT_CONFIG\nfrom sensor_model import SensorModel\nfrom ucsb_xrp import RawSensors\n\nmodel = SensorModel(ROBOT_CONFIG)\nmodel.reset(RawSensors(0, 0, 0, None, False))\n# 20 ms later: four left counts and five right counts.\nmeasurement = model.update(RawSensors(20, 4, 5, None, False))\nprint(measurement.left_increment_mm)\nprint(measurement.left_speed_mm_s)"
           }
         },
         {
@@ -215,7 +215,10 @@
               "name": "reset",
               "signature": "reset() -> None",
               "summary": "Prepare controller state for a new run.",
-              "returns": { "type": "None", "description": "No value." }
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              }
             },
             {
               "id": "method-wheel-speed-controller-update",
@@ -414,7 +417,10 @@
                   "description": "Tuple or list of navigation goals in visit order; it may be empty."
                 }
               ],
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "requiredBehavior": [
                 "An empty goal sequence is immediately complete; current_goal() returns None and update() returns STOP_COMMAND."
               ],
@@ -514,7 +520,11 @@
                 "TypeError if grid is not OccupancyGrid or a non-None endpoint is not GridCell."
               ]
             }
-          ]
+          ],
+          "example": {
+            "title": "Check a tiny route without motor motion",
+            "code": "from course_setup import make_grid_planner\nfrom ucsb_xrp import GridCell, OccupancyGrid\n\n# Row-major cells: the middle cell of the lower row is blocked.\ngrid = OccupancyGrid(100.0, 0.0, 0.0, 3, 2,\n                     [False, True, False, False, False, False])\nstart = GridCell(0, 0)\ngoal = GridCell(2, 0)\npath = make_grid_planner().plan(grid, start, goal)\nprint(\"No route\" if path is None else path.cells)"
+          }
         }
       ]
     },
@@ -549,7 +559,10 @@
               "requiredBehavior": [
                 "Set line_error and retained integral and preceding-error state to zero."
               ],
-              "returns": { "type": "None", "description": "No value." }
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              }
             },
             {
               "id": "method-line-follower-update",
@@ -936,7 +949,10 @@
               "name": "stop",
               "signature": "stop() -> None",
               "summary": "Stop both motors and publish a zero drive command.",
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "exceptions": [
                 "Hardware exception if the motors cannot be stopped."
               ]
@@ -981,7 +997,10 @@
                   "description": "Requested nonnegative forward travel."
                 }
               ],
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "exceptions": [
                 "TypeError if measurements is not a Measurements value.",
                 "ValueError if distance_mm is Boolean, nonnumeric, nonfinite, or negative."
@@ -1013,7 +1032,10 @@
               "name": "is_complete",
               "signature": "is_complete() -> bool",
               "summary": "Report whether the distance is within the position tolerance.",
-              "returns": { "type": "bool", "description": "Completion state." }
+              "returns": {
+                "type": "bool",
+                "description": "Completion state."
+              }
             }
           ]
         }
@@ -1835,7 +1857,10 @@
               "description": "Displayed label; derived from name when omitted."
             }
           ],
-          "returns": { "type": "None", "description": "No value." },
+          "returns": {
+            "type": "None",
+            "description": "No value."
+          },
           "exceptions": [
             "TypeError if name, unit, or label is not a string or value is not a number, Boolean, or string.",
             "ValueError if text is empty or too long, name is not a Python identifier, a numeric value is nonfinite, or 16 watch values already exist."
@@ -1872,7 +1897,10 @@
               "description": "Displayed label; derived from name when omitted."
             }
           ],
-          "returns": { "type": "None", "description": "No value." },
+          "returns": {
+            "type": "None",
+            "description": "No value."
+          },
           "exceptions": [
             "TypeError if name, unit, or label is not a string or value is Boolean or nonnumeric.",
             "ValueError if text is empty or too long, name is not a Python identifier, value is nonfinite, or 16 plot values already exist."
@@ -1907,8 +1935,16 @@
           "purpose": "Provide one named world loaded from the project's world.json file, including bounds, initial pose, fixed obstacles, changeable features, and waypoint markers.",
           "state": "The loaded world does not change. arena_map() creates a new ArenaMap, and waypoint methods create NavigationGoal values from the stored markers.",
           "properties": [
-            { "name": "id", "type": "str", "description": "World identifier." },
-            { "name": "label", "type": "str", "description": "Display name." },
+            {
+              "name": "id",
+              "type": "str",
+              "description": "World identifier."
+            },
+            {
+              "name": "label",
+              "type": "str",
+              "description": "Display name."
+            },
             {
               "name": "bounds_mm",
               "type": "tuple[float, float, float, float]",
@@ -2405,7 +2441,10 @@
                   "description": "Cell to test."
                 }
               ],
-              "returns": { "type": "bool", "description": "Blocked state." },
+              "returns": {
+                "type": "bool",
+                "description": "Blocked state."
+              },
               "exceptions": ["TypeError if cell is not GridCell."]
             },
             {
@@ -2648,7 +2687,10 @@
               "name": "reset_encoders",
               "signature": "reset_encoders() -> None",
               "summary": "Use current hardware counts as the session zero.",
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "exceptions": [
                 "Hardware or run-stop exception while reading encoder counts."
               ]
@@ -2658,7 +2700,10 @@
               "name": "wait_for_button",
               "signature": "wait_for_button() -> None",
               "summary": "Wait for the XRP USER button.",
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "exceptions": ["Hardware or run-stop exception while waiting."]
             },
             {
@@ -2673,7 +2718,10 @@
                   "description": "Logical left and right motor commands."
                 }
               ],
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "exceptions": [
                 "TypeError if command is not DriveCommand.",
                 "ValueError if a command field is not a finite real number.",
@@ -2685,7 +2733,10 @@
               "name": "stop",
               "signature": "stop() -> None",
               "summary": "Attempt to stop both motors.",
-              "returns": { "type": "None", "description": "No value." },
+              "returns": {
+                "type": "None",
+                "description": "No value."
+              },
               "exceptions": [
                 "Hardware exception if either motor cannot be set to zero."
               ]

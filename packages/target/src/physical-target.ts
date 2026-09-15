@@ -21,6 +21,10 @@ import type { TargetWorkerRole } from "./worker-protocol";
 import { describeProject } from "./project-identity";
 import { parseMicroPythonDiagnostics } from "./micropython-error";
 import { decodeSamplePlots } from "./telemetry-plots";
+import {
+  applyTelemetryTimingPage,
+  decodeTelemetryTiming,
+} from "./telemetry-timing";
 import { PROVIDER_RESPONSE_TIMEOUT_MS } from "./project-run-provider";
 import { worldCatalogForProject } from "./project-world";
 import {
@@ -134,6 +138,8 @@ interface PhysicalState {
   sampleShared?: unknown;
   samplePlots?: unknown[] | null;
   samplePlotDescriptors?: unknown[];
+  sampleTiming?: unknown[];
+  sampleDiagnostics?: unknown[];
   project?: PhysicalProjectManifest | null;
   runtimeJson?: string;
   pollOwnership?: PhysicalPollOwnership;
@@ -2412,6 +2418,36 @@ export class DirectPhysicalTargetClient implements TargetClient {
         "samplePlots contains invalid or unaligned plot values",
       );
     }
+    try {
+      const clockId = `physical:${state.bootId}:${state.runId}`;
+      if (state.samples) {
+        const timing =
+          state.sampleTiming ??
+          state.samples.map(
+            (sample) =>
+              (sample as TelemetrySample & { timingValues?: unknown })
+                .timingValues ?? null,
+          );
+        state.samples = applyTelemetryTimingPage(
+          state.samples,
+          timing,
+          state.sampleDiagnostics,
+          clockId,
+        );
+      }
+      if (state.sample) {
+        const timing = decodeTelemetryTiming(
+          (state.sample as TelemetrySample & { timingValues?: unknown })
+            .timingValues,
+          clockId,
+        );
+        if (timing) state.sample = { ...state.sample, timing };
+      }
+    } catch {
+      telemetryRowError(
+        "sample timing or diagnostics are invalid or unaligned",
+      );
+    }
     return state;
   }
 
@@ -2542,6 +2578,7 @@ export class DirectPhysicalTargetClient implements TargetClient {
         phase: entry.stream === "system" ? "result" : "output",
         eventId: `${state.bootId}:log:${entry.seq}`,
         targetTimeMs: entry.tMs,
+        targetClockId: `physical:${state.bootId}:service-uptime`,
       });
     }
     // Deliver all output from a finishing poll before the ready/error status.
@@ -3028,6 +3065,7 @@ export class PhysicalTargetClient implements TargetClient {
   private readonly directMode: boolean;
   private readonly directPollOwnerId = `page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   private projectRunProvider: ProjectRunProvider | null = null;
+  private telemetryEnabled = false;
 
   constructor(endpoint: string, options: PhysicalTargetOptions = {}) {
     this.endpoint = normalizePhysicalEndpoint(endpoint);
@@ -3079,7 +3117,7 @@ export class PhysicalTargetClient implements TargetClient {
         this.worker.port.start();
         this.worker.port.postMessage({
           type: "set-role",
-          role: this.projectRunProvider !== null ? "ide" : "monitor",
+          role: this.deliveryRole(),
         } satisfies PhysicalWorkerCommand);
       } catch (error) {
         this.releaseWorker(errorDetail(error));
@@ -3095,7 +3133,7 @@ export class PhysicalTargetClient implements TargetClient {
         discoveryTimeoutMs: this.discoveryTimeoutMs,
         expectedRobotId: this.options.expectedRobotId,
         providesProject: this.projectRunProvider !== null,
-        role: this.projectRunProvider !== null ? "ide" : "monitor",
+        role: this.deliveryRole(),
       });
 
     // Join the shared connection first. A healthy IDE/Monitor peer can then
@@ -3198,13 +3236,27 @@ export class PhysicalTargetClient implements TargetClient {
     this.direct?.setProjectRunProvider(provider, options);
     this.worker?.port.postMessage({
       type: "set-role",
-      role: provider !== null ? "ide" : "monitor",
+      role: this.deliveryRole(),
     } satisfies PhysicalWorkerCommand);
     this.worker?.port.postMessage({
       type: "set-project-run-provider",
       providesProject: provider !== null,
       takeover: options?.takeover === true,
     } satisfies PhysicalWorkerCommand);
+  }
+
+  setTelemetryEnabled(enabled: boolean): void {
+    this.telemetryEnabled = enabled;
+    this.worker?.port.postMessage({
+      type: "set-role",
+      role: this.deliveryRole(),
+    } satisfies PhysicalWorkerCommand);
+  }
+
+  private deliveryRole(): TargetWorkerRole {
+    return this.telemetryEnabled || this.projectRunProvider === null
+      ? "monitor"
+      : "ide";
   }
 
   markProjectChanged(project: ProjectRevisionNotice): void {

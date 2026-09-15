@@ -130,6 +130,7 @@ export interface TargetConsoleMetadata {
   eventId?: string;
   timestampMs?: number;
   targetTimeMs?: number;
+  targetClockId?: string;
   /** True when the coordinator is restoring an earlier console line. */
   replayed?: boolean;
   /** A program-output truncation diagnostic, including on the system stream. */
@@ -148,10 +149,44 @@ export interface TargetConsoleMetadata {
   requestId?: string;
 }
 
+export interface TelemetryTiming {
+  diagnostics?: TelemetryDiagnostics;
+  plots?: RuntimePlot[];
+  version: 1;
+  clockId: string;
+  clockBasis: "first-acquisition";
+  kind: "raw" | "course" | "stop";
+  rawDeviceTimeMs: number | null;
+  acquiredAtMs: number | null;
+  acquisitionSeq: number | null;
+  rangeAcquiredAtMs: number | null;
+  rangeSeq: number | null;
+  diagnosticsAcquiredAtMs: number | null;
+  diagnosticsSeq: number | null;
+  rawLeftEncoderCount: number | null;
+  rawRightEncoderCount: number | null;
+  rawRangeMm: number | null;
+  publishedAtMs: number | null;
+  sampleDtMs: number | null;
+  samplePeriodMs: number | null;
+  overrunMs: number | null;
+  rangeSampled: boolean;
+}
+
+export interface TelemetryDiagnostics {
+  accelerationMg: [number, number, number] | null;
+  angularRateMdps: [number, number, number] | null;
+  temperatureC: number | null;
+  batteryV: number | null;
+  sensorError: string | null;
+}
+
 export interface TelemetrySample {
   tMs: number;
   seq: number;
   source: "virtual" | "physical";
+  /** Acquisition/publication clocks and the exact raw values seen by student code. */
+  timing?: TelemetryTiming;
   /** Publication order within a target session; replay preserves this identity. */
   observationSeq?: number;
   observationKind?: TelemetryObservationKind;
@@ -292,6 +327,8 @@ export interface TargetClient {
   stop(): Promise<void>;
   reset(): Promise<void>;
   claimControl?(): Promise<void>;
+  /** Receive recording samples independently of providing the current Project. */
+  setTelemetryEnabled?(enabled: boolean): void;
   setRuntimeParameter(
     name: string,
     value: RuntimeParameterValue,

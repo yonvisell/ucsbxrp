@@ -19,5 +19,20 @@ export function configureLocalMonaco() {
     },
   };
   loader.config({ monaco });
+  const theme = getComputedStyle(document.documentElement);
+  monaco.editor.defineTheme("ucsb-xrp", {
+    base: "vs",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editorGutter.background": theme
+        .getPropertyValue("--panel-raised")
+        .trim(),
+      "editorLineNumber.foreground": theme.getPropertyValue("--quiet").trim(),
+      "editorLineNumber.activeForeground": theme
+        .getPropertyValue("--ink")
+        .trim(),
+    },
+  });
   registerCoursePythonLanguage(monaco);
 }

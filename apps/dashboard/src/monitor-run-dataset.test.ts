@@ -34,6 +34,59 @@ function sample(
 }
 
 describe("Monitor run dataset", () => {
+  it("keeps more than24 notes, updates text without changing its observation, and merges later saved revisions", () => {
+    const controller = new MonitorRunDatasetController();
+    controller.begin({
+      id: "notes",
+      target: "virtual",
+      project: null,
+      worldId: "arena",
+      world: DEFAULT_WORLD_CATALOG.worlds[0]!,
+      startedAt: "start",
+    });
+    for (let index = 0; index < 25; index++)
+      controller.addAnnotation({
+        id: `n${index}`,
+        label: `Note ${index}`,
+        source: "virtual",
+        seq: 1,
+        observationSeq: index,
+        tMs: 20,
+        poseAvailable: true,
+        xMm: 1,
+        yMm: 2,
+      });
+    const completed = controller.complete("ready", "done", "end")!;
+    expect(completed.annotations).toHaveLength(25);
+    const edited = controller.updateAnnotation("n0", "corrected")!;
+    expect(edited.annotations[0]).toMatchObject({
+      id: "n0",
+      label: "corrected",
+      previousLabel: "Note 0",
+      revision: 1,
+      observationSeq: 0,
+      tMs: 20,
+      xMm: 1,
+      yMm: 2,
+    });
+    const remote = {
+      ...edited.annotations[0]!,
+      label: "saved correction",
+      previousLabel: undefined,
+      revision: 2,
+    };
+    const conflict = controller.restoreAnnotations([remote])!;
+    expect(conflict.annotations[0]?.label).toBe("corrected");
+    expect(conflict.annotations[0]?.previousLabel).toBe("Note 0");
+    const acknowledged = controller.restoreAnnotations([
+      { ...edited.annotations[0]!, previousLabel: undefined },
+    ])!;
+    expect(acknowledged.annotations[0]?.previousLabel).toBeUndefined();
+    const restored = controller.restoreAnnotations([remote])!;
+    expect(restored.annotations).toHaveLength(25);
+    expect(restored.annotations[0]?.label).toBe("saved correction");
+    expect(restored.recording).toBe(edited.recording);
+  });
   it("counts a late Monitor's known lost prefix once, plus internal gaps and local eviction", () => {
     const controller = new MonitorRunDatasetController(2);
     const begin = (id: string) =>

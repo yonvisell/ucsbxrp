@@ -536,5 +536,242 @@
     "summary": "Rehearse virtually, then verify sensors, motors, encoders, telemetry, and stopping on a physical XRP.",
     "entrypoint": "main.py",
     "published": true
+  },
+  {
+    "id": "new_challenge_1_robot_curling",
+    "kind": "challenge",
+    "source": "starters/new_challenge_1_robot_curling",
+    "label": "New Challenge 1 · Robot Curling",
+    "short_label": "New 1 · Robot Curling",
+    "summary": "Measure wheel speed, experiment with a distance policy, and assess stationary endpoint accuracy.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_2_arena_line_circuit",
+    "kind": "challenge",
+    "source": "starters/new_challenge_2_arena_line_circuit",
+    "label": "New Challenge 2 · Arena Line Circuit",
+    "short_label": "New 2 · Arena Line Circuit",
+    "summary": "Carry prior drive components forward and follow one qualified reflectance circuit.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "LineFollower",
+        "file": "line_follower.py",
+        "selection_flag": "USE_STUDENT_LINE_FOLLOWER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_3_waypoint_courier",
+    "kind": "challenge",
+    "source": "starters/new_challenge_3_waypoint_courier",
+    "label": "New Challenge 3 · Waypoint Courier",
+    "short_label": "New 3 · Waypoint Courier",
+    "summary": "Validate odometry, then visit every assigned waypoint in order.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_4_mapped_route",
+    "kind": "challenge",
+    "source": "starters/new_challenge_4_mapped_route",
+    "label": "New Challenge 4 · Mapped Route",
+    "short_label": "New 4 · Mapped Route",
+    "summary": "Check a bounded grid path without motion, then optionally execute it.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_5_out_and_back",
+    "kind": "challenge",
+    "source": "starters/new_challenge_5_out_and_back",
+    "label": "New Challenge 5 · Out-and-Back",
+    "short_label": "New 5 · Out-and-Back",
+    "summary": "Follow a known outbound corridor, observe one gate, and plan a bounded return.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_demo_odometry_calibration",
+    "kind": "demo",
+    "source": "templates/new_demo_odometry_calibration",
+    "label": "New Demo · Odometry Calibration",
+    "short_label": "Odometry Calibration",
+    "summary": "Compare estimated and measured pose through bounded straight, arc, turn and square experiments.",
+    "entrypoint": "main.py",
+    "published": true,
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      }
+    ]
+  },
+  {
+    "id": "new_demo_reflectance_calibration",
+    "kind": "demo",
+    "source": "templates/new_demo_reflectance_calibration",
+    "label": "New Demo · Reflectance Calibration",
+    "short_label": "Reflectance Calibration",
+    "summary": "Record two reflectance sensors without motor motion and check floor/tape contrast.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "new_demo_motor_characterization",
+    "kind": "demo",
+    "source": "templates/new_demo_motor_characterization",
+    "label": "New Demo · Motor Characterization",
+    "short_label": "Motor Characterization",
+    "summary": "Measure separate left/right speed responses to bounded open-loop effort steps.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "new_demo_planning_comparison",
+    "kind": "demo",
+    "source": "templates/new_demo_planning_comparison",
+    "label": "New Demo · BFS and A* Comparison",
+    "short_label": "BFS and A* Comparison",
+    "summary": "Compare BFS and heapq A* path cost and expanded cells without starting the robot.",
+    "entrypoint": "main.py",
+    "published": true
   }
 ]

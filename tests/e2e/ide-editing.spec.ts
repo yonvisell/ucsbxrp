@@ -208,6 +208,8 @@ test("edits, compiles, runs, and recovers main.py through Monaco", async ({
     "Virtual XRP · ready",
   );
 
+  await expect(page.getByTestId("ide-run-save-state")).toHaveText("Run saved");
+  await expect(page.getByTestId("project-save-state")).toHaveText("Saved");
   await page.reload();
   await expect(page.getByTestId("current-file")).toHaveText("main.py");
   await expect(

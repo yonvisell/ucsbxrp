@@ -237,6 +237,7 @@ export function WorkspaceApp() {
         </div>
         <nav aria-label="Workspace links" className="workspace-links">
           <a
+            className="app-navigation-link"
             href="../guide/"
             onClick={(event) => {
               event.preventDefault();
@@ -246,6 +247,7 @@ export function WorkspaceApp() {
             Guide
           </a>
           <a
+            className="app-navigation-link"
             href="../reference/"
             onClick={(event) => {
               event.preventDefault();
@@ -254,7 +256,9 @@ export function WorkspaceApp() {
           >
             API
           </a>
-          <a href="../">Home</a>
+          <a className="app-navigation-link" href="../">
+            Home
+          </a>
         </nav>
       </header>
 

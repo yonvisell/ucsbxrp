@@ -4,11 +4,21 @@ import apiCatalog from "../../../course_content/api-reference.json";
 import projectCatalog from "../../../vendor/current/project_catalog.json";
 import { CourseHeader } from "../../shared/CourseHeader";
 import { useHashTarget } from "../../shared/useHashTarget";
+import { CopyCode } from "../../shared/CopyCode";
+import { MarkdownArticle } from "../../shared/MarkdownArticle";
+import routerInstructions from "../../../docs/ARCHER_AX21_SETUP.md?raw";
+import savedTelemetryInstructions from "../../../docs/TELEMETRY_FORMAT.md?raw";
+
 import {
   ControlCycleFlow,
   ProjectStructureFlow,
   SystemBoundaryFlow,
 } from "./CourseFlows";
+
+// Keep the copyable MATLAB example and its source document synchronized.
+const telemetrySections = savedTelemetryInstructions.split(
+  /```matlab\n([\s\S]*?)```/,
+);
 
 const componentReference = "../reference/#components";
 const componentEntries =
@@ -63,17 +73,20 @@ export function GuideApp() {
           <GuideSection id="virtual-run" number="01" title="First virtual run">
             <ol className="procedure">
               <li>
-                Open the <a href="../workspace/?mode=ide">IDE</a> in Chrome.
-                When prompted, choose a <strong>Working folder</strong>: the
-                parent folder that will contain all of your named Project
-                folders.
+                Open the <a href="../workspace/?mode=ide">IDE</a> in Chrome. The
+                first-project dialog appears automatically. A{" "}
+                <strong>Working folder</strong> is the parent folder that will
+                contain your named Project folders.
               </li>
               <li>
-                In <strong>Create your first Project</strong>, select the
-                Working folder, check the proposed <code>XRP_Project_01</code>
-                name and location, then select <strong>Create Project</strong>.
-                Occupied names advance to the next unused number. The Project
-                contains the Expanding spiral virtual program. Use
+                In <strong>Create your first Project</strong>, select{" "}
+                <strong>Choose folder and create Project</strong>. Chrome asks
+                for the parent folder; Documents is a useful choice. The IDE
+                creates <code>my_demo_spiral_01</code> automatically. When a
+                Working folder is already selected, use{" "}
+                <strong>Create Project</strong>. Occupied names advance to the
+                next unused number. The Project contains the Expanding spiral
+                virtual program. Use
                 <strong> Open existing Project</strong> for prior work, or
                 <strong> Reconnect existing work</strong> when Chrome needs
                 permission again. No USB setup is needed for virtual use.
@@ -177,6 +190,16 @@ export function GuideApp() {
                   folder. This does not create or copy files.
                 </dd>
               </div>
+              <div>
+                <dt>Rename project…</dt>
+                <dd>
+                  Change the saved display name shown in UCSBXRP. The folder on
+                  disk keeps its name and all existing run data. To change the
+                  folder name itself, close its UCSBXRP windows first, rename it
+                  in Finder or File Explorer, then use Open project to select it
+                  again.
+                </dd>
+              </div>
             </dl>
             <p>
               Edits save automatically to the open Project folder. The
@@ -192,37 +215,14 @@ export function GuideApp() {
               pending; use Stop to cancel. A failed Stop is not confirmation
               that the Physical XRP stopped.
             </p>
-            <h3>Recovery and other open windows</h3>
             <p>
-              Settings lists retained unsaved copies separately from saved
-              Project files. Export a recovery copy before clearing browser
-              data. An interrupted folder save or externally changed file opens
-              a recovery choice; retain the wanted version as a separate Project
-              before continuing. A cancelled folder or Project choice leaves the
-              current Project selected.
-            </p>
-            <p>
-              <strong>Save pending</strong> can mean another editor is still
-              writing. Let it finish and retry. If every editor of that folder
-              is closed, use <strong>Review pending writers</strong> in the
-              Project chooser or Settings. Confirm only after closing those
-              editors; then choose which complete recovery copy to retain.
-            </p>
-            <p>
-              Use one editing window for a Project. Another IDE can show the
-              same XRP, but <strong>Use this IDE</strong> explicitly selects
-              which source supplies Run. On a Physical XRP, another browser or
-              computer can observe status and request Stop. Take control only
-              after the XRP is stopped. Switching windows does not transfer
-              control automatically. Close extra editors before resolving a save
-              conflict; operating-system folder copies with identical Project
-              identities require a new saved Project copy before automatic run
-              archiving.
+              For interrupted saves, folder permission or extra editors, see{" "}
+              <a href="#recovery">Recovery and other open windows</a>.
             </p>
             <p>
               To reuse work in a different challenge, select{" "}
-              <strong>Start another challenge…</strong>. Choose the target and
-              inspect the <strong>Preserve</strong>, <strong>Merge</strong>,
+              <strong>Continue in another project…</strong>. Choose the target
+              and inspect the <strong>Preserve</strong>, <strong>Merge</strong>,
               <strong> Replace</strong>, <strong>Add</strong>, and
               <strong> Leave in the source project</strong> lists before
               creating a separate project. The current project is not changed.
@@ -254,11 +254,13 @@ export function GuideApp() {
                     ))}
                 </ol>
                 <p>
-                  The catalog contains more challenge candidates than a single
-                  course offering may use; numbering is an identifier, not a
-                  required teaching order. Experimental Challenge 9 is a
-                  standalone line-following project that assumes the sampled
-                  Robot loop and supplied wheel/drive components.
+                  The five projects prefixed <code>new_challenge_</code> form a
+                  revised candidate sequence: Robot curling, Arena line circuit,
+                  Waypoint courier, Mapped route, and Out and back. Use the
+                  sequence assigned by your instructor. The established
+                  challenges remain available with their original identifiers;
+                  catalog numbering alone does not prescribe teaching order.
+                  Each README identifies the components used in that project.
                 </p>
               </section>
               <section>
@@ -463,6 +465,45 @@ export function GuideApp() {
             title="Implement and test a class"
           >
             <h3>Implement the class</h3>
+            <details id="python-basics">
+              <summary>Python details for MATLAB users</summary>
+              <ul>
+                <li>
+                  Python indexes lists from <code>0</code>.{" "}
+                  <code>range(4)</code> gives 0, 1, 2, 3. Use{" "}
+                  <code>len(values)</code> for length and{" "}
+                  <code>values.append(value)</code> to add one item.
+                </li>
+                <li>
+                  Use <code>**</code> for powers, <code>==</code> for comparison
+                  and <code>=</code> for assignment. Indented blocks replace
+                  MATLAB's <code>end</code>; use four spaces consistently.
+                </li>
+                <li>
+                  <code>None</code> means unavailable. Test{" "}
+                  <code>value is None</code> before arithmetic. A missing range
+                  is not zero distance.
+                </li>
+                <li>
+                  <code>self</code> identifies one object inside its methods.
+                  Values such as <code>self.previous_time_ms</code> persist
+                  between calls; reset them in <code>reset()</code> before a new
+                  run.
+                </li>
+                <li>
+                  <code>from module import Name</code> loads a name from another
+                  file or library. Do not append <code>.py</code> to an import
+                  or run another file just to import its functions.
+                </li>
+                <li>
+                  <code>try</code> begins work that needs cleanup. Its matching{" "}
+                  <code>finally</code> runs when that work returns, finishes or
+                  raises an exception. A forced worker termination or power loss
+                  can prevent Python cleanup; UCSBXRP's Stop mechanism
+                  separately ends execution.
+                </li>
+              </ul>
+            </details>
             <p>
               Complete the required methods of the class in its named project
               file, such as <code>SensorModel</code> in{" "}
@@ -475,6 +516,29 @@ export function GuideApp() {
               add target-specific Virtual or Physical XRP code.
             </p>
             <h3>Test the class</h3>
+            <p>
+              Start with one known input and compare the returned value and
+              units. A successful Compile establishes valid syntax, not a
+              correct algorithm. A passing component example checks only that
+              example; follow it with the experiments in the project README.
+            </p>
+            <details id="debugging-values">
+              <summary>
+                Inspect an intermediate value without flooding Program output
+              </summary>
+              <CopyCode
+                code={
+                  'from ucsb_xrp import live\n\n# Place these lines in the loop after calculating target_speed_mm_s.\nmeasured_speed_mm_s = state.measurements.left_speed_mm_s\nerror_mm_s = target_speed_mm_s - measured_speed_mm_s\nlive.watch("speed_error_mm_s", error_mm_s, unit="mm/s", label="Speed error")\nlive.plot("speed_error_mm_s", error_mm_s, unit="mm/s", label="Speed error")'
+                }
+              />
+              <p>
+                Watch shows the latest value; plot preserves its time history in
+                Monitor. Print short milestones such as “planning complete”. For
+                an exception, start at the last project file and line in the
+                traceback, inspect its inputs, then repeat the smallest failing
+                case. Retain the original traceback when asking for help.
+              </p>
+            </details>
             <p>
               <strong>Compile</strong> checks the project structure and compiles
               each Python file without starting a target.{" "}
@@ -577,12 +641,14 @@ export function GuideApp() {
               </li>
             </ol>
             <h3>Robot hotspot and station mode</h3>
+            <details id="class-router">
+              <summary>Set up a dedicated course router (Archer AX21)</summary>
+              <MarkdownArticle source={routerInstructions} />
+            </details>
             <p>
-              If you exit after USB installation but before Wi-Fi verification,
-              reopen setup and reconnect the same Working folder. The saved
-              setup checkpoint lets you finish the connection check. Follow a
-              requested USB repair if installation was interrupted. Leaving the
-              page does not undo firmware or files already written.
+              For an interrupted setup, see{" "}
+              <a href="#setup-recovery">Resume incomplete commissioning</a> in
+              Troubleshooting.
             </p>
             <table className="network-modes">
               <thead>
@@ -658,7 +724,7 @@ export function GuideApp() {
                 </dd>
               </div>
               <div>
-                <dt>Measured wheel speed</dt>
+                <dt>Wheel speeds</dt>
                 <dd>
                   Estimated by <code>SensorModel</code> from recent encoder
                   counts and sample times. The wheel controller and plot use the
@@ -685,9 +751,10 @@ export function GuideApp() {
               <code>live.watch()</code> shows the latest named value;{" "}
               <code>live.plot()</code> adds a named numerical signal to the Plot
               signals list. Each Run automatically creates one run dataset from
-              its telemetry and notes. While the program is active, the plots
-              show that run as it develops. When it stops or completes, Monitor
-              retains the completed run for inspection and export.
+              its telemetry and notes, including when only the IDE is open.
+              While the program is active, the plots show that run as it
+              develops. When it stops or completes, Monitor retains the
+              completed run for inspection and export.
             </p>
             <p>
               Automatic archives belong to the Project that supplied the Run,
@@ -698,22 +765,33 @@ export function GuideApp() {
               closing the page. The save message states the actual outcome.
             </p>
             <p>
+              After reopening a Project, choose <strong>Open saved run…</strong>
+              under <strong>Run data</strong> to inspect one of its four
+              retained trials. The world, plots and notes show the selected
+              trial;
+              <strong> Live telemetry</strong> continues to show the current
+              XRP. Opening a saved trial does not run the robot.
+            </p>
+            <p>
               Virtual data includes physics steps, actuator changes, and course
               state updates. Several observations can share the same simulation
               time and physics sequence number. CSV <code>observation_seq</code>
               preserves their order; <code>physics_step_seq</code> identifies
               the physics step. On the physical XRP, <code>seq</code> identifies
-              an acquired sensor sample. Use <code>t_s</code> to measure elapsed
-              time, and use distinct timestamps when estimating rates; do not
-              infer duration from the number of CSV rows.
+              an acquired sensor sample. Use <code>clock_id</code>,{" "}
+              <code>acquisition_seq</code> and <code>acquired_at_s</code> for
+              sensor timing; <code>t_s</code> retains the display clock. Do not
+              infer duration or sampling rate from the number of CSV rows.
             </p>
             <ol className="procedure">
               <li>
                 Run the project. No separate recording action is required.
               </li>
               <li>
-                If useful, right-click a strip plot and add a short note at the
-                selected time. Notes belong to the displayed run.
+                Select <strong>Add note</strong> to mark an observation, or
+                right-click a strip plot at the time of interest. Use the notes
+                list to review or edit the text. Notes belong to the displayed
+                run; their numbered world markers keep the trajectory legible.
               </li>
               <li>
                 Export the displayed run as a telemetry-and-notes CSV, export
@@ -722,6 +800,17 @@ export function GuideApp() {
                 export does not run the robot again.
               </li>
             </ol>
+            <details id="telemetry-files">
+              <summary>Saved data, timestamps, and MATLAB plotting</summary>
+              <MarkdownArticle source={telemetrySections[0] ?? ""} />
+              {telemetrySections[1] ? (
+                <CopyCode
+                  code={telemetrySections[1].trim()}
+                  label="Copy MATLAB example"
+                />
+              ) : null}
+              <MarkdownArticle source={telemetrySections[2] ?? ""} />
+            </details>
           </GuideSection>
 
           <GuideSection id="offline-use" number="07" title="Offline use">
@@ -828,7 +917,9 @@ export function GuideApp() {
               connected to Wi-Fi but the internet does not respond. An older
               open workspace keeps its required files during an update. Export
               any retained run or notes, then use <strong>Clear run</strong>
-              when you are ready to let Monitor adopt a waiting update.
+              when you are ready to let Monitor adopt a waiting update. Resolve
+              any unsaved-run warning first; clearing the display does not
+              release a recovery copy.
             </p>
           </GuideSection>
 
@@ -939,6 +1030,62 @@ export function GuideApp() {
             number="10"
             title="Troubleshooting"
           >
+            <h3 id="recovery">Recovery and other open windows</h3>
+            <p>
+              Settings lists retained unsaved copies separately from saved
+              Project files. Export a recovery copy before clearing browser
+              data. An interrupted folder save or externally changed file opens
+              a recovery choice; retain the wanted version as a separate Project
+              before continuing. A cancelled folder or Project choice leaves the
+              current Project selected.
+            </p>
+            <p>
+              <strong>Save pending</strong> can mean another editor is still
+              writing. Let it finish and retry. If every editor of that folder
+              is closed, use <strong>Review pending writers</strong> in the
+              Project chooser or Settings. Confirm only after closing those
+              editors; then choose which complete recovery copy to retain.
+            </p>
+            <p>
+              Use one editing window for a Project. Another IDE can show the
+              same XRP, but <strong>Use this IDE</strong> explicitly selects
+              which source supplies Run. On a Physical XRP, another browser or
+              computer can observe status and request Stop. Take control only
+              after the XRP is stopped. Switching windows does not transfer
+              control automatically. Close extra editors before resolving a save
+              conflict; operating-system folder copies with identical Project
+              identities require a new saved Project copy before automatic run
+              archiving.
+            </p>
+            <h3>Run data has not saved</h3>
+            <p>
+              Keep the page open. Wait while saving is in progress; if it fails,
+              restore access to the original Project folder and use
+              <strong> Retry run save</strong>. In Monitor, the affected trials
+              appear under <strong>Controls → Run data</strong>. Use
+              <strong> Download retained run</strong> to keep a recovery JSON
+              containing that trial&apos;s CSV, output and notes. Verify the
+              download before discarding its retained copy. Reset or clearing
+              the display does not discard unsaved data.
+            </p>
+            <p>
+              Resolve the warning before starting another Run. If other open
+              windows fill Monitor&apos;s four-run recovery limit, a new run is
+              explicitly marked as not being recorded. Live telemetry and Stop
+              remain available. Recover the retained trials, then start a new
+              run; recording does not resume halfway through a run. The IDE
+              requires <strong>I saved the recovery file</strong> after a
+              recovery download. This confirms your separate copy, not a
+              repaired Project archive.
+            </p>
+            <h3 id="setup-recovery">Resume incomplete commissioning</h3>
+            <p>
+              If you exit after USB installation but before Wi-Fi verification,
+              reopen setup and reconnect the same Working folder. The saved
+              setup checkpoint lets you finish the connection check. Follow a
+              requested USB repair if installation was interrupted. Leaving the
+              page does not undo firmware or files already written.
+            </p>
             <ul className="procedure troubleshooting-list">
               <li>
                 <strong>Working-folder or USB controls are unavailable:</strong>{" "}
@@ -954,10 +1101,13 @@ export function GuideApp() {
                 not select an individual Project folder as the Working folder.
               </li>
               <li>
-                <strong>Compile reports an error:</strong> read System log for
-                the file and line, correct the syntax, import, entry point, or
-                project-structure error, then Compile again. A successful
-                Compile does not start either XRP; select Run afterward.
+                <strong>Compile reports an error:</strong> open{" "}
+                <strong>Problems</strong>, select the reported file and line,
+                and read its suggested correction.
+                <strong> Compiler output</strong> retains the exact MicroPython
+                message. Correct the syntax, import, entry point or project
+                structure, then Compile again. A successful Compile does not
+                start either XRP; select Run afterward.
               </li>
               <li>
                 <strong>Run starts but the program fails:</strong> read Program

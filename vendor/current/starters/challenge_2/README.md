@@ -70,7 +70,9 @@ wheel increments -> Odometry          -> estimated Pose
 
 `main.py` names each phase in Program output and uses the estimated pose to end
 each turn. A phase that exceeds its visible time limit reports which motion did
-not complete. Its `finally` block stops both motors on completion or error.
+not complete. Its `finally` block calls `robot.stop()` after normal completion
+or a Python exception. The target runtime handles the IDE's **Stop** separately;
+forced termination can bypass Python cleanup.
 
 ## Check each component
 

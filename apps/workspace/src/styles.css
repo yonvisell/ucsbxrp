@@ -57,18 +57,6 @@
   margin-left: auto;
 }
 
-.workspace-links a {
-  padding: 2px 4px;
-  color: var(--ink);
-  font-size: var(--font-xs);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.workspace-links a:hover {
-  background: var(--panel-raised);
-}
-
 .workspace-panes {
   display: grid;
   min-width: 0;

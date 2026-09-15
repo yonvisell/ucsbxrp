@@ -56,6 +56,11 @@ class ChallengeAuthoringTests(unittest.TestCase):
                 "challenge_7",
                 "challenge_8",
                 "challenge_9",
+                "new_challenge_1_robot_curling",
+                "new_challenge_2_arena_line_circuit",
+                "new_challenge_3_waypoint_courier",
+                "new_challenge_4_mapped_route",
+                "new_challenge_5_out_and_back",
             ],
         )
 

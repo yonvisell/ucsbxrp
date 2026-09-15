@@ -31,7 +31,7 @@ def run_drawing():
             command = segment.command()
             for _ in range(segment.steps):
                 state = robot.step(command)
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
     print("Tutorial 2 drawing complete")
     print("final_pose:", state.pose)

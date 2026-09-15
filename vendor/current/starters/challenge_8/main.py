@@ -47,9 +47,7 @@ def validate_order(order):
     if order[0] != START_NODE_INDEX or order[-1] != FINISH_NODE_INDEX:
         raise RuntimeError("VisitOrderPlanner changed the start or finish node")
     services = order[1:-1]
-    if len(set(services)) != len(services) or set(services) != set(
-        REQUIRED_NODE_INDICES
-    ):
+    if len(set(services)) != len(services) or set(services) != set(REQUIRED_NODE_INDICES):
         raise RuntimeError("VisitOrderPlanner must include each required stop once")
     return order
 
@@ -101,17 +99,13 @@ def run_challenge():
                         NODE_NAMES[finish_index], state.pose
                     )
                 )
-                raise RuntimeError(
-                    "Navigation finished before the route endpoint was reached"
-                )
+                raise RuntimeError("Navigation finished before the route endpoint was reached")
             if finish_index in REQUIRED_NODE_INDICES:
                 serviced.append(NODE_NAMES[finish_index])
 
         expected_services = tuple(NODE_NAMES[index] for index in order[1:-1])
         if tuple(serviced) != expected_services:
-            raise RuntimeError(
-                "Recorded service stops do not match the planned order"
-            )
+            raise RuntimeError("Recorded service stops do not match the planned order")
         print(
             "Challenge 8: result=complete visit_order={} serviced={} "
             "planned_cell_transitions={} final_pose={}".format(
@@ -122,7 +116,7 @@ def run_challenge():
             )
         )
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

@@ -14,6 +14,14 @@ envelopes, known-wall position correction, and bounded multi-stop ordering.
 XRPBot is the only UCSB-XRP class that calls XRPLib directly. Most programs use
 Robot and the higher-level controllers rather than accessing XRPBot.
 
+The new_ candidate course projects use these same public interfaces. Their
+sequence is Robot Curling, Arena Line Circuit, an odometry calibration lab,
+Waypoint Courier, Mapped Route and bounded Out-and-Back. Existing catalog IDs
+retain their earlier tasks. A project README names the carried components,
+new student work, supplied policy and observable completion/failure outcomes.
+Continue in another project preserves compatible component files, selectors
+and robot calibration, including through the odometry lab.
+
 
 THE LIBRARY IN ONE PAGE
 

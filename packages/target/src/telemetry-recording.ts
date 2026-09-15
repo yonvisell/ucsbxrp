@@ -171,6 +171,60 @@ const observationColumns = [
   "course_published_at_s",
 ] as const;
 
+const timingColumns = [
+  "timing_schema_version",
+  "clock_id",
+  "clock_basis",
+  "sample_kind",
+  "raw_device_time_ms",
+  "acquired_at_s",
+  "acquisition_seq",
+  "range_acquired_at_s",
+  "range_seq",
+  "range_sampled",
+  "diagnostics_acquired_at_s",
+  "diagnostics_seq",
+  "acquired_left_encoder_count",
+  "acquired_right_encoder_count",
+  "acquired_range_mm",
+  "published_at_s",
+  "sample_dt_s",
+  "sample_period_s",
+  "overrun_s",
+] as const;
+
+const recordingColumns = [
+  "csv_schema_version",
+  "recording_dropped_observations",
+] as const;
+
+function timingValues(sample: TelemetrySample) {
+  const timing = sample.timing;
+  const seconds = (value: number | null | undefined) =>
+    value == null ? null : value / 1000;
+  return [
+    timing?.version,
+    timing?.clockId,
+    timing?.clockBasis,
+    timing?.kind,
+    timing?.rawDeviceTimeMs,
+    seconds(timing?.acquiredAtMs),
+    timing?.acquisitionSeq,
+    seconds(timing?.rangeAcquiredAtMs),
+    timing?.rangeSeq,
+    timing?.rangeSampled,
+    seconds(timing?.diagnosticsAcquiredAtMs),
+    timing?.diagnosticsSeq,
+    timing?.rawLeftEncoderCount,
+    timing?.rawRightEncoderCount,
+    timing?.rawRangeMm,
+    seconds(timing?.publishedAtMs),
+    seconds(timing?.sampleDtMs),
+    seconds(timing?.samplePeriodMs),
+    seconds(timing?.overrunMs),
+  ];
+}
+
 /** Additive metadata for exported observations; no acquisition time is inferred. */
 export function telemetryRecordingMetadata(
   recording: TelemetryRecordingSnapshot,
@@ -184,6 +238,28 @@ export function telemetryRecordingMetadata(
   }
   return {
     provenanceVersion: 1,
+    csvSchemaVersion: 4,
+    timingSchemaVersion: 1,
+    clocks: [
+      ...new Set(
+        recording.samples.flatMap((sample) =>
+          sample.timing?.clockId ? [sample.timing.clockId] : [],
+        ),
+      ),
+    ].map((clockId) => ({
+      clockId,
+      basis: "first-acquisition",
+      unit: "seconds in CSV; integer milliseconds for raw device ticks",
+    })),
+    configuredSamplePeriodsSeconds: [
+      ...new Set(
+        recording.samples.flatMap((sample) =>
+          sample.timing?.samplePeriodMs == null
+            ? []
+            : [sample.timing.samplePeriodMs / 1000],
+        ),
+      ),
+    ],
     retainedObservations: recording.samples.length,
     retainedTimeSpanSeconds: times.length ? (maximumMs - minimumMs) / 1000 : 0,
     knownDroppedObservations: recording.droppedSamples,
@@ -201,12 +277,32 @@ export function telemetryRecordingMetadata(
         "Course-state publication identity within this run; blank when unavailable.",
       course_published_at_s:
         "Program-clock time of course-state publication, not sensor acquisition time; blank when unavailable.",
-      t_s: "Virtual physics time or physical device sample time, in seconds; it is not a uniform row interval.",
+      t_s: "Legacy display time: virtual physics time; physical course publication intervals offset from service Run preparation; stationary physical reads use service uptime. It is not a uniform row interval or a common acquisition time.",
+      acquired_at_s:
+        "Wrap-safe time from this clock's first encoder acquisition, preserving the raw timestamp read immediately before the encoder pair. It is independent of browser delivery and selected plots.",
+      acquisition_seq:
+        "Direct sensor-read identity within clock_id. Repeated virtual observations and Stop may reuse it; select unique identities for analysis of acquired sensor samples.",
+      raw_device_time_ms:
+        "Original opaque MicroPython ticks_ms value, preserved exactly; may wrap and must not be subtracted directly.",
+      published_at_s:
+        "Course/raw-state publication time in the same first-acquisition clock as acquired_at_s.",
+      range_acquired_at_s:
+        "Encoder timestamp bounds completion of the preceding range read; range_seq identifies that read. range_sampled says whether this acquisition requested range; empty acquired_range_mm then means no usable result.",
+      diagnostics_acquired_at_s:
+        "Completion timestamp of the sequential battery/IMU diagnostics group. Repeated diagnostics_seq denotes retained data, not a fresh simultaneous measurement.",
+      sample_dt_s:
+        "Measurements.dt_s used by the student components; empty for direct low-level reads without a SensorModel.",
+      sample_period_s:
+        "Configured Robot sampling period; actual intervals can differ.",
+      overrun_s:
+        "Measured pre-wait controller deadline overrun; blank when not measured. It is not total cycle execution time.",
     },
     lossAccounting:
       "Counts known retained-history eviction and observation-identity gaps; physical acquisition seq is the legacy fallback. Virtual physics-step gaps alone do not establish lost observations.",
     acquisitionTime:
-      "A combined virtual row has no asserted common sensor acquisition time. Course publication time does not supply one.",
+      "A combined row has no asserted common acquisition time for all channels. Acquisition timing and acquired_* values describe the exact raw record delivered to student code; virtual truth retains t_s/physics_step_seq. Legacy missing timing stays empty.",
+    wallClock:
+      "Run startedAt/finishedAt are browser lifecycle dates. They are not synchronized device timestamps and include command, launch and delivery delays.",
     retention:
       "Capacity is bounded by observation count. The retained time span depends on actual publication rate; no minimum duration is guaranteed.",
   };
@@ -215,6 +311,29 @@ export function telemetryRecordingMetadata(
 function copySample(sample: TelemetrySample): TelemetrySample {
   return {
     ...sample,
+    ...(sample.timing
+      ? {
+          timing: {
+            ...sample.timing,
+            ...(sample.timing.plots
+              ? { plots: sample.timing.plots.map((plot) => ({ ...plot })) }
+              : {}),
+            ...(sample.timing.diagnostics
+              ? {
+                  diagnostics: {
+                    ...sample.timing.diagnostics,
+                    accelerationMg: sample.timing.diagnostics.accelerationMg
+                      ? [...sample.timing.diagnostics.accelerationMg]
+                      : null,
+                    angularRateMdps: sample.timing.diagnostics.angularRateMdps
+                      ? [...sample.timing.diagnostics.angularRateMdps]
+                      : null,
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
     accelerationMg: sample.accelerationMg ? [...sample.accelerationMg] : null,
     angularRateMdps: sample.angularRateMdps
       ? [...sample.angularRateMdps]
@@ -244,18 +363,62 @@ function plotCsvHeader(plot: { name: string; unit?: string }): string {
   return `program_${plot.name}${suffix}`;
 }
 
+/** One shared mapping for CSV export and saved-trial metadata, including collisions. */
+export function telemetryProgramPlotColumns(
+  recording: TelemetryRecordingSnapshot,
+): {
+  name: string;
+  label: string;
+  unit?: string;
+  csvColumn: string;
+  unitColumn?: string;
+}[] {
+  const seenNames = new Map<string, string>();
+  const changingUnits = new Set<string>();
+  const seenColumns = new Set<string>();
+  const columns: {
+    name: string;
+    label: string;
+    unit?: string;
+    csvColumn: string;
+    unitColumn?: string;
+  }[] = [];
+  for (const sample of recording.samples)
+    for (const plot of sample.plotValues ?? []) {
+      if (seenNames.has(plot.name)) {
+        if (seenNames.get(plot.name) !== (plot.unit ?? ""))
+          changingUnits.add(plot.name);
+        continue;
+      }
+      seenNames.set(plot.name, plot.unit ?? "");
+      const base = plotCsvHeader(plot);
+      let csvColumn = base,
+        suffix = 2;
+      while (seenColumns.has(csvColumn)) csvColumn = `${base}__${suffix++}`;
+      seenColumns.add(csvColumn);
+      columns.push({
+        name: plot.name,
+        label: plot.label,
+        unit: plot.unit,
+        csvColumn,
+      });
+    }
+  for (const column of columns) {
+    if (!changingUnits.has(column.name)) continue;
+    const base = `${column.csvColumn}__unit`;
+    let unitColumn = base,
+      suffix = 2;
+    while (seenColumns.has(unitColumn)) unitColumn = `${base}__${suffix++}`;
+    seenColumns.add(unitColumn);
+    column.unitColumn = unitColumn;
+  }
+  return columns;
+}
+
 export function telemetryRecordingToCsv(
   recording: TelemetryRecordingSnapshot,
 ): string {
-  const plots = new Map<string, { name: string; unit?: string }>();
-  for (const sample of recording.samples) {
-    for (const plot of sample.plotValues ?? []) {
-      if (!plots.has(plot.name)) {
-        plots.set(plot.name, { name: plot.name, unit: plot.unit });
-      }
-    }
-  }
-  const plotColumns = [...plots.values()];
+  const plotColumns = telemetryProgramPlotColumns(recording);
   const rows = recording.samples.map((sample) =>
     [
       sample.source,
@@ -309,10 +472,12 @@ export function telemetryRecordingToCsv(
       sample.requestedTurnRateRadS,
       sample.targetLeftWheelSpeedMmS,
       sample.targetRightWheelSpeedMmS,
-      ...plotColumns.map(
-        (column) =>
-          sample.plotValues?.find((plot) => plot.name === column.name)?.value,
-      ),
+      ...plotColumns.flatMap((column) => {
+        const plot = sample.plotValues?.find(
+          (plot) => plot.name === column.name,
+        );
+        return column.unitColumn ? [plot?.value, plot?.unit] : [plot?.value];
+      }),
       sample.observationSeq,
       sample.observationKind,
       sample.physicsStepSeq,
@@ -320,14 +485,21 @@ export function telemetryRecordingToCsv(
       sample.coursePublishedAtMs === undefined
         ? undefined
         : sample.coursePublishedAtMs / 1000,
+      ...timingValues(sample),
+      4,
+      recording.droppedSamples,
     ]
       .map(csvValue)
       .join(","),
   );
   const headers = [
     ...csvColumns,
-    ...plotColumns.map(plotCsvHeader),
+    ...plotColumns.flatMap((plot) =>
+      plot.unitColumn ? [plot.csvColumn, plot.unitColumn] : [plot.csvColumn],
+    ),
     ...observationColumns,
+    ...timingColumns,
+    ...recordingColumns,
   ];
   return `${headers.join(",")}\n${rows.length > 0 ? `${rows.join("\n")}\n` : ""}`;
 }

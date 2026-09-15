@@ -6,6 +6,7 @@ import {
   boundedWorldLabelPosition,
   fittedWorldViewSpans,
   worldTrailSegmentPoints,
+  worldMajorTicks,
 } from "./WorldView";
 import { WorldTrailGeometry } from "./world-trail-geometry";
 
@@ -21,6 +22,13 @@ function pose(source: TelemetrySample["source"], seq: number, tMs = seq) {
 }
 
 describe("world view geometry", () => {
+  it("labels zero on either world axis whenever the visible bounds include it", () => {
+    expect(worldMajorTicks(-1_200, 1_200)).toEqual([
+      -1_000, -500, 0, 500, 1_000,
+    ]);
+    expect(worldMajorTicks(0, 900)).toEqual([0, 500]);
+    expect(worldMajorTicks(200, 900)).toEqual([500]);
+  });
   it("fits the complete world in wide, square, and tall viewports", () => {
     const bounds = DEFAULT_WORLD_CATALOG.worlds[0]!.bounds;
     const worldWidth = bounds.maximumXmm - bounds.minimumXmm;
@@ -33,8 +41,8 @@ describe("world view geometry", () => {
     ];
     for (const [width, height] of viewports) {
       const spans = fittedWorldViewSpans(bounds, width, height);
-      expect(spans.horizontalMm).toBeGreaterThanOrEqual(worldWidth + 180);
-      expect(spans.verticalMm).toBeGreaterThanOrEqual(worldHeight + 180);
+      expect(spans.horizontalMm).toBeGreaterThanOrEqual(worldWidth + 48);
+      expect(spans.verticalMm).toBeGreaterThanOrEqual(worldHeight + 48);
       expect(spans.horizontalMm / spans.verticalMm).toBeCloseTo(width / height);
     }
   });

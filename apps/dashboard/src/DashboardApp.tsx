@@ -12,7 +12,6 @@ import {
   PhysicalTargetClient,
   VirtualTargetClient,
   TelemetryRecorder,
-  telemetryRecordingMetadata,
   describeProject,
   physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
@@ -44,6 +43,11 @@ import {
 } from "../../shared/offline-shell";
 import { DiagnosticLogWriter } from "../../shared/diagnostic-log";
 import {
+  archiveForRun,
+  completedRunMetadata,
+  completedRunOutput,
+} from "../../shared/run-archive-format";
+import {
   courseFolderPermission,
   loadRememberedProjectFolder,
   loadRememberedWorkspaceFolder,
@@ -62,7 +66,7 @@ import {
 import {
   saveRunArchive,
   saveRunAnnotations,
-  type RunArchive,
+  readRunAnnotations,
 } from "./monitor-run-archive";
 import { saveProjectFolderWithAutosave } from "../../ide/src/project-files";
 import { readProjectFolderWhenIdle } from "../../ide/src/project-folder-reader";
@@ -79,6 +83,15 @@ import {
   type SignalPlotId,
 } from "./SignalPlot";
 import { WorldView } from "./WorldView";
+import { RuntimeControls } from "./RuntimeControls";
+import { SavedRunPicker } from "./SavedRunPicker";
+import { readSavedRun } from "./saved-run-reader";
+import {
+  MonitorNotes,
+  MonitorNoteEditor,
+  type NoteRequest,
+} from "./MonitorNotes";
+import { annotationMatchesSample } from "./monitor-inspection";
 import {
   createMonitorAnnotation,
   downloadBlob,
@@ -123,6 +136,13 @@ interface RunFolderResolution {
   error?: string;
 }
 
+interface RetainedRunArchive {
+  run: MonitorRunDataset;
+  destination: Promise<RunFolderResolution>;
+  saving: boolean;
+  error?: string;
+}
+
 function projectFromRun(
   event: Extract<TargetEvent, { type: "run" | "run-history" }>,
 ): SynchronizedProject | null {
@@ -161,57 +181,10 @@ async function resolveRunFolder(
   }
 }
 
-function archiveForRun(run: MonitorRunDataset): RunArchive {
-  if (!run.project?.projectId)
-    throw new Error(
-      "This run has no saved Project identity. Export it before closing this page.",
-    );
-  return {
-    runId: run.id,
-    projectId: run.project.projectId,
-    metadata: `${JSON.stringify(completedRunMetadata(run), null, 2)}\n`,
-    telemetry: monitorRunToCsv(run.recording, run.annotations),
-    output: completedRunOutput(run),
-  };
-}
-
-function completedRunMetadata(run: MonitorRunDataset) {
-  return {
-    schemaVersion: 2,
-    runId: run.id,
-    startedAt: run.startedAt,
-    finishedAt: run.finishedAt,
-    target: run.target,
-    worldId: run.worldId,
-    world: run.world,
-    finalState: run.finalState,
-    finalDetail: run.finalDetail,
-    project: run.project,
-    telemetrySamples: run.recording.samples.length,
-    droppedTelemetrySamples: run.recording.droppedSamples,
-    telemetry: telemetryRecordingMetadata(run.recording),
-    droppedOutputLines: run.droppedOutputLines ?? 0,
-    annotations: run.annotations,
-  };
-}
-
-function completedRunOutput(run: MonitorRunDataset): string {
-  return [
-    "UCSB XRP run",
-    `Started: ${run.startedAt}`,
-    `Finished: ${run.finishedAt}`,
-    `Target: ${run.target}`,
-    `Project: ${run.project?.name ?? "unavailable"}`,
-    `Result: ${run.finalState} · ${run.finalDetail}`,
-    "",
-    ...run.output.map((entry) => `[${entry.stream}] ${entry.line}`),
-    "",
-  ].join("\n");
-}
-
 const monitorSettingsKey = "ucsb-xrp-monitor-settings-v4";
 const previousMonitorSettingsKey = "ucsb-xrp-monitor-settings-v3";
 const maximumPlotSamples = 1_800;
+const maximumRetainedRunArchives = 4;
 const loadMonitorExport = () => import("./monitor-export");
 const emptyRuntimeState: RuntimeState = {
   revision: 0,
@@ -276,7 +249,14 @@ function wasCancelled(error: unknown): boolean {
 
 interface ExportDestination {
   description: string;
+  completion: "saved" | "download-requested";
   save(blob: Blob): Promise<void>;
+}
+
+function exportCompletionDetail(destination: ExportDestination): string {
+  return destination.completion === "saved"
+    ? `Saved ${destination.description}`
+    : `Download requested: ${destination.description}. Check your browser downloads.`;
 }
 
 async function prepareExportDestination(
@@ -284,10 +264,14 @@ async function prepareExportDestination(
   fileName: string,
   mimeType: string,
 ): Promise<ExportDestination | null> {
-  if (folder) {
+  const writable = folder
+    ? await courseFolderPermission(folder).catch(() => "denied")
+    : "denied";
+  if (folder && writable === "granted") {
     const path = `exports/${fileName}`;
     return {
       description: `./${folder.name}/${path}`,
+      completion: "saved",
       save: (blob) =>
         withCourseFolderWriteLock("run", () =>
           writeCourseFile(folder, path, blob),
@@ -320,6 +304,7 @@ async function prepareExportDestination(
       });
       return {
         description: handle.name,
+        completion: "saved",
         save: async (blob) => {
           const writable = await handle.createWritable();
           await writable.write(blob);
@@ -333,7 +318,8 @@ async function prepareExportDestination(
   }
 
   return {
-    description: `Downloads/${fileName}`,
+    description: fileName,
+    completion: "download-requested",
     save: async (blob) => downloadBlob(blob, fileName),
   };
 }
@@ -452,162 +438,6 @@ function vector(
   return values
     ? values.map((item) => value(convert(item), digits)).join(" / ")
     : "—";
-}
-
-interface RuntimeControlsProps {
-  drafts: Record<string, RuntimeParameterValue>;
-  error: string;
-  onChange(
-    name: string,
-    value: RuntimeParameterValue,
-    debounce?: boolean,
-  ): void;
-  runtime: RuntimeState;
-  targetState: TargetRunState;
-}
-
-function RuntimeControls({
-  drafts,
-  error,
-  onChange,
-  runtime,
-  targetState,
-}: RuntimeControlsProps) {
-  return (
-    <section
-      aria-labelledby="live-controls-title"
-      className="live-controls-panel"
-    >
-      <div
-        className="live-program-heading"
-        title="Adjust parameters declared by the running program."
-      >
-        <h2 id="live-controls-title">Live controls</h2>
-        {runtime.parameters.length > 0 ? (
-          <small>{runtime.parameters.length} controls</small>
-        ) : null}
-      </div>
-      <div className="live-program-content" id="live-controls-content">
-        {runtime.parameters.length === 0 ? (
-          <p className="live-program-empty">No controls in this program.</p>
-        ) : (
-          <div
-            aria-label="Live control parameters"
-            className="runtime-parameters"
-          >
-            {runtime.parameters.map((parameter) => {
-              const shownValue =
-                drafts[parameter.name] ??
-                parameter.pendingValue ??
-                parameter.value;
-              if (parameter.kind === "number") {
-                const shownNumber = Number(shownValue);
-                const shownText = shownNumber.toLocaleString(undefined, {
-                  maximumFractionDigits: 4,
-                });
-                return (
-                  <label
-                    className="runtime-number"
-                    data-pending={
-                      parameter.pendingValue !== undefined ||
-                      drafts[parameter.name] !== undefined
-                    }
-                    data-runtime-parameter={parameter.name}
-                    data-runtime-value={shownText}
-                    key={parameter.name}
-                    title={`Adjust ${parameter.label.toLowerCase()} while the program runs. The value is applied at its next sample boundary.`}
-                  >
-                    <span>{parameter.label}</span>
-                    <output
-                      aria-label={`${parameter.label} ${shownText}${parameter.unit ? ` ${parameter.unit}` : ""}`}
-                    >
-                      {shownText}
-                      {parameter.unit ? ` ${parameter.unit}` : ""}
-                    </output>
-                    <input
-                      aria-label={parameter.label}
-                      disabled={targetState !== "running"}
-                      max={parameter.maximum}
-                      min={parameter.minimum}
-                      onChange={(event) =>
-                        onChange(
-                          parameter.name,
-                          Number(event.target.value),
-                          true,
-                        )
-                      }
-                      step={parameter.step}
-                      type="range"
-                      value={shownNumber}
-                    />
-                  </label>
-                );
-              }
-              if (parameter.kind === "toggle") {
-                return (
-                  <label
-                    className="runtime-toggle"
-                    data-pending={
-                      parameter.pendingValue !== undefined ||
-                      drafts[parameter.name] !== undefined
-                    }
-                    data-runtime-parameter={parameter.name}
-                    data-runtime-value={String(shownValue)}
-                    key={parameter.name}
-                    title={`Turn ${parameter.label.toLowerCase()} on or off while the program runs.`}
-                  >
-                    <span>{parameter.label}</span>
-                    <input
-                      checked={Boolean(shownValue)}
-                      disabled={targetState !== "running"}
-                      onChange={(event) =>
-                        onChange(parameter.name, event.target.checked)
-                      }
-                      type="checkbox"
-                    />
-                  </label>
-                );
-              }
-              return (
-                <fieldset
-                  className="runtime-choice"
-                  data-pending={
-                    parameter.pendingValue !== undefined ||
-                    drafts[parameter.name] !== undefined
-                  }
-                  data-runtime-parameter={parameter.name}
-                  data-runtime-value={String(shownValue)}
-                  key={parameter.name}
-                  title={`Choose ${parameter.label.toLowerCase()} while the program runs.`}
-                >
-                  <legend>{parameter.label}</legend>
-                  <div>
-                    {parameter.options?.map((option) => (
-                      <label key={option}>
-                        <input
-                          checked={shownValue === option}
-                          disabled={targetState !== "running"}
-                          name={`runtime-${parameter.name}`}
-                          onChange={() => onChange(parameter.name, option)}
-                          type="radio"
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              );
-            })}
-          </div>
-        )}
-        {error ? (
-          <p className="runtime-update-error" role="alert">
-            {error}
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
 }
 
 function centeredWorldPreview(
@@ -749,6 +579,8 @@ export function DashboardApp() {
   const [runStarting, setRunStarting] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [latestRun, setLatestRun] = useState<MonitorRunDataset | null>(null);
+  const [savedRunId, setSavedRunId] = useState<string | null>(null);
+  const savedRunIdRef = useRef<string | null>(null);
   const [worldHistoryCleared, setWorldHistoryCleared] = useState(false);
   const [runtimeState, setRuntimeState] =
     useState<RuntimeState>(emptyRuntimeState);
@@ -764,6 +596,9 @@ export function DashboardApp() {
   const [runtimeUpdateError, setRuntimeUpdateError] = useState("");
   const [autosaveFolder, setAutosaveFolder] =
     useState<CourseDirectoryHandle | null>(null);
+  const [autosaveProjectId, setAutosaveProjectId] = useState<string | null>(
+    null,
+  );
   const [folderInteractionRevision, setFolderInteractionRevision] = useState(0);
   const [folderReadError, setFolderReadError] = useState("");
   const refreshFolderRef = useRef<() => void>(() => undefined);
@@ -774,6 +609,8 @@ export function DashboardApp() {
   );
   const [annotations, setAnnotations] = useState<MonitorAnnotation[]>([]);
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
+  const [noteRequest, setNoteRequest] = useState<NoteRequest | null>(null);
+  const [noteFeedback, setNoteFeedback] = useState("");
   const [exportState, setExportState] = useState<
     "idle" | "telemetry-csv" | "plots-svg" | "plots-png" | "world-webm"
   >("idle");
@@ -800,12 +637,18 @@ export function DashboardApp() {
   const runStartingRef = useRef(false);
   const runPreflightEpochRef = useRef(0);
   const exportActiveRef = useRef(false);
+  const runtimeUpdateRevisions = useRef(new Map<string, number>());
+  const nextRuntimeUpdateRevision = useRef(0);
   const runtimeUpdateTimers = useRef(
     new Map<string, ReturnType<typeof setTimeout>>(),
   );
   const latestRuntimeStateRef = useRef<RuntimeState>(emptyRuntimeState);
   const folderInteractionCountRef = useRef(0);
   const runArchiveCountRef = useRef(0);
+  const retainedRunArchivesRef = useRef(new Map<string, RetainedRunArchive>());
+  const declinedRunRef = useRef<string | null>(null);
+  const [recordingAdmissionDetail, setRecordingAdmissionDetail] = useState("");
+  const [discardRunId, setDiscardRunId] = useState<string | null>(null);
   const pendingRunNotesRef = useRef(
     new Map<
       string,
@@ -846,9 +689,12 @@ export function DashboardApp() {
           : state.plots,
       );
       setProgramPlotVisibility((current) => {
-        const next = Object.fromEntries(
-          state.plots.map((plot) => [plot.name, current[plot.name] ?? true]),
-        );
+        const next = {
+          ...current,
+          ...Object.fromEntries(
+            state.plots.map((plot) => [plot.name, current[plot.name] ?? true]),
+          ),
+        };
         return Object.keys(next).length === Object.keys(current).length &&
           Object.entries(next).every(
             ([name, visible]) => current[name] === visible,
@@ -918,6 +764,7 @@ export function DashboardApp() {
       clearTimeout(timer);
     }
     runtimeUpdateTimers.current.clear();
+    runtimeUpdateRevisions.current.clear();
     setRuntimeDrafts({});
     retryPendingOfflineShellReload();
   }, [targetState]);
@@ -1062,6 +909,7 @@ export function DashboardApp() {
           autosaveFolderRef.current = null;
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
+          setAutosaveProjectId(null);
           setRunAutosaveDetail(
             `Open the IDE to reconnect Working folder ${workspace.name}.`,
           );
@@ -1077,6 +925,7 @@ export function DashboardApp() {
           autosaveFolderRef.current = null;
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
+          setAutosaveProjectId(null);
           setRunAutosaveDetail(
             "Choose a Working folder and project in the IDE.",
           );
@@ -1112,6 +961,7 @@ export function DashboardApp() {
           autosaveFolderRef.current = folder;
           autosaveWorkspaceRef.current = workspace;
           setAutosaveFolder(folder);
+          setAutosaveProjectId(descriptor.projectId ?? null);
           if (currentProjectRef.current === null) {
             currentProjectRef.current = descriptor;
             setCurrentProject(descriptor);
@@ -1120,6 +970,7 @@ export function DashboardApp() {
         } else {
           autosaveFolderRef.current = null;
           setAutosaveFolder(null);
+          setAutosaveProjectId(null);
           setRunAutosaveDetail(
             `Reconnect project folder ${folder.name} to resume run saving.`,
           );
@@ -1130,6 +981,7 @@ export function DashboardApp() {
         const detail = error instanceof Error ? error.message : String(error);
         autosaveFolderRef.current = null;
         setAutosaveFolder(null);
+        setAutosaveProjectId(null);
         setFolderReadError(detail);
         setRunAutosaveDetail(`Project folder could not be read. ${detail}`);
         diagnosticLog.record({
@@ -1152,6 +1004,7 @@ export function DashboardApp() {
         // Stop writes immediately; loading the replacement handle is asynchronous.
         autosaveFolderRef.current = null;
         setAutosaveFolder(null);
+        setAutosaveProjectId(null);
       }
       void refreshFolder(!sharedFolderCanChange);
     };
@@ -1169,6 +1022,23 @@ export function DashboardApp() {
 
   const archiveCompletedRun = useCallback(
     (run: MonitorRunDataset, destination: Promise<RunFolderResolution>) => {
+      const previous = retainedRunArchivesRef.current.get(run.id);
+      if (previous?.saving) return;
+      const retained: RetainedRunArchive = {
+        run,
+        destination,
+        saving: true,
+        error: previous?.error,
+      };
+      const pendingNotes = pendingRunNotesRef.current.get(run.id);
+      const includesPendingNotes =
+        pendingNotes !== undefined &&
+        JSON.stringify(pendingNotes.annotations) ===
+          JSON.stringify(run.annotations);
+      retainedRunArchivesRef.current.set(run.id, retained);
+      refreshPendingRunNotes((revision) => revision + 1);
+      if (runDatasetController.latest?.id === run.id)
+        setRunAutosaveDetail("Saving completed run to its Project folder…");
       runArchiveCountRef.current += 1;
       const queued = runArchiveQueue.current.then(async () => {
         const resolved = await destination;
@@ -1178,8 +1048,36 @@ export function DashboardApp() {
               "Reconnect the run's Project folder in the IDE, or export the displayed run.",
           );
         await saveRunArchive(resolved.folder, archiveForRun(run));
-        if (runDatasetController.latest?.id === run.id)
+        // Another Monitor may have archived this run first. Merge this
+        // window's notes without replacing that run's samples or output.
+        if (run.annotations.length > 0)
+          await saveRunAnnotations(resolved.folder, archiveForRun(run));
+        const saved = await readRunAnnotations(
+          resolved.folder,
+          run.id,
+          run.project!.projectId!,
+        );
+        if (retainedRunArchivesRef.current.get(run.id) === retained)
+          retainedRunArchivesRef.current.delete(run.id);
+        if (
+          includesPendingNotes &&
+          pendingRunNotesRef.current.get(run.id) === pendingNotes
+        )
+          pendingRunNotesRef.current.delete(run.id);
+        if (runDatasetController.latest?.id === run.id) {
           latestRunFolderRef.current = resolved.folder;
+          if (
+            JSON.stringify(runDatasetController.currentAnnotations()) ===
+            JSON.stringify(run.annotations)
+          ) {
+            const updated = runDatasetController.restoreAnnotations(saved);
+            annotationsRef.current = [
+              ...runDatasetController.currentAnnotations(),
+            ];
+            setAnnotations(annotationsRef.current);
+            if (updated) setLatestRun(updated);
+          }
+        }
         return resolved.folder;
       });
       runArchiveQueue.current = queued.then(
@@ -1197,6 +1095,7 @@ export function DashboardApp() {
         })
         .catch((error: unknown) => {
           const detail = error instanceof Error ? error.message : String(error);
+          retained.error = detail;
           if (runDatasetController.latest?.id === run.id)
             setRunAutosaveDetail(
               `Run save failed: ${detail} Export the displayed run to retain it.`,
@@ -1209,15 +1108,29 @@ export function DashboardApp() {
           });
         })
         .finally(() => {
+          retained.saving = false;
           runArchiveCountRef.current = Math.max(
             0,
             runArchiveCountRef.current - 1,
           );
+          refreshPendingRunNotes((revision) => revision + 1);
           retryPendingOfflineShellReload();
         });
     },
     [diagnosticLog, runDatasetController],
   );
+
+  const retryRunArchive = (retained: RetainedRunArchive) => {
+    if (
+      retained.saving ||
+      retainedRunArchivesRef.current.get(retained.run.id) !== retained
+    )
+      return;
+    const destination = retained.destination.then((resolved) =>
+      resolved.folder ? resolved : resolveRunFolder(retained.run.project),
+    );
+    archiveCompletedRun(retained.run, destination);
+  };
 
   const finishActiveRun = useCallback(
     (
@@ -1273,15 +1186,60 @@ export function DashboardApp() {
     runDatasetController.clear();
     setActiveRunId(null);
     setLatestRun(null);
+    savedRunIdRef.current = null;
+    setSavedRunId(null);
     setWorldHistoryCleared(false);
     setActiveRunWorldBackfill(null);
     latestRunFolderRef.current = null;
+    latestRunDestinationRef.current = null;
     monitorVisualHistory.clearHistory();
     annotationsRef.current = [];
     setAnnotations([]);
+    setNoteFeedback("");
     setExportDetail("");
     retryPendingOfflineShellReload();
   }, [monitorVisualHistory, runDatasetController]);
+
+  const openSavedRun = (
+    run: MonitorRunDataset,
+    folder: CourseDirectoryHandle,
+  ) => {
+    if (
+      runDatasetController.isActive ||
+      runStartingRef.current ||
+      targetStateRef.current === "running" ||
+      targetStateRef.current === "loading" ||
+      autosaveFolderRef.current !== folder ||
+      runArchiveCountRef.current > 0 ||
+      retainedRunArchivesRef.current.size > 0 ||
+      pendingRunNotesRef.current.size > 0 ||
+      annotationDraftIdsRef.current.size > 0
+    )
+      throw new Error(
+        "Finish the current run and save or export pending notes before opening another trial.",
+      );
+    const restored = runDatasetController.restore(run);
+    latestRunFolderRef.current = folder;
+    latestRunDestinationRef.current = Promise.resolve({ folder });
+    setLatestRun(restored);
+    savedRunIdRef.current = restored.id;
+    setSavedRunId(restored.id);
+    setWorldHistoryCleared(false);
+    setActiveRunWorldBackfill(null);
+    annotationsRef.current = [...restored.annotations];
+    setAnnotations(annotationsRef.current);
+    setAnnotationsVisible(true);
+    setNoteFeedback("");
+    setExportDetail("");
+    setRunAutosaveDetail(`Opened saved trial from ${folder.name}.`);
+    const names = restored.recording.samples.flatMap(
+      (sample) => sample.plotValues?.map((plot) => plot.name) ?? [],
+    );
+    setProgramPlotVisibility((current) => ({
+      ...current,
+      ...Object.fromEntries(names.map((name) => [name, current[name] ?? true])),
+    }));
+  };
 
   const beginRunDataset = useCallback(
     (
@@ -1292,12 +1250,21 @@ export function DashboardApp() {
         replayed?: boolean;
         project?: SynchronizedProject | null;
       },
-    ): string => {
+    ): string | null => {
       if (runDatasetController.activeId) {
         return runDatasetController.activeId;
       }
       const runId =
         identity?.id ?? `${source}-${Date.now()}-${nextRunIdRef.current++}`;
+      if (retainedRunArchivesRef.current.size >= maximumRetainedRunArchives) {
+        declinedRunRef.current = runId;
+        setRecordingAdmissionDetail(
+          "This run is not being recorded because recovery storage was full when it began. Live telemetry and Stop remain available. Recover the retained runs, then start a new run.",
+        );
+        return null;
+      }
+      declinedRunRef.current = null;
+      setRecordingAdmissionDetail("");
       const project =
         identity?.project !== undefined
           ? identity.project
@@ -1317,11 +1284,14 @@ export function DashboardApp() {
       });
       activeRunFolderRef.current = resolveRunFolder(project);
       setActiveRunId(runId);
+      savedRunIdRef.current = null;
+      setSavedRunId(null);
       setWorldHistoryCleared(false);
       setActiveRunWorldBackfill(null);
       monitorVisualHistory.clearHistory();
       annotationsRef.current = [];
       setAnnotations([]);
+      setNoteFeedback("");
       setExportDetail("");
       setRunAutosaveDetail(
         project?.projectId
@@ -1356,6 +1326,9 @@ export function DashboardApp() {
 
   const updateSavedRunAnnotations = useCallback(
     (run: MonitorRunDataset) => {
+      const retained = retainedRunArchivesRef.current.get(run.id);
+      if (retained) retained.run = run;
+      setRunAutosaveDetail("Saving run notes…");
       const pending = {
         runId: run.id,
         project: run.project,
@@ -1374,6 +1347,22 @@ export function DashboardApp() {
               "Reconnect the run's Project folder or export the displayed run with its notes.",
           );
         await saveRunAnnotations(resolved.folder, archiveForRun(run));
+        const saved = await readRunAnnotations(
+          resolved.folder,
+          run.id,
+          run.project!.projectId!,
+        );
+        if (
+          runDatasetController.latest?.id === run.id &&
+          pendingRunNotesRef.current.get(run.id) === pending
+        ) {
+          const updated = runDatasetController.restoreAnnotations(saved);
+          annotationsRef.current = [
+            ...runDatasetController.currentAnnotations(),
+          ];
+          setAnnotations(annotationsRef.current);
+          if (updated) setLatestRun(updated);
+        }
         if (pendingRunNotesRef.current.get(run.id) === pending) {
           pendingRunNotesRef.current.delete(run.id);
           refreshPendingRunNotes((revision) => revision + 1);
@@ -1445,7 +1434,8 @@ export function DashboardApp() {
         if (
           event.replayed !== true &&
           normalizedSample.observationKind === "reset" &&
-          !runDatasetController.isActive
+          !runDatasetController.isActive &&
+          savedRunIdRef.current !== runDatasetController.latest?.id
         ) {
           setWorldHistoryCleared(true);
           setActiveRunWorldBackfill(null);
@@ -1472,14 +1462,20 @@ export function DashboardApp() {
         setControl(event);
       } else if (event.type === "run") {
         if (event.phase === "begin") {
+          if (declinedRunRef.current === event.runId) return;
+          declinedRunRef.current = null;
           beginRunDataset(target.kind, {
             id: event.runId,
             startedAtMs: event.startedAtMs,
             project: projectFromRun(event),
           });
-        } else if (runDatasetController.activeId === event.runId) {
-          runDatasetController.reportDroppedOutput(event.droppedOutputLines);
-          finishActiveRun(event.state, event.detail, event.finishedAtMs);
+        } else {
+          if (declinedRunRef.current === event.runId)
+            declinedRunRef.current = null;
+          if (runDatasetController.activeId === event.runId) {
+            runDatasetController.reportDroppedOutput(event.droppedOutputLines);
+            finishActiveRun(event.state, event.detail, event.finishedAtMs);
+          }
         }
       } else if (event.type === "status") {
         targetStateRef.current = event.state;
@@ -1487,7 +1483,8 @@ export function DashboardApp() {
         if (
           (event.state === "running" ||
             (event.state === "connecting" && retained !== undefined)) &&
-          !runDatasetController.isActive
+          !runDatasetController.isActive &&
+          declinedRunRef.current === null
         ) {
           // A Monitor can attach after another tab requested Run. Entering the
           // running state, or replaying an interrupted run, is an unambiguous
@@ -1595,6 +1592,26 @@ export function DashboardApp() {
         setSelectedWorldId(event.selectedWorldId);
       } else if (event.type === "run-history") {
         if (event.phase === "begin") {
+          if (
+            retainedRunArchivesRef.current.has(event.runId) ||
+            (event.finishedAtMs === undefined &&
+              declinedRunRef.current === event.runId)
+          ) {
+            replayedRunRef.current = null;
+            return;
+          }
+          if (
+            retainedRunArchivesRef.current.size >= maximumRetainedRunArchives
+          ) {
+            replayedRunRef.current = null;
+            if (event.finishedAtMs === undefined)
+              declinedRunRef.current = event.runId;
+            setRecordingAdmissionDetail(
+              "This received run was not recorded because recovery storage is full. Live telemetry and Stop remain available. Recover the retained runs before collecting another run.",
+            );
+            return;
+          }
+          declinedRunRef.current = null;
           replayedRunRef.current = {
             boundary: event,
             samples: [],
@@ -1606,7 +1623,11 @@ export function DashboardApp() {
           if (
             replayed &&
             replayed.boundary.runId === event.runId &&
+            event.finishedAtMs !== undefined &&
             !runDatasetController.isActive &&
+            savedRunIdRef.current === null &&
+            !retainedRunArchivesRef.current.has(event.runId) &&
+            retainedRunArchivesRef.current.size < maximumRetainedRunArchives &&
             replayed.samples.length > 0
           ) {
             const catalog = worldCatalogRef.current;
@@ -1653,10 +1674,59 @@ export function DashboardApp() {
             latestRunDestinationRef.current = resolveRunFolder(
               restored.project,
             );
-            void latestRunDestinationRef.current.then((resolved) => {
-              if (runDatasetController.latest?.id === restored.id)
+            const retained: RetainedRunArchive = {
+              run: restored,
+              destination: latestRunDestinationRef.current,
+              saving: true,
+            };
+            retainedRunArchivesRef.current.set(restored.id, retained);
+            void retained.destination
+              .then(async (resolved) => {
+                if (!resolved.folder || !restored.project?.projectId)
+                  throw new Error(
+                    resolved.error ??
+                      "The run's Project folder is unavailable.",
+                  );
+                const saved = await readSavedRun(
+                  resolved.folder,
+                  restored.project.projectId,
+                  restored.id,
+                );
+                if (
+                  saved.target !== restored.target ||
+                  saved.project?.revision !== restored.project.revision
+                )
+                  throw new Error(
+                    "The saved archive does not match this run's target and Project revision. Export the retained copy before closing the page.",
+                  );
+                if (
+                  retainedRunArchivesRef.current.get(restored.id) === retained
+                )
+                  retainedRunArchivesRef.current.delete(restored.id);
+                if (runDatasetController.latest?.id !== restored.id) return;
                 latestRunFolderRef.current = resolved.folder;
-            });
+                const updated = runDatasetController.restoreAnnotations(
+                  saved.annotations,
+                );
+                annotationsRef.current = [
+                  ...runDatasetController.currentAnnotations(),
+                ];
+                setAnnotations(annotationsRef.current);
+                if (updated) setLatestRun(updated);
+              })
+              .catch((reason: unknown) => {
+                retained.error =
+                  reason instanceof Error ? reason.message : String(reason);
+                if (runDatasetController.latest?.id === restored.id)
+                  setRunAutosaveDetail(
+                    `Run archive could not be verified: ${retained.error}`,
+                  );
+              })
+              .finally(() => {
+                retained.saving = false;
+                refreshPendingRunNotes((revision) => revision + 1);
+                retryPendingOfflineShellReload();
+              });
             setActiveRunId(null);
             setLatestRun(restored);
             annotationsRef.current = [];
@@ -1680,8 +1750,10 @@ export function DashboardApp() {
         ) {
           if (event.replayed !== true && target.kind !== "physical")
             finishActiveRun("ready", "Run ended by Reset");
-          setWorldHistoryCleared(true);
-          setActiveRunWorldBackfill(null);
+          if (savedRunIdRef.current !== runDatasetController.latest?.id) {
+            setWorldHistoryCleared(true);
+            setActiveRunWorldBackfill(null);
+          }
           telemetryRateSamplesRef.current = [];
           monitorVisualHistory.clearAll();
         }
@@ -1711,6 +1783,16 @@ export function DashboardApp() {
           id: event.eventId ?? `monitor-target-${nextConsoleId.current++}`,
           stream: event.stream,
           line: event.line,
+          ...(event.timestampMs === undefined
+            ? {}
+            : { timestampMs: event.timestampMs }),
+          ...(event.targetTimeMs === undefined
+            ? {}
+            : { targetTimeMs: event.targetTimeMs }),
+          ...("targetClockId" in event &&
+          typeof event.targetClockId === "string"
+            ? { targetClockId: event.targetClockId }
+            : {}),
         };
         const replayedRun = replayedRunRef.current;
         if (
@@ -1808,6 +1890,7 @@ export function DashboardApp() {
     targetPreferenceReady &&
     (projectProviderAvailable || autosaveFolder !== null) &&
     (control === null || control.owned) &&
+    retainedRunArchivesRef.current.size === 0 &&
     !virtualRuntimePreparing &&
     (targetState === "ready" ||
       (target.kind === "virtual" && targetState === "error"));
@@ -1958,10 +2041,8 @@ export function DashboardApp() {
         });
         return;
       }
-      setAutosaveFolder(rememberedAutosaveFolder);
-      setRunAutosaveDetail(
-        `Runs save automatically to ${rememberedAutosaveFolder.name}.`,
-      );
+      setRunAutosaveDetail(`Opening ${rememberedAutosaveFolder.name}…`);
+      refreshFolderRef.current();
       diagnosticLog.record({
         event: "project-folder.reconnected",
         message: `Project folder ${rememberedAutosaveFolder.name} is writable.`,
@@ -1984,30 +2065,36 @@ export function DashboardApp() {
 
   const exportRecording = async () => {
     if (!latestRun) return;
+    const run = latestRun;
+    const runFolder =
+      latestRunDestinationRef.current ?? resolveRunFolder(run.project);
     exportActiveRef.current = true;
     setExportState("telemetry-csv");
+    setExportDetail("Locating the run's Project folder…");
     try {
       const fileName = timestampedName("xrp-telemetry", "csv");
       const destination = await prepareExportDestination(
-        latestRunFolderRef.current,
+        (await runFolder).folder,
         fileName,
         "text/csv",
       );
       if (!destination) {
+        setExportDetail("Export canceled.");
         diagnosticLog.record({
           event: "export.cancelled",
           message: "Telemetry and notes CSV export was cancelled.",
         });
         return;
       }
-      const csv = monitorRunToCsv(latestRun.recording, latestRun.annotations);
+      setExportDetail(`Saving CSV to ${destination.description}…`);
+      const csv = monitorRunToCsv(run.recording, run.annotations);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       await destination.save(blob);
-      setExportDetail(`Saved ${destination.description}`);
+      setExportDetail(exportCompletionDetail(destination));
       diagnosticLog.record({
-        event: "export.saved",
+        event: `export.${destination.completion}`,
         terminal: true,
-        message: `Telemetry and notes CSV saved to ${destination.description}.`,
+        message: `Telemetry and notes CSV: ${exportCompletionDetail(destination)}`,
       });
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -2028,17 +2115,20 @@ export function DashboardApp() {
   const commitRuntimeParameter = async (
     name: string,
     nextValue: RuntimeParameterValue,
+    revision: number,
   ) => {
     setRuntimeUpdateError("");
     beginTargetCommand();
     try {
       await target.setRuntimeParameter(name, nextValue);
+      if (runtimeUpdateRevisions.current.get(name) !== revision) return;
       setRuntimeDrafts((current) => {
         const next = { ...current };
         delete next[name];
         return next;
       });
     } catch (error: unknown) {
+      if (runtimeUpdateRevisions.current.get(name) !== revision) return;
       const detail = error instanceof Error ? error.message : String(error);
       setRuntimeUpdateError(detail);
       diagnosticLog.record({
@@ -2062,6 +2152,8 @@ export function DashboardApp() {
     nextValue: RuntimeParameterValue,
     debounce = false,
   ) => {
+    const revision = ++nextRuntimeUpdateRevision.current;
+    runtimeUpdateRevisions.current.set(name, revision);
     setRuntimeDrafts((current) => ({ ...current, [name]: nextValue }));
     const previous = runtimeUpdateTimers.current.get(name);
     if (previous) {
@@ -2069,29 +2161,50 @@ export function DashboardApp() {
     }
     if (!debounce) {
       runtimeUpdateTimers.current.delete(name);
-      void commitRuntimeParameter(name, nextValue);
+      void commitRuntimeParameter(name, nextValue, revision);
       return;
     }
     runtimeUpdateTimers.current.set(
       name,
       setTimeout(() => {
         runtimeUpdateTimers.current.delete(name);
-        void commitRuntimeParameter(name, nextValue);
+        void commitRuntimeParameter(name, nextValue, revision);
       }, 140),
     );
   };
 
+  const viewingSavedRun = Boolean(
+    savedRunId && latestRun?.id === savedRunId && !activeRunId,
+  );
+  const displayedProgramPlots = useMemo(
+    () =>
+      !activeRunId &&
+      latestRun &&
+      (viewingSavedRun || availableProgramPlots.length === 0)
+        ? [
+            ...new Map(
+              latestRun.recording.samples.flatMap(
+                (sample) =>
+                  sample.plotValues?.map(
+                    (plot) => [plot.name, plot] as const,
+                  ) ?? [],
+              ),
+            ).values(),
+          ]
+        : availableProgramPlots,
+    [activeRunId, viewingSavedRun, latestRun, availableProgramPlots],
+  );
   const programPlotDefinitions = useMemo(
-    () => availableProgramPlots.map(runtimePlotDefinition),
-    [availableProgramPlots],
+    () => displayedProgramPlots.map(runtimePlotDefinition),
+    [displayedProgramPlots],
   );
   const visiblePlots: SignalPlotDefinition[] = [
     ...SIGNAL_PLOTS.filter((plot) => monitorSettings.plots[plot.id]).map(
       (plot) =>
         withTargetSeriesVisibility(plot, monitorSettings.showTargetValues),
     ),
-    ...programPlotDefinitions.filter((plot) =>
-      Boolean(programPlotVisibility[plot.id.replace(/^program:/, "")]),
+    ...programPlotDefinitions.filter(
+      (plot) => programPlotVisibility[plot.id.replace(/^program:/, "")] ?? true,
     ),
   ];
 
@@ -2103,10 +2216,9 @@ export function DashboardApp() {
       noteRunId &&
       !pendingRunNotesRef.current.has(noteRunId)
     ) {
-      setRunAutosaveDetail(
+      throw new Error(
         "Download and discard retained unsaved notes before adding notes to another run.",
       );
-      return;
     }
     const annotation = createMonitorAnnotation(
       [sampleAtNote],
@@ -2127,7 +2239,112 @@ export function DashboardApp() {
   const displayedRunSamples = activeRunId
     ? plotSamples
     : (latestRun?.recording.samples ?? plotSamples);
+  const plotsWithChangedUnits = useMemo(
+    () =>
+      displayedProgramPlots
+        .filter((plot) =>
+          displayedRunSamples.some((sample) =>
+            sample.plotValues?.some(
+              (value) =>
+                value.name === plot.name &&
+                (value.unit ?? "") !== (plot.unit ?? ""),
+            ),
+          ),
+        )
+        .map((plot) => plot.label),
+    [displayedProgramPlots, displayedRunSamples],
+  );
   const displayedRunHistorySource = activeRunId ?? latestRun?.recording ?? null;
+  const requestAnnotation = (selected: TelemetrySample) => {
+    const runId =
+      runDatasetController.activeId ?? runDatasetController.latest?.id;
+    if (!runId) return;
+    const alternatives = displayedRunSamples.filter(
+      (candidate) =>
+        candidate.source === selected.source && candidate.tMs === selected.tMs,
+    );
+    setNoteRequest({
+      runId,
+      sample: selected,
+      alternatives: alternatives.includes(selected)
+        ? alternatives
+        : [selected, ...alternatives],
+    });
+  };
+  const reviewAnnotation = (note: MonitorAnnotation) => {
+    const runId =
+      runDatasetController.activeId ?? runDatasetController.latest?.id;
+    if (!runId) return;
+    const selected = displayedRunSamples.find((candidate) =>
+      annotationMatchesSample(note, candidate),
+    ) ?? {
+      ...centeredWorldPreview(note.source),
+      ...note,
+      leftWheelSpeedMmS: Number.NaN,
+      rightWheelSpeedMmS: Number.NaN,
+    };
+    setNoteRequest({
+      runId,
+      sample: selected,
+      alternatives: [selected],
+      note,
+      number:
+        annotations.findIndex((candidate) => candidate.id === note.id) + 1,
+    });
+  };
+  const saveNoteRequest = (
+    selected: TelemetrySample,
+    label: string,
+    request: NoteRequest,
+  ) => {
+    const currentRunId =
+      runDatasetController.activeId ?? runDatasetController.latest?.id;
+    if (request.runId !== currentRunId)
+      throw new Error(
+        "The displayed run changed. Copy this note before closing; it has not been attached to the new run.",
+      );
+    if (request.note) {
+      const current = runDatasetController
+        .currentAnnotations()
+        .find((note) => note.id === request.note!.id);
+      if (
+        !current ||
+        current.label !== request.note.label ||
+        current.revision !== request.note.revision
+      )
+        throw new Error(
+          "This note changed while the editor was open. Copy your text and reopen the note before saving.",
+        );
+      const updated = runDatasetController.updateAnnotation(
+        request.note.id,
+        label,
+      );
+      annotationsRef.current = [...runDatasetController.currentAnnotations()];
+      setAnnotations(annotationsRef.current);
+      if (updated) {
+        setLatestRun(updated);
+        updateSavedRunAnnotations(updated);
+      }
+    } else addAnnotation(selected, label);
+    setNoteFeedback(
+      `${request.note ? "Note updated" : "Note added"}. ${runDatasetController.isActive ? "It will save with this run." : "Check the run save status."}`,
+    );
+  };
+  const noteEditorDraftChanged = useCallback(
+    (active: boolean) => setAnnotationDraftActive("note-editor", active),
+    [setAnnotationDraftActive],
+  );
+  const stopFromNoteEditor = async () => {
+    runPreflightEpochRef.current += 1;
+    runStartingRef.current = false;
+    setRunStarting(false);
+    beginTargetCommand();
+    try {
+      await target.stop();
+    } finally {
+      finishTargetCommand();
+    }
+  };
 
   const exportPlots = async (format: "svg" | "png") => {
     if (
@@ -2137,17 +2354,22 @@ export function DashboardApp() {
       latestRun.recording.samples.length === 0
     )
       return;
+    const run = latestRun;
+    const runFolder =
+      latestRunDestinationRef.current ?? resolveRunFolder(run.project);
     const nextState = format === "svg" ? "plots-svg" : "plots-png";
     exportActiveRef.current = true;
     setExportState(nextState);
+    setExportDetail("Locating the run's Project folder…");
     try {
       const fileName = timestampedName("xrp-plots", format);
       const destination = await prepareExportDestination(
-        latestRunFolderRef.current,
+        (await runFolder).folder,
         fileName,
         format === "svg" ? "image/svg+xml" : "image/png",
       );
       if (!destination) {
+        setExportDetail("Export canceled.");
         diagnosticLog.record({
           event: "export.cancelled",
           message: `${format.toUpperCase()} plot export was cancelled.`,
@@ -2157,7 +2379,7 @@ export function DashboardApp() {
       setExportDetail(`Preparing ${format.toUpperCase()}…`);
       const { createSignalPlotsSvg, svgToPng } = await loadMonitorExport();
       const svg = createSignalPlotsSvg(
-        latestRun.recording.samples,
+        run.recording.samples,
         visiblePlots,
         monitorSettings.timeWindowS,
         annotationsVisible ? annotations : [],
@@ -2168,12 +2390,15 @@ export function DashboardApp() {
       } else {
         blob = await svgToPng(svg);
       }
+      setExportDetail(
+        `Saving ${format.toUpperCase()} to ${destination.description}…`,
+      );
       await destination.save(blob);
-      setExportDetail(`Saved ${destination.description}`);
+      setExportDetail(exportCompletionDetail(destination));
       diagnosticLog.record({
-        event: "export.saved",
+        event: `export.${destination.completion}`,
         terminal: true,
-        message: `${format.toUpperCase()} plots saved to ${destination.description}.`,
+        message: `${format.toUpperCase()} plots: ${exportCompletionDetail(destination)}`,
       });
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -2193,16 +2418,21 @@ export function DashboardApp() {
 
   const exportWorldReplay = async () => {
     if (!latestRun) return;
+    const run = latestRun;
+    const runFolder =
+      latestRunDestinationRef.current ?? resolveRunFolder(run.project);
     exportActiveRef.current = true;
     setExportState("world-webm");
+    setExportDetail("Locating the run's Project folder…");
     try {
       const fileName = timestampedName("xrp-world-animation", "webm");
       const destination = await prepareExportDestination(
-        latestRunFolderRef.current,
+        (await runFolder).folder,
         fileName,
         "video/webm",
       );
       if (!destination) {
+        setExportDetail("Export canceled.");
         diagnosticLog.record({
           event: "export.cancelled",
           message: "World animation export was cancelled.",
@@ -2213,9 +2443,9 @@ export function DashboardApp() {
       const { createWorldReplayWebm } = await loadMonitorExport();
       let shownProgress = -1;
       const blob = await createWorldReplayWebm({
-        samples: latestRun.recording.samples,
-        annotations: annotationsVisible ? latestRun.annotations : [],
-        world: latestRun.world,
+        samples: run.recording.samples,
+        annotations: annotationsVisible ? run.annotations : [],
+        world: run.world,
         onProgress: (fraction) => {
           const progress = Math.floor(fraction * 100);
           if (progress !== shownProgress) {
@@ -2224,12 +2454,13 @@ export function DashboardApp() {
           }
         },
       });
+      setExportDetail(`Saving world animation to ${destination.description}…`);
       await destination.save(blob);
-      setExportDetail(`Saved ${destination.description}`);
+      setExportDetail(exportCompletionDetail(destination));
       diagnosticLog.record({
-        event: "export.saved",
+        event: `export.${destination.completion}`,
         terminal: true,
-        message: `World animation saved to ${destination.description}.`,
+        message: `World animation: ${exportCompletionDetail(destination)}`,
       });
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -2287,8 +2518,10 @@ export function DashboardApp() {
       if (
         !runStartingRef.current &&
         !runDatasetController.isActive &&
+        !isActiveRunState(targetStateRef.current) &&
         !exportActiveRef.current &&
         runArchiveCountRef.current === 0 &&
+        retainedRunArchivesRef.current.size === 0 &&
         annotationDraftIdsRef.current.size === 0 &&
         pendingRunNotesRef.current.size === 0 &&
         (!runDatasetController.latest || latestRunFolderRef.current)
@@ -2320,7 +2553,9 @@ export function DashboardApp() {
             pendingRunNotesRef.current.size > 0,
           annotationDraftActive: annotationDraftIdsRef.current.size > 0,
           folderInteractionActive: folderInteractionCountRef.current > 0,
-          saveActive: runArchiveCountRef.current > 0,
+          saveActive:
+            runArchiveCountRef.current > 0 ||
+            retainedRunArchivesRef.current.size > 0,
         });
         if (!monitorReloadIsSafe(activity())) return false;
         await runArchiveQueue.current;
@@ -2343,7 +2578,9 @@ export function DashboardApp() {
           annotations.length > 0 || pendingRunNotesRef.current.size > 0,
         annotationDraftActive: annotationDraftIdsRef.current.size > 0,
         folderInteractionActive: folderInteractionCountRef.current > 0,
-        saveActive: runArchiveCountRef.current > 0,
+        saveActive:
+          runArchiveCountRef.current > 0 ||
+          retainedRunArchivesRef.current.size > 0,
       })
     ) {
       retryPendingOfflineShellReload();
@@ -2361,7 +2598,11 @@ export function DashboardApp() {
     () => centeredWorldPreview(target.kind),
     [target.kind],
   );
-  const worldSample = sample?.poseAvailable ? sample : worldPreviewSample;
+  const worldSample = viewingSavedRun
+    ? (latestRun?.recording.samples.at(-1) ?? worldPreviewSample)
+    : sample?.poseAvailable
+      ? sample
+      : worldPreviewSample;
   const displayedUltrasoundMm = normalizeUltrasoundRangeMm(sample?.rangeMm);
   const telemetryRateHz = recentTelemetryRateHz(
     telemetryRateSamplesRef.current,
@@ -2414,8 +2655,14 @@ export function DashboardApp() {
       : "No project selected");
   const physicalConnectionFailed =
     target.kind === "physical" && targetState === "error";
+  const retainedArchiveCount = retainedRunArchivesRef.current.size;
+  const retainedArchiveFailed = [
+    ...retainedRunArchivesRef.current.values(),
+  ].some((retained) => retained.error && !retained.saving);
   const showRecovery =
     physicalConnectionFailed ||
+    Boolean(recordingAdmissionDetail) ||
+    retainedArchiveCount > 0 ||
     Boolean(folderReadError) ||
     Boolean(control && !control.owned) ||
     (!autosaveFolder && !projectProviderAvailable);
@@ -2440,21 +2687,23 @@ export function DashboardApp() {
             title={
               isRunning
                 ? "Stop the running program."
-                : virtualRuntimePreparing
-                  ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
-                  : runStarting
-                    ? "Compiling the default project before Run."
-                    : !autosaveFolder && !projectProviderAvailable
-                      ? rememberedAutosaveFolder
-                        ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
-                        : "Choose a Working folder and create or open a project in the IDE before running."
-                      : currentProject?.stale
-                        ? `Compile and run the current IDE project: ${currentProject.name}.`
-                        : currentProject
-                          ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
-                          : autosaveFolder
-                            ? `Compile and run ${autosaveFolder.name}.`
-                            : "Open a project in the IDE before Run."
+                : retainedRunArchivesRef.current.size > 0
+                  ? "Wait for this run to finish saving, or recover retained runs before starting another run."
+                  : virtualRuntimePreparing
+                    ? "Chrome is preparing the Virtual XRP. This page refreshes once automatically, then Run becomes available."
+                    : runStarting
+                      ? "Compiling the default project before Run."
+                      : !autosaveFolder && !projectProviderAvailable
+                        ? rememberedAutosaveFolder
+                          ? `Reconnect ${rememberedAutosaveFolder.name} before running.`
+                          : "Choose a Working folder and create or open a project in the IDE before running."
+                        : currentProject?.stale
+                          ? `Compile and run the current IDE project: ${currentProject.name}.`
+                          : currentProject
+                            ? `Run ${currentProject.name} (${currentProject.entrypoint}, ${currentProject.revision.slice(0, 8)}).`
+                            : autosaveFolder
+                              ? `Compile and run ${autosaveFolder.name}.`
+                              : "Open a project in the IDE before Run."
             }
           >
             <RunStopIcon running={isRunning} />
@@ -2510,6 +2759,22 @@ export function DashboardApp() {
 
       {showRecovery ? (
         <div className="monitor-notices">
+          {recordingAdmissionDetail || retainedArchiveCount > 0 ? (
+            <section className="monitor-connection-recovery monitor-run-recovery">
+              <OperationStatus
+                pending={!recordingAdmissionDetail && !retainedArchiveFailed}
+                phase={
+                  recordingAdmissionDetail ||
+                  (retainedArchiveFailed
+                    ? `${retainedArchiveCount} retained run${retainedArchiveCount === 1 ? " needs" : "s need"} recovery. Retry saving or download the retained data before starting another run.`
+                    : `Saving or verifying ${retainedArchiveCount} retained run${retainedArchiveCount === 1 ? "" : "s"}… Run becomes available when saving finishes. Exports remain available.`)
+                }
+              />
+              <button onClick={() => setControlsOpen(true)} type="button">
+                Review run data
+              </button>
+            </section>
+          ) : null}
           {folderReadError ? (
             <section className="monitor-connection-recovery" role="status">
               <span>{folderReadError}</span>
@@ -2673,14 +2938,14 @@ export function DashboardApp() {
                         <small>{plot.unit}</small>
                       </label>
                     ))}
-                    {availableProgramPlots.map((plot) => (
+                    {displayedProgramPlots.map((plot) => (
                       <label
                         className="check-row program-signal-choice"
                         key={plot.name}
-                        title={`${plot.label} is published by the running program.`}
+                        title={`${plot.label} is published by this program.`}
                       >
                         <input
-                          checked={programPlotVisibility[plot.name] ?? false}
+                          checked={programPlotVisibility[plot.name] ?? true}
                           onChange={(event) =>
                             setProgramPlotVisible(
                               plot.name,
@@ -2717,6 +2982,112 @@ export function DashboardApp() {
                       {runAutosaveDetail}
                     </span>
                   </div>
+                  {autosaveFolder && autosaveProjectId ? (
+                    <SavedRunPicker
+                      key={autosaveProjectId}
+                      folder={autosaveFolder}
+                      projectId={autosaveProjectId}
+                      disabled={
+                        isRunning ||
+                        runStarting ||
+                        activeRunId !== null ||
+                        exportState !== "idle" ||
+                        pendingRunNotesRef.current.size > 0
+                      }
+                      onOpen={openSavedRun}
+                    />
+                  ) : null}
+                  {[...retainedRunArchivesRef.current.values()]
+                    .filter((retained) => retained.error)
+                    .map((retained) => (
+                      <div className="recording-actions" key={retained.run.id}>
+                        <span>
+                          {retained.saving
+                            ? "Retrying run save"
+                            : "Unsaved run"}
+                          : {retained.run.project?.name ?? retained.run.id}.{" "}
+                          {new Date(
+                            retained.run.startedAt,
+                          ).toLocaleTimeString()}{" "}
+                          ·{" "}
+                          {retained.run.recording.samples.length.toLocaleString()}{" "}
+                          samples. {retained.error}
+                        </span>
+                        <button
+                          disabled={retained.saving}
+                          onClick={() => retryRunArchive(retained)}
+                        >
+                          Retry run save
+                        </button>
+                        <button
+                          onClick={() =>
+                            downloadBlob(
+                              new Blob(
+                                [
+                                  JSON.stringify(
+                                    {
+                                      schemaVersion: 1,
+                                      kind: "ucsb-xrp-run-recovery",
+                                      runs: [archiveForRun(retained.run)],
+                                    },
+                                    null,
+                                    2,
+                                  ) + "\n",
+                                ],
+                                { type: "application/json" },
+                              ),
+                              `UCSBXRP-run-${retained.run.id}.json`,
+                            )
+                          }
+                        >
+                          Download retained run
+                        </button>
+                        {discardRunId === retained.run.id ? (
+                          <>
+                            <span role="alert">
+                              Discard the retained run from{" "}
+                              {retained.run.project?.name ?? "this Project"},
+                              started{" "}
+                              {new Date(
+                                retained.run.startedAt,
+                              ).toLocaleString()}{" "}
+                              ({retained.run.id})? This removes this page's
+                              recovery copy. A download request does not confirm
+                              that a recovery file was saved.
+                            </span>
+                            <button
+                              autoFocus
+                              onClick={() => setDiscardRunId(null)}
+                            >
+                              Keep recovery
+                            </button>
+                            <button
+                              disabled={retained.saving}
+                              onClick={() => {
+                                retainedRunArchivesRef.current.delete(
+                                  retained.run.id,
+                                );
+                                setDiscardRunId(null);
+                                refreshPendingRunNotes(
+                                  (revision) => revision + 1,
+                                );
+                                retryPendingOfflineShellReload();
+                              }}
+                            >
+                              Discard this run
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            disabled={retained.saving}
+                            onClick={() => setDiscardRunId(retained.run.id)}
+                            title="Review which retained run will be discarded before removing its recovery copy."
+                          >
+                            Discard retained run
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   {[...pendingRunNotesRef.current.values()].map((pending) => (
                     <div className="recording-actions" key={pending.runId}>
                       <span>
@@ -2766,23 +3137,22 @@ export function DashboardApp() {
                       </a>
                     </div>
                   ) : null}
-                  <div className="annotation-tools">
-                    <span className="annotation-hint">
-                      Right-click a plot to add a note to this run.
-                    </span>
-                    {annotations.length > 0 ? (
-                      <button
-                        aria-pressed={annotationsVisible}
-                        className="annotation-visibility"
-                        onClick={() =>
-                          setAnnotationsVisible((visible) => !visible)
-                        }
-                        title="Show or hide all current plot and world notes."
-                      >
-                        {`${annotationsVisible ? "Hide" : "Show"} notes · ${annotations.length}`}
-                      </button>
-                    ) : null}
-                  </div>
+                  <MonitorNotes
+                    annotations={annotations}
+                    canAdd={Boolean(
+                      (activeRunId || latestRun) && displayedRunSamples.length,
+                    )}
+                    visible={annotationsVisible}
+                    onAdd={() => {
+                      const selected = displayedRunSamples.at(-1);
+                      if (selected) requestAnnotation(selected);
+                    }}
+                    onEdit={reviewAnnotation}
+                    onToggle={() =>
+                      setAnnotationsVisible((visible) => !visible)
+                    }
+                    feedback={noteFeedback}
+                  />
                   <div className="export-section">
                     <h3>Export</h3>
                     {latestRun?.recording.samples[0]?.source === "virtual" ? (
@@ -2871,11 +3241,39 @@ export function DashboardApp() {
             className={`dashboard-region top-region ${liveSidebarOpen ? "live-sidebar-open" : "live-sidebar-collapsed"}`}
             style={topRegionStyle}
           >
-            <section className="world-panel dashboard-pane">
+            <section
+              className={`world-panel dashboard-pane ${viewingSavedRun ? "saved-run-world" : ""}`}
+            >
+              {viewingSavedRun && latestRun ? (
+                <div className="saved-run-banner" role="status">
+                  <span>
+                    Saved trial ·{" "}
+                    {new Date(latestRun.startedAt).toLocaleString()} ·{" "}
+                    {latestRun.project?.name}. World and plots show this trial;
+                    Live telemetry shows the current XRP.
+                  </span>
+                  <button
+                    disabled={
+                      pendingRunNotesRef.current.size > 0 ||
+                      runArchiveCountRef.current > 0
+                    }
+                    onClick={clearDisplayedRun}
+                  >
+                    Return to current XRP
+                  </button>
+                </div>
+              ) : null}
               <WorldView
                 active={monitorSurfaceActive}
                 annotations={worldHistoryCleared ? [] : annotations}
-                catalog={worldCatalog}
+                catalog={
+                  viewingSavedRun && latestRun
+                    ? {
+                        defaultWorldId: latestRun.worldId,
+                        worlds: [latestRun.world],
+                      }
+                    : worldCatalog
+                }
                 historyBackfill={
                   worldHistoryCleared ? null : activeRunWorldBackfill
                 }
@@ -2883,15 +3281,22 @@ export function DashboardApp() {
                   worldHistoryCleared ? null : displayedRunHistorySource
                 }
                 onWorldChange={
-                  target.kind === "virtual"
+                  target.kind === "virtual" && !viewingSavedRun
                     ? (nextWorldId) => void changeWorld(nextWorldId)
                     : undefined
                 }
+                onSelectAnnotation={reviewAnnotation}
                 sample={worldSample}
                 samples={worldHistoryCleared ? [] : displayedRunSamples}
-                selectedWorldId={selectedWorldId}
+                selectedWorldId={
+                  viewingSavedRun && latestRun
+                    ? latestRun.worldId
+                    : selectedWorldId
+                }
                 worldSelectionDisabled={
-                  targetState === "loading" || targetState === "running"
+                  viewingSavedRun ||
+                  targetState === "loading" ||
+                  targetState === "running"
                 }
                 showAnnotations={annotationsVisible}
               />
@@ -2922,6 +3327,7 @@ export function DashboardApp() {
                     </button>
                   </div>
                   <RuntimeControls
+                    canControl={control === null || control.owned}
                     drafts={runtimeDrafts}
                     error={runtimeUpdateError}
                     onChange={setRuntimeParameter}
@@ -2975,7 +3381,7 @@ export function DashboardApp() {
                           </>
                         ) : null}
                         <div title="Wheel-speed estimates calculated by SensorModel from recent encoder counts and sample times. The wheel controller uses the same estimates.">
-                          <dt>measured wheel speed L/R</dt>
+                          <dt>Wheel speeds L/R</dt>
                           <dd data-testid="left-speed">
                             {value(sample.leftWheelSpeedMmS)} /{" "}
                             {value(sample.rightWheelSpeedMmS)} mm/s
@@ -3097,15 +3503,11 @@ export function DashboardApp() {
                         <div
                           title={
                             sample.source === "virtual"
-                              ? "Recent virtual observation rate over simulator time. Distinct updates can share one physics step and timestamp."
-                              : "Recent sensor-acquisition rate calculated from physical XRP sample timestamps."
+                              ? "Received virtual observations per second of simulator time, not the physics or control-loop frequency. Distinct updates can share one timestamp."
+                              : "Retained physical sensor acquisitions per second of acquisition time, not the browser refresh or control-loop frequency."
                           }
                         >
-                          <dt>
-                            {sample.source === "virtual"
-                              ? "observation rate"
-                              : "telemetry sample rate"}
-                          </dt>
+                          <dt>Telemetry rate</dt>
                           <dd data-testid="telemetry-rate">
                             {telemetryRateHz === null
                               ? "—"
@@ -3197,7 +3599,16 @@ export function DashboardApp() {
                 hidden={!plotsOpen}
                 id="plots-panel-content"
               >
-                {plotsOpen && sample && visiblePlots.length > 0 ? (
+                {plotsWithChangedUnits.length ? (
+                  <p className="plot-unit-notice" role="status">
+                    Units changed for {plotsWithChangedUnits.join(", ")}. Each
+                    plot shows its current unit; the CSV retains every recorded
+                    value and unit. Use one unit per signal for comparison.
+                  </p>
+                ) : null}
+                {plotsOpen &&
+                (sample || latestRun?.recording.samples.length) &&
+                visiblePlots.length > 0 ? (
                   <div className="strip-chart-stack">
                     {visiblePlots.map((plot) => (
                       <section className="strip-chart" key={plot.id}>
@@ -3205,10 +3616,11 @@ export function DashboardApp() {
                           active={monitorSurfaceActive && plotsOpen}
                           annotations={annotations}
                           definition={plot}
-                          onAddAnnotation={
-                            activeRunId || latestRun ? addAnnotation : undefined
+                          onRequestAnnotation={
+                            activeRunId || latestRun
+                              ? requestAnnotation
+                              : undefined
                           }
-                          onAnnotationDraftChange={setAnnotationDraftActive}
                           samples={displayedRunSamples}
                           showAnnotations={annotationsVisible}
                           timeWindowS={monitorSettings.timeWindowS}
@@ -3226,6 +3638,16 @@ export function DashboardApp() {
               </div>
             </section>
           </div>
+          {noteRequest ? (
+            <MonitorNoteEditor
+              request={noteRequest}
+              onSubmit={saveNoteRequest}
+              onClose={() => setNoteRequest(null)}
+              onDraftChange={noteEditorDraftChanged}
+              canStop={isRunning || runStarting || activeRunId !== null}
+              onStop={stopFromNoteEditor}
+            />
+          ) : null}
         </main>
       </div>
     </div>

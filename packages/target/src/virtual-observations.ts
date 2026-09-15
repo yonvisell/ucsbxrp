@@ -1,5 +1,9 @@
 import type { XrpSimulatorState } from "@ucsb-xrp/simulator";
-import type { TelemetryObservationKind, TelemetrySample } from "./types";
+import type {
+  TelemetryObservationKind,
+  TelemetrySample,
+  TelemetryTiming,
+} from "./types";
 import type { CourseTelemetryState } from "./worker-protocol";
 import { virtualTelemetrySample } from "./virtual-telemetry";
 
@@ -12,9 +16,32 @@ export class VirtualObservations {
     course: CourseTelemetryState | null,
     kind: TelemetryObservationKind,
     physicsStepSeq = state.seq,
+    acquisition?: TelemetryTiming | null,
   ): TelemetrySample {
+    const newestAcquisition =
+      acquisition &&
+      (!course?.timing ||
+        (acquisition.clockId === course.timing.clockId &&
+          acquisition.acquisitionSeq !== null &&
+          course.timing.acquisitionSeq !== null &&
+          acquisition.acquisitionSeq > course.timing.acquisitionSeq))
+        ? acquisition
+        : course?.timing;
     return {
       ...virtualTelemetrySample(state, course, course?.plotValues ?? []),
+      ...(newestAcquisition
+        ? {
+            timing: { ...newestAcquisition },
+            ...(newestAcquisition.diagnostics ?? {}),
+            ...(newestAcquisition.plots
+              ? {
+                  plotValues: newestAcquisition.plots.map((plot) => ({
+                    ...plot,
+                  })),
+                }
+              : {}),
+          }
+        : {}),
       observationSeq: this.nextSequence++,
       observationKind: kind,
       physicsStepSeq,

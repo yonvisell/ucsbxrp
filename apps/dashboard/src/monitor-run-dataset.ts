@@ -13,6 +13,9 @@ export interface MonitorRunOutput {
   id: string;
   stream: "stdout" | "stderr" | "system";
   line: string;
+  timestampMs?: number;
+  targetTimeMs?: number;
+  targetClockId?: string;
 }
 
 export interface MonitorRunDataset {
@@ -161,13 +164,81 @@ export class MonitorRunDatasetController {
 
   addAnnotation(annotation: MonitorAnnotation): MonitorRunDataset | null {
     if (!this.active && !this.completed) return null;
-    this.annotations = [...this.annotations, { ...annotation }].slice(-24);
+    if (this.annotations.length >= 1_024)
+      throw new Error(
+        "This run has reached its 1,024-note limit. Existing notes are retained; export the run before collecting more.",
+      );
+    this.annotations = [...this.annotations, { ...annotation }];
     if (this.completed) {
       this.completed = {
         ...this.completed,
         annotations: this.annotations.map((item) => ({ ...item })),
       };
     }
+    return this.completed;
+  }
+
+  updateAnnotation(id: string, label: string): MonitorRunDataset | null {
+    const note = this.annotations.find((candidate) => candidate.id === id);
+    const cleanLabel = label.trim();
+    if (!note || !cleanLabel)
+      throw new Error("The note is no longer available in this run.");
+    if (cleanLabel === note.label) return this.completed;
+    this.annotations = this.annotations.map((candidate) =>
+      candidate === note
+        ? {
+            ...note,
+            label: cleanLabel,
+            previousLabel: note.label,
+            revision: (note.revision ?? 0) + 1,
+          }
+        : candidate,
+    );
+    if (this.completed)
+      this.completed = {
+        ...this.completed,
+        annotations: this.annotations.map((item) => ({ ...item })),
+      };
+    return this.completed;
+  }
+
+  restoreAnnotations(
+    saved: readonly MonitorAnnotation[],
+  ): MonitorRunDataset | null {
+    if (!this.active && !this.completed) return null;
+    const merged = new Map(saved.map((note) => [note.id, { ...note }]));
+    for (const local of this.annotations) {
+      const disk = merged.get(local.id);
+      const acknowledged =
+        disk &&
+        (local.revision ?? 0) <= (disk.revision ?? 0) &&
+        local.label === disk.label &&
+        local.source === disk.source &&
+        local.seq === disk.seq &&
+        local.observationSeq === disk.observationSeq &&
+        local.tMs === disk.tMs &&
+        local.xMm === disk.xMm &&
+        local.yMm === disk.yMm;
+      // Exact acknowledgments clear the pending edit base. Unacknowledged local
+      // edits survive even when another Monitor has advanced farther on disk.
+      if (
+        !disk ||
+        (!acknowledged &&
+          (local.previousLabel !== undefined ||
+            (local.revision ?? 0) >= (disk.revision ?? 0)))
+      )
+        merged.set(local.id, local);
+    }
+    if (merged.size > 1_024)
+      throw new Error(
+        "The combined notes exceed this run's limit. Local notes remain available for export.",
+      );
+    this.annotations = [...merged.values()];
+    if (this.completed)
+      this.completed = {
+        ...this.completed,
+        annotations: this.annotations.map((note) => ({ ...note })),
+      };
     return this.completed;
   }
 

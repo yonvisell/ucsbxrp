@@ -61,7 +61,9 @@ files**, regardless of which classes are selected for a complete robot run.
 - `DeliveryMission` keeps the robot stopped during observation, evaluates the
   named feature, builds the selected grid, validates the returned path,
   navigates to the exact destination, checks the measured terminal position
-  and heading, retains its evidence, and stops on every exit.
+  and heading, retains its evidence, and requests motor stop in its `finally`
+  cleanup after normal completion or a Python exception. The target runtime
+  handles the IDE's **Stop** separately; forced termination can bypass Python cleanup.
 - [`main.py`](main.py) constructs the mission services, runs the mission, and
   prints one result summary.
 - [`component_checks.py`](component_checks.py) calls

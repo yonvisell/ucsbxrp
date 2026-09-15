@@ -318,7 +318,11 @@ class RobotAndMissionTests(unittest.TestCase):
         self.assertAlmostEqual(published[4], 100.0)
         self.assertEqual(published[5:7], (10.0, 10.0))
         self.assertEqual(published[7:11], (100, 0, 100.0, 100.0))
-        self.assertEqual(len(published), 12)
+        self.assertEqual(len(published), 13)
+        timing = json.loads(published[12])["timing"]
+        self.assertEqual(len(timing), 16)
+        self.assertEqual(timing[12], 20)
+        self.assertEqual(timing[14], "course")
         self.assertEqual(
             json.loads(published[11]),
             [{"name": "sample_counter", "label": "Sample counter", "unit": "sample", "value": 37}],

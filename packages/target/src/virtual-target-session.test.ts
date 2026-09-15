@@ -190,6 +190,61 @@ describe("virtual target shared session", () => {
     vi.unstubAllGlobals();
   });
 
+  it("delivers recording telemetry to an IDE without relinquishing its Project provider", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const ide = new VirtualTargetClient();
+    const events: TargetEvent[] = [];
+    ide.subscribe((event) => events.push(event));
+    ide.setProjectRunProvider(() => ({
+      projectId: "recorded-project",
+      revision: 1,
+      project,
+    }));
+    ide.setTelemetryEnabled(true);
+    try {
+      await ide.connect();
+      await ide.markProjectStale(project, "recorded-project");
+      await ide.runCurrent();
+      expect(
+        events.some(
+          (event) => event.type === "project-provider" && event.active,
+        ),
+      ).toBe(true);
+      expect(
+        events.some(
+          (event) =>
+            event.type === "run" &&
+            event.phase === "begin" &&
+            event.projectId === "recorded-project",
+        ),
+      ).toBe(true);
+      expect(
+        events.filter((event) => event.type === "telemetry").length,
+      ).toBeGreaterThan(0);
+      expect(FakeRuntimeWorker.runProjects.at(-1)).toMatchObject(project);
+      ide.setTelemetryEnabled(false);
+      const before = events.filter(
+        (event) => event.type === "telemetry",
+      ).length;
+      await ide.runCurrent();
+      expect(events.filter((event) => event.type === "telemetry")).toHaveLength(
+        before,
+      );
+      ide.setTelemetryEnabled(true);
+      ide.setProjectRunProvider(() => ({
+        projectId: "recorded-project",
+        revision: 2,
+        project,
+      }));
+      await ide.runCurrent();
+      expect(
+        events.filter((event) => event.type === "telemetry").length,
+      ).toBeGreaterThan(before);
+    } finally {
+      ide.disconnect();
+    }
+  });
+
   it("keeps run identifiers distinct when the shared-worker session restarts", async () => {
     const runInFreshSession = async () => {
       const scope: { onconnect?: (event: MessageEvent) => void } = {};

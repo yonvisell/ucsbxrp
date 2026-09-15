@@ -19,7 +19,11 @@
   --line: #adb5ba;
   --line-bright: #737f88;
   --pane-line: #4f5a61;
-  --pane-divider-width: 1px;
+  --pane-divider-width: 1.5px;
+  --section-divider-width: 2px;
+  --content-edge-space: 5px;
+  --control-bg: #ffffff;
+  --control-hover: #e8eff3;
   --brand: #003660;
   --ucsb-blue: #00588a;
   --wordmark-secondary: #76545e;
@@ -35,10 +39,16 @@
   --disabled-ink: #5f6c74;
   --danger-bg: #9b302a;
   --danger-hover: #7d241f;
-  --font-xs: 9px;
+  --font-xs: 10px;
   --font-sm: 10px;
   --font-ui: 11px;
   --font-title: 12px;
+  --font-wordmark: 13px;
+  --doc-small: 13px;
+  --doc-body: 14px;
+  --doc-heading: 20px;
+  --doc-subheading: 16px;
+  --doc-title: 28px;
   --app-header-height: 27px;
   --course-header-height: 27px;
   background: var(--page);
@@ -88,7 +98,7 @@ button {
   border: 1px solid var(--line-bright);
   border-radius: 3px;
   padding: 0.2rem 0.44rem;
-  background: #eef0f2;
+  background: var(--control-bg);
   color: var(--ink);
   cursor: pointer;
   font-size: var(--font-sm);
@@ -99,7 +109,7 @@ button {
 
 button:hover:not(:disabled) {
   border-color: #4f5d66;
-  background: #e3e7e9;
+  background: var(--control-hover);
 }
 
 button:disabled {
@@ -175,11 +185,11 @@ button:disabled {
   display: inline-flex;
   height: 19px;
   align-items: center;
-  border: 1px solid transparent;
+  border: 1px solid var(--line-bright);
   border-radius: 3px;
   padding: 0 0.32rem;
   color: var(--ink);
-  font-size: var(--font-xs);
+  font-size: var(--font-sm);
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -187,7 +197,7 @@ button:disabled {
 
 .app-navigation-link:hover {
   border-color: var(--line);
-  background: var(--panel-raised);
+  background: var(--control-hover);
 }
 
 .app-navigation-link[aria-current="page"] {
@@ -230,9 +240,60 @@ button:disabled {
   font-weight: 500;
 }
 
+.brand-mark,
+.brand-xrp {
+  font-size: var(--font-wordmark);
+  line-height: 1;
+}
+
+.app-navigation-link {
+  background: var(--control-bg);
+}
+
+.copyable-code {
+  min-width: 0;
+  margin: 12px 0;
+}
+
+.copyable-code-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.copyable-code-actions > span {
+  color: var(--muted);
+  font-size: var(--doc-small);
+}
+
+.copyable-code pre,
+.documentation-markdown pre {
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  font-size: var(--doc-small);
+  line-height: 1.5;
+  tab-size: 4;
+}
+
+.documentation-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.documentation-markdown td,
+.documentation-markdown th {
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
 .toolbar {
   display: flex;
-  min-width: 0;
+  min-width: max-content;
   flex: 1;
   align-items: center;
   gap: 0.25rem;
@@ -244,7 +305,7 @@ button:disabled {
   }
 
   .app-header {
-    height: var(--app-header-height);
+    height: auto;
     min-height: var(--app-header-height);
     align-content: center;
     overflow: hidden;
@@ -329,12 +390,12 @@ button:disabled {
 
 .app-header .command-run-button.primary-button {
   border-color: var(--line-bright);
-  background: #eef0f2;
+  background: var(--control-bg);
   color: var(--ink);
 }
 
 .app-header .command-run-button.primary-button:hover:not(:disabled) {
-  background: #e3e7e9;
+  background: var(--control-hover);
 }
 
 input[type="checkbox"],
@@ -391,8 +452,22 @@ input[type="radio"] {
 
 .header-statuses {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
+}
+
+.header-statuses > [role="status"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.header-statuses > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .app-header .status-dot {
@@ -759,10 +834,10 @@ input[type="range"]:disabled {
 
   .app-header {
     display: grid;
-    height: var(--app-header-height);
+    height: auto;
     min-height: var(--app-header-height);
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: 22px 22px 25px;
+    grid-template-rows: minmax(22px, auto) 22px 25px;
     align-items: center;
     gap: 0 4px;
     overflow: visible;
@@ -897,14 +972,14 @@ input[type="range"]:disabled {
   place-items: center;
   border: 1px solid var(--line-bright);
   border-radius: 3px;
-  background: #eef0f2;
+  background: var(--control-bg);
   color: var(--ink);
   text-decoration: none;
 }
 
 .app-header .split-workspace-link:hover {
   border-color: #4f5d66;
-  background: #e3e7e9;
+  background: var(--control-hover);
 }
 
 .app-shell.embedded-app .brand,

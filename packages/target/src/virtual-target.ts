@@ -127,6 +127,7 @@ export class VirtualTargetClient implements TargetClient {
   private runHeartbeat: ReturnType<typeof setInterval> | null = null;
   private liveValues: Int32Array | null = null;
   private projectRunProvider: ProjectRunProvider | null = null;
+  private telemetryEnabled = false;
   private pageLifecycleObserved = false;
   private operationEpoch = 0;
   private cancellation: Int32Array | null = null;
@@ -152,7 +153,7 @@ export class VirtualTargetClient implements TargetClient {
     await this.request({
       type: "connect",
       providesProject: this.projectRunProvider !== null,
-      role: this.projectRunProvider !== null ? "ide" : "monitor",
+      role: this.deliveryRole(),
     });
   }
 
@@ -360,10 +361,28 @@ export class VirtualTargetClient implements TargetClient {
   ): void {
     this.projectRunProvider = provider;
     this.worker?.port.postMessage({
+      type: "set-role",
+      role: this.deliveryRole(),
+    } satisfies TargetWorkerCommand);
+    this.worker?.port.postMessage({
       type: "set-project-run-provider",
       providesProject: provider !== null,
       takeover: options?.takeover === true,
     } satisfies TargetWorkerCommand);
+  }
+
+  setTelemetryEnabled(enabled: boolean): void {
+    this.telemetryEnabled = enabled;
+    this.worker?.port.postMessage({
+      type: "set-role",
+      role: this.deliveryRole(),
+    } satisfies TargetWorkerCommand);
+  }
+
+  private deliveryRole(): TargetWorkerRole {
+    return this.telemetryEnabled || this.projectRunProvider === null
+      ? "monitor"
+      : "ide";
   }
 
   markProjectChanged(project: ProjectRevisionNotice): void {

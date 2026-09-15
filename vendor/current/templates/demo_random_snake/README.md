@@ -12,8 +12,9 @@ inside the configured wheel-speed envelope. The program uses the ordinary
 `Robot.step()` sample clock; it does not add sleeps. Completing twelve segments
 is the intended natural finish. The 4000 mm wheel-travel and 2400-sample limits
 are protective guards for that finite route, not substitutes for the twelve
-segments. `finally: robot.stop()` returns both motor commands to zero on every
-exit.
+segments. `finally: robot.stop()` requests zero motor commands after normal completion
+or a Python exception. The target runtime handles the IDE's **Stop** separately;
+forced termination can bypass Python cleanup.
 
 The same project runs on Virtual XRP or Physical XRP. For a physical run, use
 a clear, level area at least as large as the marked route, place the robot at

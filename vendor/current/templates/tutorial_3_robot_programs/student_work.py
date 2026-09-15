@@ -27,5 +27,5 @@ def run_robot_program(
         for _ in range(sample_count):
             state = robot.step(command)
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()

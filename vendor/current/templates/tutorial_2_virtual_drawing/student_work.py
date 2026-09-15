@@ -46,19 +46,6 @@ def build_drawing(
 ) -> list:
     segments = []
     for index in range(4):
-        segments.append(
-            DrawingSegment(
-                "side {}".format(index + 1),
-                side_speed_mm_s,
-                0.0,
-                side_steps,
-            )
-        )
-        segments.append(
-            TurnSegment(
-                "corner {}".format(index + 1),
-                turn_rate_rad_s,
-                turn_steps,
-            )
-        )
+        segments.append(DrawingSegment("side {}".format(index + 1), side_speed_mm_s, 0.0, side_steps))
+        segments.append(TurnSegment("corner {}".format(index + 1), turn_rate_rad_s, turn_steps))
     return segments

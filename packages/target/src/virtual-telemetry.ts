@@ -17,6 +17,7 @@ export function virtualTelemetrySample(
     tMs: state.tMs,
     seq: state.seq,
     source: "virtual",
+    ...(courseState?.timing ? { timing: { ...courseState.timing } } : {}),
     poseAvailable: true,
     xMm: state.pose.xMm,
     yMm: state.pose.yMm,
@@ -52,5 +53,6 @@ export function virtualTelemetrySample(
     temperatureC: state.temperatureC,
     batteryV: state.batteryV,
     sensorError: null,
+    ...(courseState?.timing?.diagnostics ?? {}),
   };
 }

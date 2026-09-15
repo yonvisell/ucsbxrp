@@ -27,7 +27,7 @@ export async function nextAvailableProjectName(
 export function nextFirstProjectName(
   parent: CourseDirectoryHandle,
 ): Promise<string> {
-  return nextAvailableProjectName(parent, "XRP_Project", true);
+  return nextAvailableProjectName(parent, "my_demo_spiral", true);
 }
 
 /** Keep the user's name separate from a replaceable, asynchronously checked default. */

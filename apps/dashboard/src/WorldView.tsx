@@ -32,6 +32,7 @@ export { worldTrailSegmentPoints } from "./world-trail-geometry";
 interface WorldViewProps {
   active?: boolean;
   annotations?: readonly MonitorAnnotation[];
+  onSelectAnnotation?: (annotation: MonitorAnnotation) => void;
   catalog: WorldCatalog;
   historyBackfill?: readonly TelemetrySample[] | null;
   historySource?: object | string | null;
@@ -71,7 +72,7 @@ export function fittedWorldViewSpans(
   bounds: WorldDefinition["bounds"],
   viewportWidth: number,
   viewportHeight: number,
-  marginMm = 90,
+  marginMm = 24,
 ): WorldViewSpans {
   const aspect = Math.max(viewportWidth, 1) / Math.max(viewportHeight, 1);
   const requiredWidth = bounds.maximumXmm - bounds.minimumXmm + marginMm * 2;
@@ -131,7 +132,10 @@ function textSprite(
   if (!context) {
     throw new Error("World label canvas is unavailable");
   }
-  context.font = "700 44px system-ui, sans-serif";
+  const fontFamily =
+    getComputedStyle(document.documentElement).fontFamily ||
+    "system-ui, sans-serif";
+  context.font = `500 44px ${fontFamily}`;
   const measuredTextWidth = context.measureText(text).width;
   const naturalWidthMm = ((measuredTextWidth + 22) / canvas.height) * 52;
   const resolvedWidthMm = Math.min(600, Math.max(widthMm, naturalWidthMm));
@@ -146,7 +150,7 @@ function textSprite(
     44,
     (44 * (canvas.width - 20)) / Math.max(measuredTextWidth, 1),
   );
-  context.font = `700 ${fontSize}px system-ui, sans-serif`;
+  context.font = `500 ${fontSize}px ${fontFamily}`;
   if (backing) {
     const textWidth = Math.min(
       canvas.width - 8,
@@ -232,6 +236,17 @@ function placeWorldLabel(
   label.position.set(position.xMm, position.yMm, z);
 }
 
+export function worldMajorTicks(minimum: number, maximum: number): number[] {
+  const values: number[] = [];
+  for (
+    let value = Math.ceil(minimum / MAJOR_GRID_MM) * MAJOR_GRID_MM;
+    value <= maximum;
+    value += MAJOR_GRID_MM
+  )
+    values.push(value);
+  return values;
+}
+
 function addBoundedGrid(
   scene: THREE.Scene,
   bounds: WorldDefinition["bounds"],
@@ -304,23 +319,20 @@ function addBoundedGrid(
     42,
     (bounds.maximumYmm - bounds.minimumYmm) * 0.035,
   );
-  for (
-    let x = Math.ceil(bounds.minimumXmm / MAJOR_GRID_MM) * MAJOR_GRID_MM;
-    x <= bounds.maximumXmm;
-    x += MAJOR_GRID_MM
-  ) {
+  for (const x of worldMajorTicks(bounds.minimumXmm, bounds.maximumXmm)) {
     const label = textSprite(String(x), 190, "#34444d", false);
     placeWorldLabel(label, bounds, x, bounds.minimumYmm + labelInset, 4);
     scene.add(label);
   }
-  for (
-    let y = Math.ceil(bounds.minimumYmm / MAJOR_GRID_MM) * MAJOR_GRID_MM;
-    y <= bounds.maximumYmm;
-    y += MAJOR_GRID_MM
-  ) {
-    if (y === 0) continue;
+  for (const y of worldMajorTicks(bounds.minimumYmm, bounds.maximumYmm)) {
     const label = textSprite(String(y), 165, "#34444d", false);
-    placeWorldLabel(label, bounds, bounds.minimumXmm + 72, y, 4);
+    placeWorldLabel(
+      label,
+      bounds,
+      bounds.minimumXmm + 72,
+      y === bounds.minimumYmm ? y + labelInset * 2.8 : y,
+      4,
+    );
     scene.add(label);
   }
   const xAxisLabel = textSprite("x (mm)", 160, "#34444d", false);
@@ -508,6 +520,7 @@ function disposeObject(object: THREE.Object3D): void {
 export function WorldView({
   active = true,
   annotations = [],
+  onSelectAnnotation,
   catalog,
   historyBackfill = null,
   historySource = null,
@@ -529,6 +542,7 @@ export function WorldView({
   const activeRef = useRef(active);
   activeRef.current = active;
   const viewRef = useRef<HTMLDivElement>(null);
+  const annotationPointerRef = useRef<{ x: number; y: number } | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -1028,20 +1042,22 @@ export function WorldView({
     }
     group.visible = showAnnotations;
     if (showAnnotations) {
-      for (const annotation of annotations) {
+      for (const [index, annotation] of annotations.entries()) {
         if (!annotation.poseAvailable) continue;
         const marker = new THREE.Mesh(
-          new THREE.CircleGeometry(10, 20),
-          new THREE.MeshBasicMaterial({ color: "#87515d", depthTest: false }),
+          new THREE.CircleGeometry(7, 20),
+          new THREE.MeshBasicMaterial({
+            color: "#87515d",
+            opacity: 0.58,
+            transparent: true,
+            depthTest: false,
+          }),
         );
         marker.position.set(annotation.xMm, annotation.yMm, 7);
         marker.renderOrder = 7;
         group.add(marker);
-        const labelText = `${(annotation.tMs / 1_000).toFixed(2)} s · ${annotation.label.slice(0, 32)}`;
-        const label = textSprite(
-          labelText,
-          Math.min(420, Math.max(190, labelText.length * 11)),
-        );
+        const labelText = String(index + 1);
+        const label = textSprite(labelText, 48, "#87515d", false);
         placeWorldLabel(
           label,
           world.bounds,
@@ -1064,6 +1080,17 @@ export function WorldView({
       data-arena-mm={`${worldWidthMm} × ${worldHeightMm}`}
       data-pose-state={sample.poseAvailable ? "published" : "centered-preview"}
       data-testid="world-view"
+      data-visible-note-labels={
+        showAnnotations
+          ? annotations
+              .flatMap((note, index) => (note.poseAvailable ? [index + 1] : []))
+              .join(",")
+          : ""
+      }
+      data-y-axis-ticks={worldMajorTicks(
+        world.bounds.minimumYmm,
+        world.bounds.maximumYmm,
+      ).join(",")}
       data-ultrasonic-field-of-view-deg={XRP_ULTRASONIC_FIELD_OF_VIEW_DEG}
       data-ultrasonic-origin-offset-mm={XRP_ULTRASONIC_SENSOR_OFFSET_MM}
       data-ultrasonic-state={
@@ -1123,12 +1150,12 @@ export function WorldView({
             +
           </button>
           <button
-            aria-label="Fit world"
+            aria-label="Fit arena"
             onClick={() => fitWorldRef.current?.()}
             title="Fit the complete arena in the view."
             type="button"
           >
-            Fit
+            Fit arena
           </button>
           <button
             aria-label="Center XRP"
@@ -1145,7 +1172,7 @@ export function WorldView({
             title="Center the view on the XRP without changing the zoom."
             type="button"
           >
-            XRP
+            Center XRP
           </button>
         </div>
         {!sample.poseAvailable ? (
@@ -1158,7 +1185,45 @@ export function WorldView({
         ) : null}
         {sample.collision ? <strong>Contact</strong> : null}
       </div>
-      <div className="world-canvas" ref={hostRef}>
+      <div
+        className="world-canvas"
+        ref={hostRef}
+        onPointerDown={(event) => {
+          annotationPointerRef.current = { x: event.clientX, y: event.clientY };
+        }}
+        onPointerUp={(event) => {
+          const start = annotationPointerRef.current;
+          annotationPointerRef.current = null;
+          const camera = cameraRef.current;
+          const bounds = hostRef.current?.getBoundingClientRect();
+          if (
+            !start ||
+            !camera ||
+            !bounds ||
+            !showAnnotations ||
+            !onSelectAnnotation ||
+            Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4
+          )
+            return;
+          let closest: MonitorAnnotation | undefined;
+          let distance = 13;
+          for (const note of annotations) {
+            if (!note.poseAvailable) continue;
+            const point = new THREE.Vector3(note.xMm, note.yMm, 7).project(
+              camera,
+            );
+            const delta = Math.hypot(
+              bounds.left + ((point.x + 1) * bounds.width) / 2 - event.clientX,
+              bounds.top + ((1 - point.y) * bounds.height) / 2 - event.clientY,
+            );
+            if (delta < distance) {
+              closest = note;
+              distance = delta;
+            }
+          }
+          if (closest) onSelectAnnotation(closest);
+        }}
+      >
         {graphicsError ? (
           <div className="world-graphics-error" role="status">
             <p>{graphicsError}</p>
@@ -1189,7 +1254,7 @@ export function WorldView({
             className="ultrasound-cone"
             viewBox="0 0 18 10"
           >
-            <path d="M1 5 L17 1 M1 5 L17 9" />
+            <path d="M1 5 L16 1 A16 16 0 0 1 16 9 Z" />
           </svg>{" "}
           ultrasound distance
         </span>

@@ -11,8 +11,9 @@ on either target; a copy launched directly outside the course service waits
 for USER. The program filters several range samples. Each approach has a
 1100 mm travel guard and a 10000-sample failure guard; the ordinary result is
 still detection of the next obstacle, not reaching either guard. The quarter
-turn has a 300-sample failure guard. The robot always stops in the `finally`
-block, including after an exception.
+turn has a 300-sample failure guard. The `finally` block calls `robot.stop()` after normal completion or a Python
+exception. The target runtime handles the IDE's **Stop** separately; forced
+termination can bypass Python cleanup.
 
 The default 150 mm/s forward request uses a 250 mm stopping threshold so the
 faster approach retains clearance while wheel speed settles. While it runs,

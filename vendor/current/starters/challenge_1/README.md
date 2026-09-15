@@ -67,8 +67,9 @@ targets + measured speeds
 
 The loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. If a sensor or
 controller mistake prevents progress for `MAX_RUN_TIME_S`, the program names
-that failure and raises an error. The `finally` block in `main.py` stops both
-motors on completion or error.
+that failure and raises an error. The `finally` block in `main.py` calls
+`robot.stop()` after normal completion or a Python exception. The target runtime
+handles the IDE's **Stop** separately; forced termination can bypass Python cleanup.
 
 ## Check each component
 

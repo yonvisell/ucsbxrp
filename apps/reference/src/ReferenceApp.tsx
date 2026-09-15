@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { CourseHeader } from "../../shared/CourseHeader";
 import { useHashTarget } from "../../shared/useHashTarget";
+import { CopyCode } from "../../shared/CopyCode";
 import {
   apiAnchors,
   apiCatalog,
@@ -16,15 +17,62 @@ const legacySectionAnchors: Record<string, string[]> = {
   "hardware-math": ["utilities"],
 };
 
+// Index method/field names as students write them, as well as explanatory text.
+const entrySearchText = new Map(
+  apiCatalog.sections.flatMap((section) =>
+    section.entries.map(
+      (entry) =>
+        [
+          entry.id,
+          [
+            JSON.stringify(entry),
+            ...(entry.methods ?? []).map(
+              (method) => `${entry.name}.${method.name}`,
+            ),
+            ...(entry.properties ?? []).map(
+              (property) => `${entry.name}.${property.name}`,
+            ),
+          ]
+            .join(" ")
+            .toLowerCase(),
+        ] as const,
+    ),
+  ),
+);
+
 export function ReferenceApp() {
   useHashTarget();
+  const [query, setQuery] = useState("");
+  const matchingSections = apiCatalog.sections
+    .map((section) => ({
+      ...section,
+      entries: section.entries.filter((entry) =>
+        entrySearchText.get(entry.id)?.includes(query.trim().toLowerCase()),
+      ),
+    }))
+    .filter((section) => section.entries.length > 0);
 
   return (
     <div className="reference-app">
       <CourseHeader active="reference" className="reference-header" />
       <div className="reference-layout">
-        <nav className="reference-toc" aria-label="API sections">
-          {apiCatalog.sections.map((section) => (
+        <nav
+          className={`reference-toc ${query.trim() ? "searching" : ""}`}
+          aria-label="API sections"
+        >
+          <label className="reference-search">
+            Find a class or function
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <a href="#reading-api">How to read this reference</a>
+          {matchingSections.length === 0 ? (
+            <p role="status">No matching entry. Try a shorter name.</p>
+          ) : null}
+          {matchingSections.map((section) => (
             <div className="toc-section" key={section.id}>
               <a className="toc-group" href={`#${section.id}`}>
                 {section.title}
@@ -45,6 +93,38 @@ export function ReferenceApp() {
               API version <code>{apiCatalog.apiVersion}</code>
             </p>
             <p>{apiCatalog.introduction}</p>
+            <details id="reading-api" className="reading-api">
+              <summary>How to read this reference</summary>
+              <p>
+                Start with the purpose and example, then read the arguments and
+                return value. The <a href="../guide/#components">Guide</a> shows
+                how a component fits into a complete program. Use the search at
+                above or at left to find its name; the complete reference
+                remains available below.
+              </p>
+              <p>
+                <code>robot.step(command) → RobotState</code> means: call the{" "}
+                <code>step</code> method of this robot with one motion request,
+                and receive a record containing measurements and pose. The arrow
+                describes a return type; do not type it into your call. Read a
+                record using a dot, for example <code>state.pose.x_mm</code>.
+              </p>
+              <p>
+                <code>self</code> means the current object inside a class
+                method; Python supplies it when you call the method.{" "}
+                <code>float | None</code> means a number or an unavailable
+                value, not zero. A default such as <code>read_range=False</code>{" "}
+                may be omitted. Units in names describe numerical values, not
+                automatic unit conversion.
+              </p>
+              <p>
+                <strong>Required behavior</strong> defines what your
+                implementation must do. <strong>Exceptions</strong> describe
+                invalid inputs or failed operations. Use the exact record types
+                and method names, but choose your algorithm unless a behavior
+                explicitly constrains it.
+              </p>
+            </details>
             <h2>Units and coordinate conventions</h2>
             <ul className="compact-list">
               {apiCatalog.conventions.map((convention) => (
@@ -207,9 +287,7 @@ function EntryReference({ entry }: { entry: ApiEntry }) {
       {entry.example && (
         <div className="code-example">
           <h4>{entry.example.title}</h4>
-          <pre>
-            <code>{entry.example.code}</code>
-          </pre>
+          <CopyCode code={entry.example.code} />
         </div>
       )}
     </article>

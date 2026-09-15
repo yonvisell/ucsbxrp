@@ -114,9 +114,45 @@ test("keeps one completed run ready for notes and every export", async ({
       configurable: true,
       value: undefined,
     });
+    if (typeof FileSystemFileHandle === "undefined") return;
+    // Hold the first completed-run metadata commit in whichever window wins
+    // the shared writer lock. This is native I/O delay, not a target test hook.
+    const delayed = {
+      hold: true,
+      waiting: false,
+      release: null as (() => void) | null,
+    };
+    (
+      window as Window & {
+        __monitorExportArchiveDelay?: typeof delayed;
+      }
+    ).__monitorExportArchiveDelay = delayed;
+    const createWritable = FileSystemFileHandle.prototype.createWritable;
+    FileSystemFileHandle.prototype.createWritable = async function (options) {
+      const writable = await createWritable.call(this, options);
+      if (this.name === "run-1.json") {
+        const close = writable.close.bind(writable);
+        Object.defineProperty(writable, "close", {
+          value: async () => {
+            if (delayed.hold) {
+              delayed.waiting = true;
+              await new Promise<void>((resolve) => {
+                delayed.release = resolve;
+              });
+            }
+            await close();
+          },
+        });
+      }
+      return writable;
+    };
   });
   await ide.goto("/ide/");
   const monitor = await context.newPage();
+  const fallbackDownloads: string[] = [];
+  monitor.on("download", (download) => {
+    fallbackDownloads.push(download.suggestedFilename());
+  });
   await monitor.goto("/monitor/");
 
   await expect(ide.getByTestId("target-status")).toContainText(
@@ -184,10 +220,62 @@ test("keeps one completed run ready for notes and every export", async ({
   expect(diagnosticLog).not.toContain('event="telemetry.sample"');
   expect(diagnosticLog).not.toContain('"leftEffort"');
 
+  await expect
+    .poll(async () =>
+      (
+        await Promise.all(
+          context.pages().map((page) =>
+            page.evaluate(
+              () =>
+                (
+                  window as Window & {
+                    __monitorExportArchiveDelay?: { waiting: boolean };
+                  }
+                ).__monitorExportArchiveDelay?.waiting ?? false,
+            ),
+          ),
+        )
+      ).some(Boolean),
+    )
+    .toBe(true);
   await monitor.getByRole("button", { name: "Export run data as CSV" }).click();
   await expect(
-    monitor.getByText(/Saved .*xrp-telemetry-.*\.csv$/),
+    monitor.getByText(
+      /Saved \.\/Expanding-Spiral\/exports\/xrp-telemetry-.*\.csv$/,
+    ),
   ).toBeVisible();
+  expect(fallbackDownloads).toEqual([]);
+  // Export uses the resolved Project folder independently of archive commit.
+  // It can finish before a transient Saving phase is painted.
+  const exportedWhileArchiveHeld = (
+    await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
+  ).find((file) => file.name.endsWith(".csv"));
+  expect(exportedWhileArchiveHeld?.text).toContain("turn begins");
+  await Promise.all(
+    context.pages().map((page) =>
+      page.evaluate(() => {
+        const delayed = (
+          window as Window & {
+            __monitorExportArchiveDelay?: {
+              hold: boolean;
+              release: (() => void) | null;
+            };
+          }
+        ).__monitorExportArchiveDelay;
+        if (!delayed) return;
+        delayed.hold = false;
+        delayed.release?.();
+      }),
+    ),
+  );
+  await expect(
+    monitor.getByText(
+      /Saved \.\/Expanding-Spiral\/exports\/xrp-telemetry-.*\.csv$/,
+    ),
+  ).toBeVisible();
+  // The Project identity is already known even if its archive writer is still
+  // settling. Immediate export must not silently select a browser download.
+  expect(fallbackDownloads).toEqual([]);
   const csvFile = (
     await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
   ).find((file) => file.name.endsWith(".csv"));
@@ -199,8 +287,8 @@ test("keeps one completed run ready for notes and every export", async ({
     expect.arrayContaining([
       "left_wheel_distance_mm",
       "right_wheel_distance_mm",
-      "program_spiral_travel_mm",
-      "program_spiral_turn_rate_rad_s",
+      "program_travel_mm",
+      "program_turn_rate_rad_s",
     ]),
   );
   expect(rows.length).toBeGreaterThan(4);
@@ -209,7 +297,11 @@ test("keeps one completed run ready for notes and every export", async ({
   expect(csv).toContain("turn begins");
 
   await monitor.getByRole("button", { name: "Export plots as SVG" }).click();
-  await expect(monitor.getByText(/Saved .*xrp-plots-.*\.svg$/)).toBeVisible();
+  await expect(
+    monitor.getByText(
+      /Saved \.\/Expanding-Spiral\/exports\/xrp-plots-.*\.svg$/,
+    ),
+  ).toBeVisible();
   const svgFile = (
     await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
   ).find((file) => file.name.endsWith(".svg"));
@@ -219,7 +311,11 @@ test("keeps one completed run ready for notes and every export", async ({
   expect(svg).toContain("turn begins");
 
   await monitor.getByRole("button", { name: "Export plots as PNG" }).click();
-  await expect(monitor.getByText(/Saved .*xrp-plots-.*\.png$/)).toBeVisible();
+  await expect(
+    monitor.getByText(
+      /Saved \.\/Expanding-Spiral\/exports\/xrp-plots-.*\.png$/,
+    ),
+  ).toBeVisible();
   const pngFile = (
     await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
   ).find((file) => file.name.endsWith(".png"));
@@ -230,8 +326,11 @@ test("keeps one completed run ready for notes and every export", async ({
     .getByRole("button", { name: "Export world animation as WebM" })
     .click();
   await expect(
-    monitor.getByText(/Saved .*xrp-world-animation-.*\.webm$/),
+    monitor.getByText(
+      /Saved \.\/Expanding-Spiral\/exports\/xrp-world-animation-.*\.webm$/,
+    ),
   ).toBeVisible({ timeout: 20_000 });
+  expect(fallbackDownloads).toEqual([]);
   const webmFile = (
     await readWorkspaceExports(monitor, { folderName: monitorWorkspace })
   ).find((file) => file.name.endsWith(".webm"));
@@ -485,6 +584,29 @@ test("active reset archives the run before clearing its world path", async ({
   await expect(lateMonitor.getByTestId("recording-count")).toContainText(
     "Expanding spiral ·",
   );
+  // The completed worker replay must expose program signals even though this
+  // Monitor never received their live runtime descriptors or opened a disk run.
+  const travelChoice = lateMonitor
+    .locator(".program-signal-choice")
+    .filter({ hasText: "Travel" })
+    .getByRole("checkbox");
+  const yawChoice = lateMonitor
+    .locator(".program-signal-choice")
+    .filter({ hasText: "Yaw rate" })
+    .getByRole("checkbox");
+  await expect(travelChoice).toBeChecked();
+  await expect(yawChoice).toBeChecked();
+  await expect(
+    lateMonitor.getByTestId("strip-chart-program-travel_mm"),
+  ).toBeVisible();
+  await expect(
+    lateMonitor.getByTestId("strip-chart-program-turn_rate_rad_s"),
+  ).toBeVisible();
+  await travelChoice.uncheck();
+  await expect(
+    lateMonitor.getByTestId("strip-chart-program-travel_mm"),
+  ).toHaveCount(0);
+  await expect(yawChoice).toBeChecked();
   await expect(lateMonitor.getByTestId("world-view")).toHaveAttribute(
     "data-path-point-count",
     "0",
@@ -527,6 +649,7 @@ test("active reset archives the run before clearing its world path", async ({
     }
   }, monitorWorkspace);
   expect(replayedCsv).toBe(archivedCsv);
+  await expect(travelChoice).not.toBeChecked();
   await lateMonitor.close();
   await page
     .locator(".app-header")
@@ -579,11 +702,9 @@ test("Reset preserves data and notes for manual export after an archive write fa
     };
     Object.defineProperty(window, "showSaveFilePicker", {
       configurable: true,
-      value: async () =>
-        (await navigator.storage.getDirectory()).getFileHandle(
-          "reset-recovery.csv",
-          { create: true },
-        ),
+      value: async () => {
+        throw new Error("The writable Project exports folder should be used.");
+      },
     });
   });
   await page.getByRole("button", { name: "Reset", exact: true }).click();
@@ -602,14 +723,14 @@ test("Reset preserves data and notes for manual export after an archive write fa
   ).toBeVisible();
   await page.getByRole("button", { name: "Export run data as CSV" }).click();
   await expect(
-    page.getByText("Saved reset-recovery.csv", { exact: true }),
+    page.getByText(
+      /Saved \.\/Expanding-Spiral\/exports\/xrp-telemetry-.*\.csv$/,
+    ),
   ).toBeVisible();
-  const recovered = await page.evaluate(async () => {
-    const root = await navigator.storage.getDirectory();
-    return (
-      await (await root.getFileHandle("reset-recovery.csv")).getFile()
-    ).text();
-  });
+  const recovered =
+    (await readWorkspaceExports(page, { folderName: monitorWorkspace })).find(
+      (file) => file.name.endsWith(".csv"),
+    )?.text ?? "";
   expect(recovered).toContain("Retain this Reset note");
   const rows = recovered.trim().split("\n");
   const xColumn = rows[0]!.split(",").indexOf("x_mm");
@@ -676,7 +797,7 @@ test("selects plotted signals from the Monitor controls", async ({
     appNavigation.getByRole("link", { name: "Monitor", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   const monitorRun = page.locator(".monitor-run-button");
-  await expect(monitorRun).toHaveCSS("background-color", "rgb(238, 240, 242)");
+  await expect(monitorRun).toHaveCSS("background-color", "rgb(255, 255, 255)");
   expect(
     await monitorRun.evaluate(
       (button) => button.getBoundingClientRect().height,
@@ -783,8 +904,8 @@ test("selects plotted signals from the Monitor controls", async ({
     liveSidebarGeometry.topRight,
     0,
   );
-  expect(liveSidebarGeometry.restoreWidth).toBe(24);
-  expect(liveSidebarGeometry.restoreHeight).toBe(24);
+  expect(liveSidebarGeometry.restoreWidth).toBe(22);
+  expect(liveSidebarGeometry.restoreHeight).toBe(22);
   await page
     .getByRole("button", { name: "Open live controls and telemetry" })
     .click();
@@ -856,10 +977,10 @@ test("selects plotted signals from the Monitor controls", async ({
 
   await monitorRun.click();
   await expect(
-    page.getByRole("checkbox", { name: "Spiral travel" }),
+    page.getByRole("checkbox", { name: "Travel mm", exact: true }),
   ).toBeChecked({ timeout: 10_000 });
   await expect(
-    page.getByRole("checkbox", { name: "Spiral yaw rate" }),
+    page.getByRole("checkbox", { name: "Yaw rate rad/s", exact: true }),
   ).toBeChecked();
   const stop = page.getByRole("button", { name: "Stop", exact: true });
   if (await stop.isVisible()) await stop.click();
@@ -889,8 +1010,8 @@ test("selects plotted signals from the Monitor controls", async ({
     collapsedGeometry.workspaceX,
     0,
   );
-  expect(collapsedGeometry.restoreWidth).toBe(24);
-  expect(collapsedGeometry.restoreHeight).toBe(24);
+  expect(collapsedGeometry.restoreWidth).toBe(22);
+  expect(collapsedGeometry.restoreHeight).toBe(22);
   await page.getByRole("button", { name: "Open monitor controls" }).click();
   await expect(
     page.getByRole("heading", { name: "Plot signals", exact: true }),

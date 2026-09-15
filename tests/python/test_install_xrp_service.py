@@ -115,8 +115,8 @@ class InstallXrpServiceTest(unittest.TestCase):
     def test_runtime_manifest_is_canonical_and_complete(self):
         manifest = INSTALLER.runtime_manifest()
         data = INSTALLER.canonical_json_bytes(manifest)
-        self.assertEqual(manifest["releaseId"], "2026.09-dev.48")
-        self.assertEqual(manifest["releaseSequence"], 48)
+        self.assertEqual(manifest["releaseId"], "2026.09-dev.49")
+        self.assertEqual(manifest["releaseSequence"], 49)
         self.assertEqual(manifest["compatibility"]["protocolVersion"], 1)
         self.assertTrue(data.endswith(b"\n"))
         self.assertNotIn(b" ", data)
@@ -191,7 +191,7 @@ class InstallXrpServiceTest(unittest.TestCase):
         activation = result["activation"]
         self.assertEqual(activation["generation"], 1)
         self.assertEqual(activation["slot"], "a")
-        self.assertEqual(activation["releaseSequence"], 48)
+        self.assertEqual(activation["releaseSequence"], 49)
         active_path = "/course_runtime/active.0.json"
         self.assertEqual(json.loads(transport.files[active_path]), activation)
         manifest_path = "/course_runtime/slots/a/runtime-manifest.json"

@@ -10,7 +10,18 @@ export function useHashTarget() {
       frame = window.requestAnimationFrame(() => {
         const fragment = window.location.hash.slice(1);
         if (!fragment) return;
-        const target = document.getElementById(decodeURIComponent(fragment));
+        let decoded: string;
+        try {
+          decoded = decodeURIComponent(fragment);
+        } catch {
+          return;
+        }
+        const target = document.getElementById(decoded);
+        let ancestor: HTMLElement | null = target;
+        while (ancestor) {
+          if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+          ancestor = ancestor.parentElement;
+        }
         target?.scrollIntoView({ block: "start" });
       });
     };

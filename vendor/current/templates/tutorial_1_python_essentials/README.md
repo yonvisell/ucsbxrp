@@ -112,3 +112,25 @@ it. Check indentation, parentheses, commas, colons, and spelling. A temporary
 after the function works.
 
 Continue with **Tutorial 2: Virtual XRP drawing**.
+
+
+## From MATLAB to the project files
+
+| Python form | Meaning in this course |
+| --- | --- |
+| `samples[0]` | First sample; indices start at zero. |
+| `range(4)` | Four values: 0, 1, 2, 3; the endpoint is excluded. |
+| `distance_mm ** 2` | Squared value; `^` is not exponentiation. |
+| `[1, 2] + [3]` | List concatenation, not vector addition. |
+| `value is None` | Missing reading; never substitute a physical zero silently. |
+| `if error_mm > tolerance_mm:` | Indentation defines the conditional block. |
+| `self.previous_count = count` | Store state for the next call on this object. |
+| `from robot_config import ROBOT_CONFIG` | Import a named value from a file. |
+
+`=` assigns; `==` compares. Use `and`, `or` and `not` for scalar conditions.
+Two names assigned the same list refer to the same mutable list; use `list(old)`
+when an independent copy is intended. Modules replace a shared interactive
+workspace: make inputs explicit and keep calibration in its named file. Run
+creates fresh program objects; saved project files remain. Avoid NumPy-specific
+operations in MicroPython. First change a working function, then one small class;
+base classes supply an interface but do not implement its missing method.

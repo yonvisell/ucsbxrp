@@ -64,3 +64,19 @@ and controller gains in `robot_config.py`. The virtual geometry is a useful
 starting point, not evidence of physical calibration.
 
 Success is one confirmed return across the finish bar without losing the line.
+
+
+## Qualified finish and stopped failure results
+
+The finish bar counts only after four ordered odometry checkpoints from
+lap_progress.py. Immediate back-and-forth crossings cannot count as a circuit.
+The line follower still uses only local reflectance for steering. Physical lap
+judging independently verifies the route: estimated pose is not ground truth.
+Change the checkpoints when changing world.json circuit geometry.
+
+Missing reflectance reports reflectance_unavailable. Losing both signals commands
+zero immediately and reports line_lost after 0.4 s; the full run is bounded to
+100 s. Reposition only after Stop. Test components now exercises LineFollower
+from the student file regardless of its Run selector; NOT IMPLEMENTED is expected
+until that file is completed. It checks signs, limits and reset as well as the
+centered example.

@@ -2,6 +2,24 @@ MOBILE ROBOTICS WITH THE XRP
 Course overview and ten-week schedule
 
 
+2026-09-14 CANDIDATE OFFERING
+
+The existing challenge IDs described below remain available. A separately
+implemented candidate sequence uses new_ project IDs: Robot Curling, Arena Line
+Circuit, Waypoint Courier, Mapped Route and bounded Out-and-Back. Its dated
+meeting plan and assessment recommendations are in new_draft_curricular/.
+The supplied drafts are preserved; use recommended_changes_2026-09-14.md and
+recommended_schedule_2026-09-14.csv for the revised proposal.
+
+The new sequence retains earlier student components and calibration, adds a
+local LineFollower in the line challenge, and includes an explicit odometry
+calibration lab before waypoints. Curling exposes a short editable distance
+policy alongside the supplied controller. Mapped Route begins without motor
+motion; the final mission observes one named uncertain gate while stationary,
+updates the supplied map and plans the return. These projects use the current
+public APIs. Live gyro fusion and camera localization are optional future work.
+
+
 COURSE IN BRIEF
 
 Students begin by assembling an XRP robot and finding out how its two motors and
@@ -670,14 +688,8 @@ main.py
             clearance_mm=CLEARANCE_MM,
         )
 
-        start = grid.world_to_cell(
-            INITIAL_POSE.x_mm,
-            INITIAL_POSE.y_mm,
-        )
-        goal = grid.world_to_cell(
-            DESTINATION.x_mm,
-            DESTINATION.y_mm,
-        )
+        start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
+        goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
         path = make_grid_planner().plan(grid, start, goal)
 
         if path is None:
@@ -685,12 +697,10 @@ main.py
             return None
 
         navigation = make_navigation_controller(NAVIGATION_CONFIG)
-        navigation.start(
-            path.to_goals(
-                grid=grid,
-                final_heading_rad=DESTINATION.heading_rad,
-            )
+        goals = path.to_goals(
+            grid=grid, final_heading_rad=DESTINATION.heading_rad,
         )
+        navigation.start(goals)
 
         robot = make_robot(ROBOT_CONFIG)
         try:
@@ -706,6 +716,6 @@ main.py
     run_mapped_route()
 
 
-Changing GridPlanner from "reference" to "student" in course_setup.py changes
+Setting USE_STUDENT_GRID_PLANNER = True in course_setup.py changes
 the planner used by main.py without changing the task, map, navigation, or robot
 code.

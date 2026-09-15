@@ -18,6 +18,12 @@ import { MAX_RUNTIME_PARAMETERS, parseRuntimeState } from "./runtime-controls";
 import { SIMULATED_XRPLIB_FILES } from "./simulated-python";
 import { SimulationClock } from "./simulation-clock";
 import { RuntimeOutput } from "./runtime-output";
+import { decodeVirtualAcquisition } from "./telemetry-timing";
+import {
+  VirtualMemoryGuard,
+  virtualLinearMemoryBytes,
+  virtualMemoryStopDetail,
+} from "./virtual-memory-guard";
 import type {
   RuntimeWorkerMessage,
   RuntimeWorkerRequest,
@@ -84,6 +90,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   let leftEncoderOrigin = 0;
   let rightEncoderOrigin = 0;
   const clock = new SimulationClock(simulator.config.fixedStepMs);
+  const timingClockId = `virtual:${crypto.randomUUID()}`;
   const cancellation = event.data.cancellationBuffer
     ? new Int32Array(event.data.cancellationBuffer)
     : null;
@@ -102,6 +109,10 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
     liveValuesAreShared ? Atomics.load(liveValues, slot) : liveValues[slot]!;
   const liveSlots = new Map<string, number>();
   let programStarted = false;
+  let memoryGuard: VirtualMemoryGuard | undefined;
+  const checkMemory = () => {
+    if (programStarted) memoryGuard?.check();
+  };
   let coursePublicationSeq = 0;
   let diagnosticProjectPaths: string[] = [];
   const postSimulatorState = (
@@ -109,6 +120,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
   ) =>
     post({ type: "simulator-state", state: simulator.state, observationKind });
   const advanceSimulator = () => {
+    checkMemory();
     output.flush();
     const steps = clock.advance(
       () => simulator.step(),
@@ -124,15 +136,40 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
     const runtime = await loadMicroPython({
       heapsize: 2 * 1024 * 1024,
       url: micropythonWasmUrl,
-      stdout: (line) =>
-        event.data.mode === "run"
+      stdout: (line) => {
+        checkMemory();
+        return event.data.mode === "run"
           ? output.write("stdout", line)
-          : post({ type: "console", stream: "stdout", line }),
-      stderr: (line) =>
-        event.data.mode === "run"
+          : post({ type: "console", stream: "stdout", line });
+      },
+      stderr: (line) => {
+        checkMemory();
+        return event.data.mode === "run"
           ? output.write("stderr", line)
-          : post({ type: "console", stream: "stderr", line }),
+          : post({ type: "console", stream: "stderr", line });
+      },
     });
+    virtualLinearMemoryBytes(runtime);
+    memoryGuard = new VirtualMemoryGuard(
+      () => virtualLinearMemoryBytes(runtime),
+      (bytes) =>
+        post({
+          type: "console",
+          stream: "stderr",
+          line: `Virtual run memory is ${Math.ceil(bytes / 1024 / 1024)} MiB and rising. Finish this run and save your results; a new run starts with fresh runtime memory.`,
+        }),
+      (bytes) => {
+        simulator.stop();
+        postSimulatorState("stop");
+        output.flush();
+        post({
+          type: "error",
+          detail: virtualMemoryStopDetail(bytes),
+          stage: "run",
+          reason: "memory-limit",
+        });
+      },
+    );
     runtime.registerJsModule("xrp_sim_bridge", {
       set_motor_effort(side: "left" | "right", effort: number) {
         advanceSimulator();
@@ -180,6 +217,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         advanceSimulator();
       },
       program_time_ms() {
+        checkMemory();
         return clock.elapsedMs();
       },
       set_runtime_version(version: string) {
@@ -230,6 +268,7 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
         targetLeftWheelSpeedMmS: unknown,
         targetRightWheelSpeedMmS: unknown,
         plotValuesJson?: unknown,
+        timingJson?: unknown,
       ) {
         const estimatedX = telemetryNumber(estimatedXmm);
         const estimatedY = telemetryNumber(estimatedYmm);
@@ -258,6 +297,10 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
           state: {
             publicationSeq: coursePublicationSeq++,
             publishedAtMs: clock.elapsedMs(),
+            timing:
+              timingJson === undefined
+                ? undefined
+                : decodeVirtualAcquisition(timingJson, timingClockId),
             estimatedXmm: estimatedX,
             estimatedYmm: estimatedY,
             estimatedHeadingRad: estimatedHeading,
@@ -277,6 +320,10 @@ self.onmessage = async (event: MessageEvent<RuntimeWorkerRequest>) => {
                   ).plots,
           },
         });
+      },
+      publish_sensor_sample(timingJson: unknown) {
+        const timing = decodeVirtualAcquisition(timingJson, timingClockId);
+        if (timing) post({ type: "sensor-acquisition", timing });
       },
     });
 
@@ -428,6 +475,7 @@ exec(
     output.flush();
     simulator.stop();
     postSimulatorState("stop");
+    if (memoryGuard?.stopped) return;
     const rawDetail = rawErrorDetail(error);
     const detail = errorDetail(error);
     const phase = programStarted ? "runtime" : "compile";

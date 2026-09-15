@@ -3,18 +3,11 @@ import {
   GridComponent,
   LegendComponent,
   MarkLineComponent,
-  TitleComponent,
   TooltipComponent,
 } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import {
   millidegreesPerSecondToRadiansPerSecond,
@@ -23,7 +16,14 @@ import {
   type TelemetrySample,
 } from "@ucsb-xrp/target";
 
-import type { MonitorAnnotation } from "./monitor-export";
+import type { MonitorAnnotation } from "./monitor-export-core";
+import {
+  retainedVisibleAnnotations,
+  nearestObservation,
+  observationDescription,
+  inspectionValue,
+  escapeInspectionHtml,
+} from "./monitor-inspection";
 import { normalizeUltrasoundRangeMm } from "./ultrasound-range";
 
 echarts.use([
@@ -31,7 +31,6 @@ echarts.use([
   GridComponent,
   LegendComponent,
   MarkLineComponent,
-  TitleComponent,
   TooltipComponent,
   CanvasRenderer,
 ]);
@@ -71,7 +70,7 @@ interface BuiltInSignalPlotDefinition extends SignalPlotDefinition {
 export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
   {
     id: "wheel-speed",
-    label: "Wheel speed",
+    label: "Wheel speeds",
     axisLabel: "v_L, v_R",
     unit: "mm/s",
     description:
@@ -129,7 +128,7 @@ export const SIGNAL_PLOTS: readonly BuiltInSignalPlotDefinition[] = [
     id: "motor-effort",
     label: "Drive command",
     axisLabel: "u_L, u_R",
-    title: "Drive command: u_L, u_R",
+    title: "Drive command",
     unit: "−1…+1",
     description: "Dimensionless left and right drive commands from −1 to +1",
     fixedRange: [-1, 1],
@@ -264,21 +263,38 @@ export function runtimePlotDefinition(plot: RuntimePlot): SignalPlotDefinition {
     label: plot.label,
     axisLabel: plot.name,
     unit: plot.unit || "unitless",
-    description: `${plot.label} published by the running program.`,
+    description: `${plot.label} in ${plot.unit || "unitless values"}. Values recorded with another unit remain in the CSV.`,
     series: [
       {
         label: plot.label,
         color: "#08736b",
         value: (sample) =>
-          sample.plotValues?.find((value) => value.name === plot.name)?.value ??
-          null,
+          sample.plotValues?.find(
+            (value) =>
+              value.name === plot.name &&
+              (value.unit ?? "") === (plot.unit ?? ""),
+          )?.value ?? null,
       },
     ],
   };
 }
 
+export const SIGNAL_PLOT_LEFT = 36;
+export const SIGNAL_PLOT_RIGHT = 6;
+
+export function signalInspectionHtml(
+  sample: TelemetrySample,
+  definition: SignalPlotDefinition,
+): string {
+  const rows = definition.series.map((series) => {
+    const value = inspectionValue(series.value(sample));
+    return `<div class="signal-inspection-row"><span>${escapeInspectionHtml(series.label)}</span><strong>${escapeInspectionHtml(value)}${value === "Unavailable" || definition.unit === "unitless" || definition.unit === "−1…+1" ? "" : ` ${escapeInspectionHtml(definition.unit)}`}</strong></div>`;
+  });
+  return `<div class="signal-inspection"><strong>${escapeInspectionHtml(observationDescription(sample))}</strong>${rows.join("")}</div>`;
+}
+
 export function signalPlotTitle(definition: SignalPlotDefinition): string {
-  return definition.title ?? `${definition.label} • ${definition.axisLabel}`;
+  return definition.title ?? definition.label;
 }
 
 export function signalPlotDefinition(id: SignalPlotId): SignalPlotDefinition {
@@ -329,8 +345,7 @@ interface SignalPlotProps {
   active?: boolean;
   annotations?: readonly MonitorAnnotation[];
   definition: SignalPlotDefinition;
-  onAddAnnotation?: (sample: TelemetrySample, label: string) => void;
-  onAnnotationDraftChange?: (plotId: string, active: boolean) => void;
+  onRequestAnnotation?: (sample: TelemetrySample) => void;
   samples: readonly TelemetrySample[];
   showAnnotations?: boolean;
   timeWindowS: number;
@@ -366,8 +381,7 @@ export function SignalPlot({
   active = true,
   annotations = [],
   definition,
-  onAddAnnotation,
-  onAnnotationDraftChange,
+  onRequestAnnotation,
   samples,
   showAnnotations = true,
   timeWindowS,
@@ -375,26 +389,34 @@ export function SignalPlot({
   const shellRef = useRef<HTMLDivElement>(null);
   const elementRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
-  const noteInputRef = useRef<HTMLInputElement>(null);
+  const headingRef = useRef<HTMLDivElement>(null);
+  const hoveredSampleRef = useRef<TelemetrySample | null>(null);
+  const [inspection, setInspection] = useState<{
+    sample: TelemetrySample;
+    left: number;
+    width: number;
+  } | null>(null);
   const [chartGeneration, setChartGeneration] = useState(0);
   const [compactLayout, setCompactLayout] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [noteLocation, setNoteLocation] = useState<{
-    left: number;
-    sample: TelemetrySample;
-  } | null>(null);
+  const [headingHeight, setHeadingHeight] = useState(20);
+  const [inspectionAnnouncement, setInspectionAnnouncement] = useState("");
 
   useEffect(() => {
-    noteInputRef.current?.focus();
-  }, [noteLocation]);
-
-  useLayoutEffect(() => {
-    const active = noteLocation !== null;
-    onAnnotationDraftChange?.(definition.id, active);
-    return () => {
-      if (active) onAnnotationDraftChange?.(definition.id, false);
-    };
-  }, [definition.id, noteLocation, onAnnotationDraftChange]);
+    const selected = hoveredSampleRef.current;
+    if (
+      selected &&
+      !samples.some(
+        (sample) =>
+          sample.source === selected.source &&
+          (selected.observationSeq === undefined
+            ? sample.seq === selected.seq && sample.tMs === selected.tMs
+            : sample.observationSeq === selected.observationSeq),
+      )
+    ) {
+      hoveredSampleRef.current = null;
+      setInspection(null);
+    }
+  }, [samples]);
 
   useEffect(() => {
     if (!active) return;
@@ -423,10 +445,12 @@ export function SignalPlot({
       const compact = element.clientWidth < 420;
       element.dataset.compactLayout = compact ? "true" : "false";
       setCompactLayout((current) => (current === compact ? current : compact));
+      setHeadingHeight(headingRef.current?.offsetHeight ?? 20);
       chart.resize();
     };
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(element);
+    if (headingRef.current) resizeObserver.observe(headingRef.current);
     resize();
     return () => {
       resizeObserver.disconnect();
@@ -441,16 +465,7 @@ export function SignalPlot({
     const latestMs = samples.at(-1)?.tMs ?? 0;
     const startMs = latestMs - timeWindowS * 1_000;
     const visibleAnnotations = showAnnotations
-      ? annotations.filter(
-          (annotation) =>
-            annotation.tMs >= startMs &&
-            annotation.tMs <= latestMs &&
-            samples.some(
-              (sample) =>
-                sample.source === annotation.source &&
-                sample.seq === annotation.seq,
-            ),
-        )
+      ? retainedVisibleAnnotations(annotations, samples, startMs, latestMs)
       : [];
     const plotWidthPx = Math.max(
       1,
@@ -461,31 +476,19 @@ export function SignalPlot({
       {
         animation: false,
         backgroundColor: "transparent",
-        title: {
-          left: 5,
-          top: -1,
-          text: signalPlotTitle(definition),
-          textStyle: {
-            color: "#000000",
-            fontFamily: "system-ui, sans-serif",
-            fontSize: 11,
-            fontWeight: 600,
-          },
-        },
         grid: {
-          left: 36,
-          right: 6,
-          top: compactLayout ? 31 : 18,
+          left: SIGNAL_PLOT_LEFT,
+          right: SIGNAL_PLOT_RIGHT,
+          top: headingHeight + 3,
           bottom: 21,
         },
         legend: {
           show: false,
         },
         tooltip: {
-          trigger: "axis",
-          backgroundColor: "#ffffff",
-          borderColor: "#737f88",
-          textStyle: { color: "#000000", fontSize: 11 },
+          // Inspection belongs to the selected observation, not the chart's
+          // changing data index. Keep it outside ECharts' live repaint cycle.
+          show: false,
         },
         xAxis: signalXAxis(timeWindowS),
         yAxis: {
@@ -501,6 +504,8 @@ export function SignalPlot({
           name: series.label,
           type: "line",
           showSymbol: false,
+          symbol: "none",
+          emphasis: { scale: false, disabled: true },
           connectNulls: false,
           itemStyle: { color: series.color },
           lineStyle: {
@@ -527,7 +532,7 @@ export function SignalPlot({
                     rotate: 0,
                   },
                   data: visibleAnnotations.map((annotation) => ({
-                    name: annotation.label,
+                    name: String(annotations.indexOf(annotation) + 1),
                     xAxis: Math.min(
                       -annotationEdgeInsetS,
                       Math.max(
@@ -547,52 +552,94 @@ export function SignalPlot({
     annotations,
     chartGeneration,
     compactLayout,
+    headingHeight,
     definition,
     samples,
     showAnnotations,
     timeWindowS,
   ]);
 
-  const openNoteAt = (clientX?: number) => {
+  const observationAt = (clientX?: number) => {
     const shell = shellRef.current;
     const latestMs = samples.at(-1)?.tMs;
-    if (!shell || latestMs === undefined || !onAddAnnotation) return;
+    if (!shell || latestMs === undefined) return null;
     const bounds = shell.getBoundingClientRect();
-    const plotLeft = 36;
-    const plotRight = 6;
-    const width = Math.max(1, bounds.width - plotLeft - plotRight);
-    const relative = Math.min(
-      width,
-      Math.max(
-        0,
-        (clientX ?? bounds.right - plotRight) - bounds.left - plotLeft,
-      ),
+    const width = Math.max(
+      1,
+      bounds.width - SIGNAL_PLOT_LEFT - SIGNAL_PLOT_RIGHT,
     );
-    const fraction = relative / width;
-    const requestedTimeMs =
-      latestMs + (-timeWindowS + fraction * timeWindowS) * 1_000;
-    const nearestSample = samples.reduce((nearest, candidate) =>
-      Math.abs(candidate.tMs - requestedTimeMs) <
-      Math.abs(nearest.tMs - requestedTimeMs)
-        ? candidate
-        : nearest,
+    const fraction =
+      clientX === undefined
+        ? 1
+        : Math.min(
+            1,
+            Math.max(0, (clientX - bounds.left - SIGNAL_PLOT_LEFT) / width),
+          );
+    return nearestObservation(
+      samples,
+      latestMs + (-timeWindowS + fraction * timeWindowS) * 1_000,
     );
-    setNoteLocation({
-      left: Math.min(
-        Math.max(73, bounds.width - 73),
-        Math.max(73, plotLeft + relative),
-      ),
-      sample: nearestSample,
-    });
-    setNoteDraft("");
   };
 
-  const saveNote = () => {
-    const label = noteDraft.trim();
-    if (!label || !noteLocation || !onAddAnnotation) return;
-    onAddAnnotation(noteLocation.sample, label);
-    setNoteLocation(null);
-    setNoteDraft("");
+  const showInspection = (selected: TelemetrySample, clientX?: number) => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const bounds = shell.getBoundingClientRect();
+    const width = Math.min(
+      280,
+      Math.max(1, bounds.width - SIGNAL_PLOT_LEFT - SIGNAL_PLOT_RIGHT),
+    );
+    hoveredSampleRef.current = selected;
+    setInspection({
+      sample: selected,
+      width,
+      left: Math.max(
+        SIGNAL_PLOT_LEFT,
+        Math.min(
+          (clientX === undefined ? SIGNAL_PLOT_LEFT : clientX - bounds.left) +
+            10,
+          bounds.width - SIGNAL_PLOT_RIGHT - width,
+        ),
+      ),
+    });
+  };
+
+  const openNoteAt = (clientX?: number) => {
+    if (!onRequestAnnotation) return;
+    const nearest = observationAt(clientX);
+    const hovered = hoveredSampleRef.current;
+    const selected =
+      hovered && (clientX === undefined || hovered.tMs === nearest?.tMs)
+        ? hovered
+        : nearest;
+    if (selected) onRequestAnnotation(selected);
+  };
+
+  const moveInspection = (direction: number) => {
+    const latestMs = samples.at(-1)?.tMs ?? 0;
+    const visible = samples.filter(
+      (sample) => sample.tMs >= latestMs - timeWindowS * 1_000,
+    );
+    if (!visible.length) return;
+    const current = hoveredSampleRef.current;
+    const currentIndex = current
+      ? visible.findIndex(
+          (candidate) =>
+            candidate.source === current.source &&
+            (current.observationSeq === undefined
+              ? candidate.seq === current.seq && candidate.tMs === current.tMs
+              : candidate.observationSeq === current.observationSeq),
+        )
+      : visible.length - 1;
+    const index = Math.max(
+      0,
+      Math.min(visible.length - 1, currentIndex + direction),
+    );
+    const selected = visible[index]!;
+    showInspection(selected);
+    setInspectionAnnouncement(
+      `${observationDescription(selected)}. ${definition.series.map((series) => `${series.label}: ${inspectionValue(series.value(selected))} ${definition.unit}`).join(". ")}`,
+    );
   };
 
   return (
@@ -601,11 +648,39 @@ export function SignalPlot({
       className="signal-plot-shell"
       data-sample-count={samples.length}
       onContextMenu={(event) => {
-        if (!onAddAnnotation || samples.length === 0) return;
+        if (!onRequestAnnotation || samples.length === 0) return;
         event.preventDefault();
         openNoteAt(event.clientX);
       }}
+      onMouseMove={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const x = event.clientX - bounds.left;
+        const y = event.clientY - bounds.top;
+        if (
+          x < SIGNAL_PLOT_LEFT ||
+          x > bounds.width - SIGNAL_PLOT_RIGHT ||
+          y < headingHeight + 3 ||
+          y > bounds.height - 21
+        ) {
+          setInspection(null);
+          return;
+        }
+        const selected = observationAt(event.clientX);
+        if (selected) showInspection(selected, event.clientX);
+      }}
+      onMouseLeave={() => setInspection(null)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setInspection(null);
+      }}
       onKeyDown={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          ["ArrowLeft", "ArrowRight"].includes(event.key)
+        ) {
+          event.preventDefault();
+          moveInspection(event.key === "ArrowLeft" ? -1 : 1);
+        }
         if (event.key === "Enter" && event.target === event.currentTarget) {
           event.preventDefault();
           openNoteAt();
@@ -613,8 +688,8 @@ export function SignalPlot({
       }}
       ref={shellRef}
       role="group"
-      tabIndex={onAddAnnotation && samples.length > 0 ? 0 : -1}
-      title="Right-click a time to add a note."
+      tabIndex={samples.length > 0 ? 0 : -1}
+      title="Hover to inspect. Left and right arrow keys select individual observations; Enter or right-click adds a note."
     >
       <div
         className="signal-plot"
@@ -629,53 +704,64 @@ export function SignalPlot({
       <div aria-hidden="true" className="signal-y-unit">
         {definition.unit}
       </div>
-      <div
-        aria-hidden="true"
-        className={`signal-series-legend ${compactLayout ? "compact" : ""}`}
-      >
-        {definition.series.map((series) => (
-          <span key={series.label}>
-            <i
-              style={
-                {
-                  "--series-color": series.color,
-                  "--series-stroke": series.dash ?? "solid",
-                } as CSSProperties
-              }
-            />
-            {series.label}
-          </span>
-        ))}
-      </div>
-      {noteLocation ? (
-        <form
-          aria-label={`Add note to ${definition.label}`}
-          className="plot-note-editor"
-          onSubmit={(event) => {
-            event.preventDefault();
-            saveNote();
+      {inspection ? (
+        <div
+          role="tooltip"
+          style={{
+            position: "absolute",
+            zIndex: 3,
+            top: headingHeight + 6,
+            left: inspection.left,
+            width: inspection.width,
+            padding: "5px 7px",
+            background: "var(--panel)",
+            border: "1px solid var(--line-bright)",
+            color: "var(--ink)",
+            pointerEvents: "none",
           }}
-          style={{ left: `${noteLocation.left}px` }}
-        >
-          <input
-            aria-label="Note label"
-            maxLength={72}
-            onChange={(event) => setNoteDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                setNoteLocation(null);
-              }
-            }}
-            placeholder="Short note"
-            ref={noteInputRef}
-            value={noteDraft}
-          />
-          <button disabled={!noteDraft.trim()} type="submit">
-            Add
-          </button>
-        </form>
+          dangerouslySetInnerHTML={{
+            __html: signalInspectionHtml(inspection.sample, definition),
+          }}
+        />
       ) : null}
+      <div className="signal-plot-heading" ref={headingRef}>
+        <strong title={definition.description}>
+          {signalPlotTitle(definition)}
+        </strong>
+        {definition.series.length > 1 ? (
+          <div
+            className={`signal-series-legend ${compactLayout ? "compact" : ""}`}
+          >
+            {definition.series.map((series) => (
+              <span key={series.label}>
+                <i
+                  aria-hidden="true"
+                  style={
+                    {
+                      "--series-color": series.color,
+                      "--series-stroke": series.dash ?? "solid",
+                    } as CSSProperties
+                  }
+                />
+                {series.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {onRequestAnnotation ? (
+          <button
+            className="plot-add-note"
+            aria-label={`Add note to ${definition.label}`}
+            onClick={() => openNoteAt()}
+            type="button"
+          >
+            Note
+          </button>
+        ) : null}
+      </div>
+      <span className="visually-hidden" aria-live="polite">
+        {inspectionAnnouncement}
+      </span>
     </div>
   );
 }

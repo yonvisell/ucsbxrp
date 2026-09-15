@@ -54,7 +54,7 @@ def run_demo():
         print("waypoints:", len(ROUTE))
         print("final_pose:", state.pose)
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

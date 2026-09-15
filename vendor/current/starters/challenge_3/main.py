@@ -17,9 +17,7 @@ def goal_is_reached(pose, goal):
 
 def count_reached_goals(pose, route, reached_count):
     """Advance only through goals observed at their assigned position in order."""
-    while reached_count < len(route) and goal_is_reached(
-        pose, route[reached_count]
-    ):
+    while reached_count < len(route) and goal_is_reached(pose, route[reached_count]):
         reached_count += 1
     return reached_count
 
@@ -36,9 +34,7 @@ def run_challenge():
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1
-            reached_count = count_reached_goals(
-                state.pose, ROUTE, reached_count
-            )
+            reached_count = count_reached_goals(state.pose, ROUTE, reached_count)
 
         result = "complete" if reached_count == len(ROUTE) else "route_incomplete"
         print(
@@ -48,11 +44,9 @@ def run_challenge():
             )
         )
         if result != "complete":
-            raise RuntimeError(
-                "Navigation finished before every waypoint was observed in order"
-            )
+            raise RuntimeError("Navigation finished before every waypoint was observed in order")
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

@@ -51,9 +51,7 @@ def valid_student_speed(
     if speed_mm_s < 0.0:
         raise RuntimeError("RangeSafetyController must not command reverse motion")
     if speed_mm_s > requested_speed_mm_s or speed_mm_s > maximum_speed_mm_s:
-        raise RuntimeError(
-            "RangeSafetyController exceeded the request or configured maximum"
-        )
+        raise RuntimeError("RangeSafetyController exceeded the request or configured maximum")
     if range_mm is None and speed_mm_s != 0.0:
         raise RuntimeError("RangeSafetyController must stop when range is unavailable")
     return speed_mm_s
@@ -78,11 +76,7 @@ def run_challenge():
         while True:
             estimate = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)
             speed_mm_s = valid_student_speed(
-                controller.update(
-                    NOMINAL_FORWARD_SPEED_MM_S,
-                    mean_forward_speed(state),
-                    estimate,
-                ),
+                controller.update(NOMINAL_FORWARD_SPEED_MM_S, mean_forward_speed(state), estimate),
                 NOMINAL_FORWARD_SPEED_MM_S,
                 MAXIMUM_SAFE_SPEED_MM_S,
                 estimate,
@@ -93,18 +87,8 @@ def run_challenge():
                 unit="mm",
                 label="Filtered range",
             )
-            live.watch(
-                "student_speed_mm_s",
-                speed_mm_s,
-                unit="mm/s",
-                label="Student controller output",
-            )
-            live.plot(
-                "student_speed_mm_s",
-                speed_mm_s,
-                unit="mm/s",
-                label="Student controller output",
-            )
+            live.watch("student_speed_mm_s", speed_mm_s, unit="mm/s", label="Student controller output")
+            live.plot("student_speed_mm_s", speed_mm_s, unit="mm/s", label="Student controller output")
             if speed_mm_s == 0.0:
                 break
             state = robot.step(MotionCommand(speed_mm_s, 0.0), read_range=True)
@@ -131,7 +115,7 @@ def run_challenge():
             )
         )
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

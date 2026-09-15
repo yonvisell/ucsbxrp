@@ -1,0 +1,23 @@
+Wk,Date,Lecture,Lab,Code module,Preparation and observable result
+0,9/24,"Robot demonstration; course tasks, units and reference frames",Run a supplied virtual demo; identify files and Stop,Working project,No Python implementation required; record one observed signal
+1,9/29,"Assembly, mechanism and sensor overview",Assemble and inspect; complete no-motion sensor capture,XRPBot / RawSensors,Instructor physical setup; complete Python essentials before 10/1
+,10/1,"Python functions, imports, records and one stateful class; release Curling","Compile, run and change a bounded virtual program",SensorModel scaffold,"Understand None, units, object state and sampled-loop order"
+2,10/6,"Encoders, speed measurement and motor effort characterization",Compare separate left/right speed responses,SensorModel,"Record counts, time, speed, effort and power/load conditions"
+,10/8,Feedforward and proportional speed control; saturation and reset,Tune one wheel-control parameter at a time,WheelSpeedController,Compare requested/measured speed and bounded effort
+3,10/13,"Distance control, slowdown and stationary completion",Compare editable Curling policy with supplied controller,distance_policy.py,"Predict effect, complete two trials and measure endpoint error"
+,10/15,Challenge 1: Robot Curling,Check components and recorded trials,SensorModel; WheelSpeedController,"Use published rest, timing, axle-reference and accuracy criteria"
+4,10/20,Differential drive and effective track width; release line circuit,Test straight and turn kinematics,DifferentialDrive,"Check mm/s, rad/s, signs and wheel-target symmetry"
+,10/22,"Reflectance calibration; proportional, derivative and integral steering","Capture floor/tape contrast, then tune line steering",LineFollower,Separate calibration from PID; verify reset and line-loss outcome
+5,10/27,"Robot/world frames, odometry increments and wrapping","Run straight, arc and opposite-turn calibration experiments",Odometry,Extra line-race preparation; compare estimates with measured endpoints
+,10/29,Challenge 2: Arena Line Circuit; release Waypoint Courier,Complete qualified laps; demonstrate square odometry,DifferentialDrive; LineFollower; Odometry,Retain prior components; confirm checkpoint and physical lap rules
+6,11/3,Odometry drift and navigation state transitions,"Implement and test one goal, then an ordered route",Odometry; NavigationController,IMU bias/fusion concept optional; no required gyro or camera input
+,11/5,"Navigation tolerances, heading alignment and incomplete-route diagnosis",Tune an ordered waypoint route; record endpoint error,NavigationController,Verify earlier goals before final completion; distinguish position and heading
+7,11/10,Challenge 3: Waypoint Courier,Assess ordered passage and declared final pose,Five cumulative components,Use common waypoint radius/reference and timing criteria
+,11/12,"Grids, graph search and supplied clearance; release Mapped Route",Predict and inspect routes; implement BFS frontier and predecessors,GridPlanner,Avoid duplicate inflation; include invalid endpoints and unreachable goals
+8,11/17,Path reconstruction; A* heuristic and priority queue,Compare BFS/A* equal-cost paths and expanded cells,GridPlanner; heapq demo,Motion-free checkoff evidence; A* is an optional extension
+,11/19,Ultrasonic beam and valid range samples; release Out-and-Back,Capture known-distance samples and implement median estimate,SensorModel.estimate_range,Stationary observation; missing evidence remains an explicit failure
+9,11/24,Challenge 4: Mapped Route checkoff; mission integration,Show valid/no-route results and short virtual route execution,GridPlanner; mission policy,Review named-feature observation and return-state diagram
+,11/26,Thanksgiving holiday,,,No required class meeting
+10,12/1,"Stop, observe, update, replan and return",Exercise open/blocked cases and failure recovery,Six core components; mission_policy.py,"Record phase, range decision, path and measured return outcome"
+,12/3,Integration review and final preparation,Repeat complete virtual missions; approved physical trials,Complete project,"Use stable settings, retained run evidence and published scoring"
+11,Finals slot,Challenge 5: bounded Out-and-Back,Demonstrate mission phases and valid return,Complete project,Score verified phases and correctness first; return time among successes

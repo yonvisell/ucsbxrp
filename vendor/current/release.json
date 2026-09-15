@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.09-dev.48",
-  "release_sequence": 48,
+  "release_id": "2026.09-dev.49",
+  "release_sequence": 49,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.5-draft",
@@ -40,7 +40,7 @@
     "version": "0.5.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
     "source_file_count": 16,
-    "source_sha256": "4c6e5fb0223339c1fc48171f29a4a6d013b3033fb472df32c1e47ad703af524d",
+    "source_sha256": "0bbcf3b4a4fcf2e0542a550b737583b86b125df2ae1fcf1fb4993365e1764c1e",
     "reference_compiler": {
       "commit": "e0e9fbb17ed6fd06bb76e266ae554784c9c80804",
       "portable_abi": 774,

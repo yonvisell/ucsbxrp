@@ -19,10 +19,7 @@ def run_challenge():
         state = robot.start(INITIAL_POSE)
         start_time_ms = state.measurements.time_ms
         straight.start(state.measurements, TRAVEL_DISTANCE_MM)
-        maximum_steps = max(
-            1,
-            int(MAX_RUN_TIME_S * 1000.0 / ROBOT_CONFIG.sample_period_ms),
-        )
+        maximum_steps = max(1, int(MAX_RUN_TIME_S * 1000.0 / ROBOT_CONFIG.sample_period_ms))
         step_count = 0
 
         while not straight.is_complete():
@@ -36,10 +33,7 @@ def run_challenge():
             state = robot.step(straight.update(state.measurements))
             step_count += 1
 
-        measured_elapsed_time_s = elapsed_time_s(
-            state.measurements.time_ms,
-            start_time_ms,
-        )
+        measured_elapsed_time_s = elapsed_time_s(state.measurements.time_ms, start_time_ms)
         mean_wheel_travel_mm = (
             state.measurements.left_position_mm
             + state.measurements.right_position_mm
@@ -50,10 +44,7 @@ def run_challenge():
         print("mean_wheel_travel_mm:", mean_wheel_travel_mm)
         print("distance_error_mm:", mean_wheel_travel_mm - TRAVEL_DISTANCE_MM)
         print("estimated_final_pose:", state.pose)
-        print(
-            "estimated_lateral_error_mm:",
-            state.pose.y_mm - INITIAL_POSE.y_mm,
-        )
+        print("estimated_lateral_error_mm:", state.pose.y_mm - INITIAL_POSE.y_mm)
         print(
             "estimated_heading_error_rad:",
             wrap_angle_rad(state.pose.heading_rad - INITIAL_POSE.heading_rad),
@@ -67,8 +58,7 @@ def run_challenge():
         else:
             print("timed_result: valid (not early)")
         return state
-    # Always stop the motors, including when an error ends the program.
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

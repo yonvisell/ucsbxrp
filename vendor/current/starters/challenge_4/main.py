@@ -76,11 +76,9 @@ def run_challenge():
             )
         )
         if result != "complete":
-            raise RuntimeError(
-                "Navigation finished before the destination was reached"
-            )
+            raise RuntimeError("Navigation finished before the destination was reached")
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

@@ -34,9 +34,7 @@ def wheel_speed_summary(
     left_samples_mm_s: object,
     right_samples_mm_s: object,
 ) -> dict:
-    if not left_samples_mm_s or len(left_samples_mm_s) != len(
-        right_samples_mm_s
-    ):
+    if not left_samples_mm_s or len(left_samples_mm_s) != len(right_samples_mm_s):
         raise ValueError("paired samples must be nonempty and equal in length")
     sample_count = len(left_samples_mm_s)
     left_total = 0.0

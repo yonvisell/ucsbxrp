@@ -6,6 +6,7 @@ import {
 } from "../../shared/course-folder";
 import {
   findRunGeneration,
+  readRunAnnotations,
   saveRunAnnotations,
   saveRunArchive,
   type RunArchive,
@@ -97,6 +98,112 @@ function setup() {
 }
 
 describe("run archives", () => {
+  it("rejects a stale edited note after two remote edits but merges untouched stale notes and new additions", async () => {
+    const { folder, files } = setup();
+    const original = archive("concurrent", "base");
+    const base = JSON.parse(original.metadata);
+    const make = (
+      label: string,
+      revision: number,
+      previousLabel?: string,
+    ): RunArchive => ({
+      ...original,
+      metadata: JSON.stringify({
+        ...base,
+        annotations: [
+          {
+            ...base.annotations[0],
+            label,
+            revision,
+            ...(previousLabel === undefined ? {} : { previousLabel }),
+          },
+        ],
+      }),
+    });
+    await saveRunArchive(folder, original);
+    await saveRunAnnotations(folder, make("A first", 1, "base"));
+    await saveRunAnnotations(folder, make("A second", 2, "A first"));
+    const before = [...files];
+    await expect(
+      saveRunAnnotations(folder, make("B independent", 1, "base")),
+    ).rejects.toThrow("another Monitor");
+    expect([...files]).toEqual(before);
+    const staleWithAddition = make("A first", 1);
+    const incoming = JSON.parse(staleWithAddition.metadata);
+    incoming.annotations.push({
+      ...base.annotations[0],
+      id: "additional",
+      label: "Separate observation",
+    });
+    staleWithAddition.metadata = JSON.stringify(incoming);
+    await saveRunAnnotations(folder, staleWithAddition);
+    const notes = await readRunAnnotations(folder, "concurrent", "project-a");
+    expect(notes.map((note) => note.label)).toEqual([
+      "A second",
+      "Separate observation",
+    ]);
+    expect(notes.every((note) => note.previousLabel === undefined)).toBe(true);
+  });
+  it("edits exact notes, restores them on reopening, and rejects concurrent stale edits without changing saved data", async () => {
+    const { folder, files } = setup();
+    const original = archive("edited-run", "first text");
+    await saveRunArchive(folder, original);
+    const edited = { ...original };
+    const metadata = JSON.parse(edited.metadata);
+    metadata.annotations[0] = {
+      ...metadata.annotations[0],
+      label: "corrected, text\nsecond line",
+      previousLabel: "first text",
+      revision: 1,
+    };
+    edited.metadata = JSON.stringify(metadata);
+    await saveRunAnnotations(folder, edited);
+    expect(
+      await readRunAnnotations(folder, edited.runId, edited.projectId),
+    ).toMatchObject([
+      {
+        id: "first text",
+        label: "corrected, text\nsecond line",
+        revision: 1,
+        seq: 1,
+        tMs: 50,
+      },
+    ]);
+    const telemetry = files.get(`${autosaveDirectoryName}/telemetry-1.csv`)!;
+    expect(telemetry).toContain('"corrected, text\nsecond line"');
+    expect(telemetry).toContain("virtual,2,edited-run,");
+    const conflicting = {
+      ...edited,
+      metadata: JSON.stringify({
+        ...metadata,
+        annotations: [
+          { ...metadata.annotations[0], label: "conflicting edit" },
+        ],
+      }),
+    };
+    await expect(saveRunAnnotations(folder, conflicting)).rejects.toThrow(
+      "another Monitor",
+    );
+    expect(files.get(`${autosaveDirectoryName}/telemetry-1.csv`)).toBe(
+      telemetry,
+    );
+    await saveRunAnnotations(folder, original);
+    expect(
+      (await readRunAnnotations(folder, edited.runId, edited.projectId))[0]
+        ?.label,
+    ).toBe("corrected, text\nsecond line");
+  });
+
+  it("refuses to restore notes from a different Project or run", async () => {
+    const { folder } = setup();
+    await saveRunArchive(folder, archive("saved", "keep"));
+    expect(
+      await readRunAnnotations(folder, "another-run", "project-a"),
+    ).toEqual([]);
+    await expect(
+      readRunAnnotations(folder, "saved", "project-b"),
+    ).rejects.toThrow("verified");
+  });
   it("merges a note into its exact observation when virtual rows share a physics sequence", async () => {
     const { folder, files } = setup();
     const original = archive("run");

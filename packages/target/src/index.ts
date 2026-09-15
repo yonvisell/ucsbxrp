@@ -25,6 +25,7 @@ export {
   TelemetryRecorder,
   telemetryRecordingToCsv,
   telemetryRecordingMetadata,
+  telemetryProgramPlotColumns,
 } from "./telemetry-recording";
 export type { TelemetryRecordingSnapshot } from "./telemetry-recording";
 export {

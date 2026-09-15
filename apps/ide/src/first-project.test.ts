@@ -28,11 +28,15 @@ function deferred() {
 it("offers the first unused numbered name across case variants and file names", async () => {
   const parent = {
     async *entries() {
-      for (const name of ["XRP_Project_01", "xrp_project_02", "XRP_Project_04"])
+      for (const name of [
+        "my_demo_spiral_01",
+        "MY_DEMO_SPIRAL_02",
+        "my_demo_spiral_04",
+      ])
         yield [name, {}];
     },
   } as unknown as CourseDirectoryHandle;
-  expect(await nextFirstProjectName(parent)).toBe("XRP_Project_03");
+  expect(await nextFirstProjectName(parent)).toBe("my_demo_spiral_03");
 });
 
 it("keeps an unused template name and enumerates files, case and normalized-name collisions", async () => {

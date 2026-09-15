@@ -328,6 +328,14 @@ export function presentPythonDiagnostic(
       "Check the function arguments and the values supplied at this call.",
     ZeroDivisionError:
       "Guard the denominator so it cannot be zero before performing the division.",
+    NotImplementedError:
+      "Complete the named method in the student component file, then use Test components. Select its USE_STUDENT flag only after that check passes.",
+    IndexError:
+      "Check the list length before indexing it. Python starts at index 0; the last valid index is len(values) - 1.",
+    KeyError:
+      "Check that this dictionary contains the requested key and that its spelling matches. Use key in mapping before reading an optional entry.",
+    MemoryError:
+      "Reduce retained lists, map dimensions or per-sample allocations. Save long time histories through Monitor instead of accumulating them in robot memory.",
   };
 
   return {

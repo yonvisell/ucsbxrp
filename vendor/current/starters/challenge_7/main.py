@@ -34,14 +34,10 @@ def wheels_are_stopped(state):
 
 def require_cardinal_observation(state, expected_heading_rad):
     if not wheels_are_stopped(state):
-        raise RuntimeError(
-            "Wall observation rejected: both wheel speeds must be stationary"
-        )
+        raise RuntimeError("Wall observation rejected: both wheel speeds must be stationary")
     heading_error = wrap_angle_rad(expected_heading_rad - state.pose.heading_rad)
     if abs(heading_error) > WALL_OBSERVATION_HEADING_TOLERANCE_RAD:
-        raise RuntimeError(
-            "Wall observation rejected: heading is outside the cardinal tolerance"
-        )
+        raise RuntimeError("Wall observation rejected: heading is outside the cardinal tolerance")
 
 
 def collect_stationary_range(robot, state, expected_heading_rad):
@@ -60,9 +56,7 @@ def turn_to_heading(robot, state, target_heading_rad):
         if abs(error) <= NAVIGATION_CONFIG.heading_tolerance_rad:
             return state
         direction = 1.0 if error > 0.0 else -1.0
-        state = robot.step(
-            MotionCommand(0.0, direction * NAVIGATION_CONFIG.turn_rate_rad_s)
-        )
+        state = robot.step(MotionCommand(0.0, direction * NAVIGATION_CONFIG.turn_rate_rad_s))
 
 
 def settle(robot, state):
@@ -79,9 +73,7 @@ def destination_is_reached(corrected_pose, raw_pose):
         return False
     if DESTINATION.heading_rad is None:
         return True
-    heading_error = wrap_angle_rad(
-        DESTINATION.heading_rad - raw_pose.heading_rad
-    )
+    heading_error = wrap_angle_rad(DESTINATION.heading_rad - raw_pose.heading_rad)
     return abs(heading_error) <= NAVIGATION_CONFIG.heading_tolerance_rad
 
 
@@ -95,25 +87,17 @@ def run_challenge():
 
         state = turn_to_heading(robot, state, X_SCAN_HEADING_RAD)
         state = settle(robot, state)
-        state, x_range_mm = collect_stationary_range(
-            robot, state, X_SCAN_HEADING_RAD
-        )
+        state, x_range_mm = collect_stationary_range(robot, state, X_SCAN_HEADING_RAD)
         if x_range_mm is None:
             raise RuntimeError("No usable x-wall range observation")
-        corrector.observe_x(
-            state.pose, x_range_mm, X_WALL_MM, X_WALL_IS_POSITIVE
-        )
+        corrector.observe_x(state.pose, x_range_mm, X_WALL_MM, X_WALL_IS_POSITIVE)
 
         state = turn_to_heading(robot, state, Y_SCAN_HEADING_RAD)
         state = settle(robot, state)
-        state, y_range_mm = collect_stationary_range(
-            robot, state, Y_SCAN_HEADING_RAD
-        )
+        state, y_range_mm = collect_stationary_range(robot, state, Y_SCAN_HEADING_RAD)
         if y_range_mm is None:
             raise RuntimeError("No usable y-wall range observation")
-        corrector.observe_y(
-            state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE
-        )
+        corrector.observe_y(state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE)
 
         navigation.start((DESTINATION,))
         while not navigation.is_complete():
@@ -141,7 +125,7 @@ def run_challenge():
         if result != "complete":
             raise RuntimeError("Corrected navigation did not reach the destination")
         return state
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

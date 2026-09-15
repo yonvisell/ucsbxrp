@@ -34,17 +34,8 @@ TURN_RATE_RAD_S = live.number(
     unit="rad/s",
     label="Turn rate",
 )
-TURN_DIRECTION = live.choice(
-    "turn_direction",
-    "left",
-    options=("left", "right"),
-    label="Turn direction",
-)
-SECOND_APPROACH = live.toggle(
-    "second_approach",
-    True,
-    label="Drive after turn",
-)
+TURN_DIRECTION = live.choice("turn_direction", "left", options=("left", "right"), label="Turn direction")
+SECOND_APPROACH = live.toggle("second_approach", True, label="Drive after turn")
 TURN_TOLERANCE_RAD = 0.06
 MAX_FORWARD_TRAVEL_MM = 1100.0
 MAX_FORWARD_SAMPLES = 10000
@@ -57,10 +48,7 @@ def drive_until_close(robot, state):
     samples = 0
     live.watch("phase", "driving")
     while True:
-        state = robot.step(
-            MotionCommand(FORWARD_SPEED_MM_S.value, 0.0),
-            read_range=True,
-        )
+        state = robot.step(MotionCommand(FORWARD_SPEED_MM_S.value, 0.0), read_range=True)
         range_samples.append(state.measurements.range_mm)
         range_samples = range_samples[-5:]
         samples += 1
@@ -106,8 +94,7 @@ def run_demo():
         print("Obstacle-turn demo complete")
         print("final_pose:", state.pose)
         return state
-    # Always stop the motors, including when an error ends the program.
-    finally:
+    finally:  # Stop the motors after normal completion or a Python exception.
         robot.stop()
 
 

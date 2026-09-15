@@ -22,6 +22,11 @@ describe("course starter catalog", () => {
       "challenge_7",
       "challenge_8",
       "challenge_9",
+      "new_challenge_1_robot_curling",
+      "new_challenge_2_arena_line_circuit",
+      "new_challenge_3_waypoint_courier",
+      "new_challenge_4_mapped_route",
+      "new_challenge_5_out_and_back",
     ]);
     for (const starter of COURSE_STARTERS) {
       expect(starter.project.entrypoint).toBe("main.py");
@@ -45,7 +50,7 @@ describe("course starter catalog", () => {
     const templatesOfKind = (
       kind: (typeof COURSE_PROJECT_TEMPLATES)[number]["kind"],
     ) => COURSE_PROJECT_TEMPLATES.filter((template) => template.kind === kind);
-    expect(templatesOfKind("challenge")).toHaveLength(9);
+    expect(templatesOfKind("challenge")).toHaveLength(14);
     expect(templatesOfKind("complete-challenge")).toHaveLength(9);
     expect(templatesOfKind("demo").length).toBeGreaterThanOrEqual(2);
     expect(templatesOfKind("tutorial")).toHaveLength(5);
@@ -192,6 +197,81 @@ describe("course starter catalog", () => {
     ).toContain("Set up or Repair");
     for (const template of COURSE_PROJECT_TEMPLATES) {
       expect(template.project.files["world.json"]).toContain('"worlds"');
+    }
+  });
+
+  it("carries calibrated student components through the odometry bridge without line-follower leakage", () => {
+    const source = courseProjectTemplate(
+      "new_challenge_2_arena_line_circuit",
+    ).project;
+    const edited = {
+      ...source,
+      files: {
+        ...source.files,
+        "sensor_model.py": "# measured student sensor model\n",
+        "line_follower.py": "# completed line controller\n",
+        "course_setup.py": source.files["course_setup.py"]!.replace(
+          "USE_STUDENT_SENSOR_MODEL = False",
+          "USE_STUDENT_SENSOR_MODEL = True",
+        ),
+        "robot_config.py": source.files["robot_config.py"]!.replace(
+          "left_start_command=0.12",
+          "left_start_command=0.14",
+        ),
+      },
+    };
+    const bridge = describeChallengeProjectTransition(
+      "new_challenge_2_arena_line_circuit",
+      "new_demo_odometry_calibration",
+      edited,
+    );
+    expect(bridge.project.files["sensor_model.py"]).toBe(
+      "# measured student sensor model\n",
+    );
+    expect(bridge.project.files["course_setup.py"]).toContain(
+      "USE_STUDENT_SENSOR_MODEL = True",
+    );
+    expect(bridge.project.files["robot_config.py"]).toContain(
+      "left_start_command=0.14",
+    );
+    expect(bridge.omit).toContain("line_follower.py");
+    expect(bridge.project.files["line_follower.py"]).toBeUndefined();
+    const waypoint = describeChallengeProjectTransition(
+      "new_demo_odometry_calibration",
+      "new_challenge_3_waypoint_courier",
+      {
+        ...bridge.project,
+        files: {
+          ...bridge.project.files,
+          "odometry.py": "# calibrated student odometry\n",
+        },
+      },
+    );
+    expect(waypoint.project.files["odometry.py"]).toBe(
+      "# calibrated student odometry\n",
+    );
+    expect(waypoint.project.files["sensor_model.py"]).toBe(
+      "# measured student sensor model\n",
+    );
+    expect(waypoint.project.files["main.py"]).toBe(
+      courseProjectTemplate("new_challenge_3_waypoint_courier").project.files[
+        "main.py"
+      ],
+    );
+    expect(waypoint.add).toContain("navigation_controller.py");
+  });
+
+  it("keeps every published project within the physical transfer envelope", () => {
+    for (const template of COURSE_PROJECT_TEMPLATES) {
+      expect(
+        Object.keys(template.project.files).length,
+        template.id,
+      ).toBeLessThanOrEqual(48);
+      const bytes = Object.values(template.project.files).reduce(
+        (sum, value) => sum + new TextEncoder().encode(value).length,
+        0,
+      );
+      expect(bytes, template.id).toBeLessThanOrEqual(128 * 1024);
     }
   });
 
@@ -458,7 +538,7 @@ describe("course starter catalog", () => {
     ).toThrow("different challenge");
     expect(() =>
       describeChallengeProjectTransition("challenge_1", "demo_spiral", first),
-    ).toThrow("two student challenges");
+    ).toThrow("declared student components in both projects");
     expect(() =>
       describeChallengeProjectTransition("challenge_1", "challenge_2", {
         ...first,

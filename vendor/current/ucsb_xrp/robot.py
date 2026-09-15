@@ -22,7 +22,7 @@ except ImportError:  # CPython tests
 
 from .config import RobotConfig
 from ._validation import require_int
-from ._telemetry import publish_state
+from ._telemetry import begin_course_samples, end_course_samples, publish_state
 from .records import DriveCommand, MotionCommand, Pose, RobotState
 from .live import apply_updates
 
@@ -113,7 +113,7 @@ class Robot:
 
     @property
     def last_overrun_ms(self):
-        """Milliseconds by which the latest calculation exceeded its period."""
+        """Latest pre-wait lateness after applying drive, before the sensor read."""
         return self._last_overrun_ms
 
     def start(self, initial_pose, read_reflectance=False):
@@ -129,7 +129,7 @@ class Robot:
         self._wheel_controller.reset()
         pose = self._odometry.reset(initial_pose)
         self._state = RobotState(measurements, pose)
-        publish_state(self._state, raw_sensors=raw)
+        publish_state(self._state, raw_sensors=raw, sample_period_ms=self.config.sample_period_ms)
         apply_updates()
         self._last_overrun_ms = 0
         self._next_sample_ms = self._ticks_add(
@@ -172,6 +172,8 @@ class Robot:
                 command,
                 target,
                 raw_sensors=raw,
+                sample_period_ms=self.config.sample_period_ms,
+                overrun_ms=self._last_overrun_ms,
             )
             apply_updates()
             self._advance_deadline()
@@ -204,17 +206,21 @@ class Robot:
         self._bot.stop()
         apply_updates()
         if self._state is not None:
-            publish_state(self._state, DriveCommand(0.0, 0.0))
+            publish_state(self._state, DriveCommand(0.0, 0.0), sample_period_ms=self.config.sample_period_ms, kind="stop")
 
     def _read_sensors(self, include_range, include_reflectance):
-        if include_reflectance:
-            return self._bot.read(
-                include_range=include_range,
-                include_reflectance=True,
-            )
-        # Preserve compatibility with existing test and instructor adapters
-        # whose read method predates the optional reflectance argument.
-        return self._bot.read(include_range=include_range)
+        begin_course_samples()
+        try:
+            if include_reflectance:
+                return self._bot.read(
+                    include_range=include_range,
+                    include_reflectance=True,
+                )
+            # Preserve compatibility with existing test and instructor adapters
+            # whose read method predates the optional reflectance argument.
+            return self._bot.read(include_range=include_range)
+        finally:
+            end_course_samples()
 
     def _advance_deadline(self):
         """Advance one or more absolute periods without catch-up bursts."""

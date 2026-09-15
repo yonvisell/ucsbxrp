@@ -32,6 +32,7 @@ import type {
   TargetEvent,
   TargetRunState,
   TelemetryObservationKind,
+  TelemetryTiming,
 } from "./types";
 import { VirtualObservations } from "./virtual-observations";
 
@@ -63,6 +64,7 @@ let currentProjectId: string | null = null;
 let runtimeState: RuntimeState = EMPTY_RUNTIME_STATE;
 let runtimeSlots: Record<string, number> = {};
 let courseTelemetryState: CourseTelemetryState | null = null;
+let acquisitionTiming: TelemetryTiming | null = null;
 const observations = new VirtualObservations();
 let latestTelemetryEvent: Extract<TargetEvent, { type: "telemetry" }> | null =
   null;
@@ -120,6 +122,7 @@ function clearRuntimeState(): void {
   runtimeState = EMPTY_RUNTIME_STATE;
   runtimeSlots = {};
   courseTelemetryState = null;
+  acquisitionTiming = null;
   broadcast({ type: "runtime", state: runtimeState });
 }
 
@@ -146,6 +149,7 @@ function publishTelemetryObservation(
       courseTelemetryState,
       kind,
       physicsStepSeq,
+      acquisitionTiming,
     ),
   };
   broadcast(latestTelemetryEvent);
@@ -468,6 +472,9 @@ function handleRuntimeMessage(
   } else if (message.type === "course-state") {
     courseTelemetryState = message.state;
     publishTelemetryObservation("course", latestPhysicsStepSeq);
+  } else if (message.type === "sensor-acquisition") {
+    acquisitionTiming = message.timing;
+    publishTelemetryObservation("state", latestPhysicsStepSeq);
   } else if (message.type === "console-batch") {
     for (const line of message.lines)
       handleRuntimeMessage(port, runId, { type: "console", ...line });
@@ -513,6 +520,7 @@ function handleRuntimeMessage(
     runOwnerLease.clear();
     stopRuntime();
     const compiling = message.stage === "compile";
+    const memoryLimited = message.reason === "memory-limit";
     if (compiling && currentProjectDescriptor) {
       broadcast({
         type: "compile-result",
@@ -542,7 +550,9 @@ function handleRuntimeMessage(
       broadcast({
         type: "console",
         stream: "system",
-        line: "Program stopped after a MicroPython exception",
+        line: memoryLimited
+          ? "Virtual run stopped at its memory limit; drive command is zero"
+          : "Program stopped after a MicroPython exception",
         action: "run",
         phase: "error",
         requestId: `virtual-${sessionId}-run-${runId}`,
@@ -552,7 +562,9 @@ function handleRuntimeMessage(
       compiling ? "ready" : "error",
       compiling
         ? "Compilation failed; the program did not start"
-        : "Program stopped after a MicroPython exception",
+        : memoryLimited
+          ? "Virtual run reached its memory limit; retained data is available in the Monitor"
+          : "Program stopped after a MicroPython exception",
     );
     broadcastMessage({ type: "terminate-runtime", runId });
   }
@@ -608,6 +620,8 @@ function handleCommand(port: MessagePort, command: TargetWorkerCommand): void {
       { type: "status", state: currentState, detail: currentDetail },
       telemetryEvent(),
     );
+  } else if (command.type === "set-role") {
+    events.setRole(port, command.role);
   } else if (command.type === "set-project-run-provider") {
     if (command.providesProject) {
       projectRunProvider.register(port, command.takeover === true);

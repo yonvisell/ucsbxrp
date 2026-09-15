@@ -461,6 +461,27 @@ describe("physical control sessions", () => {
         headingRad: 0,
         leftEncoderCount: seq,
         rightEncoderCount: seq,
+        timingValues:
+          seq === 2
+            ? null
+            : [
+                100 + seq * 20,
+                seq * 20,
+                seq,
+                null,
+                null,
+                0,
+                1,
+                seq,
+                seq,
+                null,
+                seq * 20 + 5,
+                20,
+                20,
+                0,
+                "course",
+                false,
+              ],
       }));
       service.plots = [
         [{ name: "speed", label: "Speed", value: 10 }],
@@ -476,6 +497,17 @@ describe("physical control sessions", () => {
           .filter((e) => e.type === "telemetry")
           .map((e) => e.sample.plotValues),
       ).toEqual(service.plots.map((p) => p ?? []));
+      const samples = events
+        .filter((e) => e.type === "telemetry")
+        .map((e) => e.sample);
+      expect(samples[0]?.timing).toMatchObject({
+        clockId: "physical:boot-a:0",
+        acquisitionSeq: 1,
+        acquiredAtMs: 20,
+        publishedAtMs: 25,
+      });
+      expect(samples[1]?.timing).toBeUndefined();
+      expect(samples[2]?.timing?.acquisitionSeq).toBe(3);
     } finally {
       client.disconnect();
     }

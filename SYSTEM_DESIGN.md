@@ -54,8 +54,10 @@ adds these cross-application constraints:
 - Run boundaries carry stable run/project/revision identity independently of
   bounded console output. Monitor binds archives to that source capability,
   deduplicates on disk, and finds the matching retained run before editing
-  notes. Annotation additions merge into the saved run without replacing its
-  samples or other notes; interrupted changes retain a journal. Failed note
+  notes. Annotation additions and version-checked text edits merge into the
+  saved run without replacing its samples or unrelated notes; interrupted
+  changes retain a journal. Concurrent edits of one note require conflict
+  review, and reopening a retained run restores its verified notes. Failed note
   saves retain a separate downloadable copy and an ordinary navigation guard.
   An unresolved or ambiguous destination requires manual export.
 - Compiler startup and execution have separate deadlines. Virtual sleeps and
@@ -75,6 +77,62 @@ adds these cross-application constraints:
 These are implementation constraints, not physical qualification claims. The
 revision harness and evidence ledger are local operational documents under
 `outputs/revisions/2026-09-14/`.
+
+## Student experience and timing contracts
+
+- Direct IDE first use combines Working-folder permission and creation of an
+  unused `my_demo_spiral_NN` Project. Native directory access still requires a
+  browser picker. Display-name changes use the existing transactional metadata
+  writer and retain the folder, source identity, and archive relationships.
+- Projects declaring student components can carry compatible files into another
+  such project, including a calibration demo. The existing file-change preview
+  remains mandatory; task-specific content comes from the destination template.
+  New candidate IDs coexist with the established catalog.
+- Shared typography, button states, pane dividers, and content-edge spacing are
+  defined in `apps/shared/theme.css`. Screen-density choices are distinct from
+  the larger document-reading scale; Markdown, Guide, and API examples use
+  readable code blocks with explicit copy actions where appropriate.
+  The command toolbar retains its intrinsic width; status text wraps into the
+  available space without covering Run or Stop at narrower window sizes.
+- Note editing captures a fixed observation, including its identity when several
+  observations share one timestamp. Editing a note during a run must retain an
+  immediate Stop action and preserve the draft when the robot stops.
+- Source acquisition time, publication time, physics time, and browser lifecycle
+  time remain separate. Additive timing metadata carries a scoped clock ID,
+  raw and unwrapped acquisition time, raw sample identity, configured period,
+  and the separately timed range/diagnostic groups. CSV includes timing even
+  when no timing channel is plotted. Legacy files remain readable without
+  inventing unavailable acquisition times. `docs/TELEMETRY_FORMAT.md` defines
+  the recorded fields and future independent GNSS clock requirements.
+- Each IDE keeps a headless run recorder subscribed independently of its
+  project-provider role. It captures the run's original project revision,
+  destination folder, world and output; completion queues the same archive
+  transaction used by Monitor. Concurrent writers converge on one run identity.
+  A pending save protects navigation and the next Run. A failed save retains a
+  downloadable recovery and a visible retry action instead of discarding data.
+  Starting a browser download does not acknowledge recovery; the user must
+  explicitly confirm that the recovery file was saved before releasing it.
+- Monitor can reopen a committed trial from the Project's four retained runs.
+  Picker availability uses the verified folder's identity independently of an
+  incomplete current-target descriptor, including a cold workspace launch.
+  It validates the metadata/CSV pair and rotation identity before displaying the
+  saved world and plots. Current robot values remain explicitly identified as
+  live. Reading a trial does not select, reset or command a target. Note edits
+  preserve numeric CSV fields; interrupted or changed archives are rejected.
+  Program plot metadata includes its exact, unique CSV column, including any
+  suffix needed when distinct names would otherwise collide after formatting.
+  A signal whose unit changes also receives a per-observation unit column.
+  The reader retains those units, and plots omit values of a different unit
+  from the one identified by the displayed axis.
+- A resolved export destination does not acknowledge an archive. Monitor keeps
+  unresolved archives with their original data, notes and destination until a
+  verified save or explicit discard. Retry acknowledgements apply only to the
+  committed note revision. Pending saves and recovery block a local Run and
+  protect page/update navigation. Retention admits at most four unresolved
+  recordings without eviction. A peer run arriving at capacity remains live
+  and stoppable but is explicitly unrecorded; freeing capacity does not start
+  recording midway through that run. Reset and display changes do not release
+  retained recovery.
 
 ## 2. Browser applications
 
@@ -645,10 +703,10 @@ losing a publication. Retained duration depends on the actual publication rate;
 export metadata reports its measured span rather than a minimum duration. CSV export is explicit and
 self-describing; it preserves blanks
 for unavailable physical values rather than inventing zero. Manual recordings
-remain session-local until exported. Independently, the Monitor captures every
+remain session-local until exported. Independently, each IDE and Monitor captures every
 run and rotates four aligned output-text, metadata-JSON, and telemetry-CSV
-generations into the active project folder. A Web Lock plus a compact run
-fingerprint prevents duplicate archives when multiple Monitor tabs observe the
+generations into the run's original project folder. A Web Lock plus a compact run
+fingerprint prevents duplicate archives when multiple windows observe the
 same run. Explicit exports are never included in rotation.
 
 ## 8. Failure and maintenance model
@@ -730,8 +788,8 @@ Programs may add up to 16 numerical analysis signals with `live.plot`. A signal
 has a stable identifier, student-facing label, unit, and current finite value.
 It travels with the bounded runtime snapshot and is copied into each recorded
 telemetry sample; the Monitor never executes student expressions. New signals
-are listed but not plotted until the user selects them, which avoids changing a
-student's display merely because a program publishes diagnostics.
+are visible by default and can be hidden individually. Hiding a plot does not
+remove its samples or timing from the recording.
 
 ## 10. Install and export boundaries
 
@@ -739,9 +797,12 @@ The Web App Manifest provides an optional standalone installation and launcher;
 the service worker remains the offline authority. Installation does not copy a
 runnable site into the Working folder and does not make browser storage permanent.
 
-Manual Monitor exports use `exports/` inside the active project when available.
-Without a project folder, the browser chooses a destination before expensive
-rendering begins. World replay deterministically renders recorded telemetry to
+Manual Monitor exports use `exports/` inside the recorded run's original
+project when available. Each export captures and awaits that run's destination
+resolution independently of archive completion. Missing or inaccessible folder
+identity invokes browser recovery; a download request is reported as requested,
+and only a completed filesystem write is reported as saved. Destination
+selection precedes expensive rendering. World replay deterministically renders recorded telemetry to
 a private canvas and records WebM; it neither screen-records nor reruns the
 simulation. Recording and robot execution remain independent states.
 
