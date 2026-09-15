@@ -22,6 +22,7 @@ const boundary = vi.hoisted(() => ({
   },
   listeners: new Set<(event: TargetEvent) => void>(),
   readSavedRun: vi.fn(),
+  readProject: vi.fn(),
   loadBinding: vi.fn(),
   permission: vi.fn(),
   archive: vi.fn(),
@@ -77,9 +78,7 @@ vi.mock("../../shared/project-binding", () => ({
   resolveProjectFolderById: async () => boundary.folder,
 }));
 vi.mock("../../ide/src/project-folder-reader", () => ({
-  readProjectFolderWhenIdle: async () => ({
-    project: { session: { projectId: "project-a" } },
-  }),
+  readProjectFolderWhenIdle: boundary.readProject,
 }));
 vi.mock("../../shared/diagnostic-log", () => ({
   DiagnosticLogWriter: class {
@@ -191,6 +190,9 @@ beforeEach(() => {
   boundary.archive.mockResolvedValue({});
   boundary.saveNotes.mockResolvedValue(1);
   boundary.readNotes.mockResolvedValue([]);
+  boundary.readProject.mockResolvedValue({
+    project: { session: { projectId: "project-a" } },
+  });
   boundary.generation.mockResolvedValue(1);
   boundary.readText.mockResolvedValue(null);
   boundary.write.mockResolvedValue(undefined);
@@ -523,6 +525,9 @@ describe("retained archive recovery", () => {
       "Local note during verification",
     );
     expect(host.textContent).toContain("Unsaved notes: Project");
+    expect(
+      host.querySelector('[data-testid="run-autosave-status"]')?.textContent,
+    ).toBe("Local note could not be saved");
     expect(protectedFromUnload()).toBe(true);
     await click("Clear run");
     await click("Download retained notes");
@@ -532,6 +537,93 @@ describe("retained archive recovery", () => {
     expect(recovered.runId).toBe("late-note-run");
     expect(recovered.annotations[0].label).toBe(
       "Local note during verification",
+    );
+    expect(protectedFromUnload()).toBe(true);
+  });
+
+  it("preserves replay read progress and failure while an older folder refresh settles", async () => {
+    const folderRead = deferred<{
+      project: { session: { projectId: string } };
+    }>();
+    boundary.readProject.mockImplementationOnce(() => folderRead.promise);
+    const reading = deferred<MonitorRunDataset>();
+    boundary.readSavedRun.mockImplementationOnce(() => reading.promise);
+    await act(async () => root.render(createElement(DashboardApp)));
+    const replay: Extract<TargetEvent, { type: "run-history" }> = {
+      ...liveRun("waiting-for-note-commit"),
+      type: "run-history",
+      state: "ready",
+      finishedAtMs: 2000,
+    };
+    await emit(
+      replay,
+      { type: "telemetry", sample: sample(1, 200), replayed: true },
+      { ...replay, phase: "end" },
+    );
+    const options = boundary.readSavedRun.mock.calls[0]?.[3];
+    await act(async () => options.onWait());
+    const status = () =>
+      host.querySelector('[data-testid="run-autosave-status"]')?.textContent;
+    expect(status()).toContain("finish saving before reading this run");
+    await act(async () => boundary.readProject.mock.calls[0]?.[1].onWait());
+    expect(status()).toContain("finish saving before reading this run");
+    await act(async () =>
+      reading.reject(new Error("Saved run read timed out")),
+    );
+    expect(status()).toContain("Saved run read timed out");
+    await act(async () =>
+      folderRead.resolve({ project: { session: { projectId: "project-a" } } }),
+    );
+    expect(status()).toContain("Saved run read timed out");
+    expect(host.textContent).toContain("Unsaved run: Project");
+    expect(protectedFromUnload()).toBe(true);
+  });
+
+  it("retains full replay recovery if merging committed and local notes exceeds the note limit", async () => {
+    await act(async () => root.render(createElement(DashboardApp)));
+    const reading = deferred<MonitorRunDataset>();
+    boundary.readSavedRun.mockImplementationOnce(() => reading.promise);
+    boundary.saveNotes.mockRejectedValueOnce(new Error("Local note pending"));
+    const replay: Extract<TargetEvent, { type: "run-history" }> = {
+      ...liveRun("full-note-limit"),
+      type: "run-history",
+      state: "ready",
+      finishedAtMs: 2000,
+    };
+    await emit(
+      replay,
+      { type: "telemetry", sample: sample(1, 200), replayed: true },
+      { ...replay, phase: "end" },
+    );
+    await click("Add note");
+    await typeNote("Keep this local observation");
+    await click("Add");
+    await act(async () =>
+      reading.resolve({
+        ...saved,
+        id: "full-note-limit",
+        annotations: Array.from({ length: 1024 }, (_, index) => ({
+          ...saved.annotations[0]!,
+          id: `disk-note-${index}`,
+        })),
+      }),
+    );
+    expect(host.textContent).toContain(
+      "combined notes exceed this run's limit",
+    );
+    expect(host.textContent).toContain("Unsaved run: Project");
+    expect(host.querySelector(".monitor-note-list")?.textContent).toContain(
+      "Keep this local observation",
+    );
+    await click("Clear run");
+    await click("Download retained run");
+    const recovered = JSON.parse(
+      await readBlob(boundary.download.mock.calls[0]![0]),
+    );
+    expect(recovered.runs[0].runId).toBe("full-note-limit");
+    expect(JSON.parse(recovered.runs[0].metadata).telemetrySamples).toBe(1);
+    expect(recovered.runs[0].telemetry).toContain(
+      "Keep this local observation",
     );
     expect(protectedFromUnload()).toBe(true);
   });
@@ -695,6 +787,10 @@ describe("retained archive recovery", () => {
         boundary.folder,
         "project-a",
         "replayed-run",
+        expect.objectContaining({
+          assertCurrent: expect.any(Function),
+          onWait: expect.any(Function),
+        }),
       );
       if (!validArchive) {
         expect(host.textContent).toContain("Saved telemetry file is missing");
@@ -837,6 +933,10 @@ describe("explicit saved trial and current XRP boundaries", () => {
       boundary.folder,
       "project-a",
       "saved-a",
+      expect.objectContaining({
+        assertCurrent: expect.any(Function),
+        onWait: expect.any(Function),
+      }),
     );
     expect(host.querySelector(".saved-run-banner")).not.toBeNull();
   });

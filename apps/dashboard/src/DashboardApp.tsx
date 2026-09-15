@@ -865,6 +865,15 @@ export function DashboardApp() {
   useEffect(() => {
     let disposed = false;
     let refreshRevision = 0;
+    const publishFolderDetail = (detail: string) => {
+      if (
+        !runDatasetController.isActive &&
+        !runDatasetController.latest &&
+        retainedRunArchivesRef.current.size === 0 &&
+        pendingRunNotesRef.current.size === 0
+      )
+        setRunAutosaveDetail(detail);
+    };
     const refreshFolder = async (preserveUnrememberedFolder = false) => {
       beginFolderInteraction();
       const revision = ++refreshRevision;
@@ -910,7 +919,7 @@ export function DashboardApp() {
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
           setAutosaveProjectId(null);
-          setRunAutosaveDetail(
+          publishFolderDetail(
             `Open the IDE to reconnect Working folder ${workspace.name}.`,
           );
           return;
@@ -926,7 +935,7 @@ export function DashboardApp() {
           setRememberedAutosaveFolder(null);
           setAutosaveFolder(null);
           setAutosaveProjectId(null);
-          setRunAutosaveDetail(
+          publishFolderDetail(
             "Choose a Working folder and project in the IDE.",
           );
           return;
@@ -941,7 +950,7 @@ export function DashboardApp() {
           const opened = await readProjectFolderWhenIdle(folder, {
             assertCurrent,
             onWait: () =>
-              setRunAutosaveDetail(
+              publishFolderDetail(
                 `Waiting for ${folder.name} to finish saving…`,
               ),
           });
@@ -966,12 +975,12 @@ export function DashboardApp() {
             currentProjectRef.current = descriptor;
             setCurrentProject(descriptor);
           }
-          setRunAutosaveDetail(`Runs save automatically to ${folder.name}.`);
+          publishFolderDetail(`Runs save automatically to ${folder.name}.`);
         } else {
           autosaveFolderRef.current = null;
           setAutosaveFolder(null);
           setAutosaveProjectId(null);
-          setRunAutosaveDetail(
+          publishFolderDetail(
             `Reconnect project folder ${folder.name} to resume run saving.`,
           );
         }
@@ -983,7 +992,7 @@ export function DashboardApp() {
         setAutosaveFolder(null);
         setAutosaveProjectId(null);
         setFolderReadError(detail);
-        setRunAutosaveDetail(`Project folder could not be read. ${detail}`);
+        publishFolderDetail(`Project folder could not be read. ${detail}`);
         diagnosticLog.record({
           event: "working-folder.open-failed",
           level: "error",
@@ -1018,7 +1027,12 @@ export function DashboardApp() {
       unsubscribe();
       void diagnosticLog.flush();
     };
-  }, [beginFolderInteraction, diagnosticLog, finishFolderInteraction]);
+  }, [
+    beginFolderInteraction,
+    diagnosticLog,
+    finishFolderInteraction,
+    runDatasetController,
+  ]);
 
   const archiveCompletedRun = useCallback(
     (run: MonitorRunDataset, destination: Promise<RunFolderResolution>) => {
@@ -1691,6 +1705,27 @@ export function DashboardApp() {
                   resolved.folder,
                   restored.project.projectId,
                   restored.id,
+                  {
+                    assertCurrent: () => {
+                      if (
+                        retainedRunArchivesRef.current.get(restored.id) !==
+                        retained
+                      )
+                        throw new DOMException(
+                          "Run archive verification was canceled.",
+                          "AbortError",
+                        );
+                    },
+                    onWait: () => {
+                      if (
+                        runDatasetController.latest?.id === restored.id &&
+                        !pendingRunNotesRef.current.has(restored.id)
+                      )
+                        setRunAutosaveDetail(
+                          `Waiting for ${resolved.folder!.name} to finish saving before reading this run…`,
+                        );
+                    },
+                  },
                 );
                 if (
                   saved.target !== restored.target ||
@@ -1699,25 +1734,33 @@ export function DashboardApp() {
                   throw new Error(
                     "The saved archive does not match this run's target and Project revision. Export the retained copy before closing the page.",
                   );
+                if (runDatasetController.latest?.id === restored.id) {
+                  const updated = runDatasetController.restoreAnnotations(
+                    saved.annotations,
+                  );
+                  annotationsRef.current = [
+                    ...runDatasetController.currentAnnotations(),
+                  ];
+                  setAnnotations(annotationsRef.current);
+                  if (updated) setLatestRun(updated);
+                  latestRunFolderRef.current = resolved.folder;
+                  if (!pendingRunNotesRef.current.has(restored.id))
+                    setRunAutosaveDetail(
+                      `Showing the most recent XRP run saved in ${resolved.folder.name}.`,
+                    );
+                }
                 if (
                   retainedRunArchivesRef.current.get(restored.id) === retained
                 )
                   retainedRunArchivesRef.current.delete(restored.id);
-                if (runDatasetController.latest?.id !== restored.id) return;
-                latestRunFolderRef.current = resolved.folder;
-                const updated = runDatasetController.restoreAnnotations(
-                  saved.annotations,
-                );
-                annotationsRef.current = [
-                  ...runDatasetController.currentAnnotations(),
-                ];
-                setAnnotations(annotationsRef.current);
-                if (updated) setLatestRun(updated);
               })
               .catch((reason: unknown) => {
                 retained.error =
                   reason instanceof Error ? reason.message : String(reason);
-                if (runDatasetController.latest?.id === restored.id)
+                if (
+                  runDatasetController.latest?.id === restored.id &&
+                  !pendingRunNotesRef.current.has(restored.id)
+                )
                   setRunAutosaveDetail(
                     `Run archive could not be verified: ${retained.error}`,
                   );

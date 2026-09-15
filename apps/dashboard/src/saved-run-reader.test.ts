@@ -148,7 +148,14 @@ function memoryFolder(
   return {
     kind: "directory",
     name: prefix || "Project A",
-    async *entries() {},
+    async *entries() {
+      for (const path of files.keys()) {
+        if (!path.startsWith(prefix)) continue;
+        const name = path.slice(prefix.length);
+        if (name.includes("/")) continue;
+        yield [name, await this.getFileHandle(name)];
+      }
+    },
     getDirectoryHandle: async (name) =>
       memoryFolder(files, beforeRead, `${prefix}${name}/`),
     getFileHandle: async (name) => {
@@ -211,6 +218,192 @@ function removeColumns(csv: string, names: (name: string) => boolean): string {
 }
 
 describe("saved run reader", () => {
+  it.each(["list", "open"])(
+    "waits for an active note transaction before %s without changing its files",
+    async (operation) => {
+      vi.useFakeTimers();
+      try {
+        const { original, folder, files } = setup();
+        const writer = ".ucsb-xrp-writer-note.json";
+        files.set(
+          writer,
+          JSON.stringify({
+            schemaVersion: 1,
+            owner: "note",
+            choosing: false,
+            ticket: 1,
+            createdAt: 1,
+          }),
+        );
+        files.set(journalPath, "active note transaction");
+        const onWait = vi.fn();
+        const reading =
+          operation === "list"
+            ? listSavedRuns(folder, projectId, { onWait })
+            : readSavedRun(folder, projectId, original.id, { onWait });
+        await vi.advanceTimersByTimeAsync(100);
+        expect(onWait).toHaveBeenCalledOnce();
+        expect(files.get(journalPath)).toBe("active note transaction");
+        files.delete(journalPath);
+        files.delete(writer);
+        const committed = [...files];
+        await vi.advanceTimersByTimeAsync(50);
+        const value = await reading;
+        if (Array.isArray(value)) expect(value[0]?.runId).toBe(original.id);
+        else expect(value.annotations).toEqual(original.annotations);
+        expect([...files]).toEqual(committed);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("retries a read overlapped by an observed writer and returns the same run after commit", async () => {
+    vi.useFakeTimers();
+    try {
+      let started = false;
+      const writer = ".ucsb-xrp-writer-concurrent.json";
+      const state = setup((path) => {
+        if (path !== telemetryPath || started) return;
+        started = true;
+        state.files.set(writer, "writer record");
+        state.files.set(journalPath, "concurrent transaction");
+      });
+      const onWait = vi.fn();
+      const reading = readSavedRun(state.folder, projectId, state.original.id, {
+        onWait,
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(onWait).toHaveBeenCalledOnce();
+      state.files.delete(journalPath);
+      state.files.delete(writer);
+      await vi.advanceTimersByTimeAsync(50);
+      expect((await reading).annotations).toEqual(state.original.annotations);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("times out a writer without releasing its ticket or journal", async () => {
+    vi.useFakeTimers();
+    try {
+      const { original, folder, files } = setup();
+      files.set(".ucsb-xrp-writer-held.json", "still saving");
+      files.set(journalPath, "retain recovery");
+      const before = [...files];
+      const onWait = vi.fn();
+      const result = readSavedRun(folder, projectId, original.id, {
+        timeoutMs: 100,
+        onWait,
+      }).catch((error) => error);
+      await vi.advanceTimersByTimeAsync(150);
+      expect(await result).toMatchObject({
+        message: expect.stringContaining("still being written"),
+      });
+      expect(onWait).toHaveBeenCalledOnce();
+      expect([...files]).toEqual(before);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries an observed journal that disappears before the catch-side writer scan", async () => {
+    let began = false;
+    const writer = ".ucsb-xrp-writer-crossed.json";
+    const state = setup((path) => {
+      if (path !== metadataPath || began) return;
+      began = true;
+      state.files.set(writer, "transaction started after initial scan");
+      state.files.set(journalPath, "note transaction");
+    });
+    const entries = state.folder.entries.bind(state.folder);
+    let scans = 0;
+    state.folder.entries = async function* () {
+      if (++scans === 2) {
+        state.files.delete(journalPath);
+        state.files.delete(writer);
+      }
+      yield* entries();
+    };
+    const onWait = vi.fn();
+    const restored = await readSavedRun(
+      state.folder,
+      projectId,
+      state.original.id,
+      { onWait },
+    );
+    expect(restored.annotations).toEqual(state.original.annotations);
+    expect(onWait).toHaveBeenCalledOnce();
+    expect(state.files.has(journalPath)).toBe(false);
+  });
+
+  it("retries a complete same-run note commit crossing the entire read without mixing generations", async () => {
+    let changed = false;
+    const state = setup((path) => {
+      if (path !== telemetryPath || changed) return;
+      changed = true;
+      const updated = archiveForRun({
+        ...state.original,
+        annotations: state.original.annotations.map((note) => ({
+          ...note,
+          label: "Committed during read",
+          revision: 1,
+        })),
+      });
+      state.files.set(metadataPath, updated.metadata);
+      state.files.set(telemetryPath, updated.telemetry);
+    });
+    const onWait = vi.fn();
+    const restored = await readSavedRun(
+      state.folder,
+      projectId,
+      state.original.id,
+      { onWait },
+    );
+    expect(restored.id).toBe(state.original.id);
+    expect(restored.annotations[0]).toMatchObject({
+      id: state.original.annotations[0]!.id,
+      observationSeq: 41,
+      label: "Committed during read",
+    });
+    expect(restored.recording.samples).toHaveLength(3);
+    expect(onWait).toHaveBeenCalledOnce();
+  });
+
+  it("honors cancellation while waiting and never substitutes a changed Project after a writer finishes", async () => {
+    vi.useFakeTimers();
+    try {
+      for (const cancel of [true, false]) {
+        const { original, folder, files } = setup();
+        const writer = ".ucsb-xrp-writer-held.json";
+        files.set(writer, "still saving");
+        let current = true;
+        const result = readSavedRun(folder, projectId, original.id, {
+          assertCurrent: () => {
+            if (!current)
+              throw new DOMException("Selection canceled", "AbortError");
+          },
+        }).catch((error) => error);
+        await vi.advanceTimersByTimeAsync(50);
+        if (cancel) current = false;
+        else
+          files.set(
+            ".ucsb-xrp-project.json",
+            JSON.stringify({ session: { projectId: "different-project" } }),
+          );
+        files.delete(writer);
+        await vi.advanceTimersByTimeAsync(50);
+        expect(await result).toMatchObject(
+          cancel
+            ? { name: "AbortError", message: "Selection canceled" }
+            : { message: expect.stringContaining("could not be verified") },
+        );
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("round-trips the real archive writer with separate clocks, wrap, repeated time, missing values and multiline notes", async () => {
     const { original, folder, files } = setup();
     const before = [...files];
@@ -506,23 +699,93 @@ describe("saved run reader", () => {
     );
   });
 
-  it("rejects rotation during the metadata list and during the CSV read", async () => {
+  it("retries a completed list rotation but never substitutes a different run for an open identity", async () => {
     let reads = 0;
     const first = setup((path) => {
       if (path === metadataPath && ++reads === 2)
         first.files.set(metadataPath, archiveForRun(run("new-run")).metadata);
     });
-    await expect(listSavedRuns(first.folder, projectId)).rejects.toThrow(
-      "changed",
-    );
+    expect(
+      (await listSavedRuns(first.folder, projectId)).map(
+        (summary) => summary.runId,
+      ),
+    ).toEqual(["new-run"]);
     const second = setup((path) => {
       if (path === telemetryPath)
         second.files.set(metadataPath, archiveForRun(run("new-run")).metadata);
     });
     await expect(
       readSavedRun(second.folder, projectId, second.original.id),
-    ).rejects.toThrow("changed");
+    ).rejects.toThrow("no longer among this Project");
   });
+
+  it("retries mixed-generation duplicate identities only when the metadata bracket changed", async () => {
+    let changed = false;
+    const secondPath = `${autosaveDirectoryName}/run-2.json`;
+    const state = setup((path) => {
+      if (path !== secondPath || changed) return;
+      changed = true;
+      state.files.set(secondPath, archiveForRun(state.original).metadata);
+      state.files.set(metadataPath, archiveForRun(run("newest-run")).metadata);
+    });
+    state.files.set(secondPath, archiveForRun(run("older-run")).metadata);
+    expect(
+      (await listSavedRuns(state.folder, projectId)).map((item) => [
+        item.runId,
+        item.generation,
+      ]),
+    ).toEqual([
+      ["newest-run", 1],
+      [state.original.id, 2],
+    ]);
+    state.files.set(metadataPath, archiveForRun(state.original).metadata);
+    await expect(listSavedRuns(state.folder, projectId)).rejects.toThrow(
+      "duplicate run identities",
+    );
+  });
+
+  it.each(["metadata", "telemetry"])(
+    "follows the original run after its %s moves during opening",
+    async (moving) => {
+      let metadataReads = 0;
+      let changed = false;
+      const state = setup((path) => {
+        if (path === metadataPath) metadataReads += 1;
+        const moveNow =
+          moving === "metadata"
+            ? path === metadataPath && metadataReads === 3
+            : path === telemetryPath;
+        if (!moveNow || changed) return;
+        changed = true;
+        const archive = archiveForRun(state.original);
+        state.files.set(
+          `${autosaveDirectoryName}/run-2.json`,
+          archive.metadata,
+        );
+        state.files.set(
+          `${autosaveDirectoryName}/telemetry-2.csv`,
+          archive.telemetry,
+        );
+        state.files.set(`${autosaveDirectoryName}/run-2.txt`, archive.output);
+        if (moving === "metadata") state.files.delete(metadataPath);
+        else {
+          state.files.delete(telemetryPath);
+          state.files.set(
+            metadataPath,
+            archiveForRun(run("newest-run")).metadata,
+          );
+        }
+      });
+      const restored = await readSavedRun(
+        state.folder,
+        projectId,
+        state.original.id,
+      );
+      expect(restored.id).toBe(state.original.id);
+      expect(restored.annotations).toEqual(state.original.annotations);
+      expect(restored.recording.samples).toHaveLength(3);
+    },
+  );
 
   it("rejects a journal or changed Project identity introduced after reading begins", async () => {
     const interrupted = setup((path) => {

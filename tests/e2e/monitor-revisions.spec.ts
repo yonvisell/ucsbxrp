@@ -255,10 +255,9 @@ finally:
     .getByRole("checkbox", { name: "Start allocation loop", exact: true })
     .check();
   await expect(ide.getByRole("log")).toContainText("ALLOCATION_LOOP_STARTED");
-  await expect(monitor.locator(".operation-status")).toContainText(
-    "memory limit",
-    { timeout: 45_000 },
-  );
+  await expect(
+    monitor.locator(".header-statuses .operation-status"),
+  ).toContainText("memory limit", { timeout: 45_000 });
   const elapsedToLimitMs = Date.now() - allocationStartedAt;
   await expect(monitor.getByTestId("target-status")).toContainText("error");
   await expect(ide.getByRole("log")).toContainText(
@@ -484,6 +483,10 @@ test("inspects exact observations, edits notes, and restores them in a late Moni
     late.getByRole("button", { name: /^Review note 1: Corrected note/ }),
   ).toBeVisible();
   await late.getByRole("button", { name: "Export run data as CSV" }).click();
+  // Inspect the file after the same completion message a student relies on.
+  await expect(late.locator(".export-detail")).toHaveText(
+    /^Saved \.\/Expanding-Spiral\/exports\/xrp-telemetry-.*\.csv$/,
+  );
   await expect
     .poll(
       async () =>
@@ -505,6 +508,116 @@ test("inspects exact observations, edits notes, and restores them in a late Moni
     "data-visible-note-labels",
     "",
   );
+});
+
+test("waits for an active note commit before restoring its exact note in a late Monitor", async ({
+  page,
+  context,
+}) => {
+  const folderName = "Monitor-Note-Commit-Read";
+  await seedWorkingFolder(page, { folderName });
+  await page.goto("/ide/");
+  const monitor = await context.newPage();
+  await monitor.goto("/monitor/");
+  await expect(monitor.locator(".monitor-run-button")).toBeEnabled();
+  await monitor.locator(".monitor-run-button").click();
+  await expect(monitor.getByTestId("target-status")).toContainText("running");
+  await expect(
+    monitor.getByRole("button", { name: "Add note", exact: true }),
+  ).toBeEnabled();
+  const anchor = await addNote(monitor, "Original note before commit");
+  await monitor.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Saved automatically",
+  );
+  const original = (await savedRun(monitor, folderName)).annotations[0];
+  await monitor.evaluate(() => {
+    const originalRemove = FileSystemDirectoryHandle.prototype.removeEntry;
+    const state = { waiting: false, release: () => {} };
+    (
+      window as typeof window & { __monitorNoteCommit: typeof state }
+    ).__monitorNoteCommit = state;
+    FileSystemDirectoryHandle.prototype.removeEntry = async function (
+      name,
+      options,
+    ) {
+      if (name === "pending-run.json") {
+        state.waiting = true;
+        await new Promise<void>((resolve) => {
+          state.release = resolve;
+        });
+      }
+      return originalRemove.call(this, name, options);
+    };
+  });
+  await monitor.getByRole("button", { name: /^Review note 1:/ }).click();
+  await monitor
+    .getByLabel("Note label")
+    .fill("Committed note\nwith original observation");
+  await monitor.getByRole("button", { name: "Save note", exact: true }).click();
+  await expect
+    .poll(() =>
+      monitor.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __monitorNoteCommit: { waiting: boolean };
+            }
+          ).__monitorNoteCommit.waiting,
+      ),
+    )
+    .toBe(true);
+  // The metadata is visible before the transaction commits. Opening the late
+  // Monitor at this boundary must wait, not classify the active write as damage.
+  const pending = await savedRun(monitor, folderName);
+  expect(pending.annotations[0].label).toBe(
+    "Committed note\nwith original observation",
+  );
+  const late = await context.newPage();
+  await late.goto("/monitor/");
+  await expect(late.getByTestId("run-autosave-status")).toContainText(
+    "finish saving before reading this run",
+  );
+  await expect(
+    late.getByRole("button", { name: /^Review note 1:/ }),
+  ).toHaveCount(0);
+  await expect(late.locator(".monitor-run-button")).toBeDisabled();
+  await expect(late.locator(".monitor-notices")).not.toContainText(
+    "needs recovery",
+  );
+  await monitor.evaluate(() =>
+    (
+      window as typeof window & { __monitorNoteCommit: { release(): void } }
+    ).__monitorNoteCommit.release(),
+  );
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Saved notes",
+  );
+  const note = late.getByRole("button", {
+    name: /^Review note 1: Committed note/,
+  });
+  await expect(note).toBeVisible();
+  await expect(late.locator(".monitor-run-button")).toBeEnabled();
+  await expect(late.getByTestId("run-autosave-status")).toContainText(
+    "Showing the most recent XRP run saved in Expanding-Spiral",
+  );
+  await note.click();
+  await expect(late.getByTestId("note-anchor")).toHaveText(anchor!);
+  await expect(late.getByLabel("Note label")).toHaveValue(
+    "Committed note\nwith original observation",
+  );
+  const committed = (await savedRun(monitor, folderName)).annotations[0];
+  expect(committed.id).toBe(original.id);
+  expect(committed.observationSeq).toBe(original.observationSeq);
+  expect(committed.tMs).toBe(original.tMs);
+  await test.info().attach("late-note-commit-identity", {
+    body: JSON.stringify(
+      { runId: pending.runId, original, committed, anchor },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
 });
 
 test("keeps sixteen live controls and telemetry reachable in a short viewport", async ({

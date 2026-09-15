@@ -18,6 +18,7 @@ import {
 import { csvRows, decodeCsvCell } from "./csv-records";
 import { validatedAnnotations } from "./monitor-archive-notes";
 import { verifyRunFolder } from "./monitor-run-archive";
+import { inspectProjectWriters } from "../../ide/src/project-writer-admission";
 import type {
   MonitorRunDataset,
   MonitorRunOutput,
@@ -51,6 +52,65 @@ export interface SavedRunSummary {
   target: TelemetrySample["source"];
   finalState: TargetRunState;
   telemetrySamples: number;
+}
+
+export interface SavedRunReadOptions {
+  assertCurrent?: () => void;
+  onWait?: () => void;
+  timeoutMs?: number;
+}
+
+class SavedRunReadInvalidatedError extends Error {}
+class SavedRunWriteIncompleteError extends Error {}
+
+/** Observe writers without joining, releasing, or repairing their transactions. */
+async function readSavedRunWhenIdle<T>(
+  folder: CourseDirectoryHandle,
+  read: () => Promise<T>,
+  options: SavedRunReadOptions,
+): Promise<T> {
+  const deadline = performance.now() + (options.timeoutMs ?? 2_000);
+  let notified = false;
+  let lastError: unknown;
+  for (;;) {
+    options.assertCurrent?.();
+    if ((await inspectProjectWriters(folder)).length === 0) {
+      options.assertCurrent?.();
+      try {
+        const value = await read();
+        options.assertCurrent?.();
+        if ((await inspectProjectWriters(folder)).length === 0) {
+          options.assertCurrent?.();
+          return value;
+        }
+      } catch (error) {
+        options.assertCurrent?.();
+        const writerStillPresent =
+          (await inspectProjectWriters(folder)).length > 0;
+        const observedWriteFinished =
+          error instanceof SavedRunWriteIncompleteError &&
+          !(await savedRunJournalPresent(folder));
+        if (
+          !writerStillPresent &&
+          !observedWriteFinished &&
+          !(error instanceof SavedRunReadInvalidatedError)
+        )
+          throw error;
+        lastError = error;
+      }
+    }
+    options.assertCurrent?.();
+    if (performance.now() >= deadline)
+      throw new Error(
+        `Saved runs in ${folder.name} are still being written. Wait for saving to finish, then reopen the saved-run list or Monitor. If all other pages are closed, review Project writer recovery in the IDE. No files were changed.`,
+        { cause: lastError },
+      );
+    if (!notified) {
+      notified = true;
+      options.onWait?.();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
 }
 
 interface SavedRunMetadata extends SavedRunSummary {
@@ -331,16 +391,24 @@ async function readFile(
   }
 }
 
-async function assertComplete(folder: CourseDirectoryHandle): Promise<void> {
+async function savedRunJournalPresent(
+  folder: CourseDirectoryHandle,
+): Promise<boolean> {
   // An existing journal is sufficient to reject; do not load its recovery body.
   try {
     const directory = await folder.getDirectoryHandle(autosaveDirectoryName);
     await directory.getFileHandle("pending-run.json");
   } catch (error) {
-    if (error instanceof DOMException && error.name === "NotFoundError") return;
+    if (error instanceof DOMException && error.name === "NotFoundError")
+      return false;
     throw error;
   }
-  throw new Error(
+  return true;
+}
+
+async function assertComplete(folder: CourseDirectoryHandle): Promise<void> {
+  if (!(await savedRunJournalPresent(folder))) return;
+  throw new SavedRunWriteIncompleteError(
     "A saved run write is incomplete. Preserve UCSB_XRP_Autosaves/pending-run.json before repairing the archive.",
   );
 }
@@ -355,7 +423,7 @@ function path(
 }
 
 /** Four small metadata reads; this never starts a target or changes the folder. */
-export async function listSavedRuns(
+async function listSavedRunsOnce(
   folder: CourseDirectoryHandle,
   projectId: string,
 ): Promise<SavedRunSummary[]> {
@@ -392,8 +460,6 @@ export async function listSavedRuns(
       telemetrySamples,
     });
   }
-  if (new Set(result.map((run) => run.runId)).size !== result.length)
-    invalid("has duplicate run identities");
   for (let generation = 1; generation <= autosaveGenerations; generation++) {
     if (
       (await readFile(
@@ -402,13 +468,27 @@ export async function listSavedRuns(
         maximumMetadataBytes,
       )) !== observed[generation - 1]
     )
-      invalid(
-        "changed while its list was being read; reopen the saved-run list",
+      throw new SavedRunReadInvalidatedError(
+        "The saved run changed while its list was being read.",
       );
   }
+  if (new Set(result.map((run) => run.runId)).size !== result.length)
+    invalid("has duplicate run identities");
   await assertComplete(folder);
   await verifyRunFolder(folder, projectId);
   return result;
+}
+
+export function listSavedRuns(
+  folder: CourseDirectoryHandle,
+  projectId: string,
+  options: SavedRunReadOptions = {},
+): Promise<SavedRunSummary[]> {
+  return readSavedRunWhenIdle(
+    folder,
+    () => listSavedRunsOnce(folder, projectId),
+    options,
+  );
 }
 
 function checkedRows(text: string): ReturnType<typeof csvRows> {
@@ -747,28 +827,40 @@ function samplesFromCsv(
 }
 
 /** Restore only a complete, identity-checked run; never infer acquisition times. */
-export async function readSavedRun(
+async function readSavedRunOnce(
   folder: CourseDirectoryHandle,
   projectId: string,
   runId: string,
 ): Promise<MonitorRunDataset> {
-  const selected = (await listSavedRuns(folder, projectId)).find(
+  const selected = (await listSavedRunsOnce(folder, projectId)).find(
     (run) => run.runId === runId,
   );
   if (!selected)
     invalid("is no longer among this Project's four retained runs");
   const name = path(selected.generation, "metadata");
   const text = await readFile(folder, name, maximumMetadataBytes);
-  if (text === null) invalid("metadata is missing");
+  if (text === null)
+    throw new SavedRunReadInvalidatedError(
+      "The saved run metadata moved after its list was read.",
+    );
   const saved = metadata(text, projectId, selected.generation);
-  if (saved.runId !== runId) invalid("rotated while it was being opened");
+  if (saved.runId !== runId)
+    throw new SavedRunReadInvalidatedError(
+      "The saved run rotated while it was being opened.",
+    );
   await assertComplete(folder);
   const csv = await readFile(
     folder,
     path(selected.generation, "telemetry"),
     maximumTelemetryBytes,
   );
-  if (csv === null) invalid("telemetry file is missing");
+  if (csv === null) {
+    if ((await readFile(folder, name, maximumMetadataBytes)) !== text)
+      throw new SavedRunReadInvalidatedError(
+        "The saved run moved while its telemetry was being opened.",
+      );
+    invalid("telemetry file is missing");
+  }
   let output = saved.outputTimeline;
   if (output === undefined) {
     const transcript = await readFile(
@@ -776,7 +868,13 @@ export async function readSavedRun(
       path(selected.generation, "output"),
       maximumOutputBytes,
     );
-    if (transcript === null) invalid("legacy output file is missing");
+    if (transcript === null) {
+      if ((await readFile(folder, name, maximumMetadataBytes)) !== text)
+        throw new SavedRunReadInvalidatedError(
+          "The saved run moved while its output was being opened.",
+        );
+      invalid("legacy output file is missing");
+    }
     output = transcript
       ? [
           {
@@ -787,10 +885,19 @@ export async function readSavedRun(
         ]
       : [];
   }
-  const samples = samplesFromCsv(csv, saved);
+  let samples: TelemetrySample[];
+  try {
+    samples = samplesFromCsv(csv, saved);
+  } catch (error) {
+    if ((await readFile(folder, name, maximumMetadataBytes)) !== text)
+      throw new SavedRunReadInvalidatedError(
+        "The saved run changed while its telemetry was being read.",
+      );
+    throw error;
+  }
   if ((await readFile(folder, name, maximumMetadataBytes)) !== text)
-    invalid(
-      "changed while its files were being read; reopen the saved-run list",
+    throw new SavedRunReadInvalidatedError(
+      "The saved run changed while its files were being read.",
     );
   await assertComplete(folder);
   await verifyRunFolder(folder, projectId);
@@ -813,4 +920,17 @@ export async function readSavedRun(
     droppedOutputLines: saved.droppedOutputLines,
     annotations: saved.annotations,
   };
+}
+
+export function readSavedRun(
+  folder: CourseDirectoryHandle,
+  projectId: string,
+  runId: string,
+  options: SavedRunReadOptions = {},
+): Promise<MonitorRunDataset> {
+  return readSavedRunWhenIdle(
+    folder,
+    () => readSavedRunOnce(folder, projectId, runId),
+    options,
+  );
 }

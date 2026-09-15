@@ -119,6 +119,12 @@ revision harness and evidence ledger are local operational documents under
   saved world and plots. Current robot values remain explicitly identified as
   live. Reading a trial does not select, reset or command a target. Note edits
   preserve numeric CSV fields; interrupted or changed archives are rejected.
+  Saved-trial reads and late-Monitor verification use a two-second retry window
+  for known Project writers or an observed generation change, with visible progress.
+  They never acquire or recover a writer. An unchanged orphan journal or corrupt
+  archive remains an error. Run/Project cancellation rejects obsolete results;
+  local note edits and full-run recovery remain protected until the applicable
+  note merge succeeds. Folder refresh does not replace pending recovery status.
   Program plot metadata includes its exact, unique CSV column, including any
   suffix needed when distinct names would otherwise collide after formatting.
   A signal whose unit changes also receives a per-observation unit column.

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CourseDirectoryHandle } from "../../shared/course-folder";
 import type { MonitorRunDataset } from "./monitor-run-dataset";
+import { OperationStatus } from "../../shared/OperationStatus";
 import {
   listSavedRuns,
   readSavedRun,
@@ -36,15 +37,45 @@ export function SavedRunPicker({
       epoch.current += 1;
     };
   }, [folder, projectId]);
+  useEffect(() => {
+    if (!disabled) return;
+    epoch.current += 1;
+    setBusy(false);
+    if (busy)
+      setDetail(
+        "The run or Project changed. Stop the current run, then reopen the saved trial.",
+      );
+  }, [disabled]);
 
   const read = async (open: boolean) => {
     if (disabled || busy) return;
     const revision = ++epoch.current;
     setBusy(true);
     setDetail(open ? "Opening saved run…" : "Reading saved runs…");
+    const assertCurrent = () => {
+      if (
+        revision !== epoch.current ||
+        current.current.disabled ||
+        current.current.folder !== folder ||
+        current.current.projectId !== projectId
+      )
+        throw new DOMException(
+          "The run or Project changed. Stop the current run, then reopen the saved trial.",
+          "AbortError",
+        );
+    };
+    const options = {
+      assertCurrent,
+      onWait: () => {
+        assertCurrent();
+        setDetail(
+          `Waiting for ${folder.name} to finish saving before reading saved runs…`,
+        );
+      },
+    };
     try {
       if (open) {
-        const run = await readSavedRun(folder, projectId, selected);
+        const run = await readSavedRun(folder, projectId, selected, options);
         if (revision !== epoch.current) return;
         if (
           current.current.disabled ||
@@ -58,7 +89,7 @@ export function SavedRunPicker({
         setRuns(null);
         setDetail("");
       } else {
-        const found = await listSavedRuns(folder, projectId);
+        const found = await listSavedRuns(folder, projectId, options);
         if (
           revision !== epoch.current ||
           current.current.folder !== folder ||
@@ -127,7 +158,7 @@ export function SavedRunPicker({
           </div>
         </>
       )}
-      {detail ? <span role="status">{detail}</span> : null}
+      {detail ? <OperationStatus phase={detail} pending={busy} /> : null}
     </div>
   );
 }
