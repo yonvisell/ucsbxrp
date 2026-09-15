@@ -16,6 +16,7 @@ import type {
   TargetEvent,
 } from "./types";
 import { describeProject } from "./project-identity";
+import { registerPageDeparture } from "./page-departure";
 import { projectWithSelectedWorld } from "./project-world";
 import {
   portableProjectError,
@@ -129,6 +130,7 @@ export class VirtualTargetClient implements TargetClient {
   private projectRunProvider: ProjectRunProvider | null = null;
   private telemetryEnabled = false;
   private pageLifecycleObserved = false;
+  private releaseDepartureParticipant: (() => void) | null = null;
   private operationEpoch = 0;
   private cancellation: Int32Array | null = null;
   private runtimeStartupTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -207,7 +209,9 @@ export class VirtualTargetClient implements TargetClient {
     )
       return;
     window.addEventListener("pagehide", this.releaseOnPageHide);
-    window.addEventListener("beforeunload", this.stopOnBeforeUnload);
+    this.releaseDepartureParticipant = registerPageDeparture({
+      cancel: this.stopOnBeforeUnload,
+    });
     this.pageLifecycleObserved = true;
   }
 
@@ -219,7 +223,8 @@ export class VirtualTargetClient implements TargetClient {
     )
       return;
     window.removeEventListener("pagehide", this.releaseOnPageHide);
-    window.removeEventListener("beforeunload", this.stopOnBeforeUnload);
+    this.releaseDepartureParticipant?.();
+    this.releaseDepartureParticipant = null;
     this.pageLifecycleObserved = false;
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { TargetClient } from "@ucsb-xrp/target";
+import { registerPageDeparture } from "@ucsb-xrp/target";
 
 import {
   downloadBlob,
@@ -31,18 +32,15 @@ export function useRunArchiveRecorder(target: TargetClient) {
   }, [recorder, target]);
 
   useEffect(() => {
-    const protectRun = (event: BeforeUnloadEvent) => {
-      if (!recorder.needsProtection) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", protectRun);
+    const releaseDeparture = registerPageDeparture({
+      needsProtection: () => recorder.needsProtection,
+    });
     const releaseGuard = registerOfflineShellBeforeReload(() =>
       recorder.flush(),
     );
     const unsubscribe = recorder.subscribe(retryPendingOfflineShellReload);
     return () => {
-      window.removeEventListener("beforeunload", protectRun);
+      releaseDeparture();
       releaseGuard();
       unsubscribe();
     };

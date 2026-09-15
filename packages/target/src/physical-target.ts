@@ -19,6 +19,7 @@ import type {
 } from "./physical-worker-protocol";
 import type { TargetWorkerRole } from "./worker-protocol";
 import { describeProject } from "./project-identity";
+import { registerPageDeparture } from "./page-departure";
 import { parseMicroPythonDiagnostics } from "./micropython-error";
 import { decodeSamplePlots } from "./telemetry-plots";
 import {
@@ -3057,6 +3058,7 @@ export class PhysicalTargetClient implements TargetClient {
   private nextRequest = 1;
   private localNetworkPermissionPrimed = false;
   private pageLifecycleObserved = false;
+  private releaseDepartureParticipant: (() => void) | null = null;
   private pageWasHidden = false;
   private pageCacheSuspended = false;
   private visiblePollFrame: number | null = null;
@@ -3737,7 +3739,9 @@ export class PhysicalTargetClient implements TargetClient {
     )
       return;
     window.addEventListener("pagehide", this.releaseOnPageHide);
-    window.addEventListener("beforeunload", this.stopOnBeforeUnload);
+    this.releaseDepartureParticipant = registerPageDeparture({
+      cancel: this.stopOnBeforeUnload,
+    });
     window.addEventListener("pageshow", this.resumeOnPageShow);
     window.addEventListener("online", this.resumeOnOnline);
     window.addEventListener("focus", this.resumeOnFocus);
@@ -3762,7 +3766,8 @@ export class PhysicalTargetClient implements TargetClient {
     )
       return;
     window.removeEventListener("pagehide", this.releaseOnPageHide);
-    window.removeEventListener("beforeunload", this.stopOnBeforeUnload);
+    this.releaseDepartureParticipant?.();
+    this.releaseDepartureParticipant = null;
     window.removeEventListener("pageshow", this.resumeOnPageShow);
     window.removeEventListener("online", this.resumeOnOnline);
     window.removeEventListener("focus", this.resumeOnFocus);

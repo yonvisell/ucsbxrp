@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { ResizableSeparator } from "../../shared/ResizableSeparator";
+import { registerWorkspaceDeparture } from "@ucsb-xrp/target";
 import {
   parseWorkspaceSurfaceReadyMessage,
   workspaceSurfaceVisibilityMessage,
@@ -45,10 +46,23 @@ export function WorkspaceApp() {
   const navigationState = useRef({ mode, documentationUrl });
   navigationState.current = { mode, documentationUrl };
   const monitorFrameRef = useRef<HTMLIFrameElement>(null);
+  const ideFrameRef = useRef<HTMLIFrameElement>(null);
   const monitorVisible = mode === "split" || mode === "monitor";
   const [monitorSource] = useState(
     () =>
       `../monitor/?embedded=1&workspaceVisible=${monitorVisible ? "1" : "0"}`,
+  );
+
+  useLayoutEffect(
+    () =>
+      registerWorkspaceDeparture(() => {
+        const children = [
+          ideFrameRef.current?.contentWindow,
+          monitorFrameRef.current?.contentWindow,
+        ];
+        return children.filter((child): child is Window => Boolean(child));
+      }),
+    [],
   );
 
   useEffect(() => {
@@ -272,6 +286,7 @@ export function WorkspaceApp() {
           <section aria-label="IDE pane" className="workspace-pane ide-pane">
             <iframe
               allow="serial"
+              ref={ideFrameRef}
               onLoad={(event) => wireNavigation(event.currentTarget)}
               src="../ide/?embedded=1"
               title="UCSBXRP IDE"

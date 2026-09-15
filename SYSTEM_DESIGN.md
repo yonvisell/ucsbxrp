@@ -56,6 +56,10 @@ adds these cross-application constraints:
   asks whether to leave, so choosing Stay preserves completion events, recording
   and subsequent commands. Actual page departure releases the client; physical
   browser-history suspension and restoration retain their separate lifecycle.
+  A workspace coordinates only its explicitly registered IDE and Monitor frames:
+  it captures their protection requirements before synchronously cancelling
+  pending Run work, so the first browser confirmation cannot suspend a sibling
+  before its cancellation handler executes. Unrelated windows remain independent.
 - Run boundaries carry stable run/project/revision identity independently of
   bounded console output. Monitor binds archives to that source capability,
   deduplicates on disk, and finds the matching retained run before editing

@@ -22,6 +22,7 @@ import {
   describeProject,
   describeChallengeProjectTransition,
   physicalEndpointCandidates,
+  registerPageDeparture,
   targetPreferenceForPhysicalNetwork,
   testCourseProjectComponents,
   type TargetClient,
@@ -1208,8 +1209,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
   );
 
   useEffect(() => {
-    const protectUnsaved = (event: BeforeUnloadEvent) => {
-      if (
+    return registerPageDeparture({
+      needsProtection: () =>
         (projectSessionHasUnsavedChanges(projectSessionRef.current) &&
           !(
             projectSessionRef.current.projectId ===
@@ -1223,14 +1224,8 @@ export function IdeApp({ authorDraftProject }: IdeAppProps) {
         targetStateRef.current === "loading" ||
         targetCommandCountRef.current > 0 ||
         folderInteractionCountRef.current > 0 ||
-        projectNameDraftActiveRef.current
-      ) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", protectUnsaved);
-    return () => window.removeEventListener("beforeunload", protectUnsaved);
+        projectNameDraftActiveRef.current,
+    });
   }, []);
 
   const stopFolderWrites = useCallback(() => {

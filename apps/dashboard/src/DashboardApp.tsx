@@ -13,6 +13,7 @@ import {
   VirtualTargetClient,
   TelemetryRecorder,
   describeProject,
+  registerPageDeparture,
   physicalEndpointCandidates,
   millidegreesPerSecondToRadiansPerSecond,
   milligravityToMetersPerSecondSquared,
@@ -2556,32 +2557,32 @@ export function DashboardApp() {
   targetStateRef.current = targetState;
   runStartingRef.current = runStarting;
 
-  useEffect(() => {
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      const needsProtection =
-        runStartingRef.current ||
-        runDatasetController.isActive ||
-        isActiveRunState(targetStateRef.current) ||
-        exportActiveRef.current ||
-        runArchiveCountRef.current > 0 ||
-        retainedRunArchivesRef.current.size > 0 ||
-        annotationDraftIdsRef.current.size > 0 ||
-        pendingRunNotesRef.current.size > 0 ||
-        (runDatasetController.latest && !latestRunFolderRef.current);
-      if (runStartingRef.current) {
-        // A folder read may precede target.run(), so cancel that local work too.
-        runPreflightEpochRef.current += 1;
-        runStartingRef.current = false;
-        setRunStarting(false);
-        setTargetDetail("Run preparation cancelled. Use Run to start again.");
-      }
-      if (!needsProtection) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [runDatasetController]);
+  useEffect(
+    () =>
+      registerPageDeparture({
+        needsProtection: () =>
+          Boolean(
+            runStartingRef.current ||
+            runDatasetController.isActive ||
+            isActiveRunState(targetStateRef.current) ||
+            exportActiveRef.current ||
+            runArchiveCountRef.current > 0 ||
+            retainedRunArchivesRef.current.size > 0 ||
+            annotationDraftIdsRef.current.size > 0 ||
+            pendingRunNotesRef.current.size > 0 ||
+            (runDatasetController.latest && !latestRunFolderRef.current),
+          ),
+        cancel: () => {
+          if (!runStartingRef.current) return;
+          // A folder read may precede target.run(), so cancel that local work too.
+          runPreflightEpochRef.current += 1;
+          runStartingRef.current = false;
+          setRunStarting(false);
+          setTargetDetail("Run preparation cancelled. Use Run to start again.");
+        },
+      }),
+    [runDatasetController],
+  );
 
   useEffect(
     () =>

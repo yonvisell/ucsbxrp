@@ -222,3 +222,87 @@ test("staying after departure during a held Project read cancels that launch", a
   );
   await stoppedArchive(page);
 });
+
+test("workspace departure cancels a Monitor Run waiting on its hidden IDE", async ({
+  page,
+}) => {
+  await openMonitor(page);
+  await page.goto("/workspace/?mode=ide");
+  const ide = page.frameLocator('iframe[title="UCSBXRP IDE"]');
+  const monitor = page.frameLocator('iframe[title="UCSBXRP Monitor"]');
+  await expect(ide.getByTestId("project-save-state")).toHaveText("Saved");
+  await page.getByRole("button", { name: "Monitor", exact: true }).click();
+  await monitor
+    .getByRole("button", { name: "Open monitor controls", exact: true })
+    .click();
+  await expect(
+    monitor.getByRole("button", { name: "Run", exact: true }),
+  ).toBeEnabled();
+  await ide.locator("body").evaluate(() => {
+    const fixture = window as typeof window & {
+      __departureProviderBlocked?: boolean;
+      __departureProviderFinished?: boolean;
+      __releaseDepartureProvider?: () => void;
+    };
+    const original = FileSystemFileHandle.prototype.getFile;
+    let held = false;
+    FileSystemFileHandle.prototype.getFile = async function () {
+      if (this.name === "main.py" && !held) {
+        held = true;
+        fixture.__departureProviderBlocked = true;
+        await new Promise<void>((resolve) => {
+          fixture.__releaseDepartureProvider = resolve;
+        });
+        const file = await original.call(this);
+        fixture.__departureProviderFinished = true;
+        return file;
+      }
+      return original.call(this);
+    };
+  });
+  await monitor.getByRole("button", { name: "Run", exact: true }).click();
+  await expect
+    .poll(() =>
+      ide
+        .locator("body")
+        .evaluate(
+          () =>
+            (window as typeof window & { __departureProviderBlocked?: boolean })
+              .__departureProviderBlocked,
+        ),
+    )
+    .toBe(true);
+  await cancelDeparture(page);
+  await ide
+    .locator("body")
+    .evaluate(() =>
+      (
+        window as typeof window & { __releaseDepartureProvider?: () => void }
+      ).__releaseDepartureProvider?.(),
+    );
+  await expect
+    .poll(() =>
+      ide.locator("body").evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __departureProviderFinished?: boolean;
+            }
+          ).__departureProviderFinished,
+      ),
+    )
+    .toBe(true);
+  await page.waitForTimeout(750);
+  await expect(monitor.getByTestId("target-status")).toContainText("ready");
+  await expect(monitor.getByTestId("recording-count")).toContainText(
+    "Run a program to collect data.",
+  );
+  await monitor.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(monitor.getByTestId("target-status")).toContainText("running");
+  await monitor.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(monitor.getByTestId("run-autosave-status")).toContainText(
+    "Saved automatically",
+  );
+  await expect(ide.getByTestId("ide-run-save-state")).toHaveText("Run saved");
+  await stoppedArchive(page);
+});

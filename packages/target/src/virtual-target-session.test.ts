@@ -1163,4 +1163,83 @@ describe("virtual target shared session", () => {
     expect(FakeRuntimeWorker.runProjects).toHaveLength(1);
     owner.disconnect();
   });
+
+  it("cancels a hidden IDE snapshot from the first workspace frame's departure before the Monitor receives any native event", async () => {
+    const { VirtualTargetClient } = await import("./virtual-target");
+    const { registerPageDeparture, registerWorkspaceDeparture } =
+      await import("./page-departure");
+    const host = Object.assign(new EventTarget(), {
+      location: { origin: "https://course.example" },
+    }) as unknown as Window;
+    const ideWindow = Object.assign(new EventTarget(), {
+      parent: host,
+      location: { origin: "https://course.example" },
+    }) as unknown as Window;
+    const monitorWindow = Object.assign(new EventTarget(), {
+      parent: host,
+      location: { origin: "https://course.example" },
+    }) as unknown as Window;
+    const releaseWorkspace = registerWorkspaceDeparture(
+      () => [ideWindow, monitorWindow],
+      host,
+    );
+    vi.stubGlobal("window", ideWindow);
+    const ide = new VirtualTargetClient();
+    let release!: (value: {
+      projectId: string;
+      revision: number;
+      project: CourseProject;
+    }) => void;
+    const snapshot = new Promise<{
+      projectId: string;
+      revision: number;
+      project: CourseProject;
+    }>((resolve) => {
+      release = resolve;
+    });
+    ide.setProjectRunProvider(() => snapshot);
+    await ide.connect();
+    await ide.markProjectStale(project, "workspace-stay");
+    vi.stubGlobal("window", monitorWindow);
+    const monitor = new VirtualTargetClient();
+    const observed: TargetEvent[] = [];
+    monitor.subscribe((event) => observed.push(event));
+    await monitor.connect();
+    const releaseGuard = registerPageDeparture(
+      {
+        needsProtection: () =>
+          observed.filter((event) => event.type === "status").at(-1)?.state ===
+          "loading",
+      },
+      monitorWindow,
+    );
+    const nativeMonitorEvent = vi.fn();
+    monitorWindow.addEventListener("beforeunload", nativeMonitorEvent);
+    const starting = monitor.runCurrent();
+    const cancelled = expect(starting).rejects.toThrow(/cancelled/i);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(
+      observed.filter((event) => event.type === "status").at(-1),
+    ).toMatchObject({ state: "loading" });
+
+    // The browser may prompt and stop traversal after this first IDE event.
+    expect(
+      ideWindow.dispatchEvent(new Event("beforeunload", { cancelable: true })),
+    ).toBe(false);
+    expect(nativeMonitorEvent).not.toHaveBeenCalled();
+    await cancelled;
+    release({ projectId: "workspace-stay", revision: 1, project });
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(0);
+    expect(
+      observed.filter((event) => event.type === "status").at(-1),
+    ).toMatchObject({ state: "ready" });
+    await monitor.runCurrent();
+    expect(FakeRuntimeWorker.runProjects).toHaveLength(1);
+    releaseGuard();
+    monitor.disconnect();
+    vi.stubGlobal("window", ideWindow);
+    ide.disconnect();
+    releaseWorkspace();
+  });
 });

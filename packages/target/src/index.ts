@@ -4,6 +4,10 @@ export {
   localNetworkRequestInit,
   normalizePhysicalEndpoint,
 } from "./physical-target";
+export {
+  registerPageDeparture,
+  registerWorkspaceDeparture,
+} from "./page-departure";
 export type { PhysicalTargetOptions } from "./physical-target";
 export {
   SIMULATION_SCENARIOS,
