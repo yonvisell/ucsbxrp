@@ -12,6 +12,7 @@ from ucsb_xrp.component_checks import run_component_checks
 from ucsb_xrp.student_api import RangeSafetyControllerBase
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,

@@ -12,7 +12,7 @@ the score in World and adjust these sliders in Monitor while the game runs:
 
 | Control | Starting value | Range | Effect |
 | --- | --- | --- | --- |
-| Cruise speed | 500 mm/s | 60–700 mm/s | Requested speed between targets. The motor command stays bounded at 1.0; the XRP may not attain the requested speed. |
+| Cruise speed | 500 mm/s | 60–700 mm/s | Requested speed between targets. Motor effort is limited to 1.0; the XRP may not attain the requested speed. |
 | Tail growth per food | 67 mm | 20–300 mm | Length added when the next pellet is collected. |
 
 Change game, control, navigation, calibration, and display settings in
@@ -40,4 +40,4 @@ the display disagree with the floor path. Begin at a low speed and keep
 detect another robot's displayed tail. The narrow displayed body is a game
 graphic and does not establish clearance for the physical XRP. The 201-food
 tail may use substantially more MicroPython memory than the virtual default;
-it has not been qualified on hardware.
+this larger configuration has not been tested on a physical XRP.

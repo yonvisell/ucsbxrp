@@ -5,6 +5,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
+# Motion code reads the current .value when it applies these Monitor controls.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -15,6 +16,7 @@ TURN_RATE = live.number(
 )
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_navigation_steps(step_count):
     # Show the number of Robot.step() calls completed so far.
     live.watch("navigation_steps", step_count)

@@ -23,10 +23,10 @@ copying their current values.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -64,7 +64,7 @@ the age limit without reconsidering the response allowance and stopping model.
 ## Provided files and tools
 
 - [`main.py`](main.py) collects stationary range samples before motion, runs a
-  sampled approach, applies the student's output only when it satisfies the
+  sampled approach, applies the controller's output only when it satisfies the
   documented output requirements, sends stopped commands while the drivetrain
   settles, and calls `robot.stop()` in `finally` after normal completion or a
   Python exception. The target runtime handles the IDE's **Stop** separately;
@@ -97,14 +97,14 @@ requested speed + measured speed + range estimate
 
 ## Complete the challenge
 
-1. Select **Test components** and make every RangeSafetyController case pass.
+1. Select **Test functions** and make every RangeSafetyController case pass.
 2. Run the supplied controller in all three virtual worlds. The no-range case
    must remain stopped.
 3. Select your controller and compare range, measured speed, safe speed, final
    range, and final pose. Success requires a final filtered range from 220 mm
    through 380 mm, inclusive.
-4. Before physical motion, verify stationary range and motor direction. Use
-   the explicit motion gate and the assigned bounded speeds and distances.
+4. Before physical motion, verify stationary range and motor direction. Keep
+   **Stop** available and use the assigned speeds and course distances.
    Confirm the sensor origin, usable cone, wall face, stopping deceleration,
    and end-to-end response time; the virtual values are reference assumptions,
    not a physical calibration.

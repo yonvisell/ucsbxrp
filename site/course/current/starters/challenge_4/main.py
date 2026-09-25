@@ -39,6 +39,7 @@ def goal_is_reached(pose, goal):
 def run_challenge():
     # Plan and follow the mapped route, or report that no route exists.
     # The occupancy grid accounts for the robot clearance around each obstacle.
+    # Convert arena geometry to clearance-aware cells before planning.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
     goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
@@ -51,15 +52,19 @@ def run_challenge():
         print("Challenge 4: result=invalid_path reason={}".format(invalid_reason))
         return None
 
+    # Convert the checked cell path back to world-coordinate goals.
     goals = list(path.to_goals(grid))
     goals[-1] = DESTINATION
 
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         navigation.start(goals)
+        # Recompute one motion request from each newly estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1

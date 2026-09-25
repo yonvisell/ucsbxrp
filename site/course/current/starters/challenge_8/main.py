@@ -62,6 +62,7 @@ def goal_is_reached(pose, goal):
 
 
 def run_challenge():
+    # Convert arena geometry to clearance-aware cells before planning.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     cost_table, paths = build_pairwise_paths(grid)
     order = make_visit_order_planner().plan(
@@ -75,20 +76,24 @@ def run_challenge():
         return None
     order = validate_order(order)
 
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     serviced = []
     planned_transitions = 0
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         for start_index, finish_index in zip(order, order[1:]):
             path = paths[(start_index, finish_index)]
             if path is None:
                 raise RuntimeError("Selected order contains a disconnected segment")
             planned_transitions += len(path.cells) - 1
+            # Convert the checked cell path back to world-coordinate goals.
             goals = list(path.to_goals(grid))
             goals[-1] = NODE_GOALS[finish_index]
             navigation.start(goals)
+            # Recompute one motion request from each newly estimated pose.
             while not navigation.is_complete():
                 state = robot.step(navigation.update(state.pose))
 

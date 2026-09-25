@@ -17,6 +17,7 @@ MAXIMUM_SEGMENT_SAMPLES = 400  # Fault stop if sensing or motion makes no progre
 
 
 checks_passed = run_exercise_checks()
+# The example check reports differences; the current program still runs.
 if not checks_passed:
     print("Example checks differ; running the current virtual drawing")
 
@@ -26,9 +27,12 @@ segments = build_drawing(
     turn_rate_rad_s=TURN_RATE_RAD_S,
     turn_angle_rad=TURN_ANGLE_RAD,
 )
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 try:
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(load_world().initial_pose)
+    # Each drawing segment ends from measured state, with a sample limit.
     for segment in segments:
         segment_start = state
         for _ in range(MAXIMUM_SEGMENT_SAMPLES):

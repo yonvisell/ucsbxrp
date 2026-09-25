@@ -8,7 +8,7 @@ without solving a course challenge.
 
 The supplied project is immediately runnable. Rehearse it on the Virtual XRP
 before editing `student_work.py` or selecting the physical target. The
-**Enable short motion** in `live_variables.py` defaults off; no motor motion follows the
+**Enable short motion** toggle in `live_variables.py` defaults off; no motor motion follows the
 stationary report until you explicitly enable it for a later Run.
 
 ## Walkthrough: summarize a sequence of robot states
@@ -55,8 +55,9 @@ motion.
 
 ## Run on a physical XRP
 
-1. If needed, open **Robot setup**, attach the XRP by USB-C, and prepare it
-   for the selected Wi-Fi network.
+1. For an uncommissioned XRP, use **First robot setup**: switch its power off,
+   connect USB-C, then switch it on. For an already configured XRP, use
+   **Wi-Fi setup → Test Wi-Fi**. The computer and robot normally use class Wi-Fi.
 2. Keep this project open and select **Physical XRP**. The computer and XRP must
    use the network selected during setup.
 3. Open Monitor and confirm that the physical XRP is connected and **Enable
@@ -77,8 +78,8 @@ checks the Python project; it does not verify the physical network or hardware.
 
 `Robot.step(...)` already waits for the next scheduled sample, applies the
 command, reads sensors, updates state, and publishes telemetry. **Do not add
-`sleep()` or `sleep_ms()` inside the loop.** An extra delay makes the measured
-sample interval incorrect and changes the controller and odometry results.
+`sleep()` or `sleep_ms()` inside the loop.** An extra delay slows feedback and changes the time between motion commands.
+The measurement timestamps still record the actual elapsed interval.
 
 After both runs complete, you have used the same program structure required by
 the course challenges.

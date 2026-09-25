@@ -2,129 +2,172 @@
 
 ## Task
 
-Drive 1000 mm along the lane and stop as close to the target as possible, in the
-least time. Use the front center of the robot for both the starting mark and
-final position measurement. Develop wheel-speed feedback and a stopping rule
-based on measured distance.
+Drive 1000 mm along the lane and stop the front center of the robot as close
+to the target as possible, in the least time. Align that same point with the
+start mark. Develop wheel measurements, wheel-speed feedback, and a
+stopping rule based on measured distance. Complete the measurements and
+method checks before target trials. The supplied `main.py` runs the trial; it
+does not choose when to slow or stop.
 
-## 1. Wheel measurements and motor calibration
+## 1. Measure the wheels
 
-Calculate wheel travel from encoder counts, and wheel speed from the change in
-travel over each sampling interval. Account for forward and reverse motion.
-Implement these calculations, then compare speed estimates from individual
-samples with estimates averaged over several samples.
+1. **Measure motor response.** Determine how each wheel’s speed depends on
+   motor command. Open the **Motor Characterization**
+   demonstration. Use the Virtual XRP to inspect it if useful, then measure
+   the physical robot. Record motor command, steady left and right wheel
+   speed, battery condition, and whether the wheels were raised or on the
+   floor.
+2. **Calibrate each wheel.** Obtain a starting estimate of the command needed
+   for a requested wheel speed. Plot steady speed against command for each wheel.
+   Estimate the command needed to start motion and the additional command per
+   mm/s. Enter the separate left/right start commands and speed gains in
+   `robot_config.py`; its initial numbers are example virtual settings.
+3. **Implement wheel measurements.** Convert encoder readings into distances
+   and speeds for feedback and odometry. In `sensor_model.py`, implement
+   `SensorModel.reset(raw)` and `SensorModel.update(raw)`. Use encoder counts,
+   configured signs, wheel diameter, counts per revolution, and timestamps
+   to return a `Measurements` record with wheel positions and latest increments
+   in mm, speed estimates in
+   mm/s, and `dt_s` in seconds. Reset establishes zero travel and speed.
+   Keep increments unsmoothed, estimate speed from recent samples, and
+   preserve the raw range, button, and reflectance fields. `estimate_range`
+   is for a later challenge.
+4. **Check encoder outputs.** Select **Test functions** to run defined
+   input/output examples for each component method. Compare calculated travel
+   with a measured wheel rotation and compare single-sample and averaged
+   speed estimates. Check forward and reverse counts. Set
+   `USE_STUDENT_SENSOR_MODEL = True` in `course_setup.py` to use this class
+   during a run.
 
-Measure each wheel's steady speed at several motor commands using the supplied
-**Motor Characterization** demonstration.
-Plot speed against command. Estimate the command needed to start each wheel
-and the additional command needed per unit speed. Use these measurements and
-your robot's wheel dimensions for its calibration. Note whether the wheels
-were raised or driving on the floor.
+## 2. Control wheel speed
 
-## 2. Wheel-speed and stopping control
+1. **Implement motor feedback.** Correct differences between requested and
+   measured wheel speeds. In `wheel_speed_controller.py`, implement
+   `WheelSpeedController.update(target, measured)`. For each wheel, use its
+   requested and measured speed to return a normalized `DriveCommand`. Use
+   the motor calibration in `robot_config.py`, return zero command for a zero
+   target, and respect `max_drive_command`. If your controller retains history,
+   clear it in `reset()`.
+2. **Check command outputs.** Use the corresponding **Test functions** examples
+   for positive, negative, and zero speed requests. Check that increasing
+   speed error changes the command as intended without exceeding the limit.
+   Set `USE_STUDENT_WHEEL_SPEED_CONTROLLER = True` in `course_setup.py` to
+   use this class during a run.
 
-Develop feedback that adjusts each motor command according to the difference
-between requested and measured wheel speed.
+## 3. Develop and test the stopping rule
 
-Next, develop a rule for requested forward speed as a function of distance
-remaining. Decide when to slow down and when to stop. A zero speed request ends
-the trial. The supplied program repeatedly calls your rule, records data, and
-stops the motors when the trial ends.
+1. **Implement the stopping rule.** Choose the speed needed to approach the
+   target and stop. In `stopping_controller.py`, implement
+   `speed_for_distance(remaining_mm)`. The input is target distance minus
+   measured mean wheel travel, in mm. Return a finite, nonnegative next
+   forward-speed request in mm/s; zero makes the final stop request. Decide
+   how speed depends on remaining distance and when to request zero.
+2. **Connect the live controls.** Make the speed and slowing distance adjustable
+   while observing the run. The Monitor **Cruise speed** control sets
+   `CRUISE_SPEED_MM_S.value` in `live_variables.py`, in mm/s. Use it in your
+   function as the chosen upper travel speed. **Slowing distance** sets
+   `SLOWDOWN_DISTANCE_MM.value`, in mm; use it to define where your rule
+   changes its speed request. Both values are read when the function is
+   called, so a slider change affects the next decision. Their starting
+   values are adjustable defaults, not measured stopping distances.
+3. **Compare feedback settings.** Assess how feedback changes speed error and
+   oscillation. With the same calibration and stopping
+   rule, compare requested and measured wheel speeds in repeated runs of
+   `main.py`.
+   Change `wheel_speed_kp` in `robot_config.py` to compare feedback settings;
+   zero removes its proportional correction. Record speed error, oscillation,
+   and sustained command limiting to justify the value you use.
+4. **Inspect the approach.** During these preparation runs, inspect plotted
+   remaining distance and requested speed as the robot approaches the target.
+   The Virtual XRP can help you revise the rule before floor runs. Change one
+   setting at a time. Check where the rule requests slowing and zero, and
+   whether wheel speed continues after the zero request.
 
-Compare runs with and without wheel-speed feedback, using the same stopping
-rule. Look for reduced speed error, oscillation, and motor commands that stay
-at their limit.
+## 4. Run the challenge
 
-## 3. Stopping trials
-
-Use the Virtual XRP to compare stopping rules and settings. The **Cruise speed**
-and **Slowing distance** sliders are available for your rule to use. Change one
-setting at a time and keep it fixed during each comparison run.
-The supplied slowing distance starts at 120 mm; adjust it from measured stopping
-error rather than assuming that distance is suitable on the floor.
-
-Test the selected settings on the floor. Repeat a run at least twice from the
-same starting alignment, then test one change intended to improve performance.
-Measure the distance from the front center to the target, note whether the robot
-stopped short or beyond it, and record final heading. Compare these measurements
-with the encoder distance remaining. The program also reports an estimate of
-time in motion, calculated from wheel-speed measurements.
+1. **Compare floor runs.** Run the selected rule on the floor. Keep starting
+   position and alignment consistent, change one setting at a time, and
+   retain runs that stop short, overshoot, or fail to move.
+2. **Measure the outcome.** For each run, record settings, stopping reason,
+   estimated motion time, signed encoder `remaining_mm`, front-center
+   distance from the target (short or beyond), and final heading. Compare
+   repeated results before choosing a change intended to improve accuracy
+   and time.
 
 ## Your report
 
-Submit one report per pair, with both names and the robot used. Distinguish
-virtual and physical trials and record the settings used.
+Submit one report per pair with both names and the robot used. Distinguish
+virtual from physical results.
 
-1. **Measurements and calibration:** show your encoder calculations and motor
-   calibration plots. How did averaging affect the speed estimate?
-2. **Feedback:** describe your controller and plot requested and measured speeds
-   with and without feedback. Did feedback reduce the error? Explain any
-   oscillation or sustained command limit.
-3. **Stopping:** describe your stopping rule and tabulate settings, motion time,
-   measured stopping error, and heading for the floor trials. Which setting
-   gave the best balance of speed, accuracy, and repeatability? What explains
-   the difference between encoder distance and the position measured on the floor?
+1. **Preliminary lab work:** show encoder conversion and motor calibration
+   measurements, the implemented feedback and stopping decisions, and the
+   evidence used to choose calibration and settings.
+2. **Challenge data:** provide labeled speed and remaining-distance plots and
+   a table of settings, stopping reason, motion time, signed floor error, and
+   final heading for the runs compared.
+3. **Challenge performance:** identify the run that best balances target
+   accuracy, time, and repeatability, using measured values.
+4. **Reflection:** explain differences between encoder remaining distance and
+   floor position, and how speed estimation, wheel-speed feedback, or the
+   stopping rule affected the outcome. Justify a specific improvement from
+   your data.
 
 ## Project files
 
 <strong class="student-file">Blue *</strong>: code to implement.
 <strong class="config-file">Amber †</strong>: settings to adjust.
-<span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge.
-`main.py` is supplied and normally unchanged; a controlled experiment may still edit it.
-
-After checking each class you implement, set its matching `USE_STUDENT_*` flag
-to `True` in `course_setup.py` before **Run**. `False` runs the
-supplied implementation; enable and check new classes one at a time.
-`speed_for_distance` is called directly by `main.py` and has no selector.
+<span class="supplied-file">Gray S</span>: code provided or completed earlier.
+`main.py` is supplied and normally unchanged; a controlled experiment may
+still edit it. **Test functions** checks the project files regardless of the
+`USE_STUDENT_*` flags. **Run** uses the classes selected in `course_setup.py`;
+`speed_for_distance` is called directly and has no selector.
 
 <div class="project-file-table">
 
 | File | What it does |
 | --- | --- |
 | <span class="supplied-file"><code>main.py</code> S</span> | Runs the straight trial using your stopping rule and records the result. |
-| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <strong class="student-file"><code>wheel_speed_controller.py</code> *</strong> | Calculates left and right motor commands from wheel-speed targets and measurements. |
+| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Converts encoder readings into wheel travel and speed; also contains later range estimation. |
+| <strong class="student-file"><code>wheel_speed_controller.py</code> *</strong> | Calculates left and right motor commands from target and measured wheel speeds. |
 | <strong class="student-file"><code>stopping_controller.py</code> *</strong> | Contains your distance-based stopping rule. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares the two Monitor controls and their starting values. |
+| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Cruise speed and Slowing distance controls and their starting values. |
 | <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and controller settings. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | Reads the start and target from world.json and calculates the travel distance. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Creates the robot using the selected component implementations. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs input/output examples for the component methods without driving. |
-| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and named markers shared by the robot and Monitor. |
+| <strong class="config-file"><code>challenge.py</code> †</strong> | Reads the start and target from `world.json` and calculates travel distance. |
+| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations and creates the robot. |
+| <span class="supplied-file"><code>component_checks.py</code> S</span> | Checks component methods without driving. |
+| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and markers. |
 
 </div>
 
 ## Parameters and functions
 
-The method templates and API specify inputs and outputs. The Guide explains
-how to select your implementations and run a different project file.
+Keep the method names and arguments in the templates. The API Reference gives
+the full field definitions; the Guide explains project-file selection.
 
 ![SensorModel template open in the IDE.](course-assets/method-template.jpg)
 
-*Figure. The IDE Project file list has `sensor_model.py` selected; the editor
-shows its class and unfinished method bodies.*
-
-Replace unfinished method bodies while retaining their names and arguments.
-Leave range estimation for Challenge 5.
+*Figure. `sensor_model.py` is selected in the IDE Project file list, with its
+class and unfinished method bodies open in the editor.*
 
 ### Parameters
 
 | Setting | Source and units | Effect |
 | --- | --- | --- |
-| Cruise speed | Live control in `live_variables.py`; mm/s | Upper forward-speed choice available to the stopping function. |
-| Slowing distance | Live control in `live_variables.py`; mm | Distance at which the stopping rule may begin reducing speed. |
-| `wheel_speed_kp` | `robot_config.py`; s/mm | Feedback command per mm/s of wheel-speed error; zero removes feedback. |
-| Motor start commands and speed gains | `robot_config.py`; dimensionless and s/mm | Map requested wheel speed to each motor's calibrated drive command. |
+| Cruise speed | Monitor control declared in `live_variables.py`; mm/s | Chosen upper travel speed available to `speed_for_distance`. |
+| Slowing distance | Monitor control declared in `live_variables.py`; mm | Chosen distance at which the stopping rule can begin reducing speed. |
+| `wheel_speed_kp` | `robot_config.py`; s/mm | Proportional motor-command change per mm/s of wheel-speed error; zero removes that correction. |
+| Left/right start commands and speed gains | `robot_config.py`; dimensionless and s/mm | Map each requested wheel speed to its calibrated motor command. |
 | `max_drive_command` | `robot_config.py`; dimensionless | Limits the absolute command sent to either wheel. |
 
-Live controls show their applied values. Keep each setting fixed during a recorded comparison. `speed_for_distance` reads the controls through `.value`.
+Live controls show their applied values. Keep a setting fixed during a
+recorded comparison; `speed_for_distance` reads the controls through `.value`.
 
 ### Functions and methods
 
 | Function or method | Input | Return or effect |
 | --- | --- | --- |
-| `SensorModel.reset(raw)` | First `RawSensors` sample: counts and ms | Starting `Measurements` with zero travel and speed. |
-| `SensorModel.update(raw)` | Next chronological `RawSensors` sample | `Measurements`: wheel position/increment in mm, speed in mm/s, interval in s. |
-| `WheelSpeedController.reset()` | None | Clears feedback state before a run. |
-| `WheelSpeedController.update(target, measured)` | Two `WheelSpeeds` values in mm/s | `DriveCommand` with normalized left/right commands. |
+| `SensorModel.reset(raw)` | First `RawSensors` sample: encoder counts and ms | `Measurements` with zero travel, speed, and interval. |
+| `SensorModel.update(raw)` | Next chronological `RawSensors` sample | `Measurements` with wheel position/increment in mm, speed in mm/s, and interval in s. |
+| `WheelSpeedController.reset()` | None | Clears retained feedback state. |
+| `WheelSpeedController.update(target, measured)` | Two `WheelSpeeds` values in mm/s | Bounded normalized left/right `DriveCommand`. |
 | `speed_for_distance(remaining_mm)` | Measured remaining distance in mm | Forward speed in mm/s; zero requests the final stop. |

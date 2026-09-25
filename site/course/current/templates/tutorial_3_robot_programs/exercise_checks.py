@@ -152,6 +152,7 @@ def _check_robot_program():
         raise AssertionError("call robot.stop() after a no-progress fault")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     checks = (
         ("1 · mean wheel position", _check_mean_wheel_position),

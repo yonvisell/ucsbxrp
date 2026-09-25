@@ -23,10 +23,10 @@ headings, wall sides, observation settings, and terminal tolerances.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -82,10 +82,11 @@ corrected Pose + destination         -> NavigationController -> Robot motion
 3. Confirm that **Missing y reference** reports an unavailable observation and
    stops.
 4. Select your corrector and repeat the complete virtual route.
-5. As an odometry-only comparison, temporarily feed `state.pose` rather than
-   `corrected` to `navigation.update()`, repeat the virtual case, and compare
-   its terminal residual with the supplied corrected-pose result.
+5. For an odometry-only comparison, temporarily change the
+   `navigation.update(corrected)` call in `main.py` to
+   `navigation.update(state.pose)`. Repeat the virtual case, compare terminal
+   residuals, then restore `navigation.update(corrected)` before further runs.
 6. Before a physical run, measure the ultrasonic origin and wall coordinates,
-   verify both stationary ranges and cardinal alignments, and use the explicit
-   bounded motion gate. The virtual wall faces and sensor offset are reference
+   verify both stationary ranges and cardinal alignments, and keep **Stop**
+   available. The virtual wall faces and sensor offset are reference
    assumptions, not a physical calibration.

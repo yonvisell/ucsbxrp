@@ -17,6 +17,7 @@ MAXIMUM_RUN_TIME_S = 100.0
 MAXIMUM_LOST_LINE_S = 0.4
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
     follower.reset()
@@ -24,6 +25,7 @@ def run_challenge():
     lost_line_s = 0.0
     result = "timeout"
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE, read_reflectance=True)
         start_ms = state.measurements.time_ms
         while elapsed_time_s(state.measurements.time_ms, start_ms) < MAXIMUM_RUN_TIME_S:

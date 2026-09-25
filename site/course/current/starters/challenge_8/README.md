@@ -5,7 +5,8 @@
 Start at the depot, visit three named service stops exactly once, and return to
 the depot. Use map-derived directed grid-route costs to choose the visit order
 before motion begins. Crossing a stop's grid cell incidentally is not service;
-the measured pose must reach the exact endpoint before that stop is recorded.
+the estimated pose must reach the named endpoint within navigation tolerances
+before that stop is recorded.
 
 [`world.json`](world.json) defines the depot, stops, obstacles, and a
 disconnected case. [`challenge.py`](challenge.py) loads those goals and defines
@@ -13,10 +14,10 @@ their indices, grid resolution, and clearance.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -42,7 +43,7 @@ method boundary without supplying the planning algorithm.
   pairwise shortest paths, so this challenge assesses `VisitOrderPlanner`
   independently of the selected project `GridPlanner`. It follows each selected
   path, replaces the final cell-center goal with the exact named endpoint, and
-  checks the measured pose before recording service.
+  checks the estimated pose before recording service.
 - `OccupancyGrid`, the supplied `GridPlanner`, `GridPath`, and the selected
   navigation and robot components provide path and motion services.
 - [`component_checks.py`](component_checks.py) varies node indices and finish
@@ -70,5 +71,6 @@ selected paths -> NavigationController -> verified endpoint arrivals
 4. Select your planner and execute the complete route with supplied supporting
    components before substituting other project implementations.
 5. Confirm the recorded service sequence contains each required stop exactly
-   once and that every record follows a measured endpoint arrival.
-6. Score service-stop completion and planned route cost before elapsed time.
+   once and that every record follows an estimated-pose endpoint arrival.
+6. Report service-stop completion and planned route cost; use elapsed time as
+   a secondary comparison.

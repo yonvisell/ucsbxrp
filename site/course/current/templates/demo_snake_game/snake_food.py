@@ -9,6 +9,7 @@ MAX_FOOD = FOOD["maximum"]
 
 
 def food_count(bounds, density):
+    # Bounds are millimeters; convert square millimeters to square meters.
     width = bounds[2] - bounds[0]
     height = bounds[3] - bounds[1]
     return min(MAX_FOOD, max(1, int(width * height * density / 1000000.0 + 0.5)))
@@ -33,6 +34,7 @@ def food_positions(world, count):
             if len(result) == count:
                 return tuple(result)
             column = offset if row % 2 == 0 else columns - 1 - offset
+            # Fixed integer recurrence keeps placements repeatable per world.
             seed = (1664525 * seed + 1013904223) % 4294967296
             dx = seed % (2 * jitter_x + 1) - jitter_x
             seed = (1664525 * seed + 1013904223) % 4294967296

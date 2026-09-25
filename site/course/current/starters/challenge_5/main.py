@@ -7,6 +7,7 @@ from ucsb_xrp import DeliveryMission
 
 
 def run_challenge():
+    # DeliveryMission owns the observation, map update, route plan, and stop.
     mission = DeliveryMission(
         DELIVERY_TASK,
         make_navigation_controller(NAVIGATION_CONFIG),
@@ -18,6 +19,7 @@ def run_challenge():
         if mission.planned_path is None
         else len(getattr(mission.planned_path, "cells", ()))
     )
+    # Keep unavailable range distinct from a measured open gate in the report.
     if mission.feature_blocked is None:
         map_decision = "unknown"
     elif mission.feature_blocked:

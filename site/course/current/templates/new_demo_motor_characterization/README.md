@@ -24,7 +24,7 @@ This demonstration uses `XRPBot` directly and controls its own sampling;
 
 ## Interpret the measurements
 
-Plot each wheel's speed against effort using portions where speed has settled.
+Plot each wheel's speed against effort using portions where speed is approximately constant.
 Identify the effort needed to start moving and the range where the relation is
 approximately linear. If a step is still accelerating at its end, record that
 fact instead of treating its final speed as a steady value.

@@ -14,23 +14,27 @@ from robot_config import (
 from ucsb_xrp import STOP_COMMAND, elapsed_time_s
 
 
+# Assemble selected wheel and sensing components separately from local steering.
 robot = make_robot(ROBOT_CONFIG)
 follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
 follower.reset()
-lap = LapProgress()
+lap = LapProgress()  # Track ordered checkpoints and return to the finish bar.
 try:
+    # Establish encoder/time origins and request floor readings on every step.
     state = robot.start(INITIAL_POSE, read_reflectance=True)
     start_ms = state.measurements.time_ms
-    while True:
+    while True:  # Read sensors and request motion until lap completion or line loss.
         apply_line_controls(follower)
         readings = state.measurements.reflectance
         if readings is None:
             result = "reflectance_unavailable"
             break
+        # Both sensors must see the wide bar; pose supplies ordered checkpoints.
         on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
         if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
             result = "complete"
             break
+        # An unseen line requests zero motion while the loss duration accumulates.
         if not lap.observe_line(readings, state.measurements.dt_s, LINE_VISIBLE_THRESHOLD):
             command = STOP_COMMAND
             if lap.lost_line_s >= MAXIMUM_LOST_LINE_S:
@@ -38,6 +42,7 @@ try:
                 break
         else:
             command = follower.update(readings, state.measurements.dt_s)
+        # Publish the decision made from this sample before acquiring the next.
         publish_line_values(
             readings, command, follower.line_error, lap.checkpoints_reached,
             "line_lost_stopping" if lap.lost_line_s else "following",

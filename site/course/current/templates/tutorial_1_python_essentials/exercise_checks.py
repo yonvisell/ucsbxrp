@@ -84,6 +84,7 @@ def _check_wheel_speed_summary():
     )
 
 
+# Check the local functions against fixed input/output examples.
 def run_exercise_checks():
     checks = (
         (

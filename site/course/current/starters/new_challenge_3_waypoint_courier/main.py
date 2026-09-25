@@ -7,14 +7,17 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_contr
 from route_progress import count_reached_goals
 
 
+# Keep robot sampling/odometry and route decisions in their selected components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 step_count = 0
 reached_count = 0
 try:
+    # The world pose initializes odometry; observed goal count starts there.
     state = robot.start(INITIAL_POSE)
     reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
     navigation.start(ROUTE)
+    # One measured pose produces one navigation request and one robot sample.
     while not navigation.is_complete():
         publish_goal_count(reached_count)
         apply_navigation_controls(navigation)
@@ -23,6 +26,7 @@ try:
         step_count += 1
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
 
+    # Controller completion alone does not establish that each goal was observed.
     result = "complete" if reached_count == len(ROUTE) else "route_incomplete"
     print(
         "Challenge 3: result={} goals_reached={}/{} navigation_steps={} "

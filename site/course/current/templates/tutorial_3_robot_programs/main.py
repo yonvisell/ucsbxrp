@@ -11,6 +11,7 @@ TARGET_DISTANCE_MM = 300.0
 
 
 checks_passed = run_exercise_checks()
+# The example check reports differences; the current program still runs.
 if not checks_passed:
     print("Example checks differ; running the current virtual program")
 

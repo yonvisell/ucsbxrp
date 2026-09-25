@@ -28,9 +28,8 @@ After the baseline, change `SIDE_DISTANCE_MM` in `main.py` from 180 to 120 mm,
 **Reset** the Virtual XRP, and Run. Predict the change before looking at the
 path: each side should be about 60 mm shorter, so total commanded straight
 travel falls by about `4 × 60 = 240 mm`. Restore 180 mm, then make the next
-changes in `student_work.py`. This temporary edit to the supplied entrypoint
-only changes a named experiment value; the methods to study are in
-`student_work.py`.
+changes in `student_work.py`. This changes the value passed into `build_drawing()`; the segment methods
+remain in `student_work.py`.
 
 ## 1. Read one measurement calculation
 
@@ -86,7 +85,7 @@ Change `build_drawing(...)` to use a shorter distance for sides 2 and 4 while
 leaving sides 1 and 3 at the requested distance. For example, half-length
 sides make a rectangle. Keep the passed-in `side_distance_mm` as the source of
 both lengths so the function still works with another input. The checks will
-say the result differs from the square contract; **Run still executes the
+say the result differs from the expected square sequence; **Run still executes the
 current valid drawing** so you can inspect your rectangle. Restore the square
 before continuing.
 

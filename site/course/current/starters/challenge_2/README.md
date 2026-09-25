@@ -10,15 +10,15 @@ from wheel travel with the robot's measured position and heading.
 [`challenge.py`](challenge.py) derives `INITIAL_POSE`,
 `OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and
 `FINAL_HEADING_RAD`. It also names `MAX_STRAIGHT_TIME_S` and `MAX_TURN_TIME_S`,
-which stop a phase that makes no progress. Use these names; do not repeat the
-current distances or headings elsewhere.
+which bound steps for an unfinished phase using the nominal sample period.
+Use these names; do not repeat the current distances or headings elsewhere.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-exactly which files will carry forward and which task files come from the
-selected challenge. This project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -76,7 +76,7 @@ forced termination can bypass Python cleanup.
 
 ## Check each component
 
-Select **Test components**. The checks load all four classes from their named
+Select **Test functions**. The checks load all four classes from their named
 project files and do not move either robot. Read each class's `USE`,
 `INPUT`, and `EXPECT` lines before its result:
 
@@ -86,7 +86,7 @@ project files and do not move either robot. Read each class's `USE`,
 
 The new checks cover straight, curved, and in-place wheel relationships, plus
 odometry reset, translation, rotation, and curved travel. Fix every unfinished
-or failing result, repeat **Test components**, and then set the matching
+or failing result, repeat **Test functions**, and then set the matching
 `USE_STUDENT_*` flag to `True`.
 
 ## Complete the challenge

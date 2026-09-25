@@ -21,6 +21,7 @@ def distance(first, second):
 
 
 def distance_to_segment(point, start, end):
+    # Project onto the finite segment, including either endpoint when closest.
     dx = end[0] - start[0]
     dy = end[1] - start[1]
     length_squared = dx * dx + dy * dy
@@ -84,6 +85,7 @@ class SnakeGame:
             self.points.pop(0)
 
     def _crosses_tail(self):
+        # Exclude the near-head neck before checking older tail segments.
         distance_behind = distance(self.points[-1], self.head)
         for index in range(len(self.points) - 1, 0, -1):
             start = self.points[index - 1]
@@ -103,6 +105,7 @@ class SnakeGame:
         if distance(self.points[-1], self.head) >= SAMPLE_SPACING_MM:
             self.points.append(self.head)
         self._trim_tail()
+        # Terminal hazards are checked before a food pickup at the same pose.
         if range_mm is not None and range_mm <= BODY["obstacle_stop_mm"]:
             self.phase = "obstacle"
             return True

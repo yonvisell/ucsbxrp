@@ -1,4 +1,4 @@
-"""Measured straight trial with a caller-owned speed decision."""
+# Measured straight trial with a caller-owned speed decision.
 
 from math import isfinite
 
@@ -8,7 +8,7 @@ from .utils import elapsed_time_s
 
 
 class StraightTrialResult:
-    """Final measured state and software estimate of time in motion."""
+    # Final measured state and software estimate of time in motion.
 
     __slots__ = ("reason", "state", "remaining_mm", "motion_time_s")
 
@@ -24,24 +24,17 @@ def _mean_position_mm(measurements):
 
 
 def run_straight_trial(robot, initial_pose, target_distance_mm, speed_for_distance):
-    """Run a bounded forward trial using speed requests based on measured travel.
-
-    ``speed_for_distance(remaining_mm)`` returns a speed in mm/s, with zero
-    requesting the final stop. The robot is stopped on every exit path.
-    ``motion_time_s`` spans first detected motion through first detected rest;
-    it excludes the confirmation interval and is not a floor measurement.
-    """
+    # speed_for_distance(remaining_mm) returns a nonnegative speed in mm/s;
+    # zero requests the final stop. Manual Stop and exceptions also stop motors.
+    # motion_time_s spans first detected motion through first detected rest,
+    # excluding the confirmation interval. It is not a floor measurement.
     if not callable(speed_for_distance):
         raise TypeError("speed_for_distance must be callable")
     if not isfinite(target_distance_mm) or target_distance_mm <= 0.0:
         raise ValueError("target_distance_mm must be positive and finite")
 
-    maximum_run_time_s = 30.0
-    maximum_travel_mm = target_distance_mm * 1.5
-    maximum_requested_speed_mm_s = 240.0
     stationary_speed_mm_s = 5.0
     stationary_duration_s = 0.3
-    reason = "timeout"
     stopped = False
     stationary_s = 0.0
     first_motion_s = None
@@ -52,18 +45,14 @@ def run_straight_trial(robot, initial_pose, target_distance_mm, speed_for_distan
         initial_position_mm = _mean_position_mm(state.measurements)
         start_ms = state.measurements.time_ms
         remaining_mm = target_distance_mm
-        while elapsed_time_s(state.measurements.time_ms, start_ms) < maximum_run_time_s:
+        while True:
             travel_mm = _mean_position_mm(state.measurements) - initial_position_mm
             remaining_mm = target_distance_mm - travel_mm
-            if abs(travel_mm) > maximum_travel_mm:
-                reason = "travel_limit"
-                break
-
             speed_mm_s = 0.0 if stopped else speed_for_distance(remaining_mm)
             if isinstance(speed_mm_s, bool) or not isinstance(speed_mm_s, (int, float)):
                 raise TypeError("speed_for_distance must return a speed in mm/s")
-            if not isfinite(speed_mm_s) or not 0.0 <= speed_mm_s <= maximum_requested_speed_mm_s:
-                raise ValueError("requested speed must be between 0 and 240 mm/s")
+            if not isfinite(speed_mm_s) or speed_mm_s < 0.0:
+                raise ValueError("requested forward speed must be finite and nonnegative")
             if speed_mm_s == 0.0:
                 stopped = True
             command = STOP_COMMAND if stopped else MotionCommand(speed_mm_s, 0.0)

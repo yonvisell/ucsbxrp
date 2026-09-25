@@ -30,6 +30,7 @@ USE_STUDENT_NAVIGATION_CONTROLLER = False
 USE_STUDENT_GRID_PLANNER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -38,12 +39,14 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()

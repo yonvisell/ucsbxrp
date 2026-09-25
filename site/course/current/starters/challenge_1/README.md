@@ -10,8 +10,8 @@ The task values have one source:
 
 - [`world.json`](world.json) defines the initial pose and finish marker.
 - [`challenge.py`](challenge.py) loads `INITIAL_POSE`, calculates
-  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the visible
-  `MAX_RUN_TIME_S` diagnostic limit.
+  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the
+  `MAX_RUN_TIME_S` run-step limit.
 
 Use these names in your program. Do not copy their current numerical values
 into another file. Record robot-specific calibration in
@@ -65,15 +65,16 @@ targets + measured speeds
                  -> WheelSpeedController     -> motor commands
 ```
 
-The loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. If a sensor or
-controller mistake prevents progress for `MAX_RUN_TIME_S`, the program names
-that failure and raises an error. The `finally` block in `main.py` calls
+The loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. `main.py`
+converts `MAX_RUN_TIME_S` to a maximum step count using the nominal sample
+period. If the distance has not been reached by then, it reports the failure
+and raises an error. The `finally` block in `main.py` calls
 `robot.stop()` after normal completion or a Python exception. The target runtime
 handles the IDE's **Stop** separately; forced termination can bypass Python cleanup.
 
 ## Check each component
 
-Select **Test components** in the IDE. The checks load `SensorModel` from
+Select **Test functions** in the IDE. The checks load `SensorModel` from
 `sensor_model.py` and `WheelSpeedController` from
 `wheel_speed_controller.py`; they do not move either robot. For each class,
 read its `USE`,
@@ -84,7 +85,7 @@ read its `USE`,
 - `FAIL` means the method ran, but its result did not meet the stated
   requirement.
 
-Fix every `NOT IMPLEMENTED` and `FAIL`, then run **Test components** again. Set
+Fix every `NOT IMPLEMENTED` and `FAIL`, then run **Test functions** again. Set
 the matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that
 class passes its checks.
 
@@ -108,7 +109,7 @@ class passes its checks.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-exactly which files will carry forward and which task files come from the
-selected challenge. This project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.

@@ -4,6 +4,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -12,6 +13,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,

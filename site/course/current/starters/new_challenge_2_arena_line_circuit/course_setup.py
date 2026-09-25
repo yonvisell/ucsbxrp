@@ -23,12 +23,14 @@ USE_STUDENT_DIFFERENTIAL_DRIVE = False
 USE_STUDENT_LINE_FOLLOWER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
     DifferentialDrive = StudentDifferentialDrive if USE_STUDENT_DIFFERENTIAL_DRIVE else SuppliedDifferentialDrive
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), SuppliedOdometry(config))
 
+# Local line steering is selected independently of wheel-speed control.
 def make_line_follower(settings):
     if USE_STUDENT_LINE_FOLLOWER:
         return StudentLineFollower(settings)

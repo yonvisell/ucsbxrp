@@ -52,6 +52,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -63,6 +64,7 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)

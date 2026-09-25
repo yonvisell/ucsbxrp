@@ -14,6 +14,7 @@ from ucsb_xrp_reference.challenge_9 import LineFollower as SuppliedLineFollower
 USE_STUDENT_LINE_FOLLOWER = False
 
 
+# Wheel and odometry components remain supplied; line steering is selected below.
 def make_robot(config):
     return Robot(
         config,
@@ -25,6 +26,7 @@ def make_robot(config):
     )
 
 
+# Local line steering is selected independently of wheel-speed control.
 def make_line_follower(settings):
     if USE_STUDENT_LINE_FOLLOWER:
         return StudentLineFollower(settings)

@@ -4,6 +4,7 @@ from ucsb_xrp import NavigationConfig, RobotConfig
 from snake_config import CONFIG
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(**CONFIG["robot"])
 
 

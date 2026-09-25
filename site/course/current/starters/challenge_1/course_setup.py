@@ -29,6 +29,7 @@ def make_wheel_speed_controller(config):
     return SuppliedWheelController(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,

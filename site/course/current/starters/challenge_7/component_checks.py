@@ -12,6 +12,7 @@ from ucsb_xrp.student_api import PoseCorrectorBase
 from wheel_speed_controller import WheelSpeedController
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,

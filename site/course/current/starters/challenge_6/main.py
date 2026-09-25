@@ -81,6 +81,7 @@ def current_range_estimate(robot, state, observations):
 
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     controller = make_range_safety_controller(
         RESPONSE_TIME_S,
@@ -91,12 +92,14 @@ def run_challenge():
     observations = []
     previous_seq = None
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         for _ in range(INITIAL_RANGE_SAMPLE_COUNT):
             robot.collect_range_samples(1)
             state = robot.state
             previous_seq = remember_range(robot, state, observations, previous_seq)
 
+        # Reassess fresh range and measured speed before every forward command.
         while True:
             estimate = current_range_estimate(robot, state, observations)
             speed_mm_s = valid_student_speed(

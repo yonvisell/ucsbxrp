@@ -10,6 +10,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -21,5 +22,6 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     return NavigationController(config)

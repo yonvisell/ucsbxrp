@@ -3,6 +3,7 @@
 from ucsb_xrp import live
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_travel(travel_mm):
     live.watch("travel_mm", travel_mm, unit="mm")
 

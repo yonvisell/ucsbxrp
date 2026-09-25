@@ -3,6 +3,7 @@
 from ucsb_xrp import NavigationGoal, load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 SERVICE_STOPS = (
@@ -18,5 +19,6 @@ START_NODE_INDEX = 0
 REQUIRED_NODE_INDICES = (1, 2, 3)
 FINISH_NODE_INDEX = 0
 ARENA_MAP = WORLD.arena_map()
+# Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
 CLEARANCE_MM = 95.0

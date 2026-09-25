@@ -11,9 +11,9 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s, wrap_angle_rad
 # SeededRandom — Generate reproducible pseudo-random demo choices.
 # Called by: The demonstration route loop.
 # Methods: unit().
-# Inputs: Integer seed; numeric uniform interval.
+# Inputs: Integer seed.
 # State: Current 32-bit generator state.
-# Returns: Number in [0, 1) or the requested interval.
+# Returns: Number in [0, 1).
 
 class SeededRandom:
     def __init__(self, seed):
@@ -24,9 +24,11 @@ class SeededRandom:
         return self._state / 4294967296.0
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # Always reach finally below when the program ends or Stop interrupts it.
+try:  # Run finally below when this block finishes or raises a Python error.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     state = robot.step(STOP_COMMAND, read_range=True)
     phase = "forward"
@@ -34,6 +36,7 @@ try:  # Always reach finally below when the program ends or Stop interrupts it.
     target_heading_rad = state.pose.heading_rad
     avoidance_count = 0
 
+    # Alternate range-checked travel and bounded turning until Stop.
     while True:  # Press Stop when you have observed enough of the route.
         range_mm = state.measurements.range_mm
         publish_range(range_mm)

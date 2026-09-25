@@ -18,8 +18,11 @@ or integral action helps.
 
 `main.py` only assembles the components, recognizes the visible finish bar, and
 runs the sampled loop. It contains no stored trajectory or mission step limit.
-If neither sensor sees the line, it sends a stop command so the failure is
-observable rather than guessed around.
+`LapProgress` accepts a finish crossing only after four ordered checkpoints
+from the estimated odometry pose. Reflectance readings steer the robot and
+detect the finish bar; they do not by themselves establish a completed lap.
+If neither sensor reaches the line-visible threshold, `main.py` requests zero
+motion while it waits for the line to reappear.
 
 ## What you implement
 
@@ -29,7 +32,7 @@ the controller state needed for P, PD, or PID feedback.
 
 ## Provided files and tools
 
-- `line_follower.py` contains the single student component.
+- `line_follower.py` contains the only component to implement.
 - `robot_config.py` holds readable gains, speed, and finish thresholds.
 - `component_checks.py` checks centered, line-left, and line-right responses
   without starting either robot.
@@ -40,12 +43,19 @@ the controller state needed for P, PD, or PID feedback.
 
 ```text
 left/right reflectance -> LineFollower -> MotionCommand -> Robot
-finish-bar reflectance -> main.py lap completion
+estimated Pose -> LapProgress ordered checkpoints
+finish-bar reflectance + checkpoints -> completed lap
 ```
+
+Missing reflectance reports `reflectance_unavailable`. Loss of both line
+signals requests zero motion immediately and reports `line_lost` after 0.4 s.
+The run has a 100 s limit. The `component_checks.py` examples load
+`LineFollower` from `line_follower.py` independently of its Run selector and
+check steering signs, command limits, and reset behavior.
 
 ## Complete the challenge
 
-1. Run **Test components** with the supplied implementation selected.
+1. Run **Test functions**. An unfinished `LineFollower` reports `NOT IMPLEMENTED`.
 2. Implement `LineFollower.update` in `line_follower.py`.
 3. Set `USE_STUDENT_LINE_FOLLOWER = True` in `course_setup.py` and rerun the check.
 4. Run virtually and compare left/right reflectance and line error in Monitor.
@@ -65,19 +75,7 @@ and controller gains in `robot_config.py`. The virtual geometry is a useful
 starting point, not evidence of physical calibration.
 
 Success is one confirmed return across the finish bar without losing the line.
-
-
-## Qualified finish and stopped failure results
-
-The finish bar counts only after four ordered odometry checkpoints from
-lap_progress.py. Immediate back-and-forth crossings cannot count as a circuit.
-The line follower still uses only local reflectance for steering. Physical lap
-judging independently verifies the route: estimated pose is not ground truth.
-Change the checkpoints when changing world.json circuit geometry.
-
-Missing reflectance reports reflectance_unavailable. Losing both signals commands
-zero immediately and reports line_lost after 0.4 s; the full run is bounded to
-100 s. Reposition only after Stop. Test components now exercises LineFollower
-from the student file regardless of its Run selector; NOT IMPLEMENTED is expected
-until that file is completed. It checks signs, limits and reset as well as the
-centered example.
+Immediate back-and-forth crossings do not count as a circuit. Physical lap
+judging independently verifies the route because estimated pose is not ground
+truth. Change the checkpoints in `lap_progress.py` when changing circuit
+geometry in `world.json`. Reposition only after **Stop**.

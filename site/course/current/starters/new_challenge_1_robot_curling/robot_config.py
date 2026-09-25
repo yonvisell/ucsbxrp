@@ -4,6 +4,7 @@ from ucsb_xrp import RobotConfig
 
 
 # Example virtual settings; measure these quantities for a physical XRP.
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,

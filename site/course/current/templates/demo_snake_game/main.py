@@ -7,18 +7,22 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, navigation_config_for_
 from snake_game import SnakeGame
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 game = SnakeGame(WORLD)
 last_speed_mm_s = NAVIGATION_CONFIG.cruise_speed_mm_s
 
 try:
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     publish_scene_config(WORLD)
     publish_game(game)
+    # Choose the current food goal until a wall, obstacle, tail, or win ends play.
     while game.phase == "playing":
         goal = game.current_food()
         navigation.start((goal,))
+        # Retarget only after this food is reached or a terminal condition occurs.
         while game.phase == "playing" and game.current_food() is goal:
             if SPEED_MM_S.value != last_speed_mm_s:
                 last_speed_mm_s = SPEED_MM_S.value

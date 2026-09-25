@@ -6,6 +6,8 @@ from ucsb_xrp import MotionCommand, ReflectanceReadings
 def check_line_follower():
     follower = LineFollower(LINE_FOLLOWER_SETTINGS)
     try:
+        # Reset between opposite offsets so retained derivative state does not
+        # reverse the sign expected from the current sensor pair.
         follower.reset()
         centered = follower.update(ReflectanceReadings(0.6, 0.6), 0.02)
         left = follower.update(ReflectanceReadings(0.8, 0.2), 0.04)

@@ -4,7 +4,7 @@ The XRP drives toward an obstacle, reverses briefly, turns, and drives forward
 again. **Run** starts the demonstration; press **Stop** when finished.
 
 The initial settings stop the approach at a forward ultrasound distance of
-240 mm (60% of the former 400 mm), reverse for 0.4 s, and choose a rotation
+240 mm, reverse for 0.4 s, and choose a rotation
 between 70 and 160 degrees.
 A fixed random seed repeats the same sequence of turn choices on each run.
 Watch the phase, distance and number of turns under **Program watches**.

@@ -16,12 +16,14 @@ def run_challenge():
     robot = make_robot(ROBOT_CONFIG)
     straight = StraightLineController(STRAIGHT_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         start_time_ms = state.measurements.time_ms
         straight.start(state.measurements, TRAVEL_DISTANCE_MM)
         maximum_steps = max(1, int(MAX_RUN_TIME_S * 1000.0 / ROBOT_CONFIG.sample_period_ms))
         step_count = 0
 
+        # Continue from measured wheel travel until the distance controller completes.
         while not straight.is_complete():
             if step_count >= maximum_steps:
                 message = (

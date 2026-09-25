@@ -73,6 +73,7 @@ def _check_drawing():
                     raise AssertionError("corners must use the requested angle")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     checks = (
         ("1 · measured straight segment", _check_straight_segment),

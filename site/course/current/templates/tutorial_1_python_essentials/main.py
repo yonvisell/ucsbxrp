@@ -9,6 +9,7 @@ from student_work import (
 )
 
 
+# Check the functions before printing the worked examples.
 if run_exercise_checks():
     print("\nCompleted-function examples")
     print("average speed:", average_speed_mm_s(300.0, 2.0), "mm/s")

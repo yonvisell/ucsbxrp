@@ -5,6 +5,7 @@ from ucsb_xrp import DeliveryTask, load_world
 
 # WORLD is the case selected in the Monitor. It determines the virtual range
 # measurement and the start and destination shown to the student.
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 
 # Both cases use one dimensioned mission map. The gate-blocked entry defines

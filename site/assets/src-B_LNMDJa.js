@@ -4,12 +4,13 @@ import{t as e}from"./project_catalog-BeH83WxD.js";function t(e){let t=new TextEn
 `).split(`
 `).map(e=>Pe(e,Ee));for(;t[0]===``;)t.shift();for(;t.at(-1)===``;)t.pop();if(t.length<=128)return t;let n=t.length-63-64;return[...t.slice(0,63),`… [${n} traceback lines omitted]`,...t.slice(-64)]}function Ie(e){let t=e.trim().replaceAll(`\\`,`/`);if(!(t.startsWith(`<`)&&t.endsWith(`>`))){if(t.startsWith(`/project/`))t=t.slice(9);else if(t.startsWith(`project/`))t=t.slice(8);else if(t.startsWith(`./`))t=t.slice(2);else if(t.startsWith(`/`)||/^[A-Za-z]:\//.test(t))return;if(t=t.replace(/^\/+|\/+$/g,``),!(t.length===0||t.length>160||!Oe.test(t)||t.split(`/`).some(e=>e===``||e===`.`||e===`..`)))return t}}function Le(e){if(!e)return;let t=new Set;for(let n of e){let e=Ie(n);e&&t.add(e)}return t}function Re(e,t){let n=Ie(e);if(n&&!(t&&!t.has(n)))return n}function ze(e){return e.map(e=>e.replace(Me,``)).filter(e=>e.trim().length>0)}function Be(e){return e.split(`
 `).filter(e=>!/^\s*File "<stdin>", line \d+(?:, in .*)?\s*$/.test(e)).join(`
-`).trim()}function E(e,t={}){let n=Be(String(e)),r=Fe(n),i=ze(r);if(i.length===0)return[];let a=Le(t.projectPaths),o,s,c;for(let e of i){let t=ke.exec(e);if(!t)continue;let n=Re(t[1]??``,a);n&&(o=n,s=Ne(t[2],Ce),c=1)}let l=t.code?.trim()||void 0,u=i.at(-1)?.trim()??n,d=Ae.exec(u);d&&(l=d[1],u=d[2]?.trim()||d[1]||u);let f=je.exec(u);if(f){let e=Re(f[1]??``,a);e&&(o=e,s=Ne(f[2],Ce),c=Ne(f[3],we)),u=f[4]?.trim()||u}if(o===void 0&&s===void 0&&d===null&&l===void 0)return[];let p=s===void 0?void 0:{line:s,column:c??1},m=p?{line:p.line,column:Math.min(we,p.column+1)}:void 0;return[{source:`micropython`,phase:t.phase??`compile`,severity:`error`,...l?{code:Pe(l,De)}:{},message:Pe(u||`MicroPython reported an error`,Te),...o?{path:o}:{},...p?{start:p,end:m}:{},raw:r}]}var Ve=2147483647,He=Object.freeze({revision:0,parameters:[],watches:[],plots:[]});function Ue(e,t){if(e.kind===`number`){if(typeof t!=`number`||!Number.isFinite(t)||e.minimum===void 0||e.maximum===void 0||e.step===void 0||e.step<=0||t<e.minimum||t>e.maximum)throw Error(`${e.label} is outside its declared range`);let n=Math.round((t-e.minimum)/e.step);if(n<0||n>Ve)throw Error(`${e.label} declares too many steps`);return n}if(e.kind===`toggle`){if(typeof t!=`boolean`)throw Error(`${e.label} must be on or off`);return+!!t}if(typeof t!=`string`||!e.options?.includes(t))throw Error(`${e.label} is not one of its declared choices`);return e.options.indexOf(t)}function We(e){if(e.length>32768)throw Error(`Student runtime state is malformed`);let t=JSON.parse(e),n=t?.plots??[];if(typeof t!=`object`||!t||!Number.isInteger(t.revision)||(t.revision??-1)<0||!Array.isArray(t.parameters)||!Array.isArray(t.watches)||!Array.isArray(n)||t.parameters.length>16||t.watches.length>16||n.length>16||!t.parameters.every(Ge)||!t.watches.every(Ke)||!n.every(qe)||new Set(t.parameters.map(e=>e.name)).size!==t.parameters.length||new Set(t.watches.map(e=>e.name)).size!==t.watches.length||new Set(n.map(e=>e.name)).size!==n.length)throw Error(`Student runtime state is malformed`);return{...t,plots:n}}function D(e){return typeof e==`boolean`||typeof e==`string`&&e.length<=64||typeof e==`number`&&Number.isFinite(e)}function O(e){return typeof e==`string`&&e.length>0&&e.length<=80}function k(e){return typeof e==`string`&&e.length>0&&e.length<=32&&/^[A-Za-z_][A-Za-z0-9_]*$/.test(e)}function A(e){return e===void 0||typeof e==`string`&&e.length<=24}function Ge(e){if(typeof e!=`object`||!e)return!1;let t=e;if(!k(t.name)||!O(t.label)||!A(t.unit)||![`number`,`toggle`,`choice`].includes(t.kind??``)||!D(t.value)||t.pendingValue!==void 0&&!D(t.pendingValue)||t.kind===`number`&&(typeof t.minimum!=`number`||!Number.isFinite(t.minimum)||typeof t.maximum!=`number`||!Number.isFinite(t.maximum)||typeof t.step!=`number`||!Number.isFinite(t.step)||t.maximum<=t.minimum||t.step<=0||t.step>t.maximum-t.minimum||Math.round((t.maximum-t.minimum)/t.step)>Ve)||t.kind===`choice`&&(!Array.isArray(t.options)||t.options.length<2||t.options.length>6||t.options.some(e=>typeof e!=`string`||e.length>24)||new Set(t.options).size!==t.options.length))return!1;try{t.pendingValue!==void 0&&Ue(t,t.pendingValue),Ue(t,t.value)}catch{return!1}return!0}function Ke(e){if(typeof e!=`object`||!e)return!1;let t=e;return k(t.name)&&O(t.label)&&A(t.unit)&&D(t.value)}function qe(e){if(typeof e!=`object`||!e)return!1;let t=e;return k(t.name)&&O(t.label)&&A(t.unit)&&typeof t.value==`number`&&Number.isFinite(t.value)}function j(){throw Error(`Sample plot values or descriptors are malformed`)}function M(e){return We(JSON.stringify({revision:0,parameters:[],watches:[],plots:e})).plots}function Je(e,t,n){if(e===void 0||e===null&&n===0)return null;(!Array.isArray(e)||e.length!==n)&&j();let r=null;return t!==void 0&&((!Array.isArray(t)||t.length>256)&&j(),r=t.map(e=>((!e||typeof e!=`object`||Array.isArray(e))&&j(),M([{...e,value:0}])[0]))),e.map(e=>e===null?[]:((!Array.isArray(e)||e.length>16)&&j(),r!==null&&e.every(Array.isArray)?M(e.map(e=>((e.length!==2||!Number.isSafeInteger(e[0])||e[0]<0||e[0]>=r.length||typeof e[1]!=`number`||!Number.isFinite(e[1]))&&j(),{...r[e[0]],value:e[1]}))):M(e)))}var Ye=[`rawDeviceTimeMs`,`acquiredAtMs`,`acquisitionSeq`,`rangeAcquiredAtMs`,`rangeSeq`,`diagnosticsAcquiredAtMs`,`diagnosticsSeq`,`rawLeftEncoderCount`,`rawRightEncoderCount`,`rawRangeMm`,`publishedAtMs`,`sampleDtMs`,`samplePeriodMs`,`overrunMs`];function N(e,t){if(e==null)return;if(!Array.isArray(e)||e.length!==16||t.length>200)throw Error(`Invalid telemetry timing record`);let n={version:1,clockId:t,clockBasis:`first-acquisition`};if(Ye.forEach((t,r)=>{let i=e[r];if(i!==null&&(typeof i!=`number`||!Number.isFinite(i)))throw Error(`Invalid timing ${t}`);if(i!==null&&![`rawLeftEncoderCount`,`rawRightEncoderCount`].includes(t)&&i<0)throw Error(`Negative timing ${t}`);if([`rawDeviceTimeMs`,`acquisitionSeq`,`rangeSeq`,`diagnosticsSeq`,`rawLeftEncoderCount`,`rawRightEncoderCount`].includes(t)&&i!==null&&!Number.isSafeInteger(i))throw Error(`Invalid integer ${t}`);n[t]=i}),![`raw`,`course`,`stop`].includes(e[14]))throw Error(`Invalid timing kind`);if(n.kind=e[14],typeof e[15]!=`boolean`)throw Error(`Invalid range sampling flag`);return n.rangeSampled=e[15],n}function Xe(e,t,n,r){if(t!==void 0&&(!Array.isArray(t)||t.length!==e.length))throw Error(`Unaligned telemetry timing`);if(n!==void 0&&(!Array.isArray(n)||n.length!==e.length))throw Error(`Unaligned telemetry diagnostics`);return e.map((e,i)=>{let a=Array.isArray(t)?N(t[i],r):e.timing,o=Array.isArray(n)?n[i]:void 0;return o==null?{...e,...a?{timing:a}:{}}:{...e,...a?{timing:a}:{},...Ze(o)}})}function Ze(e){if(!Array.isArray(e)||e.length!==5)throw Error(`Invalid telemetry diagnostics`);let t=e=>{if(e===null)return null;if(!Array.isArray(e)||e.length!==3||e.some(e=>typeof e!=`number`||!Number.isFinite(e)))throw Error(`Invalid diagnostics vector`);return[...e]};if(e.slice(2,4).some(e=>e!==null&&(typeof e!=`number`||!Number.isFinite(e))))throw Error(`Invalid diagnostics value`);if(e[4]!==null&&(typeof e[4]!=`string`||e[4].length>512))throw Error(`Invalid diagnostics error`);return{accelerationMg:t(e[0]),angularRateMdps:t(e[1]),temperatureC:e[2],batteryV:e[3],sensorError:e[4]}}var Qe=5e3,P={schema_version:2,release_id:`2026.09-dev.53`,release_sequence:53,status:`development`,application_version:`0.1.0`,course_api_revision:`0.6-draft`,service:{version:`0.1.0`,protocol_version:1,protocol_revision:5,bootstrap_version:1},compatibility:{minimum_robot_release_sequence:53},controller:{id:`sparkfun-xrp-controller-rp2350`,usb_vid:`0x1B4F`,usb_pid:`0x0046`},micropython:{version:`1.29.0`,board:`SPARKFUN_XRP_CONTROLLER`,asset:`SPARKFUN_XRP_CONTROLLER-20260824-v1.29.0.uf2`,source_url:`https://micropython.org/resources/firmware/SPARKFUN_XRP_CONTROLLER-20260824-v1.29.0.uf2`,byte_size:1787904,sha256:`8a1547159764a9f3a0a94ba078f64b21124f540571a6004ce19981dcda6dc590`,git_blob_sha1:`957fbeb69d0450d34dfa86dabfefa6aa1656387a`},xrplib:{version:`2026.07.1`,tag:`V2026.07.1`,source_commit:`55abed4e219e061d32dd190199bc42d9a1b45366`},upstream_manifest:{repository:`Open-STEM/XRP_Firmware`,commit:`1914fd636d1d06425cdbec88ae4b998844d1501a`},ucsb_xrp:{version:`0.6.0-dev`,source_hash_algorithm:`sha256-file-manifest-v1`,source_file_count:19,source_sha256:`cf19397b18ede061d90b89c657bcfab36a602b15d054bec6b86faa50910bab6d`,reference_compiler:{commit:`e0e9fbb17ed6fd06bb76e266ae554784c9c80804`,portable_abi:774,repository:`micropython/micropython`,tag:`v1.28.0`,version_output:`MicroPython v1.28.0; mpy-cross emitting mpy v6.3`},reference_artifacts:[{byte_size:383,path:`reference_mpy/ucsb_xrp_reference/__init__.mpy`,sha256:`658e3c0f1d6f8da4c75821c1775d6ea4a141933d4101c4b30b2b6250534dca77`,source:`reference_source/ucsb_xrp_reference/__init__.py`,source_sha256:`86cac2729c7191b197f4ff8d1a984f04607c6bec03b919bdf758e8c03c99daee`},{byte_size:3298,path:`reference_mpy/ucsb_xrp_reference/challenge_1.mpy`,sha256:`a79724a39bc13f8abd6243c6726f888c61956b58fea2b88ebdd868a8d1480b51`,source:`reference_source/ucsb_xrp_reference/challenge_1.py`,source_sha256:`3c7c7c2a0dfd200c293939b8ea3e0b4a0127aefdbb645f004d1b32af36eea375`},{byte_size:1155,path:`reference_mpy/ucsb_xrp_reference/challenge_2.mpy`,sha256:`6c019f49d85c454e03c3fd4daf66837140e5b20de32a057dbbd6cc18fed480aa`,source:`reference_source/ucsb_xrp_reference/challenge_2.py`,source_sha256:`429e94f49aa21b5aad471ba621d96d6b3c84189c59337f457382ec3ae9154d8b`},{byte_size:1380,path:`reference_mpy/ucsb_xrp_reference/challenge_3.mpy`,sha256:`a0fa0e3ffa7296e4378cd315d6cd173caa1deb31ead87957b0421153200f54ea`,source:`reference_source/ucsb_xrp_reference/challenge_3.py`,source_sha256:`f55234c0679cefb34865bf236d5097f3c7e6673be40ebfff136d004512b99008`},{byte_size:639,path:`reference_mpy/ucsb_xrp_reference/challenge_4.mpy`,sha256:`6498a5593c1f96741e37fb5acabdae0e6623e52da0d5495c2ff9843be3eb69eb`,source:`reference_source/ucsb_xrp_reference/challenge_4.py`,source_sha256:`db710b214816df7dc91861e8734043c4b3600bd6cfcac3a53ea645d0e9d7e4fd`},{byte_size:799,path:`reference_mpy/ucsb_xrp_reference/challenge_6.mpy`,sha256:`0f938c29af9916d0d09cc695b2c00c4bbb9a91eaf8fd7f2b2fbfabbfec94681f`,source:`reference_source/ucsb_xrp_reference/challenge_6.py`,source_sha256:`f196c5d18050b05b553a00c977408b14db361c6272c4f27ef406bf78481e0653`},{byte_size:1261,path:`reference_mpy/ucsb_xrp_reference/challenge_7.mpy`,sha256:`4a0d3956290f81d7e7db80bdbe77e2025e20218a630bfd4462fd8d5c267552be`,source:`reference_source/ucsb_xrp_reference/challenge_7.py`,source_sha256:`f0ac35b3271f3784b7e5c10c986ec26e098b449f55b1f438826b4ccc3e587ea3`},{byte_size:1399,path:`reference_mpy/ucsb_xrp_reference/challenge_8.mpy`,sha256:`b8fe42140d4716526179402017446dadb54fc626725f145c12c17c8fddbb0c0f`,source:`reference_source/ucsb_xrp_reference/challenge_8.py`,source_sha256:`b0834141908c190ff6a624c47f4a23abe2e1684bf6049d280e46b620a90a8e49`},{byte_size:734,path:`reference_mpy/ucsb_xrp_reference/challenge_9.mpy`,sha256:`163c222e31dd0482998d15ed3f95a2b77963c0b219a83d6bfe71b6be8dff5406`,source:`reference_source/ucsb_xrp_reference/challenge_9.py`,source_sha256:`16867f0c79fc2c017ceef2a6ef428cb6f3a5bcf77e4cddf7a9bace4081d4c590`}]}},$e=P.release_id;P.release_sequence;var et=P.compatibility.minimum_robot_release_sequence,tt=P.service.protocol_version,nt=P.service.protocol_revision,rt=P.course_api_revision,it=P.service.version,F=class extends Error{code;context;constructor(e,t,n={}){super(t),this.code=e,this.context=n,this.name=`PhysicalTargetError`}};function at(e,t){let n=e=>e instanceof F?e.code===`robot_identity_mismatch`||e.code===`robot_identity_missing`?1:e.code===`network_error`||e.code===`timeout`?0:2:0;return n(t)>=n(e)?t:e}function I(e){let t=/^https?:\/\//i.test(e.trim())?e.trim():`http://${e.trim()}`,n=new URL(t);if(n.protocol!==`http:`&&n.protocol!==`https:`)throw Error(`Physical XRP address must use HTTP or HTTPS`);return n.pathname=n.pathname.replace(/\/+$/,``),n.search=``,n.hash=``,n.toString().replace(/\/$/,``)}function L(e,t,n=globalThis.location===void 0?void 0:globalThis.location.protocol){return n===`https:`&&new URL(e).protocol===`http:`?{...t,targetAddressSpace:`local`}:{...t}}function R(e){return e instanceof Error?e.message:String(e)}function z(){return typeof globalThis.performance?.now==`function`?globalThis.performance.now():Date.now()}function B(e){return`Run and telemetry use Wi-Fi. The computer and XRP must use the network selected during First robot setup. If they are already on that network, select Reconnect. Browser detail: ${e} was not reachable; Chrome must be allowed to access devices on the local network.`}var ot=500,st=18e3,ct=2,lt=900,ut=20,dt=`row-v1`,ft=24,V=`packed-v1`,pt=24,mt=8,ht=36,gt=2048,_t=65536,vt=75,yt=[85,88,84,49];function H(e){throw new F(`invalid_telemetry`,`XRP returned invalid compact telemetry: ${e}`)}function U(e,t){return(typeof e!=`number`||!Number.isFinite(e))&&H(`${t} is not a finite number`),e}function W(e,t){return e===null?null:U(e,t)}function bt(e,t){return e===null?null:((!Array.isArray(e)||e.length!==3)&&H(`${t} is not a three-axis vector`),[U(e[0],`${t}[0]`),U(e[1],`${t}[1]`),U(e[2],`${t}[2]`)])}function xt(e,t){(!Array.isArray(e)||e.length!==20)&&H(`row-v1 requires exactly 20 row values`),(!Array.isArray(t)||t.length!==5)&&H(`row-v1 requires exactly five shared values`);let n=e[2],r=e[19],i=t[4];typeof n!=`boolean`&&H(`poseAvailable is not boolean`),typeof r!=`boolean`&&H(`buttonPressed is not boolean`),i!==null&&typeof i!=`string`&&H(`sensorError is not text or null`);let a=U(e[3],`xMm`),o=U(e[4],`yMm`),s=U(e[5],`headingRad`),c=U(e[1],`seq`);return(!Number.isSafeInteger(c)||c<0)&&H(`seq is not a nonnegative safe integer`),{tMs:U(e[0],`tMs`),seq:c,source:`physical`,poseAvailable:n,xMm:a,yMm:o,headingRad:s,estimatedPoseAvailable:n,estimatedXmm:n?a:null,estimatedYmm:n?o:null,estimatedHeadingRad:n?s:null,groundTruthPoseAvailable:!1,groundTruthXmm:null,groundTruthYmm:null,groundTruthHeadingRad:null,requestedForwardSpeedMmS:W(e[6],`requestedForwardSpeedMmS`),requestedTurnRateRadS:W(e[7],`requestedTurnRateRadS`),targetLeftWheelSpeedMmS:W(e[8],`targetLeftWheelSpeedMmS`),targetRightWheelSpeedMmS:W(e[9],`targetRightWheelSpeedMmS`),leftEffort:U(e[10],`leftEffort`),rightEffort:U(e[11],`rightEffort`),leftWheelSpeedMmS:U(e[12],`leftWheelSpeedMmS`),rightWheelSpeedMmS:U(e[13],`rightWheelSpeedMmS`),leftWheelDistanceMm:W(e[14],`leftWheelDistanceMm`),rightWheelDistanceMm:W(e[15],`rightWheelDistanceMm`),leftEncoderCount:U(e[16],`leftEncoderCount`),rightEncoderCount:U(e[17],`rightEncoderCount`),collision:!1,rangeMm:W(e[18],`rangeMm`),buttonPressed:r,accelerationMg:bt(t[0],`accelerationMg`),angularRateMdps:bt(t[1],`angularRateMdps`),temperatureC:W(t[2],`temperatureC`),batteryV:W(t[3],`batteryV`),sensorError:i}}function St(e,t,n){let r=e.getUint8(t);return r!==0&&r!==1&&H(`${n} is not boolean`),r===1}function G(e,t,n,r){return t&1<<n?(e!==0&&H(`${r} null sentinel is not canonical`),null):e}function Ct(e){let t=new Uint8Array(e);t.byteLength<mt&&H(`packed-v1 header is truncated`);for(let e=0;e<yt.length;e+=1)t[e]!==yt[e]&&H(`packed-v1 magic is invalid`);let n=new DataView(e),r=n.getUint32(4,!0);r>_t&&H(`packed-v1 metadata is too large`);let i=mt+r;i>t.byteLength&&H(`packed-v1 metadata is truncated`);let a;try{a=JSON.parse(new TextDecoder(`utf-8`,{fatal:!0}).decode(t.subarray(mt,i)))}catch{H(`packed-v1 metadata is not valid JSON`)}(typeof a!=`object`||!a||Array.isArray(a))&&H(`packed-v1 metadata is not an object`);let o=a;o.sampleEncoding!==void 0&&o.sampleEncoding!==V&&H(`packed-v1 metadata has the wrong encoding`),o.sampleCount!==void 0&&o.n!==void 0&&o.sampleCount!==o.n&&H(`packed-v1 sample counts disagree`);let s=o.sampleCount??o.n;if((!Number.isSafeInteger(s)||s<0||s>pt)&&H(`packed-v1 sampleCount must be 0 to ${pt}`),o.m!==void 0&&(o.m!==0&&o.m!==1&&H(`packed-v1 more-samples flag is invalid`),o.moreSamples!==void 0&&o.moreSamples!==(o.m===1)&&H(`packed-v1 more-samples values disagree`),o.moreSamples=o.m===1),o.s!==void 0){let e=[`ready`,`loading`,`running`,`error`];(!Number.isSafeInteger(o.s)||e[o.s]===void 0)&&H(`packed-v1 state code is invalid`),o.state!==void 0&&o.state!==e[o.s]&&H(`packed-v1 state values disagree`),o.state=e[o.s]}o.r!==void 0&&((!Number.isSafeInteger(o.r)||o.r<0)&&H(`packed-v1 run ID is invalid`),o.runId!==void 0&&o.runId!==o.r&&H(`packed-v1 run IDs disagree`),o.runId=o.r);let c=i,l;if(s>0){t.byteLength<c+ht&&H(`packed-v1 shared diagnostics are truncated`);let e=n.getUint16(c,!0);e&-512&&H(`packed-v1 shared null mask has unsupported bits`);let r=e&7,i=e&56;r!==0&&r!==7&&H(`packed-v1 acceleration null mask is partial`),i!==0&&i!==56&&H(`packed-v1 angular-rate null mask is partial`);let a=Array.from({length:8},(t,r)=>G(n.getFloat32(c+2+r*4,!0),e,r,`shared[${r}]`)),o=n.getUint16(c+34,!0);o>gt&&H(`packed-v1 sensor error is too large`);let s=c+ht,u=s+o;u>t.byteLength&&H(`packed-v1 sensor error is truncated`);let d=!!(e&256);d&&o!==0&&H(`packed-v1 null sensor error has text`);let f=null;if(!d)try{f=new TextDecoder(`utf-8`,{fatal:!0}).decode(t.subarray(s,u))}catch{H(`packed-v1 sensor error is not valid UTF-8`)}l=[r===0?[a[0],a[1],a[2]]:null,i===0?[a[3],a[4],a[5]]:null,a[6],a[7],f],c=u}let u=c+s*vt;t.byteLength!==u&&H(`packed-v1 row bytes do not match sampleCount`);let d=[];for(let t=0;t<s;t+=1){let n=c+t*vt,r=new DataView(e,n,vt),i=r.getUint8(9);i&128&&H(`packed-v1 null mask has unsupported bits`);let a=Array.from({length:13},(e,t)=>r.getFloat32(10+t*4,!0));d.push(xt([r.getUint32(0,!0),r.getUint32(4,!0),St(r,8,`poseAvailable`),a[0],a[1],a[2],G(a[3],i,0,`requestedForwardSpeedMmS`),G(a[4],i,1,`requestedTurnRateRadS`),G(a[5],i,2,`targetLeftWheelSpeedMmS`),G(a[6],i,3,`targetRightWheelSpeedMmS`),a[7],a[8],a[9],a[10],G(a[11],i,4,`leftWheelDistanceMm`),G(a[12],i,5,`rightWheelDistanceMm`),r.getInt32(62,!0),r.getInt32(66,!0),G(r.getFloat32(70,!0),i,6,`rangeMm`),St(r,74,`buttonPressed`)],l))}for(let e=1;e<d.length;e+=1)d[e].seq<=d[e-1].seq&&H(`packed-v1 sequence values are not strictly increasing`);let f=o;return f.sampleEncoding=V,f.sampleCount=s,f.sampleShared=l,f.samples=d,f}function wt(e){let t=e.firmware;if(t?.implementation!==`micropython`||t.version!==P.micropython.version||t.board!==`SparkFun XRP Controller with RP2350`)throw new F(`firmware_required`,`This XRP needs the course MicroPython ${P.micropython.version} firmware for its RP2350 controller. Open First robot setup and update the robot over USB, then reconnect.`)}function Tt(e){if(e.protocol!==tt)throw new F(`protocol_mismatch`,`XRP protocol ${e.protocol} is not supported by this app`);if(typeof e.runtimeReleaseSequence!=`number`&&typeof e.courseApiRevision!=`string`&&typeof e.protocolRevision!=`number`){if(e.courseRelease===$e&&(e.serviceVersion===$e||e.serviceVersion===it)){wt(e);return}throw new F(`release_mismatch`,`This XRP has course release ${e.courseRelease} and service ${e.serviceVersion}; this web app requires ${$e}. Open First robot setup, update the robot, then reconnect.`)}if(typeof e.protocolRevision!=`number`||e.protocolRevision<nt)throw new F(`protocol_mismatch`,`This XRP reports protocol revision ${String(e.protocolRevision)}; this app requires revision ${nt} or later. Open First robot setup, update the robot, then reconnect.`);if(e.courseApiRevision!==rt)throw new F(`release_mismatch`,`This XRP uses course API ${String(e.courseApiRevision)}; this app uses ${rt}. Open First robot setup, update the robot, then reconnect.`);if(typeof e.runtimeReleaseSequence!=`number`||e.runtimeReleaseSequence<et)throw new F(`release_mismatch`,`This XRP has runtime ${e.runtimeRelease??e.courseRelease}; this app requires robot update ${et} or later. Open First robot setup, update the robot, then reconnect.`);wt(e)}function Et(e){return e?.trim().toLocaleLowerCase()||void 0}function K(e,t){let n=Et(t);if(!n)return;let r=Et(e.robotId);if(!r)throw new F(`robot_identity_missing`,`This XRP service cannot prove that it is the robot selected during setup. Open First robot setup, then reconnect.`);if(r!==n)throw new F(`robot_identity_mismatch`,`The reachable XRP is ${r}, but this browser is configured for ${n}. Select the intended robot or run First robot setup.`)}function Dt(e,t){K(e,t),Tt(e);let n=[`project.check`,`project.prepare`,`program.run`,`program.stop`,`target.reset`,`telemetry.poll`].filter(t=>!e.capabilities?.includes(t));if(n.length>0)throw new F(`capability_mismatch`,`XRP service is missing ${n.join(`, `)}`)}var Ot=class{kind=`physical`;endpoint;fetchImplementation;activePollIntervalMs;pollIntervalMs;requestTimeoutMs;connectTimeoutMs;expectedRobotId;pollCoordinatorGeneration;pollOwnerId;pollDrivenByVisibleClient;listeners=new Set;pollTimer=null;pollDueAtMs=null;pollInFlight=null;pollAbortController=null;pollGeneration=0;pollingPaused=!1;connected=!1;reconnecting=!1;pollConnectionFailed=!1;consecutivePollFailures=0;lastPackedUpdatesAtMs=null;connectGeneration=0;nextRequest=1;nextEvent=1;eventSession=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;lastLogSeq=0;lastLogDeviceRunId;lastSampleSeq=0;bootId=null;lastRunId=0;currentProject=null;stagedProject=null;stagedProjectId=null;projectStateKnown=!1;info=null;lastRuntimeJson=``;runtimeState=He;lastWorldJson=``;currentState=`disconnected`;currentDetail=`Physical XRP disconnected`;projectRunProvider=null;commandEpoch=0;controlSessionId=`browser-${typeof crypto.randomUUID==`function`?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`}`;control=null;currentRun=null;runOutputIdentity=null;pendingRunOutputIdentity=null;stagedRunDescriptor=null;unsettledLaunch=!1;pendingSnapshotCancels=new Set;pendingCommandCancels=new Set;commandsInFlight=new Set;pendingStop=null;collectingStoppedRun=!1;assertRunDataCollected(){if(this.collectingStoppedRun)throw new F(`run_data_pending`,`The program has stopped. Wait for its final run data to finish collecting before starting or preparing another project.`)}assertRunTelemetrySupported(){if(!this.connected)throw new F(`not_connected`,`Physical XRP is not connected`);if(this.info?.bootId!==this.bootId)throw new F(`boot_changed`,`The XRP restarted. Select Reconnect so UCSBXRP can check its current software before Run.`);if(!this.info?.capabilities.includes(`telemetry.packed-v1`))throw new F(`capability_mismatch`,`This XRP needs the current course software before Run can record data reliably. Open First robot setup, update the XRP over USB, then reconnect.`)}interruptPendingCommands(){this.commandEpoch+=1;for(let e of this.pendingSnapshotCancels)e();for(let e of this.pendingCommandCancels)e()}waitForCommand(e,t){return new Promise((n,r)=>{let i=!1,a=e=>{i||(i=!0,this.pendingCommandCancels.delete(o),e())},o=()=>a(()=>r(new F(`operation_cancelled`,`Operation cancelled by Stop, Reset, or disconnection`)));this.pendingCommandCancels.add(o),e.then(e=>a(()=>n(e)),e=>a(()=>r(e))),(t!==this.commandEpoch||!this.connected)&&o()})}assertCommandEpoch(e){if(e!==this.commandEpoch||!this.connected)throw new F(`operation_cancelled`,`Operation cancelled by Stop, Reset, or disconnection`)}async claimControl(){let e=this.commandEpoch;await this.pausePollingForCommand();try{this.assertCommandEpoch(e),await this.acquireControl(!0)}finally{this.resumePollingAfterCommand(0,e)}}async acquireControl(e){if(!this.info?.capabilities.includes(`control.session-v1`))return;let t=await this.command(`control`,{bootId:this.bootId,sessionId:this.controlSessionId,takeover:e});this.consumeControl(t.control)}consumeControl(e){e&&(this.control=e,this.publishControl())}publishControl(){if(!this.info?.capabilities.includes(`control.session-v1`))return;let e=this.control?.sessionId===this.controlSessionId,t=this.control?.sessionId!=null,n=this.currentState===`ready`||this.currentState===`error`;this.emit({type:`control`,owned:e,ownerPresent:t,canTakeover:!e&&n,detail:e?`This browser controls ${this.info.robotName}`:t?`Observing ${this.info.robotName}; another browser has control. Stop remains available.`:`${this.info.robotName} is available to control.`})}constructor(e,t={}){this.endpoint=I(e),this.fetchImplementation=t.fetch??((e,t)=>globalThis.fetch(e,t)),this.pollIntervalMs=t.pollIntervalMs??250,this.activePollIntervalMs=t.activePollIntervalMs??t.pollIntervalMs??ut,this.requestTimeoutMs=t.requestTimeoutMs??3e3,this.connectTimeoutMs=t.discoveryTimeoutMs??this.requestTimeoutMs,this.pollDrivenByVisibleClient=t.pollDrivenByVisibleClient===!0,this.expectedRobotId=Et(t.expectedRobotId);let n=t.pollCoordinatorGeneration;if(Number.isSafeInteger(n)&&n>0){this.pollCoordinatorGeneration=n;let e=t.pollOwnerId?.trim();this.pollOwnerId=(e||this.eventSession).slice(0,64)}}async connect(){if(this.connected)return;let e=this.connectGeneration+1;this.connectGeneration=e;let t=`connect-${e}`;this.emitConsole(`system`,`Connecting to ${this.endpoint}`,{action:`connect`,phase:`request`,requestId:t}),this.emitStatus(`connecting`,`Connecting to ${this.endpoint}`);let n;try{n=await this.getJson(`/api/v1/info`,this.connectTimeoutMs),Dt(n,this.expectedRobotId)}catch(n){if(e===this.connectGeneration){let e=R(n);this.emitConsole(`system`,`Connection failed · ${e}`,{action:`connect`,phase:`error`,requestId:t}),this.emitStatus(`error`,e)}throw n}if(e!==this.connectGeneration)return;this.reconcileReconnectedRun(n);let r=(this.collectingStoppedRun||this.currentRun!==null&&this.currentRun.finishedAtMs===void 0)&&this.bootId===n.bootId&&(n.runId===void 0||this.lastRunId===n.runId);this.info=n,this.bootId=n.bootId,this.lastRunId=n.runId??0,this.connected=!0,this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.consumeProjectManifest(n.project),this.consumeRuntimeState(n.runtimeJson),this.consumeControl(n.control);let i=r?null:await this.readInitialState(n);if(e!==this.connectGeneration)return;try{await this.acquireControl(!1)}catch(e){if(!(e instanceof F)||e.code!==`control_owned`)throw e}if(e!==this.connectGeneration)return;this.emitStatus(r?`loading`:i?.state??`ready`,r?this.collectingStoppedRun?`Program stopped; recovering final run data…`:`Reconnected; checking the program and collecting its remaining data…`:i?.detail??`${n.robotName} · ${this.connectionDescription(n)} · course ${n.courseRelease}`),this.emitConsole(`system`,`Connected to ${n.robotName} · ${this.connectionDescription(n)}`,{action:`connect`,phase:`result`,requestId:t}),this.emit({type:`project-provider`,active:this.projectRunProvider!==null,available:this.projectRunProvider!==null});let a=n.network?.mode,o=n.network?.address??n.address;(a===`access_point`||a===`station`)&&o&&this.emit({type:`physical-network`,mode:a,address:I(o),ssid:n.network?.ssid,...n.network?.requested_mode?{requestedMode:n.network.requested_mode}:{},...typeof n.network?.fallback==`boolean`?{fallback:n.network.fallback}:{},...n.robotId?{robotId:n.robotId}:{},...n.robotName?{hostname:n.robotName}:{}}),this.schedulePoll(0)}async readInitialState(e){if(!e.capabilities.includes(`logs.poll`)&&!e.capabilities.includes(`control.session-v1`))return null;try{let t=await this.getJson(`/api/v1/state?afterLogSeq=0`,Math.min(this.connectTimeoutMs,1500));if(t.bootId!==e.bootId)return null;let n=t.logs.reduce((e,t)=>Number.isSafeInteger(t.seq)&&(e===void 0||t.seq>e.seq)?t:e,void 0);this.lastLogSeq=n?.seq??0,this.lastLogDeviceRunId=Number.isSafeInteger(n?.runId)&&n?.runId>=0?n?.runId:void 0,this.lastRunId=t.runId;let r=t.sample??t.samples?.at(-1);return r&&Number.isSafeInteger(r.seq)&&(this.lastSampleSeq=r.seq,this.emitTelemetry(r)),this.consumeProjectManifest(t.project),this.consumeRuntimeState(t.runtimeJson),t}catch{return null}}disconnect(){this.interruptPendingCommands(),this.connectGeneration+=1,this.connected=!1,this.pollGeneration+=1,this.stopPolling(),this.abortActivePoll(),this.lastPackedUpdatesAtMs=null,this.emitStatus(`disconnected`,`Physical XRP disconnected`)}connectionDescription(e){let t=e.network?.mode,n=e.network?.ssid;if(t===`access_point`){let t=e.network?.fallback?` fallback`:``;return`${n??`robot hotspot`}${t} · ${e.address}`}return t===`station`?`${n??`existing Wi-Fi`} · ${e.address}`:e.address}async check(e){let t=this.commandEpoch,n=e.name?.trim()||e.entrypoint,r=T(e);if(r){let e=`web-${Date.now()}-${this.nextRequest++}`;return this.emitConsole(`system`,`Compile requested · ${n}`,{action:`validate`,phase:`request`,requestId:e}),this.emitConsole(`system`,`Compilation failed · ${r.message}`,{action:`validate`,phase:`error`,requestId:e}),{ok:!1,detail:r.message,compilerOutput:[r.message]}}await this.pausePollingForCommand();try{this.assertCommandEpoch(t);let r=await this.command(`check`,{project:e},{action:`validate`,label:`Compile`,detail:n});return{ok:!0,detail:r.detail,compilerOutput:[r.detail]}}catch(t){if(t instanceof F&&t.code===`syntax_error`)return{ok:!1,detail:t.message,compilerOutput:[t.message],diagnostics:E(t.message,{phase:`compile`,code:`syntax_error`,projectPaths:Object.keys(e.files)})};throw t}finally{this.resumePollingAfterCommand(0,t)}}async synchronize(e,t){this.assertRunDataCollected();let n=this.commandEpoch;if(this.currentState===`loading`||this.currentState===`running`)throw new F(`program_active`,`Stop the current run before preparing a Project.`);let r=T(e);if(r)throw this.emitConsole(`system`,`Prepare failed · ${r.message}`,{action:`prepare`,phase:`error`}),r;await this.pausePollingForCommand();try{this.assertCommandEpoch(n),await this.prepareWhilePollingPaused(e,{...await a(e),...t?{projectId:t}:{}}),this.stagedProjectId=t??null}finally{this.resumePollingAfterCommand(0,n)}}async run(e,t){this.assertRunDataCollected();let n=this.commandEpoch;w(e),this.assertRunTelemetrySupported();let r=t!==void 0&&t!==this.stagedProjectId;if(r&&(this.currentState===`loading`||this.currentState===`running`))throw new F(`program_active`,`Stop the current run before running a different Project.`);this.stagedProject=e,this.stagedProjectId=t??null;let i={...await a(e),...t?{projectId:t}:{}};this.assertCommandEpoch(n),this.stagedRunDescriptor={...i,...t?{projectId:t}:{}};let o=!1;await this.pausePollingForCommand();try{if(this.assertCommandEpoch(n),!this.currentProject||this.currentProject.stale||i.revision!==this.currentProject.revision||i.name!==this.currentProject.name||i.entrypoint!==this.currentProject.entrypoint){if(!this.info?.capabilities.includes(`project.run`))throw new F(`capability_mismatch`,`This XRP needs the current course software before it can run edited projects reliably. Open First robot setup, update the XRP, then reconnect.`);o=await this.prepareAndStartWhilePollingPaused(e,i)}else{if(this.setCurrentProject(i),r){let t=S(e);this.emit({type:`world`,catalog:t,selectedWorldId:t.defaultWorldId})}o=await this.startCurrentProjectWhilePollingPaused()}o&&this.emit({type:`compile-result`,projectId:t,projectRevision:i.revision,result:{ok:!0,detail:`The Project compiled on the physical XRP.`,compilerOutput:[`The Project compiled on the physical XRP.`],diagnostics:[]}})}catch(n){throw n instanceof F&&n.code===`syntax_error`&&this.emit({type:`compile-result`,projectId:t,projectRevision:i.revision,runId:n.context.requestId,result:{ok:!1,detail:n.message,compilerOutput:[n.message],diagnostics:E(n.message,{phase:`compile`,code:`syntax_error`,projectPaths:Object.keys(e.files)})}}),n}finally{this.resumePollingAfterCommand(o?ot:0,n)}}async runCurrent(){this.assertRunDataCollected(),this.assertRunTelemetrySupported();let e=this.commandEpoch;if(this.projectRunProvider){let t=this.projectRunProvider,n=await new Promise((e,n)=>{let r=!1,i=e=>{r||(r=!0,clearTimeout(o),this.pendingSnapshotCancels.delete(a),e())},a=()=>i(()=>n(Error(`Run cancelled before the IDE supplied its project.`))),o=setTimeout(()=>i(()=>n(Error(`The active IDE has not replied yet. Let its current operation finish, then try Run again. Its project remains selected.`))),Qe);this.pendingSnapshotCancels.add(a),Promise.resolve().then(t).then(t=>i(()=>e(t)),e=>i(()=>n(e)))});this.assertCommandEpoch(e),await this.run(n.project,n.projectId);return}if(this.stagedProject&&(!this.currentProject||this.currentProject.stale)){await this.run(this.stagedProject,this.stagedProjectId??void 0);return}if(!this.currentProject){let e=new F(`no_project`,`No project is ready. Run or prepare a project in the IDE first.`);throw this.emitConsole(`system`,`Run failed · ${e.message}`,{action:`run`,phase:`error`}),e}if(this.currentProject.stale){let e=new F(`stale_project`,`The IDE project has changed. Run or prepare it in the IDE first.`);throw this.emitConsole(`system`,`Run failed · ${e.message}`,{action:`run`,phase:`error`}),e}if(this.currentState===`loading`||this.currentState===`running`){this.emitConsole(`system`,`Run request ignored · program already active`,{action:`run`,phase:`result`});return}let t=!1;await this.pausePollingForCommand();try{this.assertCommandEpoch(e),this.stagedRunDescriptor=this.currentProject,t=await this.startCurrentProjectWhilePollingPaused()}finally{this.resumePollingAfterCommand(t?ot:0,e)}}async prepareWhilePollingPaused(e,t){this.assertRunDataCollected();let n=this.commandEpoch,r=t??await a(e);this.assertCommandEpoch(n);let i=S(e),o;try{if(o=await this.command(`prepare`,{project:e},{action:`prepare`,label:`Prepare`,detail:r.name},void 0,!0),o.project?.revision!==r.revision||o.project.lifetime!==`boot`)throw new F(`project_revision_mismatch`,`The XRP prepared a different project revision`)}catch(e){if(!(e instanceof F&&(e.code===`network_error`||e.code===`timeout`)))throw e;let t=await this.getJson(`/api/v1/info`,1500);if(this.assertCommandEpoch(n),Tt(t),K(t,this.expectedRobotId),t.bootId!==this.bootId)throw new F(`boot_changed`,`The XRP restarted while preparing. Reconnect before trying again.`);if(t.project?.revision!==r.revision)throw e;o={detail:`Project prepared`,project:{...t.project,revision:r.revision,lifetime:`boot`}},this.emitConsole(`system`,`Prepare verified · ${r.name} is ready in XRP memory`,{action:`prepare`,phase:`result`})}this.setCurrentProject({...r,revision:o.project.revision,name:o.project.name??r.name,entrypoint:o.project.entrypoint??r.entrypoint,stale:!1}),this.emitStatus(`ready`,o.detail),this.stagedProject=e,this.emit({type:`world`,catalog:i,selectedWorldId:i.defaultWorldId})}async startCurrentProjectWhilePollingPaused(){if(this.assertRunDataCollected(),!this.currentProject)throw new F(`no_project`,`No project is ready. Run or prepare a project in the IDE first.`);if(this.currentProject.stale)throw new F(`stale_project`,`The IDE project has changed. Run or prepare it in the IDE first.`);if(this.currentState===`loading`||this.currentState===`running`)return this.emitConsole(`system`,`Run request ignored · program already active`,{action:`run`,phase:`result`}),!1;let e=this.currentState;this.emitStatus(`loading`,`Starting ${this.currentProject.entrypoint}…`);try{let e=await this.command(`run`,{},{action:`run`,label:`Run`,detail:this.currentProject.name},void 0,!0);return e.runId!==this.lastRunId&&(this.lastSampleSeq=0),this.lastRunId=e.runId,this.bindRunOutputIdentity(e),this.unsettledLaunch=!1,this.emitStatus(`loading`,e.detail),!0}catch(t){throw t instanceof F&&t.code===`operation_cancelled`||(t instanceof F&&(t.code===`network_error`||t.code===`timeout`)?this.emitStatus(`error`,t.message):this.emitStatus(e,`Run failed · ${R(t)}`)),t}}async prepareAndStartWhilePollingPaused(e,t){if(this.assertRunDataCollected(),this.currentState===`loading`||this.currentState===`running`)return this.emitConsole(`system`,`Run request ignored · program already active`,{action:`run`,phase:`result`}),!1;let n=this.currentState;this.emitStatus(`loading`,`Compiling and starting ${t.entrypoint}…`);try{let n=await this.command(`run`,{project:e},{action:`run`,label:`Run`,detail:t.name},void 0,!0);if(n.project?.revision!==t.revision||n.project.lifetime!==`boot`)throw new F(`project_revision_mismatch`,`The XRP started a different project revision`);this.setCurrentProject({...t,revision:n.project.revision,name:n.project.name??t.name,entrypoint:n.project.entrypoint??t.entrypoint,stale:!1}),this.stagedProject=e;let r=S(e);return this.emit({type:`world`,catalog:r,selectedWorldId:r.defaultWorldId}),n.runId!==this.lastRunId&&(this.lastSampleSeq=0),this.lastRunId=n.runId,this.bindRunOutputIdentity(n),this.unsettledLaunch=!1,this.emitStatus(`loading`,`Starting ${t.entrypoint}`),!0}catch(e){throw e instanceof F&&e.code===`operation_cancelled`||(e instanceof F&&(e.code===`network_error`||e.code===`timeout`)?this.emitStatus(`error`,e.message):this.emitStatus(n,`Run failed · ${R(e)}`)),e}}async markProjectStale(e,t){let n=await a(e),r=this.currentProject?.stale===!1&&this.currentProject.revision===n.revision&&this.currentProject.name===n.name&&this.currentProject.entrypoint===n.entrypoint,i=t!==void 0&&t!==this.stagedProjectId,o=this.stagedProject===null||this.stagedProject.files[`world.json`]!==e.files[`world.json`]||i;if(o&&(this.currentState===`loading`||this.currentState===`running`))throw new F(`program_active`,`Stop the current run before opening a different Project or world.`);if(this.stagedProject=e,this.stagedProjectId=t??null,this.setCurrentProject({...n,...t?{projectId:t}:{},stale:!r}),o){let t=S(e);this.emit({type:`world`,catalog:t,selectedWorldId:t.defaultWorldId})}}setProjectRunProvider(e,t){this.projectRunProvider=e,this.connected&&this.emit({type:`project-provider`,active:e!==null,available:e!==null})}markProjectChanged(e){if((this.currentState===`loading`||this.currentState===`running`)&&(this.stagedProjectId===null||e.projectId!==this.stagedProjectId))return;let t=`ide:${e.projectId}:`;this.currentProject?.stale&&this.currentProject.revision===`${t}${e.revision}`&&this.currentProject.name===e.name&&this.currentProject.entrypoint===e.entrypoint||this.setCurrentProject({projectId:e.projectId,name:e.name,entrypoint:e.entrypoint,revision:`${t}${e.revision}`,stale:!0})}stop(){return this.pendingStop||=this.performStop().finally(()=>{this.pendingStop=null}),this.pendingStop}async performStop(){this.interruptPendingCommands();let e=this.commandEpoch;this.emitStatus(`loading`,this.unsettledLaunch?`Stop requested; resolving the pending Run…`:`Stop requested; checking the XRP…`),this.reconnecting=!0,await this.pausePollingForCommand(!1);try{await Promise.allSettled([...this.commandsInFlight]),await this.resolveUnsettledLaunch();let e=await this.command(`stop`,{},{action:`stop`,label:`Stop`},void 0,!0);e.reconnecting?(this.emitStatus(`connecting`,`${e.detail}; reconnecting…`),await this.reconnectAfterReset()):e.detail===`Program already stopped`&&this.lastRunId===0&&!this.currentRun?this.emitStatus(`ready`,e.detail):(this.emitStatus(`loading`,e.detail),await this.waitForProgramStop())}catch(t){if(e!==this.commandEpoch||!this.connected)throw t;if(t instanceof F&&(t.code===`network_error`||t.code===`timeout`)){this.emitConsole(`system`,`Stop reply was interrupted · checking XRP state`,{action:`stop`,phase:`error`}),this.emitStatus(`connecting`,`Stop reply was interrupted; checking the XRP…`);try{await this.recoverAfterInterruptedStop();return}catch(n){if(e!==this.commandEpoch||!this.connected)throw n;t=n}}throw this.emitConsole(`system`,`Stop recovery failed · ${R(t)}`,{action:`stop`,phase:`error`}),this.emitStatus(this.collectingStoppedRun?`loading`:`error`,R(t)),t}finally{e===this.commandEpoch&&(this.reconnecting=!1),this.resumePollingAfterCommand(0,e)}}async reset(){this.interruptPendingCommands();let e=this.commandEpoch;this.emitStatus(`loading`,this.commandsInFlight.size>0?`Reset requested; waiting for the pending XRP request to settle…`:`Reset requested; checking the XRP…`),this.reconnecting=!0,await this.pausePollingForCommand();try{await Promise.allSettled([...this.commandsInFlight]),await this.resolveUnsettledLaunch(),await this.acquireControl(!1),(this.lastRunId>0||this.currentRun&&this.currentRun.finishedAtMs===void 0)&&(this.emitStatus(`loading`,`Stopping the program and collecting final run data before Reset…`),(await this.command(`stop`,{},{action:`stop`,label:`Stop before Reset`},void 0,!0)).reconnecting?await this.reconnectAfterReset():await this.waitForProgramStop());let e=await this.command(`reset`,{},{action:`reset`,label:`Reset`});e.reconnecting?(this.emitStatus(`connecting`,`${e.detail}; reconnecting…`),await this.reconnectAfterReset()):(e.detail===`Program state reset`?this.emitStatus(`ready`,e.detail):(this.emitStatus(`loading`,e.detail),await this.waitForProgramStop()),this.lastSampleSeq=0)}catch(t){throw e!==this.commandEpoch||!this.connected?t:(this.emitConsole(`system`,`Reset recovery failed · ${R(t)}`,{action:`reset`,phase:`error`}),this.emitStatus(this.collectingStoppedRun?`loading`:`error`,R(t)),t)}finally{e===this.commandEpoch&&(this.reconnecting=!1),this.resumePollingAfterCommand(0,e)}}async setRuntimeParameter(e,t){let n=this.commandEpoch;if(!this.info?.capabilities.includes(`runtime.parameters`))throw new F(`capability_mismatch`,`This XRP service does not yet support live parameters`);await this.pausePollingForCommand();try{this.assertCommandEpoch(n);let r=await this.command(`parameter`,{name:e,value:t},{action:`parameter`,label:`Live parameter`,detail:e});this.consumeRuntimeState(r.runtimeJson)}finally{this.resumePollingAfterCommand(0,n)}}subscribe(e){return this.listeners.add(e),()=>this.listeners.delete(e)}command(e,t,n,r,i=!1){let a=this.performCommand(e,t,n,r,i);return this.commandsInFlight.add(a),a.finally(()=>this.commandsInFlight.delete(a))}async performCommand(e,t,n,r,i=!1){let a=this.commandEpoch;if(!this.connected)throw new F(`not_connected`,`Physical XRP is not connected`);e!==`control`&&e!==`stop`&&e!==`check`&&(await this.acquireControl(!1),this.assertCommandEpoch(a)),e===`run`&&this.assertRunTelemetrySupported();let o=`web-${this.eventSession}-${this.nextRequest++}`,s=this.bootId;n&&this.emitConsole(`system`,`${n.label} requested${n.detail?` · ${n.detail}`:``}`,{action:n.action,phase:`request`,requestId:o});try{let c=this.info?.capabilities.includes(`control.session-v1`)&&e!==`control`?{bootId:this.bootId,sessionId:this.controlSessionId,controlGeneration:this.control?.generation,runId:this.lastRunId,...e===`run`&&!t.project?{expectedProjectRevision:this.currentProject?.revision}:{}}:{},l=JSON.stringify({...t,...c,requestId:o}),u=this.info?.limits?.maxWorldBytes,d=t.project?.files[`world.json`];if(u!==void 0&&d!==void 0&&new TextEncoder().encode(d).byteLength>u)throw new F(`project_too_large`,`world.json exceeds this XRP's ${u}-byte limit. Simplify the world before running.`);let f=this.info?.limits?.maxRequestBodyBytes;if(f!==void 0&&new TextEncoder().encode(l).byteLength>f)throw new F(`project_too_large`,`This request exceeds the XRP's ${f}-byte limit. Remove unnecessary project files before running.`);let p=null;e===`run`&&(this.unsettledLaunch=!0);for(let t=0;t<(i?2:1);t+=1){this.assertCommandEpoch(a),e===`run`&&this.assertRunTelemetrySupported();try{let t=this.fetchJson(`/api/v1/${e}`,{method:`POST`,headers:{"Content-Type":`application/json`},body:l},this.requestTimeoutMs,r);p=e===`run`?await t:await this.waitForCommand(t,a),this.assertCommandEpoch(a);break}catch(e){if(this.assertCommandEpoch(a),!(e instanceof F&&(e.code===`network_error`||e.code===`timeout`))||!i||t>0)throw e;n&&this.emitConsole(`system`,`${n.label} reply interrupted · retrying the same request`,{action:n.action,phase:`request`,requestId:o})}}if(!p)throw new F(`network_error`,`The XRP did not return a ${e} reply`);if(p.requestId!==o)throw new F(`uncorrelated_reply`,`The XRP returned a reply for a different request`);if(!p.ok||!p.result)throw new F(p.error?.code??`target_error`,p.error?.detail??`The XRP rejected the request`,{requestId:o});if(e===`run`&&s&&`bootId`in c&&c.bootId===s&&this.bootId===s){let e=p.result;Number.isSafeInteger(e.runId)&&e.runId>0&&(this.pendingRunOutputIdentity={bootId:s,deviceRunId:e.runId,requestId:o,result:e,commandEpoch:a})}if(n){let e=p.result,t=typeof e.detail==`string`?e.detail:`accepted`;this.emitConsole(`system`,`${n.label} · ${t}`,{action:n.action,phase:`result`,requestId:o})}return p.result}catch(t){throw e===`run`&&t instanceof F&&t.code===`syntax_error`&&t.context.requestId!==o&&(t=new F(`uncorrelated_reply`,`The XRP returned a compiler result for an unknown or different request. Run the selected Project again.`)),n&&this.emitConsole(`system`,`${n.label} failed · ${R(t)}`,{action:n.action,phase:`error`,requestId:o}),t}}bindRunOutputIdentity(e){let t=this.pendingRunOutputIdentity;if(this.pendingRunOutputIdentity=null,t?.result===e&&t.commandEpoch===this.commandEpoch&&t.bootId===this.bootId&&t.requestId===this.currentRun?.runId){this.runOutputIdentity={bootId:t.bootId,deviceRunId:t.deviceRunId,requestId:t.requestId};let e={source:`physical`,clockId:`physical:${t.bootId}:${t.deviceRunId}`,firstSequence:1};this.currentRun={...this.currentRun,telemetryOrigin:e},this.emit({type:`telemetry-origin`,runId:t.requestId,origin:e})}}async getJson(e,t=this.requestTimeoutMs,n){return this.fetchJson(e,{method:`GET`},t,n)}async fetchJson(e,t,n=this.requestTimeoutMs,r){let i=r??new AbortController,a=setTimeout(()=>i.abort(),n);try{let n=await this.fetchImplementation(this.endpoint+e,{...L(this.endpoint,t),cache:`no-store`,signal:i.signal}),r=await n.json();if(!n.ok){let e=r,t=e?.error;throw new F(t?.code??`http_${n.status}`,t?.detail??`XRP request failed with HTTP ${n.status}`,typeof e.requestId==`string`?{requestId:e.requestId}:{})}return r}catch(e){throw e instanceof F?e:e instanceof DOMException&&e.name===`AbortError`?new F(`timeout`,`XRP did not reply within ${n/1e3} seconds. ${B(this.endpoint)}`):new F(`network_error`,`Cannot reach ${this.endpoint}: ${R(e)}. ${B(this.endpoint)}`)}finally{clearTimeout(a)}}schedulePoll(e=this.pollIntervalMs){if(this.stopPolling(),!this.connected||this.pollingPaused)return;let t=Math.max(0,e);if(this.pollDueAtMs=z()+t,this.pollDrivenByVisibleClient)return;let n=setTimeout(()=>{this.pollTimer===n&&(this.pollTimer=null,this.startScheduledPoll())},t);this.pollTimer=n}requestPollIfDue(){this.pollDueAtMs===null||z()<this.pollDueAtMs||this.startScheduledPoll()}startScheduledPoll(){if(!this.connected||this.pollingPaused||this.reconnecting||this.pollInFlight)return;this.stopPolling();let e=this.poll();this.pollInFlight=e,e.then(()=>{this.pollInFlight===e&&(this.pollInFlight=null)},()=>{this.pollInFlight===e&&(this.pollInFlight=null)})}stopPolling(){this.pollTimer!==null&&(clearTimeout(this.pollTimer),this.pollTimer=null),this.pollDueAtMs=null}abortActivePoll(){this.pollAbortController?.abort(),this.pollAbortController=null}async pausePollingForCommand(e=!0){let t=this.commandEpoch;this.pollingPaused=!0,this.pollGeneration+=1,this.stopPolling();let n=this.pollInFlight;n&&e&&await this.waitForCommand(n.catch(()=>void 0),t)}resumePollingAfterCommand(e=0,t=this.commandEpoch){t===this.commandEpoch&&(this.pollingPaused=!1,this.schedulePoll(e))}async poll(){if(!this.connected||this.reconnecting)return;let e=z(),t=this.pollGeneration,n=new AbortController;this.pollAbortController=n;try{let r=await this.readRecoverableState(this.requestTimeoutMs,()=>{if(!this.connected||this.reconnecting||t!==this.pollGeneration)throw new F(`operation_cancelled`,`An obsolete telemetry poll was cancelled`)},n);if(!this.connected||this.reconnecting||t!==this.pollGeneration)return;this.pollConnectionFailed&&(this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.emitConsole(`system`,`XRP connection restored`,{action:`telemetry`,phase:`result`})),this.consecutivePollFailures=0,this.consumeState(r);let i=r.moreLogs===!0||r.moreSamples===!0,a=r.state===`running`?this.activePollIntervalMs:this.pollIntervalMs,o=Math.max(0,z()-e);this.schedulePoll(i?0:Math.max(0,a-o))}catch(e){if(this.connected&&!this.reconnecting&&!this.pollingPaused&&t===this.pollGeneration){if(e instanceof F&&e.code===`telemetry_owner_active`){if(e.context.ownerGeneration===this.pollCoordinatorGeneration&&typeof e.context.leaseRemainingMs==`number`){let t=Math.max(0,e.context.leaseRemainingMs);this.pollConnectionFailed=!0,this.emitConsole(`system`,`A previous UCSBXRP page still owns telemetry; retrying automatically in at most ${t} ms`,{action:`telemetry`,phase:`error`}),this.emitStatus(`connecting`,`Waiting briefly for the previous page to release XRP telemetry…`),this.schedulePoll(t);return}this.pollConnectionFailed=!0,this.consecutivePollFailures=ct,this.emitConsole(`system`,`Telemetry paused · ${e.message}`,{action:`telemetry`,phase:`error`}),this.emitStatus(`error`,e.message);return}this.consecutivePollFailures+=1,this.pollConnectionFailed||(this.pollConnectionFailed=!0,this.emitConsole(`system`,`Telemetry connection interrupted · ${R(e)}`,{action:`telemetry`,phase:`error`})),this.consecutivePollFailures>=ct?this.emitStatus(this.collectingStoppedRun?`loading`:`error`,this.collectingStoppedRun?`Program stopped; final run data is still incomplete. Check the XRP connection and select Stop to retry collection.`:R(e)):(this.emitStatus(this.collectingStoppedRun?`loading`:`connecting`,this.collectingStoppedRun?`Program stopped; recovering final run data…`:`Telemetry was interrupted; reconnecting to the XRP…`),this.schedulePoll(lt))}}finally{this.pollAbortController===n&&(this.pollAbortController=null)}}telemetryPath(e,t,n){let r=`/api/v1/telemetry?afterLogSeq=${e}&afterSampleSeq=${t}`;if(n!==void 0&&(r+=`&runId=${n}`),this.info?.capabilities.includes(`telemetry.packed-v1`)){r+=`&sampleEncoding=${V}`;let e=z(),t=this.lastPackedUpdatesAtMs===null||e-this.lastPackedUpdatesAtMs>=this.pollIntervalMs;r+=`&includeUpdates=${t?`1`:`0`}`,t&&(this.lastPackedUpdatesAtMs=e)}else this.info?.capabilities.includes(`telemetry.compact-v1`)&&(r+=`&sampleEncoding=${dt}`);return this.pollCoordinatorGeneration!==void 0&&this.pollOwnerId!==void 0&&(r+=`&pollGeneration=${this.pollCoordinatorGeneration}`,r+=`&pollOwner=${encodeURIComponent(this.pollOwnerId)}`),this.info?.capabilities.includes(`control.session-v1`)&&(n===void 0&&(r+=`&runId=${this.lastRunId}`),r+=`&bootId=${encodeURIComponent(this.bootId??``)}&sessionId=${encodeURIComponent(this.controlSessionId)}&controlGeneration=${this.control?.generation??0}`),r}async readTelemetry(e,t,n){let r=this.info?.capabilities.includes(`telemetry.packed-v1`)?await this.getPackedTelemetry(e,t,n):await this.getJson(e,t,n);if(r.pollOwnership?.accepted===!1){let e=r.pollOwnership.ownerGeneration,t=r.pollOwnership.leaseRemainingMs;throw new F(`telemetry_owner_active`,`Another UCSBXRP page is coordinating this robot${e===null?``:` (poll generation ${e})`}. Close or reload older UCSBXRP pages, then select Reconnect${typeof t==`number`?`; takeover is available in at most ${t} ms`:``}.`,{ownerGeneration:e,...typeof t==`number`?{leaseRemainingMs:t}:{}})}let i=r;if(i.sampleEncoding===V){let t=r;if(!(typeof t.bootId==`string`&&(t.state===`ready`||t.state===`loading`||t.state===`running`||t.state===`error`)&&typeof t.detail==`string`&&Number.isSafeInteger(t.runId)&&t.runId>=0&&Array.isArray(t.logs))){let n=this.bootId??this.info?.bootId;(!e.includes(`includeUpdates=0`)||!n||t.state!==`running`||!Number.isSafeInteger(t.runId)||t.runId<1)&&H(`packed-v1 state metadata is incomplete`),i={...t,bootId:n,state:`running`,detail:this.currentState===`running`?this.currentDetail:`Program running`,runId:t.runId,logs:[]}}}if(i.sampleEncoding===dt){Array.isArray(i.sampleRows)||H(`encoding or rows are unsupported`),i.sampleRows.length>ft&&H(`row-v1 exceeds the ${ft}-row page limit`),i.sampleRows.length>0&&i.sampleShared===void 0&&H(`shared values are missing`);let e=i.sampleRows.map(e=>xt(e,i.sampleShared));for(let t=1;t<e.length;t+=1)e[t].seq<=e[t-1].seq&&H(`row-v1 sequence values are not strictly increasing`);i.samples=e}else i.sampleEncoding!==void 0&&i.sampleEncoding!==V&&H(`encoding is unsupported`);try{let e=Je(i.samplePlots,i.samplePlotDescriptors,i.samples?.length??0);e&&(i.samples=i.samples?.map((t,n)=>({...t,plotValues:e[n]})))}catch{H(`samplePlots contains invalid or unaligned plot values`)}try{let e=`physical:${i.bootId}:${i.runId}`;if(i.samples){let t=i.sampleTiming??i.samples.map(e=>e.timingValues??null);i.samples=Xe(i.samples,t,i.sampleDiagnostics,e)}if(i.sample){let t=N(i.sample.timingValues,e);t&&(i.sample={...i.sample,timing:t})}}catch{H(`sample timing or diagnostics are invalid or unaligned`)}return i}async getPackedTelemetry(e,t,n){let r=n??new AbortController,i=setTimeout(()=>r.abort(),t);try{let t=await this.fetchImplementation(this.endpoint+e,{...L(this.endpoint,{method:`GET`}),cache:`no-store`,signal:r.signal});if(!t.ok){let e={};try{e=await t.json()}catch{}throw new F(e.error?.code??`http_${t.status}`,e.error?.detail??`XRP request failed with HTTP ${t.status}`)}let n=Ct(await t.arrayBuffer());return typeof n.bootId==`string`&&(this.lastPackedUpdatesAtMs=z()),n}catch(e){throw e instanceof F?e:e instanceof DOMException&&e.name===`AbortError`?new F(`timeout`,`XRP did not reply within ${t/1e3} seconds. ${B(this.endpoint)}`):new F(`network_error`,`Cannot reach ${this.endpoint}: ${R(e)}. ${B(this.endpoint)}`)}finally{clearTimeout(i)}}consumeState(e,t=!0){let n=e.bootId!==this.bootId,r=e.runId!==this.lastRunId;(n||r)&&this.lastRunId>0&&this.currentRun&&this.currentRun.finishedAtMs===void 0&&this.emitStatus(`error`,`${n?`The XRP restarted`:`The XRP changed runs`} before its remaining data could be collected. This recording is incomplete.`,!0),this.runOutputIdentity&&(this.runOutputIdentity.bootId!==e.bootId||this.runOutputIdentity.deviceRunId!==e.runId)&&(this.runOutputIdentity=null),n&&(this.bootId=e.bootId,this.lastLogSeq=0,this.lastLogDeviceRunId=void 0),(n||r)&&(this.lastSampleSeq=0,this.collectingStoppedRun=!1),this.lastRunId=e.runId,this.consumeControl(e.control),this.consumeProjectManifest(e.project),this.consumeRuntimeState(e.runtimeJson);let i=e.state===`error`&&e.detail.toLowerCase().includes(`program stopped after an exception`),a=i?`ready`:e.state,o=e.samples!==void 0&&e.moreSamples===!1&&(a===`ready`||a===`error`),s=[];e.samples===void 0?e.sample&&(t&&this.emitTelemetry(e.sample),this.lastSampleSeq=e.sample.seq):(s=[...e.samples].sort((e,t)=>e.seq-t.seq),o||this.publishBatchedSamples(e.bootId,s,a===`running`||e.moreSamples===!0,t,(a===`ready`||a===`error`)&&e.moreSamples===!0));let c=[...e.logs].sort((e,t)=>e.seq-t.seq);for(let t of c){if(!Number.isSafeInteger(t.seq)||t.seq<=this.lastLogSeq)continue;let n=Number.isSafeInteger(t.runId)&&t.runId>=0?t.runId:void 0,r=this.runOutputIdentity;if(t.seq>this.lastLogSeq+1){let i=this.lastLogSeq+1,a=t.seq-1,o=a-i+1,s=r?.bootId===e.bootId&&r.deviceRunId===n&&this.lastLogDeviceRunId===n?r.requestId:void 0;s!==void 0&&this.currentRun?.runId===s&&this.currentRun.finishedAtMs===void 0&&(this.currentRun={...this.currentRun,droppedOutputLines:(this.currentRun.droppedOutputLines??0)+o}),this.emitConsole(`system`,`XRP log gap · ${o} line${a===i?``:`s`} unavailable`,{action:`telemetry`,phase:`error`,omittedOutputLines:o,eventId:`${e.bootId}:log-gap:${i}-${a}`,requestId:s,deviceBootId:e.bootId,deviceRunId:n})}this.lastLogSeq=t.seq,this.lastLogDeviceRunId=n,this.emitConsole(t.stream,t.line,{phase:t.stream===`system`?`result`:`output`,eventId:`${e.bootId}:log:${t.seq}`,targetTimeMs:t.tMs,targetClockId:`physical:${e.bootId}:service-uptime`,deviceBootId:e.bootId,deviceRunId:n,requestId:r&&n===r.deviceRunId&&r.requestId===this.currentRun?.runId?r.requestId:void 0})}a===`ready`&&e.moreLogs!==!0&&e.samples===void 0&&e.sample===void 0&&this.currentRun&&this.currentRun.finishedAtMs===void 0&&this.info?.capabilities.includes(`control.session-v1`)&&this.control?.sessionId!==this.controlSessionId&&(this.collectingStoppedRun=!1,this.emitStatus(`error`,`The program stopped, but its final telemetry could not be collected after this browser lost control of the XRP. This recording is incomplete.`,!0));let l=(this.currentRun!==null&&this.currentRun.finishedAtMs===void 0||e.samples!==void 0||e.sample!==void 0)&&(a===`ready`||a===`error`)&&(e.moreLogs===!0||e.moreSamples===!0||this.collectingStoppedRun&&e.samples===void 0&&e.sample===void 0);if(this.collectingStoppedRun=a===`ready`&&l,this.collectingStoppedRun&&this.emitStatus(`loading`,`Program stopped; collecting final run data…`),!l)this.emitStatus(a,e.detail,a===`error`,i?`program`:void 0),o&&this.publishBatchedSamples(e.bootId,s,!1,t);else if(o){let e=s.at(-1)?.seq;e!==void 0&&Number.isSafeInteger(e)&&e>this.lastSampleSeq&&(this.lastSampleSeq=e)}}publishBatchedSamples(e,t,n,r=!0,i=!1){for(let a of t)if(!(!Number.isSafeInteger(a.seq)||a.seq<=this.lastSampleSeq)){if(r&&n&&a.seq>this.lastSampleSeq+1){let t=this.lastSampleSeq+1,n=a.seq-1,r=this.runOutputIdentity,i=r?.bootId===e&&r.deviceRunId===this.lastRunId?r.requestId:void 0;this.emitConsole(`system`,`Telemetry gap · ${n-t+1} sample${n===t?``:`s`} unavailable`,{action:`telemetry`,phase:`error`,eventId:`${e}:run:${this.lastRunId}:sample-gap:${t}-${n}`,requestId:i,deviceBootId:e,deviceRunId:this.lastRunId})}r&&this.emitTelemetry(a,i),this.lastSampleSeq=a.seq}}emitTelemetry(e,t=!1){this.emit({type:`telemetry`,replayed:t,sample:{...e,plotValues:e.plotValues?.map(e=>({...e}))??[]}})}async reconnectAfterReset(){let e=this.commandEpoch,t=this.bootId;this.stopPolling();let n=performance.now()+st,r=null;for(;performance.now()<n&&this.connected;){await new Promise(e=>setTimeout(e,450));try{let n=await this.getJson(`/api/v1/info`,1500);if(this.assertCommandEpoch(e),Tt(n),K(n,this.expectedRobotId),n.bootId===t){r=new F(`restart_pending`,`The XRP has not restarted yet`),this.emitStatus(`connecting`,`Waiting for the XRP to finish restarting…`);continue}this.reconcileReconnectedRun(n),this.info=n,this.bootId=n.bootId,this.lastRunId=n.runId??0,this.control=n.control??null,this.lastLogSeq=0,this.lastLogDeviceRunId=void 0,this.lastSampleSeq=0,this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.consumeProjectManifest(n.project),this.consumeRuntimeState(n.runtimeJson);let i=await this.readInitialState(n);this.assertCommandEpoch(e);try{await this.acquireControl(!1)}catch(e){if(!(e instanceof F)||e.code!==`control_owned`)throw e}this.assertCommandEpoch(e),this.emitStatus(i?.state??`ready`,i?.detail??`${n.robotName} · ${n.address} · course ${n.courseRelease}`),this.emitConsole(`system`,`${n.robotName} reconnected and ready`,{action:`connect`,phase:`result`});let a=n.network?.mode,o=n.network?.address??n.address;(a===`access_point`||a===`station`)&&o&&this.emit({type:`physical-network`,mode:a,address:I(o),ssid:n.network?.ssid,...n.network?.requested_mode?{requestedMode:n.network.requested_mode}:{},...typeof n.network?.fallback==`boolean`?{fallback:n.network.fallback}:{},...n.robotId?{robotId:n.robotId}:{},...n.robotName?{hostname:n.robotName}:{}});return}catch(e){if(e instanceof F&&(e.code===`robot_identity_mismatch`||e.code===`robot_identity_missing`||e.code===`firmware_required`||e.code===`release_mismatch`||e.code===`protocol_mismatch`||e.code===`operation_cancelled`))throw e;r=e}}throw new F(`reconnect_failed`,`Physical XRP did not return after reset: ${R(r)}`)}reconcileReconnectedRun(e){let t=this.bootId!==null&&this.bootId!==e.bootId,n=e.runId!==void 0&&this.lastRunId>0&&this.lastRunId!==e.runId;!t&&!n||(this.currentRun&&this.currentRun.finishedAtMs===void 0&&this.emitStatus(`error`,`${t?`The XRP restarted`:`The XRP changed runs`} before its remaining data could be collected. This recording is incomplete.`,!0),t&&(this.lastLogSeq=0,this.lastLogDeviceRunId=void 0),this.lastSampleSeq=0,this.collectingStoppedRun=!1,this.runOutputIdentity=null,this.pendingRunOutputIdentity=null)}async resolveUnsettledLaunch(){if(!this.unsettledLaunch||!this.info?.capabilities.includes(`control.session-v1`))return;let e=await this.getJson(`/api/v1/state?afterLogSeq=${this.lastLogSeq}`);this.consumeState(e,!1),this.unsettledLaunch=!1}async readRecoverableState(e,t,n){let r=this.commandEpoch,i=t??(()=>this.assertCommandEpoch(r)),a=async()=>{let t=await this.getJson(`/api/v1/state?afterLogSeq=${this.lastLogSeq}`,e,n);if(i(),t.bootId===this.info?.bootId&&t.bootId===this.bootId&&t.runId===this.lastRunId&&(t.state===`ready`||t.state===`error`&&t.detail.toLowerCase().includes(`stopped after an exception`))&&t.control?.sessionId===null){this.consumeControl(t.control);try{return await this.acquireControl(!1),i(),await this.readTelemetry(this.telemetryPath(this.lastLogSeq,this.lastSampleSeq,this.lastRunId>0?this.lastRunId:void 0),e,n)}catch(t){if(i(),t instanceof F&&t.code===`control_owned`)return this.getJson(`/api/v1/state?afterLogSeq=${this.lastLogSeq}`,e,n);throw t}}return t};if(this.info?.capabilities.includes(`control.session-v1`)&&this.control?.sessionId!==this.controlSessionId)return a();try{return await this.readTelemetry(this.telemetryPath(this.lastLogSeq,this.lastSampleSeq,this.lastRunId>0?this.lastRunId:void 0),e,n)}catch(e){if(e instanceof F&&[`control_required`,`boot_changed`,`stale_run`].includes(e.code))return a();throw e}}async waitForProgramStop(e=!0){let t=this.commandEpoch,n=performance.now()+2e3,r=null,i=0;for(;performance.now()<n&&this.connected;){i>0&&await new Promise(e=>setTimeout(e,i)),this.assertCommandEpoch(t);try{let n=this.lastLogSeq,a=this.lastSampleSeq,o=await this.readRecoverableState(1e3);if(this.assertCommandEpoch(t),this.consumeState(o,e),i=(o.moreLogs===!0||o.moreSamples===!0)&&(this.lastLogSeq>n||this.lastSampleSeq>a)?0:100,(o.state===`ready`||o.state===`error`&&o.detail.toLowerCase().includes(`stopped after an exception`))&&o.moreLogs!==!0&&o.moreSamples!==!0&&!this.collectingStoppedRun)return;if(o.state===`error`&&o.moreLogs!==!0&&o.moreSamples!==!0&&!this.collectingStoppedRun){r=new F(`target_error`,o.detail);break}}catch(e){this.assertCommandEpoch(t),r=e;break}}this.assertCommandEpoch(t),this.emitStatus(this.collectingStoppedRun?`loading`:`connecting`,this.collectingStoppedRun?`Program stopped; recovering final run data…`:`Checking program stop…`);try{await this.recoverAfterInterruptedStop(e)}catch(e){throw this.collectingStoppedRun?e:r??e}}async recoverAfterInterruptedStop(e=!0){let t=this.commandEpoch;this.stopPolling();let n=performance.now()+st,r=null,i=0;for(;performance.now()<n&&this.connected;){i>0&&await new Promise(e=>setTimeout(e,i)),this.assertCommandEpoch(t),i=450;try{let n=this.lastLogSeq,a=this.lastSampleSeq,o=await this.readRecoverableState(1500);if(this.assertCommandEpoch(t),this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.consumeState(o,e),(o.moreLogs===!0||o.moreSamples===!0)&&(this.lastLogSeq>n||this.lastSampleSeq>a)&&(i=0),(o.state===`ready`||o.state===`error`&&o.detail.toLowerCase().includes(`stopped after an exception`))&&o.moreLogs!==!0&&o.moreSamples!==!0&&!this.collectingStoppedRun){this.emitConsole(`system`,`XRP stop state verified`,{action:`stop`,phase:`result`});return}o.state===`error`&&(r=new F(`target_error`,o.detail))}catch(e){this.assertCommandEpoch(t),r=e}}throw this.assertCommandEpoch(t),this.collectingStoppedRun?new F(`run_data_incomplete`,`The program stopped, but its remaining run data could not be collected. Check your connection to the XRP and select Stop to retry collection. A new run must wait to preserve this recording.`):new F(`reconnect_failed`,`Could not verify that the physical XRP stopped: ${R(r)}`)}emitStatus(e,t,n=!1,r){(this.currentState!==e||this.currentDetail!==t)&&(this.currentState=e,this.currentDetail=t,(e===`ready`||n)&&this.currentRun&&this.currentRun.finishedAtMs===void 0&&(this.currentRun={...this.currentRun,state:e,detail:t,...r?{failureDomain:r}:{},finishedAtMs:Date.now()},this.emit({...this.currentRun,type:`run`,phase:`end`})),this.emit({type:`status`,state:e,detail:t,timestampMs:Date.now()}),this.publishControl())}emitConsole(e,t,n={}){let r=n.eventId??this.nextConsoleEventId();if(n.action===`run`&&n.phase===`request`&&this.currentRun?.runId!==n.requestId){this.runOutputIdentity=null,this.pendingRunOutputIdentity=null;let e=this.stagedRunDescriptor??this.currentProject;this.currentRun={runId:n.requestId??r,startedAtMs:n.timestampMs??Date.now(),state:`loading`,detail:t,projectId:e?.projectId,projectName:e?.name,projectRevision:e?.revision,entrypoint:e?.entrypoint},this.emit({...this.currentRun,type:`run`,phase:`begin`})}this.emit({type:`console`,stream:e,line:t,...n,eventId:r,timestampMs:n.timestampMs??Date.now()})}nextConsoleEventId(){let e=`physical-${this.eventSession}-${this.nextEvent}`;return this.nextEvent+=1,e}consumeProjectManifest(e){if(e===void 0)return;if(e===null){if(this.currentProject?.stale)return;this.setCurrentProject(null);return}if(!e.revision){this.projectStateKnown||this.setCurrentProject(null);return}if(this.currentProject?.stale&&this.currentProject.revision!==e.revision)return;let t=e.name||e.entrypoint,n=this.currentProject?.revision===e.revision&&this.currentProject.name===t&&this.currentProject.entrypoint===e.entrypoint?this.currentProject.projectId:void 0;if(this.setCurrentProject({...n?{projectId:n}:{},name:t,entrypoint:e.entrypoint,revision:e.revision,stale:!1}),typeof e.worldJson==`string`&&e.worldJson!==this.lastWorldJson){this.lastWorldJson=e.worldJson;try{let t=ue(e.worldJson);this.emit({type:`world`,catalog:t,selectedWorldId:t.defaultWorldId})}catch(e){this.emitConsole(`system`,`The XRP project has an invalid world.json: ${R(e)}`,{phase:`error`})}}}setCurrentProject(e){this.projectStateKnown&&this.currentProject?.revision===e?.revision&&this.currentProject?.projectId===e?.projectId&&this.currentProject?.stale===e?.stale&&this.currentProject?.name===e?.name&&this.currentProject?.entrypoint===e?.entrypoint||(this.projectStateKnown=!0,this.currentProject=e,this.emit({type:`project`,project:e}))}consumeRuntimeState(e){if(e!==void 0&&e!==this.lastRuntimeJson){this.lastRuntimeJson=e;try{this.runtimeState=We(e)}catch{this.runtimeState=He}this.emit({type:`runtime`,state:this.runtimeState})}}emit(e){for(let t of this.listeners)t(e)}},kt=class{kind=`physical`;endpoint;options;direct=null;worker=null;listeners=new Set;pending=new Map;seenConsoleEventIds=new Set;consoleEventOrder=[];nextRequest=1;localNetworkPermissionPrimed=!1;pageLifecycleObserved=!1;releaseDepartureParticipant=null;pageWasHidden=!1;pageCacheSuspended=!1;visiblePollFrame=null;candidateEndpoints;discoveryTimeoutMs;directMode;directPollOwnerId=`page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;projectRunProvider=null;telemetryEnabled=!1;directRunAttempt=null;directState=`disconnected`;directControlOwned=!0;directDepartureStop=null;constructor(e,t={}){this.endpoint=I(e),this.options=t,this.candidateEndpoints=[...new Set([this.endpoint,...(t.candidateEndpoints??[]).map(I)])],this.discoveryTimeoutMs=t.discoveryTimeoutMs??1e3,this.directMode=!!t.fetch||!(`SharedWorker`in globalThis)}async connect(){if(this.observePageLifecycle(),this.directMode||this.direct){if(this.directDepartureStop&&await this.directDepartureStop,this.direct){await this.direct.connect(),this.startVisiblePollDriver();return}await this.connectDirectCandidate(),this.startVisiblePollDriver();return}if(!this.worker)try{this.worker=new SharedWorker(new URL(`/ucsbxrp/assets/physical-target.shared-worker-CVlDWb1B.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-physical-target-v19-${import.meta.url}`}),this.worker.port.onmessage=e=>this.handleWorkerMessage(e.data),this.worker.onerror=e=>{e.preventDefault(),this.releaseWorker(e.message?`Physical target worker failed: ${e.message}`:`Physical target worker failed`)},this.worker.port.start(),this.worker.port.postMessage({type:`set-role`,role:this.deliveryRole()})}catch(e){this.releaseWorker(R(e)),await this.useDirectClient().connect(),this.startVisiblePollDriver();return}let e=e=>this.request({type:`connect`,endpoints:e,discoveryTimeoutMs:this.discoveryTimeoutMs,expectedRobotId:this.options.expectedRobotId,providesProject:this.projectRunProvider!==null,role:this.deliveryRole()});try{await e(this.candidateEndpoints),this.startVisiblePollDriver();return}catch(e){if(!this.shouldPrimeLocalNetworkPermission(e))throw e}let t=await this.primeLocalNetworkPermission();await e(t?[t,...this.candidateEndpoints.filter(e=>e!==t)]:this.candidateEndpoints),this.startVisiblePollDriver()}disconnect(){if(this.pageCacheSuspended=!1,this.stopVisiblePollDriver(),this.stopObservingPageLifecycle(),this.direct){this.releaseDirectAfterDeparture();return}this.releaseWorker(`Physical target disconnected`)}async check(e){return this.direct?this.direct.check(e):await this.request({type:`check`,project:e})}async synchronize(e,t){if(this.direct){await this.direct.synchronize(e,t);return}await this.request({type:`prepare`,project:e,...t?{projectId:t}:{}})}async run(e,t){if(this.direct){await this.runDirect(()=>this.direct.run(e,t));return}await this.request({type:`run`,project:e,...t?{projectId:t}:{}})}async runCurrent(){if(this.direct){await this.runDirect(()=>this.direct.runCurrent());return}await this.request({type:`run-current`,requireCallerProvider:this.projectRunProvider!==null})}async markProjectStale(e,t){if(this.direct){await this.direct.markProjectStale(e,t);return}await this.request({type:`mark-project-stale`,project:e,...t?{projectId:t}:{}})}setProjectRunProvider(e,t){this.projectRunProvider=e,this.direct?.setProjectRunProvider(e,t),this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()}),this.worker?.port.postMessage({type:`set-project-run-provider`,providesProject:e!==null,takeover:t?.takeover===!0})}setTelemetryEnabled(e){this.telemetryEnabled=e,this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()})}deliveryRole(){return this.telemetryEnabled||this.projectRunProvider===null?`monitor`:`ide`}markProjectChanged(e){if(this.direct){this.direct.markProjectChanged(e);return}this.worker?.port.postMessage({type:`mark-project-changed`,project:e})}async stop(){if(this.direct){await this.direct.stop();return}await this.request({type:`stop`})}async reset(){if(this.direct){await this.direct.reset();return}await this.request({type:`reset`})}async setRuntimeParameter(e,t){if(this.direct){await this.direct.setRuntimeParameter(e,t);return}await this.request({type:`set-runtime-parameter`,name:e,value:t})}async claimControl(){if(this.direct)return this.direct.claimControl();await this.request({type:`claim-control`})}subscribe(e){return this.listeners.add(e),()=>this.listeners.delete(e)}async runDirect(e){let t=this.directState===`running`||this.directState===`loading`?null:{pending:!0};t&&(this.directRunAttempt=t);try{await e()}finally{t&&(t.pending=!1,this.directRunAttempt===t&&this.directState===`ready`&&(this.directRunAttempt=null))}}releaseDirectAfterDeparture(){let e=this.direct;e&&(this.stopOnBeforeUnload(),this.directDepartureStop?this.directDepartureStop.then(()=>e.disconnect()):e.disconnect())}useDirectClient(){return this.direct||(this.direct=new Ot(this.endpoint,this.directTargetOptions()),this.direct.setProjectRunProvider(this.projectRunProvider),this.direct.subscribe(e=>this.emit(e))),this.direct}directTargetOptions(){return this.options.fetch||this.options.pollCoordinatorGeneration!==void 0?this.options:{...this.options,pollCoordinatorGeneration:19,pollOwnerId:this.directPollOwnerId}}async connectDirectCandidate(){let e=Error(`No XRP address is available`);for(let t of this.candidateEndpoints){let n=new Ot(t,{...this.directTargetOptions(),discoveryTimeoutMs:this.discoveryTimeoutMs,candidateEndpoints:void 0});n.setProjectRunProvider(this.projectRunProvider);let r=[],i=n.subscribe(e=>r.push(e));try{await n.connect(),i(),this.direct=n,n.subscribe(e=>this.emit(e));for(let e of r)this.emit(e);return}catch(t){i(),n.disconnect(),e=at(e,t)}}throw e}async primeLocalNetworkPermission(){if(this.localNetworkPermissionPrimed||typeof window>`u`||window.location.protocol!==`https:`||new URL(this.endpoint).protocol!==`http:`)return null;let e=Error(`No XRP address is available`);for(let t of this.candidateEndpoints){let n=new AbortController,r=setTimeout(()=>n.abort(),this.discoveryTimeoutMs);try{let e=await globalThis.fetch(`${t}/api/v1/info`,L(t,{cache:`no-store`,method:`GET`,signal:n.signal},window.location.protocol));if(!e.ok)throw Error(`XRP returned HTTP ${e.status}`);return this.options.expectedRobotId&&K(await e.json(),this.options.expectedRobotId),this.localNetworkPermissionPrimed=!0,t}catch(t){e=at(e,t)}finally{clearTimeout(r)}}throw e instanceof F&&(e.code===`robot_identity_mismatch`||e.code===`robot_identity_missing`)?e:new F(`network_error`,`${e instanceof DOMException&&e.name===`AbortError`?`Known XRP addresses did not reply within ${this.discoveryTimeoutMs/1e3} second per address`:`Cannot reach a known XRP address: ${R(e)}`}. ${B(this.endpoint)}`)}shouldPrimeLocalNetworkPermission(e){return e instanceof F&&(e.code===`network_error`||e.code===`timeout`)&&!this.localNetworkPermissionPrimed&&typeof window<`u`&&window.location.protocol===`https:`&&this.candidateEndpoints.some(e=>new URL(e).protocol===`http:`)}request(e){if(!this.worker)return Promise.reject(Error(`Physical target is not connected`));let t=`physical-${this.nextRequest}`;return this.nextRequest+=1,new Promise((n,r)=>{this.pending.set(t,{resolve:n,reject:r}),this.worker?.port.postMessage({...e,requestId:t})})}handleWorkerMessage(e){if(e.type===`project-run-snapshot-request`){let t=this.worker,n=this.projectRunProvider;Promise.resolve().then(()=>{if(!n)throw Error(`The IDE is not ready to provide its current project.`);return n()}).then(n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,snapshot:n})},n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,error:R(n)})});return}if(e.type===`telemetry-batch`){for(let t of e.events)this.emit({...t,replayed:e.replayed||t.replayed===!0});return}if(e.type===`event`){this.emit(e.event);return}let t=this.pending.get(e.requestId);t&&(this.pending.delete(e.requestId),e.ok?t.resolve(e.result):t.reject(new F(e.errorCode??`worker_request_failed`,e.error)))}releaseWorker(e){this.stopVisiblePollDriver();let t=this.worker;if(this.worker=null,this.rejectPending(e),t)try{t.port.postMessage({type:`disconnect`})}catch{}finally{setTimeout(()=>t.port.close(),100)}}releaseOnPageHide=e=>{if(!e.persisted){this.disconnect();return}this.pageCacheSuspended=!0,this.stopVisiblePollDriver(),this.direct?this.releaseDirectAfterDeparture():this.releaseWorker(`Physical target suspended in browser history`)};stopOnBeforeUnload=()=>{if(this.direct){if(!this.directRunAttempt||this.directDepartureStop)return;if(!this.directControlOwned){this.directRunAttempt.pending&&this.direct.interruptPendingCommands();return}this.directDepartureStop=this.direct.stop().catch(()=>void 0).finally(()=>{this.directDepartureStop=null});return}this.worker?.port.postMessage({type:`stop-owned-run`})};resumeOnPageShow=e=>{if(e.persisted){if(!this.pageCacheSuspended){this.requestResumeRecovery(`pageshow`);return}this.pageCacheSuspended=!1,this.connect().catch(e=>{this.emit({type:`status`,state:`error`,detail:R(e)})})}};resumeOnVisibilityChange=()=>{if(document.visibilityState===`hidden`){this.stopVisiblePollDriver(),this.pageWasHidden=!0;return}this.startVisiblePollDriver(),this.pageWasHidden&&(this.pageWasHidden=!1,this.requestResumeRecovery(`visibilitychange`))};resumeOnOnline=()=>{this.pageIsVisible()&&this.requestResumeRecovery(`online`)};resumeOnFocus=()=>{this.pageIsVisible()&&this.requestResumeRecovery(`focus`)};pageIsVisible(){return typeof document>`u`||document.visibilityState!==`hidden`}driveVisiblePoll=()=>{this.visiblePollFrame=null,!(!this.pageIsVisible()||this.pageCacheSuspended)&&(this.direct?this.direct.requestPollIfDue():this.worker?.port.postMessage({type:`poll-frame`}),this.startVisiblePollDriver())};startVisiblePollDriver(){this.visiblePollFrame!==null||!this.worker&&!this.direct||!this.pageIsVisible()||typeof window>`u`||typeof window.requestAnimationFrame!=`function`||(this.visiblePollFrame=window.requestAnimationFrame(this.driveVisiblePoll))}stopVisiblePollDriver(){if(this.visiblePollFrame===null||typeof window>`u`||typeof window.cancelAnimationFrame!=`function`){this.visiblePollFrame=null;return}window.cancelAnimationFrame(this.visiblePollFrame),this.visiblePollFrame=null}requestResumeRecovery(e){!this.worker||typeof navigator<`u`&&navigator.onLine===!1||this.worker.port.postMessage({type:`resume`,reason:e})}observePageLifecycle(){this.pageLifecycleObserved||typeof window>`u`||typeof window.addEventListener!=`function`||(window.addEventListener(`pagehide`,this.releaseOnPageHide),this.releaseDepartureParticipant=m({cancel:this.stopOnBeforeUnload}),window.addEventListener(`pageshow`,this.resumeOnPageShow),window.addEventListener(`online`,this.resumeOnOnline),window.addEventListener(`focus`,this.resumeOnFocus),typeof document<`u`&&typeof document.addEventListener==`function`&&(this.pageWasHidden=document.visibilityState===`hidden`,document.addEventListener(`visibilitychange`,this.resumeOnVisibilityChange)),this.pageLifecycleObserved=!0)}stopObservingPageLifecycle(){!this.pageLifecycleObserved||typeof window>`u`||typeof window.removeEventListener!=`function`||(window.removeEventListener(`pagehide`,this.releaseOnPageHide),this.releaseDepartureParticipant?.(),this.releaseDepartureParticipant=null,window.removeEventListener(`pageshow`,this.resumeOnPageShow),window.removeEventListener(`online`,this.resumeOnOnline),window.removeEventListener(`focus`,this.resumeOnFocus),typeof document<`u`&&typeof document.removeEventListener==`function`&&document.removeEventListener(`visibilitychange`,this.resumeOnVisibilityChange),this.pageWasHidden=!1,this.pageLifecycleObserved=!1)}rejectPending(e){for(let t of this.pending.values())t.reject(Error(e));this.pending.clear()}emit(e){if(this.direct&&(e.type===`status`?(this.directState=e.state,e.state===`ready`&&!this.directRunAttempt?.pending&&(this.directRunAttempt=null)):e.type===`run`&&e.phase===`end`?this.directRunAttempt=null:e.type===`control`&&(this.directControlOwned=e.owned,!e.owned&&!this.directRunAttempt?.pending&&(this.directRunAttempt=null))),e.type===`console`&&e.eventId){if(this.seenConsoleEventIds.has(e.eventId))return;if(this.seenConsoleEventIds.add(e.eventId),this.consoleEventOrder.push(e.eventId),this.consoleEventOrder.length>4e3){let e=this.consoleEventOrder.shift();e&&this.seenConsoleEventIds.delete(e)}}for(let t of this.listeners)t(e)}},q=2500,J=15e3,At=2e3;function jt(){return new Worker(new URL(`/ucsbxrp/assets/micropython.worker-BkSaK7vV.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-micropython-syntax-check`})}function Mt(e,t,n){if(e.diagnostics!==void 0)return e.diagnostics;let r={phase:e.stage===`run`?`runtime`:`compile`,projectPaths:Object.keys(n.files)},i=E(e.detail,r),a=E(t.join(`
-`),r);return a[0]?.path&&!i.some(e=>e.path)?a:i.length>0?i:a}function Nt(e){let t=T(e);if(t)return{result:Promise.resolve({ok:!1,detail:t.message,compilerOutput:[t.message],diagnostics:[{source:`project`,phase:`compile`,severity:`error`,code:t.code,message:t.message,raw:[t.message]}]}),cancel(){}};let n=null,r=null,i=!1,a=!1,o=null,s=[],c=()=>{r!==null&&clearTimeout(r),r=null,n?.terminate(),n=null};return{result:new Promise((t,l)=>{o=l;let u=e=>{i||(i=!0,c(),t(e))},d=e=>{i||(i=!0,c(),l(e))};try{n=jt()}catch(e){d(Error(e instanceof Error?e.message:`MicroPython project checker could not start`));return}r=setTimeout(()=>{d(Error(`MicroPython runtime did not finish loading within ${J/1e3} seconds. Check the connection or offline setup, then try Compile again.`))},J),n.onmessage=t=>{let n=t.data;if(n.type===`runtime-ready`&&!a){a=!0,r!==null&&clearTimeout(r),r=setTimeout(()=>d(Error(`MicroPython project check timed out after ${q/1e3} seconds`)),q);return}if(n.type===`console`){s.length<At&&s.push(n.line);return}if(n.type===`check-complete`){let e=n.diagnostics??[];u({ok:!0,detail:n.detail,compilerOutput:[...s,n.detail],...e.length>0?{diagnostics:e}:{},...s.length>0?{output:s}:{}});return}if(n.type===`error`){let t=Mt(n,s,e),r=n.rawDetail??n.detail;u({ok:!1,detail:n.detail,compilerOutput:[...s,r],...t.length>0?{diagnostics:t}:{},...s.length>0?{output:s}:{}})}},n.onerror=e=>{d(Error(e.message||`MicroPython project checker failed`))},n.onmessageerror=()=>{d(Error(`MicroPython project checker returned invalid data`))};try{n.postMessage({mode:`check`,project:e})}catch(e){d(Error(e instanceof Error?e.message:`MicroPython project checker could not receive the project`))}}),cancel(e=`MicroPython project check was cancelled`){i||(i=!0,c(),o?.(Error(e)))}}}function Pt(e){return Nt(e).result}function Y(e){return e instanceof Error?e.message:String(e)}async function Ft(e){let t=T(e);return t?{ok:!1,detail:t.message,output:[]}:new Promise((t,n)=>{let r=new Worker(new URL(`/ucsbxrp/assets/micropython.worker-BkSaK7vV.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-component-checks`}),i=[],a=()=>{clearTimeout(s),r.terminate()},o=!1,s=setTimeout(()=>{a(),n(Error(`MicroPython runtime did not finish loading. Check the connection or offline setup, then try component checks again.`))},J);r.onmessage=e=>{let r=e.data;if(r.type===`runtime-ready`&&!o)o=!0,clearTimeout(s),s=setTimeout(()=>{a(),n(Error(`Component checks timed out`))},q);else if(r.type===`console`)i.length<2e3&&i.push(r.line);else if(r.type===`test-complete`)a(),t({ok:!0,detail:r.detail,output:i});else if(r.type===`error`){let e=r.diagnostics??[];a(),t({ok:!1,detail:r.detail,...e.length>0?{diagnostics:e}:{},output:i})}},r.onerror=e=>{a(),n(Error(e.message||`Component checker failed`))},r.postMessage({mode:`test`,project:e})})}var It=class{kind=`virtual`;worker=null;runtimeWorker=null;activeRunId=null;syntaxChecks=new Set;listeners=new Set;pending=new Map;clientId=crypto.randomUUID();nextRequest=1;nextAction=1;runHeartbeat=null;liveValues=null;projectRunProvider=null;telemetryEnabled=!1;pageLifecycleObserved=!1;pageCacheSuspended=!1;releaseDepartureParticipant=null;operationEpoch=0;cancellation=null;runtimeStartupTimeout=null;async connect(){if(this.observePageLifecycle(),this.worker)return;if(!(`SharedWorker`in globalThis))throw Error(`This browser does not support the virtual target worker`);let e=new SharedWorker(new URL(`/ucsbxrp/assets/virtual-target.shared-worker-OLuf5TJc.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-virtual-target-v6-${import.meta.url}`});this.worker=e,e.port.onmessage=t=>{this.worker===e&&this.handleMessage(t.data)},e.port.start(),await this.request({type:`connect`,providesProject:this.projectRunProvider!==null,role:this.deliveryRole()})}disconnect(){this.pageCacheSuspended=!1,this.stopObservingPageLifecycle(),this.releaseConnection(`Virtual target disconnected`)}releaseConnection(e){this.operationEpoch+=1;let t=this.worker;t&&this.runtimeWorker&&t.port.postMessage({type:`stop`,requestId:`disconnect-${this.nextRequest}`}),this.terminateRuntime();for(let t of this.syntaxChecks)t.cancel(e);this.syntaxChecks.clear(),this.worker=null;for(let t of this.pending.values())clearTimeout(t.timeout),t.reject(Error(e));if(this.pending.clear(),t)try{t.port.postMessage({type:`disconnect`})}finally{setTimeout(()=>t.port.close(),100)}}releaseOnPageHide=e=>{if(!e.persisted){this.disconnect();return}this.pageCacheSuspended=!0,this.releaseConnection(`Virtual target suspended in browser history`)};resumeOnPageShow=e=>{if(!e.persisted||!this.pageCacheSuspended)return;this.pageCacheSuspended=!1;let t=this.operationEpoch;this.connect().catch(e=>{this.operationEpoch===t&&this.emit({type:`status`,state:`error`,detail:Y(e)})})};stopOnBeforeUnload=()=>{this.operationEpoch+=1,this.terminateRuntime(),this.worker?.port.postMessage({type:`stop-owned-run`})};observePageLifecycle(){this.pageLifecycleObserved||typeof window>`u`||typeof window.addEventListener!=`function`||(window.addEventListener(`pagehide`,this.releaseOnPageHide),window.addEventListener(`pageshow`,this.resumeOnPageShow),this.releaseDepartureParticipant=m({cancel:this.stopOnBeforeUnload}),this.pageLifecycleObserved=!0)}stopObservingPageLifecycle(){!this.pageLifecycleObserved||typeof window>`u`||typeof window.removeEventListener!=`function`||(window.removeEventListener(`pagehide`,this.releaseOnPageHide),window.removeEventListener(`pageshow`,this.resumeOnPageShow),this.releaseDepartureParticipant?.(),this.releaseDepartureParticipant=null,this.pageLifecycleObserved=!1)}async check(e){let t=e.name?.trim()||e.entrypoint,n=`virtual-validate-${this.clientId}-${this.nextAction++}`;this.publishConsole({type:`console`,stream:`system`,line:`Compile requested · ${t}`,action:`validate`,phase:`request`,requestId:n});let r=T(e);if(r){let e={ok:!1,detail:r.message};return this.publishConsole({type:`console`,stream:`system`,line:`Compilation failed · ${e.detail}`,action:`validate`,phase:`error`,requestId:n}),e}try{let t=Nt(e);this.syntaxChecks.add(t);let r;try{r=await t.result}finally{this.syntaxChecks.delete(t)}return this.publishConsole({type:`console`,stream:`system`,line:`${r.ok?`Compilation passed`:`Compilation failed`} · ${r.detail}`,action:`validate`,phase:r.ok?`result`:`error`,requestId:n}),r}catch(e){throw this.publishConsole({type:`console`,stream:`system`,line:`Compilation could not finish · ${Y(e)}`,action:`validate`,phase:`error`,requestId:n}),e}}async run(e,t){w(e),await this.withRunReservation(async(n,r)=>{let i=await a(e);this.assertOperation(r),await this.startRun({type:`prepare-run`,operationEpoch:n,project:e,descriptor:i,...t?{projectId:t}:{}},r)})}async runCurrent(){await this.withRunReservation(async(e,t)=>{let n=await this.request({type:`get-project`,requireCallerProvider:this.projectRunProvider!==null});if(!n.project||!n.descriptor)throw Error(`No project is ready. Open a project in the IDE first.`);w(n.project);let r=await a(n.project);if(this.assertOperation(t),!(n.projectId===n.storedProjectId&&!n.descriptor.stale&&n.descriptor.revision===r.revision&&n.descriptor.name===r.name&&n.descriptor.entrypoint===r.entrypoint)){await this.startRun({type:`prepare-run`,operationEpoch:e,project:n.project,descriptor:r,...n.projectId?{projectId:n.projectId}:{}},t);return}await this.startRun({type:`prepare-run`,operationEpoch:e},t)})}assertOperation(e){if(e!==this.operationEpoch||!this.worker)throw Error(`Run cancelled`)}async withRunReservation(e){let t=++this.operationEpoch,n=await this.request({type:`reserve-run`});try{this.assertOperation(t),await e(n.operationEpoch,t)}catch(e){throw this.worker&&await this.request({type:`cancel-run`,operationEpoch:n.operationEpoch}).catch(()=>void 0),e}}setProjectRunProvider(e,t){this.projectRunProvider=e,this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()}),this.worker?.port.postMessage({type:`set-project-run-provider`,providesProject:e!==null,takeover:t?.takeover===!0})}setTelemetryEnabled(e){this.telemetryEnabled=e,this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()})}deliveryRole(){return this.telemetryEnabled||this.projectRunProvider===null?`monitor`:`ide`}markProjectChanged(e){this.worker?.port.postMessage({type:`mark-project-changed`,project:e})}async startRun(e,t=this.operationEpoch){this.terminateRuntime();let{runId:n,scenario:r,world:i,project:a}=await this.request(e);this.assertOperation(t);let o;try{o=this.createMicroPythonWorker(`ucsb-xrp-micropython-runtime`)}catch(e){throw this.forwardRuntimeMessage(n,{type:`error`,detail:Y(e)}),e}this.runtimeWorker=o,this.activeRunId=n,typeof SharedArrayBuffer==`function`&&globalThis.crossOriginIsolated?(this.liveValues=new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT*16)),this.cancellation=new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))):this.liveValues=null,this.startRunHeartbeat(n);let s=!1,c=(e,t)=>{this.clearRuntimeStartupDeadline(),this.runtimeStartupTimeout=setTimeout(()=>{o===this.runtimeWorker&&(this.forwardRuntimeMessage(n,{type:`error`,stage:`compile`,detail:t}),this.terminateRuntime(n))},e)};c(J,`MicroPython runtime did not finish loading within 15 seconds. Check the connection or offline setup, then try Run again.`),o.onmessage=e=>{if(o!==this.runtimeWorker)return;let t=e.data;t.type===`runtime-ready`&&!s?(s=!0,c(q,`MicroPython compilation timed out after 2.5 seconds. Check the project, then try Run again.`)):t.type===`compile-complete`&&this.clearRuntimeStartupDeadline(),this.forwardRuntimeMessage(n,t),(t.type===`run-complete`||t.type===`error`)&&this.terminateRuntime(n)},o.onerror=e=>{o===this.runtimeWorker&&(this.forwardRuntimeMessage(n,{type:`error`,detail:e.message||`MicroPython runtime worker failed`}),this.terminateRuntime(n))};try{o.postMessage({mode:`run`,project:he(a,r),scenario:r,world:i,liveParameterBuffer:this.liveValues?.buffer,cancellationBuffer:this.cancellation?.buffer})}catch(e){throw this.forwardRuntimeMessage(n,{type:`error`,stage:`compile`,detail:Y(e)}),this.terminateRuntime(n),e}}async synchronize(e,t){let n=await this.check(e);if(!n.ok)throw Error(n.detail);let r=await a(e);await this.request({type:`store-project`,project:e,descriptor:r,...t?{projectId:t}:{}}),this.publishConsole({type:`console`,stream:`system`,line:`Project prepared for the virtual XRP`,action:`flash`,phase:`result`})}async markProjectStale(e,t){let n=await a(e);await this.request({type:`mark-project-stale`,project:e,descriptor:n,...t?{projectId:t}:{}})}async stop(){this.operationEpoch+=1,this.terminateRuntime(),await this.request({type:`stop`})}async reset(){this.operationEpoch+=1,this.terminateRuntime(),await this.request({type:`reset`})}async setRuntimeParameter(e,t){await this.request({type:`set-runtime-parameter`,name:e,value:t})}async setSimulationScenario(e){await this.request({type:`set-scenario`,scenario:e})}subscribe(e){return this.listeners.add(e),()=>this.listeners.delete(e)}request(e){if(!this.worker)return Promise.reject(Error(`Virtual target is not connected`));let t=`request-${this.nextRequest}`;return this.nextRequest+=1,new Promise((n,r)=>{let i=setTimeout(()=>{this.pending.delete(t),r(Error(`Virtual target ${e.type} timed out`))},15e3);this.pending.set(t,{resolve:n,reject:r,timeout:i}),this.worker?.port.postMessage({...e,requestId:t})})}handleMessage(e){if(e.type===`project-run-snapshot-request`){let t=this.worker,n=this.projectRunProvider;Promise.resolve().then(()=>{if(!n)throw Error(`The IDE is not ready to provide its current project.`);return n()}).then(n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,snapshot:n})},n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,error:Y(n)})});return}if(e.type===`telemetry-batch`){for(let t of e.events)this.emit({...t,replayed:!0});return}if(e.type===`event`){for(let t of this.listeners)t(e.event);return}if(e.type===`terminate-runtime`){this.terminateRuntime(e.runId);return}if(e.type===`apply-runtime-parameter`){e.runId===this.activeRunId&&this.liveValues&&e.slot>=0&&e.slot<this.liveValues.length&&Atomics.store(this.liveValues,e.slot,e.encoded);return}let t=this.pending.get(e.requestId);t&&(clearTimeout(t.timeout),this.pending.delete(e.requestId),e.ok?t.resolve(e.result):t.reject(Error(e.error)))}createMicroPythonWorker(e){return new Worker(new URL(`/ucsbxrp/assets/micropython.worker-BkSaK7vV.js`,``+import.meta.url),{type:`module`,name:e})}forwardRuntimeMessage(e,t){this.worker?.port.postMessage({type:`runtime-message`,runId:e,message:t})}startRunHeartbeat(e){this.stopRunHeartbeat();let t=()=>{this.activeRunId===e&&this.worker?.port.postMessage({type:`run-owner-heartbeat`,runId:e})};t(),this.runHeartbeat=setInterval(t,400)}stopRunHeartbeat(){this.runHeartbeat!==null&&(clearInterval(this.runHeartbeat),this.runHeartbeat=null)}emit(e){for(let t of this.listeners)t(e)}publishConsole(e){if(this.worker){this.worker.port.postMessage({type:`publish-console`,event:e});return}this.emit({...e,eventId:e.eventId??`virtual-client-${this.clientId}-${this.nextAction++}`,timestampMs:e.timestampMs??Date.now()})}terminateRuntime(e){(e===void 0||this.activeRunId===null||e===this.activeRunId)&&(this.clearRuntimeStartupDeadline(),this.stopRunHeartbeat(),this.cancellation&&Atomics.store(this.cancellation,0,1),this.runtimeWorker?.terminate(),this.runtimeWorker=null,this.activeRunId=null,this.liveValues=null,this.cancellation=null)}clearRuntimeStartupDeadline(){this.runtimeStartupTimeout!==null&&clearTimeout(this.runtimeStartupTimeout),this.runtimeStartupTimeout=null}},Lt=`# Values that define this Straight Run task.
+`).trim()}function E(e,t={}){let n=Be(String(e)),r=Fe(n),i=ze(r);if(i.length===0)return[];let a=Le(t.projectPaths),o,s,c;for(let e of i){let t=ke.exec(e);if(!t)continue;let n=Re(t[1]??``,a);n&&(o=n,s=Ne(t[2],Ce),c=1)}let l=t.code?.trim()||void 0,u=i.at(-1)?.trim()??n,d=Ae.exec(u);d&&(l=d[1],u=d[2]?.trim()||d[1]||u);let f=je.exec(u);if(f){let e=Re(f[1]??``,a);e&&(o=e,s=Ne(f[2],Ce),c=Ne(f[3],we)),u=f[4]?.trim()||u}if(o===void 0&&s===void 0&&d===null&&l===void 0)return[];let p=s===void 0?void 0:{line:s,column:c??1},m=p?{line:p.line,column:Math.min(we,p.column+1)}:void 0;return[{source:`micropython`,phase:t.phase??`compile`,severity:`error`,...l?{code:Pe(l,De)}:{},message:Pe(u||`MicroPython reported an error`,Te),...o?{path:o}:{},...p?{start:p,end:m}:{},raw:r}]}var Ve=2147483647,He=Object.freeze({revision:0,parameters:[],watches:[],plots:[]});function Ue(e,t){if(e.kind===`number`){if(typeof t!=`number`||!Number.isFinite(t)||e.minimum===void 0||e.maximum===void 0||e.step===void 0||e.step<=0||t<e.minimum||t>e.maximum)throw Error(`${e.label} is outside its declared range`);let n=Math.round((t-e.minimum)/e.step);if(n<0||n>Ve)throw Error(`${e.label} declares too many steps`);return n}if(e.kind===`toggle`){if(typeof t!=`boolean`)throw Error(`${e.label} must be on or off`);return+!!t}if(typeof t!=`string`||!e.options?.includes(t))throw Error(`${e.label} is not one of its declared choices`);return e.options.indexOf(t)}function We(e){if(e.length>32768)throw Error(`Student runtime state is malformed`);let t=JSON.parse(e),n=t?.plots??[];if(typeof t!=`object`||!t||!Number.isInteger(t.revision)||(t.revision??-1)<0||!Array.isArray(t.parameters)||!Array.isArray(t.watches)||!Array.isArray(n)||t.parameters.length>16||t.watches.length>16||n.length>16||!t.parameters.every(Ge)||!t.watches.every(Ke)||!n.every(qe)||new Set(t.parameters.map(e=>e.name)).size!==t.parameters.length||new Set(t.watches.map(e=>e.name)).size!==t.watches.length||new Set(n.map(e=>e.name)).size!==n.length)throw Error(`Student runtime state is malformed`);return{...t,plots:n}}function D(e){return typeof e==`boolean`||typeof e==`string`&&e.length<=64||typeof e==`number`&&Number.isFinite(e)}function O(e){return typeof e==`string`&&e.length>0&&e.length<=80}function k(e){return typeof e==`string`&&e.length>0&&e.length<=32&&/^[A-Za-z_][A-Za-z0-9_]*$/.test(e)}function A(e){return e===void 0||typeof e==`string`&&e.length<=24}function Ge(e){if(typeof e!=`object`||!e)return!1;let t=e;if(!k(t.name)||!O(t.label)||!A(t.unit)||![`number`,`toggle`,`choice`].includes(t.kind??``)||!D(t.value)||t.pendingValue!==void 0&&!D(t.pendingValue)||t.kind===`number`&&(typeof t.minimum!=`number`||!Number.isFinite(t.minimum)||typeof t.maximum!=`number`||!Number.isFinite(t.maximum)||typeof t.step!=`number`||!Number.isFinite(t.step)||t.maximum<=t.minimum||t.step<=0||t.step>t.maximum-t.minimum||Math.round((t.maximum-t.minimum)/t.step)>Ve)||t.kind===`choice`&&(!Array.isArray(t.options)||t.options.length<2||t.options.length>6||t.options.some(e=>typeof e!=`string`||e.length>24)||new Set(t.options).size!==t.options.length))return!1;try{t.pendingValue!==void 0&&Ue(t,t.pendingValue),Ue(t,t.value)}catch{return!1}return!0}function Ke(e){if(typeof e!=`object`||!e)return!1;let t=e;return k(t.name)&&O(t.label)&&A(t.unit)&&D(t.value)}function qe(e){if(typeof e!=`object`||!e)return!1;let t=e;return k(t.name)&&O(t.label)&&A(t.unit)&&typeof t.value==`number`&&Number.isFinite(t.value)}function j(){throw Error(`Sample plot values or descriptors are malformed`)}function M(e){return We(JSON.stringify({revision:0,parameters:[],watches:[],plots:e})).plots}function Je(e,t,n){if(e===void 0||e===null&&n===0)return null;(!Array.isArray(e)||e.length!==n)&&j();let r=null;return t!==void 0&&((!Array.isArray(t)||t.length>256)&&j(),r=t.map(e=>((!e||typeof e!=`object`||Array.isArray(e))&&j(),M([{...e,value:0}])[0]))),e.map(e=>e===null?[]:((!Array.isArray(e)||e.length>16)&&j(),r!==null&&e.every(Array.isArray)?M(e.map(e=>((e.length!==2||!Number.isSafeInteger(e[0])||e[0]<0||e[0]>=r.length||typeof e[1]!=`number`||!Number.isFinite(e[1]))&&j(),{...r[e[0]],value:e[1]}))):M(e)))}var Ye=[`rawDeviceTimeMs`,`acquiredAtMs`,`acquisitionSeq`,`rangeAcquiredAtMs`,`rangeSeq`,`diagnosticsAcquiredAtMs`,`diagnosticsSeq`,`rawLeftEncoderCount`,`rawRightEncoderCount`,`rawRangeMm`,`publishedAtMs`,`sampleDtMs`,`samplePeriodMs`,`overrunMs`];function N(e,t){if(e==null)return;if(!Array.isArray(e)||e.length!==16||t.length>200)throw Error(`Invalid telemetry timing record`);let n={version:1,clockId:t,clockBasis:`first-acquisition`};if(Ye.forEach((t,r)=>{let i=e[r];if(i!==null&&(typeof i!=`number`||!Number.isFinite(i)))throw Error(`Invalid timing ${t}`);if(i!==null&&![`rawLeftEncoderCount`,`rawRightEncoderCount`].includes(t)&&i<0)throw Error(`Negative timing ${t}`);if([`rawDeviceTimeMs`,`acquisitionSeq`,`rangeSeq`,`diagnosticsSeq`,`rawLeftEncoderCount`,`rawRightEncoderCount`].includes(t)&&i!==null&&!Number.isSafeInteger(i))throw Error(`Invalid integer ${t}`);n[t]=i}),![`raw`,`course`,`stop`].includes(e[14]))throw Error(`Invalid timing kind`);if(n.kind=e[14],typeof e[15]!=`boolean`)throw Error(`Invalid range sampling flag`);return n.rangeSampled=e[15],n}function Xe(e,t,n,r){if(t!==void 0&&(!Array.isArray(t)||t.length!==e.length))throw Error(`Unaligned telemetry timing`);if(n!==void 0&&(!Array.isArray(n)||n.length!==e.length))throw Error(`Unaligned telemetry diagnostics`);return e.map((e,i)=>{let a=Array.isArray(t)?N(t[i],r):e.timing,o=Array.isArray(n)?n[i]:void 0;return o==null?{...e,...a?{timing:a}:{}}:{...e,...a?{timing:a}:{},...Ze(o)}})}function Ze(e){if(!Array.isArray(e)||e.length!==5)throw Error(`Invalid telemetry diagnostics`);let t=e=>{if(e===null)return null;if(!Array.isArray(e)||e.length!==3||e.some(e=>typeof e!=`number`||!Number.isFinite(e)))throw Error(`Invalid diagnostics vector`);return[...e]};if(e.slice(2,4).some(e=>e!==null&&(typeof e!=`number`||!Number.isFinite(e))))throw Error(`Invalid diagnostics value`);if(e[4]!==null&&(typeof e[4]!=`string`||e[4].length>512))throw Error(`Invalid diagnostics error`);return{accelerationMg:t(e[0]),angularRateMdps:t(e[1]),temperatureC:e[2],batteryV:e[3],sensorError:e[4]}}var Qe=5e3,P={schema_version:2,release_id:`2026.09-dev.54`,release_sequence:54,status:`development`,application_version:`0.1.0`,course_api_revision:`0.6-draft`,service:{version:`0.1.0`,protocol_version:1,protocol_revision:5,bootstrap_version:1},compatibility:{minimum_robot_release_sequence:54},controller:{id:`sparkfun-xrp-controller-rp2350`,usb_vid:`0x1B4F`,usb_pid:`0x0046`},micropython:{version:`1.29.0`,board:`SPARKFUN_XRP_CONTROLLER`,asset:`SPARKFUN_XRP_CONTROLLER-20260824-v1.29.0.uf2`,source_url:`https://micropython.org/resources/firmware/SPARKFUN_XRP_CONTROLLER-20260824-v1.29.0.uf2`,byte_size:1787904,sha256:`8a1547159764a9f3a0a94ba078f64b21124f540571a6004ce19981dcda6dc590`,git_blob_sha1:`957fbeb69d0450d34dfa86dabfefa6aa1656387a`},xrplib:{version:`2026.07.1`,tag:`V2026.07.1`,source_commit:`55abed4e219e061d32dd190199bc42d9a1b45366`},upstream_manifest:{repository:`Open-STEM/XRP_Firmware`,commit:`1914fd636d1d06425cdbec88ae4b998844d1501a`},ucsb_xrp:{version:`0.6.0-dev`,source_hash_algorithm:`sha256-file-manifest-v1`,source_file_count:19,source_sha256:`4ffd4b8b79949d3154423388be4d208193ea9a7f30eef5de0d37a587f50a8254`,reference_compiler:{commit:`e0e9fbb17ed6fd06bb76e266ae554784c9c80804`,portable_abi:774,repository:`micropython/micropython`,tag:`v1.28.0`,version_output:`MicroPython v1.28.0; mpy-cross emitting mpy v6.3`},reference_artifacts:[{byte_size:383,path:`reference_mpy/ucsb_xrp_reference/__init__.mpy`,sha256:`658e3c0f1d6f8da4c75821c1775d6ea4a141933d4101c4b30b2b6250534dca77`,source:`reference_source/ucsb_xrp_reference/__init__.py`,source_sha256:`86cac2729c7191b197f4ff8d1a984f04607c6bec03b919bdf758e8c03c99daee`},{byte_size:3298,path:`reference_mpy/ucsb_xrp_reference/challenge_1.mpy`,sha256:`a79724a39bc13f8abd6243c6726f888c61956b58fea2b88ebdd868a8d1480b51`,source:`reference_source/ucsb_xrp_reference/challenge_1.py`,source_sha256:`3c7c7c2a0dfd200c293939b8ea3e0b4a0127aefdbb645f004d1b32af36eea375`},{byte_size:1155,path:`reference_mpy/ucsb_xrp_reference/challenge_2.mpy`,sha256:`6c019f49d85c454e03c3fd4daf66837140e5b20de32a057dbbd6cc18fed480aa`,source:`reference_source/ucsb_xrp_reference/challenge_2.py`,source_sha256:`429e94f49aa21b5aad471ba621d96d6b3c84189c59337f457382ec3ae9154d8b`},{byte_size:1380,path:`reference_mpy/ucsb_xrp_reference/challenge_3.mpy`,sha256:`a0fa0e3ffa7296e4378cd315d6cd173caa1deb31ead87957b0421153200f54ea`,source:`reference_source/ucsb_xrp_reference/challenge_3.py`,source_sha256:`f55234c0679cefb34865bf236d5097f3c7e6673be40ebfff136d004512b99008`},{byte_size:639,path:`reference_mpy/ucsb_xrp_reference/challenge_4.mpy`,sha256:`6498a5593c1f96741e37fb5acabdae0e6623e52da0d5495c2ff9843be3eb69eb`,source:`reference_source/ucsb_xrp_reference/challenge_4.py`,source_sha256:`db710b214816df7dc91861e8734043c4b3600bd6cfcac3a53ea645d0e9d7e4fd`},{byte_size:799,path:`reference_mpy/ucsb_xrp_reference/challenge_6.mpy`,sha256:`0f938c29af9916d0d09cc695b2c00c4bbb9a91eaf8fd7f2b2fbfabbfec94681f`,source:`reference_source/ucsb_xrp_reference/challenge_6.py`,source_sha256:`f196c5d18050b05b553a00c977408b14db361c6272c4f27ef406bf78481e0653`},{byte_size:1261,path:`reference_mpy/ucsb_xrp_reference/challenge_7.mpy`,sha256:`4a0d3956290f81d7e7db80bdbe77e2025e20218a630bfd4462fd8d5c267552be`,source:`reference_source/ucsb_xrp_reference/challenge_7.py`,source_sha256:`f0ac35b3271f3784b7e5c10c986ec26e098b449f55b1f438826b4ccc3e587ea3`},{byte_size:1399,path:`reference_mpy/ucsb_xrp_reference/challenge_8.mpy`,sha256:`b8fe42140d4716526179402017446dadb54fc626725f145c12c17c8fddbb0c0f`,source:`reference_source/ucsb_xrp_reference/challenge_8.py`,source_sha256:`b0834141908c190ff6a624c47f4a23abe2e1684bf6049d280e46b620a90a8e49`},{byte_size:734,path:`reference_mpy/ucsb_xrp_reference/challenge_9.mpy`,sha256:`163c222e31dd0482998d15ed3f95a2b77963c0b219a83d6bfe71b6be8dff5406`,source:`reference_source/ucsb_xrp_reference/challenge_9.py`,source_sha256:`16867f0c79fc2c017ceef2a6ef428cb6f3a5bcf77e4cddf7a9bace4081d4c590`}]}},$e=P.release_id;P.release_sequence;var et=P.compatibility.minimum_robot_release_sequence,tt=P.service.protocol_version,nt=P.service.protocol_revision,rt=P.course_api_revision,it=P.service.version,F=class extends Error{code;context;constructor(e,t,n={}){super(t),this.code=e,this.context=n,this.name=`PhysicalTargetError`}};function at(e,t){let n=e=>e instanceof F?e.code===`robot_identity_mismatch`||e.code===`robot_identity_missing`?1:e.code===`network_error`||e.code===`timeout`?0:2:0;return n(t)>=n(e)?t:e}function I(e){let t=/^https?:\/\//i.test(e.trim())?e.trim():`http://${e.trim()}`,n=new URL(t);if(n.protocol!==`http:`&&n.protocol!==`https:`)throw Error(`Physical XRP address must use HTTP or HTTPS`);return n.pathname=n.pathname.replace(/\/+$/,``),n.search=``,n.hash=``,n.toString().replace(/\/$/,``)}function L(e,t,n=globalThis.location===void 0?void 0:globalThis.location.protocol){return n===`https:`&&new URL(e).protocol===`http:`?{...t,targetAddressSpace:`local`}:{...t}}function R(e){return e instanceof Error?e.message:String(e)}function z(){return typeof globalThis.performance?.now==`function`?globalThis.performance.now():Date.now()}function B(e){return`Run and telemetry use Wi-Fi. The computer and XRP must use the network selected during First robot setup. If they are already on that network, select Reconnect. Browser detail: ${e} was not reachable; Chrome must be allowed to access devices on the local network.`}var ot=500,st=18e3,ct=2,lt=900,ut=20,dt=`row-v1`,ft=24,V=`packed-v1`,pt=24,mt=8,ht=36,gt=2048,_t=65536,vt=75,yt=[85,88,84,49];function H(e){throw new F(`invalid_telemetry`,`XRP returned invalid compact telemetry: ${e}`)}function U(e,t){return(typeof e!=`number`||!Number.isFinite(e))&&H(`${t} is not a finite number`),e}function W(e,t){return e===null?null:U(e,t)}function bt(e,t){return e===null?null:((!Array.isArray(e)||e.length!==3)&&H(`${t} is not a three-axis vector`),[U(e[0],`${t}[0]`),U(e[1],`${t}[1]`),U(e[2],`${t}[2]`)])}function xt(e,t){(!Array.isArray(e)||e.length!==20)&&H(`row-v1 requires exactly 20 row values`),(!Array.isArray(t)||t.length!==5)&&H(`row-v1 requires exactly five shared values`);let n=e[2],r=e[19],i=t[4];typeof n!=`boolean`&&H(`poseAvailable is not boolean`),typeof r!=`boolean`&&H(`buttonPressed is not boolean`),i!==null&&typeof i!=`string`&&H(`sensorError is not text or null`);let a=U(e[3],`xMm`),o=U(e[4],`yMm`),s=U(e[5],`headingRad`),c=U(e[1],`seq`);return(!Number.isSafeInteger(c)||c<0)&&H(`seq is not a nonnegative safe integer`),{tMs:U(e[0],`tMs`),seq:c,source:`physical`,poseAvailable:n,xMm:a,yMm:o,headingRad:s,estimatedPoseAvailable:n,estimatedXmm:n?a:null,estimatedYmm:n?o:null,estimatedHeadingRad:n?s:null,groundTruthPoseAvailable:!1,groundTruthXmm:null,groundTruthYmm:null,groundTruthHeadingRad:null,requestedForwardSpeedMmS:W(e[6],`requestedForwardSpeedMmS`),requestedTurnRateRadS:W(e[7],`requestedTurnRateRadS`),targetLeftWheelSpeedMmS:W(e[8],`targetLeftWheelSpeedMmS`),targetRightWheelSpeedMmS:W(e[9],`targetRightWheelSpeedMmS`),leftEffort:U(e[10],`leftEffort`),rightEffort:U(e[11],`rightEffort`),leftWheelSpeedMmS:U(e[12],`leftWheelSpeedMmS`),rightWheelSpeedMmS:U(e[13],`rightWheelSpeedMmS`),leftWheelDistanceMm:W(e[14],`leftWheelDistanceMm`),rightWheelDistanceMm:W(e[15],`rightWheelDistanceMm`),leftEncoderCount:U(e[16],`leftEncoderCount`),rightEncoderCount:U(e[17],`rightEncoderCount`),collision:!1,rangeMm:W(e[18],`rangeMm`),buttonPressed:r,accelerationMg:bt(t[0],`accelerationMg`),angularRateMdps:bt(t[1],`angularRateMdps`),temperatureC:W(t[2],`temperatureC`),batteryV:W(t[3],`batteryV`),sensorError:i}}function St(e,t,n){let r=e.getUint8(t);return r!==0&&r!==1&&H(`${n} is not boolean`),r===1}function G(e,t,n,r){return t&1<<n?(e!==0&&H(`${r} null sentinel is not canonical`),null):e}function Ct(e){let t=new Uint8Array(e);t.byteLength<mt&&H(`packed-v1 header is truncated`);for(let e=0;e<yt.length;e+=1)t[e]!==yt[e]&&H(`packed-v1 magic is invalid`);let n=new DataView(e),r=n.getUint32(4,!0);r>_t&&H(`packed-v1 metadata is too large`);let i=mt+r;i>t.byteLength&&H(`packed-v1 metadata is truncated`);let a;try{a=JSON.parse(new TextDecoder(`utf-8`,{fatal:!0}).decode(t.subarray(mt,i)))}catch{H(`packed-v1 metadata is not valid JSON`)}(typeof a!=`object`||!a||Array.isArray(a))&&H(`packed-v1 metadata is not an object`);let o=a;o.sampleEncoding!==void 0&&o.sampleEncoding!==V&&H(`packed-v1 metadata has the wrong encoding`),o.sampleCount!==void 0&&o.n!==void 0&&o.sampleCount!==o.n&&H(`packed-v1 sample counts disagree`);let s=o.sampleCount??o.n;if((!Number.isSafeInteger(s)||s<0||s>pt)&&H(`packed-v1 sampleCount must be 0 to ${pt}`),o.m!==void 0&&(o.m!==0&&o.m!==1&&H(`packed-v1 more-samples flag is invalid`),o.moreSamples!==void 0&&o.moreSamples!==(o.m===1)&&H(`packed-v1 more-samples values disagree`),o.moreSamples=o.m===1),o.s!==void 0){let e=[`ready`,`loading`,`running`,`error`];(!Number.isSafeInteger(o.s)||e[o.s]===void 0)&&H(`packed-v1 state code is invalid`),o.state!==void 0&&o.state!==e[o.s]&&H(`packed-v1 state values disagree`),o.state=e[o.s]}o.r!==void 0&&((!Number.isSafeInteger(o.r)||o.r<0)&&H(`packed-v1 run ID is invalid`),o.runId!==void 0&&o.runId!==o.r&&H(`packed-v1 run IDs disagree`),o.runId=o.r);let c=i,l;if(s>0){t.byteLength<c+ht&&H(`packed-v1 shared diagnostics are truncated`);let e=n.getUint16(c,!0);e&-512&&H(`packed-v1 shared null mask has unsupported bits`);let r=e&7,i=e&56;r!==0&&r!==7&&H(`packed-v1 acceleration null mask is partial`),i!==0&&i!==56&&H(`packed-v1 angular-rate null mask is partial`);let a=Array.from({length:8},(t,r)=>G(n.getFloat32(c+2+r*4,!0),e,r,`shared[${r}]`)),o=n.getUint16(c+34,!0);o>gt&&H(`packed-v1 sensor error is too large`);let s=c+ht,u=s+o;u>t.byteLength&&H(`packed-v1 sensor error is truncated`);let d=!!(e&256);d&&o!==0&&H(`packed-v1 null sensor error has text`);let f=null;if(!d)try{f=new TextDecoder(`utf-8`,{fatal:!0}).decode(t.subarray(s,u))}catch{H(`packed-v1 sensor error is not valid UTF-8`)}l=[r===0?[a[0],a[1],a[2]]:null,i===0?[a[3],a[4],a[5]]:null,a[6],a[7],f],c=u}let u=c+s*vt;t.byteLength!==u&&H(`packed-v1 row bytes do not match sampleCount`);let d=[];for(let t=0;t<s;t+=1){let n=c+t*vt,r=new DataView(e,n,vt),i=r.getUint8(9);i&128&&H(`packed-v1 null mask has unsupported bits`);let a=Array.from({length:13},(e,t)=>r.getFloat32(10+t*4,!0));d.push(xt([r.getUint32(0,!0),r.getUint32(4,!0),St(r,8,`poseAvailable`),a[0],a[1],a[2],G(a[3],i,0,`requestedForwardSpeedMmS`),G(a[4],i,1,`requestedTurnRateRadS`),G(a[5],i,2,`targetLeftWheelSpeedMmS`),G(a[6],i,3,`targetRightWheelSpeedMmS`),a[7],a[8],a[9],a[10],G(a[11],i,4,`leftWheelDistanceMm`),G(a[12],i,5,`rightWheelDistanceMm`),r.getInt32(62,!0),r.getInt32(66,!0),G(r.getFloat32(70,!0),i,6,`rangeMm`),St(r,74,`buttonPressed`)],l))}for(let e=1;e<d.length;e+=1)d[e].seq<=d[e-1].seq&&H(`packed-v1 sequence values are not strictly increasing`);let f=o;return f.sampleEncoding=V,f.sampleCount=s,f.sampleShared=l,f.samples=d,f}function wt(e){let t=e.firmware;if(t?.implementation!==`micropython`||t.version!==P.micropython.version||t.board!==`SparkFun XRP Controller with RP2350`)throw new F(`firmware_required`,`This XRP needs the course MicroPython ${P.micropython.version} firmware for its RP2350 controller. Open First robot setup and update the robot over USB, then reconnect.`)}function Tt(e){if(e.protocol!==tt)throw new F(`protocol_mismatch`,`XRP protocol ${e.protocol} is not supported by this app`);if(typeof e.runtimeReleaseSequence!=`number`&&typeof e.courseApiRevision!=`string`&&typeof e.protocolRevision!=`number`){if(e.courseRelease===$e&&(e.serviceVersion===$e||e.serviceVersion===it)){wt(e);return}throw new F(`release_mismatch`,`This XRP has course release ${e.courseRelease} and service ${e.serviceVersion}; this web app requires ${$e}. Open First robot setup, update the robot, then reconnect.`)}if(typeof e.protocolRevision!=`number`||e.protocolRevision<nt)throw new F(`protocol_mismatch`,`This XRP reports protocol revision ${String(e.protocolRevision)}; this app requires revision ${nt} or later. Open First robot setup, update the robot, then reconnect.`);if(e.courseApiRevision!==rt)throw new F(`release_mismatch`,`This XRP uses course API ${String(e.courseApiRevision)}; this app uses ${rt}. Open First robot setup, update the robot, then reconnect.`);if(typeof e.runtimeReleaseSequence!=`number`||e.runtimeReleaseSequence<et)throw new F(`release_mismatch`,`This XRP has runtime ${e.runtimeRelease??e.courseRelease}; this app requires robot update ${et} or later. Open First robot setup, update the robot, then reconnect.`);wt(e)}function Et(e){return e?.trim().toLocaleLowerCase()||void 0}function K(e,t){let n=Et(t);if(!n)return;let r=Et(e.robotId);if(!r)throw new F(`robot_identity_missing`,`This XRP service cannot prove that it is the robot selected during setup. Open First robot setup, then reconnect.`);if(r!==n)throw new F(`robot_identity_mismatch`,`The reachable XRP is ${r}, but this browser is configured for ${n}. Select the intended robot or run First robot setup.`)}function Dt(e,t){K(e,t),Tt(e);let n=[`project.check`,`project.prepare`,`program.run`,`program.stop`,`target.reset`,`telemetry.poll`].filter(t=>!e.capabilities?.includes(t));if(n.length>0)throw new F(`capability_mismatch`,`XRP service is missing ${n.join(`, `)}`)}var Ot=class{kind=`physical`;endpoint;fetchImplementation;activePollIntervalMs;pollIntervalMs;requestTimeoutMs;connectTimeoutMs;expectedRobotId;pollCoordinatorGeneration;pollOwnerId;pollDrivenByVisibleClient;listeners=new Set;pollTimer=null;pollDueAtMs=null;pollInFlight=null;pollAbortController=null;pollGeneration=0;pollingPaused=!1;connected=!1;reconnecting=!1;pollConnectionFailed=!1;consecutivePollFailures=0;lastPackedUpdatesAtMs=null;connectGeneration=0;nextRequest=1;nextEvent=1;eventSession=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;lastLogSeq=0;lastLogDeviceRunId;lastSampleSeq=0;bootId=null;lastRunId=0;currentProject=null;stagedProject=null;stagedProjectId=null;projectStateKnown=!1;info=null;lastRuntimeJson=``;runtimeState=He;lastWorldJson=``;currentState=`disconnected`;currentDetail=`Physical XRP disconnected`;projectRunProvider=null;commandEpoch=0;controlSessionId=`browser-${typeof crypto.randomUUID==`function`?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`}`;control=null;currentRun=null;runOutputIdentity=null;pendingRunOutputIdentity=null;stagedRunDescriptor=null;unsettledLaunch=!1;pendingSnapshotCancels=new Set;pendingCommandCancels=new Set;commandsInFlight=new Set;pendingStop=null;collectingStoppedRun=!1;assertRunDataCollected(){if(this.collectingStoppedRun)throw new F(`run_data_pending`,`The program has stopped. Wait for its final run data to finish collecting before starting or preparing another project.`)}assertRunTelemetrySupported(){if(!this.connected)throw new F(`not_connected`,`Physical XRP is not connected`);if(this.info?.bootId!==this.bootId)throw new F(`boot_changed`,`The XRP restarted. Select Reconnect so UCSBXRP can check its current software before Run.`);if(!this.info?.capabilities.includes(`telemetry.packed-v1`))throw new F(`capability_mismatch`,`This XRP needs the current course software before Run can record data reliably. Open First robot setup, update the XRP over USB, then reconnect.`)}interruptPendingCommands(){this.commandEpoch+=1;for(let e of this.pendingSnapshotCancels)e();for(let e of this.pendingCommandCancels)e()}waitForCommand(e,t){return new Promise((n,r)=>{let i=!1,a=e=>{i||(i=!0,this.pendingCommandCancels.delete(o),e())},o=()=>a(()=>r(new F(`operation_cancelled`,`Operation cancelled by Stop, Reset, or disconnection`)));this.pendingCommandCancels.add(o),e.then(e=>a(()=>n(e)),e=>a(()=>r(e))),(t!==this.commandEpoch||!this.connected)&&o()})}assertCommandEpoch(e){if(e!==this.commandEpoch||!this.connected)throw new F(`operation_cancelled`,`Operation cancelled by Stop, Reset, or disconnection`)}async claimControl(){let e=this.commandEpoch;await this.pausePollingForCommand();try{this.assertCommandEpoch(e),await this.acquireControl(!0)}finally{this.resumePollingAfterCommand(0,e)}}async acquireControl(e){if(!this.info?.capabilities.includes(`control.session-v1`))return;let t=await this.command(`control`,{bootId:this.bootId,sessionId:this.controlSessionId,takeover:e});this.consumeControl(t.control)}consumeControl(e){e&&(this.control=e,this.publishControl())}publishControl(){if(!this.info?.capabilities.includes(`control.session-v1`))return;let e=this.control?.sessionId===this.controlSessionId,t=this.control?.sessionId!=null,n=this.currentState===`ready`||this.currentState===`error`;this.emit({type:`control`,owned:e,ownerPresent:t,canTakeover:!e&&n,detail:e?`This browser controls ${this.info.robotName}`:t?`Observing ${this.info.robotName}; another browser has control. Stop remains available.`:`${this.info.robotName} is available to control.`})}constructor(e,t={}){this.endpoint=I(e),this.fetchImplementation=t.fetch??((e,t)=>globalThis.fetch(e,t)),this.pollIntervalMs=t.pollIntervalMs??250,this.activePollIntervalMs=t.activePollIntervalMs??t.pollIntervalMs??ut,this.requestTimeoutMs=t.requestTimeoutMs??3e3,this.connectTimeoutMs=t.discoveryTimeoutMs??this.requestTimeoutMs,this.pollDrivenByVisibleClient=t.pollDrivenByVisibleClient===!0,this.expectedRobotId=Et(t.expectedRobotId);let n=t.pollCoordinatorGeneration;if(Number.isSafeInteger(n)&&n>0){this.pollCoordinatorGeneration=n;let e=t.pollOwnerId?.trim();this.pollOwnerId=(e||this.eventSession).slice(0,64)}}async connect(){if(this.connected)return;let e=this.connectGeneration+1;this.connectGeneration=e;let t=`connect-${e}`;this.emitConsole(`system`,`Connecting to ${this.endpoint}`,{action:`connect`,phase:`request`,requestId:t}),this.emitStatus(`connecting`,`Connecting to ${this.endpoint}`);let n;try{n=await this.getJson(`/api/v1/info`,this.connectTimeoutMs),Dt(n,this.expectedRobotId)}catch(n){if(e===this.connectGeneration){let e=R(n);this.emitConsole(`system`,`Connection failed · ${e}`,{action:`connect`,phase:`error`,requestId:t}),this.emitStatus(`error`,e)}throw n}if(e!==this.connectGeneration)return;this.reconcileReconnectedRun(n);let r=(this.collectingStoppedRun||this.currentRun!==null&&this.currentRun.finishedAtMs===void 0)&&this.bootId===n.bootId&&(n.runId===void 0||this.lastRunId===n.runId);this.info=n,this.bootId=n.bootId,this.lastRunId=n.runId??0,this.connected=!0,this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.consumeProjectManifest(n.project),this.consumeRuntimeState(n.runtimeJson),this.consumeControl(n.control);let i=r?null:await this.readInitialState(n);if(e!==this.connectGeneration)return;try{await this.acquireControl(!1)}catch(e){if(!(e instanceof F)||e.code!==`control_owned`)throw e}if(e!==this.connectGeneration)return;this.emitStatus(r?`loading`:i?.state??`ready`,r?this.collectingStoppedRun?`Program stopped; recovering final run data…`:`Reconnected; checking the program and collecting its remaining data…`:i?.detail??`${n.robotName} · ${this.connectionDescription(n)} · course ${n.courseRelease}`),this.emitConsole(`system`,`Connected to ${n.robotName} · ${this.connectionDescription(n)}`,{action:`connect`,phase:`result`,requestId:t}),this.emit({type:`project-provider`,active:this.projectRunProvider!==null,available:this.projectRunProvider!==null});let a=n.network?.mode,o=n.network?.address??n.address;(a===`access_point`||a===`station`)&&o&&this.emit({type:`physical-network`,mode:a,address:I(o),ssid:n.network?.ssid,...n.network?.requested_mode?{requestedMode:n.network.requested_mode}:{},...typeof n.network?.fallback==`boolean`?{fallback:n.network.fallback}:{},...n.robotId?{robotId:n.robotId}:{},...n.robotName?{hostname:n.robotName}:{}}),this.schedulePoll(0)}async readInitialState(e){if(!e.capabilities.includes(`logs.poll`)&&!e.capabilities.includes(`control.session-v1`))return null;try{let t=await this.getJson(`/api/v1/state?afterLogSeq=0`,Math.min(this.connectTimeoutMs,1500));if(t.bootId!==e.bootId)return null;let n=t.logs.reduce((e,t)=>Number.isSafeInteger(t.seq)&&(e===void 0||t.seq>e.seq)?t:e,void 0);this.lastLogSeq=n?.seq??0,this.lastLogDeviceRunId=Number.isSafeInteger(n?.runId)&&n?.runId>=0?n?.runId:void 0,this.lastRunId=t.runId;let r=t.sample??t.samples?.at(-1);return r&&Number.isSafeInteger(r.seq)&&(this.lastSampleSeq=r.seq,this.emitTelemetry(r)),this.consumeProjectManifest(t.project),this.consumeRuntimeState(t.runtimeJson),t}catch{return null}}disconnect(){this.interruptPendingCommands(),this.connectGeneration+=1,this.connected=!1,this.pollGeneration+=1,this.stopPolling(),this.abortActivePoll(),this.lastPackedUpdatesAtMs=null,this.emitStatus(`disconnected`,`Physical XRP disconnected`)}connectionDescription(e){let t=e.network?.mode,n=e.network?.ssid;if(t===`access_point`){let t=e.network?.fallback?` fallback`:``;return`${n??`robot hotspot`}${t} · ${e.address}`}return t===`station`?`${n??`existing Wi-Fi`} · ${e.address}`:e.address}async check(e){let t=this.commandEpoch,n=e.name?.trim()||e.entrypoint,r=T(e);if(r){let e=`web-${Date.now()}-${this.nextRequest++}`;return this.emitConsole(`system`,`Compile requested · ${n}`,{action:`validate`,phase:`request`,requestId:e}),this.emitConsole(`system`,`Compilation failed · ${r.message}`,{action:`validate`,phase:`error`,requestId:e}),{ok:!1,detail:r.message,compilerOutput:[r.message]}}await this.pausePollingForCommand();try{this.assertCommandEpoch(t);let r=await this.command(`check`,{project:e},{action:`validate`,label:`Compile`,detail:n});return{ok:!0,detail:r.detail,compilerOutput:[r.detail]}}catch(t){if(t instanceof F&&t.code===`syntax_error`)return{ok:!1,detail:t.message,compilerOutput:[t.message],diagnostics:E(t.message,{phase:`compile`,code:`syntax_error`,projectPaths:Object.keys(e.files)})};throw t}finally{this.resumePollingAfterCommand(0,t)}}async synchronize(e,t){this.assertRunDataCollected();let n=this.commandEpoch;if(this.currentState===`loading`||this.currentState===`running`)throw new F(`program_active`,`Stop the current run before preparing a Project.`);let r=T(e);if(r)throw this.emitConsole(`system`,`Prepare failed · ${r.message}`,{action:`prepare`,phase:`error`}),r;await this.pausePollingForCommand();try{this.assertCommandEpoch(n),await this.prepareWhilePollingPaused(e,{...await a(e),...t?{projectId:t}:{}}),this.stagedProjectId=t??null}finally{this.resumePollingAfterCommand(0,n)}}async run(e,t){this.assertRunDataCollected();let n=this.commandEpoch;w(e),this.assertRunTelemetrySupported();let r=t!==void 0&&t!==this.stagedProjectId;if(r&&(this.currentState===`loading`||this.currentState===`running`))throw new F(`program_active`,`Stop the current run before running a different Project.`);this.stagedProject=e,this.stagedProjectId=t??null;let i={...await a(e),...t?{projectId:t}:{}};this.assertCommandEpoch(n),this.stagedRunDescriptor={...i,...t?{projectId:t}:{}};let o=!1;await this.pausePollingForCommand();try{if(this.assertCommandEpoch(n),!this.currentProject||this.currentProject.stale||i.revision!==this.currentProject.revision||i.name!==this.currentProject.name||i.entrypoint!==this.currentProject.entrypoint){if(!this.info?.capabilities.includes(`project.run`))throw new F(`capability_mismatch`,`This XRP needs the current course software before it can run edited projects reliably. Open First robot setup, update the XRP, then reconnect.`);o=await this.prepareAndStartWhilePollingPaused(e,i)}else{if(this.setCurrentProject(i),r){let t=S(e);this.emit({type:`world`,catalog:t,selectedWorldId:t.defaultWorldId})}o=await this.startCurrentProjectWhilePollingPaused()}o&&this.emit({type:`compile-result`,projectId:t,projectRevision:i.revision,result:{ok:!0,detail:`The Project compiled on the physical XRP.`,compilerOutput:[`The Project compiled on the physical XRP.`],diagnostics:[]}})}catch(n){throw n instanceof F&&n.code===`syntax_error`&&this.emit({type:`compile-result`,projectId:t,projectRevision:i.revision,runId:n.context.requestId,result:{ok:!1,detail:n.message,compilerOutput:[n.message],diagnostics:E(n.message,{phase:`compile`,code:`syntax_error`,projectPaths:Object.keys(e.files)})}}),n}finally{this.resumePollingAfterCommand(o?ot:0,n)}}async runCurrent(){this.assertRunDataCollected(),this.assertRunTelemetrySupported();let e=this.commandEpoch;if(this.projectRunProvider){let t=this.projectRunProvider,n=await new Promise((e,n)=>{let r=!1,i=e=>{r||(r=!0,clearTimeout(o),this.pendingSnapshotCancels.delete(a),e())},a=()=>i(()=>n(Error(`Run cancelled before the IDE supplied its project.`))),o=setTimeout(()=>i(()=>n(Error(`The active IDE has not replied yet. Let its current operation finish, then try Run again. Its project remains selected.`))),Qe);this.pendingSnapshotCancels.add(a),Promise.resolve().then(t).then(t=>i(()=>e(t)),e=>i(()=>n(e)))});this.assertCommandEpoch(e),await this.run(n.project,n.projectId);return}if(this.stagedProject&&(!this.currentProject||this.currentProject.stale)){await this.run(this.stagedProject,this.stagedProjectId??void 0);return}if(!this.currentProject){let e=new F(`no_project`,`No project is ready. Run or prepare a project in the IDE first.`);throw this.emitConsole(`system`,`Run failed · ${e.message}`,{action:`run`,phase:`error`}),e}if(this.currentProject.stale){let e=new F(`stale_project`,`The IDE project has changed. Run or prepare it in the IDE first.`);throw this.emitConsole(`system`,`Run failed · ${e.message}`,{action:`run`,phase:`error`}),e}if(this.currentState===`loading`||this.currentState===`running`){this.emitConsole(`system`,`Run request ignored · program already active`,{action:`run`,phase:`result`});return}let t=!1;await this.pausePollingForCommand();try{this.assertCommandEpoch(e),this.stagedRunDescriptor=this.currentProject,t=await this.startCurrentProjectWhilePollingPaused()}finally{this.resumePollingAfterCommand(t?ot:0,e)}}async prepareWhilePollingPaused(e,t){this.assertRunDataCollected();let n=this.commandEpoch,r=t??await a(e);this.assertCommandEpoch(n);let i=S(e),o;try{if(o=await this.command(`prepare`,{project:e},{action:`prepare`,label:`Prepare`,detail:r.name},void 0,!0),o.project?.revision!==r.revision||o.project.lifetime!==`boot`)throw new F(`project_revision_mismatch`,`The XRP prepared a different project revision`)}catch(e){if(!(e instanceof F&&(e.code===`network_error`||e.code===`timeout`)))throw e;let t=await this.getJson(`/api/v1/info`,1500);if(this.assertCommandEpoch(n),Tt(t),K(t,this.expectedRobotId),t.bootId!==this.bootId)throw new F(`boot_changed`,`The XRP restarted while preparing. Reconnect before trying again.`);if(t.project?.revision!==r.revision)throw e;o={detail:`Project prepared`,project:{...t.project,revision:r.revision,lifetime:`boot`}},this.emitConsole(`system`,`Prepare verified · ${r.name} is ready in XRP memory`,{action:`prepare`,phase:`result`})}this.setCurrentProject({...r,revision:o.project.revision,name:o.project.name??r.name,entrypoint:o.project.entrypoint??r.entrypoint,stale:!1}),this.emitStatus(`ready`,o.detail),this.stagedProject=e,this.emit({type:`world`,catalog:i,selectedWorldId:i.defaultWorldId})}async startCurrentProjectWhilePollingPaused(){if(this.assertRunDataCollected(),!this.currentProject)throw new F(`no_project`,`No project is ready. Run or prepare a project in the IDE first.`);if(this.currentProject.stale)throw new F(`stale_project`,`The IDE project has changed. Run or prepare it in the IDE first.`);if(this.currentState===`loading`||this.currentState===`running`)return this.emitConsole(`system`,`Run request ignored · program already active`,{action:`run`,phase:`result`}),!1;let e=this.currentState;this.emitStatus(`loading`,`Starting ${this.currentProject.entrypoint}…`);try{let e=await this.command(`run`,{},{action:`run`,label:`Run`,detail:this.currentProject.name},void 0,!0);return e.runId!==this.lastRunId&&(this.lastSampleSeq=0),this.lastRunId=e.runId,this.bindRunOutputIdentity(e),this.unsettledLaunch=!1,this.emitStatus(`loading`,e.detail),!0}catch(t){throw t instanceof F&&t.code===`operation_cancelled`||(t instanceof F&&(t.code===`network_error`||t.code===`timeout`)?this.emitStatus(`error`,t.message):this.emitStatus(e,`Run failed · ${R(t)}`)),t}}async prepareAndStartWhilePollingPaused(e,t){if(this.assertRunDataCollected(),this.currentState===`loading`||this.currentState===`running`)return this.emitConsole(`system`,`Run request ignored · program already active`,{action:`run`,phase:`result`}),!1;let n=this.currentState;this.emitStatus(`loading`,`Compiling and starting ${t.entrypoint}…`);try{let n=await this.command(`run`,{project:e},{action:`run`,label:`Run`,detail:t.name},void 0,!0);if(n.project?.revision!==t.revision||n.project.lifetime!==`boot`)throw new F(`project_revision_mismatch`,`The XRP started a different project revision`);this.setCurrentProject({...t,revision:n.project.revision,name:n.project.name??t.name,entrypoint:n.project.entrypoint??t.entrypoint,stale:!1}),this.stagedProject=e;let r=S(e);return this.emit({type:`world`,catalog:r,selectedWorldId:r.defaultWorldId}),n.runId!==this.lastRunId&&(this.lastSampleSeq=0),this.lastRunId=n.runId,this.bindRunOutputIdentity(n),this.unsettledLaunch=!1,this.emitStatus(`loading`,`Starting ${t.entrypoint}`),!0}catch(e){throw e instanceof F&&e.code===`operation_cancelled`||(e instanceof F&&(e.code===`network_error`||e.code===`timeout`)?this.emitStatus(`error`,e.message):this.emitStatus(n,`Run failed · ${R(e)}`)),e}}async markProjectStale(e,t){let n=await a(e),r=this.currentProject?.stale===!1&&this.currentProject.revision===n.revision&&this.currentProject.name===n.name&&this.currentProject.entrypoint===n.entrypoint,i=t!==void 0&&t!==this.stagedProjectId,o=this.stagedProject===null||this.stagedProject.files[`world.json`]!==e.files[`world.json`]||i;if(o&&(this.currentState===`loading`||this.currentState===`running`))throw new F(`program_active`,`Stop the current run before opening a different Project or world.`);if(this.stagedProject=e,this.stagedProjectId=t??null,this.setCurrentProject({...n,...t?{projectId:t}:{},stale:!r}),o){let t=S(e);this.emit({type:`world`,catalog:t,selectedWorldId:t.defaultWorldId})}}setProjectRunProvider(e,t){this.projectRunProvider=e,this.connected&&this.emit({type:`project-provider`,active:e!==null,available:e!==null})}markProjectChanged(e){if((this.currentState===`loading`||this.currentState===`running`)&&(this.stagedProjectId===null||e.projectId!==this.stagedProjectId))return;let t=`ide:${e.projectId}:`;this.currentProject?.stale&&this.currentProject.revision===`${t}${e.revision}`&&this.currentProject.name===e.name&&this.currentProject.entrypoint===e.entrypoint||this.setCurrentProject({projectId:e.projectId,name:e.name,entrypoint:e.entrypoint,revision:`${t}${e.revision}`,stale:!0})}stop(){return this.pendingStop||=this.performStop().finally(()=>{this.pendingStop=null}),this.pendingStop}async performStop(){this.interruptPendingCommands();let e=this.commandEpoch;this.emitStatus(`loading`,this.unsettledLaunch?`Stop requested; resolving the pending Run…`:`Stop requested; checking the XRP…`),this.reconnecting=!0,await this.pausePollingForCommand(!1);try{await Promise.allSettled([...this.commandsInFlight]),await this.resolveUnsettledLaunch();let e=await this.command(`stop`,{},{action:`stop`,label:`Stop`},void 0,!0);e.reconnecting?(this.emitStatus(`connecting`,`${e.detail}; reconnecting…`),await this.reconnectAfterReset()):e.detail===`Program already stopped`&&this.lastRunId===0&&!this.currentRun?this.emitStatus(`ready`,e.detail):(this.emitStatus(`loading`,e.detail),await this.waitForProgramStop())}catch(t){if(e!==this.commandEpoch||!this.connected)throw t;if(t instanceof F&&(t.code===`network_error`||t.code===`timeout`)){this.emitConsole(`system`,`Stop reply was interrupted · checking XRP state`,{action:`stop`,phase:`error`}),this.emitStatus(`connecting`,`Stop reply was interrupted; checking the XRP…`);try{await this.recoverAfterInterruptedStop();return}catch(n){if(e!==this.commandEpoch||!this.connected)throw n;t=n}}throw this.emitConsole(`system`,`Stop recovery failed · ${R(t)}`,{action:`stop`,phase:`error`}),this.emitStatus(this.collectingStoppedRun?`loading`:`error`,R(t)),t}finally{e===this.commandEpoch&&(this.reconnecting=!1),this.resumePollingAfterCommand(0,e)}}async reset(){this.interruptPendingCommands();let e=this.commandEpoch;this.emitStatus(`loading`,this.commandsInFlight.size>0?`Reset requested; waiting for the pending XRP request to settle…`:`Reset requested; checking the XRP…`),this.reconnecting=!0,await this.pausePollingForCommand();try{await Promise.allSettled([...this.commandsInFlight]),await this.resolveUnsettledLaunch(),await this.acquireControl(!1),(this.lastRunId>0||this.currentRun&&this.currentRun.finishedAtMs===void 0)&&(this.emitStatus(`loading`,`Stopping the program and collecting final run data before Reset…`),(await this.command(`stop`,{},{action:`stop`,label:`Stop before Reset`},void 0,!0)).reconnecting?await this.reconnectAfterReset():await this.waitForProgramStop());let e=await this.command(`reset`,{},{action:`reset`,label:`Reset`});e.reconnecting?(this.emitStatus(`connecting`,`${e.detail}; reconnecting…`),await this.reconnectAfterReset()):(e.detail===`Program state reset`?this.emitStatus(`ready`,e.detail):(this.emitStatus(`loading`,e.detail),await this.waitForProgramStop()),this.lastSampleSeq=0)}catch(t){throw e!==this.commandEpoch||!this.connected?t:(this.emitConsole(`system`,`Reset recovery failed · ${R(t)}`,{action:`reset`,phase:`error`}),this.emitStatus(this.collectingStoppedRun?`loading`:`error`,R(t)),t)}finally{e===this.commandEpoch&&(this.reconnecting=!1),this.resumePollingAfterCommand(0,e)}}async setRuntimeParameter(e,t){let n=this.commandEpoch;if(!this.info?.capabilities.includes(`runtime.parameters`))throw new F(`capability_mismatch`,`This XRP service does not yet support live parameters`);await this.pausePollingForCommand();try{this.assertCommandEpoch(n);let r=await this.command(`parameter`,{name:e,value:t},{action:`parameter`,label:`Live parameter`,detail:e});this.consumeRuntimeState(r.runtimeJson)}finally{this.resumePollingAfterCommand(0,n)}}subscribe(e){return this.listeners.add(e),()=>this.listeners.delete(e)}command(e,t,n,r,i=!1){let a=this.performCommand(e,t,n,r,i);return this.commandsInFlight.add(a),a.finally(()=>this.commandsInFlight.delete(a))}async performCommand(e,t,n,r,i=!1){let a=this.commandEpoch;if(!this.connected)throw new F(`not_connected`,`Physical XRP is not connected`);e!==`control`&&e!==`stop`&&e!==`check`&&(await this.acquireControl(!1),this.assertCommandEpoch(a)),e===`run`&&this.assertRunTelemetrySupported();let o=`web-${this.eventSession}-${this.nextRequest++}`,s=this.bootId;n&&this.emitConsole(`system`,`${n.label} requested${n.detail?` · ${n.detail}`:``}`,{action:n.action,phase:`request`,requestId:o});try{let c=this.info?.capabilities.includes(`control.session-v1`)&&e!==`control`?{bootId:this.bootId,sessionId:this.controlSessionId,controlGeneration:this.control?.generation,runId:this.lastRunId,...e===`run`&&!t.project?{expectedProjectRevision:this.currentProject?.revision}:{}}:{},l=JSON.stringify({...t,...c,requestId:o}),u=this.info?.limits?.maxWorldBytes,d=t.project?.files[`world.json`];if(u!==void 0&&d!==void 0&&new TextEncoder().encode(d).byteLength>u)throw new F(`project_too_large`,`world.json exceeds this XRP's ${u}-byte limit. Simplify the world before running.`);let f=this.info?.limits?.maxRequestBodyBytes;if(f!==void 0&&new TextEncoder().encode(l).byteLength>f)throw new F(`project_too_large`,`This request exceeds the XRP's ${f}-byte limit. Remove unnecessary project files before running.`);let p=null;e===`run`&&(this.unsettledLaunch=!0);for(let t=0;t<(i?2:1);t+=1){this.assertCommandEpoch(a),e===`run`&&this.assertRunTelemetrySupported();try{let t=this.fetchJson(`/api/v1/${e}`,{method:`POST`,headers:{"Content-Type":`application/json`},body:l},this.requestTimeoutMs,r);p=e===`run`?await t:await this.waitForCommand(t,a),this.assertCommandEpoch(a);break}catch(e){if(this.assertCommandEpoch(a),!(e instanceof F&&(e.code===`network_error`||e.code===`timeout`))||!i||t>0)throw e;n&&this.emitConsole(`system`,`${n.label} reply interrupted · retrying the same request`,{action:n.action,phase:`request`,requestId:o})}}if(!p)throw new F(`network_error`,`The XRP did not return a ${e} reply`);if(p.requestId!==o)throw new F(`uncorrelated_reply`,`The XRP returned a reply for a different request`);if(!p.ok||!p.result)throw new F(p.error?.code??`target_error`,p.error?.detail??`The XRP rejected the request`,{requestId:o});if(e===`run`&&s&&`bootId`in c&&c.bootId===s&&this.bootId===s){let e=p.result;Number.isSafeInteger(e.runId)&&e.runId>0&&(this.pendingRunOutputIdentity={bootId:s,deviceRunId:e.runId,requestId:o,result:e,commandEpoch:a})}if(n){let e=p.result,t=typeof e.detail==`string`?e.detail:`accepted`;this.emitConsole(`system`,`${n.label} · ${t}`,{action:n.action,phase:`result`,requestId:o})}return p.result}catch(t){throw e===`run`&&t instanceof F&&t.code===`syntax_error`&&t.context.requestId!==o&&(t=new F(`uncorrelated_reply`,`The XRP returned a compiler result for an unknown or different request. Run the selected Project again.`)),n&&this.emitConsole(`system`,`${n.label} failed · ${R(t)}`,{action:n.action,phase:`error`,requestId:o}),t}}bindRunOutputIdentity(e){let t=this.pendingRunOutputIdentity;if(this.pendingRunOutputIdentity=null,t?.result===e&&t.commandEpoch===this.commandEpoch&&t.bootId===this.bootId&&t.requestId===this.currentRun?.runId){this.runOutputIdentity={bootId:t.bootId,deviceRunId:t.deviceRunId,requestId:t.requestId};let e={source:`physical`,clockId:`physical:${t.bootId}:${t.deviceRunId}`,firstSequence:1};this.currentRun={...this.currentRun,telemetryOrigin:e},this.emit({type:`telemetry-origin`,runId:t.requestId,origin:e})}}async getJson(e,t=this.requestTimeoutMs,n){return this.fetchJson(e,{method:`GET`},t,n)}async fetchJson(e,t,n=this.requestTimeoutMs,r){let i=r??new AbortController,a=setTimeout(()=>i.abort(),n);try{let n=await this.fetchImplementation(this.endpoint+e,{...L(this.endpoint,t),cache:`no-store`,signal:i.signal}),r=await n.json();if(!n.ok){let e=r,t=e?.error;throw new F(t?.code??`http_${n.status}`,t?.detail??`XRP request failed with HTTP ${n.status}`,typeof e.requestId==`string`?{requestId:e.requestId}:{})}return r}catch(e){throw e instanceof F?e:e instanceof DOMException&&e.name===`AbortError`?new F(`timeout`,`XRP did not reply within ${n/1e3} seconds. ${B(this.endpoint)}`):new F(`network_error`,`Cannot reach ${this.endpoint}: ${R(e)}. ${B(this.endpoint)}`)}finally{clearTimeout(a)}}schedulePoll(e=this.pollIntervalMs){if(this.stopPolling(),!this.connected||this.pollingPaused)return;let t=Math.max(0,e);if(this.pollDueAtMs=z()+t,this.pollDrivenByVisibleClient)return;let n=setTimeout(()=>{this.pollTimer===n&&(this.pollTimer=null,this.startScheduledPoll())},t);this.pollTimer=n}requestPollIfDue(){this.pollDueAtMs===null||z()<this.pollDueAtMs||this.startScheduledPoll()}startScheduledPoll(){if(!this.connected||this.pollingPaused||this.reconnecting||this.pollInFlight)return;this.stopPolling();let e=this.poll();this.pollInFlight=e,e.then(()=>{this.pollInFlight===e&&(this.pollInFlight=null)},()=>{this.pollInFlight===e&&(this.pollInFlight=null)})}stopPolling(){this.pollTimer!==null&&(clearTimeout(this.pollTimer),this.pollTimer=null),this.pollDueAtMs=null}abortActivePoll(){this.pollAbortController?.abort(),this.pollAbortController=null}async pausePollingForCommand(e=!0){let t=this.commandEpoch;this.pollingPaused=!0,this.pollGeneration+=1,this.stopPolling();let n=this.pollInFlight;n&&e&&await this.waitForCommand(n.catch(()=>void 0),t)}resumePollingAfterCommand(e=0,t=this.commandEpoch){t===this.commandEpoch&&(this.pollingPaused=!1,this.schedulePoll(e))}async poll(){if(!this.connected||this.reconnecting)return;let e=z(),t=this.pollGeneration,n=new AbortController;this.pollAbortController=n;try{let r=await this.readRecoverableState(this.requestTimeoutMs,()=>{if(!this.connected||this.reconnecting||t!==this.pollGeneration)throw new F(`operation_cancelled`,`An obsolete telemetry poll was cancelled`)},n);if(!this.connected||this.reconnecting||t!==this.pollGeneration)return;this.pollConnectionFailed&&(this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.emitConsole(`system`,`XRP connection restored`,{action:`telemetry`,phase:`result`})),this.consecutivePollFailures=0,this.consumeState(r);let i=r.moreLogs===!0||r.moreSamples===!0,a=r.state===`running`?this.activePollIntervalMs:this.pollIntervalMs,o=Math.max(0,z()-e);this.schedulePoll(i?0:Math.max(0,a-o))}catch(e){if(this.connected&&!this.reconnecting&&!this.pollingPaused&&t===this.pollGeneration){if(e instanceof F&&e.code===`telemetry_owner_active`){if(e.context.ownerGeneration===this.pollCoordinatorGeneration&&typeof e.context.leaseRemainingMs==`number`){let t=Math.max(0,e.context.leaseRemainingMs);this.pollConnectionFailed=!0,this.emitConsole(`system`,`A previous UCSBXRP page still owns telemetry; retrying automatically in at most ${t} ms`,{action:`telemetry`,phase:`error`}),this.emitStatus(`connecting`,`Waiting briefly for the previous page to release XRP telemetry…`),this.schedulePoll(t);return}this.pollConnectionFailed=!0,this.consecutivePollFailures=ct,this.emitConsole(`system`,`Telemetry paused · ${e.message}`,{action:`telemetry`,phase:`error`}),this.emitStatus(`error`,e.message);return}this.consecutivePollFailures+=1,this.pollConnectionFailed||(this.pollConnectionFailed=!0,this.emitConsole(`system`,`Telemetry connection interrupted · ${R(e)}`,{action:`telemetry`,phase:`error`})),this.consecutivePollFailures>=ct?this.emitStatus(this.collectingStoppedRun?`loading`:`error`,this.collectingStoppedRun?`Program stopped; final run data is still incomplete. Check the XRP connection and select Stop to retry collection.`:R(e)):(this.emitStatus(this.collectingStoppedRun?`loading`:`connecting`,this.collectingStoppedRun?`Program stopped; recovering final run data…`:`Telemetry was interrupted; reconnecting to the XRP…`),this.schedulePoll(lt))}}finally{this.pollAbortController===n&&(this.pollAbortController=null)}}telemetryPath(e,t,n){let r=`/api/v1/telemetry?afterLogSeq=${e}&afterSampleSeq=${t}`;if(n!==void 0&&(r+=`&runId=${n}`),this.info?.capabilities.includes(`telemetry.packed-v1`)){r+=`&sampleEncoding=${V}`;let e=z(),t=this.lastPackedUpdatesAtMs===null||e-this.lastPackedUpdatesAtMs>=this.pollIntervalMs;r+=`&includeUpdates=${t?`1`:`0`}`,t&&(this.lastPackedUpdatesAtMs=e)}else this.info?.capabilities.includes(`telemetry.compact-v1`)&&(r+=`&sampleEncoding=${dt}`);return this.pollCoordinatorGeneration!==void 0&&this.pollOwnerId!==void 0&&(r+=`&pollGeneration=${this.pollCoordinatorGeneration}`,r+=`&pollOwner=${encodeURIComponent(this.pollOwnerId)}`),this.info?.capabilities.includes(`control.session-v1`)&&(n===void 0&&(r+=`&runId=${this.lastRunId}`),r+=`&bootId=${encodeURIComponent(this.bootId??``)}&sessionId=${encodeURIComponent(this.controlSessionId)}&controlGeneration=${this.control?.generation??0}`),r}async readTelemetry(e,t,n){let r=this.info?.capabilities.includes(`telemetry.packed-v1`)?await this.getPackedTelemetry(e,t,n):await this.getJson(e,t,n);if(r.pollOwnership?.accepted===!1){let e=r.pollOwnership.ownerGeneration,t=r.pollOwnership.leaseRemainingMs;throw new F(`telemetry_owner_active`,`Another UCSBXRP page is coordinating this robot${e===null?``:` (poll generation ${e})`}. Close or reload older UCSBXRP pages, then select Reconnect${typeof t==`number`?`; takeover is available in at most ${t} ms`:``}.`,{ownerGeneration:e,...typeof t==`number`?{leaseRemainingMs:t}:{}})}let i=r;if(i.sampleEncoding===V){let t=r;if(!(typeof t.bootId==`string`&&(t.state===`ready`||t.state===`loading`||t.state===`running`||t.state===`error`)&&typeof t.detail==`string`&&Number.isSafeInteger(t.runId)&&t.runId>=0&&Array.isArray(t.logs))){let n=this.bootId??this.info?.bootId;(!e.includes(`includeUpdates=0`)||!n||t.state!==`running`||!Number.isSafeInteger(t.runId)||t.runId<1)&&H(`packed-v1 state metadata is incomplete`),i={...t,bootId:n,state:`running`,detail:this.currentState===`running`?this.currentDetail:`Program running`,runId:t.runId,logs:[]}}}if(i.sampleEncoding===dt){Array.isArray(i.sampleRows)||H(`encoding or rows are unsupported`),i.sampleRows.length>ft&&H(`row-v1 exceeds the ${ft}-row page limit`),i.sampleRows.length>0&&i.sampleShared===void 0&&H(`shared values are missing`);let e=i.sampleRows.map(e=>xt(e,i.sampleShared));for(let t=1;t<e.length;t+=1)e[t].seq<=e[t-1].seq&&H(`row-v1 sequence values are not strictly increasing`);i.samples=e}else i.sampleEncoding!==void 0&&i.sampleEncoding!==V&&H(`encoding is unsupported`);try{let e=Je(i.samplePlots,i.samplePlotDescriptors,i.samples?.length??0);e&&(i.samples=i.samples?.map((t,n)=>({...t,plotValues:e[n]})))}catch{H(`samplePlots contains invalid or unaligned plot values`)}try{let e=`physical:${i.bootId}:${i.runId}`;if(i.samples){let t=i.sampleTiming??i.samples.map(e=>e.timingValues??null);i.samples=Xe(i.samples,t,i.sampleDiagnostics,e)}if(i.sample){let t=N(i.sample.timingValues,e);t&&(i.sample={...i.sample,timing:t})}}catch{H(`sample timing or diagnostics are invalid or unaligned`)}return i}async getPackedTelemetry(e,t,n){let r=n??new AbortController,i=setTimeout(()=>r.abort(),t);try{let t=await this.fetchImplementation(this.endpoint+e,{...L(this.endpoint,{method:`GET`}),cache:`no-store`,signal:r.signal});if(!t.ok){let e={};try{e=await t.json()}catch{}throw new F(e.error?.code??`http_${t.status}`,e.error?.detail??`XRP request failed with HTTP ${t.status}`)}let n=Ct(await t.arrayBuffer());return typeof n.bootId==`string`&&(this.lastPackedUpdatesAtMs=z()),n}catch(e){throw e instanceof F?e:e instanceof DOMException&&e.name===`AbortError`?new F(`timeout`,`XRP did not reply within ${t/1e3} seconds. ${B(this.endpoint)}`):new F(`network_error`,`Cannot reach ${this.endpoint}: ${R(e)}. ${B(this.endpoint)}`)}finally{clearTimeout(i)}}consumeState(e,t=!0){let n=e.bootId!==this.bootId,r=e.runId!==this.lastRunId;(n||r)&&this.lastRunId>0&&this.currentRun&&this.currentRun.finishedAtMs===void 0&&this.emitStatus(`error`,`${n?`The XRP restarted`:`The XRP changed runs`} before its remaining data could be collected. This recording is incomplete.`,!0),this.runOutputIdentity&&(this.runOutputIdentity.bootId!==e.bootId||this.runOutputIdentity.deviceRunId!==e.runId)&&(this.runOutputIdentity=null),n&&(this.bootId=e.bootId,this.lastLogSeq=0,this.lastLogDeviceRunId=void 0),(n||r)&&(this.lastSampleSeq=0,this.collectingStoppedRun=!1),this.lastRunId=e.runId,this.consumeControl(e.control),this.consumeProjectManifest(e.project),this.consumeRuntimeState(e.runtimeJson);let i=e.state===`error`&&e.detail.toLowerCase().includes(`program stopped after an exception`),a=i?`ready`:e.state,o=e.samples!==void 0&&e.moreSamples===!1&&(a===`ready`||a===`error`),s=[];e.samples===void 0?e.sample&&(t&&this.emitTelemetry(e.sample),this.lastSampleSeq=e.sample.seq):(s=[...e.samples].sort((e,t)=>e.seq-t.seq),o||this.publishBatchedSamples(e.bootId,s,a===`running`||e.moreSamples===!0,t,(a===`ready`||a===`error`)&&e.moreSamples===!0));let c=[...e.logs].sort((e,t)=>e.seq-t.seq);for(let t of c){if(!Number.isSafeInteger(t.seq)||t.seq<=this.lastLogSeq)continue;let n=Number.isSafeInteger(t.runId)&&t.runId>=0?t.runId:void 0,r=this.runOutputIdentity;if(t.seq>this.lastLogSeq+1){let i=this.lastLogSeq+1,a=t.seq-1,o=a-i+1,s=r?.bootId===e.bootId&&r.deviceRunId===n&&this.lastLogDeviceRunId===n?r.requestId:void 0;s!==void 0&&this.currentRun?.runId===s&&this.currentRun.finishedAtMs===void 0&&(this.currentRun={...this.currentRun,droppedOutputLines:(this.currentRun.droppedOutputLines??0)+o}),this.emitConsole(`system`,`XRP log gap · ${o} line${a===i?``:`s`} unavailable`,{action:`telemetry`,phase:`error`,omittedOutputLines:o,eventId:`${e.bootId}:log-gap:${i}-${a}`,requestId:s,deviceBootId:e.bootId,deviceRunId:n})}this.lastLogSeq=t.seq,this.lastLogDeviceRunId=n,this.emitConsole(t.stream,t.line,{phase:t.stream===`system`?`result`:`output`,eventId:`${e.bootId}:log:${t.seq}`,targetTimeMs:t.tMs,targetClockId:`physical:${e.bootId}:service-uptime`,deviceBootId:e.bootId,deviceRunId:n,requestId:r&&n===r.deviceRunId&&r.requestId===this.currentRun?.runId?r.requestId:void 0})}a===`ready`&&e.moreLogs!==!0&&e.samples===void 0&&e.sample===void 0&&this.currentRun&&this.currentRun.finishedAtMs===void 0&&this.info?.capabilities.includes(`control.session-v1`)&&this.control?.sessionId!==this.controlSessionId&&(this.collectingStoppedRun=!1,this.emitStatus(`error`,`The program stopped, but its final telemetry could not be collected after this browser lost control of the XRP. This recording is incomplete.`,!0));let l=(this.currentRun!==null&&this.currentRun.finishedAtMs===void 0||e.samples!==void 0||e.sample!==void 0)&&(a===`ready`||a===`error`)&&(e.moreLogs===!0||e.moreSamples===!0||this.collectingStoppedRun&&e.samples===void 0&&e.sample===void 0);if(this.collectingStoppedRun=a===`ready`&&l,this.collectingStoppedRun&&this.emitStatus(`loading`,`Program stopped; collecting final run data…`),!l)this.emitStatus(a,e.detail,a===`error`,i?`program`:void 0),o&&this.publishBatchedSamples(e.bootId,s,!1,t);else if(o){let e=s.at(-1)?.seq;e!==void 0&&Number.isSafeInteger(e)&&e>this.lastSampleSeq&&(this.lastSampleSeq=e)}}publishBatchedSamples(e,t,n,r=!0,i=!1){for(let a of t)if(!(!Number.isSafeInteger(a.seq)||a.seq<=this.lastSampleSeq)){if(r&&n&&a.seq>this.lastSampleSeq+1){let t=this.lastSampleSeq+1,n=a.seq-1,r=this.runOutputIdentity,i=r?.bootId===e&&r.deviceRunId===this.lastRunId?r.requestId:void 0;this.emitConsole(`system`,`Telemetry gap · ${n-t+1} sample${n===t?``:`s`} unavailable`,{action:`telemetry`,phase:`error`,eventId:`${e}:run:${this.lastRunId}:sample-gap:${t}-${n}`,requestId:i,deviceBootId:e,deviceRunId:this.lastRunId})}r&&this.emitTelemetry(a,i),this.lastSampleSeq=a.seq}}emitTelemetry(e,t=!1){this.emit({type:`telemetry`,replayed:t,sample:{...e,plotValues:e.plotValues?.map(e=>({...e}))??[]}})}async reconnectAfterReset(){let e=this.commandEpoch,t=this.bootId;this.stopPolling();let n=performance.now()+st,r=null;for(;performance.now()<n&&this.connected;){await new Promise(e=>setTimeout(e,450));try{let n=await this.getJson(`/api/v1/info`,1500);if(this.assertCommandEpoch(e),Tt(n),K(n,this.expectedRobotId),n.bootId===t){r=new F(`restart_pending`,`The XRP has not restarted yet`),this.emitStatus(`connecting`,`Waiting for the XRP to finish restarting…`);continue}this.reconcileReconnectedRun(n),this.info=n,this.bootId=n.bootId,this.lastRunId=n.runId??0,this.control=n.control??null,this.lastLogSeq=0,this.lastLogDeviceRunId=void 0,this.lastSampleSeq=0,this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.consumeProjectManifest(n.project),this.consumeRuntimeState(n.runtimeJson);let i=await this.readInitialState(n);this.assertCommandEpoch(e);try{await this.acquireControl(!1)}catch(e){if(!(e instanceof F)||e.code!==`control_owned`)throw e}this.assertCommandEpoch(e),this.emitStatus(i?.state??`ready`,i?.detail??`${n.robotName} · ${n.address} · course ${n.courseRelease}`),this.emitConsole(`system`,`${n.robotName} reconnected and ready`,{action:`connect`,phase:`result`});let a=n.network?.mode,o=n.network?.address??n.address;(a===`access_point`||a===`station`)&&o&&this.emit({type:`physical-network`,mode:a,address:I(o),ssid:n.network?.ssid,...n.network?.requested_mode?{requestedMode:n.network.requested_mode}:{},...typeof n.network?.fallback==`boolean`?{fallback:n.network.fallback}:{},...n.robotId?{robotId:n.robotId}:{},...n.robotName?{hostname:n.robotName}:{}});return}catch(e){if(e instanceof F&&(e.code===`robot_identity_mismatch`||e.code===`robot_identity_missing`||e.code===`firmware_required`||e.code===`release_mismatch`||e.code===`protocol_mismatch`||e.code===`operation_cancelled`))throw e;r=e}}throw new F(`reconnect_failed`,`Physical XRP did not return after reset: ${R(r)}`)}reconcileReconnectedRun(e){let t=this.bootId!==null&&this.bootId!==e.bootId,n=e.runId!==void 0&&this.lastRunId>0&&this.lastRunId!==e.runId;!t&&!n||(this.currentRun&&this.currentRun.finishedAtMs===void 0&&this.emitStatus(`error`,`${t?`The XRP restarted`:`The XRP changed runs`} before its remaining data could be collected. This recording is incomplete.`,!0),t&&(this.lastLogSeq=0,this.lastLogDeviceRunId=void 0),this.lastSampleSeq=0,this.collectingStoppedRun=!1,this.runOutputIdentity=null,this.pendingRunOutputIdentity=null)}async resolveUnsettledLaunch(){if(!this.unsettledLaunch||!this.info?.capabilities.includes(`control.session-v1`))return;let e=await this.getJson(`/api/v1/state?afterLogSeq=${this.lastLogSeq}`);this.consumeState(e,!1),this.unsettledLaunch=!1}async readRecoverableState(e,t,n){let r=this.commandEpoch,i=t??(()=>this.assertCommandEpoch(r)),a=async()=>{let t=await this.getJson(`/api/v1/state?afterLogSeq=${this.lastLogSeq}`,e,n);if(i(),t.bootId===this.info?.bootId&&t.bootId===this.bootId&&t.runId===this.lastRunId&&(t.state===`ready`||t.state===`error`&&t.detail.toLowerCase().includes(`stopped after an exception`))&&t.control?.sessionId===null){this.consumeControl(t.control);try{return await this.acquireControl(!1),i(),await this.readTelemetry(this.telemetryPath(this.lastLogSeq,this.lastSampleSeq,this.lastRunId>0?this.lastRunId:void 0),e,n)}catch(t){if(i(),t instanceof F&&t.code===`control_owned`)return this.getJson(`/api/v1/state?afterLogSeq=${this.lastLogSeq}`,e,n);throw t}}return t};if(this.info?.capabilities.includes(`control.session-v1`)&&this.control?.sessionId!==this.controlSessionId)return a();try{return await this.readTelemetry(this.telemetryPath(this.lastLogSeq,this.lastSampleSeq,this.lastRunId>0?this.lastRunId:void 0),e,n)}catch(e){if(e instanceof F&&[`control_required`,`boot_changed`,`stale_run`].includes(e.code))return a();throw e}}async waitForProgramStop(e=!0){let t=this.commandEpoch,n=performance.now()+2e3,r=null,i=0;for(;performance.now()<n&&this.connected;){i>0&&await new Promise(e=>setTimeout(e,i)),this.assertCommandEpoch(t);try{let n=this.lastLogSeq,a=this.lastSampleSeq,o=await this.readRecoverableState(1e3);if(this.assertCommandEpoch(t),this.consumeState(o,e),i=(o.moreLogs===!0||o.moreSamples===!0)&&(this.lastLogSeq>n||this.lastSampleSeq>a)?0:100,(o.state===`ready`||o.state===`error`&&o.detail.toLowerCase().includes(`stopped after an exception`))&&o.moreLogs!==!0&&o.moreSamples!==!0&&!this.collectingStoppedRun)return;if(o.state===`error`&&o.moreLogs!==!0&&o.moreSamples!==!0&&!this.collectingStoppedRun){r=new F(`target_error`,o.detail);break}}catch(e){this.assertCommandEpoch(t),r=e;break}}this.assertCommandEpoch(t),this.emitStatus(this.collectingStoppedRun?`loading`:`connecting`,this.collectingStoppedRun?`Program stopped; recovering final run data…`:`Checking program stop…`);try{await this.recoverAfterInterruptedStop(e)}catch(e){throw this.collectingStoppedRun?e:r??e}}async recoverAfterInterruptedStop(e=!0){let t=this.commandEpoch;this.stopPolling();let n=performance.now()+st,r=null,i=0;for(;performance.now()<n&&this.connected;){i>0&&await new Promise(e=>setTimeout(e,i)),this.assertCommandEpoch(t),i=450;try{let n=this.lastLogSeq,a=this.lastSampleSeq,o=await this.readRecoverableState(1500);if(this.assertCommandEpoch(t),this.pollConnectionFailed=!1,this.consecutivePollFailures=0,this.consumeState(o,e),(o.moreLogs===!0||o.moreSamples===!0)&&(this.lastLogSeq>n||this.lastSampleSeq>a)&&(i=0),(o.state===`ready`||o.state===`error`&&o.detail.toLowerCase().includes(`stopped after an exception`))&&o.moreLogs!==!0&&o.moreSamples!==!0&&!this.collectingStoppedRun){this.emitConsole(`system`,`XRP stop state verified`,{action:`stop`,phase:`result`});return}o.state===`error`&&(r=new F(`target_error`,o.detail))}catch(e){this.assertCommandEpoch(t),r=e}}throw this.assertCommandEpoch(t),this.collectingStoppedRun?new F(`run_data_incomplete`,`The program stopped, but its remaining run data could not be collected. Check your connection to the XRP and select Stop to retry collection. A new run must wait to preserve this recording.`):new F(`reconnect_failed`,`Could not verify that the physical XRP stopped: ${R(r)}`)}emitStatus(e,t,n=!1,r){(this.currentState!==e||this.currentDetail!==t)&&(this.currentState=e,this.currentDetail=t,(e===`ready`||n)&&this.currentRun&&this.currentRun.finishedAtMs===void 0&&(this.currentRun={...this.currentRun,state:e,detail:t,...r?{failureDomain:r}:{},finishedAtMs:Date.now()},this.emit({...this.currentRun,type:`run`,phase:`end`})),this.emit({type:`status`,state:e,detail:t,timestampMs:Date.now()}),this.publishControl())}emitConsole(e,t,n={}){let r=n.eventId??this.nextConsoleEventId();if(n.action===`run`&&n.phase===`request`&&this.currentRun?.runId!==n.requestId){this.runOutputIdentity=null,this.pendingRunOutputIdentity=null;let e=this.stagedRunDescriptor??this.currentProject;this.currentRun={runId:n.requestId??r,startedAtMs:n.timestampMs??Date.now(),state:`loading`,detail:t,projectId:e?.projectId,projectName:e?.name,projectRevision:e?.revision,entrypoint:e?.entrypoint},this.emit({...this.currentRun,type:`run`,phase:`begin`})}this.emit({type:`console`,stream:e,line:t,...n,eventId:r,timestampMs:n.timestampMs??Date.now()})}nextConsoleEventId(){let e=`physical-${this.eventSession}-${this.nextEvent}`;return this.nextEvent+=1,e}consumeProjectManifest(e){if(e===void 0)return;if(e===null){if(this.currentProject?.stale)return;this.setCurrentProject(null);return}if(!e.revision){this.projectStateKnown||this.setCurrentProject(null);return}if(this.currentProject?.stale&&this.currentProject.revision!==e.revision)return;let t=e.name||e.entrypoint,n=this.currentProject?.revision===e.revision&&this.currentProject.name===t&&this.currentProject.entrypoint===e.entrypoint?this.currentProject.projectId:void 0;if(this.setCurrentProject({...n?{projectId:n}:{},name:t,entrypoint:e.entrypoint,revision:e.revision,stale:!1}),typeof e.worldJson==`string`&&e.worldJson!==this.lastWorldJson){this.lastWorldJson=e.worldJson;try{let t=ue(e.worldJson);this.emit({type:`world`,catalog:t,selectedWorldId:t.defaultWorldId})}catch(e){this.emitConsole(`system`,`The XRP project has an invalid world.json: ${R(e)}`,{phase:`error`})}}}setCurrentProject(e){this.projectStateKnown&&this.currentProject?.revision===e?.revision&&this.currentProject?.projectId===e?.projectId&&this.currentProject?.stale===e?.stale&&this.currentProject?.name===e?.name&&this.currentProject?.entrypoint===e?.entrypoint||(this.projectStateKnown=!0,this.currentProject=e,this.emit({type:`project`,project:e}))}consumeRuntimeState(e){if(e!==void 0&&e!==this.lastRuntimeJson){this.lastRuntimeJson=e;try{this.runtimeState=We(e)}catch{this.runtimeState=He}this.emit({type:`runtime`,state:this.runtimeState})}}emit(e){for(let t of this.listeners)t(e)}},kt=class{kind=`physical`;endpoint;options;direct=null;worker=null;listeners=new Set;pending=new Map;seenConsoleEventIds=new Set;consoleEventOrder=[];nextRequest=1;localNetworkPermissionPrimed=!1;pageLifecycleObserved=!1;releaseDepartureParticipant=null;pageWasHidden=!1;pageCacheSuspended=!1;visiblePollFrame=null;candidateEndpoints;discoveryTimeoutMs;directMode;directPollOwnerId=`page-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;projectRunProvider=null;telemetryEnabled=!1;directRunAttempt=null;directState=`disconnected`;directControlOwned=!0;directDepartureStop=null;constructor(e,t={}){this.endpoint=I(e),this.options=t,this.candidateEndpoints=[...new Set([this.endpoint,...(t.candidateEndpoints??[]).map(I)])],this.discoveryTimeoutMs=t.discoveryTimeoutMs??1e3,this.directMode=!!t.fetch||!(`SharedWorker`in globalThis)}async connect(){if(this.observePageLifecycle(),this.directMode||this.direct){if(this.directDepartureStop&&await this.directDepartureStop,this.direct){await this.direct.connect(),this.startVisiblePollDriver();return}await this.connectDirectCandidate(),this.startVisiblePollDriver();return}if(!this.worker)try{this.worker=new SharedWorker(new URL(`/ucsbxrp/assets/physical-target.shared-worker-C9hXaU3M.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-physical-target-v19-${import.meta.url}`}),this.worker.port.onmessage=e=>this.handleWorkerMessage(e.data),this.worker.onerror=e=>{e.preventDefault(),this.releaseWorker(e.message?`Physical target worker failed: ${e.message}`:`Physical target worker failed`)},this.worker.port.start(),this.worker.port.postMessage({type:`set-role`,role:this.deliveryRole()})}catch(e){this.releaseWorker(R(e)),await this.useDirectClient().connect(),this.startVisiblePollDriver();return}let e=e=>this.request({type:`connect`,endpoints:e,discoveryTimeoutMs:this.discoveryTimeoutMs,expectedRobotId:this.options.expectedRobotId,providesProject:this.projectRunProvider!==null,role:this.deliveryRole()});try{await e(this.candidateEndpoints),this.startVisiblePollDriver();return}catch(e){if(!this.shouldPrimeLocalNetworkPermission(e))throw e}let t=await this.primeLocalNetworkPermission();await e(t?[t,...this.candidateEndpoints.filter(e=>e!==t)]:this.candidateEndpoints),this.startVisiblePollDriver()}disconnect(){if(this.pageCacheSuspended=!1,this.stopVisiblePollDriver(),this.stopObservingPageLifecycle(),this.direct){this.releaseDirectAfterDeparture();return}this.releaseWorker(`Physical target disconnected`)}async check(e){return this.direct?this.direct.check(e):await this.request({type:`check`,project:e})}async synchronize(e,t){if(this.direct){await this.direct.synchronize(e,t);return}await this.request({type:`prepare`,project:e,...t?{projectId:t}:{}})}async run(e,t){if(this.direct){await this.runDirect(()=>this.direct.run(e,t));return}await this.request({type:`run`,project:e,...t?{projectId:t}:{}})}async runCurrent(){if(this.direct){await this.runDirect(()=>this.direct.runCurrent());return}await this.request({type:`run-current`,requireCallerProvider:this.projectRunProvider!==null})}async markProjectStale(e,t){if(this.direct){await this.direct.markProjectStale(e,t);return}await this.request({type:`mark-project-stale`,project:e,...t?{projectId:t}:{}})}setProjectRunProvider(e,t){this.projectRunProvider=e,this.direct?.setProjectRunProvider(e,t),this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()}),this.worker?.port.postMessage({type:`set-project-run-provider`,providesProject:e!==null,takeover:t?.takeover===!0})}setTelemetryEnabled(e){this.telemetryEnabled=e,this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()})}deliveryRole(){return this.telemetryEnabled||this.projectRunProvider===null?`monitor`:`ide`}markProjectChanged(e){if(this.direct){this.direct.markProjectChanged(e);return}this.worker?.port.postMessage({type:`mark-project-changed`,project:e})}async stop(){if(this.direct){await this.direct.stop();return}await this.request({type:`stop`})}async reset(){if(this.direct){await this.direct.reset();return}await this.request({type:`reset`})}async setRuntimeParameter(e,t){if(this.direct){await this.direct.setRuntimeParameter(e,t);return}await this.request({type:`set-runtime-parameter`,name:e,value:t})}async claimControl(){if(this.direct)return this.direct.claimControl();await this.request({type:`claim-control`})}subscribe(e){return this.listeners.add(e),()=>this.listeners.delete(e)}async runDirect(e){let t=this.directState===`running`||this.directState===`loading`?null:{pending:!0};t&&(this.directRunAttempt=t);try{await e()}finally{t&&(t.pending=!1,this.directRunAttempt===t&&this.directState===`ready`&&(this.directRunAttempt=null))}}releaseDirectAfterDeparture(){let e=this.direct;e&&(this.stopOnBeforeUnload(),this.directDepartureStop?this.directDepartureStop.then(()=>e.disconnect()):e.disconnect())}useDirectClient(){return this.direct||(this.direct=new Ot(this.endpoint,this.directTargetOptions()),this.direct.setProjectRunProvider(this.projectRunProvider),this.direct.subscribe(e=>this.emit(e))),this.direct}directTargetOptions(){return this.options.fetch||this.options.pollCoordinatorGeneration!==void 0?this.options:{...this.options,pollCoordinatorGeneration:19,pollOwnerId:this.directPollOwnerId}}async connectDirectCandidate(){let e=Error(`No XRP address is available`);for(let t of this.candidateEndpoints){let n=new Ot(t,{...this.directTargetOptions(),discoveryTimeoutMs:this.discoveryTimeoutMs,candidateEndpoints:void 0});n.setProjectRunProvider(this.projectRunProvider);let r=[],i=n.subscribe(e=>r.push(e));try{await n.connect(),i(),this.direct=n,n.subscribe(e=>this.emit(e));for(let e of r)this.emit(e);return}catch(t){i(),n.disconnect(),e=at(e,t)}}throw e}async primeLocalNetworkPermission(){if(this.localNetworkPermissionPrimed||typeof window>`u`||window.location.protocol!==`https:`||new URL(this.endpoint).protocol!==`http:`)return null;let e=Error(`No XRP address is available`);for(let t of this.candidateEndpoints){let n=new AbortController,r=setTimeout(()=>n.abort(),this.discoveryTimeoutMs);try{let e=await globalThis.fetch(`${t}/api/v1/info`,L(t,{cache:`no-store`,method:`GET`,signal:n.signal},window.location.protocol));if(!e.ok)throw Error(`XRP returned HTTP ${e.status}`);return this.options.expectedRobotId&&K(await e.json(),this.options.expectedRobotId),this.localNetworkPermissionPrimed=!0,t}catch(t){e=at(e,t)}finally{clearTimeout(r)}}throw e instanceof F&&(e.code===`robot_identity_mismatch`||e.code===`robot_identity_missing`)?e:new F(`network_error`,`${e instanceof DOMException&&e.name===`AbortError`?`Known XRP addresses did not reply within ${this.discoveryTimeoutMs/1e3} second per address`:`Cannot reach a known XRP address: ${R(e)}`}. ${B(this.endpoint)}`)}shouldPrimeLocalNetworkPermission(e){return e instanceof F&&(e.code===`network_error`||e.code===`timeout`)&&!this.localNetworkPermissionPrimed&&typeof window<`u`&&window.location.protocol===`https:`&&this.candidateEndpoints.some(e=>new URL(e).protocol===`http:`)}request(e){if(!this.worker)return Promise.reject(Error(`Physical target is not connected`));let t=`physical-${this.nextRequest}`;return this.nextRequest+=1,new Promise((n,r)=>{this.pending.set(t,{resolve:n,reject:r}),this.worker?.port.postMessage({...e,requestId:t})})}handleWorkerMessage(e){if(e.type===`project-run-snapshot-request`){let t=this.worker,n=this.projectRunProvider;Promise.resolve().then(()=>{if(!n)throw Error(`The IDE is not ready to provide its current project.`);return n()}).then(n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,snapshot:n})},n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,error:R(n)})});return}if(e.type===`telemetry-batch`){for(let t of e.events)this.emit({...t,replayed:e.replayed||t.replayed===!0});return}if(e.type===`event`){this.emit(e.event);return}let t=this.pending.get(e.requestId);t&&(this.pending.delete(e.requestId),e.ok?t.resolve(e.result):t.reject(new F(e.errorCode??`worker_request_failed`,e.error)))}releaseWorker(e){this.stopVisiblePollDriver();let t=this.worker;if(this.worker=null,this.rejectPending(e),t)try{t.port.postMessage({type:`disconnect`})}catch{}finally{setTimeout(()=>t.port.close(),100)}}releaseOnPageHide=e=>{if(!e.persisted){this.disconnect();return}this.pageCacheSuspended=!0,this.stopVisiblePollDriver(),this.direct?this.releaseDirectAfterDeparture():this.releaseWorker(`Physical target suspended in browser history`)};stopOnBeforeUnload=()=>{if(this.direct){if(!this.directRunAttempt||this.directDepartureStop)return;if(!this.directControlOwned){this.directRunAttempt.pending&&this.direct.interruptPendingCommands();return}this.directDepartureStop=this.direct.stop().catch(()=>void 0).finally(()=>{this.directDepartureStop=null});return}this.worker?.port.postMessage({type:`stop-owned-run`})};resumeOnPageShow=e=>{if(e.persisted){if(!this.pageCacheSuspended){this.requestResumeRecovery(`pageshow`);return}this.pageCacheSuspended=!1,this.connect().catch(e=>{this.emit({type:`status`,state:`error`,detail:R(e)})})}};resumeOnVisibilityChange=()=>{if(document.visibilityState===`hidden`){this.stopVisiblePollDriver(),this.pageWasHidden=!0;return}this.startVisiblePollDriver(),this.pageWasHidden&&(this.pageWasHidden=!1,this.requestResumeRecovery(`visibilitychange`))};resumeOnOnline=()=>{this.pageIsVisible()&&this.requestResumeRecovery(`online`)};resumeOnFocus=()=>{this.pageIsVisible()&&this.requestResumeRecovery(`focus`)};pageIsVisible(){return typeof document>`u`||document.visibilityState!==`hidden`}driveVisiblePoll=()=>{this.visiblePollFrame=null,!(!this.pageIsVisible()||this.pageCacheSuspended)&&(this.direct?this.direct.requestPollIfDue():this.worker?.port.postMessage({type:`poll-frame`}),this.startVisiblePollDriver())};startVisiblePollDriver(){this.visiblePollFrame!==null||!this.worker&&!this.direct||!this.pageIsVisible()||typeof window>`u`||typeof window.requestAnimationFrame!=`function`||(this.visiblePollFrame=window.requestAnimationFrame(this.driveVisiblePoll))}stopVisiblePollDriver(){if(this.visiblePollFrame===null||typeof window>`u`||typeof window.cancelAnimationFrame!=`function`){this.visiblePollFrame=null;return}window.cancelAnimationFrame(this.visiblePollFrame),this.visiblePollFrame=null}requestResumeRecovery(e){!this.worker||typeof navigator<`u`&&navigator.onLine===!1||this.worker.port.postMessage({type:`resume`,reason:e})}observePageLifecycle(){this.pageLifecycleObserved||typeof window>`u`||typeof window.addEventListener!=`function`||(window.addEventListener(`pagehide`,this.releaseOnPageHide),this.releaseDepartureParticipant=m({cancel:this.stopOnBeforeUnload}),window.addEventListener(`pageshow`,this.resumeOnPageShow),window.addEventListener(`online`,this.resumeOnOnline),window.addEventListener(`focus`,this.resumeOnFocus),typeof document<`u`&&typeof document.addEventListener==`function`&&(this.pageWasHidden=document.visibilityState===`hidden`,document.addEventListener(`visibilitychange`,this.resumeOnVisibilityChange)),this.pageLifecycleObserved=!0)}stopObservingPageLifecycle(){!this.pageLifecycleObserved||typeof window>`u`||typeof window.removeEventListener!=`function`||(window.removeEventListener(`pagehide`,this.releaseOnPageHide),this.releaseDepartureParticipant?.(),this.releaseDepartureParticipant=null,window.removeEventListener(`pageshow`,this.resumeOnPageShow),window.removeEventListener(`online`,this.resumeOnOnline),window.removeEventListener(`focus`,this.resumeOnFocus),typeof document<`u`&&typeof document.removeEventListener==`function`&&document.removeEventListener(`visibilitychange`,this.resumeOnVisibilityChange),this.pageWasHidden=!1,this.pageLifecycleObserved=!1)}rejectPending(e){for(let t of this.pending.values())t.reject(Error(e));this.pending.clear()}emit(e){if(this.direct&&(e.type===`status`?(this.directState=e.state,e.state===`ready`&&!this.directRunAttempt?.pending&&(this.directRunAttempt=null)):e.type===`run`&&e.phase===`end`?this.directRunAttempt=null:e.type===`control`&&(this.directControlOwned=e.owned,!e.owned&&!this.directRunAttempt?.pending&&(this.directRunAttempt=null))),e.type===`console`&&e.eventId){if(this.seenConsoleEventIds.has(e.eventId))return;if(this.seenConsoleEventIds.add(e.eventId),this.consoleEventOrder.push(e.eventId),this.consoleEventOrder.length>4e3){let e=this.consoleEventOrder.shift();e&&this.seenConsoleEventIds.delete(e)}}for(let t of this.listeners)t(e)}},q=2500,J=15e3,At=2e3;function jt(){return new Worker(new URL(`/ucsbxrp/assets/micropython.worker-29IVaXvp.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-micropython-syntax-check`})}function Mt(e,t,n){if(e.diagnostics!==void 0)return e.diagnostics;let r={phase:e.stage===`run`?`runtime`:`compile`,projectPaths:Object.keys(n.files)},i=E(e.detail,r),a=E(t.join(`
+`),r);return a[0]?.path&&!i.some(e=>e.path)?a:i.length>0?i:a}function Nt(e){let t=T(e);if(t)return{result:Promise.resolve({ok:!1,detail:t.message,compilerOutput:[t.message],diagnostics:[{source:`project`,phase:`compile`,severity:`error`,code:t.code,message:t.message,raw:[t.message]}]}),cancel(){}};let n=null,r=null,i=!1,a=!1,o=null,s=[],c=()=>{r!==null&&clearTimeout(r),r=null,n?.terminate(),n=null};return{result:new Promise((t,l)=>{o=l;let u=e=>{i||(i=!0,c(),t(e))},d=e=>{i||(i=!0,c(),l(e))};try{n=jt()}catch(e){d(Error(e instanceof Error?e.message:`MicroPython project checker could not start`));return}r=setTimeout(()=>{d(Error(`MicroPython runtime did not finish loading within ${J/1e3} seconds. Check the connection or offline setup, then try Compile again.`))},J),n.onmessage=t=>{let n=t.data;if(n.type===`runtime-ready`&&!a){a=!0,r!==null&&clearTimeout(r),r=setTimeout(()=>d(Error(`MicroPython project check timed out after ${q/1e3} seconds`)),q);return}if(n.type===`console`){s.length<At&&s.push(n.line);return}if(n.type===`check-complete`){let e=n.diagnostics??[];u({ok:!0,detail:n.detail,compilerOutput:[...s,n.detail],...e.length>0?{diagnostics:e}:{},...s.length>0?{output:s}:{}});return}if(n.type===`error`){let t=Mt(n,s,e),r=n.rawDetail??n.detail;u({ok:!1,detail:n.detail,compilerOutput:[...s,r],...t.length>0?{diagnostics:t}:{},...s.length>0?{output:s}:{}})}},n.onerror=e=>{d(Error(e.message||`MicroPython project checker failed`))},n.onmessageerror=()=>{d(Error(`MicroPython project checker returned invalid data`))};try{n.postMessage({mode:`check`,project:e})}catch(e){d(Error(e instanceof Error?e.message:`MicroPython project checker could not receive the project`))}}),cancel(e=`MicroPython project check was cancelled`){i||(i=!0,c(),o?.(Error(e)))}}}function Pt(e){return Nt(e).result}function Y(e){return e instanceof Error?e.message:String(e)}async function Ft(e){let t=T(e);return t?{ok:!1,detail:t.message,output:[]}:new Promise((t,n)=>{let r=new Worker(new URL(`/ucsbxrp/assets/micropython.worker-29IVaXvp.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-component-checks`}),i=[],a=()=>{clearTimeout(s),r.terminate()},o=!1,s=setTimeout(()=>{a(),n(Error(`MicroPython runtime did not finish loading. Check the connection or offline setup, then try component checks again.`))},J);r.onmessage=e=>{let r=e.data;if(r.type===`runtime-ready`&&!o)o=!0,clearTimeout(s),s=setTimeout(()=>{a(),n(Error(`Component checks timed out`))},q);else if(r.type===`console`)i.length<2e3&&i.push(r.line);else if(r.type===`test-complete`)a(),t({ok:!0,detail:r.detail,output:i});else if(r.type===`error`){let e=r.diagnostics??[];a(),t({ok:!1,detail:r.detail,...e.length>0?{diagnostics:e}:{},output:i})}},r.onerror=e=>{a(),n(Error(e.message||`Component checker failed`))},r.postMessage({mode:`test`,project:e})})}var It=class{kind=`virtual`;worker=null;runtimeWorker=null;activeRunId=null;syntaxChecks=new Set;listeners=new Set;pending=new Map;clientId=crypto.randomUUID();nextRequest=1;nextAction=1;runHeartbeat=null;liveValues=null;projectRunProvider=null;telemetryEnabled=!1;pageLifecycleObserved=!1;pageCacheSuspended=!1;releaseDepartureParticipant=null;operationEpoch=0;cancellation=null;runtimeStartupTimeout=null;async connect(){if(this.observePageLifecycle(),this.worker)return;if(!(`SharedWorker`in globalThis))throw Error(`This browser does not support the virtual target worker`);let e=new SharedWorker(new URL(`/ucsbxrp/assets/virtual-target.shared-worker-OLuf5TJc.js`,``+import.meta.url),{type:`module`,name:`ucsb-xrp-virtual-target-v6-${import.meta.url}`});this.worker=e,e.port.onmessage=t=>{this.worker===e&&this.handleMessage(t.data)},e.port.start(),await this.request({type:`connect`,providesProject:this.projectRunProvider!==null,role:this.deliveryRole()})}disconnect(){this.pageCacheSuspended=!1,this.stopObservingPageLifecycle(),this.releaseConnection(`Virtual target disconnected`)}releaseConnection(e){this.operationEpoch+=1;let t=this.worker;t&&this.runtimeWorker&&t.port.postMessage({type:`stop`,requestId:`disconnect-${this.nextRequest}`}),this.terminateRuntime();for(let t of this.syntaxChecks)t.cancel(e);this.syntaxChecks.clear(),this.worker=null;for(let t of this.pending.values())clearTimeout(t.timeout),t.reject(Error(e));if(this.pending.clear(),t)try{t.port.postMessage({type:`disconnect`})}finally{setTimeout(()=>t.port.close(),100)}}releaseOnPageHide=e=>{if(!e.persisted){this.disconnect();return}this.pageCacheSuspended=!0,this.releaseConnection(`Virtual target suspended in browser history`)};resumeOnPageShow=e=>{if(!e.persisted||!this.pageCacheSuspended)return;this.pageCacheSuspended=!1;let t=this.operationEpoch;this.connect().catch(e=>{this.operationEpoch===t&&this.emit({type:`status`,state:`error`,detail:Y(e)})})};stopOnBeforeUnload=()=>{this.operationEpoch+=1,this.terminateRuntime(),this.worker?.port.postMessage({type:`stop-owned-run`})};observePageLifecycle(){this.pageLifecycleObserved||typeof window>`u`||typeof window.addEventListener!=`function`||(window.addEventListener(`pagehide`,this.releaseOnPageHide),window.addEventListener(`pageshow`,this.resumeOnPageShow),this.releaseDepartureParticipant=m({cancel:this.stopOnBeforeUnload}),this.pageLifecycleObserved=!0)}stopObservingPageLifecycle(){!this.pageLifecycleObserved||typeof window>`u`||typeof window.removeEventListener!=`function`||(window.removeEventListener(`pagehide`,this.releaseOnPageHide),window.removeEventListener(`pageshow`,this.resumeOnPageShow),this.releaseDepartureParticipant?.(),this.releaseDepartureParticipant=null,this.pageLifecycleObserved=!1)}async check(e){let t=e.name?.trim()||e.entrypoint,n=`virtual-validate-${this.clientId}-${this.nextAction++}`;this.publishConsole({type:`console`,stream:`system`,line:`Compile requested · ${t}`,action:`validate`,phase:`request`,requestId:n});let r=T(e);if(r){let e={ok:!1,detail:r.message};return this.publishConsole({type:`console`,stream:`system`,line:`Compilation failed · ${e.detail}`,action:`validate`,phase:`error`,requestId:n}),e}try{let t=Nt(e);this.syntaxChecks.add(t);let r;try{r=await t.result}finally{this.syntaxChecks.delete(t)}return this.publishConsole({type:`console`,stream:`system`,line:`${r.ok?`Compilation passed`:`Compilation failed`} · ${r.detail}`,action:`validate`,phase:r.ok?`result`:`error`,requestId:n}),r}catch(e){throw this.publishConsole({type:`console`,stream:`system`,line:`Compilation could not finish · ${Y(e)}`,action:`validate`,phase:`error`,requestId:n}),e}}async run(e,t){w(e),await this.withRunReservation(async(n,r)=>{let i=await a(e);this.assertOperation(r),await this.startRun({type:`prepare-run`,operationEpoch:n,project:e,descriptor:i,...t?{projectId:t}:{}},r)})}async runCurrent(){await this.withRunReservation(async(e,t)=>{let n=await this.request({type:`get-project`,requireCallerProvider:this.projectRunProvider!==null});if(!n.project||!n.descriptor)throw Error(`No project is ready. Open a project in the IDE first.`);w(n.project);let r=await a(n.project);if(this.assertOperation(t),!(n.projectId===n.storedProjectId&&!n.descriptor.stale&&n.descriptor.revision===r.revision&&n.descriptor.name===r.name&&n.descriptor.entrypoint===r.entrypoint)){await this.startRun({type:`prepare-run`,operationEpoch:e,project:n.project,descriptor:r,...n.projectId?{projectId:n.projectId}:{}},t);return}await this.startRun({type:`prepare-run`,operationEpoch:e},t)})}assertOperation(e){if(e!==this.operationEpoch||!this.worker)throw Error(`Run cancelled`)}async withRunReservation(e){let t=++this.operationEpoch,n=await this.request({type:`reserve-run`});try{this.assertOperation(t),await e(n.operationEpoch,t)}catch(e){throw this.worker&&await this.request({type:`cancel-run`,operationEpoch:n.operationEpoch}).catch(()=>void 0),e}}setProjectRunProvider(e,t){this.projectRunProvider=e,this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()}),this.worker?.port.postMessage({type:`set-project-run-provider`,providesProject:e!==null,takeover:t?.takeover===!0})}setTelemetryEnabled(e){this.telemetryEnabled=e,this.worker?.port.postMessage({type:`set-role`,role:this.deliveryRole()})}deliveryRole(){return this.telemetryEnabled||this.projectRunProvider===null?`monitor`:`ide`}markProjectChanged(e){this.worker?.port.postMessage({type:`mark-project-changed`,project:e})}async startRun(e,t=this.operationEpoch){this.terminateRuntime();let{runId:n,scenario:r,world:i,project:a}=await this.request(e);this.assertOperation(t);let o;try{o=this.createMicroPythonWorker(`ucsb-xrp-micropython-runtime`)}catch(e){throw this.forwardRuntimeMessage(n,{type:`error`,detail:Y(e)}),e}this.runtimeWorker=o,this.activeRunId=n,typeof SharedArrayBuffer==`function`&&globalThis.crossOriginIsolated?(this.liveValues=new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT*16)),this.cancellation=new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))):this.liveValues=null,this.startRunHeartbeat(n);let s=!1,c=(e,t)=>{this.clearRuntimeStartupDeadline(),this.runtimeStartupTimeout=setTimeout(()=>{o===this.runtimeWorker&&(this.forwardRuntimeMessage(n,{type:`error`,stage:`compile`,detail:t}),this.terminateRuntime(n))},e)};c(J,`MicroPython runtime did not finish loading within 15 seconds. Check the connection or offline setup, then try Run again.`),o.onmessage=e=>{if(o!==this.runtimeWorker)return;let t=e.data;t.type===`runtime-ready`&&!s?(s=!0,c(q,`MicroPython compilation timed out after 2.5 seconds. Check the project, then try Run again.`)):t.type===`compile-complete`&&this.clearRuntimeStartupDeadline(),this.forwardRuntimeMessage(n,t),(t.type===`run-complete`||t.type===`error`)&&this.terminateRuntime(n)},o.onerror=e=>{o===this.runtimeWorker&&(this.forwardRuntimeMessage(n,{type:`error`,detail:e.message||`MicroPython runtime worker failed`}),this.terminateRuntime(n))};try{o.postMessage({mode:`run`,project:he(a,r),scenario:r,world:i,liveParameterBuffer:this.liveValues?.buffer,cancellationBuffer:this.cancellation?.buffer})}catch(e){throw this.forwardRuntimeMessage(n,{type:`error`,stage:`compile`,detail:Y(e)}),this.terminateRuntime(n),e}}async synchronize(e,t){let n=await this.check(e);if(!n.ok)throw Error(n.detail);let r=await a(e);await this.request({type:`store-project`,project:e,descriptor:r,...t?{projectId:t}:{}}),this.publishConsole({type:`console`,stream:`system`,line:`Project prepared for the virtual XRP`,action:`flash`,phase:`result`})}async markProjectStale(e,t){let n=await a(e);await this.request({type:`mark-project-stale`,project:e,descriptor:n,...t?{projectId:t}:{}})}async stop(){this.operationEpoch+=1,this.terminateRuntime(),await this.request({type:`stop`})}async reset(){this.operationEpoch+=1,this.terminateRuntime(),await this.request({type:`reset`})}async setRuntimeParameter(e,t){await this.request({type:`set-runtime-parameter`,name:e,value:t})}async setSimulationScenario(e){await this.request({type:`set-scenario`,scenario:e})}subscribe(e){return this.listeners.add(e),()=>this.listeners.delete(e)}request(e){if(!this.worker)return Promise.reject(Error(`Virtual target is not connected`));let t=`request-${this.nextRequest}`;return this.nextRequest+=1,new Promise((n,r)=>{let i=setTimeout(()=>{this.pending.delete(t),r(Error(`Virtual target ${e.type} timed out`))},15e3);this.pending.set(t,{resolve:n,reject:r,timeout:i}),this.worker?.port.postMessage({...e,requestId:t})})}handleMessage(e){if(e.type===`project-run-snapshot-request`){let t=this.worker,n=this.projectRunProvider;Promise.resolve().then(()=>{if(!n)throw Error(`The IDE is not ready to provide its current project.`);return n()}).then(n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,snapshot:n})},n=>{t&&t===this.worker&&t.port.postMessage({type:`project-run-snapshot`,requestId:e.requestId,error:Y(n)})});return}if(e.type===`telemetry-batch`){for(let t of e.events)this.emit({...t,replayed:!0});return}if(e.type===`event`){for(let t of this.listeners)t(e.event);return}if(e.type===`terminate-runtime`){this.terminateRuntime(e.runId);return}if(e.type===`apply-runtime-parameter`){e.runId===this.activeRunId&&this.liveValues&&e.slot>=0&&e.slot<this.liveValues.length&&Atomics.store(this.liveValues,e.slot,e.encoded);return}let t=this.pending.get(e.requestId);t&&(clearTimeout(t.timeout),this.pending.delete(e.requestId),e.ok?t.resolve(e.result):t.reject(Error(e.error)))}createMicroPythonWorker(e){return new Worker(new URL(`/ucsbxrp/assets/micropython.worker-29IVaXvp.js`,``+import.meta.url),{type:`module`,name:e})}forwardRuntimeMessage(e,t){this.worker?.port.postMessage({type:`runtime-message`,runId:e,message:t})}startRunHeartbeat(e){this.stopRunHeartbeat();let t=()=>{this.activeRunId===e&&this.worker?.port.postMessage({type:`run-owner-heartbeat`,runId:e})};t(),this.runHeartbeat=setInterval(t,400)}stopRunHeartbeat(){this.runHeartbeat!==null&&(clearInterval(this.runHeartbeat),this.runHeartbeat=null)}emit(e){for(let t of this.listeners)t(e)}publishConsole(e){if(this.worker){this.worker.port.postMessage({type:`publish-console`,event:e});return}this.emit({...e,eventId:e.eventId??`virtual-client-${this.clientId}-${this.nextAction++}`,timestampMs:e.timestampMs??Date.now()})}terminateRuntime(e){(e===void 0||this.activeRunId===null||e===this.activeRunId)&&(this.clearRuntimeStartupDeadline(),this.stopRunHeartbeat(),this.cancellation&&Atomics.store(this.cancellation,0,1),this.runtimeWorker?.terminate(),this.runtimeWorker=null,this.activeRunId=null,this.liveValues=null,this.cancellation=null)}clearRuntimeStartupDeadline(){this.runtimeStartupTimeout!==null&&clearTimeout(this.runtimeStartupTimeout),this.runtimeStartupTimeout=null}},Lt=`# Values that define this Straight Run task.
 
 from ucsb_xrp import distance_to_goal, load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 TRAVEL_DISTANCE_MM = distance_to_goal(INITIAL_POSE, WORLD.waypoint("finish"))
@@ -30,6 +31,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(SensorModel, WheelSpeedController)
 `,zt=`# Select either the supplied reference class or the class in each project file.
 
@@ -62,6 +64,7 @@ def make_wheel_speed_controller(config):
     return SuppliedWheelController(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -89,12 +92,14 @@ def run_challenge():
     robot = make_robot(ROBOT_CONFIG)
     straight = StraightLineController(STRAIGHT_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         start_time_ms = state.measurements.time_ms
         straight.start(state.measurements, TRAVEL_DISTANCE_MM)
         maximum_steps = max(1, int(MAX_RUN_TIME_S * 1000.0 / ROBOT_CONFIG.sample_period_ms))
         step_count = 0
 
+        # Continue from measured wheel travel until the distance controller completes.
         while not straight.is_complete():
             if step_count >= maximum_steps:
                 message = (
@@ -143,6 +148,7 @@ from ucsb_xrp import NavigationConfig, RobotConfig
 
 # Nominal values match the virtual XRP. Tune signs and gains from measurements
 # when a physical course robot differs.
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -231,6 +237,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import distance_to_goal, load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 TURN_GOAL = WORLD.waypoint("turn")
@@ -257,6 +264,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -312,6 +320,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -371,6 +380,7 @@ def drive_straight(robot, state, distance_mm, phase_name):
     controller = StraightLineController(NAVIGATION_CONFIG)
     controller.start(state.measurements, distance_mm)
     step_count = 0
+    # Continue until this phase reaches its measured travel target.
     while not controller.is_complete():
         if step_count >= maximum_steps(MAX_STRAIGHT_TIME_S):
             message = "Challenge 2 stopped: {} did not complete within {} s".format(
@@ -390,6 +400,7 @@ def turn_to_heading(robot, state, target_heading_rad, phase_name):
     print("Phase started:", phase_name)
     heading_error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
     step_count = 0
+    # Recheck heading after each turn sample instead of assuming a fixed turn duration.
     while abs(heading_error) > NAVIGATION_CONFIG.heading_tolerance_rad:
         if step_count >= maximum_steps(MAX_TURN_TIME_S):
             message = "Challenge 2 stopped: {} did not complete within {} s".format(
@@ -414,6 +425,7 @@ def run_challenge():
     # Run the out-turn-return sequence and return the final RobotState.
     robot = make_robot(ROBOT_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         state = drive_straight(robot, state, OUTBOUND_DISTANCE_MM, "outbound travel")
         state = turn_to_heading(robot, state, TURN_HEADING_RAD, "turnaround")
@@ -474,6 +486,7 @@ class Odometry(OdometryBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -483,6 +496,7 @@ ROBOT_CONFIG = RobotConfig(
     max_drive_command=0.55,
 )
 
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,
@@ -561,6 +575,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 ROUTE = WORLD.waypoints()
@@ -579,6 +594,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -640,6 +656,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -651,6 +668,7 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
@@ -702,14 +720,17 @@ def count_reached_goals(pose, route, reached_count):
 
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     reached_count = 0
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count)
         navigation.start(ROUTE)
+        # Recompute one motion request from each newly estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1
@@ -820,6 +841,7 @@ class Odometry(OdometryBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -828,6 +850,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,
@@ -906,10 +929,12 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 DESTINATION = WORLD.waypoint("destination")
 ARENA_MAP = WORLD.arena_map()
+# Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
 # 85 mm collision radius plus 65 mm for the supplied controller's turning
 # transient. Grid-cell clearance alone is not a tracking-error guarantee.
@@ -930,6 +955,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -995,6 +1021,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -1006,12 +1033,14 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -1102,6 +1131,7 @@ def goal_is_reached(pose, goal):
 def run_challenge():
     # Plan and follow the mapped route, or report that no route exists.
     # The occupancy grid accounts for the robot clearance around each obstacle.
+    # Convert arena geometry to clearance-aware cells before planning.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
     goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
@@ -1114,15 +1144,19 @@ def run_challenge():
         print("Challenge 4: result=invalid_path reason={}".format(invalid_reason))
         return None
 
+    # Convert the checked cell path back to world-coordinate goals.
     goals = list(path.to_goals(grid))
     goals[-1] = DESTINATION
 
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         navigation.start(goals)
+        # Recompute one motion request from each newly estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1
@@ -1236,6 +1270,7 @@ class Odometry(OdometryBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -1244,6 +1279,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,
@@ -1324,6 +1360,7 @@ from ucsb_xrp import DeliveryTask, load_world
 
 # WORLD is the case selected in the Monitor. It determines the virtual range
 # measurement and the start and destination shown to the student.
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 
 # Both cases use one dimensioned mission map. The gate-blocked entry defines
@@ -1362,6 +1399,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -1428,6 +1466,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -1439,12 +1478,14 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -1503,6 +1544,7 @@ from ucsb_xrp import DeliveryMission
 
 
 def run_challenge():
+    # DeliveryMission owns the observation, map update, route plan, and stop.
     mission = DeliveryMission(
         DELIVERY_TASK,
         make_navigation_controller(NAVIGATION_CONFIG),
@@ -1514,6 +1556,7 @@ def run_challenge():
         if mission.planned_path is None
         else len(getattr(mission.planned_path, "cells", ()))
     )
+    # Keep unavailable range distinct from a measured open gate in the report.
     if mission.feature_blocked is None:
         map_decision = "unknown"
     elif mission.feature_blocked:
@@ -1628,6 +1671,7 @@ class Odometry(OdometryBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -1636,6 +1680,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,
@@ -1714,6 +1759,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 
@@ -1751,6 +1797,7 @@ from ucsb_xrp.component_checks import run_component_checks
 from ucsb_xrp.student_api import RangeSafetyControllerBase
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -1903,6 +1950,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -1914,12 +1962,14 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -1980,6 +2030,7 @@ class GridPlanner(GridPlannerBase):
 from ucsb_xrp import live
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_range_decision(estimate_mm, speed_mm_s):
     live.watch(
         "range_estimate_mm",
@@ -2072,6 +2123,7 @@ def current_range_estimate(robot, state, observations):
 
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     controller = make_range_safety_controller(
         RESPONSE_TIME_S,
@@ -2082,12 +2134,14 @@ def run_challenge():
     observations = []
     previous_seq = None
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         for _ in range(INITIAL_RANGE_SAMPLE_COUNT):
             robot.collect_range_samples(1)
             state = robot.state
             previous_seq = remember_range(robot, state, observations, previous_seq)
 
+        # Reassess fresh range and measured speed before every forward command.
         while True:
             estimate = current_range_estimate(robot, state, observations)
             speed_mm_s = valid_student_speed(
@@ -2240,6 +2294,7 @@ class RangeSafetyController(RangeSafetyControllerBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -2248,6 +2303,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,
@@ -2328,6 +2384,7 @@ from math import pi
 from ucsb_xrp import Pose, load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 PHYSICAL_INITIAL_POSE = WORLD.initial_pose
 ODOMETRY_INITIAL_POSE = Pose(
@@ -2363,6 +2420,7 @@ from ucsb_xrp.student_api import PoseCorrectorBase
 from wheel_speed_controller import WheelSpeedController
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -2544,6 +2602,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -2555,12 +2614,14 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -2675,6 +2736,8 @@ def collect_stationary_range(robot, state, expected_heading_rad):
 
 
 def turn_to_heading(robot, state, target_heading_rad):
+    # Recheck estimated heading after every zero-forward command; stop once
+    # heading tolerance is reached before making wall observations.
     while True:
         error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
         if abs(error) <= NAVIGATION_CONFIG.heading_tolerance_rad:
@@ -2702,10 +2765,12 @@ def destination_is_reached(corrected_pose, raw_pose):
 
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     corrector = make_pose_corrector(SENSOR_FORWARD_OFFSET_MM)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(ODOMETRY_INITIAL_POSE)
         corrector.reset(state.pose)
 
@@ -2724,6 +2789,7 @@ def run_challenge():
         corrector.observe_y(state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE)
 
         navigation.start((DESTINATION,))
+        # Recompute one motion request from each newly estimated pose.
         while not navigation.is_complete():
             corrected = corrector.corrected_pose(state.pose)
             state = robot.step(navigation.update(corrected))
@@ -2909,6 +2975,7 @@ class RangeSafetyController(RangeSafetyControllerBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -2917,6 +2984,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=120.0,
     approach_speed_mm_s=96.0,
@@ -2995,6 +3063,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import NavigationGoal, load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 SERVICE_STOPS = (
@@ -3010,6 +3079,7 @@ START_NODE_INDEX = 0
 REQUIRED_NODE_INDICES = (1, 2, 3)
 FINISH_NODE_INDEX = 0
 ARENA_MAP = WORLD.arena_map()
+# Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
 CLEARANCE_MM = 95.0
 `,ar=`# Test Challenge 8 components without starting either robot.
@@ -3026,6 +3096,7 @@ from ucsb_xrp.component_checks import run_component_checks
 from ucsb_xrp.student_api import VisitOrderPlannerBase
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -3187,6 +3258,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     return Robot(
         config,
@@ -3198,12 +3270,14 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -3341,6 +3415,7 @@ def goal_is_reached(pose, goal):
 
 
 def run_challenge():
+    # Convert arena geometry to clearance-aware cells before planning.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     cost_table, paths = build_pairwise_paths(grid)
     order = make_visit_order_planner().plan(
@@ -3354,20 +3429,24 @@ def run_challenge():
         return None
     order = validate_order(order)
 
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     serviced = []
     planned_transitions = 0
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE)
         for start_index, finish_index in zip(order, order[1:]):
             path = paths[(start_index, finish_index)]
             if path is None:
                 raise RuntimeError("Selected order contains a disconnected segment")
             planned_transitions += len(path.cells) - 1
+            # Convert the checked cell path back to world-coordinate goals.
             goals = list(path.to_goals(grid))
             goals[-1] = NODE_GOALS[finish_index]
             navigation.start(goals)
+            # Recompute one motion request from each newly estimated pose.
             while not navigation.is_complete():
                 state = robot.step(navigation.update(state.pose))
 
@@ -3555,6 +3634,7 @@ class RangeSafetyController(RangeSafetyControllerBase):
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -3563,6 +3643,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=120.0,
     approach_speed_mm_s=96.0,
@@ -3659,6 +3740,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 `,vr=`from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 `,yr=`# Exercise the student file directly, independently of the Run selector.
@@ -3669,6 +3751,8 @@ from ucsb_xrp import MotionCommand, ReflectanceReadings
 def check_line_follower():
     follower = LineFollower(LINE_FOLLOWER_SETTINGS)
     try:
+        # Reset between opposite offsets so retained derivative state does not
+        # reverse the sign expected from the current sensor pair.
         follower.reset()
         centered = follower.update(ReflectanceReadings(0.6, 0.6), 0.02)
         left = follower.update(ReflectanceReadings(0.8, 0.2), 0.04)
@@ -3707,6 +3791,7 @@ from ucsb_xrp_reference.challenge_9 import LineFollower as SuppliedLineFollower
 USE_STUDENT_LINE_FOLLOWER = False
 
 
+# Wheel and odometry components remain supplied; line steering is selected below.
 def make_robot(config):
     return Robot(
         config,
@@ -3718,6 +3803,7 @@ def make_robot(config):
     )
 
 
+# Local line steering is selected independently of wheel-speed control.
 def make_line_follower(settings):
     if USE_STUDENT_LINE_FOLLOWER:
         return StudentLineFollower(settings)
@@ -3747,6 +3833,8 @@ class LapProgress:
             distance_mm = sqrt((pose.x_mm - x_mm) ** 2 + (pose.y_mm - y_mm) ** 2)
             if distance_mm <= CHECKPOINT_TOLERANCE_MM:
                 self.checkpoints_reached += 1
+        # The first finish reading is only the starting bar; completion waits
+        # for departure, ordered checkpoints, and confirmed return.
         if not on_finish:
             self.left_start = True
             self.finish_samples = 0
@@ -3774,6 +3862,7 @@ class LineFollower(LineFollowerBase):
 from ucsb_xrp import live
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_line_values(readings, line_error, checkpoints_reached, line_lost):
     live.plot("reflectance_left", readings.left)
     live.plot("reflectance_right", readings.right)
@@ -3799,6 +3888,7 @@ MAXIMUM_RUN_TIME_S = 100.0
 MAXIMUM_LOST_LINE_S = 0.4
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
     follower.reset()
@@ -3806,6 +3896,7 @@ def run_challenge():
     lost_line_s = 0.0
     result = "timeout"
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(INITIAL_POSE, read_reflectance=True)
         start_ms = state.measurements.time_ms
         while elapsed_time_s(state.measurements.time_ms, start_ms) < MAXIMUM_RUN_TIME_S:
@@ -3837,6 +3928,7 @@ run_challenge()
 `,Tr=`from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -3847,6 +3939,7 @@ ROBOT_CONFIG = RobotConfig(
 )
 
 # The supplied defaults use PD. Set ki = kd = 0 for a P-only comparison.
+# Steering limits and gains are read by LineFollower on each sample.
 LINE_FOLLOWER_SETTINGS = {
     "cruise_speed_mm_s": 100.0,
     "minimum_speed_mm_s": 45.0,
@@ -3867,6 +3960,7 @@ FINISH_CONFIRM_SAMPLES = 4
 from ucsb_xrp import distance_to_goal, load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 FINISH = WORLD.waypoint("finish")
@@ -3883,6 +3977,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(SensorModel, WheelSpeedController)
 `,Or=`# Select either the supplied reference class or the class in each project file.
 
@@ -3902,6 +3997,7 @@ USE_STUDENT_SENSOR_MODEL = False
 USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelController
@@ -3912,6 +4008,7 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 CRUISE_SPEED_MM_S = live.number("cruise_speed_mm_s", 120.0, 0.0, 240.0, 5.0, unit="mm/s", label="Cruise speed")
 SLOWDOWN_DISTANCE_MM = live.number("slowdown_distance_mm", 120.0, 0.0, 1000.0, 10.0, unit="mm", label="Slowing distance")
 `,Ar=`# Robot Curling: measure travel and call the distance-based stopping rule.
@@ -3923,6 +4020,9 @@ from stopping_controller import speed_for_distance
 from ucsb_xrp import run_straight_trial
 
 
+# The world supplies the start pose and target distance; the selected robot
+# components supply measurements and wheel control. The callback alone chooses
+# forward speed from remaining measured travel. The runner records and stops.
 run_straight_trial(make_robot(ROBOT_CONFIG), INITIAL_POSE, TRAVEL_DISTANCE_MM, speed_for_distance)
 `,jr=`# Settings shared by Challenge 1 programs for one XRP robot.
 
@@ -3930,6 +4030,7 @@ from ucsb_xrp import RobotConfig
 
 
 # Example virtual settings; measure these quantities for a physical XRP.
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -4012,6 +4113,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 `,Fr=`from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 
@@ -4025,6 +4127,7 @@ from ucsb_xrp.component_checks import run_component_checks
 from robot_config import ROBOT_CONFIG
 from ucsb_xrp import RawSensors, ReflectanceReadings
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(SensorModel, WheelSpeedController, DifferentialDrive)
 
 
@@ -4100,12 +4203,14 @@ USE_STUDENT_DIFFERENTIAL_DRIVE = False
 USE_STUDENT_LINE_FOLLOWER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
     DifferentialDrive = StudentDifferentialDrive if USE_STUDENT_DIFFERENTIAL_DRIVE else SuppliedDifferentialDrive
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), SuppliedOdometry(config))
 
+# Local line steering is selected independently of wheel-speed control.
 def make_line_follower(settings):
     if USE_STUDENT_LINE_FOLLOWER:
         return StudentLineFollower(settings)
@@ -4166,6 +4271,8 @@ class LapProgress:
             distance_mm = sqrt((pose.x_mm - x_mm) ** 2 + (pose.y_mm - y_mm) ** 2)
             if distance_mm <= CHECKPOINT_TOLERANCE_MM:
                 self.checkpoints_reached += 1
+        # Finish detection requires leaving the bar, passing all checkpoints,
+        # and returning to the bar for consecutive confirmed readings.
         if not on_finish:
             self.left_start = True
             self.finish_samples = 0
@@ -4201,10 +4308,12 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 100.0
 DEFAULT_P_GAIN_RAD_S = 1.8
+# Motion code reads the current .value when it applies these Monitor controls.
 CRUISE_SPEED = live.number("cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S, 50.0, 180.0, 5.0, label="Cruise speed", unit="mm/s")
 P_GAIN = live.number("line_gain", DEFAULT_P_GAIN_RAD_S, 0.0, 5.0, 0.1, label="P gain", unit="rad/s")
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_line_values(readings, command, line_error, checkpoints_reached, phase):
     # Plot normalized left/right reflectance, their signed difference, and
     # command.turn_rate_rad_s (rad/s). Watch the reached-checkpoint count and
@@ -4231,23 +4340,27 @@ from robot_config import (
 from ucsb_xrp import STOP_COMMAND, elapsed_time_s
 
 
+# Assemble selected wheel and sensing components separately from local steering.
 robot = make_robot(ROBOT_CONFIG)
 follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
 follower.reset()
-lap = LapProgress()
+lap = LapProgress()  # Track ordered checkpoints and return to the finish bar.
 try:
+    # Establish encoder/time origins and request floor readings on every step.
     state = robot.start(INITIAL_POSE, read_reflectance=True)
     start_ms = state.measurements.time_ms
-    while True:
+    while True:  # Read sensors and request motion until lap completion or line loss.
         apply_line_controls(follower)
         readings = state.measurements.reflectance
         if readings is None:
             result = "reflectance_unavailable"
             break
+        # Both sensors must see the wide bar; pose supplies ordered checkpoints.
         on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
         if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
             result = "complete"
             break
+        # An unseen line requests zero motion while the loss duration accumulates.
         if not lap.observe_line(readings, state.measurements.dt_s, LINE_VISIBLE_THRESHOLD):
             command = STOP_COMMAND
             if lap.lost_line_s >= MAXIMUM_LOST_LINE_S:
@@ -4255,6 +4368,7 @@ try:
                 break
         else:
             command = follower.update(readings, state.measurements.dt_s)
+        # Publish the decision made from this sample before acquiring the next.
         publish_line_values(
             readings, command, follower.line_error, lap.checkpoints_reached,
             "line_lost_stopping" if lap.lost_line_s else "following",
@@ -4276,16 +4390,20 @@ from ucsb_xrp import STOP_COMMAND
 
 robot = make_robot(ROBOT_CONFIG)
 try:
+    # Enable floor sensing at the configured pose without requesting motion.
     robot.start(INITIAL_POSE, read_reflectance=True)
+    # Repeated stationary pairs show sensor variability at one placement.
     for _ in range(10):
         state = robot.step(STOP_COMMAND, read_reflectance=True)
         print(state.measurements.reflectance)
 finally:
+    # Leave the motors at zero if sensing or printing raises an exception.
     robot.stop()
 `,Wr=`from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_P_GAIN_RAD_S, P_GAIN
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -4296,6 +4414,7 @@ ROBOT_CONFIG = RobotConfig(
 )
 
 # The supplied defaults use PD. Set ki = kd = 0 for a P-only comparison.
+# Steering limits and gains are read by LineFollower on each sample.
 LINE_FOLLOWER_SETTINGS = {
     "cruise_speed_mm_s": DEFAULT_CRUISE_SPEED_MM_S,
     "minimum_speed_mm_s": 45.0,
@@ -4379,6 +4498,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 ROUTE = WORLD.waypoints()
@@ -4397,6 +4517,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -4433,6 +4554,7 @@ USE_STUDENT_ODOMETRY = False
 USE_STUDENT_NAVIGATION_CONTROLLER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -4441,6 +4563,7 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
@@ -4474,6 +4597,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
+# Motion code reads the current .value when it applies these Monitor controls.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -4484,6 +4608,7 @@ TURN_RATE = live.number(
 )
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_goal_count(reached_count):
     # Show the integer number of NavigationGoal targets accepted so far.
     live.watch("goals_reached", reached_count)
@@ -4501,14 +4626,17 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_contr
 from route_progress import count_reached_goals
 
 
+# Keep robot sampling/odometry and route decisions in their selected components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 step_count = 0
 reached_count = 0
 try:
+    # The world pose initializes odometry; observed goal count starts there.
     state = robot.start(INITIAL_POSE)
     reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
     navigation.start(ROUTE)
+    # One measured pose produces one navigation request and one robot sample.
     while not navigation.is_complete():
         publish_goal_count(reached_count)
         apply_navigation_controls(navigation)
@@ -4517,6 +4645,7 @@ try:
         step_count += 1
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
 
+    # Controller completion alone does not establish that each goal was observed.
     result = "complete" if reached_count == len(ROUTE) else "route_incomplete"
     print(
         "Challenge 3: result={} goals_reached={}/{} navigation_steps={} "
@@ -4617,6 +4746,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -4625,6 +4755,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -4742,10 +4873,12 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 DESTINATION = WORLD.waypoint("destination")
 ARENA_MAP = WORLD.arena_map()
+# Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
 # Obstacle expansion for robot size and path-following error.
 CLEARANCE_MM = 150.0
@@ -4769,6 +4902,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -4809,6 +4943,7 @@ USE_STUDENT_NAVIGATION_CONTROLLER = False
 USE_STUDENT_GRID_PLANNER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -4817,12 +4952,14 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -4867,11 +5004,13 @@ def print_grid(grid, start, goal, path=None):
     print("S/G can cover #; see blocked states above")
     print("col tens " + "".join(str(col // 10) for col in range(grid.column_count)))
     print("col ones " + "".join(str(col % 10) for col in range(grid.column_count)))
+    # Print high rows first so positive arena y appears upward on the page.
     path_cells = path.cells if path is not None else ()
     for row in range(grid.row_count - 1, -1, -1):
         symbols = []
         for column in range(grid.column_count):
             cell = GridCell(column, row)
+            # Endpoint symbols take precedence; blocked status is printed above.
             if cell == start:
                 symbol = "S"
             elif cell == goal:
@@ -4914,6 +5053,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
+# Motion code reads the current .value when it applies these Monitor controls.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -4924,6 +5064,7 @@ TURN_RATE = live.number(
 )
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_navigation_steps(step_count):
     # Show the number of Robot.step() calls completed so far.
     live.watch("navigation_steps", step_count)
@@ -4940,11 +5081,12 @@ from route_validation import goal_is_reached, path_error
 from ucsb_xrp import OccupancyGrid
 
 
-# The map is checked before a robot is constructed or moved.
 print("World:", WORLD.label)
+# Convert arena geometry to clearance-aware cells before planning.
 grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
 if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
     raise ValueError("The map exceeds {} cells. Increase GRID_RESOLUTION_MM in challenge.py.".format(MAXIMUM_GRID_CELLS))
+# Planner endpoints are cells; the route execution later uses world coordinates.
 start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
 goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
 path = make_grid_planner().plan(grid, start, goal)
@@ -4952,6 +5094,7 @@ if path is None:
     print_grid(grid, start, goal)
     print("Challenge 4: result=no_path")
 else:
+    # Reject an unconnected, blocked, or misplaced path before motion is enabled.
     invalid_reason = path_error(grid, start, goal, path)
     if invalid_reason is not None:
         print_grid(grid, start, goal)
@@ -4963,21 +5106,26 @@ else:
         if not EXECUTE_ROUTE:
             print("Path checked. Set EXECUTE_ROUTE = True in challenge.py to drive the route.")
         else:
+            # Use cell centers along the route but the exact destination marker.
             goals = list(path.to_goals(grid))
             goals[-1] = DESTINATION
 
+            # Construct the robot from this project's configured components.
             robot = make_robot(ROBOT_CONFIG)
             navigation = make_navigation_controller(NAVIGATION_CONFIG)
             step_count = 0
             try:
+                # Start establishes the initial pose and encoder/time measurement origins.
                 state = robot.start(INITIAL_POSE)
                 navigation.start(goals)
+                # Recompute the motion request from each new odometry pose.
                 while not navigation.is_complete():
                     publish_navigation_steps(step_count)
                     apply_navigation_controls(navigation)
                     state = robot.step(navigation.update(state.pose))
                     step_count += 1
 
+                # Verify destination tolerance separately from controller status.
                 result = (
                     "complete"
                     if goal_is_reached(state.pose, DESTINATION, navigation.config)
@@ -5084,6 +5232,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -5092,6 +5241,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -5214,6 +5364,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 from robot_config import ROBOT_CONFIG
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 OUTBOUND_ROUTE = tuple(WORLD.waypoint(name) for name in ("outbound_1", "outbound_2", "observation"))
@@ -5221,6 +5372,7 @@ HOME = WORLD.waypoint("home")
 # Use one map definition in both virtual cases; never read the selected
 # world's obstacle list to infer the hidden gate state.
 MISSION_MAP = load_world(world_id="gate-blocked").arena_map()
+# Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
 CLEARANCE_MM = 95.0
 RANGE_SAMPLE_COUNT = 7
@@ -5252,6 +5404,7 @@ from wheel_speed_controller import WheelSpeedController
 from ucsb_xrp.component_checks import run_component_checks
 
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
     SensorModel,
     WheelSpeedController,
@@ -5293,6 +5446,7 @@ USE_STUDENT_NAVIGATION_CONTROLLER = False
 USE_STUDENT_GRID_PLANNER = False
 
 
+# Select project or supplied components before binding them to one Robot.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -5301,12 +5455,14 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
+# Grid planning is selected independently of the moving robot.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -5363,6 +5519,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
+# Motion code reads the current .value when it applies these Monitor controls.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -5373,6 +5530,7 @@ TURN_RATE = live.number(
 )
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_phase(phase):
     # Show the current mission phase label, such as outbound or return.
     live.watch("mission_phase", phase)
@@ -5410,9 +5568,11 @@ def report(result):
     print("Out-and-Back: result=" + result)
 
 
+# The same selected sensing, navigation, and planning components serve both legs.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 try:
+    # World pose initializes odometry; the outbound route is known in advance.
     state = robot.start(INITIAL_POSE)
     publish_phase("outbound")
     state, result = follow_route(robot, navigation, state, OUTBOUND_ROUTE)
@@ -5421,6 +5581,7 @@ try:
         report("outbound_" + result)
     else:
         publish_phase("stopping")
+        # Require continuous low wheel speed before taking a range observation.
         stationary_s = 0.0
         waiting_for_stop_start_ms = state.measurements.time_ms
         while stationary_s < STATIONARY_DURATION_S and elapsed_time_s(
@@ -5436,6 +5597,7 @@ try:
             report("failed_stationary_check")
         else:
             publish_phase("observe")
+            # Distinct range attempts are combined only after the robot stops.
             samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
             state = robot.state
             estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)
@@ -5447,10 +5609,13 @@ try:
             else:
                 publish_phase("plan_return")
                 robot.stop()
+                # Only the named gate changes in the known return map.
                 arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)
+                # Convert arena geometry to clearance-aware cells before planning.
                 grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)
                 if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
                     raise ValueError("Use at most {} cells for the return map".format(MAXIMUM_GRID_CELLS))
+                # Plan from the estimated stopped pose to the fixed home marker.
                 start = grid.world_to_cell(state.pose.x_mm, state.pose.y_mm)
                 goal = grid.world_to_cell(HOME.x_mm, HOME.y_mm)
                 path = make_grid_planner().plan(grid, start, goal)
@@ -5461,6 +5626,7 @@ try:
                 else:
                     print("gate_blocked:", blocked, "return_path_cells:", len(path.cells))
                     publish_return_path_cells(len(path.cells))
+                    # Replace the last cell center with the exact home goal.
                     goals = list(path.to_goals(grid))
                     goals[-1] = HOME
                     publish_phase("return")
@@ -5475,6 +5641,7 @@ finally:  # Stop the motors on completion, a Python error, or cooperative Stop.
 `,Ei=`# Inputs: estimated range and gate threshold in mm; estimate may be None.
 # Returns: True for a blocked gate, False for an open gate, None without range.
 def observed_gate(estimate_mm, threshold_mm):
+    # Missing range leaves the map decision unknown rather than declaring open.
     if estimate_mm is None:
         return None
     return estimate_mm <= threshold_mm
@@ -5499,12 +5666,15 @@ def reached(pose, goal, config):
 def follow_route(robot, navigation, state, goals):
     navigation.start(goals)
     reached_count = 0
+    # A measured pose advances the independent arrival count before the next
+    # navigation command; controller completion exits the loop.
     while True:
         while reached_count < len(goals) and reached(
             state.pose, goals[reached_count], navigation.config,
         ):
             reached_count += 1
         publish_goals_reached(reached_count)
+        # Compare observed arrivals with controller completion at the same pose.
         if navigation.is_complete():
             return state, "arrived" if reached_count == len(goals) else "failed_arrival"
         apply_navigation_controls(navigation)
@@ -5614,10 +5784,13 @@ from ucsb_xrp import Pose
 point = OUTBOUND_ROUTE[-1]
 robot = make_robot(ROBOT_CONFIG)
 try:
+    # The observation waypoint supplies the stationary sensor pose.
     robot.start(Pose(point.x_mm, point.y_mm, point.heading_rad))
+    # Collect distinct ultrasound attempts, including missing echoes as None.
     samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
     print(samples)
 finally:
+    # Range acquisition never requires nonzero wheel effort.
     robot.stop()
 `,ji=`# Robot and navigation settings shared by Challenge 5 programs.
 
@@ -5625,6 +5798,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -5633,6 +5807,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -5720,7 +5895,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
         # Return DriveCommand(left, right) with normalized values bounded
         # by self.config.max_drive_command. A zero target needs zero command.
         raise NotImplementedError("Complete WheelSpeedController.update")
-`,Pi="# Challenge 1: Straight Run\n\n## The challenge\n\nDrive from the start line to the finish marker and use measured wheel travel to\nstop. First make the stopping distance repeatable. Then finish as close as\npossible to the assigned target time without finishing early.\n\nThe task values have one source:\n\n- [`world.json`](world.json) defines the initial pose and finish marker.\n- [`challenge.py`](challenge.py) loads `INITIAL_POSE`, calculates\n  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the visible\n  `MAX_RUN_TIME_S` diagnostic limit.\n\nUse these names in your program. Do not copy their current numerical values\ninto another file. Record robot-specific calibration in\n[`robot_config.py`](robot_config.py).\n\n## What you implement\n\nImplement two classes:\n\n- [`sensor_model.py`](sensor_model.py): `SensorModel.reset()` establishes the\n  encoder and time origins. `SensorModel.update()` converts each later raw\n  sample into wheel position, newest wheel travel, elapsed time, and wheel-speed\n  estimates. Use the encoder signs, wheel geometry, and speed-estimator setting\n  in `self.config`.\n- [`wheel_speed_controller.py`](wheel_speed_controller.py):\n  `WheelSpeedController.update()` compares requested and measured wheel speeds\n  and returns a limited `DriveCommand`. A zero speed request must produce an\n  exact zero command for that wheel. Use the calibration, feedback gain, and\n  command limit in `self.config`.\n\nLeave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Defines `SensorModel`, which converts encoder counts and time to physical measurements. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Defines `WheelSpeedController`, which converts wheel-speed error to a `DriveCommand`. |\n| [`robot_config.py`](robot_config.py) | Measured and tuned settings for your XRP. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`main.py`](main.py) | Runs the straight-distance task and reports distance and elapsed time. |\n| [`component_checks.py`](component_checks.py) | Calls the required `SensorModel` and `WheelSpeedController` methods without starting a robot. |\n\n## Provided files and tools\n\n- `StraightLineController` requests cruise speed, reduces speed near the\n  finish, and stops at the assigned travel distance.\n- The supplied `DifferentialDrive` and `Odometry` complete the robot loop until\n  Challenge 2.\n- `Robot` maintains the measured control cycle. `XRPBot` applies motor commands\n  and reads the hardware or simulator.\n\n## How the program runs\n\n```text\nfinish distance + measured wheel travel\n                 -> StraightLineController -> requested forward speed\n                 -> DifferentialDrive       -> wheel-speed targets\nencoder readings -> SensorModel             -> measured wheel speeds\ntargets + measured speeds\n                 -> WheelSpeedController     -> motor commands\n```\n\nThe loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. If a sensor or\ncontroller mistake prevents progress for `MAX_RUN_TIME_S`, the program names\nthat failure and raises an error. The `finally` block in `main.py` calls\n`robot.stop()` after normal completion or a Python exception. The target runtime\nhandles the IDE's **Stop** separately; forced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test components** in the IDE. The checks load `SensorModel` from\n`sensor_model.py` and `WheelSpeedController` from\n`wheel_speed_controller.py`; they do not move either robot. For each class,\nread its `USE`,\n`INPUT`, and `EXPECT` lines before the result:\n\n- `PASS` means the implemented behavior matched the stated examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran, but its result did not meet the stated\n  requirement.\n\nFix every `NOT IMPLEMENTED` and `FAIL`, then run **Test components** again. Set\nthe matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that\nclass passes its checks.\n\n## Complete the challenge\n\n1. Run the supplied classes on the virtual XRP. Locate requested wheel\n   speed, measured wheel speed, drive command, and wheel travel in Monitor.\n2. Select the `SensorModel` defined in `sensor_model.py`. Verify that\n   forward position increases, each\n   increment contains only the newest wheel travel, and the speed estimate\n   follows changes without reporting each encoder-count step as a speed spike.\n3. Select the `WheelSpeedController` defined in\n   `wheel_speed_controller.py`. Verify command limits and an exact zero command\n   at the finish.\n4. Compare repeated virtual runs using the reported distance, lateral,\n   heading, and time errors. `timed_result` states explicitly whether a run\n   finished early or satisfied the no-earlier-than-target rule.\n5. For the physical XRP, first check wheel direction and Stop with the wheels\n   clear. Then run the marked lane and record distance, elapsed time, requested\n   and measured speed, and drive command.\n\n## Reuse work in another challenge\n\nChoose **Start another challenge…** in the IDE. Review the **Preserve**,\n**Replace**, and **Add** lists before creating the separate project; they show\nexactly which files will carry forward and which task files come from the\nselected challenge. This project remains unchanged.\n",Fi="# Challenge 2: Turn and Return\n\n## The challenge\n\nDrive to the turn marker, rotate to its assigned heading, return to the marked\nstart region, and recover the initial heading. Compare the final pose estimated\nfrom wheel travel with the robot's measured position and heading.\n\n[`world.json`](world.json) defines the initial pose and turn marker.\n[`challenge.py`](challenge.py) derives `INITIAL_POSE`,\n`OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and\n`FINAL_HEADING_RAD`. It also names `MAX_STRAIGHT_TIME_S` and `MAX_TURN_TIME_S`,\nwhich stop a phase that makes no progress. Use these names; do not repeat the\ncurrent distances or headings elsewhere.\n\n## Reuse work in another challenge\n\nChoose **Start another challenge…** in the IDE. Review the **Preserve**,\n**Replace**, and **Add** lists before creating the separate project; they show\nexactly which files will carry forward and which task files come from the\nselected challenge. This project remains unchanged.\n\n## What you implement\n\nImplement two new classes:\n\n- [`differential_drive.py`](differential_drive.py):\n  `DifferentialDrive.wheel_speeds()` converts requested forward speed and\n  counterclockwise turn rate into left and right wheel-speed targets. It uses\n  `self.config.track_width_mm` and does not need history from earlier calls.\n- [`odometry.py`](odometry.py): `Odometry.reset()` stores the initial world\n  `Pose`; `Odometry.update()` advances it from measured left and right wheel\n  increments; `pose` returns the latest estimate. Use measured wheel travel,\n  not requested speeds, motor commands, or simulator ground truth.\n\nIf turn-and-return results expose a measurement or control problem, revise\n`sensor_model.py` or `wheel_speed_controller.py` as needed. Keep the effective\ntrack width and other robot-specific values in\n[`robot_config.py`](robot_config.py).\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Measures wheel travel and speed from encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Converts wheel-speed error to limited motor commands. |\n| [`differential_drive.py`](differential_drive.py) | Converts robot motion to two wheel-speed targets. |\n| [`odometry.py`](odometry.py) | Estimates world position and heading from wheel travel. |\n| [`robot_config.py`](robot_config.py) | Stores measured geometry, calibration, gains, and motion settings. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |\n\n## Provided files and tools\n\n- [`main.py`](main.py) runs outward travel, turnaround, return travel, and final\n  heading recovery.\n- `StraightLineController` controls each measured straight segment.\n- `Robot` carries body-motion requests through wheel control, sensing, and\n  odometry at each sample.\n\n## How the program runs\n\n```text\nrequested forward speed and turn rate\n                 -> DifferentialDrive -> wheel-speed targets\n                 -> wheel control     -> motor commands\nencoder readings -> SensorModel       -> wheel increments\nwheel increments -> Odometry          -> estimated Pose\n```\n\n`main.py` names each phase in Program output and uses the estimated pose to end\neach turn. A phase that exceeds its visible time limit reports which motion did\nnot complete. Its `finally` block calls `robot.stop()` after normal completion\nor a Python exception. The target runtime handles the IDE's **Stop** separately;\nforced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test components**. The checks load all four classes from their named\nproject files and do not move either robot. Read each class's `USE`,\n`INPUT`, and `EXPECT` lines before its result:\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect value or behavior.\n\nThe new checks cover straight, curved, and in-place wheel relationships, plus\nodometry reset, translation, rotation, and curved travel. Fix every unfinished\nor failing result, repeat **Test components**, and then set the matching\n`USE_STUDENT_*` flag to `True`.\n\n## Complete the challenge\n\n1. Run the supplied `DifferentialDrive` and `Odometry` on the virtual XRP and\n   identify the outward, turnaround, return, and final-alignment phases.\n2. Select the `DifferentialDrive` defined in `differential_drive.py`; compare\n   each body-motion request with its two wheel-speed targets.\n3. Select the `Odometry` defined in `odometry.py`; compare its pose with\n   virtual ground truth. The program uses odometry, not ground truth.\n4. Run the classes from all four component project files together and inspect\n   final pose, wheel increments, requested turn rate, and the reported return\n   position and heading errors.\n5. On the physical course, record the estimated final pose and wheel travel,\n   then measure final position and heading independently.\n",Ii="# Challenge 3: Waypoint Courier\n\n## The challenge\n\nVisit the waypoint markers in their assigned order and finish with the heading\nrequested by the final marker. Navigation receives the newest odometry `Pose`\nat each sample and returns one requested forward speed and turn rate.\n\n[`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)\nloads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than\ncopying the current coordinates, order, or headings into another file.\n\n## Reuse work in another challenge\n\nChoose **Start another challenge…** in the IDE. Review the **Preserve**,\n**Replace**, and **Add** lists before creating the separate project; they show\nhow existing component, calibration, helper, and task files will be handled.\nThe current project remains unchanged.\n\n## What you implement\n\nImplement `NavigationController` in\n[`navigation_controller.py`](navigation_controller.py):\n\n- `start(goals)` stores a new ordered route; an empty route is complete.\n- `current_goal()` returns the active goal or `None` after completion.\n- `is_complete()` reports whether all required positions and headings are\n  complete.\n- `update(pose)` returns the next `MotionCommand` from the latest odometry pose.\n\nVisit goals in order. Turn toward a destination before driving, use the\nconfigured approach speed near it, return to turning when the heading error is\ntoo large, and align to a requested final heading. Return `STOP_COMMAND` after\nthe route is complete. Use `NAVIGATION_CONFIG` and the supplied\n`distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions.\n\nThe configuration separates the decisions: `position_tolerance_mm` accepts a\ngoal position, `heading_tolerance_rad` accepts the initial bearing or requested\nfinal heading, `realign_heading_rad` returns a drifting drive to the turn\nstate, and `slowdown_distance_mm` selects approach rather than cruise speed.\nKeep an active-goal index and a small explicit mode such as `turn`, `drive`, or\n`align`. Each mode describes motion toward the current goal.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |\n| [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |\n| [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |\n| [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |\n| [`robot_config.py`](robot_config.py) | Stores robot calibration and `NAVIGATION_CONFIG`. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n\n**Test components always loads the classes from the five component project\nfiles**, regardless of which classes are selected for a complete robot run.\n\n## Provided files and tools\n\n- [`main.py`](main.py) starts the route, passes each new pose to navigation,\n  records each assigned waypoint observed in order, and stops the robot on\n  completion or error.\n- [`component_checks.py`](component_checks.py) calls the required\n  `NavigationController` methods and the methods of the other selected classes\n  without starting a robot.\n- `Robot` executes each `MotionCommand` through the selected wheel, sensing,\n  and odometry components.\n\n## How the program runs\n\n```text\nROUTE + estimated Pose -> NavigationController -> MotionCommand\nMotionCommand          -> Robot                -> new estimated Pose\n```\n\nThe cycle repeats until navigation completes the final position and any\nrequested final heading.\n\n## Check the component\n\nSelect **Test components**. Read `USE`, `INPUT`, and `EXPECT` before each\nresult. The navigation checks cover an empty route, goals ahead and to either\nside, ordered goals, approach speed, realignment, angle wrap, and a required\nfinal heading.\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect command or route state.\n\nFix every unfinished or failing result, repeat **Test components**, and then\nset `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.\n\n## Complete the challenge\n\n1. Run the supplied navigator on the virtual XRP. Identify each waypoint\n   approach, the reduced approach speed, and the final heading adjustment.\n2. Select the `NavigationController` defined in\n   `navigation_controller.py`. Verify waypoint order and zero requested motion\n   after completion. The final measured pose must satisfy the assigned final\n   position and heading.\n3. Select the classes from all five component project files. Compare odometry\n   with virtual ground truth to separate pose-estimation error from navigation\n   behavior.\n4. Record estimated pose, requested forward speed, turn rate, and the driven\n   path. Use the assigned values in `ROUTE` for your analysis.\n5. On the physical course, record the same program evidence and measure the\n   final position and heading independently.\n",Li=`# Challenge 4: Mapped Route
+`,Pi="# Challenge 1: Straight Run\n\n## The challenge\n\nDrive from the start line to the finish marker and use measured wheel travel to\nstop. First make the stopping distance repeatable. Then finish as close as\npossible to the assigned target time without finishing early.\n\nThe task values have one source:\n\n- [`world.json`](world.json) defines the initial pose and finish marker.\n- [`challenge.py`](challenge.py) loads `INITIAL_POSE`, calculates\n  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the\n  `MAX_RUN_TIME_S` run-step limit.\n\nUse these names in your program. Do not copy their current numerical values\ninto another file. Record robot-specific calibration in\n[`robot_config.py`](robot_config.py).\n\n## What you implement\n\nImplement two classes:\n\n- [`sensor_model.py`](sensor_model.py): `SensorModel.reset()` establishes the\n  encoder and time origins. `SensorModel.update()` converts each later raw\n  sample into wheel position, newest wheel travel, elapsed time, and wheel-speed\n  estimates. Use the encoder signs, wheel geometry, and speed-estimator setting\n  in `self.config`.\n- [`wheel_speed_controller.py`](wheel_speed_controller.py):\n  `WheelSpeedController.update()` compares requested and measured wheel speeds\n  and returns a limited `DriveCommand`. A zero speed request must produce an\n  exact zero command for that wheel. Use the calibration, feedback gain, and\n  command limit in `self.config`.\n\nLeave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Defines `SensorModel`, which converts encoder counts and time to physical measurements. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Defines `WheelSpeedController`, which converts wheel-speed error to a `DriveCommand`. |\n| [`robot_config.py`](robot_config.py) | Measured and tuned settings for your XRP. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`main.py`](main.py) | Runs the straight-distance task and reports distance and elapsed time. |\n| [`component_checks.py`](component_checks.py) | Calls the required `SensorModel` and `WheelSpeedController` methods without starting a robot. |\n\n## Provided files and tools\n\n- `StraightLineController` requests cruise speed, reduces speed near the\n  finish, and stops at the assigned travel distance.\n- The supplied `DifferentialDrive` and `Odometry` complete the robot loop until\n  Challenge 2.\n- `Robot` maintains the measured control cycle. `XRPBot` applies motor commands\n  and reads the hardware or simulator.\n\n## How the program runs\n\n```text\nfinish distance + measured wheel travel\n                 -> StraightLineController -> requested forward speed\n                 -> DifferentialDrive       -> wheel-speed targets\nencoder readings -> SensorModel             -> measured wheel speeds\ntargets + measured speeds\n                 -> WheelSpeedController     -> motor commands\n```\n\nThe loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. `main.py`\nconverts `MAX_RUN_TIME_S` to a maximum step count using the nominal sample\nperiod. If the distance has not been reached by then, it reports the failure\nand raises an error. The `finally` block in `main.py` calls\n`robot.stop()` after normal completion or a Python exception. The target runtime\nhandles the IDE's **Stop** separately; forced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test functions** in the IDE. The checks load `SensorModel` from\n`sensor_model.py` and `WheelSpeedController` from\n`wheel_speed_controller.py`; they do not move either robot. For each class,\nread its `USE`,\n`INPUT`, and `EXPECT` lines before the result:\n\n- `PASS` means the implemented behavior matched the stated examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran, but its result did not meet the stated\n  requirement.\n\nFix every `NOT IMPLEMENTED` and `FAIL`, then run **Test functions** again. Set\nthe matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that\nclass passes its checks.\n\n## Complete the challenge\n\n1. Run the supplied classes on the virtual XRP. Locate requested wheel\n   speed, measured wheel speed, drive command, and wheel travel in Monitor.\n2. Select the `SensorModel` defined in `sensor_model.py`. Verify that\n   forward position increases, each\n   increment contains only the newest wheel travel, and the speed estimate\n   follows changes without reporting each encoder-count step as a speed spike.\n3. Select the `WheelSpeedController` defined in\n   `wheel_speed_controller.py`. Verify command limits and an exact zero command\n   at the finish.\n4. Compare repeated virtual runs using the reported distance, lateral,\n   heading, and time errors. `timed_result` states explicitly whether a run\n   finished early or satisfied the no-earlier-than-target rule.\n5. For the physical XRP, first check wheel direction and Stop with the wheels\n   clear. Then run the marked lane and record distance, elapsed time, requested\n   and measured speed, and drive command.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n",Fi="# Challenge 2: Turn and Return\n\n## The challenge\n\nDrive to the turn marker, rotate to its assigned heading, return to the marked\nstart region, and recover the initial heading. Compare the final pose estimated\nfrom wheel travel with the robot's measured position and heading.\n\n[`world.json`](world.json) defines the initial pose and turn marker.\n[`challenge.py`](challenge.py) derives `INITIAL_POSE`,\n`OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and\n`FINAL_HEADING_RAD`. It also names `MAX_STRAIGHT_TIME_S` and `MAX_TURN_TIME_S`,\nwhich bound steps for an unfinished phase using the nominal sample period.\nUse these names; do not repeat the current distances or headings elsewhere.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n\n## What you implement\n\nImplement two new classes:\n\n- [`differential_drive.py`](differential_drive.py):\n  `DifferentialDrive.wheel_speeds()` converts requested forward speed and\n  counterclockwise turn rate into left and right wheel-speed targets. It uses\n  `self.config.track_width_mm` and does not need history from earlier calls.\n- [`odometry.py`](odometry.py): `Odometry.reset()` stores the initial world\n  `Pose`; `Odometry.update()` advances it from measured left and right wheel\n  increments; `pose` returns the latest estimate. Use measured wheel travel,\n  not requested speeds, motor commands, or simulator ground truth.\n\nIf turn-and-return results expose a measurement or control problem, revise\n`sensor_model.py` or `wheel_speed_controller.py` as needed. Keep the effective\ntrack width and other robot-specific values in\n[`robot_config.py`](robot_config.py).\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Measures wheel travel and speed from encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Converts wheel-speed error to limited motor commands. |\n| [`differential_drive.py`](differential_drive.py) | Converts robot motion to two wheel-speed targets. |\n| [`odometry.py`](odometry.py) | Estimates world position and heading from wheel travel. |\n| [`robot_config.py`](robot_config.py) | Stores measured geometry, calibration, gains, and motion settings. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |\n\n## Provided files and tools\n\n- [`main.py`](main.py) runs outward travel, turnaround, return travel, and final\n  heading recovery.\n- `StraightLineController` controls each measured straight segment.\n- `Robot` carries body-motion requests through wheel control, sensing, and\n  odometry at each sample.\n\n## How the program runs\n\n```text\nrequested forward speed and turn rate\n                 -> DifferentialDrive -> wheel-speed targets\n                 -> wheel control     -> motor commands\nencoder readings -> SensorModel       -> wheel increments\nwheel increments -> Odometry          -> estimated Pose\n```\n\n`main.py` names each phase in Program output and uses the estimated pose to end\neach turn. A phase that exceeds its visible time limit reports which motion did\nnot complete. Its `finally` block calls `robot.stop()` after normal completion\nor a Python exception. The target runtime handles the IDE's **Stop** separately;\nforced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test functions**. The checks load all four classes from their named\nproject files and do not move either robot. Read each class's `USE`,\n`INPUT`, and `EXPECT` lines before its result:\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect value or behavior.\n\nThe new checks cover straight, curved, and in-place wheel relationships, plus\nodometry reset, translation, rotation, and curved travel. Fix every unfinished\nor failing result, repeat **Test functions**, and then set the matching\n`USE_STUDENT_*` flag to `True`.\n\n## Complete the challenge\n\n1. Run the supplied `DifferentialDrive` and `Odometry` on the virtual XRP and\n   identify the outward, turnaround, return, and final-alignment phases.\n2. Select the `DifferentialDrive` defined in `differential_drive.py`; compare\n   each body-motion request with its two wheel-speed targets.\n3. Select the `Odometry` defined in `odometry.py`; compare its pose with\n   virtual ground truth. The program uses odometry, not ground truth.\n4. Run the classes from all four component project files together and inspect\n   final pose, wheel increments, requested turn rate, and the reported return\n   position and heading errors.\n5. On the physical course, record the estimated final pose and wheel travel,\n   then measure final position and heading independently.\n",Ii="# Challenge 3: Waypoint Courier\n\n## The challenge\n\nVisit the waypoint markers in their assigned order and finish with the heading\nrequested by the final marker. Navigation receives the newest odometry `Pose`\nat each sample and returns one requested forward speed and turn rate.\n\n[`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)\nloads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than\ncopying the current coordinates, order, or headings into another file.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n\n## What you implement\n\nImplement `NavigationController` in\n[`navigation_controller.py`](navigation_controller.py):\n\n- `start(goals)` stores a new ordered route; an empty route is complete.\n- `current_goal()` returns the active goal or `None` after completion.\n- `is_complete()` reports whether all required positions and headings are\n  complete.\n- `update(pose)` returns the next `MotionCommand` from the latest odometry pose.\n\nVisit goals in order. Turn toward a destination before driving, use the\nconfigured approach speed near it, return to turning when the heading error is\ntoo large, and align to a requested final heading. Return `STOP_COMMAND` after\nthe route is complete. Use `NAVIGATION_CONFIG` and the supplied\n`distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions.\n\nThe configuration separates the decisions: `position_tolerance_mm` sets the\naccepted distance from a goal, `heading_tolerance_rad` sets the allowable\nheading error before driving and at a required final heading,\n`realign_heading_rad` returns an excessive heading error to turning, and\n`slowdown_distance_mm` selects approach rather than cruise speed.\nKeep an active-goal index and a small explicit mode such as `turn`, `drive`, or\n`align`. Each mode describes motion toward the current goal.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |\n| [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |\n| [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |\n| [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |\n| [`robot_config.py`](robot_config.py) | Stores robot calibration and `NAVIGATION_CONFIG`. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n\n**Test functions always loads the classes from the five component project\nfiles**, regardless of which classes are selected for a complete robot run.\n\n## Provided files and tools\n\n- [`main.py`](main.py) starts the route, passes each new pose to navigation,\n  records each assigned waypoint observed in order, and stops the robot on\n  completion or error.\n- [`component_checks.py`](component_checks.py) calls the required\n  `NavigationController` methods and the methods of the other selected classes\n  without starting a robot.\n- `Robot` executes each `MotionCommand` through the selected wheel, sensing,\n  and odometry components.\n\n## How the program runs\n\n```text\nROUTE + estimated Pose -> NavigationController -> MotionCommand\nMotionCommand          -> Robot                -> new estimated Pose\n```\n\nThe cycle repeats until navigation completes the final position and any\nrequested final heading.\n\n## Check the component\n\nSelect **Test functions**. Read `USE`, `INPUT`, and `EXPECT` before each\nresult. The navigation checks cover an empty route, goals ahead and to either\nside, ordered goals, approach speed, realignment, angle wrap, and a required\nfinal heading.\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect command or route state.\n\nFix every unfinished or failing result, repeat **Test functions**, and then\nset `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.\n\n## Complete the challenge\n\n1. Run the supplied navigator on the virtual XRP. Identify each waypoint\n   approach, the reduced approach speed, and the final heading adjustment.\n2. Select the `NavigationController` defined in\n   `navigation_controller.py`. Verify waypoint order and zero requested motion\n   after completion. The final estimated pose must satisfy the assigned final\n   position and heading within navigation tolerances.\n3. Select the classes from all five component project files. Compare odometry\n   with virtual ground truth to separate pose-estimation error from navigation\n   behavior.\n4. Record estimated pose, requested forward speed, turn rate, and the driven\n   path. Use the assigned values in `ROUTE` for your analysis.\n5. On the physical course, record the same program evidence and measure the\n   final position and heading independently.\n",Li=`# Challenge 4: Mapped Route
 
 ## The challenge
 
@@ -5754,10 +5929,10 @@ The last two cases must end without robot motion.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -5786,7 +5961,7 @@ information between \`plan()\` calls.
 | [\`robot_config.py\`](robot_config.py) | Stores robot calibration and navigation settings. |
 | [\`course_setup.py\`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always loads the classes from the six component project
+**Test functions always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
@@ -5794,7 +5969,7 @@ files**, regardless of which classes are selected for a complete robot run.
 - [\`main.py\`](main.py) constructs the grid, requests and validates a path,
   converts a successful path to navigation goals, and only then constructs the
   robot. The final navigation goal uses the exact assigned destination rather
-  than merely its grid-cell center, and the measured final pose is checked
+  than merely its grid-cell center, and the estimated final pose is checked
   before completion is reported.
 - [\`component_checks.py\`](component_checks.py) checks direct, detour, one-cell,
   invalid-endpoint, and disconnected cases without starting a robot.
@@ -5815,7 +5990,7 @@ goals at turns and at the destination.
 
 ## Check the component
 
-Select **Test components**. The checks call \`GridPlanner.plan()\` from
+Select **Test functions**. The checks call \`GridPlanner.plan()\` from
 \`grid_planner.py\` with small software grids and do not move either robot. Read
 \`USE\`, \`INPUT\`, and \`EXPECT\` before each result:
 
@@ -5823,13 +5998,14 @@ Select **Test components**. The checks call \`GridPlanner.plan()\` from
 - \`NOT IMPLEMENTED\` means \`plan()\` still needs to be written.
 - \`FAIL\` means the method ran but returned an invalid path or incorrect \`None\`.
 
-Fix every unfinished or failing result, repeat **Test components**, and then
+Fix every unfinished or failing result, repeat **Test functions**, and then
 set \`USE_STUDENT_GRID_PLANNER\` to \`True\` in \`course_setup.py\`.
 
 ## Complete the challenge
 
 1. Run the supplied planner in each virtual world and compare the obstacle
-   layout, reported result, driven route, and final pose.
+   layout and reported result. In the reachable world, also compare the driven
+   route and final pose.
 2. Select the \`GridPlanner\` defined in \`grid_planner.py\`. For every returned
    path, verify free cells, side-sharing steps, and the requested endpoints.
    The program performs the same check before it permits motion.
@@ -5847,7 +6023,7 @@ set \`USE_STUDENT_GRID_PLANNER\` to \`True\` in \`course_setup.py\`.
 Begin at the observation pose, collect repeated forward-range readings, decide
 whether the named map feature is blocked, and deliver by an available route.
 The program reports \`"delivered"\` only after validating the planned path and
-measuring the destination within the navigation tolerances. It reports
+checking the estimated pose against the destination tolerances. It reports
 \`"no_path"\`, \`"invalid_path"\`, or \`"destination_not_reached"\` otherwise.
 
 [\`world.json\`](world.json) defines the virtual observation cases, common map,
@@ -5864,10 +6040,10 @@ gate and route provide at least the assigned clearance.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -5895,14 +6071,14 @@ estimate was available; it does not represent zero distance.
 | [\`robot_config.py\`](robot_config.py) | Stores robot calibration and navigation settings. |
 | [\`course_setup.py\`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always loads the classes from the six component project
+**Test functions always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
 - \`DeliveryMission\` keeps the robot stopped during observation, evaluates the
   named feature, builds the selected grid, validates the returned path,
-  navigates to the exact destination, checks the measured terminal position
+  navigates to the named destination, checks the estimated terminal position
   and heading, retains its evidence, and requests motor stop in its \`finally\`
   cleanup after normal completion or a Python exception. The target runtime
   handles the IDE's **Stop** separately; forced termination can bypass Python cleanup.
@@ -5929,7 +6105,7 @@ not converge.
 
 ## Check the component
 
-Select **Test components**. The checks do not start either robot. Read \`USE\`,
+Select **Test functions**. The checks do not start either robot. Read \`USE\`,
 \`INPUT\`, and \`EXPECT\` before each result. Range checks include odd and even
 medians, mixed unusable readings, too few usable readings, and invalid
 \`minimum_usable\` input.
@@ -5938,13 +6114,14 @@ medians, mixed unusable readings, too few usable readings, and invalid
 - \`NOT IMPLEMENTED\` means the named method still needs to be written.
 - \`FAIL\` means the method ran but returned an incorrect estimate or error.
 
-Fix every unfinished or failing result, repeat **Test components**, and then
+Fix every unfinished or failing result, repeat **Test functions**, and then
 select the \`SensorModel\` defined in \`sensor_model.py\` in \`course_setup.py\`.
 
 ## Complete the challenge
 
 1. Run each virtual observation case with the supplied estimator. Record the
-   stationary range readings, selected route, mission result, and final pose.
+   stationary range readings, map decision, path-cell count, mission result,
+   and estimated final pose.
 2. Calculate the median of the usable readings and compare it with the reported
    estimate.
 3. Select the \`SensorModel\` defined in \`sensor_model.py\` and repeat every
@@ -5953,7 +6130,7 @@ select the \`SensorModel\` defined in \`sensor_model.py\` in \`course_setup.py\`
    sensing, planning, navigation, odometry, and wheel-control results.
 5. Before physical motion, inspect stationary range values and sensor
    direction. Then run the matched arena from its marked start and record the
-   readings, selected route, result, and final pose.
+   readings, observed route, result, and estimated final pose.
 `,zi=`# Challenge 6: Range-Constrained Stopping
 
 ## The challenge
@@ -5979,10 +6156,10 @@ copying their current values.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -6020,7 +6197,7 @@ the age limit without reconsidering the response allowance and stopping model.
 ## Provided files and tools
 
 - [\`main.py\`](main.py) collects stationary range samples before motion, runs a
-  sampled approach, applies the student's output only when it satisfies the
+  sampled approach, applies the controller's output only when it satisfies the
   documented output requirements, sends stopped commands while the drivetrain
   settles, and calls \`robot.stop()\` in \`finally\` after normal completion or a
   Python exception. The target runtime handles the IDE's **Stop** separately;
@@ -6053,14 +6230,14 @@ requested speed + measured speed + range estimate
 
 ## Complete the challenge
 
-1. Select **Test components** and make every RangeSafetyController case pass.
+1. Select **Test functions** and make every RangeSafetyController case pass.
 2. Run the supplied controller in all three virtual worlds. The no-range case
    must remain stopped.
 3. Select your controller and compare range, measured speed, safe speed, final
    range, and final pose. Success requires a final filtered range from 220 mm
    through 380 mm, inclusive.
-4. Before physical motion, verify stationary range and motor direction. Use
-   the explicit motion gate and the assigned bounded speeds and distances.
+4. Before physical motion, verify stationary range and motor direction. Keep
+   **Stop** available and use the assigned speeds and course distances.
    Confirm the sensor origin, usable cone, wall face, stopping deceleration,
    and end-to-end response time; the virtual values are reference assumptions,
    not a physical calibration.
@@ -6090,10 +6267,10 @@ headings, wall sides, observation settings, and terminal tolerances.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -6149,12 +6326,13 @@ corrected Pose + destination         -> NavigationController -> Robot motion
 3. Confirm that **Missing y reference** reports an unavailable observation and
    stops.
 4. Select your corrector and repeat the complete virtual route.
-5. As an odometry-only comparison, temporarily feed \`state.pose\` rather than
-   \`corrected\` to \`navigation.update()\`, repeat the virtual case, and compare
-   its terminal residual with the supplied corrected-pose result.
+5. For an odometry-only comparison, temporarily change the
+   \`navigation.update(corrected)\` call in \`main.py\` to
+   \`navigation.update(state.pose)\`. Repeat the virtual case, compare terminal
+   residuals, then restore \`navigation.update(corrected)\` before further runs.
 6. Before a physical run, measure the ultrasonic origin and wall coordinates,
-   verify both stationary ranges and cardinal alignments, and use the explicit
-   bounded motion gate. The virtual wall faces and sensor offset are reference
+   verify both stationary ranges and cardinal alignments, and keep **Stop**
+   available. The virtual wall faces and sensor offset are reference
    assumptions, not a physical calibration.
 `,Vi=`# Challenge 8: Multi-Stop Route Planning
 
@@ -6163,7 +6341,8 @@ corrected Pose + destination         -> NavigationController -> Robot motion
 Start at the depot, visit three named service stops exactly once, and return to
 the depot. Use map-derived directed grid-route costs to choose the visit order
 before motion begins. Crossing a stop's grid cell incidentally is not service;
-the measured pose must reach the exact endpoint before that stop is recorded.
+the estimated pose must reach the named endpoint within navigation tolerances
+before that stop is recorded.
 
 [\`world.json\`](world.json) defines the depot, stops, obstacles, and a
 disconnected case. [\`challenge.py\`](challenge.py) loads those goals and defines
@@ -6171,10 +6350,10 @@ their indices, grid resolution, and clearance.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -6200,7 +6379,7 @@ method boundary without supplying the planning algorithm.
   pairwise shortest paths, so this challenge assesses \`VisitOrderPlanner\`
   independently of the selected project \`GridPlanner\`. It follows each selected
   path, replaces the final cell-center goal with the exact named endpoint, and
-  checks the measured pose before recording service.
+  checks the estimated pose before recording service.
 - \`OccupancyGrid\`, the supplied \`GridPlanner\`, \`GridPath\`, and the selected
   navigation and robot components provide path and motion services.
 - [\`component_checks.py\`](component_checks.py) varies node indices and finish
@@ -6228,8 +6407,9 @@ selected paths -> NavigationController -> verified endpoint arrivals
 4. Select your planner and execute the complete route with supplied supporting
    components before substituting other project implementations.
 5. Confirm the recorded service sequence contains each required stop exactly
-   once and that every record follows a measured endpoint arrival.
-6. Score service-stop completion and planned route cost before elapsed time.
+   once and that every record follows an estimated-pose endpoint arrival.
+6. Report service-stop completion and planned route cost; use elapsed time as
+   a secondary comparison.
 `,Hi=`# Experimental Challenge 9 · Arena Circuit
 
 This is a standalone experimental challenge. It assumes familiarity with the
@@ -6250,8 +6430,11 @@ or integral action helps.
 
 \`main.py\` only assembles the components, recognizes the visible finish bar, and
 runs the sampled loop. It contains no stored trajectory or mission step limit.
-If neither sensor sees the line, it sends a stop command so the failure is
-observable rather than guessed around.
+\`LapProgress\` accepts a finish crossing only after four ordered checkpoints
+from the estimated odometry pose. Reflectance readings steer the robot and
+detect the finish bar; they do not by themselves establish a completed lap.
+If neither sensor reaches the line-visible threshold, \`main.py\` requests zero
+motion while it waits for the line to reappear.
 
 ## What you implement
 
@@ -6261,7 +6444,7 @@ the controller state needed for P, PD, or PID feedback.
 
 ## Provided files and tools
 
-- \`line_follower.py\` contains the single student component.
+- \`line_follower.py\` contains the only component to implement.
 - \`robot_config.py\` holds readable gains, speed, and finish thresholds.
 - \`component_checks.py\` checks centered, line-left, and line-right responses
   without starting either robot.
@@ -6272,12 +6455,19 @@ the controller state needed for P, PD, or PID feedback.
 
 \`\`\`text
 left/right reflectance -> LineFollower -> MotionCommand -> Robot
-finish-bar reflectance -> main.py lap completion
+estimated Pose -> LapProgress ordered checkpoints
+finish-bar reflectance + checkpoints -> completed lap
 \`\`\`
+
+Missing reflectance reports \`reflectance_unavailable\`. Loss of both line
+signals requests zero motion immediately and reports \`line_lost\` after 0.4 s.
+The run has a 100 s limit. The \`component_checks.py\` examples load
+\`LineFollower\` from \`line_follower.py\` independently of its Run selector and
+check steering signs, command limits, and reset behavior.
 
 ## Complete the challenge
 
-1. Run **Test components** with the supplied implementation selected.
+1. Run **Test functions**. An unfinished \`LineFollower\` reports \`NOT IMPLEMENTED\`.
 2. Implement \`LineFollower.update\` in \`line_follower.py\`.
 3. Set \`USE_STUDENT_LINE_FOLLOWER = True\` in \`course_setup.py\` and rerun the check.
 4. Run virtually and compare left/right reflectance and line error in Monitor.
@@ -6297,695 +6487,372 @@ and controller gains in \`robot_config.py\`. The virtual geometry is a useful
 starting point, not evidence of physical calibration.
 
 Success is one confirmed return across the finish bar without losing the line.
-
-
-## Qualified finish and stopped failure results
-
-The finish bar counts only after four ordered odometry checkpoints from
-lap_progress.py. Immediate back-and-forth crossings cannot count as a circuit.
-The line follower still uses only local reflectance for steering. Physical lap
-judging independently verifies the route: estimated pose is not ground truth.
-Change the checkpoints when changing world.json circuit geometry.
-
-Missing reflectance reports reflectance_unavailable. Losing both signals commands
-zero immediately and reports line_lost after 0.4 s; the full run is bounded to
-100 s. Reposition only after Stop. Test components now exercises LineFollower
-from the student file regardless of its Run selector; NOT IMPLEMENTED is expected
-until that file is completed. It checks signs, limits and reset as well as the
-centered example.
+Immediate back-and-forth crossings do not count as a circuit. Physical lap
+judging independently verifies the route because estimated pose is not ground
+truth. Change the checkpoints in \`lap_progress.py\` when changing circuit
+geometry in \`world.json\`. Reposition only after **Stop**.
 `,Ui=`# Challenge 1 · Robot Curling
 
 ## Task
 
-Drive 1000 mm along the lane and stop as close to the target as possible, in the
-least time. Use the front center of the robot for both the starting mark and
-final position measurement. Develop wheel-speed feedback and a stopping rule
-based on measured distance.
+Drive 1000 mm along the lane and stop the front center of the robot as close
+to the target as possible, in the least time. Align that same point with the
+start mark. Develop wheel measurements, wheel-speed feedback, and a
+stopping rule based on measured distance. Complete the measurements and
+method checks before target trials. The supplied \`main.py\` runs the trial; it
+does not choose when to slow or stop.
 
-## 1. Wheel measurements and motor calibration
+## 1. Measure the wheels
 
-Calculate wheel travel from encoder counts, and wheel speed from the change in
-travel over each sampling interval. Account for forward and reverse motion.
-Implement these calculations, then compare speed estimates from individual
-samples with estimates averaged over several samples.
+1. **Measure motor response.** Determine how each wheel’s speed depends on
+   motor command. Open the **Motor Characterization**
+   demonstration. Use the Virtual XRP to inspect it if useful, then measure
+   the physical robot. Record motor command, steady left and right wheel
+   speed, battery condition, and whether the wheels were raised or on the
+   floor.
+2. **Calibrate each wheel.** Obtain a starting estimate of the command needed
+   for a requested wheel speed. Plot steady speed against command for each wheel.
+   Estimate the command needed to start motion and the additional command per
+   mm/s. Enter the separate left/right start commands and speed gains in
+   \`robot_config.py\`; its initial numbers are example virtual settings.
+3. **Implement wheel measurements.** Convert encoder readings into distances
+   and speeds for feedback and odometry. In \`sensor_model.py\`, implement
+   \`SensorModel.reset(raw)\` and \`SensorModel.update(raw)\`. Use encoder counts,
+   configured signs, wheel diameter, counts per revolution, and timestamps
+   to return a \`Measurements\` record with wheel positions and latest increments
+   in mm, speed estimates in
+   mm/s, and \`dt_s\` in seconds. Reset establishes zero travel and speed.
+   Keep increments unsmoothed, estimate speed from recent samples, and
+   preserve the raw range, button, and reflectance fields. \`estimate_range\`
+   is for a later challenge.
+4. **Check encoder outputs.** Select **Test functions** to run defined
+   input/output examples for each component method. Compare calculated travel
+   with a measured wheel rotation and compare single-sample and averaged
+   speed estimates. Check forward and reverse counts. Set
+   \`USE_STUDENT_SENSOR_MODEL = True\` in \`course_setup.py\` to use this class
+   during a run.
 
-Measure each wheel's steady speed at several motor commands using the supplied
-**Motor Characterization** demonstration.
-Plot speed against command. Estimate the command needed to start each wheel
-and the additional command needed per unit speed. Use these measurements and
-your robot's wheel dimensions for its calibration. Note whether the wheels
-were raised or driving on the floor.
+## 2. Control wheel speed
 
-## 2. Wheel-speed and stopping control
+1. **Implement motor feedback.** Correct differences between requested and
+   measured wheel speeds. In \`wheel_speed_controller.py\`, implement
+   \`WheelSpeedController.update(target, measured)\`. For each wheel, use its
+   requested and measured speed to return a normalized \`DriveCommand\`. Use
+   the motor calibration in \`robot_config.py\`, return zero command for a zero
+   target, and respect \`max_drive_command\`. If your controller retains history,
+   clear it in \`reset()\`.
+2. **Check command outputs.** Use the corresponding **Test functions** examples
+   for positive, negative, and zero speed requests. Check that increasing
+   speed error changes the command as intended without exceeding the limit.
+   Set \`USE_STUDENT_WHEEL_SPEED_CONTROLLER = True\` in \`course_setup.py\` to
+   use this class during a run.
 
-Develop feedback that adjusts each motor command according to the difference
-between requested and measured wheel speed.
+## 3. Develop and test the stopping rule
 
-Next, develop a rule for requested forward speed as a function of distance
-remaining. Decide when to slow down and when to stop. A zero speed request ends
-the trial. The supplied program repeatedly calls your rule, records data, and
-stops the motors when the trial ends.
+1. **Implement the stopping rule.** Choose the speed needed to approach the
+   target and stop. In \`stopping_controller.py\`, implement
+   \`speed_for_distance(remaining_mm)\`. The input is target distance minus
+   measured mean wheel travel, in mm. Return a finite, nonnegative next
+   forward-speed request in mm/s; zero makes the final stop request. Decide
+   how speed depends on remaining distance and when to request zero.
+2. **Connect the live controls.** Make the speed and slowing distance adjustable
+   while observing the run. The Monitor **Cruise speed** control sets
+   \`CRUISE_SPEED_MM_S.value\` in \`live_variables.py\`, in mm/s. Use it in your
+   function as the chosen upper travel speed. **Slowing distance** sets
+   \`SLOWDOWN_DISTANCE_MM.value\`, in mm; use it to define where your rule
+   changes its speed request. Both values are read when the function is
+   called, so a slider change affects the next decision. Their starting
+   values are adjustable defaults, not measured stopping distances.
+3. **Compare feedback settings.** Assess how feedback changes speed error and
+   oscillation. With the same calibration and stopping
+   rule, compare requested and measured wheel speeds in repeated runs of
+   \`main.py\`.
+   Change \`wheel_speed_kp\` in \`robot_config.py\` to compare feedback settings;
+   zero removes its proportional correction. Record speed error, oscillation,
+   and sustained command limiting to justify the value you use.
+4. **Inspect the approach.** During these preparation runs, inspect plotted
+   remaining distance and requested speed as the robot approaches the target.
+   The Virtual XRP can help you revise the rule before floor runs. Change one
+   setting at a time. Check where the rule requests slowing and zero, and
+   whether wheel speed continues after the zero request.
 
-Compare runs with and without wheel-speed feedback, using the same stopping
-rule. Look for reduced speed error, oscillation, and motor commands that stay
-at their limit.
+## 4. Run the challenge
 
-## 3. Stopping trials
-
-Use the Virtual XRP to compare stopping rules and settings. The **Cruise speed**
-and **Slowing distance** sliders are available for your rule to use. Change one
-setting at a time and keep it fixed during each comparison run.
-The supplied slowing distance starts at 120 mm; adjust it from measured stopping
-error rather than assuming that distance is suitable on the floor.
-
-Test the selected settings on the floor. Repeat a run at least twice from the
-same starting alignment, then test one change intended to improve performance.
-Measure the distance from the front center to the target, note whether the robot
-stopped short or beyond it, and record final heading. Compare these measurements
-with the encoder distance remaining. The program also reports an estimate of
-time in motion, calculated from wheel-speed measurements.
+1. **Compare floor runs.** Run the selected rule on the floor. Keep starting
+   position and alignment consistent, change one setting at a time, and
+   retain runs that stop short, overshoot, or fail to move.
+2. **Measure the outcome.** For each run, record settings, stopping reason,
+   estimated motion time, signed encoder \`remaining_mm\`, front-center
+   distance from the target (short or beyond), and final heading. Compare
+   repeated results before choosing a change intended to improve accuracy
+   and time.
 
 ## Your report
 
-Submit one report per pair, with both names and the robot used. Distinguish
-virtual and physical trials and record the settings used.
+Submit one report per pair with both names and the robot used. Distinguish
+virtual from physical results.
 
-1. **Measurements and calibration:** show your encoder calculations and motor
-   calibration plots. How did averaging affect the speed estimate?
-2. **Feedback:** describe your controller and plot requested and measured speeds
-   with and without feedback. Did feedback reduce the error? Explain any
-   oscillation or sustained command limit.
-3. **Stopping:** describe your stopping rule and tabulate settings, motion time,
-   measured stopping error, and heading for the floor trials. Which setting
-   gave the best balance of speed, accuracy, and repeatability? What explains
-   the difference between encoder distance and the position measured on the floor?
+1. **Preliminary lab work:** show encoder conversion and motor calibration
+   measurements, the implemented feedback and stopping decisions, and the
+   evidence used to choose calibration and settings.
+2. **Challenge data:** provide labeled speed and remaining-distance plots and
+   a table of settings, stopping reason, motion time, signed floor error, and
+   final heading for the runs compared.
+3. **Challenge performance:** identify the run that best balances target
+   accuracy, time, and repeatability, using measured values.
+4. **Reflection:** explain differences between encoder remaining distance and
+   floor position, and how speed estimation, wheel-speed feedback, or the
+   stopping rule affected the outcome. Justify a specific improvement from
+   your data.
 
 ## Project files
 
 <strong class="student-file">Blue *</strong>: code to implement.
 <strong class="config-file">Amber †</strong>: settings to adjust.
-<span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge.
-\`main.py\` is supplied and normally unchanged; a controlled experiment may still edit it.
-
-After checking each class you implement, set its matching \`USE_STUDENT_*\` flag
-to \`True\` in \`course_setup.py\` before **Run**. \`False\` runs the
-supplied implementation; enable and check new classes one at a time.
-\`speed_for_distance\` is called directly by \`main.py\` and has no selector.
+<span class="supplied-file">Gray S</span>: code provided or completed earlier.
+\`main.py\` is supplied and normally unchanged; a controlled experiment may
+still edit it. **Test functions** checks the project files regardless of the
+\`USE_STUDENT_*\` flags. **Run** uses the classes selected in \`course_setup.py\`;
+\`speed_for_distance\` is called directly and has no selector.
 
 <div class="project-file-table">
 
 | File | What it does |
 | --- | --- |
 | <span class="supplied-file"><code>main.py</code> S</span> | Runs the straight trial using your stopping rule and records the result. |
-| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <strong class="student-file"><code>wheel_speed_controller.py</code> *</strong> | Calculates left and right motor commands from wheel-speed targets and measurements. |
+| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Converts encoder readings into wheel travel and speed; also contains later range estimation. |
+| <strong class="student-file"><code>wheel_speed_controller.py</code> *</strong> | Calculates left and right motor commands from target and measured wheel speeds. |
 | <strong class="student-file"><code>stopping_controller.py</code> *</strong> | Contains your distance-based stopping rule. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares the two Monitor controls and their starting values. |
+| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Cruise speed and Slowing distance controls and their starting values. |
 | <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and controller settings. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | Reads the start and target from world.json and calculates the travel distance. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Creates the robot using the selected component implementations. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs input/output examples for the component methods without driving. |
-| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and named markers shared by the robot and Monitor. |
+| <strong class="config-file"><code>challenge.py</code> †</strong> | Reads the start and target from \`world.json\` and calculates travel distance. |
+| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations and creates the robot. |
+| <span class="supplied-file"><code>component_checks.py</code> S</span> | Checks component methods without driving. |
+| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and markers. |
 
 </div>
 
 ## Parameters and functions
 
-The method templates and API specify inputs and outputs. The Guide explains
-how to select your implementations and run a different project file.
+Keep the method names and arguments in the templates. The API Reference gives
+the full field definitions; the Guide explains project-file selection.
 
 ![SensorModel template open in the IDE.](course-assets/method-template.jpg)
 
-*Figure. The IDE Project file list has \`sensor_model.py\` selected; the editor
-shows its class and unfinished method bodies.*
-
-Replace unfinished method bodies while retaining their names and arguments.
-Leave range estimation for Challenge 5.
+*Figure. \`sensor_model.py\` is selected in the IDE Project file list, with its
+class and unfinished method bodies open in the editor.*
 
 ### Parameters
 
 | Setting | Source and units | Effect |
 | --- | --- | --- |
-| Cruise speed | Live control in \`live_variables.py\`; mm/s | Upper forward-speed choice available to the stopping function. |
-| Slowing distance | Live control in \`live_variables.py\`; mm | Distance at which the stopping rule may begin reducing speed. |
-| \`wheel_speed_kp\` | \`robot_config.py\`; s/mm | Feedback command per mm/s of wheel-speed error; zero removes feedback. |
-| Motor start commands and speed gains | \`robot_config.py\`; dimensionless and s/mm | Map requested wheel speed to each motor's calibrated drive command. |
+| Cruise speed | Monitor control declared in \`live_variables.py\`; mm/s | Chosen upper travel speed available to \`speed_for_distance\`. |
+| Slowing distance | Monitor control declared in \`live_variables.py\`; mm | Chosen distance at which the stopping rule can begin reducing speed. |
+| \`wheel_speed_kp\` | \`robot_config.py\`; s/mm | Proportional motor-command change per mm/s of wheel-speed error; zero removes that correction. |
+| Left/right start commands and speed gains | \`robot_config.py\`; dimensionless and s/mm | Map each requested wheel speed to its calibrated motor command. |
 | \`max_drive_command\` | \`robot_config.py\`; dimensionless | Limits the absolute command sent to either wheel. |
 
-Live controls show their applied values. Keep each setting fixed during a recorded comparison. \`speed_for_distance\` reads the controls through \`.value\`.
+Live controls show their applied values. Keep a setting fixed during a
+recorded comparison; \`speed_for_distance\` reads the controls through \`.value\`.
 
 ### Functions and methods
 
 | Function or method | Input | Return or effect |
 | --- | --- | --- |
-| \`SensorModel.reset(raw)\` | First \`RawSensors\` sample: counts and ms | Starting \`Measurements\` with zero travel and speed. |
-| \`SensorModel.update(raw)\` | Next chronological \`RawSensors\` sample | \`Measurements\`: wheel position/increment in mm, speed in mm/s, interval in s. |
-| \`WheelSpeedController.reset()\` | None | Clears feedback state before a run. |
-| \`WheelSpeedController.update(target, measured)\` | Two \`WheelSpeeds\` values in mm/s | \`DriveCommand\` with normalized left/right commands. |
+| \`SensorModel.reset(raw)\` | First \`RawSensors\` sample: encoder counts and ms | \`Measurements\` with zero travel, speed, and interval. |
+| \`SensorModel.update(raw)\` | Next chronological \`RawSensors\` sample | \`Measurements\` with wheel position/increment in mm, speed in mm/s, and interval in s. |
+| \`WheelSpeedController.reset()\` | None | Clears retained feedback state. |
+| \`WheelSpeedController.update(target, measured)\` | Two \`WheelSpeeds\` values in mm/s | Bounded normalized left/right \`DriveCommand\`. |
 | \`speed_for_distance(remaining_mm)\` | Measured remaining distance in mm | Forward speed in mm/s; zero requests the final stop. |
 `,Wi=`# Challenge 2 · Arena Line Circuit
 
 ## Task
 
-Follow the tape line for one complete counterclockwise lap, then stop at the
-start/finish bar. Develop a line-following controller using the two floor
-sensors and the wheel-speed control from Robot Curling. Compare how speed and
-feedback settings affect completion of the circuit.
+Follow the dark tape line for one counterclockwise lap, pass four checkpoints
+in order, and stop at the start/finish bar. Use the two floor sensors for local
+steering and the wheel measurements and speed control developed in Robot
+Curling. Complete the sensor measurements and method checks before lap trials.
+\`main.py\` manages the lap and stops after completion or persistent line loss;
+your controller chooses the motion on each sensor sample.
 
 ![Tape circuit with start and finish bar, four checkpoints, and travel direction.](course-assets/arena-line-circuit.svg)
 
-*Figure. Circuit 1 in the 3048 × 1219.2 mm arena: the dark closed line is the
-floor track; the wider crossbar marks start and finish. The blue rectangle and
-dot mark the start region and axle pose, numbered dots mark ordered odometry
-checkpoint regions, and teal arrows show counterclockwise travel. The seven
-other circuits are selected as worlds in \`world.json\`.*
+*Figure. Circuit 1 in the 3048 × 1219.2 mm arena. The dark loop is the floor
+track and the wide crossbar is the start/finish bar. The blue region and dot
+mark the start and axle pose; numbered dots mark the ordered checkpoint
+regions; arrows show counterclockwise travel. Monitor's World menu offers
+seven other circuits, also defined in \`world.json\`.*
 
-The checkpoint count advances when estimated position reaches each named region
-in order. The count can differ from what is observed on the floor. The finish
-bar is detected by the two floor sensors.
+## 1. Measure the floor sensors
 
-## 1. Floor-sensor measurements
+1. **Measure reflectance.** Establish how the two sensors distinguish the floor,
+   line, and finish bar. In the file list, open **Actions for
+   reflectance_readout.py → Make main**, then **Compile** and **Run** with the
+   robot stationary at its normal sensor height. Selecting a file in the
+   editor alone does not change what Run executes. The readout prints ten left/right reading
+   pairs. Place the sensors over bare floor, centered on the narrow tape,
+   displaced to either side, and over the wide finish bar. Repeat placements
+   and record the range of both readings. Values near 0 indicate a light
+   surface; values near 1 indicate a dark surface.
+2. **Set detection thresholds.** Use the paired readings to choose
+   \`LINE_VISIBLE_THRESHOLD\` and \`FINISH_THRESHOLD\` in \`robot_config.py\`.
+   The first is compared with the darker of the two sensors; the second is
+   compared with the lighter sensor when recognizing the wide bar. Check
+   whether the observed line, lost-line,
+   and finish-bar cases separate under those comparisons. If they overlap,
+   inspect sensor height, tape width, and lighting before choosing thresholds.
+   The supplied values are starting defaults for a particular setup.
 
-Measure both sensors over bare floor, centered on the narrow tape, displaced
-to either side of the tape, and over the wide finish bar. Use the supplied
-\`reflectance_readout.py\` program with the robot stationary at its normal height.
-The readings range from 0 for light to 1 for dark, with intermediate values.
-Repeat the placements to see how much the readings vary.
+## 2. Convert motion requests to wheel speeds
 
-Use these measurements to distinguish three situations: following the line,
-losing the line, and crossing the finish bar. Choose the line-detection and
-finish-detection thresholds from your measurements. If the situations give
-similar readings, examine sensor placement, lighting, and tape width.
+1. **Implement wheel-speed conversion.** Calculate wheel-speed targets for a
+   requested forward speed and turn rate. In \`differential_drive.py\`, implement
+   \`DifferentialDrive.wheel_speeds(command)\`. Read axle-center forward speed
+   in mm/s, counterclockwise turn rate in rad/s, and
+   \`self.config.track_width_mm\`; return left/right \`WheelSpeeds\` in mm/s.
+   Measure the center-to-center spacing of the driven wheels at the floor
+   as an initial \`track_width_mm\` estimate in \`robot_config.py\`.
+   Account for straight motion, rotation in place, and simultaneous forward
+   motion and turning. A positive turn rate requires the right target speed
+   to exceed the left.
+2. **Check motion cases.** Use **Test functions** to run defined input/output
+   examples for straight, in-place, and combined motion. Set
+   \`USE_STUDENT_DIFFERENTIAL_DRIVE = True\` in \`course_setup.py\` to use your
+   class during a run.
+3. **Reuse wheel control.** Copy the completed \`sensor_model.py\` and
+   \`wheel_speed_controller.py\` from Robot Curling into the files of the same
+   names in this project. Copy your measured calibration values into
+   \`robot_config.py\`, keeping the line-following settings. Select the two
+   classes with their matching flags in \`course_setup.py\`.
+   \`component_checks.py\` also checks that \`SensorModel\` preserves floor readings
+   in \`Measurements\`.
 
-## 2. Line-following control
+## 3. Build local line following
 
-Derive the left and right wheel speeds needed for a requested forward speed
-and turn rate. Check the equations for straight motion, rotation in place,
-and a moving turn.
+1. **Implement line following.** Use differences in the floor readings to
+   correct the robot’s displacement from the line. In \`line_follower.py\`, implement
+   \`LineFollower.update(reflectance, dt_s)\`. Read normalized
+   \`reflectance.left\` and \`.right\` and interval \`dt_s\`; return a
+   \`MotionCommand\` with forward speed in mm/s and turn rate in rad/s. Record
+   left minus right as \`self.line_error\`. A darker left reading needs a positive
+   turn request; a darker right reading needs a negative one.
+2. **Apply follower settings.** Use \`self.settings\` for your chosen feedback
+   law. While following, keep speed between \`minimum_speed_mm_s\` and
+   \`cruise_speed_mm_s\`; bound turn rate by \`maximum_turn_rate_rad_s\`. The
+   inherited \`reset()\` clears feedback history before a run.
+3. **Connect the live controls.** Adjust travel speed and steering response
+   without rewriting the controller. The Monitor **Cruise speed** control is a
+   forward-speed setting in mm/s. **P gain** is \`kp_rad_s\`, the proportional
+   coefficient that converts dimensionless left-minus-right sensor error
+   into a turn-rate contribution
+   in rad/s. \`live_variables.py\` declares both controls;
+   \`apply_line_controls()\` in \`robot_config.py\` copies their current values
+   into \`follower.settings\` before each sensor update. Make your controller
+   use those entries so changes affect the next motion request. The supplied
+   settings also contain a derivative term; P gain changes only the
+   proportional term. Choose whether additional terms or turn-dependent speed
+   reduction improve tracking. The initial values are adjustable defaults.
+4. **Check steering responses.** Use the corresponding **Test functions**
+   examples to check centered, left-dark, and right-dark readings, output
+   bounds, and reset behavior. Then select
+   \`USE_STUDENT_LINE_FOLLOWER = True\` in \`course_setup.py\`. Restore **Actions for
+   main.py → Make main**, then **Compile** and **Run**. Inspect sensor readings, \`line_error\`,
+   and requested turn rate through a straight segment and a bend, using the
+   Virtual XRP if useful. Revise the controller if it oscillates, cuts a bend,
+   or loses the line.
 
-Develop a controller that uses the difference between the floor-sensor readings
-to keep the robot following the line. Use the measured left and right offsets
-to determine the direction of correction. For the supplied sensor convention,
-a darker left reading requires positive (counterclockwise) turn rate and a darker right reading
-requires negative turn rate. Decide how strongly to correct an offset and
-whether to reduce speed during a turn.
+## 4. Run the challenge
 
-Run the controller on the Virtual XRP. Observe straight sections and bends,
-and compare the sensor readings with the requested turn rate. Revise the
-controller if the robot oscillates, cuts a bend, or loses the line.
-
-## 3. Circuit trials
-
-Compare two settings using the **Cruise speed** or **P gain** slider in Monitor.
-Change one control at a time. Run the
-complete virtual circuit for each setting. If a run stops early, retain it in
-your comparison. The supplied program stops when it detects line loss or
-completion of the lap. Program output reports the stopping reason, checkpoint
-count, and elapsed time.
-
-Use the selected settings for two physical laps from the start/finish bar.
-Observe passage through the four checkpoints, any loss of the line, and the
-final stop. Compare your observations with the checkpoint count: that count
-uses estimated robot position, so a counting error can differ from a
-line-following error.
+1. **Compare lap settings.** Determine how speed and steering gain affect lap
+   completion and time. Start consistently in the marked start region.
+   Compare settings by changing one of Cruise speed or P gain at a time.
+   Record incomplete runs as well as full laps. Observe where the robot
+   crosses each physical checkpoint and whether it stops at the bar or after
+   losing the line.
+2. **Record lap outcomes.** Record each run's settings, elapsed time, stopping
+   reason, and reported checkpoint count. The count comes from estimated
+   position entering ordered regions, while the finish bar is detected by
+   both floor sensors. Compare the reported count with observations on the
+   floor; a count mismatch
+   and a tracking failure need different explanations.
 
 ## Your report
 
-Submit one report per pair, with both names, robot identification, and the
-settings for each trial. Distinguish virtual and physical results.
+Submit one report per pair with both names and the robot used. Distinguish
+virtual from physical results.
 
-1. **Sensing:** tabulate the paired readings at each placement and explain the
-   two detection thresholds. Which placements were hardest to distinguish?
-2. **Control:** give the wheel-speed equations and explain your line-following
-   rule. Plot both sensor readings and requested turn rate through a bend.
-   How did the controller respond as the robot moved across the line?
-3. **Laps:** tabulate the setting, completion or stopping reason, observed
-   checkpoints, reported checkpoint count, and lap time. Where did tracking
-   break down? Which setting gave the best combination of reliable completion
-   and speed, and what in the measurements explains that result?
+1. **Preliminary lab work:** tabulate paired floor readings at each placement,
+   justify the detection thresholds, give the wheel-speed conversion and the
+   implemented line-following rule, and show the checks used to select them.
+2. **Challenge data:** include labeled sensor and requested-turn plots through
+   a bend and a table of settings, completion or stopping reason, observed and
+   reported checkpoints, and elapsed time for the compared laps.
+3. **Challenge performance:** compare reliable completion and speed across
+   the recorded trials; if no lap completed, identify where runs ended.
+4. **Reflection:** explain any line loss, overshoot, or checkpoint-count
+   mismatch from the measurements, and justify one specific improvement.
 
 ## Project files
 
 <strong class="student-file">Blue *</strong>: code to implement.
 <strong class="config-file">Amber †</strong>: settings to adjust.
-<span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge.
-\`main.py\` is supplied and normally unchanged; a controlled experiment may still edit it.
-
-After checking each class you implement, set its matching \`USE_STUDENT_*\` flag
-to \`True\` in \`course_setup.py\` before **Run**. \`False\` runs the
-supplied implementation; enable and check new classes one at a time.
+<span class="supplied-file">Gray S</span>: code provided or completed earlier.
+\`main.py\` is supplied and normally unchanged; a controlled experiment may
+still edit it. **Test functions** checks project files regardless of the
+\`USE_STUDENT_*\` flags. **Run** uses the classes selected in \`course_setup.py\`;
+turn on and check each new class separately.
 
 <div class="project-file-table">
 
 | File | What it does |
 | --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Runs line following and stops at lap completion or line loss. |
-| <strong class="student-file"><code>differential_drive.py</code> *</strong> | Converts forward speed and turn rate into left and right wheel-speed targets. |
-| <strong class="student-file"><code>line_follower.py</code> *</strong> | Uses the floor-sensor readings to calculate forward speed and turn rate. |
-| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates left and right motor commands from wheel-speed targets and measurements. |
-| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration, controller settings, and live control application. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the course geometry and holds named trial settings. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Creates the robot using the selected component implementations. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs input/output examples for the component methods without driving. |
-| <span class="supplied-file"><code>lap_progress.py</code> S</span> | Counts checkpoints from estimated position and recognizes the return across the finish bar. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and their starting values; publishes current sensor, steering, and lap values. |
-| <span class="supplied-file"><code>reflectance_readout.py</code> S</span> | Prints ten left/right floor-sensor pairs while the robot is stopped. |
-| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and named markers shared by the robot and Monitor. |
+| <span class="supplied-file"><code>main.py</code> S</span> | Runs line following and stops at lap completion or persistent line loss. |
+| <strong class="student-file"><code>differential_drive.py</code> *</strong> | Converts forward speed and turn rate into left/right wheel-speed targets. |
+| <strong class="student-file"><code>line_follower.py</code> *</strong> | Uses paired floor readings to request forward speed and turn rate. |
+| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Completed wheel measurement component; preserves floor readings. |
+| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Completed wheel-speed feedback component. |
+| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration, line thresholds, follower settings, and live control application. |
+| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads course geometry and holds checkpoint and line-loss settings. |
+| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations and creates the robot and follower. |
+| <span class="supplied-file"><code>component_checks.py</code> S</span> | Checks component methods without driving. |
+| <span class="supplied-file"><code>lap_progress.py</code> S</span> | Counts ordered checkpoints from estimated position and confirms the finish bar. |
+| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares controls and publishes sensor, steering, and lap values. |
+| <span class="supplied-file"><code>reflectance_readout.py</code> S</span> | Prints ten stationary left/right floor-sensor pairs. |
+| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and markers. |
 
 </div>
 
 ## Parameters and functions
 
-Reuse the completed components from the preceding challenge. The method templates and API specify inputs and outputs. The Guide explains
-how to select your implementations and run a different project file.
+Keep the method names and arguments in the templates. The API Reference gives
+full field definitions; the Guide explains project-file selection.
 
 ### Parameters
 
-| Setting | Source and units | Effect |
+| Setting | Location and units | Use |
 | --- | --- | --- |
-| Cruise speed | Live control in \`live_variables.py\`; mm/s | Forward-speed setting passed to \`LineFollower\`. |
-| P gain | Live control in \`live_variables.py\`; rad/s per unit reflectance difference | Changes turning response to a left/right line error. |
-| \`maximum_turn_rate_rad_s\` | \`robot_config.py\`; rad/s | Caps the requested turn rate. |
-| \`LINE_VISIBLE_THRESHOLD\` | \`robot_config.py\`; normalized reflectance | Minimum dark reading at either sensor before following continues. |
-| \`FINISH_THRESHOLD\` | \`robot_config.py\`; normalized reflectance | Minimum reading at both sensors for the wide finish bar. |
-| \`CHECKPOINT_TOLERANCE_MM\` | \`challenge.py\`; mm | Region radius for each ordered odometry checkpoint. |
-| \`MAXIMUM_LOST_LINE_S\` | \`challenge.py\`; s | Stops a physical run after persistent line loss; the robot requests zero motion during that interval. |
+| Cruise speed | \`live_variables.py\`; mm/s | Copied to \`follower.settings["cruise_speed_mm_s"]\` each sample. |
+| P gain | \`live_variables.py\`; rad/s per unit reflectance difference | Copied to \`follower.settings["kp_rad_s"]\` each sample. |
+| \`maximum_turn_rate_rad_s\` | \`robot_config.py\`; rad/s | Limits requested turning. |
+| \`LINE_VISIBLE_THRESHOLD\` | \`robot_config.py\`; normalized reflectance | Minimum reading at either sensor for visible line. |
+| \`FINISH_THRESHOLD\` | \`robot_config.py\`; normalized reflectance | Minimum reading at both sensors for the wide bar. |
+| \`CHECKPOINT_TOLERANCE_MM\` | \`challenge.py\`; mm | Radius of each ordered estimated-position region. |
+| \`MAXIMUM_LOST_LINE_S\` | \`challenge.py\`; s | Stops a run after persistent line loss; the robot requests zero motion during that interval. |
 
-Live controls show their applied values. Keep each setting fixed during a recorded comparison. The supplied program applies the sliders at each sample boundary.
+Live controls show their applied values. Keep a setting fixed during a
+recorded comparison; \`apply_line_controls()\` copies slider values to the
+follower settings at each sample boundary.
 
 ### Functions and methods
 
 | Function or method | Input | Return or effect |
 | --- | --- | --- |
 | \`DifferentialDrive.wheel_speeds(command)\` | \`MotionCommand\` in mm/s and rad/s | Left/right \`WheelSpeeds\` in mm/s. |
-| \`LineFollower.update(reflectance, dt_s)\` | Paired normalized \`ReflectanceReadings\`, sample interval in s | \`MotionCommand\` in mm/s and rad/s. |
+| \`LineFollower.update(reflectance, dt_s)\` | Paired \`ReflectanceReadings\`, interval in s | \`MotionCommand\` in mm/s and rad/s. |
 | \`LineFollower.reset()\` | None | Clears retained error state; inherited from \`LineFollowerBase\`. |
-| \`LapProgress.observe_line(readings, dt_s, threshold)\` | Paired readings and interval in s | Visibility Boolean; updates the retained \`lost_line_s\` duration. |
-| \`LapProgress.update(pose, on_finish, confirm_samples)\` | Estimated \`Pose\`, finish detection, sample count | \`True\` after four ordered checkpoints and a confirmed finish-bar crossing. |
-`,Gi=`# Challenge 3 · Waypoint Courier
-
-## Task
-
-Drive through three destinations in order and finish facing the indicated
-direction. Estimate position and heading from wheel travel, then use that
-estimate to navigate. Compare where the robot believes it stopped with where
-it actually stopped.
-
-![Starting pose, three destinations in visit order, and final heading.](course-assets/waypoint-courier.svg)
-
-*Figure. The blue S dot and arrow indicate the starting axle pose and +x
-heading. Numbered orange dots show the three destinations in visit order; the
-left-pointing arrow at goal 3 shows its required final heading. No measured or
-planned trajectory is drawn. Coordinates come from \`world.json\` in millimeters.*
-
-## 1. Odometry
-
-Odometry estimates motion from wheel travel. Derive the change in robot
-position and heading from the distance traveled by each wheel. Check the
-calculation for straight travel, rotation in place, and a curved path.
-Then implement the repeated updates that accumulate these changes from a
-known starting position and heading.
-
-Use the midpoint between the driven wheels as the position reference. Define
-positive heading counterclockwise from the world +x direction. Each update
-must use the signed wheel travel since the previous update.
-
-## 2. Waypoint navigation
-
-Develop a controller that uses the estimated position and heading to reach
-each destination. Decide when to turn, how fast to move, and when to advance
-to the next destination. At the last destination, reach the requested heading
-before stopping. Test the controller's decisions when far from a destination,
-when close to it, and when at the final position but facing the wrong direction.
-
-Run the route on the Virtual XRP. Compare the trajectory and estimated heading
-with the marked destinations. If the robot overshoots or repeatedly changes
-direction near a destination, revise the approach and repeat the route.
-
-## 3. Position and heading measurements
-
-Run the physical route twice from the same starting pose. Observe the order
-of visits, any missed destination or contact, and the final orientation.
-Measure final position and heading on the floor and compare them with the
-values reported in Program output.
-
-Compare the same point on the robot in both measurements. If you measure the
-front center, measure its distance ahead of the drive-axle midpoint and use
-the measured final heading to convert to axle position. Record how precisely
-you can read the floor marks. Use observations along the route to identify
-where an error first becomes apparent.
-
-## Your report
-
-Submit one report per pair, with both names, robot identification, and trial
-settings. Distinguish virtual and physical results.
-
-1. **Odometry:** give your update equations and calculations for straight,
-   rotating, and curved motion. Explain how you use the starting pose and
-   wheel increments.
-2. **Navigation:** explain how your controller reaches a position, advances
-   to the next destination, and achieves the final heading. Show the route
-   and estimated heading for a virtual run. Where did the approach need revision?
-3. **Physical results:** tabulate the requested, estimated, and measured final
-   position and heading for both runs. Include visit order and any missed
-   destination. Did the estimated final position agree with the destination while the floor
-   measurement did not, or did both miss the destination? What does that
-   distinction suggest about odometry and navigation error?
-
-## Project files
-
-<strong class="student-file">Blue *</strong>: code to implement.
-<strong class="config-file">Amber †</strong>: settings to adjust.
-<span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge.
-\`main.py\` is supplied and normally unchanged; a controlled experiment may still edit it.
-
-After checking each class you implement, set its matching \`USE_STUDENT_*\` flag
-to \`True\` in \`course_setup.py\` before **Run**. \`False\` runs the
-supplied implementation; enable and check new classes one at a time.
-
-<div class="project-file-table">
-
-| File | What it does |
-| --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Runs navigation and reports the independently counted arrivals and final pose. |
-| <span class="supplied-file"><code>route_progress.py</code> S</span> | Checks estimated-pose arrival at the ordered goals using the current navigation tolerances. |
-| <strong class="student-file"><code>odometry.py</code> *</strong> | Accumulates wheel increments to estimate position and heading. |
-| <strong class="student-file"><code>navigation_controller.py</code> *</strong> | Uses estimated pose to reach an ordered set of destinations. |
-| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates left and right motor commands from wheel-speed targets and measurements. |
-| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into left and right wheel-speed targets. |
-| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and controller settings. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the course geometry and holds named trial settings. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Creates the robot using the selected component implementations. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and their starting values; publishes goal progress and estimated heading. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs input/output examples for the component methods without driving. |
-| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and named markers shared by the robot and Monitor. |
-
-</div>
-
-## Parameters and functions
-
-Reuse the completed components from the preceding challenge. The method templates and API specify inputs and outputs. The Guide explains
-how to select your implementations and run a different project file.
-
-### Parameters
-
-| Setting | Source and units | Effect |
-| --- | --- | --- |
-| \`track_width_mm\` | \`robot_config.py\`; mm | Converts unequal wheel travel to heading change. |
-| Cruise speed | Live control declared in \`live_variables.py\`; mm/s | Normal forward request, from 80 to 220 mm/s. |
-| \`approach_speed_mm_s\` | \`robot_config.py\`; mm/s | Near-goal forward request, 80% of the selected cruise speed. |
-| \`slowdown_distance_mm\` | \`robot_config.py\`; mm | Distance at which the lower approach speed begins; initially 120 mm. |
-| Turn rate | Live control declared in \`live_variables.py\`; rad/s | Requested rotation rate, from 0.4 to 1.6 rad/s. |
-| \`position_tolerance_mm\`, \`heading_tolerance_rad\` | \`robot_config.py\`; mm and rad | Estimated errors accepted at each goal. |
-| \`realign_heading_rad\` | \`robot_config.py\`; rad | Heading error above which forward travel pauses for turning. |
-
-The two live controls take effect after the next robot sample. Change one at a
-time and record the values used. Other settings remain in \`robot_config.py\`.
-
-### Functions and methods
-
-| Function or method | Input | Return or effect |
-| --- | --- | --- |
-| \`Odometry.reset(initial_pose)\` | Known \`Pose\` in mm and rad | Stores and returns the starting \`Pose\`. |
-| \`Odometry.update(left_increment_mm, right_increment_mm)\` | Measured wheel increments in mm | Updated estimated \`Pose\`. |
-| \`Odometry.pose\` | Property read after reset | Latest estimated \`Pose\`. |
-| \`NavigationController.start(goals)\` | Ordered \`NavigationGoal\` values | Resets navigation to the first goal. |
-| \`NavigationController.set_config(config)\` | Complete \`NavigationConfig\` | Inherited method replaces motion settings without restarting the active goal. |
-| \`NavigationController.update(pose)\` | Current estimated \`Pose\` | Next \`MotionCommand\` in mm/s and rad/s. |
-| \`NavigationController.current_goal()\` | None | Active goal, or \`None\` after completion. |
-| \`NavigationController.is_complete()\` | None | Boolean after all positions and required headings are reached. |
-| \`count_reached_goals(pose, route, reached_count, config)\` | Estimated pose, ordered goals, previous count, current navigation settings | Updated count of goals observed in order. |
-`,Ki=`# Challenge 4 · Mapped Route
-
-## Task
-
-Find a route around known obstacles, then have the Virtual XRP follow it.
-The route must leave room for the whole robot, including deviations while
-following the path.
-
-![Start, destination, and central obstacle in the reachable map.](course-assets/mapped-route.svg)
-
-*Figure. The blue S dot and arrow show the starting axle pose and heading;
-the orange G dot marks the destination. The dark filled rectangle is the known
-central obstacle at its map dimensions. No grid cells or computed route are
-shown; \`world.json\` supplies the geometry in millimeters.*
-
-## 1. Map and clearance
-
-An occupancy grid divides the map into free and blocked cells. The supplied
-program builds this grid from the obstacle map and expands the blocked areas
-to allow space for the robot. Inspect the grid in Program output and compare
-it with the obstacles in Monitor.
-
-Examine the three worlds: **Mapped route**, **Destination blocked**, and
-**No connecting route**. Predict whether each has a route from start to
-destination. Explain why a point that looks outside an obstacle can still
-belong to a blocked cell once robot clearance is included.
-
-## 2. Grid search
-
-Develop a search that finds a connected sequence of free cells from start to
-destination. Consecutive cells must share a side. Decide how to keep track
-of cells already examined and how to recover the route when the search
-reaches the destination. Any valid route is acceptable.
-
-Run the search on all three worlds without driving. Compare its answers with
-your predictions. Inspect the returned path for correct endpoints, free
-cells, and connected steps. When no route exists, the search must report that
-outcome. Also check the simple case where start and destination are the same
-free cell.
-
-## 3. Route trials
-
-Enable motion for **Mapped route** and run the Virtual XRP. The supplied
-program converts your path into destinations for your navigation controller.
-Compare the planned cell path with the robot's trajectory. Observe clearance
-at the obstacle, any contact, and the final position and heading.
-
-A physical trial is optional. If you run one, compare the floor geometry and
-robot dimensions with the map first. Measure the closest gap to an obstacle
-and final position and heading, and note any contact. State how the gap was
-measured and the approximate measurement precision.
-
-## Your report
-
-Submit one report per pair, with both names. State grid cell size, clearance,
-and the navigation settings used.
-
-1. **Map:** show the reachable world's grid and planned path. Explain how
-   robot dimensions and clearance affect which cells are blocked.
-2. **Search:** describe your search and how it recovers a route. Tabulate the
-   predicted and returned outcome for each world. Explain why one of the
-   no-route cases cannot be solved.
-3. **Motion:** compare the planned path and virtual trajectory. Did the robot
-   reach the destination without contact? Did a valid cell path leave enough
-   room when followed by the moving robot? Explain any discrepancy in terms
-   of the map, search, or path following. Include measurements if you performed
-   a physical trial.
-
-## Project files
-
-<strong class="student-file">Blue *</strong>: code to implement.
-<strong class="config-file">Amber †</strong>: settings to adjust.
-<span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge.
-\`main.py\` is supplied and normally unchanged; a controlled experiment may still edit it.
-
-After checking each class you implement, set its matching \`USE_STUDENT_*\` flag
-to \`True\` in \`course_setup.py\` before **Run**. \`False\` runs the
-supplied implementation; enable and check new classes one at a time.
-
-<div class="project-file-table">
-
-| File | What it does |
-| --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Runs the search, prints the grid and path, and optionally drives the route. |
-| <span class="supplied-file"><code>route_validation.py</code> S</span> | Checks that a planned path is traversable and that the final estimated pose reaches the destination. |
-| <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected path of free cells. |
-| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates left and right motor commands from wheel-speed targets and measurements. |
-| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into left and right wheel-speed targets. |
-| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |
-| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach an ordered set of destinations. |
-| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and controller settings. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the course geometry and holds named trial settings. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Creates the robot using the selected component implementations. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs input/output examples for the component methods without driving. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and their starting values; publishes navigation progress. |
-| <span class="supplied-file"><code>grid_display.py</code> S</span> | Prints the grid, blocked cells, endpoints, and planned path. |
-| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and named markers shared by the robot and Monitor. |
-
-</div>
-
-## Parameters and functions
-
-Reuse the completed components from the preceding challenge. The method templates and API specify inputs and outputs. The Guide explains
-how to select your implementations and run a different project file.
-
-### Parameters
-
-| Setting | Source and units | Effect |
-| --- | --- | --- |
-| \`GRID_RESOLUTION_MM\` | \`challenge.py\`; mm/cell | Sets grid-cell width and height for the sampled map. |
-| \`CLEARANCE_MM\` | \`challenge.py\`; mm | Inflates obstacles and arena edges for the robot's physical footprint and tracking margin. |
-| \`MAXIMUM_GRID_CELLS\` | \`challenge.py\`; cells | Bounds memory/work for planning on the XRP. |
-| \`EXECUTE_ROUTE\` | \`challenge.py\`; Boolean | \`False\` plans without motion; \`True\` also follows the validated path. |
-| Cruise speed and turn rate | Live controls declared in \`live_variables.py\`; mm/s and rad/s | Adjust route motion from 80–220 mm/s and 0.4–1.6 rad/s. |
-| Approach speed, slowing distance, and navigation tolerances | \`robot_config.py\`; mm/s, mm, rad | Approach at 80% of selected cruise speed within 120 mm of each goal; set accepted pose errors. |
-
-The first run is motion-free. Record grid resolution and clearance with each
-path comparison; these settings alter which cells are free. The two motion
-controls take effect after the next robot sample during a route run.
-
-### Functions and methods
-
-| Function or method | Input | Return or effect |
-| --- | --- | --- |
-| \`OccupancyGrid.from_arena(arena, resolution_mm, clearance_mm)\` | Dimensioned \`ArenaMap\`, grid resolution and clearance in mm | Grid of free/blocked cells. |
-| \`GridPlanner.plan(grid, start, goal)\` | \`OccupancyGrid\` and two \`GridCell\` endpoints | Connected \`GridPath\` including both endpoints, or \`None\`. |
-| \`GridPath.to_goals(grid)\` | The same grid used for planning | World-coordinate navigation goals at turns and destination. |
-| \`path_error(grid, start, goal, path)\` | Proposed path and endpoints | \`None\` for a valid path or a reason it cannot be executed. |
-| \`goal_is_reached(pose, goal, config)\` | Final estimated pose, destination, current navigation settings | Whether the position and required heading are within tolerance. |
-`,qi=`# Challenge 5 · Out-and-Back
-
-## Task
-
-Follow the outbound route, stop to determine whether the center gate is blocked,
-and plan a return home. Use ultrasonic measurements to decide whether the return
-can pass through the gate or needs a detour.
-
-![Assigned outbound route, home, observation point, and center gate.](course-assets/out-and-back.svg)
-
-*Figure. Blue H, 1, and 2 markers show home and the ordered outbound stops;
-the orange O marker and left-pointing arrow show the stationary observation
-pose and heading. The dashed teal line is the assigned outbound route. Dark
-filled rectangles mark the fixed upper/lower walls and far reflector; the
-orange dashed rectangle is the center gate whose occupancy is observed. No
-return route is drawn. Dimensions come from \`world.json\` in millimeters.*
-
-## 1. Ultrasonic measurements
-
-On the physical course, place the robot at the observation point, facing the
-gate. Use the supplied
-\`range_readout.py\` program to collect readings while the robot is stationary.
-Collect at least three batches with the gate blocked and three with it open,
-keeping the robot's position and aim fixed. Each batch contains seven measurement
-attempts; some may return no reading.
-
-Compare the readings within and between the two conditions. Identify missing
-readings and unusually large or small values. Determine whether the measurements
-separate an open gate from a blocked one. If the groups overlap, examine the
-sensor aim and reflecting surfaces before choosing a detection threshold.
-
-## 2. Gate detection
-
-Estimate range from a batch using the median of the positive, finite readings.
-Ignore missing readings and other invalid values. Develop the calculation and compare its result with individual readings from your
-measurements. Require at least four usable readings; fewer should give an
-unavailable estimate, not an open-gate decision.
-
-Choose a threshold between the blocked and open measurements. Run both virtual
-worlds, **Center gate blocked** and **Center gate open**. Examine the measured
-range, gate decision, and return route. The outbound route is the same in both
-cases; the return must account for the observed gate state. The supplied program
-stops if there are too few usable readings to decide.
-
-## 3. Return trials
-
-Run the physical mission with the gate blocked and with it open. Keep the gate
-fixed during each run and use the same motion settings in both conditions.
-Observe the stop at the measurement point, the chosen return route, and arrival
-home. Repeat one condition to assess variation.
-
-Measure the final distance from the robot's axle midpoint to the home position,
-and record final heading. If you measure a front-center mark, convert it to
-axle position as in Waypoint Courier. For a run that stops early, identify where
-it stopped and compare the observations with Program output.
-
-## Your report
-
-Submit one report per pair, with both names, robot identification, and trial
-settings. Distinguish virtual and physical results.
-
-1. **Range measurements:** tabulate the readings and median for each blocked
-   and open batch, including the number of usable readings. How much did they
-   vary? Explain your threshold and the separation between the two conditions.
-2. **Gate decision:** explain your median calculation and show how it handles
-   missing readings and an unusually large reading. Did each virtual case
-   produce the expected decision and route?
-3. **Return:** show the two physical return routes and tabulate gate condition,
-   estimated range, decision, return time, completion or stopping reason, and
-   measured home error. If a run failed, did the problem begin with the range
-   measurement, the gate decision, the planned path, or the robot's motion?
-   What evidence supports that explanation?
-
-## Project files
-
-<strong class="student-file">Blue *</strong>: code to implement.
-<strong class="config-file">Amber †</strong>: settings to adjust.
-<span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge.
-\`main.py\` is supplied and normally unchanged; a controlled experiment may still edit it.
-
-After checking each class you implement, set its matching \`USE_STUDENT_*\` flag
-to \`True\` in \`course_setup.py\` before **Run**. \`False\` runs the
-supplied implementation; enable and check new classes one at a time.
-
-<div class="project-file-table">
-
-| File | What it does |
-| --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Runs the outbound route, measures the gate, and plans and follows the return. |
-| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Estimates range from a batch; also contains the wheel measurements from earlier challenges. |
-| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates left and right motor commands from wheel-speed targets and measurements. |
-| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into left and right wheel-speed targets. |
-| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |
-| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach an ordered set of destinations. |
-| <span class="supplied-file"><code>grid_planner.py</code> S</span> | Searches the occupancy grid for a connected path of free cells. |
-| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and controller settings. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the course geometry and holds trial settings and run limits. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Creates the robot using the selected component implementations. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs input/output examples for the component methods without driving. |
-| <span class="supplied-file"><code>mission_policy.py</code> S</span> | Compares the estimated range with the gate threshold; preserves an unavailable reading. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and their starting values; publishes mission phase, progress, and result. |
-| <span class="supplied-file"><code>mission_steps.py</code> S</span> | Follows route segments, checks arrival, and checks that a returned cell path is connected and free. |
-| <span class="supplied-file"><code>range_readout.py</code> S</span> | Prints seven raw ultrasonic measurement attempts while the robot is stopped. |
-| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and named markers shared by the robot and Monitor. |
-
-</div>
-
-## Parameters and functions
-
-Reuse the completed components from the preceding challenge. The method templates and API specify inputs and outputs. The Guide explains
-how to select your implementations and run a different project file.
-
-### Parameters
-
-| Setting | Source and units | Effect |
-| --- | --- | --- |
-| \`RANGE_SAMPLE_COUNT\`, \`MINIMUM_USABLE_RANGE_COUNT\` | \`challenge.py\`; attempts/readings | Seven attempts are requested; at least four usable values are required. |
-| \`BLOCKED_RANGE_THRESHOLD_MM\` | \`challenge.py\`; mm | Separates observed blocked and open gate cases. |
-| \`STATIONARY_SPEED_MM_S\`, \`STATIONARY_DURATION_S\` | \`challenge.py\`; mm/s and s | Require measured near-zero wheel speed before range sampling. |
-| \`GRID_RESOLUTION_MM\`, \`CLEARANCE_MM\` | \`challenge.py\`; mm/cell and mm | Sample the selected return map with obstacle clearance. |
-| \`MAXIMUM_GRID_CELLS\` | \`challenge.py\`; cells | Bounds planner memory/work on the XRP. |
-| Cruise speed and turn rate | Live controls declared in \`live_variables.py\`; mm/s and rad/s | Adjust outbound and return motion from 80–220 mm/s and 0.4–1.6 rad/s. |
-| Approach speed, slowing distance, and navigation tolerances | \`robot_config.py\`; mm/s, mm, rad | Approach at 80% of selected cruise speed within 120 mm of each goal; set accepted pose errors. |
-
-Keep the range threshold and two motion controls fixed while comparing the
-blocked and open worlds. Changed motion controls take effect after the next
-robot sample.
-\`world.json\` selects the observed virtual gate case; the program infers it from
-range samples.
-
-### Functions and methods
-
-| Function or method | Input | Return or effect |
-| --- | --- | --- |
-| \`SensorModel.estimate_range(samples, minimum_usable)\` | Range attempts in mm or \`None\`, minimum usable count | Median usable range in mm, or \`None\`. |
-| \`observed_gate(estimate_mm, threshold_mm)\` | Estimated range and threshold in mm | \`True\` blocked, \`False\` open, or \`None\` unavailable. |
-| \`follow_route(robot, navigation, state, goals)\` | Current state and ordered goals | Last state plus arrival or stop reason. |
-| \`GridPlanner.plan(grid, start, goal)\` | Return grid and \`GridCell\` endpoints | Connected \`GridPath\`, or \`None\`. |
-`,Ji=`{
+| \`LapProgress.observe_line(readings, dt_s, threshold)\` | Paired readings, interval, threshold | Visibility Boolean; updates retained line-loss duration. |
+| \`LapProgress.update(pose, on_finish, confirm_samples)\` | Estimated \`Pose\`, finish detection, sample count | \`True\` after four ordered checkpoints and confirmed finish-bar return. |
+`,Gi='# Challenge 3 · Waypoint Courier\n\n## Task\n\nVisit the three destinations in order and finish facing the indicated direction. Use measured wheel travel to estimate the robot\'s axle-midpoint position and heading, then navigate from that estimate. Compare the reported final pose with an independent floor measurement.\n\n![Starting pose, three destinations in visit order, and final heading.](course-assets/waypoint-courier.svg)\n\n*Figure. The blue S dot and arrow indicate the starting axle pose and +x heading. Numbered orange dots show the three destinations in visit order; the left-pointing arrow at goal 3 shows its required final heading. No measured or planned trajectory is drawn. Coordinates come from `world.json` in millimeters.*\n\n## 1. Implement and measure odometry\n\n1. **Initialize pose.** Establish the estimate at a known starting pose. In `odometry.py`, implement `Odometry.reset(initial_pose)` to store and return that `Pose`. Make the `pose` property return the latest estimate. Position is the drive-axle midpoint in world millimeters; heading is positive counterclockwise from +x, in radians.\n2. **Integrate wheel travel.** Convert each measured wheel increment into a change in pose. Implement `Odometry.update(left_increment_mm, right_increment_mm)` using signed travel since the previous sample and `self.config.track_width_mm`. Return and retain the new `Pose`. Unequal travel follows the wheel paths\' exact constant-curvature arc; wrap heading to `[-π, π)`.\n3. **Check known motions.** Run **Test functions** (`component_checks.py`) without driving. For its straight, in-place turn, and arc inputs, record the wheel increments, predicted change in pose, and returned `Pose`. Compare the direction, units, and heading wrap. A square is an optional additional accumulation check; the route run below supplies the independent floor-pose comparison.\n\n## 2. Implement and test ordered navigation\n\n1. **Track goals.** Retain which destination is active across samples. In `navigation_controller.py`, implement `NavigationController.start(goals)` to save the ordered sequence and reset progress. Make `current_goal()` report the active goal or `None`, and `is_complete()` report whether every required position and heading has been reached. An empty route is complete immediately.\n2. **Choose motion.** Turn pose error into the next motion request. Implement `update(pose)` to return a `MotionCommand` from the estimated `Pose`. Decide how to turn toward, approach, and accept each goal. `heading_rad=None` requires position only; the last goal also requires heading. Use `NavigationConfig` tolerances and motion settings. Return `STOP_COMMAND` after completion.\n3. **Check and select.** Use **Test functions** to examine distant, near, and wrong-final-heading poses. In `course_setup.py`, set `USE_STUDENT_ODOMETRY` and `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` after their checks pass. Reuse your completed sensing, wheel-speed control, and differential-drive files from Arena Line Circuit, along with the measured robot settings. Set their matching flags to `True`; `False` selects the supplied versions.\n\n## 3. Run and measure the courier route\n\n1. **Set motion controls.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changed values to the active controller after the next robot sample; approach speed follows cruise speed at 80%. Slider endpoints are configured control limits, not activity targets. Record values used; adjust other navigation settings in `robot_config.py` when measurements support a change.\n2. **Check the virtual route.** Inspect the start and ordered goals in `world.json`; `challenge.py` loads them as `INITIAL_POSE` and `ROUTE`. Run `main.py` on the Virtual XRP. Use the route trace, estimated heading, `goals_reached`, and Program output to locate overshoot, missed goals, or repeated turns. Revise the controller and repeat as needed before physical trials.\n3. **Measure the physical result.** Run from the marked starting axle pose. Record visit order, missed destinations or contact, and final orientation. Measure final axle-midpoint position and heading on the floor, including reading precision, and compare them with `final_pose` in Program output. If using a front-center mark, measure its axle offset and account for heading. Repeat as needed to assess consistency.\n\n## Your report\n\nSubmit one report per pair with both names, robot identification, selected components, world, and trial settings. Label virtual results separately from physical measurements.\n\n1. **Preliminary lab work:** give the odometry model, straight/turn/arc input-output checks, navigation checks, and reasoning behind calibration and controller choices. Include a square check if performed.\n2. **Challenge data:** show the route trace and estimated heading, and tabulate requested, estimated, and measured final position and heading for physical runs. Include visit order and relevant settings.\n3. **Challenge performance:** state which goals and final-heading requirement were reached, and quantify final position and heading errors using the axle midpoint.\n4. **Reflection:** use the preliminary and route data to distinguish pose-estimation error from controller behavior. Identify one supported improvement and the measurement that would test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs navigation and reports independently counted arrivals and final pose. |\n| <span class="supplied-file"><code>route_progress.py</code> S</span> | Checks estimated-pose arrival at ordered goals using current tolerances. |\n| <strong class="student-file"><code>odometry.py</code> *</strong> | Accumulates wheel increments to estimate position and heading. |\n| <strong class="student-file"><code>navigation_controller.py</code> *</strong> | Uses estimated pose to reach ordered destinations. |\n| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the start pose and ordered goals. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and publishes progress and estimated heading. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, and markers shared by the robot and Monitor. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `track_width_mm` | `robot_config.py`; mm | Effective wheel spacing used to convert unequal wheel travel into heading change. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Live forward and turning requests, applied by `robot_config.py` after the next sample. |\n| `approach_speed_mm_s`, `slowdown_distance_mm` | `robot_config.py`; mm/s, mm | Near-goal speed and distance at which slowing starts; this starter sets approach speed to 80% of cruise speed. |\n| `position_tolerance_mm`, `heading_tolerance_rad` | `robot_config.py`; mm, rad | Estimated position and heading errors accepted at a goal. |\n| `realign_heading_rad` | `robot_config.py`; rad | Heading error above which forward travel pauses for turning. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `Odometry.reset(initial_pose)` | Known `Pose` in mm and rad | Stores and returns starting `Pose`. |\n| `Odometry.update(left_increment_mm, right_increment_mm)` | Signed wheel increments in mm | Updated estimated `Pose`. |\n| `Odometry.pose` | Property read after reset | Latest estimated `Pose`. |\n| `NavigationController.start(goals)` | Ordered `NavigationGoal` values | Starts at first goal; an empty route is complete. |\n| `NavigationController.set_config(config)` | Complete `NavigationConfig` | Inherited method changes settings without restarting the route. |\n| `NavigationController.update(pose)` | Estimated `Pose` | Next `MotionCommand` in mm/s and rad/s. |\n| `NavigationController.current_goal()` | None | Active goal or `None`. |\n| `NavigationController.is_complete()` | None | Boolean route-completion status. |\n| `count_reached_goals(pose, route, reached_count, config)` | Estimated pose, ordered goals, previous count, current settings | Updated independently observed arrival count. |\n',Ki='# Challenge 4 · Mapped Route\n\n## Task\n\nPlan a connected route around known obstacles, then have the Virtual XRP follow it. Account for the robot\'s footprint and path-following error when assessing clearance.\n\n![Start, destination, and central obstacle in the reachable map.](course-assets/mapped-route.svg)\n\n*Figure. The blue S dot and arrow show the starting axle pose and heading; the orange G dot marks the destination. The dark filled rectangle is the known central obstacle at its map dimensions. No grid cells or computed route are shown; `world.json` supplies the geometry in millimeters.*\n\n## 1. Inspect the map and predict outcomes\n\n1. **Predict each world.** Inspect **Mapped route**, **Destination blocked**, and **No connecting route** in `world.json`. Mark start, destination, obstacles, and boundary; predict whether a free-cell route exists in each.\n2. **Inspect grid settings.** Determine which locations the robot can plan through. In `challenge.py`, `GRID_RESOLUTION_MM` sets cell width and `CLEARANCE_MM` expands obstacles and boundaries for robot size and tracking margin. `main.py` passes them and `ARENA_MAP` to supplied `OccupancyGrid.from_arena()`. The 100 mm/cell and 150 mm starting values are adjustable settings. Predict how a change could alter free cells.\n3. **Read the grid.** With `EXECUTE_ROUTE = False` in `challenge.py`, run `main.py`. Compare the Program-output grid with the Monitor world. Explain a location that appears clear geometrically but is blocked after sampling and clearance.\n\n## 2. Implement and check grid search\n\n1. **Implement search.** Find a connected sequence of free cells. In `grid_planner.py`, implement `GridPlanner.plan(grid, start, goal)`. Return a `GridPath` that includes both free endpoints and crosses one horizontal or vertical cell edge per step. Return `None` for a `None` or blocked endpoint or no connecting route. Choose and explain your search and path-recovery method; shortest path is not required.\n2. **Check cases.** Test how the search handles endpoints and disconnection before motion. Use **Test functions** (`component_checks.py`) without driving. Check a free start equal to goal, a blocked endpoint, and a disconnected map. `grid.is_blocked(cell)` and `grid.neighbors(cell)` expose the same grid rules as the route check.\n3. **Compare worlds.** Set `USE_STUDENT_GRID_PLANNER = True` in `course_setup.py` after checking the planner. Reuse the completed component files and measured robot settings from Waypoint Courier, and set their matching flags to `True`; `False` selects supplied versions. With **Virtual XRP** selected and `EXECUTE_ROUTE = False`, choose each named case in **Monitor → World** and run it. Compare predictions with Program output and inspect each returned path\'s endpoints, free cells, and steps. `main.py` reports `valid_path`, `no_path`, or `invalid_path`.\n\n## 3. Run and assess the route\n\n1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed remains 80% of selected cruise speed. Slider endpoints are configured control limits. Record values used; `robot_config.py` also holds slowing distance and pose tolerances.\n2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals for the selected `NavigationController`. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.\n3. **Measure a physical route if performed.** A physical trial is optional. First compare floor geometry and robot dimensions with `world.json`. Record closest obstacle gap and measurement method, contact, and final axle-midpoint pose. Distinguish measurements from estimated pose and virtual trajectory.\n\n## Your report\n\nSubmit one report per pair with both names, selected components, worlds, grid settings, and navigation settings. Label virtual observations and any physical measurements.\n\n1. **Preliminary lab work:** show the predicted outcome for each world, your search and path-recovery approach, component-check evidence, and why the selected cell size and clearance are appropriate.\n2. **Challenge data:** show the reachable world\'s grid and path, tabulate predicted and returned outcomes for all three worlds, and include the planned path and virtual trajectory with relevant settings.\n3. **Challenge performance:** report path validity, destination arrival, obstacle contact, and clearance observations. Include measured gap and final pose if a physical trial was performed.\n4. **Reflection:** explain any difference between a valid cell path and the robot\'s motion using evidence from the map, path, and trajectory. Identify a justified adjustment and how to test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs search, prints the grid and path, and optionally drives the route. |\n| <span class="supplied-file"><code>route_validation.py</code> S</span> | Checks path traversability and final estimated-pose arrival. |\n| <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected free-cell path. |\n| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |\n| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads geometry and sets grid resolution, clearance, memory limit, and motion selection. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor motion controls and publishes navigation progress. |\n| <span class="supplied-file"><code>grid_display.py</code> S</span> | Prints the grid, endpoints, and path. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines the selectable worlds, geometry, start pose, and destination. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `GRID_RESOLUTION_MM` | `challenge.py`; mm/cell | Cell width and height in the sampled map. |\n| `CLEARANCE_MM` | `challenge.py`; mm | Expands obstacles and arena edges for robot footprint and tracking margin. |\n| `MAXIMUM_GRID_CELLS` | `challenge.py`; cells | Memory/work limit checked by `main.py` before planning. |\n| `EXECUTE_ROUTE` | `challenge.py`; Boolean | `False` plans without motion; `True` follows a valid path. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Route motion settings, applied by `robot_config.py` after the next sample. |\n| Approach speed, slowing distance, pose tolerances | `robot_config.py`; mm/s, mm, rad | Near-goal speed, slowing point, and accepted pose errors. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `OccupancyGrid.from_arena(arena, resolution_mm, clearance_mm)` | `ArenaMap`, resolution and clearance in mm | Sampled free/blocked grid. |\n| `GridPlanner.plan(grid, start, goal)` | `OccupancyGrid`, two `GridCell` endpoints or `None` | Connected `GridPath` including endpoints, or `None`. |\n| `GridPath.to_goals(grid)` | Grid used for planning | World-coordinate navigation goals at turns and destination. |\n| `path_error(grid, start, goal, path)` | Grid, endpoints, proposed path | `None` for valid path or reason it cannot be followed. |\n| `goal_is_reached(pose, goal, config)` | Estimated final pose, destination, navigation settings | Boolean arrival within position and heading tolerances. |\n',qi='# Challenge 5 · Out-and-Back\n\n## Task\n\nFollow the assigned outbound route, stop at the observation pose, determine whether the center gate is blocked, and plan a return home. The gate is the only unknown map feature; the robot measures it while stationary.\n\n![Assigned outbound route, home, observation point, and center gate.](course-assets/out-and-back.svg)\n\n*Figure. Blue H, 1, and 2 markers show home and the ordered outbound stops; the orange O marker and left-pointing arrow show the stationary observation pose and heading. The dashed teal line is the assigned outbound route. Dark filled rectangles mark the fixed upper/lower walls and far reflector; the orange dashed rectangle is the center gate whose occupancy is observed. No return route is drawn. Dimensions come from `world.json` in millimeters.*\n\n## 1. Measure the gate before mission trials\n\n1. **Collect stationary readings.** Measure how range changes with the gate state. At the physical observation pose, aim the stopped robot toward the gate. In the file list, choose **Actions for range_readout.py → Make main**, then **Compile** and **Run**. Selecting a file in the editor alone does not change what Run executes. Collect repeated batches with the gate blocked and open without changing position or aim. The readout prints raw attempts, including `None` for an unavailable echo. `RANGE_SAMPLE_COUNT` in `challenge.py` initially requests seven attempts per batch; the count is adjustable.\n2. **Compare conditions.** Record each batch and count its positive, finite readings. Calculate their median by hand; mark the result unavailable when the count is below `MINIMUM_USABLE_RANGE_COUNT`. Compare the blocked and open medians and their variation across batches. If they overlap, inspect aim and reflecting surfaces and collect further measurements.\n3. **Choose a threshold.** Set `BLOCKED_RANGE_THRESHOLD_MM` in `challenge.py` between the groups of blocked and open medians. Supplied `observed_gate()` in `mission_policy.py` reports blocked at or below that range. Record the measurement basis; the 550 mm starter value is a default.\n\n## 2. Implement and check the range estimate\n\n1. **Implement the estimate.** Reduce a batch of raw attempts to one range value. In `sensor_model.py`, implement `SensorModel.estimate_range(samples, minimum_usable)`. Keep positive finite numeric readings in millimeters; reject `None`, Boolean, zero, negative, and nonfinite values. Return their median, or `None` when fewer than `minimum_usable` remain. An unavailable estimate cannot mean open gate.\n2. **Check sample batches.** Use **Test functions** (`component_checks.py`) to compare the method with supplied examples that include missing readings and an unusually large reading. These checks use fixed inputs, not your collected batches. `MINIMUM_USABLE_RANGE_COUNT` in `challenge.py` currently passes four; it is a configurable decision setting.\n3. **Select the component.** In `course_setup.py`, set `USE_STUDENT_SENSOR_MODEL = True` after checking it. Keep the wheel-measurement methods completed in Robot Curling and reuse the other completed component files and robot settings from Mapped Route. Set their matching flags to `True`; `False` selects supplied versions. Supplied `main.py`, `mission_policy.py`, and `mission_steps.py` handle stopping, classification, path checks, and route sequencing.\n\n## 3. Compare return routes and physical runs\n\n1. **Compare virtual decisions.** Check whether the two observations lead to different return plans. Restore **Actions for main.py → Make main**, then **Compile**. With **Virtual XRP** selected, choose **Center gate blocked** and then **Center gate open** in **Monitor → World**, running each case. `world.json` defines the simulated obstacles; `main.py` infers the gate state from range samples. Calculate the median of the printed `stationary_range_samples_mm` and compare it with `range_estimate_mm`. Record `gate_blocked`, return path length, result, and return time when available. The outbound route is the same in both worlds.\n2. **Record map settings.** `GRID_RESOLUTION_MM` and `CLEARANCE_MM` in `challenge.py` set the return grid and obstacle expansion; their defaults are 100 mm/cell and 95 mm. `main.py` changes the known map\'s `center_gate` feature from the range decision before calling the selected `GridPlanner`. Record these settings with the threshold; change them to test a stated reason.\n3. **Run physical conditions.** Run with gate blocked and open, fixed during each run. The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed is 80% of cruise speed. Slider endpoints are configured limits. Use the same motion settings for a blocked/open comparison.\n4. **Measure arrival.** Record the stop at observation, gate decision, return route, and arrival home. Measure final axle-midpoint position and heading against the home mark, or record an early stopping location. If using a front-center mark, account for its axle offset and final heading. Repeat as needed to assess variation and record measurement precision.\n\n## Your report\n\nSubmit one report per pair with both names, robot identification, selected components, worlds, and trial settings. Label virtual output separately from physical measurements.\n\n1. **Preliminary lab work:** tabulate the stationary blocked/open range batches and usable counts, show the median checks, and justify the chosen threshold and any changed map or navigation settings.\n2. **Challenge data:** show the virtual and physical range estimates, gate decisions, return paths, results, return times when available, and measured final home poses for physical runs.\n3. **Challenge performance:** state whether the outbound stops, observation, gate decision, planned return, and home arrival succeeded in each gate condition. Quantify measured home error where a run completed.\n4. **Reflection:** use the readings and run records to locate any failure in measurement, decision, path, or motion. Identify one supported improvement and how another measurement or trial would test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs outbound route, measures the gate, and plans and follows the return. |\n| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Estimates range from a batch; also contains earlier wheel measurements. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |\n| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |\n| <span class="supplied-file"><code>grid_planner.py</code> S</span> | Searches the occupancy grid for a connected free-cell path. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads geometry and sets range, map, and run settings. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <span class="supplied-file"><code>mission_policy.py</code> S</span> | Classifies an available range as blocked or open. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and publishes mission progress and result. |\n| <span class="supplied-file"><code>mission_steps.py</code> S</span> | Follows routes and checks arrivals and cell paths. |\n| <span class="supplied-file"><code>range_readout.py</code> S</span> | Prints raw stationary range attempts. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines gate worlds, geometry, start pose, and markers. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `RANGE_SAMPLE_COUNT`, `MINIMUM_USABLE_RANGE_COUNT` | `challenge.py`; attempts, usable readings | Current defaults request seven attempts and require four usable readings; both are adjustable. |\n| `BLOCKED_RANGE_THRESHOLD_MM` | `challenge.py`; mm | Estimated range at or below which the named gate is classified blocked. |\n| `STATIONARY_SPEED_MM_S`, `STATIONARY_DURATION_S` | `challenge.py`; mm/s, s | Measured near-zero wheel-speed requirement before range collection. |\n| `GRID_RESOLUTION_MM`, `CLEARANCE_MM` | `challenge.py`; mm/cell, mm | Sample return map and expand obstacles for clearance. |\n| `MAXIMUM_GRID_CELLS` | `challenge.py`; cells | Planner memory/work limit checked by `main.py`. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Outbound and return motion, applied by `robot_config.py` after the next sample. |\n| Approach speed, slowing distance, pose tolerances | `robot_config.py`; mm/s, mm, rad | Near-goal speed, slowing point, and accepted pose errors. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `SensorModel.estimate_range(samples, minimum_usable)` | Range attempts in mm or `None`, usable-count setting | Median usable range in mm, or `None`. |\n| `observed_gate(estimate_mm, threshold_mm)` | Estimated range and threshold in mm | `True` blocked, `False` open, `None` unavailable. |\n| `follow_route(robot, navigation, state, goals)` | Robot, navigation, current state, ordered goals | Latest state and arrival or stop reason. |\n| `GridPlanner.plan(grid, start, goal)` | Return grid and two `GridCell` endpoints | Connected `GridPath`, or `None`. |\n',Ji=`{
   "default_world": "straight-run",
   "worlds": [
     {
@@ -9782,6 +9649,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -9796,6 +9664,7 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number("manual_forward_mm_s", 0.0, -120.0, 120.0, 10.0, unit="mm/s", label="Forward speed")
 TURN_RATE = live.number("manual_turn_rad_s", 0.0, -1.0, 1.0, 0.1, unit="rad/s", label="Turn rate")
 `,ua=`# Drive with Monitor sliders. Each Run starts with both commands at zero.
@@ -9807,12 +9676,15 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
 
 
 WORLD = load_world()
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 try:
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     state = robot.step(STOP_COMMAND)
     print("Manual driving ready. Set Forward speed or Turn rate in Monitor.")
 
+    # Apply the latest manual speed and turn controls at each robot sample.
     while True:  # Press Stop in the IDE to end the supervised drive.
         speed_mm_s = FORWARD_SPEED.value
         turn_rate_rad_s = TURN_RATE.value
@@ -9830,6 +9702,7 @@ finally:
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -9842,6 +9715,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import load_world
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 TURN_TOLERANCE_RAD = 0.06
 TURN_TIMEOUT_S = 8.0
@@ -9856,6 +9730,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -9870,6 +9745,7 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 CLOSE_RANGE_MM = live.number("close_range_mm", 400.0, minimum=200.0, maximum=900.0, step=25.0, unit="mm", label="Obstacle distance")
 FORWARD_SPEED_MM_S = live.number("forward_speed_mm_s", 150.0, minimum=40.0, maximum=180.0, step=10.0, unit="mm/s", label="Forward speed")
 TURN_RATE_RAD_S = live.number("turn_rate_rad_s", 1.3, minimum=0.4, maximum=1.8, step=0.1, unit="rad/s", label="Turn rate")
@@ -9877,6 +9753,7 @@ TURN_DIRECTION = live.choice("turn_direction", "left", options=("left", "right")
 SECOND_APPROACH = live.toggle("second_approach", True, label="Drive after turn")
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_range(range_mm):
     live.watch("range_mm", range_mm if range_mm is not None else "No echo", unit="mm")
 
@@ -9902,6 +9779,7 @@ def drive_until_close(robot, state):
     # A stopped reading also handles an obstacle already close at the start.
     state = robot.step(STOP_COMMAND, read_range=True)
     publish_phase("driving")
+    # Sample range during approach and stop when the obstacle threshold is met.
     while True:
         range_mm = state.measurements.range_mm
         publish_range(range_mm)
@@ -9916,6 +9794,7 @@ def turn_quarter_turn(robot, state):
     target_heading = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
     started_ms = state.measurements.time_ms
     publish_phase("turning " + TURN_DIRECTION.value)
+    # Recheck estimated heading until the turn tolerance or timeout ends the phase.
     while True:
         error_rad = wrap_angle_rad(target_heading - state.pose.heading_rad)
         publish_heading_error(error_rad)
@@ -9929,8 +9808,10 @@ def turn_quarter_turn(robot, state):
         state = robot.step(MotionCommand(0.0, turn_rate))
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 try:  # The finally block stops the motors when this sequence exits.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     state = drive_until_close(robot, state)
     state = turn_quarter_turn(robot, state)
@@ -9946,6 +9827,7 @@ finally:  # Runs after normal completion, a Python error, or cooperative Stop.
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -9958,6 +9840,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import load_world
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 RANDOM_SEED = 0x5A17
 SEGMENT_COUNT = 12
@@ -9977,6 +9860,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -9991,10 +9875,12 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED_MM_S = live.number("snake_forward_speed_mm_s", 150.0, 60.0, 180.0, 10.0, unit="mm/s", label="Forward speed")
 TURN_RATE_RAD_S = live.number("snake_turn_rate_rad_s", 1.4, 0.5, 1.8, 0.1, unit="rad/s", label="Turn rate")
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_segment(number):
     live.watch("segment", number)
 
@@ -10040,9 +9926,11 @@ def body_travel_mm(state):
     return abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # The finally block also runs if an error or Stop interrupts the route.
+try:  # Run finally below when this block finishes or raises a Python error.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     total_travel_mm = 0.0
 
@@ -10065,6 +9953,7 @@ try:  # The finally block also runs if an error or Stop interrupts the route.
         target_heading_rad = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
         started_ms = state.measurements.time_ms
         publish_phase("turn right" if direction < 0.0 else "turn left")
+        # Recheck heading after each turning sample, with a timeout for stalled progress.
         while True:
             error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
             if abs(error_rad) <= TURN_TOLERANCE_RAD:
@@ -10089,6 +9978,7 @@ finally:  # Stop the motors after normal completion or a Python exception.
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10101,6 +9991,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import load_world
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 RANDOM_SEED = 0xC0FFEE
 REVERSE_TIME_S = 0.4
@@ -10119,6 +10010,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -10133,12 +10025,14 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 OBSTACLE_DISTANCE_MM = live.number("obstacle_distance_mm", 240.0, 150.0, 700.0, 10.0, unit="mm", label="Obstacle distance")
 FORWARD_SPEED_MM_S = live.number("roomba_forward_speed_mm_s", 150.0, 60.0, 180.0, 10.0, unit="mm/s", label="Forward speed")
 REVERSE_SPEED_MM_S = live.number("roomba_reverse_speed_mm_s", -120.0, -180.0, -60.0, 10.0, unit="mm/s", label="Reverse speed")
 TURN_RATE_RAD_S = live.number("roomba_turn_rate_rad_s", 1.4, 0.5, 1.8, 0.1, unit="rad/s", label="Turn rate")
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_range(range_mm):
     live.watch("range_mm", range_mm if range_mm is not None else "No echo", unit="mm")
 
@@ -10162,9 +10056,9 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s, wrap_angle_rad
 # SeededRandom — Generate reproducible pseudo-random demo choices.
 # Called by: The demonstration route loop.
 # Methods: unit().
-# Inputs: Integer seed; numeric uniform interval.
+# Inputs: Integer seed.
 # State: Current 32-bit generator state.
-# Returns: Number in [0, 1) or the requested interval.
+# Returns: Number in [0, 1).
 
 class SeededRandom:
     def __init__(self, seed):
@@ -10175,9 +10069,11 @@ class SeededRandom:
         return self._state / 4294967296.0
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # Always reach finally below when the program ends or Stop interrupts it.
+try:  # Run finally below when this block finishes or raises a Python error.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     state = robot.step(STOP_COMMAND, read_range=True)
     phase = "forward"
@@ -10185,6 +10081,7 @@ try:  # Always reach finally below when the program ends or Stop interrupts it.
     target_heading_rad = state.pose.heading_rad
     avoidance_count = 0
 
+    # Alternate range-checked travel and bounded turning until Stop.
     while True:  # Press Stop when you have observed enough of the route.
         range_mm = state.measurements.range_mm
         publish_range(range_mm)
@@ -10228,6 +10125,7 @@ finally:  # Runs after a return, Python error, or the IDE's cooperative Stop.
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10242,6 +10140,7 @@ from ucsb_xrp import load_world
 
 try:
     import xrp_sim_bridge  # Available only in the browser's virtual XRP.
+    # Read selected-world markers and geometry from the same source as the simulator.
     WORLD = load_world()
 except ImportError:
     WORLD = load_world(world_id="snake-physical")
@@ -10257,6 +10156,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -10268,6 +10168,7 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     return NavigationController(config)
 `,ka=`# Monitor sliders and game readings.
@@ -10278,10 +10179,12 @@ from snake_config import CONFIG
 
 growth = CONFIG["controls"]["growth_mm"]
 speed = CONFIG["controls"]["speed_mm_s"]
+# Motion code reads the current .value when it applies these Monitor controls.
 GROWTH_MM = live.number("snake_growth_mm", growth["default"], growth["minimum"], growth["maximum"], growth["step"], unit="mm", label="Tail growth per food")
 SPEED_MM_S = live.number("snake_speed_mm_s", speed["default"], speed["minimum"], speed["maximum"], speed["step"], unit="mm/s", label="Cruise speed")
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_game(game):
     # Send the current score, food state, tail length, and stopping reason to Monitor.
     live.watch("snake_score", game.score, label="Score")
@@ -10315,18 +10218,22 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, navigation_config_for_
 from snake_game import SnakeGame
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 game = SnakeGame(WORLD)
 last_speed_mm_s = NAVIGATION_CONFIG.cruise_speed_mm_s
 
 try:
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     publish_scene_config(WORLD)
     publish_game(game)
+    # Choose the current food goal until a wall, obstacle, tail, or win ends play.
     while game.phase == "playing":
         goal = game.current_food()
         navigation.start((goal,))
+        # Retarget only after this food is reached or a terminal condition occurs.
         while game.phase == "playing" and game.current_food() is goal:
             if SPEED_MM_S.value != last_speed_mm_s:
                 last_speed_mm_s = SPEED_MM_S.value
@@ -10344,6 +10251,7 @@ from ucsb_xrp import NavigationConfig, RobotConfig
 from snake_config import CONFIG
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(**CONFIG["robot"])
 
 
@@ -10368,6 +10276,8 @@ import json
 import sys
 
 
+# Use the current project first, then the MicroPython search path, so the
+# same JSON settings drive the game and arena view.
 for root in (".",) + tuple(sys.path):
     try:
         with open(root.rstrip("/") + "/snake_config.json", "r") as source:
@@ -10388,6 +10298,7 @@ MAX_FOOD = FOOD["maximum"]
 
 
 def food_count(bounds, density):
+    # Bounds are millimeters; convert square millimeters to square meters.
     width = bounds[2] - bounds[0]
     height = bounds[3] - bounds[1]
     return min(MAX_FOOD, max(1, int(width * height * density / 1000000.0 + 0.5)))
@@ -10412,6 +10323,7 @@ def food_positions(world, count):
             if len(result) == count:
                 return tuple(result)
             column = offset if row % 2 == 0 else columns - 1 - offset
+            # Fixed integer recurrence keeps placements repeatable per world.
             seed = (1664525 * seed + 1013904223) % 4294967296
             dx = seed % (2 * jitter_x + 1) - jitter_x
             seed = (1664525 * seed + 1013904223) % 4294967296
@@ -10443,6 +10355,7 @@ def distance(first, second):
 
 
 def distance_to_segment(point, start, end):
+    # Project onto the finite segment, including either endpoint when closest.
     dx = end[0] - start[0]
     dy = end[1] - start[1]
     length_squared = dx * dx + dy * dy
@@ -10506,6 +10419,7 @@ class SnakeGame:
             self.points.pop(0)
 
     def _crosses_tail(self):
+        # Exclude the near-head neck before checking older tail segments.
         distance_behind = distance(self.points[-1], self.head)
         for index in range(len(self.points) - 1, 0, -1):
             start = self.points[index - 1]
@@ -10525,6 +10439,7 @@ class SnakeGame:
         if distance(self.points[-1], self.head) >= SAMPLE_SPACING_MM:
             self.points.append(self.head)
         self._trim_tail()
+        # Terminal hazards are checked before a food pickup at the same pose.
         if range_mm is not None and range_mm <= BODY["obstacle_stop_mm"]:
             self.phase = "obstacle"
             return True
@@ -10551,6 +10466,7 @@ class SnakeGame:
 
 from ucsb_xrp import load_world
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 INITIAL_POSE = WORLD.initial_pose
 OBSTACLE_STOP_MM = 400.0  # Forward distance measured from the ultrasound sensor.
@@ -10566,6 +10482,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -10580,10 +10497,12 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number("forward_speed_mm_s", 110.0, minimum=60.0, maximum=160.0, step=10.0, unit="mm/s", label="Forward speed")
 WINDING_RATE = live.number("spiral_winding_turns_per_m", 0.7, minimum=0.3, maximum=1.4, step=0.1, unit="revolutions/m", label="Spiral winding rate")
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_spiral_values(travel_mm, turn_rate_rad_s):
     live.plot("travel_mm", travel_mm, unit="mm", label="Travel")
     live.plot("turn_rate_rad_s", turn_rate_rad_s, unit="rad/s", label="Yaw rate")
@@ -10601,12 +10520,14 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND
 # Continue until an obstacle is near or the operator presses Stop.
 robot = make_robot(ROBOT_CONFIG)
 try:  # Run the motion; the finally block below stops it when this block exits.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(INITIAL_POSE)
 
     # Check the range once before applying a moving command.
     state = robot.step(STOP_COMMAND, read_range=True)
     travel_mm = 0.0
 
+    # Continue the expanding path while the latest range permits motion.
     while True:
         range_mm = state.measurements.range_mm
         # None means no usable echo; it does not mean an obstacle is close.
@@ -10635,6 +10556,7 @@ print("final_pose:", state.pose)
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10647,6 +10569,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import live, load_world
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 # ProjectWorld.waypoints() returns NavigationGoal values in marker-file order.
 ROUTE = WORLD.waypoints()
@@ -10662,6 +10585,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -10673,6 +10597,7 @@ def make_robot(config):
     )
 
 
+# Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     return NavigationController(config)
 `,Ha=`# Publish route progress as estimated wheel travel and phase.
@@ -10680,6 +10605,7 @@ def make_navigation_controller(config):
 from ucsb_xrp import live
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_travel(travel_mm):
     live.watch("travel_mm", travel_mm, unit="mm")
 
@@ -10704,12 +10630,15 @@ def body_travel_mm(state):
 if not ROUTE:
     raise RuntimeError("world.json must define at least one waypoint")
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 try:  # The finally block stops the robot whenever the route exits.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     navigation.start(ROUTE)
     total_travel_mm = 0.0
+    # Recompute one motion request from each newly estimated pose.
     while not navigation.is_complete():
         state = robot.step(navigation.update(state.pose))
         total_travel_mm += body_travel_mm(state)
@@ -10726,6 +10655,7 @@ finally:  # Stop the motors after normal completion or a Python exception.
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10734,6 +10664,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,
@@ -10754,6 +10685,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -10765,14 +10697,17 @@ def make_robot(config):
     )
 `,Ka=`# Small, explicit open-loop effort sweep. Each pair moves together.
 EFFORTS = (0.16, 0.22, 0.28)
+# Each effort interval is bracketed by a zero-command settling interval.
 EFFORT_DURATION_S = 0.7
 ZERO_DURATION_S = 0.5
+# Abort if the wheel-travel envelope is exceeded across the whole sweep.
 MAXIMUM_WHEEL_TRAVEL_MM = 1500.0
 `,qa=`# Publish motor command and measured wheel-speed samples.
 
 from ucsb_xrp import live
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_motor_values(command, measurements):
     live.plot("effort", command, label="Motor effort")
     live.plot("left_speed_mm_s", measurements.wheel_speeds.left_mm_s, unit="mm/s", label="Left speed")
@@ -10796,6 +10731,7 @@ bot.stop()
 try:
     bot.reset_encoders()
     measurements = model.reset(bot.read())
+    # Repeat zero command, commanded effort, and zero command at each level.
     for effort in EFFORTS:
         if not 0.0 <= effort <= 0.3:
             raise ValueError("Characterization effort must be within [0, 0.3]")
@@ -10831,6 +10767,7 @@ finally:  # Stop the motors after normal completion or a Python exception.
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10925,6 +10862,7 @@ def _check_wheel_speed_summary():
     )
 
 
+# Check the local functions against fixed input/output examples.
 def run_exercise_checks():
     checks = (
         (
@@ -10986,6 +10924,7 @@ from student_work import (
 )
 
 
+# Check the functions before printing the worked examples.
 if run_exercise_checks():
     print("\\nCompleted-function examples")
     print("average speed:", average_speed_mm_s(300.0, 2.0), "mm/s")
@@ -11060,6 +10999,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -11144,6 +11084,7 @@ def _check_drawing():
                     raise AssertionError("corners must use the requested angle")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     checks = (
         ("1 · measured straight segment", _check_straight_segment),
@@ -11194,6 +11135,7 @@ MAXIMUM_SEGMENT_SAMPLES = 400  # Fault stop if sensing or motion makes no progre
 
 
 checks_passed = run_exercise_checks()
+# The example check reports differences; the current program still runs.
 if not checks_passed:
     print("Example checks differ; running the current virtual drawing")
 
@@ -11203,9 +11145,12 @@ segments = build_drawing(
     turn_rate_rad_s=TURN_RATE_RAD_S,
     turn_angle_rad=TURN_ANGLE_RAD,
 )
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 try:
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(load_world().initial_pose)
+    # Each drawing segment ends from measured state, with a sample limit.
     for segment in segments:
         segment_start = state
         for _ in range(MAXIMUM_SEGMENT_SAMPLES):
@@ -11223,6 +11168,7 @@ print("final_pose:", state.pose)
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11309,6 +11255,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -11472,6 +11419,7 @@ def _check_robot_program():
         raise AssertionError("call robot.stop() after a no-progress fault")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     checks = (
         ("1 · mean wheel position", _check_mean_wheel_position),
@@ -11515,6 +11463,7 @@ TARGET_DISTANCE_MM = 300.0
 
 
 checks_passed = run_exercise_checks()
+# The example check reports differences; the current program still runs.
 if not checks_passed:
     print("Example checks differ; running the current virtual program")
 
@@ -11527,6 +11476,7 @@ print("final_pose:", final_state.pose)
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11580,6 +11530,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -11730,6 +11681,7 @@ def _check_telemetry():
         raise AssertionError("publish 'unavailable' when no range is available")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     # Run each independent exercise and print a concise outcome.
     checks = (
@@ -11768,6 +11720,7 @@ if __name__ == "__main__":
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number(
     "tutorial_forward_speed_mm_s",
     110.0,
@@ -11830,11 +11783,14 @@ MAXIMUM_MISSING_RANGE_SAMPLES = 6  # Fault stop if range sensing is unavailable.
 MAXIMUM_TURN_TIME_S = 5.0  # Fault stop if heading feedback does not progress.
 
 
+# Check local examples before reporting results or starting motion.
 if not run_exercise_checks():
     print("Restore the runnable example before starting the robot")
 else:
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(load_world().initial_pose)
         phase = APPROACH
         start_mean_mm = (
@@ -11843,6 +11799,7 @@ else:
         turn_start_heading_rad = state.pose.heading_rad
         turn_start_ms = state.measurements.time_ms
         missing_range_samples = 0
+        # Use range during approach and estimated heading during the turn.
         while phase != DONE:
             if not RUN_BEHAVIOR.value:
                 phase = DONE
@@ -11892,6 +11849,7 @@ else:
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11978,6 +11936,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,
@@ -12077,6 +12036,7 @@ def _check_button(report):
         raise AssertionError("button_was_pressed should be True")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     try:
         report = _read_report()
@@ -12120,6 +12080,7 @@ if __name__ == "__main__":
 from ucsb_xrp import live
 
 
+# Stationary checks always run; this control alone permits the motion segment.
 ENABLE_SHORT_MOTION = live.toggle("tutorial_enable_short_motion", False, label="Enable short motion")
 `,yo=`# Check stationary sensors, then request one short straight motion.
 
@@ -12140,8 +12101,10 @@ def collect_stationary_samples(robot):
     # Robot.step maintains the sample schedule; no additional delay is needed.
     states = []
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(load_world().initial_pose)
         states.append(state)
+        # Collect repeated stopped samples to expose sensor noise and encoder drift.
         for _ in range(STATIONARY_SAMPLE_COUNT):
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
@@ -12150,13 +12113,14 @@ def collect_stationary_samples(robot):
         robot.stop()
 
 
-# Input: Robot; returns start and final RobotState after a short raised-wheel run.
+# Input: Robot; returns start and final RobotState after a short gated motion run.
 def run_short_motion(robot):
-    # This fixed-time motion verifies motors and encoders; it is not distance control.
+    # This fixed-sample motion checks motors and encoders; it is not distance control.
     try:
         initial_state = robot.start(load_world().initial_pose)
         state = initial_state
         command = MotionCommand(MOTION_SPEED_MM_S, 0.0)
+        # The explicit motion gate permits only this short diagnostic sequence.
         for _ in range(MOTION_SAMPLE_COUNT):
             state = robot.step(command)
         return initial_state, state
@@ -12171,10 +12135,12 @@ def mean_wheel_position_mm(state):
 
 
 def run_preflight():
+    # Check local examples before reporting results or starting motion.
     if not run_exercise_checks():
         print("Restore the runnable report example before running the XRP")
         return None
 
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     states = collect_stationary_samples(robot)
     report = preflight_report(states)
@@ -12207,6 +12173,7 @@ run_preflight()
 from ucsb_xrp import RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -12262,10 +12229,11 @@ Both sliders start at zero on a new run.
 
 To halt during a run, return **both sliders to zero** or press **Stop** in the
 IDE. Press Run again to start a fresh, stopped session. The program calls
-\`robot.stop()\` when Stop or a Python error interrupts it. Keyboard arrows are not captured, so the IDE's
+\`robot.stop()\` when Python exits its loop or raises an exception; the target
+runtime also stops motor output when the IDE interrupts execution. Keyboard arrows are not captured, so the IDE's
 editor and other controls keep their normal keyboard behavior.
 
-\`live_variables.py\` declares the bounded slider settings; \`main.py\` contains the drive loop. \`world.json\`
+\`live_variables.py\` declares the slider ranges and initial values; \`main.py\` contains the drive loop. \`world.json\`
 defines the virtual arena and starting pose. \`course_setup.py\` assembles the
 supplied robot components; \`robot_config.py\` holds the robot settings. The
 same project can run on a physical XRP, but use a clear floor area, keep the
@@ -12334,7 +12302,7 @@ The XRP drives toward an obstacle, reverses briefly, turns, and drives forward
 again. **Run** starts the demonstration; press **Stop** when finished.
 
 The initial settings stop the approach at a forward ultrasound distance of
-240 mm (60% of the former 400 mm), reverse for 0.4 s, and choose a rotation
+240 mm, reverse for 0.4 s, and choose a rotation
 between 70 and 160 degrees.
 A fixed random seed repeats the same sequence of turn choices on each run.
 Watch the phase, distance and number of turns under **Program watches**.
@@ -12370,7 +12338,7 @@ the score in World and adjust these sliders in Monitor while the game runs:
 
 | Control | Starting value | Range | Effect |
 | --- | --- | --- | --- |
-| Cruise speed | 500 mm/s | 60–700 mm/s | Requested speed between targets. The motor command stays bounded at 1.0; the XRP may not attain the requested speed. |
+| Cruise speed | 500 mm/s | 60–700 mm/s | Requested speed between targets. Motor effort is limited to 1.0; the XRP may not attain the requested speed. |
 | Tail growth per food | 67 mm | 20–300 mm | Length added when the next pellet is collected. |
 
 Change game, control, navigation, calibration, and display settings in
@@ -12398,7 +12366,7 @@ the display disagree with the floor path. Begin at a low speed and keep
 detect another robot's displayed tail. The narrow displayed body is a game
 graphic and does not establish clearance for the physical XRP. The 201-food
 tail may use substantially more MicroPython memory than the virtual default;
-it has not been qualified on hardware.
+this larger configuration has not been tested on a physical XRP.
 `,Do=`# Expanding spiral
 
 Run this demonstration to see how forward speed and yaw rate shape a curved
@@ -12488,7 +12456,7 @@ This demonstration uses \`XRPBot\` directly and controls its own sampling;
 
 ## Interpret the measurements
 
-Plot each wheel's speed against effort using portions where speed has settled.
+Plot each wheel's speed against effort using portions where speed is approximately constant.
 Identify the effort needed to start moving and the range where the relation is
 approximately linear. If a step is still accelerating at its end, record that
 fact instead of treating its final speed as a steady value.
@@ -12499,7 +12467,7 @@ its offset and gain as \`left_start_command\` and \`left_speed_command_gain\` in
 wheel. Verify these values in the closed-loop Curling run. Keep the plots,
 measurement conditions, and fitted values for the preliminary lab-work section
 of the pair's Challenge 1 report.
-`,Ao='# Tutorial 1: Python essentials\n\nRun four short, complete functions in `student_work.py`. This project does not\nstart either robot. It introduces the Python syntax used in the remaining\ntutorials: values, functions, decisions, loops, and collections.\n\nStart with **Run** and read the results in **Program output**. Keep these\ninstructions beside the editable `student_work.py`; the supplied `main.py` is\nread-only. Make one temporary expression or branch change in `student_work.py`\nand run again. Each Run checks the four functions before printing the examples.\n\n## Reading a function\n\n```python\ndef average_speed_mm_s(distance_mm: float, duration_s: float) -> float:\n    speed_mm_s = distance_mm / duration_s\n    return speed_mm_s\n```\n\n- `def` begins a function.\n- The values inside parentheses are its inputs.\n- `return` sends one result back to the caller.\n- The annotations after `:` and `->` document expected types. MicroPython does\n  not enforce them, so your code must still handle invalid values deliberately.\n- A name ending in `_mm`, `_s`, or `_mm_s` states its physical unit.\n\nIndentation defines which statements belong to the function or to an `if` or\n`for` block. Use four spaces for each indentation level.\n\n## Example 1: calculate average speed\n\nRead `average_speed_mm_s(distance_mm, duration_s)`, trace the supplied call from\nread-only `main.py`, then predict the result for the second input below.\n\n```python\naverage_speed_mm_s(600.0, 4.0)  # returns 150.0\n```\n\nReturn distance divided by duration. Reject a negative distance or a duration\nthat is zero or negative with `raise ValueError(...)`. A visible error is more\nuseful than a physically meaningless result.\n\n## Example 2: choose from measured conditions\n\nRead `range_state(range_mm, stop_distance_mm)` and predict which branch each\nsupplied call below selects.\n\n```python\nrange_state(180.0, 250.0)  # returns "stop"\nrange_state(None, 250.0)   # returns "unavailable"\n```\n\nUse `if`, `elif`, and `else` to return:\n\n- `"unavailable"` when `range_mm is None`;\n- `"stop"` when range is at or below the stop distance; and\n- `"clear"` otherwise.\n\n`None` means that no usable measurement is available. Check it before making a\nnumerical comparison. Reject a stop distance that is zero or negative.\n\n## Example 3: total a route with a loop\n\nRead `route_distance_mm(segment_distances_mm)`, then predict the total if another\nroute segment were added.\n\n```python\nroute_distance_mm([120.0, 80.0, 50.0])  # returns 250.0\n```\n\nA list (`[...]`) and tuple (`(...)`) are ordered collections. Start a total at\n`0.0`, use a `for` loop to visit each distance, and add it to the total. Reject\na negative segment. An empty route has a total distance of `0.0`.\n\n## Example 4: return named results\n\nRead `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`, then predict\nwhich fields would change if one wheel-speed sample changed.\n\n```python\nsummary = wheel_speed_summary([100.0, 120.0], [90.0, 110.0])\nprint(summary["mean_difference_mm_s"])  # 10.0\n```\n\nReject empty inputs or inputs with different lengths. Otherwise return a\ndictionary with these four named results:\n\n- `"sample_count"`;\n- `"mean_left_mm_s"`;\n- `"mean_right_mm_s"`; and\n- `"mean_difference_mm_s"`, calculated as left mean minus right mean.\n\nA dictionary groups related values under descriptive keys. This pattern is\nused later for telemetry summaries.\n\n## Run and observe\n\n1. Select **Run** and read all four results in **Program output**.\n2. Open `student_work.py` beside these instructions and trace one result back\n   through its function.\n3. Make one small expression or branch change in `student_work.py` and predict\n   which check will identify it.\n4. Select **Run** again and compare the result with your prediction.\n5. Restore the supplied behavior before continuing if a check identifies a\n   mismatch.\n\nIf Python reports a syntax error, inspect the stated line and the line above\nit. Check indentation, parentheses, commas, colons, and spelling. A temporary\n`print(...)` can reveal an intermediate value; remove repeated debug prints\nafter the function works.\n\n## From MATLAB to the project files\n\n| Python form | Meaning in this course |\n| --- | --- |\n| `samples[0]` | First sample; indices start at zero. |\n| `range(4)` | Four values: 0, 1, 2, 3; the endpoint is excluded. |\n| `distance_mm ** 2` | Squared value; `^` is not exponentiation. |\n| `[1, 2] + [3]` | List concatenation, not vector addition. |\n| `value is None` | Missing reading; never substitute a physical zero silently. |\n| `if error_mm > tolerance_mm:` | Indentation defines the conditional block. |\n| `self.previous_count = count` | Store state for the next call on this object. |\n| `from robot_config import ROBOT_CONFIG` | Import a named value from a file. |\n\n`=` assigns; `==` compares. Use `and`, `or` and `not` for scalar conditions.\nTwo names assigned the same list refer to the same mutable list; use `list(old)`\nwhen an independent copy is intended. Modules replace a shared interactive\nworkspace: make inputs explicit and keep calibration in its named file. Run\ncreates fresh program objects; saved project files remain. Avoid NumPy-specific\noperations in MicroPython. First change a working function, then one small class;\nbase classes supply an interface but do not implement its missing method.\n\n## A complete edit–predict–check cycle\n\nThe four functions use the same units and missing-value rule that later robot\nprograms use. Work through this small data set before changing code:\n\n| Expression | Calculation or decision | Expected result |\n| --- | --- | --- |\n| `average_speed_mm_s(450.0, 3.0)` | 450 mm ÷ 3 s | 150 mm/s |\n| `range_state(None, 250.0)` | No usable reading | `"unavailable"` |\n| `range_state(250.0, 250.0)` | Equality meets the stop threshold | `"stop"` |\n| `route_distance_mm([80.0, 120.0, 50.0])` | Sum three segments | 250 mm |\n| `wheel_speed_summary([100.0, 120.0], [90.0, 110.0])` | Mean left 110, mean right 100 | Mean difference 10 mm/s |\n\nFor one controlled edit, change `range_state` to use `<` instead of `<=` at\nthe threshold. Predict that the equality case changes from `"stop"` to\n`"clear"`; then Run and locate the second check\'s `INCORRECT` line. Restore\n`<=` and confirm four `PASS` lines. A failed check gives evidence about one\nfunction. It does not mean the Virtual XRP moved: Tutorial 1 never starts a\nrobot.\n\nFor a second edit, change the route example in `main.py` from `[100.0,\n150.0]` to `[100.0, 150.0, 25.0]`. Predict the printed total before Run: it\nshould rise from 250 to 275 mm. This is an experiment with supplied input\ndata; restore the original list afterward. Notice that the independent\n`exercise_checks.py` still tests its own 250 mm example. This separates a\nfunction\'s rule from one particular input.\n\nIf a check fails, read the first `INCORRECT` line and reproduce its specific\ninput. Inspect intermediate values with one temporary `print(...)`, then\nremove it. If a numerical result is wrong, check units and parentheses before\nchanging the expected result. If a `None` case fails, check the missing-value\nbranch before doing arithmetic. Never replace a missing range with zero: zero\nmillimeters would falsely mean an obstacle at the sensor.\n\nContinue with **Tutorial 2: Virtual XRP drawing**. It uses these same units\nand comparisons on readings returned by a sampled robot.\n',jo='# Tutorial 2: draw from measured motion\n\nUse the **Virtual XRP** to draw four straight sides and four left turns. The\nprogram stops each side when measured mean wheel travel reaches its target and\neach corner when estimated heading changes by its target angle. This connects\nTutorial 1\'s arithmetic to a changing `RobotState`. The supplied drawing is\nabout 180 mm on each side; actual corners may round because motors respond\nand samples arrive at discrete intervals.\n\nOpen Monitor beside the IDE. Select **Run** before editing, then read the\nthree `PASS` lines in Program output and inspect the path and final pose. The\nfiles are already runnable so that each later edit has a visible baseline.\n\n## Project files and first edit\n\n| File | Role |\n| --- | --- |\n| `student_work.py` | Edit the segment data classes and `build_drawing(...)` to explore a path. |\n| `main.py` | Supplied entrypoint; sets target dimensions, runs each segment, and stops the robot. |\n| `exercise_checks.py` | Supplied checks for commands, measured completion, and segment order. |\n| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |\n| `world.json` | Supplied arena and initial pose used by the Virtual XRP. |\n\nEach `.py` file is a Python module. `main.py` imports `build_drawing` from\n`student_work.py` and calls it; it does not copy that function\'s code.\n\nAfter the baseline, change `SIDE_DISTANCE_MM` in `main.py` from 180 to 120 mm,\n**Reset** the Virtual XRP, and Run. Predict the change before looking at the\npath: each side should be about 60 mm shorter, so total commanded straight\ntravel falls by about `4 × 60 = 240 mm`. Restore 180 mm, then make the next\nchanges in `student_work.py`. This temporary edit to the supplied entrypoint\nonly changes a named experiment value; the methods to study are in\n`student_work.py`.\n\n## 1. Read one measurement calculation\n\n`DrawingSegment("side 1", 140.0, 180.0)` stores a forward speed in mm/s and a\ntarget distance in mm. Its `command()` returns\n`MotionCommand(140.0, 0.0)`: forward motion with zero requested turn. A\n`MotionCommand` is a named data record; it is not a duration or a raw motor\nvoltage.\n\n`is_complete(start_state, current_state)` compares two readings:\n\n```python\nleft_mm = current.left_position_mm - start.left_position_mm\nright_mm = current.right_position_mm - start.right_position_mm\ntravel_mm = (left_mm + right_mm) / 2.0\n```\n\nFor starting wheel positions `(30, 34)` mm and current positions `(129, 133)`\nmm, both wheels advanced 99 mm; a 100 mm side is not yet complete. At\n`(131, 135)` mm, both advanced 101 mm and it is complete. Subtracting the\nstarting readings matters: the robot\'s wheel positions do not reset at every\nside.\n\n`__init__` runs when a segment object is created. Its `self.name`,\n`self.forward_speed_mm_s`, and `self.distance_mm` belong to that instance.\n`command()` and `is_complete()` read those same fields later. Python type\nannotations state expected types but do not enforce them by themselves;\nconstructor checks reject a missing name or nonpositive speed or distance.\n\n## 2. Read one turning calculation\n\n`TurnSegment("corner 1", 1.5, pi / 2.0)` requests an in-place left turn at 1.5 rad/s.\nIts `is_complete(...)` compares the current estimated heading with the heading\nat the start of this corner. `pi` is imported from `math`; `pi / 2.0` rad is\n90°. At 1.50 rad of heading change,\nthe corner is short of that target; at 1.60 rad, it has reached it. The code\nuses `wrap_angle_rad` so crossing the `−π`/`π` heading boundary does not make\none ordinary quarter-turn look like a full revolution.\n\nThe segment classes each store a different physical target. `DrawingSegment`\nuses wheel travel in mm; `TurnSegment` uses heading change in rad. Their shared\nmethod names let the short loop in `main.py` run either segment without asking\nwhich kind it received.\n\n## 3. Build and change an ordered path\n\n`build_drawing(side_speed_mm_s, side_distance_mm, turn_rate_rad_s,\nturn_angle_rad)` creates a list alternating side, corner, side, corner, and so\non. Read the `for index in range(4)` loop and predict the first and last\nsegment names. The first item is `side 1`; the eighth is `corner 4`.\n\nChange `build_drawing(...)` to use a shorter distance for sides 2 and 4 while\nleaving sides 1 and 3 at the requested distance. For example, half-length\nsides make a rectangle. Keep the passed-in `side_distance_mm` as the source of\nboth lengths so the function still works with another input. The checks will\nsay the result differs from the square contract; **Run still executes the\ncurrent valid drawing** so you can inspect your rectangle. Restore the square\nbefore continuing.\n\n## 4. Compare prediction with the run\n\n1. Reset, Run, and note the three check results, drawn path, and `final_pose`.\n2. Make one dimension or sequence change. Predict which sides or corners\n   change, in mm or rad, before running again.\n3. Reset and Run. Compare the new path with the prediction. Use Program output\n   to locate a mismatch in a command value, measured completion rule, or\n   segment order.\n4. Restore the baseline; Run once more and confirm three `PASS` lines.\n\nThe inner loop in `main.py` calls `Robot.step(command)` repeatedly **until the\nmeasured target is reached**. It does not use a duration as the drawing\ninstruction. `MAXIMUM_SEGMENT_SAMPLES` is a fault stop if measurements or\nmotion fail to advance; it is not the target for a normal side or corner.\n`Robot.step()` already schedules samples, so do not add `sleep()` inside the\nloop. The `finally` block calls `robot.stop()` when motion finishes or Python\nraises an error. Select **Stop** in the IDE to interrupt a running experiment.\n\nContinue to **Tutorial 3: sampled robot programs** to examine the `RobotState`\nreturned by each sample and one measured straight run.\n',Mo=`# Tutorial 3: a measured robot program
+`,Ao='# Tutorial 1: Python essentials\n\nRun four short, complete functions in `student_work.py`. This project does not\nstart either robot. It introduces the Python syntax used in the remaining\ntutorials: values, functions, decisions, loops, and collections.\n\nStart with **Run** and read the results in **Program output**. Keep these\ninstructions beside the editable `student_work.py`; most edits are in that file, with one input-change exercise in\nthe supplied `main.py` below. Make one temporary expression or branch change in `student_work.py`\nand run again. Each Run checks the four functions before printing the examples.\n\n## Reading a function\n\n```python\ndef average_speed_mm_s(distance_mm: float, duration_s: float) -> float:\n    speed_mm_s = distance_mm / duration_s\n    return speed_mm_s\n```\n\n- `def` begins a function.\n- The values inside parentheses are its inputs.\n- `return` sends one result back to the caller.\n- The annotations after `:` and `->` document expected types. MicroPython does\n  not enforce them, so your code must still handle invalid values deliberately.\n- A name ending in `_mm`, `_s`, or `_mm_s` states its physical unit.\n\nIndentation defines which statements belong to the function or to an `if` or\n`for` block. Use four spaces for each indentation level.\n\n## Example 1: calculate average speed\n\nRead `average_speed_mm_s(distance_mm, duration_s)`, trace the supplied call from\n`main.py`, then predict the result for the input below.\n\n```python\naverage_speed_mm_s(600.0, 4.0)  # returns 150.0\n```\n\nReturn distance divided by duration. Reject a negative distance or a duration\nthat is zero or negative with `raise ValueError(...)`. `ValueError` identifies an input that this function does not accept.\n\n## Example 2: choose from measured conditions\n\nRead `range_state(range_mm, stop_distance_mm)` and predict which branch each\nsupplied call below selects.\n\n```python\nrange_state(180.0, 250.0)  # returns "stop"\nrange_state(None, 250.0)   # returns "unavailable"\n```\n\nUse `if`, `elif`, and `else` to return:\n\n- `"unavailable"` when `range_mm is None`;\n- `"stop"` when range is at or below the stop distance; and\n- `"clear"` otherwise.\n\n`None` means that no usable measurement is available. Check it before making a\nnumerical comparison. Reject a stop distance that is zero or negative.\n\n## Example 3: total a route with a loop\n\nRead `route_distance_mm(segment_distances_mm)`, then predict the total if another\nroute segment were added.\n\n```python\nroute_distance_mm([120.0, 80.0, 50.0])  # returns 250.0\n```\n\nA list (`[...]`) and tuple (`(...)`) are ordered collections. Start a total at\n`0.0`, use a `for` loop to visit each distance, and add it to the total. Reject\na negative segment. An empty route has a total distance of `0.0`.\n\n## Example 4: return named results\n\nRead `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`, then predict\nwhich fields would change if one wheel-speed sample changed.\n\n```python\nsummary = wheel_speed_summary([100.0, 120.0], [90.0, 110.0])\nprint(summary["mean_difference_mm_s"])  # 10.0\n```\n\nReject empty inputs or inputs with different lengths. Otherwise return a\ndictionary with these four named results:\n\n- `"sample_count"`;\n- `"mean_left_mm_s"`;\n- `"mean_right_mm_s"`; and\n- `"mean_difference_mm_s"`, calculated as left mean minus right mean.\n\nA dictionary groups related values under descriptive keys. This pattern is\nused later for telemetry summaries.\n\n## Run and observe\n\n1. Select **Run** and read all four results in **Program output**.\n2. Open `student_work.py` beside these instructions and trace one result back\n   through its function.\n3. Make one small expression or branch change in `student_work.py` and predict\n   which check will identify it.\n4. Select **Run** again and compare the result with your prediction.\n5. Restore the supplied behavior before continuing if a check identifies a\n   mismatch.\n\nIf Python reports a syntax error, inspect the stated line and the line above\nit. Check indentation, parentheses, commas, colons, and spelling. A temporary\n`print(...)` can reveal an intermediate value; remove repeated debug prints\nafter the function works.\n\n## From MATLAB to the project files\n\n| Python form | Meaning in this course |\n| --- | --- |\n| `samples[0]` | First sample; indices start at zero. |\n| `range(4)` | Four values: 0, 1, 2, 3; the endpoint is excluded. |\n| `distance_mm ** 2` | Squared value; `^` is not exponentiation. |\n| `[1, 2] + [3]` | List concatenation, not vector addition. |\n| `value is None` | Missing reading; never substitute a physical zero silently. |\n| `if error_mm > tolerance_mm:` | Indentation defines the conditional block. |\n| `self.previous_count = count` | Store state for the next call on this object. |\n| `from robot_config import ROBOT_CONFIG` | Import a named value from a file. |\n\n`=` assigns; `==` compares. Use `and`, `or` and `not` for scalar conditions.\nTwo names assigned the same list refer to the same mutable list; use `list(old)`\nwhen an independent copy is intended. Modules replace a shared interactive\nworkspace: make inputs explicit and keep calibration in its named file. Run\ncreates fresh program objects; saved project files remain. Avoid NumPy-specific\noperations in MicroPython. First change a working function, then one small class;\nbase classes supply an interface but do not implement its missing method.\n\n## A complete edit–predict–check cycle\n\nThe four functions use the same units and missing-value rule that later robot\nprograms use. Work through this small data set before changing code:\n\n| Expression | Calculation or decision | Expected result |\n| --- | --- | --- |\n| `average_speed_mm_s(450.0, 3.0)` | 450 mm ÷ 3 s | 150 mm/s |\n| `range_state(None, 250.0)` | No usable reading | `"unavailable"` |\n| `range_state(250.0, 250.0)` | Equality meets the stop threshold | `"stop"` |\n| `route_distance_mm([80.0, 120.0, 50.0])` | Sum three segments | 250 mm |\n| `wheel_speed_summary([100.0, 120.0], [90.0, 110.0])` | Mean left 110, mean right 100 | Mean difference 10 mm/s |\n\nFor one controlled edit, change `range_state` to use `<` instead of `<=` at\nthe threshold. Predict that the equality case changes from `"stop"` to\n`"clear"`; then Run and locate the second check\'s `INCORRECT` line. Restore\n`<=` and confirm four `PASS` lines. A failed check gives evidence about one\nfunction. It does not mean the Virtual XRP moved: Tutorial 1 never starts a\nrobot.\n\nFor a second edit, change the route example in `main.py` from `[100.0,\n150.0]` to `[100.0, 150.0, 25.0]`. Predict the printed total before Run: it\nshould rise from 250 to 275 mm. This is an experiment with supplied input\ndata; restore the original list afterward. Notice that the independent\n`exercise_checks.py` still tests its own 250 mm example. This separates a\nfunction\'s rule from one particular input.\n\nIf a check fails, read the first `INCORRECT` line and reproduce its specific\ninput. Inspect intermediate values with one temporary `print(...)`, then\nremove it. If a numerical result is wrong, check units and parentheses before\nchanging the expected result. If a `None` case fails, check the missing-value\nbranch before doing arithmetic. Never replace a missing range with zero: zero\nmillimeters would falsely mean an obstacle at the sensor.\n\nContinue with **Tutorial 2: Virtual XRP drawing**. It uses these same units\nand comparisons on readings returned by a sampled robot.\n',jo='# Tutorial 2: draw from measured motion\n\nUse the **Virtual XRP** to draw four straight sides and four left turns. The\nprogram stops each side when measured mean wheel travel reaches its target and\neach corner when estimated heading changes by its target angle. This connects\nTutorial 1\'s arithmetic to a changing `RobotState`. The supplied drawing is\nabout 180 mm on each side; actual corners may round because motors respond\nand samples arrive at discrete intervals.\n\nOpen Monitor beside the IDE. Select **Run** before editing, then read the\nthree `PASS` lines in Program output and inspect the path and final pose. The\nfiles are already runnable so that each later edit has a visible baseline.\n\n## Project files and first edit\n\n| File | Role |\n| --- | --- |\n| `student_work.py` | Edit the segment data classes and `build_drawing(...)` to explore a path. |\n| `main.py` | Supplied entrypoint; sets target dimensions, runs each segment, and stops the robot. |\n| `exercise_checks.py` | Supplied checks for commands, measured completion, and segment order. |\n| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |\n| `world.json` | Supplied arena and initial pose used by the Virtual XRP. |\n\nEach `.py` file is a Python module. `main.py` imports `build_drawing` from\n`student_work.py` and calls it; it does not copy that function\'s code.\n\nAfter the baseline, change `SIDE_DISTANCE_MM` in `main.py` from 180 to 120 mm,\n**Reset** the Virtual XRP, and Run. Predict the change before looking at the\npath: each side should be about 60 mm shorter, so total commanded straight\ntravel falls by about `4 × 60 = 240 mm`. Restore 180 mm, then make the next\nchanges in `student_work.py`. This changes the value passed into `build_drawing()`; the segment methods\nremain in `student_work.py`.\n\n## 1. Read one measurement calculation\n\n`DrawingSegment("side 1", 140.0, 180.0)` stores a forward speed in mm/s and a\ntarget distance in mm. Its `command()` returns\n`MotionCommand(140.0, 0.0)`: forward motion with zero requested turn. A\n`MotionCommand` is a named data record; it is not a duration or a raw motor\nvoltage.\n\n`is_complete(start_state, current_state)` compares two readings:\n\n```python\nleft_mm = current.left_position_mm - start.left_position_mm\nright_mm = current.right_position_mm - start.right_position_mm\ntravel_mm = (left_mm + right_mm) / 2.0\n```\n\nFor starting wheel positions `(30, 34)` mm and current positions `(129, 133)`\nmm, both wheels advanced 99 mm; a 100 mm side is not yet complete. At\n`(131, 135)` mm, both advanced 101 mm and it is complete. Subtracting the\nstarting readings matters: the robot\'s wheel positions do not reset at every\nside.\n\n`__init__` runs when a segment object is created. Its `self.name`,\n`self.forward_speed_mm_s`, and `self.distance_mm` belong to that instance.\n`command()` and `is_complete()` read those same fields later. Python type\nannotations state expected types but do not enforce them by themselves;\nconstructor checks reject a missing name or nonpositive speed or distance.\n\n## 2. Read one turning calculation\n\n`TurnSegment("corner 1", 1.5, pi / 2.0)` requests an in-place left turn at 1.5 rad/s.\nIts `is_complete(...)` compares the current estimated heading with the heading\nat the start of this corner. `pi` is imported from `math`; `pi / 2.0` rad is\n90°. At 1.50 rad of heading change,\nthe corner is short of that target; at 1.60 rad, it has reached it. The code\nuses `wrap_angle_rad` so crossing the `−π`/`π` heading boundary does not make\none ordinary quarter-turn look like a full revolution.\n\nThe segment classes each store a different physical target. `DrawingSegment`\nuses wheel travel in mm; `TurnSegment` uses heading change in rad. Their shared\nmethod names let the short loop in `main.py` run either segment without asking\nwhich kind it received.\n\n## 3. Build and change an ordered path\n\n`build_drawing(side_speed_mm_s, side_distance_mm, turn_rate_rad_s,\nturn_angle_rad)` creates a list alternating side, corner, side, corner, and so\non. Read the `for index in range(4)` loop and predict the first and last\nsegment names. The first item is `side 1`; the eighth is `corner 4`.\n\nChange `build_drawing(...)` to use a shorter distance for sides 2 and 4 while\nleaving sides 1 and 3 at the requested distance. For example, half-length\nsides make a rectangle. Keep the passed-in `side_distance_mm` as the source of\nboth lengths so the function still works with another input. The checks will\nsay the result differs from the expected square sequence; **Run still executes the\ncurrent valid drawing** so you can inspect your rectangle. Restore the square\nbefore continuing.\n\n## 4. Compare prediction with the run\n\n1. Reset, Run, and note the three check results, drawn path, and `final_pose`.\n2. Make one dimension or sequence change. Predict which sides or corners\n   change, in mm or rad, before running again.\n3. Reset and Run. Compare the new path with the prediction. Use Program output\n   to locate a mismatch in a command value, measured completion rule, or\n   segment order.\n4. Restore the baseline; Run once more and confirm three `PASS` lines.\n\nThe inner loop in `main.py` calls `Robot.step(command)` repeatedly **until the\nmeasured target is reached**. It does not use a duration as the drawing\ninstruction. `MAXIMUM_SEGMENT_SAMPLES` is a fault stop if measurements or\nmotion fail to advance; it is not the target for a normal side or corner.\n`Robot.step()` already schedules samples, so do not add `sleep()` inside the\nloop. The `finally` block calls `robot.stop()` when motion finishes or Python\nraises an error. Select **Stop** in the IDE to interrupt a running experiment.\n\nContinue to **Tutorial 3: sampled robot programs** to examine the `RobotState`\nreturned by each sample and one measured straight run.\n',Mo=`# Tutorial 3: a measured robot program
 
 This Virtual XRP project runs one straight segment and ends it when measured
 wheel travel reaches 300 mm. Tutorial 2 used two kinds of segment; here you
@@ -12610,7 +12578,7 @@ without solving a course challenge.
 
 The supplied project is immediately runnable. Rehearse it on the Virtual XRP
 before editing \`student_work.py\` or selecting the physical target. The
-**Enable short motion** in \`live_variables.py\` defaults off; no motor motion follows the
+**Enable short motion** toggle in \`live_variables.py\` defaults off; no motor motion follows the
 stationary report until you explicitly enable it for a later Run.
 
 ## Walkthrough: summarize a sequence of robot states
@@ -12657,8 +12625,9 @@ motion.
 
 ## Run on a physical XRP
 
-1. If needed, open **Robot setup**, attach the XRP by USB-C, and prepare it
-   for the selected Wi-Fi network.
+1. For an uncommissioned XRP, use **First robot setup**: switch its power off,
+   connect USB-C, then switch it on. For an already configured XRP, use
+   **Wi-Fi setup → Test Wi-Fi**. The computer and robot normally use class Wi-Fi.
 2. Keep this project open and select **Physical XRP**. The computer and XRP must
    use the network selected during setup.
 3. Open Monitor and confirm that the physical XRP is connected and **Enable
@@ -12679,8 +12648,8 @@ checks the Python project; it does not verify the physical network or hardware.
 
 \`Robot.step(...)\` already waits for the next scheduled sample, applies the
 command, reads sensors, updates state, and publishes telemetry. **Do not add
-\`sleep()\` or \`sleep_ms()\` inside the loop.** An extra delay makes the measured
-sample interval incorrect and changes the controller and odometry results.
+\`sleep()\` or \`sleep_ms()\` inside the loop.** An extra delay slows feedback and changes the time between motion commands.
+The measurement timestamps still record the actual elapsed interval.
 
 After both runs complete, you have used the same program structure required by
 the course challenges.

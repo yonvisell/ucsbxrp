@@ -4,6 +4,7 @@
 from ucsb_xrp import live
 
 
+# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number(
     "tutorial_forward_speed_mm_s",
     110.0,

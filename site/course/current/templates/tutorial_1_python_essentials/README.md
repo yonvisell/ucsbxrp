@@ -5,8 +5,8 @@ start either robot. It introduces the Python syntax used in the remaining
 tutorials: values, functions, decisions, loops, and collections.
 
 Start with **Run** and read the results in **Program output**. Keep these
-instructions beside the editable `student_work.py`; the supplied `main.py` is
-read-only. Make one temporary expression or branch change in `student_work.py`
+instructions beside the editable `student_work.py`; most edits are in that file, with one input-change exercise in
+the supplied `main.py` below. Make one temporary expression or branch change in `student_work.py`
 and run again. Each Run checks the four functions before printing the examples.
 
 ## Reading a function
@@ -30,15 +30,14 @@ Indentation defines which statements belong to the function or to an `if` or
 ## Example 1: calculate average speed
 
 Read `average_speed_mm_s(distance_mm, duration_s)`, trace the supplied call from
-read-only `main.py`, then predict the result for the second input below.
+`main.py`, then predict the result for the input below.
 
 ```python
 average_speed_mm_s(600.0, 4.0)  # returns 150.0
 ```
 
 Return distance divided by duration. Reject a negative distance or a duration
-that is zero or negative with `raise ValueError(...)`. A visible error is more
-useful than a physically meaningless result.
+that is zero or negative with `raise ValueError(...)`. `ValueError` identifies an input that this function does not accept.
 
 ## Example 2: choose from measured conditions
 

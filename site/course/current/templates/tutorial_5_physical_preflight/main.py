@@ -17,8 +17,10 @@ def collect_stationary_samples(robot):
     # Robot.step maintains the sample schedule; no additional delay is needed.
     states = []
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(load_world().initial_pose)
         states.append(state)
+        # Collect repeated stopped samples to expose sensor noise and encoder drift.
         for _ in range(STATIONARY_SAMPLE_COUNT):
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
@@ -27,13 +29,14 @@ def collect_stationary_samples(robot):
         robot.stop()
 
 
-# Input: Robot; returns start and final RobotState after a short raised-wheel run.
+# Input: Robot; returns start and final RobotState after a short gated motion run.
 def run_short_motion(robot):
-    # This fixed-time motion verifies motors and encoders; it is not distance control.
+    # This fixed-sample motion checks motors and encoders; it is not distance control.
     try:
         initial_state = robot.start(load_world().initial_pose)
         state = initial_state
         command = MotionCommand(MOTION_SPEED_MM_S, 0.0)
+        # The explicit motion gate permits only this short diagnostic sequence.
         for _ in range(MOTION_SAMPLE_COUNT):
             state = robot.step(command)
         return initial_state, state
@@ -48,10 +51,12 @@ def mean_wheel_position_mm(state):
 
 
 def run_preflight():
+    # Check local examples before reporting results or starting motion.
     if not run_exercise_checks():
         print("Restore the runnable report example before running the XRP")
         return None
 
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     states = collect_stationary_samples(robot)
     report = preflight_report(states)

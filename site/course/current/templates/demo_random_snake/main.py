@@ -33,9 +33,11 @@ def body_travel_mm(state):
     return abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)
 
 
+# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # The finally block also runs if an error or Stop interrupts the route.
+try:  # Run finally below when this block finishes or raises a Python error.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(WORLD.initial_pose)
     total_travel_mm = 0.0
 
@@ -58,6 +60,7 @@ try:  # The finally block also runs if an error or Stop interrupts the route.
         target_heading_rad = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
         started_ms = state.measurements.time_ms
         publish_phase("turn right" if direction < 0.0 else "turn left")
+        # Recheck heading after each turning sample, with a timeout for stalled progress.
         while True:
             error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
             if abs(error_rad) <= TURN_TOLERANCE_RAD:

@@ -5,7 +5,7 @@
 Begin at the observation pose, collect repeated forward-range readings, decide
 whether the named map feature is blocked, and deliver by an available route.
 The program reports `"delivered"` only after validating the planned path and
-measuring the destination within the navigation tolerances. It reports
+checking the estimated pose against the destination tolerances. It reports
 `"no_path"`, `"invalid_path"`, or `"destination_not_reached"` otherwise.
 
 [`world.json`](world.json) defines the virtual observation cases, common map,
@@ -22,10 +22,10 @@ gate and route provide at least the assigned clearance.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -53,14 +53,14 @@ estimate was available; it does not represent zero distance.
 | [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
 | [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always loads the classes from the six component project
+**Test functions always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
 
 - `DeliveryMission` keeps the robot stopped during observation, evaluates the
   named feature, builds the selected grid, validates the returned path,
-  navigates to the exact destination, checks the measured terminal position
+  navigates to the named destination, checks the estimated terminal position
   and heading, retains its evidence, and requests motor stop in its `finally`
   cleanup after normal completion or a Python exception. The target runtime
   handles the IDE's **Stop** separately; forced termination can bypass Python cleanup.
@@ -87,7 +87,7 @@ not converge.
 
 ## Check the component
 
-Select **Test components**. The checks do not start either robot. Read `USE`,
+Select **Test functions**. The checks do not start either robot. Read `USE`,
 `INPUT`, and `EXPECT` before each result. Range checks include odd and even
 medians, mixed unusable readings, too few usable readings, and invalid
 `minimum_usable` input.
@@ -96,13 +96,14 @@ medians, mixed unusable readings, too few usable readings, and invalid
 - `NOT IMPLEMENTED` means the named method still needs to be written.
 - `FAIL` means the method ran but returned an incorrect estimate or error.
 
-Fix every unfinished or failing result, repeat **Test components**, and then
+Fix every unfinished or failing result, repeat **Test functions**, and then
 select the `SensorModel` defined in `sensor_model.py` in `course_setup.py`.
 
 ## Complete the challenge
 
 1. Run each virtual observation case with the supplied estimator. Record the
-   stationary range readings, selected route, mission result, and final pose.
+   stationary range readings, map decision, path-cell count, mission result,
+   and estimated final pose.
 2. Calculate the median of the usable readings and compare it with the reported
    estimate.
 3. Select the `SensorModel` defined in `sensor_model.py` and repeat every
@@ -111,4 +112,4 @@ select the `SensorModel` defined in `sensor_model.py` in `course_setup.py`.
    sensing, planning, navigation, odometry, and wheel-control results.
 5. Before physical motion, inspect stationary range values and sensor
    direction. Then run the matched arena from its marked start and record the
-   readings, selected route, result, and final pose.
+   readings, observed route, result, and estimated final pose.

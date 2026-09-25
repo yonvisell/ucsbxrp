@@ -9,6 +9,7 @@ from ucsb_xrp_reference import (
 )
 
 
+# Bind the hardware adapter and supplied components to the same robot settings.
 def make_robot(config):
     return Robot(
         config,

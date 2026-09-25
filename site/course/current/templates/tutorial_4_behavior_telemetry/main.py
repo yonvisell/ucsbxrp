@@ -26,11 +26,14 @@ MAXIMUM_MISSING_RANGE_SAMPLES = 6  # Fault stop if range sensing is unavailable.
 MAXIMUM_TURN_TIME_S = 5.0  # Fault stop if heading feedback does not progress.
 
 
+# Check local examples before reporting results or starting motion.
 if not run_exercise_checks():
     print("Restore the runnable example before starting the robot")
 else:
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(load_world().initial_pose)
         phase = APPROACH
         start_mean_mm = (
@@ -39,6 +42,7 @@ else:
         turn_start_heading_rad = state.pose.heading_rad
         turn_start_ms = state.measurements.time_ms
         missing_range_samples = 0
+        # Use range during approach and estimated heading during the turn.
         while phase != DONE:
             if not RUN_BEHAVIOR.value:
                 phase = DONE

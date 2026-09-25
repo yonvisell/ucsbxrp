@@ -3,6 +3,7 @@
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
+# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11,6 +12,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
+# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=150.0,
     approach_speed_mm_s=120.0,

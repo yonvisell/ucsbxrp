@@ -51,6 +51,8 @@ def collect_stationary_range(robot, state, expected_heading_rad):
 
 
 def turn_to_heading(robot, state, target_heading_rad):
+    # Recheck estimated heading after every zero-forward command; stop once
+    # heading tolerance is reached before making wall observations.
     while True:
         error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
         if abs(error) <= NAVIGATION_CONFIG.heading_tolerance_rad:
@@ -78,10 +80,12 @@ def destination_is_reached(corrected_pose, raw_pose):
 
 
 def run_challenge():
+    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     corrector = make_pose_corrector(SENSOR_FORWARD_OFFSET_MM)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
+        # Start establishes the initial pose and encoder/time measurement origins.
         state = robot.start(ODOMETRY_INITIAL_POSE)
         corrector.reset(state.pose)
 
@@ -100,6 +104,7 @@ def run_challenge():
         corrector.observe_y(state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE)
 
         navigation.start((DESTINATION,))
+        # Recompute one motion request from each newly estimated pose.
         while not navigation.is_complete():
             corrected = corrector.corrected_pose(state.pose)
             state = robot.step(navigation.update(corrected))

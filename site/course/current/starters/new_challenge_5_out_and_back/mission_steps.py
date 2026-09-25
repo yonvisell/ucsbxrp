@@ -19,12 +19,15 @@ def reached(pose, goal, config):
 def follow_route(robot, navigation, state, goals):
     navigation.start(goals)
     reached_count = 0
+    # A measured pose advances the independent arrival count before the next
+    # navigation command; controller completion exits the loop.
     while True:
         while reached_count < len(goals) and reached(
             state.pose, goals[reached_count], navigation.config,
         ):
             reached_count += 1
         publish_goals_reached(reached_count)
+        # Compare observed arrivals with controller completion at the same pose.
         if navigation.is_complete():
             return state, "arrived" if reached_count == len(goals) else "failed_arrival"
         apply_navigation_controls(navigation)

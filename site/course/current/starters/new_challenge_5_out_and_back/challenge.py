@@ -2,6 +2,7 @@
 from ucsb_xrp import load_world
 from robot_config import ROBOT_CONFIG
 
+# Read selected-world markers and geometry from the same source as the simulator.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 OUTBOUND_ROUTE = tuple(WORLD.waypoint(name) for name in ("outbound_1", "outbound_2", "observation"))
@@ -9,6 +10,7 @@ HOME = WORLD.waypoint("home")
 # Use one map definition in both virtual cases; never read the selected
 # world's obstacle list to infer the hidden gate state.
 MISSION_MAP = load_world(world_id="gate-blocked").arena_map()
+# Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
 CLEARANCE_MM = 95.0
 RANGE_SAMPLE_COUNT = 7

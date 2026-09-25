@@ -5,6 +5,7 @@ from ucsb_xrp.component_checks import run_component_checks
 from robot_config import ROBOT_CONFIG
 from ucsb_xrp import RawSensors, ReflectanceReadings
 
+# Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(SensorModel, WheelSpeedController, DifferentialDrive)
 
 

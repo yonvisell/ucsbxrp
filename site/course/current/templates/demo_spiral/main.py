@@ -12,12 +12,14 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND
 # Continue until an obstacle is near or the operator presses Stop.
 robot = make_robot(ROBOT_CONFIG)
 try:  # Run the motion; the finally block below stops it when this block exits.
+    # Start establishes the initial pose and encoder/time measurement origins.
     state = robot.start(INITIAL_POSE)
 
     # Check the range once before applying a moving command.
     state = robot.step(STOP_COMMAND, read_range=True)
     travel_mm = 0.0
 
+    # Continue the expanding path while the latest range permits motion.
     while True:
         range_mm = state.measurements.range_mm
         # None means no usable echo; it does not mean an obstacle is close.

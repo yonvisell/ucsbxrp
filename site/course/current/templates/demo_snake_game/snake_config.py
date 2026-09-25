@@ -4,6 +4,8 @@ import json
 import sys
 
 
+# Use the current project first, then the MicroPython search path, so the
+# same JSON settings drive the game and arena view.
 for root in (".",) + tuple(sys.path):
     try:
         with open(root.rstrip("/") + "/snake_config.json", "r") as source:

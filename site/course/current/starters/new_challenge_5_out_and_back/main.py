@@ -17,9 +17,11 @@ def report(result):
     print("Out-and-Back: result=" + result)
 
 
+# The same selected sensing, navigation, and planning components serve both legs.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 try:
+    # World pose initializes odometry; the outbound route is known in advance.
     state = robot.start(INITIAL_POSE)
     publish_phase("outbound")
     state, result = follow_route(robot, navigation, state, OUTBOUND_ROUTE)
@@ -28,6 +30,7 @@ try:
         report("outbound_" + result)
     else:
         publish_phase("stopping")
+        # Require continuous low wheel speed before taking a range observation.
         stationary_s = 0.0
         waiting_for_stop_start_ms = state.measurements.time_ms
         while stationary_s < STATIONARY_DURATION_S and elapsed_time_s(
@@ -43,6 +46,7 @@ try:
             report("failed_stationary_check")
         else:
             publish_phase("observe")
+            # Distinct range attempts are combined only after the robot stops.
             samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
             state = robot.state
             estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)
@@ -54,10 +58,13 @@ try:
             else:
                 publish_phase("plan_return")
                 robot.stop()
+                # Only the named gate changes in the known return map.
                 arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)
+                # Convert arena geometry to clearance-aware cells before planning.
                 grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)
                 if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
                     raise ValueError("Use at most {} cells for the return map".format(MAXIMUM_GRID_CELLS))
+                # Plan from the estimated stopped pose to the fixed home marker.
                 start = grid.world_to_cell(state.pose.x_mm, state.pose.y_mm)
                 goal = grid.world_to_cell(HOME.x_mm, HOME.y_mm)
                 path = make_grid_planner().plan(grid, start, goal)
@@ -68,6 +75,7 @@ try:
                 else:
                     print("gate_blocked:", blocked, "return_path_cells:", len(path.cells))
                     publish_return_path_cells(len(path.cells))
+                    # Replace the last cell center with the exact home goal.
                     goals = list(path.to_goals(grid))
                     goals[-1] = HOME
                     publish_phase("return")

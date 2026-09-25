@@ -88,6 +88,7 @@ def _check_button(report):
         raise AssertionError("button_was_pressed should be True")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     try:
         report = _read_report()

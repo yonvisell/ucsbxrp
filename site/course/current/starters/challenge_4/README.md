@@ -32,10 +32,10 @@ The last two cases must end without robot motion.
 
 ## Reuse work in another challenge
 
-Choose **Start another challenge…** in the IDE. Review the **Preserve**,
-**Replace**, and **Add** lists before creating the separate project; they show
-how existing component, calibration, helper, and task files will be handled.
-The current project remains unchanged.
+Choose **Reuse code in a new project…** in the IDE. Review **Preserve**,
+**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,
+and **Leave in the source project** (if shown) before creating the separate
+Project. The current Project remains unchanged.
 
 ## What you implement
 
@@ -64,7 +64,7 @@ information between `plan()` calls.
 | [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
 | [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
 
-**Test components always loads the classes from the six component project
+**Test functions always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
@@ -72,7 +72,7 @@ files**, regardless of which classes are selected for a complete robot run.
 - [`main.py`](main.py) constructs the grid, requests and validates a path,
   converts a successful path to navigation goals, and only then constructs the
   robot. The final navigation goal uses the exact assigned destination rather
-  than merely its grid-cell center, and the measured final pose is checked
+  than merely its grid-cell center, and the estimated final pose is checked
   before completion is reported.
 - [`component_checks.py`](component_checks.py) checks direct, detour, one-cell,
   invalid-endpoint, and disconnected cases without starting a robot.
@@ -93,7 +93,7 @@ goals at turns and at the destination.
 
 ## Check the component
 
-Select **Test components**. The checks call `GridPlanner.plan()` from
+Select **Test functions**. The checks call `GridPlanner.plan()` from
 `grid_planner.py` with small software grids and do not move either robot. Read
 `USE`, `INPUT`, and `EXPECT` before each result:
 
@@ -101,13 +101,14 @@ Select **Test components**. The checks call `GridPlanner.plan()` from
 - `NOT IMPLEMENTED` means `plan()` still needs to be written.
 - `FAIL` means the method ran but returned an invalid path or incorrect `None`.
 
-Fix every unfinished or failing result, repeat **Test components**, and then
+Fix every unfinished or failing result, repeat **Test functions**, and then
 set `USE_STUDENT_GRID_PLANNER` to `True` in `course_setup.py`.
 
 ## Complete the challenge
 
 1. Run the supplied planner in each virtual world and compare the obstacle
-   layout, reported result, driven route, and final pose.
+   layout and reported result. In the reachable world, also compare the driven
+   route and final pose.
 2. Select the `GridPlanner` defined in `grid_planner.py`. For every returned
    path, verify free cells, side-sharing steps, and the requested endpoints.
    The program performs the same check before it permits motion.

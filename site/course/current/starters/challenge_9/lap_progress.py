@@ -23,6 +23,8 @@ class LapProgress:
             distance_mm = sqrt((pose.x_mm - x_mm) ** 2 + (pose.y_mm - y_mm) ** 2)
             if distance_mm <= CHECKPOINT_TOLERANCE_MM:
                 self.checkpoints_reached += 1
+        # The first finish reading is only the starting bar; completion waits
+        # for departure, ordered checkpoints, and confirmed return.
         if not on_finish:
             self.left_start = True
             self.finish_samples = 0

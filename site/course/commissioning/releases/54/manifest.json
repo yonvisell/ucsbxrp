@@ -19,7 +19,7 @@
     "bootstrapVersion": 1,
     "courseApiRevision": "0.6-draft",
     "courseLibraryVersion": "0.6.0-dev",
-    "minimumRobotReleaseSequence": 53,
+    "minimumRobotReleaseSequence": 54,
     "protocolRevision": 5,
     "protocolVersion": 1,
     "serviceVersion": "0.1.0"
@@ -44,8 +44,8 @@
     "mode": "access_point",
     "password": "ucsb-xrp"
   },
-  "releaseId": "2026.09-dev.53",
-  "releaseSequence": 53,
+  "releaseId": "2026.09-dev.54",
+  "releaseSequence": 54,
   "runtime": {
     "files": [
       {
@@ -378,9 +378,9 @@
         "url": "files/runtime/lib/ucsb_xrp/straight_line.py"
       },
       {
-        "bytes": 4609,
+        "bytes": 4162,
         "path": "lib/ucsb_xrp/straight_trial.py",
-        "sha256": "70721025240bec80e162e83ea9cefc5e2c53634b6ebe2650fa9cbef9057394b3",
+        "sha256": "ea964eba43b2494fe7042b0a8cb2c17eed0b74d8ac4b5a30aa48745b41a67342",
         "source": "vendor/current/ucsb_xrp/straight_trial.py",
         "url": "files/runtime/lib/ucsb_xrp/straight_trial.py"
       },
@@ -478,7 +478,7 @@
     ],
     "manifest": {
       "bytes": 8038,
-      "sha256": "c4715d972278a9d4416433d3197c7306572a7ca2a42c0ab989b67630129edac0",
+      "sha256": "1ab6d179579e499c585571c7557f336d9039945e6b27583125060b226fa8d90e",
       "url": "files/runtime/runtime-manifest.json"
     }
   },

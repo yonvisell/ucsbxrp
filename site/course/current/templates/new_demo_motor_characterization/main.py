@@ -17,6 +17,7 @@ bot.stop()
 try:
     bot.reset_encoders()
     measurements = model.reset(bot.read())
+    # Repeat zero command, commanded effort, and zero command at each level.
     for effort in EFFORTS:
         if not 0.0 <= effort <= 0.3:
             raise ValueError("Characterization effort must be within [0, 0.3]")

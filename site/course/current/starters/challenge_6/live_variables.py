@@ -3,6 +3,7 @@
 from ucsb_xrp import live
 
 
+# Publish observed values for inspection without changing the motion decision.
 def publish_range_decision(estimate_mm, speed_mm_s):
     live.watch(
         "range_estimate_mm",

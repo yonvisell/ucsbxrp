@@ -139,6 +139,7 @@ def _check_telemetry():
         raise AssertionError("publish 'unavailable' when no range is available")
 
 
+# Fixed examples check the local functions before any robot run.
 def run_exercise_checks():
     # Run each independent exercise and print a concise outcome.
     checks = (
