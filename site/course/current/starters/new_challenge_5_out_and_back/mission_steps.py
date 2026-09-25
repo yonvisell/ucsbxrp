@@ -1,8 +1,8 @@
-# Follow ordered route goals and check paths before driving.
+# Follow ordered route goals and count arrivals from estimated position.
 
 from live_variables import publish_goals_reached
 from robot_config import apply_navigation_controls
-from ucsb_xrp import GridPath, distance_to_goal, wrap_angle_rad
+from ucsb_xrp import distance_to_goal, wrap_angle_rad
 
 # Inputs: estimated Pose, NavigationGoal, NavigationConfig tolerances.
 # Returns: True when both required position and heading conditions are met.
@@ -32,12 +32,3 @@ def follow_route(robot, navigation, state, goals):
             return state, "arrived" if reached_count == len(goals) else "failed_arrival"
         apply_navigation_controls(navigation)
         state = robot.step(navigation.update(state.pose))
-
-# Inputs: OccupancyGrid, endpoint GridCell values, proposed GridPath.
-# Returns: True only for free, adjacent cells from start through goal.
-def valid_path(grid, start, goal, path):
-    if not isinstance(path, GridPath) or path.cells[0] != start or path.cells[-1] != goal:
-        return False
-    if any(grid.is_blocked(cell) for cell in path.cells):
-        return False
-    return all(second in grid.neighbors(first) for first, second in zip(path.cells, path.cells[1:]))

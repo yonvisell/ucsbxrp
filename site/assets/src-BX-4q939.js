@@ -5075,9 +5075,9 @@ from challenge import GRID_RESOLUTION_MM, CLEARANCE_MM, MAXIMUM_GRID_CELLS
 from challenge import EXECUTE_ROUTE
 from course_setup import make_grid_planner, make_navigation_controller, make_robot
 from grid_display import print_grid
-from live_variables import publish_navigation_steps
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_controls
-from route_validation import goal_is_reached, path_error
+from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from route_runner import run_route
+from route_validation import path_error
 from ucsb_xrp import OccupancyGrid
 
 
@@ -5109,38 +5109,9 @@ else:
             # Use cell centers along the route but the exact destination marker.
             goals = list(path.to_goals(grid))
             goals[-1] = DESTINATION
-
-            # Construct the robot from this project's configured components.
             robot = make_robot(ROBOT_CONFIG)
             navigation = make_navigation_controller(NAVIGATION_CONFIG)
-            step_count = 0
-            try:
-                # Start establishes the initial pose and encoder/time measurement origins.
-                state = robot.start(INITIAL_POSE)
-                navigation.start(goals)
-                # Recompute the motion request from each new odometry pose.
-                while not navigation.is_complete():
-                    publish_navigation_steps(step_count)
-                    apply_navigation_controls(navigation)
-                    state = robot.step(navigation.update(state.pose))
-                    step_count += 1
-
-                # Verify destination tolerance separately from controller status.
-                result = (
-                    "complete"
-                    if goal_is_reached(state.pose, DESTINATION, navigation.config)
-                    else "destination_not_reached"
-                )
-                print(
-                    "Challenge 4: result={} path_cells={} navigation_steps={} "
-                    "final_pose={}".format(
-                        result, len(path.cells), step_count, state.pose
-                    )
-                )
-                if result != "complete":
-                    raise RuntimeError("Navigation finished before the destination was reached")
-            finally:  # Stop the motors whenever route execution exits.
-                robot.stop()
+            run_route(robot, navigation, INITIAL_POSE, goals, DESTINATION, len(path.cells))
 `,pi=`# Receive NavigationGoal sequences and Pose samples, retain route progress,
 # and return one MotionCommand for each update.
 
@@ -5272,7 +5243,47 @@ def apply_navigation_controls(navigation):
         heading_tolerance_rad=current.heading_tolerance_rad,
         realign_heading_rad=current.realign_heading_rad,
     ))
-`,gi=`# Validate a planned grid route before constructing or moving the robot.
+`,gi=`# Follow a checked grid path through navigation goals and report arrival.
+
+from live_variables import publish_navigation_steps
+from robot_config import apply_navigation_controls
+from route_validation import goal_is_reached
+
+
+# Inputs: selected robot and navigator, starting Pose, checked goals,
+# destination, and number of planned grid cells.
+# Returns: None after reporting the final pose and result; raises on missed arrival.
+# Cleanup: stops the robot after normal completion or an exception.
+def run_route(robot, navigation, initial_pose, goals, destination, path_cell_count):
+    step_count = 0
+    try:
+        # Start establishes the initial pose and encoder/time measurement origins.
+        state = robot.start(initial_pose)
+        navigation.start(goals)
+        # Recompute the motion request from each new odometry pose.
+        while not navigation.is_complete():
+            publish_navigation_steps(step_count)
+            apply_navigation_controls(navigation)
+            state = robot.step(navigation.update(state.pose))
+            step_count += 1
+
+        # Verify destination tolerance separately from controller status.
+        result = (
+            "complete"
+            if goal_is_reached(state.pose, destination, navigation.config)
+            else "destination_not_reached"
+        )
+        print(
+            "Challenge 4: result={} path_cells={} navigation_steps={} "
+            "final_pose={}".format(
+                result, path_cell_count, step_count, state.pose
+            )
+        )
+        if result != "complete":
+            raise RuntimeError("Navigation finished before the destination was reached")
+    finally:  # Stop the motors whenever route execution exits.
+        robot.stop()
+`,_i=`# Validate a planned grid route before constructing or moving the robot.
 # Also check the final estimated pose against the active navigation tolerances.
 
 from ucsb_xrp import GridPath, distance_to_goal, wrap_angle_rad
@@ -5303,7 +5314,7 @@ def goal_is_reached(pose, goal, config):
         return True
     heading_error = wrap_angle_rad(goal.heading_rad - pose.heading_rad)
     return abs(heading_error) <= config.heading_tolerance_rad
-`,_i=`# Student wheel measurements from encoder counts and sample time.
+`,vi=`# Student wheel measurements from encoder counts and sample time.
 
 from ucsb_xrp import Measurements
 from ucsb_xrp.student_api import SensorModelBase
@@ -5338,7 +5349,7 @@ class SensorModel(SensorModelBase):
         # Boolean, zero, and negative readings; return the median usable value
         # in mm, or None when fewer than minimum_usable values remain.
         raise NotImplementedError("Complete SensorModel.estimate_range in Challenge 5")
-`,vi=`# Student feedback from wheel speeds to normalized motor commands.
+`,yi=`# Student feedback from wheel speeds to normalized motor commands.
 
 from ucsb_xrp import DriveCommand
 from ucsb_xrp.student_api import WheelSpeedControllerBase
@@ -5360,7 +5371,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
         # Return DriveCommand(left, right) with normalized values bounded
         # by self.config.max_drive_command. A zero target needs zero command.
         raise NotImplementedError("Complete WheelSpeedController.update")
-`,yi=`# Geometry is known; only the named gate's occupancy is uncertain.
+`,bi=`# Geometry is known; only the named gate's occupancy is uncertain.
 from ucsb_xrp import load_world
 from robot_config import ROBOT_CONFIG
 
@@ -5388,7 +5399,7 @@ MAXIMUM_GRID_CELLS = 1024
 # Allow each distinct ultrasound attempt two control periods plus two 70 ms
 # acquisition intervals; retain a 2 s minimum for scheduler variation.
 RANGE_COLLECTION_TIMEOUT_S = max(2.0, RANGE_SAMPLE_COUNT * (2 * ROBOT_CONFIG.sample_period_ms + 140) / 1000.0)
-`,bi=`# Test the Challenge 5 component classes without starting either robot.
+`,xi=`# Test the Challenge 5 component classes without starting either robot.
 # In the IDE, select Test functions. Each check names the class and method,
 # example input, required result, and observed result, including range examples.
 # PASS means the example matched. NOT IMPLEMENTED means a named method still
@@ -5414,7 +5425,7 @@ run_component_checks(
     GridPlanner,
     include_range=True,
 )
-`,xi=`# Choose one implementation of each component and assemble Challenge 5.
+`,Si=`# Choose one implementation of each component and assemble Challenge 5.
 
 from differential_drive import DifferentialDrive as StudentDifferentialDrive
 from grid_planner import GridPlanner as StudentGridPlanner
@@ -5467,7 +5478,7 @@ def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
     return SuppliedGridPlanner()
-`,Si=`# Convert robot forward speed and turn rate to two wheel-speed targets.
+`,Ci=`# Convert robot forward speed and turn rate to two wheel-speed targets.
 
 from ucsb_xrp import WheelSpeeds
 from ucsb_xrp.student_api import DifferentialDriveBase
@@ -5489,7 +5500,7 @@ class DifferentialDrive(DifferentialDriveBase):
         # Return WheelSpeeds(left_mm_s, right_mm_s). Equal speeds drive
         # straight; a positive turn rate needs a faster right wheel.
         raise NotImplementedError("Complete DifferentialDrive.wheel_speeds")
-`,Ci=`# Find a connected route through free grid cells.
+`,wi=`# Find a connected route through free grid cells.
 
 from ucsb_xrp import GridPath
 from ucsb_xrp.student_api import GridPlannerBase
@@ -5512,7 +5523,7 @@ class GridPlanner(GridPlannerBase):
         # both endpoints, stays in free cells, and crosses one horizontal or
         # vertical cell edge at each step.
         raise NotImplementedError("Complete GridPlanner.plan")
-`,wi=`# Publish the current phase and result of one Out-and-Back run.
+`,Ti=`# Publish the current phase and result of one Out-and-Back run.
 
 from ucsb_xrp import live
 
@@ -5549,24 +5560,24 @@ def publish_goals_reached(count):
 def publish_return_path_cells(count):
     # Show the number of GridCell entries in the planned return path.
     live.watch("return_path_cells", count)
-`,Ti=`# Follow a known outbound corridor, observe, then plan the return.
-from challenge import INITIAL_POSE, OUTBOUND_ROUTE, HOME
-from challenge import STATIONARY_DURATION_S, STATIONARY_SPEED_MM_S, MAXIMUM_STOP_WAIT_S
-from challenge import RANGE_SAMPLE_COUNT, MINIMUM_USABLE_RANGE_COUNT, RANGE_COLLECTION_TIMEOUT_S
-from challenge import BLOCKED_RANGE_THRESHOLD_MM, GATE_FEATURE
-from challenge import MISSION_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM, MAXIMUM_GRID_CELLS
-from course_setup import make_grid_planner, make_navigation_controller, make_robot
-from live_variables import publish_phase, publish_result, publish_return_path_cells
-from mission_policy import observed_gate
-from mission_steps import follow_route, valid_path
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
-from ucsb_xrp import OccupancyGrid, STOP_COMMAND, elapsed_time_s
 
-# Report each route or observation result through one named output path.
-def report(result):
+
+# Input: mission result text; show it in live telemetry and Program output.
+def report_result(result):
     publish_result(result)
     print("Out-and-Back: result=" + result)
-
+`,Ei=`# Follow a known outbound corridor, observe, then plan the return.
+from challenge import INITIAL_POSE, OUTBOUND_ROUTE
+from challenge import RANGE_SAMPLE_COUNT, MINIMUM_USABLE_RANGE_COUNT, RANGE_COLLECTION_TIMEOUT_S
+from challenge import BLOCKED_RANGE_THRESHOLD_MM
+from course_setup import make_grid_planner, make_navigation_controller, make_robot
+from live_variables import publish_phase, report_result, publish_return_path_cells
+from mission_policy import observed_gate
+from mission_steps import follow_route
+from return_route import plan_return
+from stationary_observation import wait_until_stationary
+from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from ucsb_xrp import elapsed_time_s
 
 # The same selected sensing, navigation, and planning components serve both legs.
 robot = make_robot(ROBOT_CONFIG)
@@ -5578,23 +5589,12 @@ try:
     state, result = follow_route(robot, navigation, state, OUTBOUND_ROUTE)
     robot.stop()
     if result != "arrived":
-        report("outbound_" + result)
+        report_result("outbound_" + result)
     else:
         publish_phase("stopping")
-        # Require continuous low wheel speed before taking a range observation.
-        stationary_s = 0.0
-        waiting_for_stop_start_ms = state.measurements.time_ms
-        while stationary_s < STATIONARY_DURATION_S and elapsed_time_s(
-            state.measurements.time_ms, waiting_for_stop_start_ms
-        ) <= MAXIMUM_STOP_WAIT_S:
-            state = robot.step(STOP_COMMAND)
-            speeds = state.measurements.wheel_speeds
-            if max(abs(speeds.left_mm_s), abs(speeds.right_mm_s)) <= STATIONARY_SPEED_MM_S:
-                stationary_s += state.measurements.dt_s
-            else:
-                stationary_s = 0.0
-        if stationary_s < STATIONARY_DURATION_S:
-            report("failed_stationary_check")
+        state, stationary = wait_until_stationary(robot, state)
+        if not stationary:
+            report_result("failed_stationary_check")
         else:
             publish_phase("observe")
             # Distinct range attempts are combined only after the robot stops.
@@ -5605,51 +5605,38 @@ try:
             print("stationary_range_samples_mm:", samples)
             print("range_estimate_mm:", estimate_mm)
             if blocked is None:
-                report("unusable_range")
+                report_result("unusable_range")
             else:
                 publish_phase("plan_return")
                 robot.stop()
-                # Only the named gate changes in the known return map.
-                arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)
-                # Convert arena geometry to clearance-aware cells before planning.
-                grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)
-                if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
-                    raise ValueError("Use at most {} cells for the return map".format(MAXIMUM_GRID_CELLS))
-                # Plan from the estimated stopped pose to the fixed home marker.
-                start = grid.world_to_cell(state.pose.x_mm, state.pose.y_mm)
-                goal = grid.world_to_cell(HOME.x_mm, HOME.y_mm)
-                path = make_grid_planner().plan(grid, start, goal)
-                if path is None:
-                    report("no_route")
-                elif not valid_path(grid, start, goal, path):
-                    report("invalid_path")
+                # The stopped pose and gate decision determine the return route.
+                goals, path_cell_count, path_error = plan_return(make_grid_planner(), state.pose, blocked)
+                if path_error is not None:
+                    report_result(path_error)
                 else:
-                    print("gate_blocked:", blocked, "return_path_cells:", len(path.cells))
-                    publish_return_path_cells(len(path.cells))
-                    # Replace the last cell center with the exact home goal.
-                    goals = list(path.to_goals(grid))
-                    goals[-1] = HOME
+                    print("gate_blocked:", blocked, "return_path_cells:", path_cell_count)
+                    publish_return_path_cells(path_cell_count)
                     publish_phase("return")
                     return_start_ms = state.measurements.time_ms
                     state, result = follow_route(robot, navigation, state, goals)
                     robot.stop()
-                    report("complete" if result == "arrived" else "return_" + result)
+                    report_result("complete" if result == "arrived" else "return_" + result)
                     print("return_time_s:", elapsed_time_s(state.measurements.time_ms, return_start_ms))
                     print("estimated_final_pose:", state.pose)
 finally:  # Stop the motors on completion, a Python error, or cooperative Stop.
     robot.stop()
-`,Ei=`# Inputs: estimated range and gate threshold in mm; estimate may be None.
+`,Di=`# Inputs: estimated range and gate threshold in mm; estimate may be None.
 # Returns: True for a blocked gate, False for an open gate, None without range.
 def observed_gate(estimate_mm, threshold_mm):
     # Missing range leaves the map decision unknown rather than declaring open.
     if estimate_mm is None:
         return None
     return estimate_mm <= threshold_mm
-`,Di=`# Follow ordered route goals and check paths before driving.
+`,Oi=`# Follow ordered route goals and count arrivals from estimated position.
 
 from live_variables import publish_goals_reached
 from robot_config import apply_navigation_controls
-from ucsb_xrp import GridPath, distance_to_goal, wrap_angle_rad
+from ucsb_xrp import distance_to_goal, wrap_angle_rad
 
 # Inputs: estimated Pose, NavigationGoal, NavigationConfig tolerances.
 # Returns: True when both required position and heading conditions are met.
@@ -5679,16 +5666,7 @@ def follow_route(robot, navigation, state, goals):
             return state, "arrived" if reached_count == len(goals) else "failed_arrival"
         apply_navigation_controls(navigation)
         state = robot.step(navigation.update(state.pose))
-
-# Inputs: OccupancyGrid, endpoint GridCell values, proposed GridPath.
-# Returns: True only for free, adjacent cells from start through goal.
-def valid_path(grid, start, goal, path):
-    if not isinstance(path, GridPath) or path.cells[0] != start or path.cells[-1] != goal:
-        return False
-    if any(grid.is_blocked(cell) for cell in path.cells):
-        return False
-    return all(second in grid.neighbors(first) for first, second in zip(path.cells, path.cells[1:]))
-`,Oi=`# Receive NavigationGoal sequences and Pose samples, retain route progress,
+`,ki=`# Receive NavigationGoal sequences and Pose samples, retain route progress,
 # and return one MotionCommand for each update.
 
 from ucsb_xrp import MotionCommand, STOP_COMMAND
@@ -5738,7 +5716,7 @@ class NavigationController(NavigationControllerBase):
         # specified final heading within config.heading_tolerance_rad.
         # Return True immediately for an empty route.
         raise NotImplementedError("Complete NavigationController.is_complete")
-`,ki=`# Estimate planar robot position and heading from measured wheel travel.
+`,Ai=`# Estimate planar robot position and heading from measured wheel travel.
 
 from ucsb_xrp import Pose
 from ucsb_xrp.student_api import OdometryBase
@@ -5773,7 +5751,7 @@ class Odometry(OdometryBase):
         # Return the retained Pose(x_mm, y_mm, heading_rad) after reset()
         # or update(); positions are arena-frame mm and heading is radians.
         raise NotImplementedError("Complete Odometry.pose")
-`,Ai=`# Print one raw range batch while the robot remains stopped.
+`,ji=`# Print one raw range batch while the robot remains stopped.
 
 from challenge import OUTBOUND_ROUTE, RANGE_COLLECTION_TIMEOUT_S, RANGE_SAMPLE_COUNT
 from course_setup import make_robot
@@ -5792,7 +5770,42 @@ try:
 finally:
     # Range acquisition never requires nonzero wheel effort.
     robot.stop()
-`,ji=`# Robot and navigation settings shared by Challenge 5 programs.
+`,Mi=`# Construct a return route using the measured gate decision and known map.
+
+from challenge import HOME, GATE_FEATURE, MISSION_MAP
+from challenge import GRID_RESOLUTION_MM, CLEARANCE_MM, MAXIMUM_GRID_CELLS
+from ucsb_xrp import GridPath, OccupancyGrid
+
+
+# Inputs: OccupancyGrid, endpoint GridCell values, proposed GridPath.
+# Returns: True only for free, adjacent cells from start through goal.
+def valid_path(grid, start, goal, path):
+    if not isinstance(path, GridPath) or path.cells[0] != start or path.cells[-1] != goal:
+        return False
+    if any(grid.is_blocked(cell) for cell in path.cells):
+        return False
+    return all(second in grid.neighbors(first) for first, second in zip(path.cells, path.cells[1:]))
+
+
+# Inputs: selected GridPlanner, stopped estimated Pose, Boolean gate decision.
+# Returns: ordered goals, path cell count, and error text (None on success).
+# On failure, goals is None and the error is "no_route" or "invalid_path".
+def plan_return(planner, pose, blocked):
+    arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)
+    grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)
+    if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
+        raise ValueError("Use at most {} cells for the return map".format(MAXIMUM_GRID_CELLS))
+    start = grid.world_to_cell(pose.x_mm, pose.y_mm)
+    goal = grid.world_to_cell(HOME.x_mm, HOME.y_mm)
+    path = planner.plan(grid, start, goal)
+    if path is None:
+        return None, 0, "no_route"
+    if not valid_path(grid, start, goal, path):
+        return None, 0, "invalid_path"
+    goals = list(path.to_goals(grid))
+    goals[-1] = HOME  # Finish at the exact home pose, not its grid-cell center.
+    return goals, len(path.cells), None
+`,Ni=`# Robot and navigation settings shared by Challenge 5 programs.
 
 from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN_RATE_RAD_S, TURN_RATE
 from ucsb_xrp import NavigationConfig, RobotConfig
@@ -5838,7 +5851,7 @@ def apply_navigation_controls(navigation):
         heading_tolerance_rad=current.heading_tolerance_rad,
         realign_heading_rad=current.realign_heading_rad,
     ))
-`,Mi=`# Student wheel measurements from encoder counts and sample time.
+`,Pi=`# Student wheel measurements from encoder counts and sample time.
 
 from ucsb_xrp import Measurements
 from ucsb_xrp.student_api import SensorModelBase
@@ -5873,7 +5886,29 @@ class SensorModel(SensorModelBase):
         # Boolean, zero, and negative readings; return the median usable value
         # in mm, or None when fewer than minimum_usable values remain.
         raise NotImplementedError("Complete SensorModel.estimate_range in Challenge 5")
-`,Ni=`# Student feedback from wheel speeds to normalized motor commands.
+`,Fi=`# Confirm measured rest before collecting ultrasound readings.
+
+from challenge import STATIONARY_DURATION_S, STATIONARY_SPEED_MM_S, MAXIMUM_STOP_WAIT_S
+from ucsb_xrp import STOP_COMMAND, elapsed_time_s
+
+
+# Inputs: started Robot and its latest RobotState.
+# Returns: latest RobotState and True if both wheels remained below the speed
+# threshold for the required duration; False if the stopping wait expired.
+def wait_until_stationary(robot, state):
+    stationary_s = 0.0
+    start_ms = state.measurements.time_ms
+    while stationary_s < STATIONARY_DURATION_S and elapsed_time_s(
+        state.measurements.time_ms, start_ms
+    ) <= MAXIMUM_STOP_WAIT_S:  # Bound only the wait for already commanded stopping.
+        state = robot.step(STOP_COMMAND)
+        speeds = state.measurements.wheel_speeds
+        if max(abs(speeds.left_mm_s), abs(speeds.right_mm_s)) <= STATIONARY_SPEED_MM_S:
+            stationary_s += state.measurements.dt_s
+        else:
+            stationary_s = 0.0  # The low-speed interval must be continuous.
+    return state, stationary_s >= STATIONARY_DURATION_S
+`,Ii=`# Student feedback from wheel speeds to normalized motor commands.
 
 from ucsb_xrp import DriveCommand
 from ucsb_xrp.student_api import WheelSpeedControllerBase
@@ -5895,7 +5930,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
         # Return DriveCommand(left, right) with normalized values bounded
         # by self.config.max_drive_command. A zero target needs zero command.
         raise NotImplementedError("Complete WheelSpeedController.update")
-`,Pi="# Challenge 1: Straight Run\n\n## The challenge\n\nDrive from the start line to the finish marker and use measured wheel travel to\nstop. First make the stopping distance repeatable. Then finish as close as\npossible to the assigned target time without finishing early.\n\nThe task values have one source:\n\n- [`world.json`](world.json) defines the initial pose and finish marker.\n- [`challenge.py`](challenge.py) loads `INITIAL_POSE`, calculates\n  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the\n  `MAX_RUN_TIME_S` run-step limit.\n\nUse these names in your program. Do not copy their current numerical values\ninto another file. Record robot-specific calibration in\n[`robot_config.py`](robot_config.py).\n\n## What you implement\n\nImplement two classes:\n\n- [`sensor_model.py`](sensor_model.py): `SensorModel.reset()` establishes the\n  encoder and time origins. `SensorModel.update()` converts each later raw\n  sample into wheel position, newest wheel travel, elapsed time, and wheel-speed\n  estimates. Use the encoder signs, wheel geometry, and speed-estimator setting\n  in `self.config`.\n- [`wheel_speed_controller.py`](wheel_speed_controller.py):\n  `WheelSpeedController.update()` compares requested and measured wheel speeds\n  and returns a limited `DriveCommand`. A zero speed request must produce an\n  exact zero command for that wheel. Use the calibration, feedback gain, and\n  command limit in `self.config`.\n\nLeave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Defines `SensorModel`, which converts encoder counts and time to physical measurements. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Defines `WheelSpeedController`, which converts wheel-speed error to a `DriveCommand`. |\n| [`robot_config.py`](robot_config.py) | Measured and tuned settings for your XRP. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`main.py`](main.py) | Runs the straight-distance task and reports distance and elapsed time. |\n| [`component_checks.py`](component_checks.py) | Calls the required `SensorModel` and `WheelSpeedController` methods without starting a robot. |\n\n## Provided files and tools\n\n- `StraightLineController` requests cruise speed, reduces speed near the\n  finish, and stops at the assigned travel distance.\n- The supplied `DifferentialDrive` and `Odometry` complete the robot loop until\n  Challenge 2.\n- `Robot` maintains the measured control cycle. `XRPBot` applies motor commands\n  and reads the hardware or simulator.\n\n## How the program runs\n\n```text\nfinish distance + measured wheel travel\n                 -> StraightLineController -> requested forward speed\n                 -> DifferentialDrive       -> wheel-speed targets\nencoder readings -> SensorModel             -> measured wheel speeds\ntargets + measured speeds\n                 -> WheelSpeedController     -> motor commands\n```\n\nThe loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. `main.py`\nconverts `MAX_RUN_TIME_S` to a maximum step count using the nominal sample\nperiod. If the distance has not been reached by then, it reports the failure\nand raises an error. The `finally` block in `main.py` calls\n`robot.stop()` after normal completion or a Python exception. The target runtime\nhandles the IDE's **Stop** separately; forced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test functions** in the IDE. The checks load `SensorModel` from\n`sensor_model.py` and `WheelSpeedController` from\n`wheel_speed_controller.py`; they do not move either robot. For each class,\nread its `USE`,\n`INPUT`, and `EXPECT` lines before the result:\n\n- `PASS` means the implemented behavior matched the stated examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran, but its result did not meet the stated\n  requirement.\n\nFix every `NOT IMPLEMENTED` and `FAIL`, then run **Test functions** again. Set\nthe matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that\nclass passes its checks.\n\n## Complete the challenge\n\n1. Run the supplied classes on the virtual XRP. Locate requested wheel\n   speed, measured wheel speed, drive command, and wheel travel in Monitor.\n2. Select the `SensorModel` defined in `sensor_model.py`. Verify that\n   forward position increases, each\n   increment contains only the newest wheel travel, and the speed estimate\n   follows changes without reporting each encoder-count step as a speed spike.\n3. Select the `WheelSpeedController` defined in\n   `wheel_speed_controller.py`. Verify command limits and an exact zero command\n   at the finish.\n4. Compare repeated virtual runs using the reported distance, lateral,\n   heading, and time errors. `timed_result` states explicitly whether a run\n   finished early or satisfied the no-earlier-than-target rule.\n5. For the physical XRP, first check wheel direction and Stop with the wheels\n   clear. Then run the marked lane and record distance, elapsed time, requested\n   and measured speed, and drive command.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n",Fi="# Challenge 2: Turn and Return\n\n## The challenge\n\nDrive to the turn marker, rotate to its assigned heading, return to the marked\nstart region, and recover the initial heading. Compare the final pose estimated\nfrom wheel travel with the robot's measured position and heading.\n\n[`world.json`](world.json) defines the initial pose and turn marker.\n[`challenge.py`](challenge.py) derives `INITIAL_POSE`,\n`OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and\n`FINAL_HEADING_RAD`. It also names `MAX_STRAIGHT_TIME_S` and `MAX_TURN_TIME_S`,\nwhich bound steps for an unfinished phase using the nominal sample period.\nUse these names; do not repeat the current distances or headings elsewhere.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n\n## What you implement\n\nImplement two new classes:\n\n- [`differential_drive.py`](differential_drive.py):\n  `DifferentialDrive.wheel_speeds()` converts requested forward speed and\n  counterclockwise turn rate into left and right wheel-speed targets. It uses\n  `self.config.track_width_mm` and does not need history from earlier calls.\n- [`odometry.py`](odometry.py): `Odometry.reset()` stores the initial world\n  `Pose`; `Odometry.update()` advances it from measured left and right wheel\n  increments; `pose` returns the latest estimate. Use measured wheel travel,\n  not requested speeds, motor commands, or simulator ground truth.\n\nIf turn-and-return results expose a measurement or control problem, revise\n`sensor_model.py` or `wheel_speed_controller.py` as needed. Keep the effective\ntrack width and other robot-specific values in\n[`robot_config.py`](robot_config.py).\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Measures wheel travel and speed from encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Converts wheel-speed error to limited motor commands. |\n| [`differential_drive.py`](differential_drive.py) | Converts robot motion to two wheel-speed targets. |\n| [`odometry.py`](odometry.py) | Estimates world position and heading from wheel travel. |\n| [`robot_config.py`](robot_config.py) | Stores measured geometry, calibration, gains, and motion settings. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |\n\n## Provided files and tools\n\n- [`main.py`](main.py) runs outward travel, turnaround, return travel, and final\n  heading recovery.\n- `StraightLineController` controls each measured straight segment.\n- `Robot` carries body-motion requests through wheel control, sensing, and\n  odometry at each sample.\n\n## How the program runs\n\n```text\nrequested forward speed and turn rate\n                 -> DifferentialDrive -> wheel-speed targets\n                 -> wheel control     -> motor commands\nencoder readings -> SensorModel       -> wheel increments\nwheel increments -> Odometry          -> estimated Pose\n```\n\n`main.py` names each phase in Program output and uses the estimated pose to end\neach turn. A phase that exceeds its visible time limit reports which motion did\nnot complete. Its `finally` block calls `robot.stop()` after normal completion\nor a Python exception. The target runtime handles the IDE's **Stop** separately;\nforced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test functions**. The checks load all four classes from their named\nproject files and do not move either robot. Read each class's `USE`,\n`INPUT`, and `EXPECT` lines before its result:\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect value or behavior.\n\nThe new checks cover straight, curved, and in-place wheel relationships, plus\nodometry reset, translation, rotation, and curved travel. Fix every unfinished\nor failing result, repeat **Test functions**, and then set the matching\n`USE_STUDENT_*` flag to `True`.\n\n## Complete the challenge\n\n1. Run the supplied `DifferentialDrive` and `Odometry` on the virtual XRP and\n   identify the outward, turnaround, return, and final-alignment phases.\n2. Select the `DifferentialDrive` defined in `differential_drive.py`; compare\n   each body-motion request with its two wheel-speed targets.\n3. Select the `Odometry` defined in `odometry.py`; compare its pose with\n   virtual ground truth. The program uses odometry, not ground truth.\n4. Run the classes from all four component project files together and inspect\n   final pose, wheel increments, requested turn rate, and the reported return\n   position and heading errors.\n5. On the physical course, record the estimated final pose and wheel travel,\n   then measure final position and heading independently.\n",Ii="# Challenge 3: Waypoint Courier\n\n## The challenge\n\nVisit the waypoint markers in their assigned order and finish with the heading\nrequested by the final marker. Navigation receives the newest odometry `Pose`\nat each sample and returns one requested forward speed and turn rate.\n\n[`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)\nloads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than\ncopying the current coordinates, order, or headings into another file.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n\n## What you implement\n\nImplement `NavigationController` in\n[`navigation_controller.py`](navigation_controller.py):\n\n- `start(goals)` stores a new ordered route; an empty route is complete.\n- `current_goal()` returns the active goal or `None` after completion.\n- `is_complete()` reports whether all required positions and headings are\n  complete.\n- `update(pose)` returns the next `MotionCommand` from the latest odometry pose.\n\nVisit goals in order. Turn toward a destination before driving, use the\nconfigured approach speed near it, return to turning when the heading error is\ntoo large, and align to a requested final heading. Return `STOP_COMMAND` after\nthe route is complete. Use `NAVIGATION_CONFIG` and the supplied\n`distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions.\n\nThe configuration separates the decisions: `position_tolerance_mm` sets the\naccepted distance from a goal, `heading_tolerance_rad` sets the allowable\nheading error before driving and at a required final heading,\n`realign_heading_rad` returns an excessive heading error to turning, and\n`slowdown_distance_mm` selects approach rather than cruise speed.\nKeep an active-goal index and a small explicit mode such as `turn`, `drive`, or\n`align`. Each mode describes motion toward the current goal.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |\n| [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |\n| [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |\n| [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |\n| [`robot_config.py`](robot_config.py) | Stores robot calibration and `NAVIGATION_CONFIG`. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n\n**Test functions always loads the classes from the five component project\nfiles**, regardless of which classes are selected for a complete robot run.\n\n## Provided files and tools\n\n- [`main.py`](main.py) starts the route, passes each new pose to navigation,\n  records each assigned waypoint observed in order, and stops the robot on\n  completion or error.\n- [`component_checks.py`](component_checks.py) calls the required\n  `NavigationController` methods and the methods of the other selected classes\n  without starting a robot.\n- `Robot` executes each `MotionCommand` through the selected wheel, sensing,\n  and odometry components.\n\n## How the program runs\n\n```text\nROUTE + estimated Pose -> NavigationController -> MotionCommand\nMotionCommand          -> Robot                -> new estimated Pose\n```\n\nThe cycle repeats until navigation completes the final position and any\nrequested final heading.\n\n## Check the component\n\nSelect **Test functions**. Read `USE`, `INPUT`, and `EXPECT` before each\nresult. The navigation checks cover an empty route, goals ahead and to either\nside, ordered goals, approach speed, realignment, angle wrap, and a required\nfinal heading.\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect command or route state.\n\nFix every unfinished or failing result, repeat **Test functions**, and then\nset `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.\n\n## Complete the challenge\n\n1. Run the supplied navigator on the virtual XRP. Identify each waypoint\n   approach, the reduced approach speed, and the final heading adjustment.\n2. Select the `NavigationController` defined in\n   `navigation_controller.py`. Verify waypoint order and zero requested motion\n   after completion. The final estimated pose must satisfy the assigned final\n   position and heading within navigation tolerances.\n3. Select the classes from all five component project files. Compare odometry\n   with virtual ground truth to separate pose-estimation error from navigation\n   behavior.\n4. Record estimated pose, requested forward speed, turn rate, and the driven\n   path. Use the assigned values in `ROUTE` for your analysis.\n5. On the physical course, record the same program evidence and measure the\n   final position and heading independently.\n",Li=`# Challenge 4: Mapped Route
+`,Li="# Challenge 1: Straight Run\n\n## The challenge\n\nDrive from the start line to the finish marker and use measured wheel travel to\nstop. First make the stopping distance repeatable. Then finish as close as\npossible to the assigned target time without finishing early.\n\nThe task values have one source:\n\n- [`world.json`](world.json) defines the initial pose and finish marker.\n- [`challenge.py`](challenge.py) loads `INITIAL_POSE`, calculates\n  `TRAVEL_DISTANCE_MM`, and defines `TARGET_TIME_S` and the\n  `MAX_RUN_TIME_S` run-step limit.\n\nUse these names in your program. Do not copy their current numerical values\ninto another file. Record robot-specific calibration in\n[`robot_config.py`](robot_config.py).\n\n## What you implement\n\nImplement two classes:\n\n- [`sensor_model.py`](sensor_model.py): `SensorModel.reset()` establishes the\n  encoder and time origins. `SensorModel.update()` converts each later raw\n  sample into wheel position, newest wheel travel, elapsed time, and wheel-speed\n  estimates. Use the encoder signs, wheel geometry, and speed-estimator setting\n  in `self.config`.\n- [`wheel_speed_controller.py`](wheel_speed_controller.py):\n  `WheelSpeedController.update()` compares requested and measured wheel speeds\n  and returns a limited `DriveCommand`. A zero speed request must produce an\n  exact zero command for that wheel. Use the calibration, feedback gain, and\n  command limit in `self.config`.\n\nLeave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Defines `SensorModel`, which converts encoder counts and time to physical measurements. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Defines `WheelSpeedController`, which converts wheel-speed error to a `DriveCommand`. |\n| [`robot_config.py`](robot_config.py) | Measured and tuned settings for your XRP. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`main.py`](main.py) | Runs the straight-distance task and reports distance and elapsed time. |\n| [`component_checks.py`](component_checks.py) | Calls the required `SensorModel` and `WheelSpeedController` methods without starting a robot. |\n\n## Provided files and tools\n\n- `StraightLineController` requests cruise speed, reduces speed near the\n  finish, and stops at the assigned travel distance.\n- The supplied `DifferentialDrive` and `Odometry` complete the robot loop until\n  Challenge 2.\n- `Robot` maintains the measured control cycle. `XRPBot` applies motor commands\n  and reads the hardware or simulator.\n\n## How the program runs\n\n```text\nfinish distance + measured wheel travel\n                 -> StraightLineController -> requested forward speed\n                 -> DifferentialDrive       -> wheel-speed targets\nencoder readings -> SensorModel             -> measured wheel speeds\ntargets + measured speeds\n                 -> WheelSpeedController     -> motor commands\n```\n\nThe loop ends when measured travel reaches `TRAVEL_DISTANCE_MM`. `main.py`\nconverts `MAX_RUN_TIME_S` to a maximum step count using the nominal sample\nperiod. If the distance has not been reached by then, it reports the failure\nand raises an error. The `finally` block in `main.py` calls\n`robot.stop()` after normal completion or a Python exception. The target runtime\nhandles the IDE's **Stop** separately; forced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test functions** in the IDE. The checks load `SensorModel` from\n`sensor_model.py` and `WheelSpeedController` from\n`wheel_speed_controller.py`; they do not move either robot. For each class,\nread its `USE`,\n`INPUT`, and `EXPECT` lines before the result:\n\n- `PASS` means the implemented behavior matched the stated examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran, but its result did not meet the stated\n  requirement.\n\nFix every `NOT IMPLEMENTED` and `FAIL`, then run **Test functions** again. Set\nthe matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that\nclass passes its checks.\n\n## Complete the challenge\n\n1. Run the supplied classes on the virtual XRP. Locate requested wheel\n   speed, measured wheel speed, drive command, and wheel travel in Monitor.\n2. Select the `SensorModel` defined in `sensor_model.py`. Verify that\n   forward position increases, each\n   increment contains only the newest wheel travel, and the speed estimate\n   follows changes without reporting each encoder-count step as a speed spike.\n3. Select the `WheelSpeedController` defined in\n   `wheel_speed_controller.py`. Verify command limits and an exact zero command\n   at the finish.\n4. Compare repeated virtual runs using the reported distance, lateral,\n   heading, and time errors. `timed_result` states explicitly whether a run\n   finished early or satisfied the no-earlier-than-target rule.\n5. For the physical XRP, first check wheel direction and Stop with the wheels\n   clear. Then run the marked lane and record distance, elapsed time, requested\n   and measured speed, and drive command.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n",Ri="# Challenge 2: Turn and Return\n\n## The challenge\n\nDrive to the turn marker, rotate to its assigned heading, return to the marked\nstart region, and recover the initial heading. Compare the final pose estimated\nfrom wheel travel with the robot's measured position and heading.\n\n[`world.json`](world.json) defines the initial pose and turn marker.\n[`challenge.py`](challenge.py) derives `INITIAL_POSE`,\n`OUTBOUND_DISTANCE_MM`, `TURN_HEADING_RAD`, `RETURN_DISTANCE_MM`, and\n`FINAL_HEADING_RAD`. It also names `MAX_STRAIGHT_TIME_S` and `MAX_TURN_TIME_S`,\nwhich bound steps for an unfinished phase using the nominal sample period.\nUse these names; do not repeat the current distances or headings elsewhere.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n\n## What you implement\n\nImplement two new classes:\n\n- [`differential_drive.py`](differential_drive.py):\n  `DifferentialDrive.wheel_speeds()` converts requested forward speed and\n  counterclockwise turn rate into left and right wheel-speed targets. It uses\n  `self.config.track_width_mm` and does not need history from earlier calls.\n- [`odometry.py`](odometry.py): `Odometry.reset()` stores the initial world\n  `Pose`; `Odometry.update()` advances it from measured left and right wheel\n  increments; `pose` returns the latest estimate. Use measured wheel travel,\n  not requested speeds, motor commands, or simulator ground truth.\n\nIf turn-and-return results expose a measurement or control problem, revise\n`sensor_model.py` or `wheel_speed_controller.py` as needed. Keep the effective\ntrack width and other robot-specific values in\n[`robot_config.py`](robot_config.py).\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Measures wheel travel and speed from encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Converts wheel-speed error to limited motor commands. |\n| [`differential_drive.py`](differential_drive.py) | Converts robot motion to two wheel-speed targets. |\n| [`odometry.py`](odometry.py) | Estimates world position and heading from wheel travel. |\n| [`robot_config.py`](robot_config.py) | Stores measured geometry, calibration, gains, and motion settings. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |\n\n## Provided files and tools\n\n- [`main.py`](main.py) runs outward travel, turnaround, return travel, and final\n  heading recovery.\n- `StraightLineController` controls each measured straight segment.\n- `Robot` carries body-motion requests through wheel control, sensing, and\n  odometry at each sample.\n\n## How the program runs\n\n```text\nrequested forward speed and turn rate\n                 -> DifferentialDrive -> wheel-speed targets\n                 -> wheel control     -> motor commands\nencoder readings -> SensorModel       -> wheel increments\nwheel increments -> Odometry          -> estimated Pose\n```\n\n`main.py` names each phase in Program output and uses the estimated pose to end\neach turn. A phase that exceeds its visible time limit reports which motion did\nnot complete. Its `finally` block calls `robot.stop()` after normal completion\nor a Python exception. The target runtime handles the IDE's **Stop** separately;\nforced termination can bypass Python cleanup.\n\n## Check each component\n\nSelect **Test functions**. The checks load all four classes from their named\nproject files and do not move either robot. Read each class's `USE`,\n`INPUT`, and `EXPECT` lines before its result:\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect value or behavior.\n\nThe new checks cover straight, curved, and in-place wheel relationships, plus\nodometry reset, translation, rotation, and curved travel. Fix every unfinished\nor failing result, repeat **Test functions**, and then set the matching\n`USE_STUDENT_*` flag to `True`.\n\n## Complete the challenge\n\n1. Run the supplied `DifferentialDrive` and `Odometry` on the virtual XRP and\n   identify the outward, turnaround, return, and final-alignment phases.\n2. Select the `DifferentialDrive` defined in `differential_drive.py`; compare\n   each body-motion request with its two wheel-speed targets.\n3. Select the `Odometry` defined in `odometry.py`; compare its pose with\n   virtual ground truth. The program uses odometry, not ground truth.\n4. Run the classes from all four component project files together and inspect\n   final pose, wheel increments, requested turn rate, and the reported return\n   position and heading errors.\n5. On the physical course, record the estimated final pose and wheel travel,\n   then measure final position and heading independently.\n",zi="# Challenge 3: Waypoint Courier\n\n## The challenge\n\nVisit the waypoint markers in their assigned order and finish with the heading\nrequested by the final marker. Navigation receives the newest odometry `Pose`\nat each sample and returns one requested forward speed and turn rate.\n\n[`world.json`](world.json) defines the route. [`challenge.py`](challenge.py)\nloads `INITIAL_POSE` and the ordered `ROUTE`. Use these names rather than\ncopying the current coordinates, order, or headings into another file.\n\n## Reuse work in another challenge\n\nChoose **Reuse code in a new project…** in the IDE. Review **Preserve**,\n**Merge robot calibration** (if shown), **Replace for the new task**, **Add**,\nand **Leave in the source project** (if shown) before creating the separate\nProject. The current Project remains unchanged.\n\n## What you implement\n\nImplement `NavigationController` in\n[`navigation_controller.py`](navigation_controller.py):\n\n- `start(goals)` stores a new ordered route; an empty route is complete.\n- `current_goal()` returns the active goal or `None` after completion.\n- `is_complete()` reports whether all required positions and headings are\n  complete.\n- `update(pose)` returns the next `MotionCommand` from the latest odometry pose.\n\nVisit goals in order. Turn toward a destination before driving, use the\nconfigured approach speed near it, return to turning when the heading error is\ntoo large, and align to a requested final heading. Return `STOP_COMMAND` after\nthe route is complete. Use `NAVIGATION_CONFIG` and the supplied\n`distance_to_goal()`, `bearing_to_goal()`, and `wrap_angle_rad()` functions.\n\nThe configuration separates the decisions: `position_tolerance_mm` sets the\naccepted distance from a goal, `heading_tolerance_rad` sets the allowable\nheading error before driving and at a required final heading,\n`realign_heading_rad` returns an excessive heading error to turning, and\n`slowdown_distance_mm` selects approach rather than cruise speed.\nKeep an active-goal index and a small explicit mode such as `turn`, `drive`, or\n`align`. Each mode describes motion toward the current goal.\n\n## Project modules\n\n| File | Role |\n| --- | --- |\n| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |\n| [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |\n| [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |\n| [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |\n| [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |\n| [`robot_config.py`](robot_config.py) | Stores robot calibration and `NAVIGATION_CONFIG`. |\n| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |\n\n**Test functions always loads the classes from the five component project\nfiles**, regardless of which classes are selected for a complete robot run.\n\n## Provided files and tools\n\n- [`main.py`](main.py) starts the route, passes each new pose to navigation,\n  records each assigned waypoint observed in order, and stops the robot on\n  completion or error.\n- [`component_checks.py`](component_checks.py) calls the required\n  `NavigationController` methods and the methods of the other selected classes\n  without starting a robot.\n- `Robot` executes each `MotionCommand` through the selected wheel, sensing,\n  and odometry components.\n\n## How the program runs\n\n```text\nROUTE + estimated Pose -> NavigationController -> MotionCommand\nMotionCommand          -> Robot                -> new estimated Pose\n```\n\nThe cycle repeats until navigation completes the final position and any\nrequested final heading.\n\n## Check the component\n\nSelect **Test functions**. Read `USE`, `INPUT`, and `EXPECT` before each\nresult. The navigation checks cover an empty route, goals ahead and to either\nside, ordered goals, approach speed, realignment, angle wrap, and a required\nfinal heading.\n\n- `PASS` means the implemented behavior matched the examples.\n- `NOT IMPLEMENTED` means the named method still needs to be written.\n- `FAIL` means the method ran but returned an incorrect command or route state.\n\nFix every unfinished or failing result, repeat **Test functions**, and then\nset `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `course_setup.py`.\n\n## Complete the challenge\n\n1. Run the supplied navigator on the virtual XRP. Identify each waypoint\n   approach, the reduced approach speed, and the final heading adjustment.\n2. Select the `NavigationController` defined in\n   `navigation_controller.py`. Verify waypoint order and zero requested motion\n   after completion. The final estimated pose must satisfy the assigned final\n   position and heading within navigation tolerances.\n3. Select the classes from all five component project files. Compare odometry\n   with virtual ground truth to separate pose-estimation error from navigation\n   behavior.\n4. Record estimated pose, requested forward speed, turn rate, and the driven\n   path. Use the assigned values in `ROUTE` for your analysis.\n5. On the physical course, record the same program evidence and measure the\n   final position and heading independently.\n",Bi=`# Challenge 4: Mapped Route
 
 ## The challenge
 
@@ -6016,7 +6051,7 @@ set \`USE_STUDENT_GRID_PLANNER\` to \`True\` in \`course_setup.py\`.
    pose-estimation performance.
 5. For the physical run, match the arena to \`world.json\`, start at the marked
    pose, and compare the planned route, estimated trajectory, and observed path.
-`,Ri=`# Challenge 5: Delivery Mission
+`,Vi=`# Challenge 5: Delivery Mission
 
 ## The challenge
 
@@ -6131,7 +6166,7 @@ select the \`SensorModel\` defined in \`sensor_model.py\` in \`course_setup.py\`
 5. Before physical motion, inspect stationary range values and sensor
    direction. Then run the matched arena from its marked start and record the
    readings, observed route, result, and estimated final pose.
-`,zi=`# Challenge 6: Range-Constrained Stopping
+`,Hi=`# Challenge 6: Range-Constrained Stopping
 
 ## The challenge
 
@@ -6242,7 +6277,7 @@ requested speed + measured speed + range estimate
    and end-to-end response time; the virtual values are reference assumptions,
    not a physical calibration.
 5. Report clearance and repeatability before elapsed time.
-`,Bi=`# Challenge 7: Wall-Range Pose Correction
+`,Ui=`# Challenge 7: Wall-Range Pose Correction
 
 ## The challenge
 
@@ -6334,7 +6369,7 @@ corrected Pose + destination         -> NavigationController -> Robot motion
    verify both stationary ranges and cardinal alignments, and keep **Stop**
    available. The virtual wall faces and sensor offset are reference
    assumptions, not a physical calibration.
-`,Vi=`# Challenge 8: Multi-Stop Route Planning
+`,Wi=`# Challenge 8: Multi-Stop Route Planning
 
 ## The challenge
 
@@ -6410,7 +6445,7 @@ selected paths -> NavigationController -> verified endpoint arrivals
    once and that every record follows an estimated-pose endpoint arrival.
 6. Report service-stop completion and planned route cost; use elapsed time as
    a secondary comparison.
-`,Hi=`# Experimental Challenge 9 · Arena Circuit
+`,Gi=`# Experimental Challenge 9 · Arena Circuit
 
 This is a standalone experimental challenge. It assumes familiarity with the
 sampled \`Robot\` loop, \`MotionCommand\`, and the supplied wheel/drive components.
@@ -6491,7 +6526,7 @@ Immediate back-and-forth crossings do not count as a circuit. Physical lap
 judging independently verifies the route because estimated pose is not ground
 truth. Change the checkpoints in \`lap_progress.py\` when changing circuit
 geometry in \`world.json\`. Reposition only after **Stop**.
-`,Ui=`# Challenge 1 · Robot Curling
+`,Ki=`# Challenge 1 · Robot Curling
 
 ## Task
 
@@ -6664,7 +6699,7 @@ recorded comparison; \`speed_for_distance\` reads the controls through \`.value\
 | \`WheelSpeedController.reset()\` | None | Clears retained feedback state. |
 | \`WheelSpeedController.update(target, measured)\` | Two \`WheelSpeeds\` values in mm/s | Bounded normalized left/right \`DriveCommand\`. |
 | \`speed_for_distance(remaining_mm)\` | Measured remaining distance in mm | Forward speed in mm/s; zero requests the final stop. |
-`,Wi=`# Challenge 2 · Arena Line Circuit
+`,qi=`# Challenge 2 · Arena Line Circuit
 
 ## Task
 
@@ -6852,7 +6887,7 @@ follower settings at each sample boundary.
 | \`LineFollower.reset()\` | None | Clears retained error state; inherited from \`LineFollowerBase\`. |
 | \`LapProgress.observe_line(readings, dt_s, threshold)\` | Paired readings, interval, threshold | Visibility Boolean; updates retained line-loss duration. |
 | \`LapProgress.update(pose, on_finish, confirm_samples)\` | Estimated \`Pose\`, finish detection, sample count | \`True\` after four ordered checkpoints and confirmed finish-bar return. |
-`,Gi='# Challenge 3 · Waypoint Courier\n\n## Task\n\nVisit the three destinations in order and finish facing the indicated direction. Use measured wheel travel to estimate the robot\'s axle-midpoint position and heading, then navigate from that estimate. Compare the reported final pose with an independent floor measurement.\n\n![Starting pose, three destinations in visit order, and final heading.](course-assets/waypoint-courier.svg)\n\n*Figure. The blue S dot and arrow indicate the starting axle pose and +x heading. Numbered orange dots show the three destinations in visit order; the left-pointing arrow at goal 3 shows its required final heading. No measured or planned trajectory is drawn. Coordinates come from `world.json` in millimeters.*\n\n## 1. Implement and measure odometry\n\n1. **Initialize pose.** Establish the estimate at a known starting pose. In `odometry.py`, implement `Odometry.reset(initial_pose)` to store and return that `Pose`. Make the `pose` property return the latest estimate. Position is the drive-axle midpoint in world millimeters; heading is positive counterclockwise from +x, in radians.\n2. **Integrate wheel travel.** Convert each measured wheel increment into a change in pose. Implement `Odometry.update(left_increment_mm, right_increment_mm)` using signed travel since the previous sample and `self.config.track_width_mm`. Return and retain the new `Pose`. Unequal travel follows the wheel paths\' exact constant-curvature arc; wrap heading to `[-π, π)`.\n3. **Check known motions.** Run **Test functions** (`component_checks.py`) without driving. For its straight, in-place turn, and arc inputs, record the wheel increments, predicted change in pose, and returned `Pose`. Compare the direction, units, and heading wrap. A square is an optional additional accumulation check; the route run below supplies the independent floor-pose comparison.\n\n## 2. Implement and test ordered navigation\n\n1. **Track goals.** Retain which destination is active across samples. In `navigation_controller.py`, implement `NavigationController.start(goals)` to save the ordered sequence and reset progress. Make `current_goal()` report the active goal or `None`, and `is_complete()` report whether every required position and heading has been reached. An empty route is complete immediately.\n2. **Choose motion.** Turn pose error into the next motion request. Implement `update(pose)` to return a `MotionCommand` from the estimated `Pose`. Decide how to turn toward, approach, and accept each goal. `heading_rad=None` requires position only; the last goal also requires heading. Use `NavigationConfig` tolerances and motion settings. Return `STOP_COMMAND` after completion.\n3. **Check and select.** Use **Test functions** to examine distant, near, and wrong-final-heading poses. In `course_setup.py`, set `USE_STUDENT_ODOMETRY` and `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` after their checks pass. Reuse your completed sensing, wheel-speed control, and differential-drive files from Arena Line Circuit, along with the measured robot settings. Set their matching flags to `True`; `False` selects the supplied versions.\n\n## 3. Run and measure the courier route\n\n1. **Set motion controls.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changed values to the active controller after the next robot sample; approach speed follows cruise speed at 80%. Slider endpoints are configured control limits, not activity targets. Record values used; adjust other navigation settings in `robot_config.py` when measurements support a change.\n2. **Check the virtual route.** Inspect the start and ordered goals in `world.json`; `challenge.py` loads them as `INITIAL_POSE` and `ROUTE`. Run `main.py` on the Virtual XRP. Use the route trace, estimated heading, `goals_reached`, and Program output to locate overshoot, missed goals, or repeated turns. Revise the controller and repeat as needed before physical trials.\n3. **Measure the physical result.** Run from the marked starting axle pose. Record visit order, missed destinations or contact, and final orientation. Measure final axle-midpoint position and heading on the floor, including reading precision, and compare them with `final_pose` in Program output. If using a front-center mark, measure its axle offset and account for heading. Repeat as needed to assess consistency.\n\n## Your report\n\nSubmit one report per pair with both names, robot identification, selected components, world, and trial settings. Label virtual results separately from physical measurements.\n\n1. **Preliminary lab work:** give the odometry model, straight/turn/arc input-output checks, navigation checks, and reasoning behind calibration and controller choices. Include a square check if performed.\n2. **Challenge data:** show the route trace and estimated heading, and tabulate requested, estimated, and measured final position and heading for physical runs. Include visit order and relevant settings.\n3. **Challenge performance:** state which goals and final-heading requirement were reached, and quantify final position and heading errors using the axle midpoint.\n4. **Reflection:** use the preliminary and route data to distinguish pose-estimation error from controller behavior. Identify one supported improvement and the measurement that would test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs navigation and reports independently counted arrivals and final pose. |\n| <span class="supplied-file"><code>route_progress.py</code> S</span> | Checks estimated-pose arrival at ordered goals using current tolerances. |\n| <strong class="student-file"><code>odometry.py</code> *</strong> | Accumulates wheel increments to estimate position and heading. |\n| <strong class="student-file"><code>navigation_controller.py</code> *</strong> | Uses estimated pose to reach ordered destinations. |\n| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the start pose and ordered goals. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and publishes progress and estimated heading. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, and markers shared by the robot and Monitor. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `track_width_mm` | `robot_config.py`; mm | Effective wheel spacing used to convert unequal wheel travel into heading change. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Live forward and turning requests, applied by `robot_config.py` after the next sample. |\n| `approach_speed_mm_s`, `slowdown_distance_mm` | `robot_config.py`; mm/s, mm | Near-goal speed and distance at which slowing starts; this starter sets approach speed to 80% of cruise speed. |\n| `position_tolerance_mm`, `heading_tolerance_rad` | `robot_config.py`; mm, rad | Estimated position and heading errors accepted at a goal. |\n| `realign_heading_rad` | `robot_config.py`; rad | Heading error above which forward travel pauses for turning. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `Odometry.reset(initial_pose)` | Known `Pose` in mm and rad | Stores and returns starting `Pose`. |\n| `Odometry.update(left_increment_mm, right_increment_mm)` | Signed wheel increments in mm | Updated estimated `Pose`. |\n| `Odometry.pose` | Property read after reset | Latest estimated `Pose`. |\n| `NavigationController.start(goals)` | Ordered `NavigationGoal` values | Starts at first goal; an empty route is complete. |\n| `NavigationController.set_config(config)` | Complete `NavigationConfig` | Inherited method changes settings without restarting the route. |\n| `NavigationController.update(pose)` | Estimated `Pose` | Next `MotionCommand` in mm/s and rad/s. |\n| `NavigationController.current_goal()` | None | Active goal or `None`. |\n| `NavigationController.is_complete()` | None | Boolean route-completion status. |\n| `count_reached_goals(pose, route, reached_count, config)` | Estimated pose, ordered goals, previous count, current settings | Updated independently observed arrival count. |\n',Ki='# Challenge 4 · Mapped Route\n\n## Task\n\nPlan a connected route around known obstacles, then have the Virtual XRP follow it. Account for the robot\'s footprint and path-following error when assessing clearance.\n\n![Start, destination, and central obstacle in the reachable map.](course-assets/mapped-route.svg)\n\n*Figure. The blue S dot and arrow show the starting axle pose and heading; the orange G dot marks the destination. The dark filled rectangle is the known central obstacle at its map dimensions. No grid cells or computed route are shown; `world.json` supplies the geometry in millimeters.*\n\n## 1. Inspect the map and predict outcomes\n\n1. **Predict each world.** Inspect **Mapped route**, **Destination blocked**, and **No connecting route** in `world.json`. Mark start, destination, obstacles, and boundary; predict whether a free-cell route exists in each.\n2. **Inspect grid settings.** Determine which locations the robot can plan through. In `challenge.py`, `GRID_RESOLUTION_MM` sets cell width and `CLEARANCE_MM` expands obstacles and boundaries for robot size and tracking margin. `main.py` passes them and `ARENA_MAP` to supplied `OccupancyGrid.from_arena()`. The 100 mm/cell and 150 mm starting values are adjustable settings. Predict how a change could alter free cells.\n3. **Read the grid.** With `EXECUTE_ROUTE = False` in `challenge.py`, run `main.py`. Compare the Program-output grid with the Monitor world. Explain a location that appears clear geometrically but is blocked after sampling and clearance.\n\n## 2. Implement and check grid search\n\n1. **Implement search.** Find a connected sequence of free cells. In `grid_planner.py`, implement `GridPlanner.plan(grid, start, goal)`. Return a `GridPath` that includes both free endpoints and crosses one horizontal or vertical cell edge per step. Return `None` for a `None` or blocked endpoint or no connecting route. Choose and explain your search and path-recovery method; shortest path is not required.\n2. **Check cases.** Test how the search handles endpoints and disconnection before motion. Use **Test functions** (`component_checks.py`) without driving. Check a free start equal to goal, a blocked endpoint, and a disconnected map. `grid.is_blocked(cell)` and `grid.neighbors(cell)` expose the same grid rules as the route check.\n3. **Compare worlds.** Set `USE_STUDENT_GRID_PLANNER = True` in `course_setup.py` after checking the planner. Reuse the completed component files and measured robot settings from Waypoint Courier, and set their matching flags to `True`; `False` selects supplied versions. With **Virtual XRP** selected and `EXECUTE_ROUTE = False`, choose each named case in **Monitor → World** and run it. Compare predictions with Program output and inspect each returned path\'s endpoints, free cells, and steps. `main.py` reports `valid_path`, `no_path`, or `invalid_path`.\n\n## 3. Run and assess the route\n\n1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed remains 80% of selected cruise speed. Slider endpoints are configured control limits. Record values used; `robot_config.py` also holds slowing distance and pose tolerances.\n2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals for the selected `NavigationController`. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.\n3. **Measure a physical route if performed.** A physical trial is optional. First compare floor geometry and robot dimensions with `world.json`. Record closest obstacle gap and measurement method, contact, and final axle-midpoint pose. Distinguish measurements from estimated pose and virtual trajectory.\n\n## Your report\n\nSubmit one report per pair with both names, selected components, worlds, grid settings, and navigation settings. Label virtual observations and any physical measurements.\n\n1. **Preliminary lab work:** show the predicted outcome for each world, your search and path-recovery approach, component-check evidence, and why the selected cell size and clearance are appropriate.\n2. **Challenge data:** show the reachable world\'s grid and path, tabulate predicted and returned outcomes for all three worlds, and include the planned path and virtual trajectory with relevant settings.\n3. **Challenge performance:** report path validity, destination arrival, obstacle contact, and clearance observations. Include measured gap and final pose if a physical trial was performed.\n4. **Reflection:** explain any difference between a valid cell path and the robot\'s motion using evidence from the map, path, and trajectory. Identify a justified adjustment and how to test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs search, prints the grid and path, and optionally drives the route. |\n| <span class="supplied-file"><code>route_validation.py</code> S</span> | Checks path traversability and final estimated-pose arrival. |\n| <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected free-cell path. |\n| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |\n| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads geometry and sets grid resolution, clearance, memory limit, and motion selection. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor motion controls and publishes navigation progress. |\n| <span class="supplied-file"><code>grid_display.py</code> S</span> | Prints the grid, endpoints, and path. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines the selectable worlds, geometry, start pose, and destination. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `GRID_RESOLUTION_MM` | `challenge.py`; mm/cell | Cell width and height in the sampled map. |\n| `CLEARANCE_MM` | `challenge.py`; mm | Expands obstacles and arena edges for robot footprint and tracking margin. |\n| `MAXIMUM_GRID_CELLS` | `challenge.py`; cells | Memory/work limit checked by `main.py` before planning. |\n| `EXECUTE_ROUTE` | `challenge.py`; Boolean | `False` plans without motion; `True` follows a valid path. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Route motion settings, applied by `robot_config.py` after the next sample. |\n| Approach speed, slowing distance, pose tolerances | `robot_config.py`; mm/s, mm, rad | Near-goal speed, slowing point, and accepted pose errors. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `OccupancyGrid.from_arena(arena, resolution_mm, clearance_mm)` | `ArenaMap`, resolution and clearance in mm | Sampled free/blocked grid. |\n| `GridPlanner.plan(grid, start, goal)` | `OccupancyGrid`, two `GridCell` endpoints or `None` | Connected `GridPath` including endpoints, or `None`. |\n| `GridPath.to_goals(grid)` | Grid used for planning | World-coordinate navigation goals at turns and destination. |\n| `path_error(grid, start, goal, path)` | Grid, endpoints, proposed path | `None` for valid path or reason it cannot be followed. |\n| `goal_is_reached(pose, goal, config)` | Estimated final pose, destination, navigation settings | Boolean arrival within position and heading tolerances. |\n',qi='# Challenge 5 · Out-and-Back\n\n## Task\n\nFollow the assigned outbound route, stop at the observation pose, determine whether the center gate is blocked, and plan a return home. The gate is the only unknown map feature; the robot measures it while stationary.\n\n![Assigned outbound route, home, observation point, and center gate.](course-assets/out-and-back.svg)\n\n*Figure. Blue H, 1, and 2 markers show home and the ordered outbound stops; the orange O marker and left-pointing arrow show the stationary observation pose and heading. The dashed teal line is the assigned outbound route. Dark filled rectangles mark the fixed upper/lower walls and far reflector; the orange dashed rectangle is the center gate whose occupancy is observed. No return route is drawn. Dimensions come from `world.json` in millimeters.*\n\n## 1. Measure the gate before mission trials\n\n1. **Collect stationary readings.** Measure how range changes with the gate state. At the physical observation pose, aim the stopped robot toward the gate. In the file list, choose **Actions for range_readout.py → Make main**, then **Compile** and **Run**. Selecting a file in the editor alone does not change what Run executes. Collect repeated batches with the gate blocked and open without changing position or aim. The readout prints raw attempts, including `None` for an unavailable echo. `RANGE_SAMPLE_COUNT` in `challenge.py` initially requests seven attempts per batch; the count is adjustable.\n2. **Compare conditions.** Record each batch and count its positive, finite readings. Calculate their median by hand; mark the result unavailable when the count is below `MINIMUM_USABLE_RANGE_COUNT`. Compare the blocked and open medians and their variation across batches. If they overlap, inspect aim and reflecting surfaces and collect further measurements.\n3. **Choose a threshold.** Set `BLOCKED_RANGE_THRESHOLD_MM` in `challenge.py` between the groups of blocked and open medians. Supplied `observed_gate()` in `mission_policy.py` reports blocked at or below that range. Record the measurement basis; the 550 mm starter value is a default.\n\n## 2. Implement and check the range estimate\n\n1. **Implement the estimate.** Reduce a batch of raw attempts to one range value. In `sensor_model.py`, implement `SensorModel.estimate_range(samples, minimum_usable)`. Keep positive finite numeric readings in millimeters; reject `None`, Boolean, zero, negative, and nonfinite values. Return their median, or `None` when fewer than `minimum_usable` remain. An unavailable estimate cannot mean open gate.\n2. **Check sample batches.** Use **Test functions** (`component_checks.py`) to compare the method with supplied examples that include missing readings and an unusually large reading. These checks use fixed inputs, not your collected batches. `MINIMUM_USABLE_RANGE_COUNT` in `challenge.py` currently passes four; it is a configurable decision setting.\n3. **Select the component.** In `course_setup.py`, set `USE_STUDENT_SENSOR_MODEL = True` after checking it. Keep the wheel-measurement methods completed in Robot Curling and reuse the other completed component files and robot settings from Mapped Route. Set their matching flags to `True`; `False` selects supplied versions. Supplied `main.py`, `mission_policy.py`, and `mission_steps.py` handle stopping, classification, path checks, and route sequencing.\n\n## 3. Compare return routes and physical runs\n\n1. **Compare virtual decisions.** Check whether the two observations lead to different return plans. Restore **Actions for main.py → Make main**, then **Compile**. With **Virtual XRP** selected, choose **Center gate blocked** and then **Center gate open** in **Monitor → World**, running each case. `world.json` defines the simulated obstacles; `main.py` infers the gate state from range samples. Calculate the median of the printed `stationary_range_samples_mm` and compare it with `range_estimate_mm`. Record `gate_blocked`, return path length, result, and return time when available. The outbound route is the same in both worlds.\n2. **Record map settings.** `GRID_RESOLUTION_MM` and `CLEARANCE_MM` in `challenge.py` set the return grid and obstacle expansion; their defaults are 100 mm/cell and 95 mm. `main.py` changes the known map\'s `center_gate` feature from the range decision before calling the selected `GridPlanner`. Record these settings with the threshold; change them to test a stated reason.\n3. **Run physical conditions.** Run with gate blocked and open, fixed during each run. The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed is 80% of cruise speed. Slider endpoints are configured limits. Use the same motion settings for a blocked/open comparison.\n4. **Measure arrival.** Record the stop at observation, gate decision, return route, and arrival home. Measure final axle-midpoint position and heading against the home mark, or record an early stopping location. If using a front-center mark, account for its axle offset and final heading. Repeat as needed to assess variation and record measurement precision.\n\n## Your report\n\nSubmit one report per pair with both names, robot identification, selected components, worlds, and trial settings. Label virtual output separately from physical measurements.\n\n1. **Preliminary lab work:** tabulate the stationary blocked/open range batches and usable counts, show the median checks, and justify the chosen threshold and any changed map or navigation settings.\n2. **Challenge data:** show the virtual and physical range estimates, gate decisions, return paths, results, return times when available, and measured final home poses for physical runs.\n3. **Challenge performance:** state whether the outbound stops, observation, gate decision, planned return, and home arrival succeeded in each gate condition. Quantify measured home error where a run completed.\n4. **Reflection:** use the readings and run records to locate any failure in measurement, decision, path, or motion. Identify one supported improvement and how another measurement or trial would test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs outbound route, measures the gate, and plans and follows the return. |\n| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Estimates range from a batch; also contains earlier wheel measurements. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |\n| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |\n| <span class="supplied-file"><code>grid_planner.py</code> S</span> | Searches the occupancy grid for a connected free-cell path. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads geometry and sets range, map, and run settings. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <span class="supplied-file"><code>mission_policy.py</code> S</span> | Classifies an available range as blocked or open. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and publishes mission progress and result. |\n| <span class="supplied-file"><code>mission_steps.py</code> S</span> | Follows routes and checks arrivals and cell paths. |\n| <span class="supplied-file"><code>range_readout.py</code> S</span> | Prints raw stationary range attempts. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines gate worlds, geometry, start pose, and markers. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `RANGE_SAMPLE_COUNT`, `MINIMUM_USABLE_RANGE_COUNT` | `challenge.py`; attempts, usable readings | Current defaults request seven attempts and require four usable readings; both are adjustable. |\n| `BLOCKED_RANGE_THRESHOLD_MM` | `challenge.py`; mm | Estimated range at or below which the named gate is classified blocked. |\n| `STATIONARY_SPEED_MM_S`, `STATIONARY_DURATION_S` | `challenge.py`; mm/s, s | Measured near-zero wheel-speed requirement before range collection. |\n| `GRID_RESOLUTION_MM`, `CLEARANCE_MM` | `challenge.py`; mm/cell, mm | Sample return map and expand obstacles for clearance. |\n| `MAXIMUM_GRID_CELLS` | `challenge.py`; cells | Planner memory/work limit checked by `main.py`. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Outbound and return motion, applied by `robot_config.py` after the next sample. |\n| Approach speed, slowing distance, pose tolerances | `robot_config.py`; mm/s, mm, rad | Near-goal speed, slowing point, and accepted pose errors. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `SensorModel.estimate_range(samples, minimum_usable)` | Range attempts in mm or `None`, usable-count setting | Median usable range in mm, or `None`. |\n| `observed_gate(estimate_mm, threshold_mm)` | Estimated range and threshold in mm | `True` blocked, `False` open, `None` unavailable. |\n| `follow_route(robot, navigation, state, goals)` | Robot, navigation, current state, ordered goals | Latest state and arrival or stop reason. |\n| `GridPlanner.plan(grid, start, goal)` | Return grid and two `GridCell` endpoints | Connected `GridPath`, or `None`. |\n',Ji=`{
+`,Ji='# Challenge 3 · Waypoint Courier\n\n## Task\n\nVisit the three destinations in order and finish facing the indicated direction. Use measured wheel travel to estimate the robot\'s axle-midpoint position and heading, then navigate from that estimate. Compare the reported final pose with an independent floor measurement.\n\n![Starting pose, three destinations in visit order, and final heading.](course-assets/waypoint-courier.svg)\n\n*Figure. The blue S dot and arrow indicate the starting axle pose and +x heading. Numbered orange dots show the three destinations in visit order; the left-pointing arrow at goal 3 shows its required final heading. No measured or planned trajectory is drawn. Coordinates come from `world.json` in millimeters.*\n\n## 1. Implement and measure odometry\n\n1. **Initialize pose.** Establish the estimate at a known starting pose. In `odometry.py`, implement `Odometry.reset(initial_pose)` to store and return that `Pose`. Make the `pose` property return the latest estimate. Position is the drive-axle midpoint in world millimeters; heading is positive counterclockwise from +x, in radians.\n2. **Integrate wheel travel.** Convert each measured wheel increment into a change in pose. Implement `Odometry.update(left_increment_mm, right_increment_mm)` using signed travel since the previous sample and `self.config.track_width_mm`. Return and retain the new `Pose`. Unequal travel follows the wheel paths\' exact constant-curvature arc; wrap heading to `[-π, π)`.\n3. **Check known motions.** Run **Test functions** (`component_checks.py`) without driving. For its straight, in-place turn, and arc inputs, record the wheel increments, predicted change in pose, and returned `Pose`. Compare the direction, units, and heading wrap. A square is an optional additional accumulation check; the route run below supplies the independent floor-pose comparison.\n\n## 2. Implement and test ordered navigation\n\n1. **Track goals.** Retain which destination is active across samples. In `navigation_controller.py`, implement `NavigationController.start(goals)` to save the ordered sequence and reset progress. Make `current_goal()` report the active goal or `None`, and `is_complete()` report whether every required position and heading has been reached. An empty route is complete immediately.\n2. **Choose motion.** Turn pose error into the next motion request. Implement `update(pose)` to return a `MotionCommand` from the estimated `Pose`. Decide how to turn toward, approach, and accept each goal. `heading_rad=None` requires position only; the last goal also requires heading. Use `NavigationConfig` tolerances and motion settings. Return `STOP_COMMAND` after completion.\n3. **Check and select.** Use **Test functions** to examine distant, near, and wrong-final-heading poses. In `course_setup.py`, set `USE_STUDENT_ODOMETRY` and `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` after their checks pass. Reuse your completed sensing, wheel-speed control, and differential-drive files from Arena Line Circuit, along with the measured robot settings. Set their matching flags to `True`; `False` selects the supplied versions.\n\n## 3. Run and measure the courier route\n\n1. **Set motion controls.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changed values to the active controller after the next robot sample; approach speed follows cruise speed at 80%. Slider endpoints are configured control limits, not activity targets. Record values used; adjust other navigation settings in `robot_config.py` when measurements support a change.\n2. **Check the virtual route.** Inspect the start and ordered goals in `world.json`; `challenge.py` loads them as `INITIAL_POSE` and `ROUTE`. Run `main.py` on the Virtual XRP. Use the route trace, estimated heading, `goals_reached`, and Program output to locate overshoot, missed goals, or repeated turns. Revise the controller and repeat as needed before physical trials.\n3. **Measure the physical result.** Run from the marked starting axle pose. Record visit order, missed destinations or contact, and final orientation. Measure final axle-midpoint position and heading on the floor, including reading precision, and compare them with `final_pose` in Program output. If using a front-center mark, measure its axle offset and account for heading. Repeat as needed to assess consistency.\n\n## Your report\n\nSubmit one report per pair with both names, robot identification, selected components, world, and trial settings. Label virtual results separately from physical measurements.\n\n1. **Preliminary lab work:** give the odometry model, straight/turn/arc input-output checks, navigation checks, and reasoning behind calibration and controller choices. Include a square check if performed.\n2. **Challenge data:** show the route trace and estimated heading, and tabulate requested, estimated, and measured final position and heading for physical runs. Include visit order and relevant settings.\n3. **Challenge performance:** state which goals and final-heading requirement were reached, and quantify final position and heading errors using the axle midpoint.\n4. **Reflection:** use the preliminary and route data to distinguish pose-estimation error from controller behavior. Identify one supported improvement and the measurement that would test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Runs navigation and reports independently counted arrivals and final pose. |\n| <span class="supplied-file"><code>route_progress.py</code> S</span> | Checks estimated-pose arrival at ordered goals using current tolerances. |\n| <strong class="student-file"><code>odometry.py</code> *</strong> | Accumulates wheel increments to estimate position and heading. |\n| <strong class="student-file"><code>navigation_controller.py</code> *</strong> | Uses estimated pose to reach ordered destinations. |\n| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads the start pose and ordered goals. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and publishes progress and estimated heading. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, and markers shared by the robot and Monitor. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `track_width_mm` | `robot_config.py`; mm | Effective wheel spacing used to convert unequal wheel travel into heading change. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Live forward and turning requests, applied by `robot_config.py` after the next sample. |\n| `approach_speed_mm_s`, `slowdown_distance_mm` | `robot_config.py`; mm/s, mm | Near-goal speed and distance at which slowing starts; this starter sets approach speed to 80% of cruise speed. |\n| `position_tolerance_mm`, `heading_tolerance_rad` | `robot_config.py`; mm, rad | Estimated position and heading errors accepted at a goal. |\n| `realign_heading_rad` | `robot_config.py`; rad | Heading error above which forward travel pauses for turning. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `Odometry.reset(initial_pose)` | Known `Pose` in mm and rad | Stores and returns starting `Pose`. |\n| `Odometry.update(left_increment_mm, right_increment_mm)` | Signed wheel increments in mm | Updated estimated `Pose`. |\n| `Odometry.pose` | Property read after reset | Latest estimated `Pose`. |\n| `NavigationController.start(goals)` | Ordered `NavigationGoal` values | Starts at first goal; an empty route is complete. |\n| `NavigationController.set_config(config)` | Complete `NavigationConfig` | Inherited method changes settings without restarting the route. |\n| `NavigationController.update(pose)` | Estimated `Pose` | Next `MotionCommand` in mm/s and rad/s. |\n| `NavigationController.current_goal()` | None | Active goal or `None`. |\n| `NavigationController.is_complete()` | None | Boolean route-completion status. |\n| `count_reached_goals(pose, route, reached_count, config)` | Estimated pose, ordered goals, previous count, current settings | Updated independently observed arrival count. |\n',Yi='# Challenge 4 · Mapped Route\n\n## Task\n\nPlan a connected route around known obstacles, then have the Virtual XRP follow it. Account for the robot\'s footprint and path-following error when assessing clearance.\n\n![Start, destination, and central obstacle in the reachable map.](course-assets/mapped-route.svg)\n\n*Figure. The blue S dot and arrow show the starting axle pose and heading; the orange G dot marks the destination. The dark filled rectangle is the known central obstacle at its map dimensions. No grid cells or computed route are shown; `world.json` supplies the geometry in millimeters.*\n\n## 1. Inspect the map and predict outcomes\n\n1. **Predict each world.** Inspect **Mapped route**, **Destination blocked**, and **No connecting route** in `world.json`. Mark start, destination, obstacles, and boundary; predict whether a free-cell route exists in each.\n2. **Inspect grid settings.** Determine which locations the robot can plan through. In `challenge.py`, `GRID_RESOLUTION_MM` sets cell width and `CLEARANCE_MM` expands obstacles and boundaries for robot size and tracking margin. `main.py` passes them and `ARENA_MAP` to supplied `OccupancyGrid.from_arena()`. The 100 mm/cell and 150 mm starting values are adjustable settings. Predict how a change could alter free cells.\n3. **Read the grid.** With `EXECUTE_ROUTE = False` in `challenge.py`, run `main.py`. Compare the Program-output grid with the Monitor world. Explain a location that appears clear geometrically but is blocked after sampling and clearance.\n\n## 2. Implement and check grid search\n\n1. **Implement search.** Find a connected sequence of free cells. In `grid_planner.py`, implement `GridPlanner.plan(grid, start, goal)`. Return a `GridPath` that includes both free endpoints and crosses one horizontal or vertical cell edge per step. Return `None` for a `None` or blocked endpoint or no connecting route. Choose and explain your search and path-recovery method; shortest path is not required.\n2. **Check cases.** Test how the search handles endpoints and disconnection before motion. Use **Test functions** (`component_checks.py`) without driving. Check a free start equal to goal, a blocked endpoint, and a disconnected map. `grid.is_blocked(cell)` and `grid.neighbors(cell)` expose the same grid rules as the route check.\n3. **Compare worlds.** Set `USE_STUDENT_GRID_PLANNER = True` in `course_setup.py` after checking the planner. Reuse the completed component files and measured robot settings from Waypoint Courier, and set their matching flags to `True`; `False` selects supplied versions. With **Virtual XRP** selected and `EXECUTE_ROUTE = False`, choose each named case in **Monitor → World** and run it. Compare predictions with Program output and inspect each returned path\'s endpoints, free cells, and steps. `main.py` reports `valid_path`, `no_path`, or `invalid_path`.\n\n## 3. Run and assess the route\n\n1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed remains 80% of selected cruise speed. Slider endpoints are configured control limits. Record values used; `robot_config.py` also holds slowing distance and pose tolerances.\n2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals; `route_runner.py` follows them with the selected `NavigationController` and checks arrival. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.\n3. **Measure a physical route if performed.** A physical trial is optional. First compare floor geometry and robot dimensions with `world.json`. Record closest obstacle gap and measurement method, contact, and final axle-midpoint pose. Distinguish measurements from estimated pose and virtual trajectory.\n\n## Your report\n\nSubmit one report per pair with both names, selected components, worlds, grid settings, and navigation settings. Label virtual observations and any physical measurements.\n\n1. **Preliminary lab work:** show the predicted outcome for each world, your search and path-recovery approach, component-check evidence, and why the selected cell size and clearance are appropriate.\n2. **Challenge data:** show the reachable world\'s grid and path, tabulate predicted and returned outcomes for all three worlds, and include the planned path and virtual trajectory with relevant settings.\n3. **Challenge performance:** report path validity, destination arrival, obstacle contact, and clearance observations. Include measured gap and final pose if a physical trial was performed.\n4. **Reflection:** explain any difference between a valid cell path and the robot\'s motion using evidence from the map, path, and trajectory. Identify a justified adjustment and how to test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Builds the grid, checks and prints the path, then optionally starts route execution. |\n| <span class="supplied-file"><code>route_runner.py</code> S</span> | Follows validated navigation goals, reports arrival, and stops the robot on exit. |\n| <span class="supplied-file"><code>route_validation.py</code> S</span> | Checks path traversability and final estimated-pose arrival. |\n| <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected free-cell path. |\n| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |\n| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads geometry and sets grid resolution, clearance, memory limit, and motion selection. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor motion controls and publishes navigation progress. |\n| <span class="supplied-file"><code>grid_display.py</code> S</span> | Prints the grid, endpoints, and path. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines the selectable worlds, geometry, start pose, and destination. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `GRID_RESOLUTION_MM` | `challenge.py`; mm/cell | Cell width and height in the sampled map. |\n| `CLEARANCE_MM` | `challenge.py`; mm | Expands obstacles and arena edges for robot footprint and tracking margin. |\n| `MAXIMUM_GRID_CELLS` | `challenge.py`; cells | Memory/work limit checked by `main.py` before planning. |\n| `EXECUTE_ROUTE` | `challenge.py`; Boolean | `False` plans without motion; `True` follows a valid path. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Route motion settings, applied by `robot_config.py` after the next sample. |\n| Approach speed, slowing distance, pose tolerances | `robot_config.py`; mm/s, mm, rad | Near-goal speed, slowing point, and accepted pose errors. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `OccupancyGrid.from_arena(arena, resolution_mm, clearance_mm)` | `ArenaMap`, resolution and clearance in mm | Sampled free/blocked grid. |\n| `GridPlanner.plan(grid, start, goal)` | `OccupancyGrid`, two `GridCell` endpoints or `None` | Connected `GridPath` including endpoints, or `None`. |\n| `GridPath.to_goals(grid)` | Grid used for planning | World-coordinate navigation goals at turns and destination. |\n| `path_error(grid, start, goal, path)` | Grid, endpoints, proposed path | `None` for valid path or reason it cannot be followed. |\n| `goal_is_reached(pose, goal, config)` | Estimated final pose, destination, navigation settings | Boolean arrival within position and heading tolerances. |\n| `run_route(robot, navigation, initial_pose, goals, destination, path_cell_count)` | Selected robot/controller, starting pose, checked route goals, destination, cell count | Executes route, prints result and final pose, stops robot on exit. |\n',Xi='# Challenge 5 · Out-and-Back\n\n## Task\n\nFollow the assigned outbound route, stop at the observation pose, determine whether the center gate is blocked, and plan a return home. The gate is the only unknown map feature; the robot measures it while stationary.\n\n![Assigned outbound route, home, observation point, and center gate.](course-assets/out-and-back.svg)\n\n*Figure. Blue H, 1, and 2 markers show home and the ordered outbound stops; the orange O marker and left-pointing arrow show the stationary observation pose and heading. The dashed teal line is the assigned outbound route. Dark filled rectangles mark the fixed upper/lower walls and far reflector; the orange dashed rectangle is the center gate whose occupancy is observed. No return route is drawn. Dimensions come from `world.json` in millimeters.*\n\n## 1. Measure the gate before mission trials\n\n1. **Collect stationary readings.** Measure how range changes with the gate state. At the physical observation pose, aim the stopped robot toward the gate. In the file list, choose **Actions for range_readout.py → Make main**, then **Compile** and **Run**. Selecting a file in the editor alone does not change what Run executes. Collect repeated batches with the gate blocked and open without changing position or aim. The readout prints raw attempts, including `None` for an unavailable echo. `RANGE_SAMPLE_COUNT` in `challenge.py` initially requests seven attempts per batch; the count is adjustable.\n2. **Compare conditions.** Record each batch and count its positive, finite readings. Calculate their median by hand; mark the result unavailable when the count is below `MINIMUM_USABLE_RANGE_COUNT`. Compare the blocked and open medians and their variation across batches. If they overlap, inspect aim and reflecting surfaces and collect further measurements.\n3. **Choose a threshold.** Set `BLOCKED_RANGE_THRESHOLD_MM` in `challenge.py` between the groups of blocked and open medians. Supplied `observed_gate()` in `mission_policy.py` reports blocked at or below that range. Record the measurement basis; the 550 mm starter value is a default.\n\n## 2. Implement and check the range estimate\n\n1. **Implement the estimate.** Reduce a batch of raw attempts to one range value. In `sensor_model.py`, implement `SensorModel.estimate_range(samples, minimum_usable)`. Keep positive finite numeric readings in millimeters; reject `None`, Boolean, zero, negative, and nonfinite values. Return their median, or `None` when fewer than `minimum_usable` remain. An unavailable estimate cannot mean open gate.\n2. **Check sample batches.** Use **Test functions** (`component_checks.py`) to compare the method with supplied examples that include missing readings and an unusually large reading. These checks use fixed inputs, not your collected batches. `MINIMUM_USABLE_RANGE_COUNT` in `challenge.py` currently passes four; it is a configurable decision setting.\n3. **Select the component.** In `course_setup.py`, set `USE_STUDENT_SENSOR_MODEL = True` after checking it. Keep the wheel-measurement methods completed in Robot Curling and reuse the other completed component files and robot settings from Mapped Route. Set their matching flags to `True`; `False` selects supplied versions. The supplied helpers handle route execution, stopping checks, and return-map construction. `main.py` shows their sequence and calls your range estimator; `mission_policy.py` applies the gate threshold.\n\n## 3. Compare return routes and physical runs\n\n1. **Compare virtual decisions.** Check whether the two observations lead to different return plans. Restore **Actions for main.py → Make main**, then **Compile**. With **Virtual XRP** selected, choose **Center gate blocked** and then **Center gate open** in **Monitor → World**, running each case. `world.json` defines the simulated obstacles; `main.py` infers the gate state from range samples. Calculate the median of the printed `stationary_range_samples_mm` and compare it with `range_estimate_mm`. Record `gate_blocked`, return path length, result, and return time when available. The outbound route is the same in both worlds.\n2. **Record map settings.** `GRID_RESOLUTION_MM` and `CLEARANCE_MM` in `challenge.py` set the return grid and obstacle expansion; their defaults are 100 mm/cell and 95 mm. `plan_return()` in `return_route.py` changes the known map\'s `center_gate` feature from the range decision before calling the selected `GridPlanner`. Record these settings with the threshold; change them to test a stated reason.\n3. **Run physical conditions.** Run with gate blocked and open, fixed during each run. The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed is 80% of cruise speed. Slider endpoints are configured limits. Use the same motion settings for a blocked/open comparison.\n4. **Measure arrival.** Record the stop at observation, gate decision, return route, and arrival home. Measure final axle-midpoint position and heading against the home mark, or record an early stopping location. If using a front-center mark, account for its axle offset and final heading. Repeat as needed to assess variation and record measurement precision.\n\n## Your report\n\nSubmit one report per pair with both names, robot identification, selected components, worlds, and trial settings. Label virtual output separately from physical measurements.\n\n1. **Preliminary lab work:** tabulate the stationary blocked/open range batches and usable counts, show the median checks, and justify the chosen threshold and any changed map or navigation settings.\n2. **Challenge data:** show the virtual and physical range estimates, gate decisions, return paths, results, return times when available, and measured final home poses for physical runs.\n3. **Challenge performance:** state whether the outbound stops, observation, gate decision, planned return, and home arrival succeeded in each gate condition. Quantify measured home error where a run completed.\n4. **Reflection:** use the readings and run records to locate any failure in measurement, decision, path, or motion. Identify one supported improvement and how another measurement or trial would test it.\n\n## Project files\n\n<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.\n\n<div class="project-file-table">\n\n| File | What it does |\n| --- | --- |\n| <span class="supplied-file"><code>main.py</code> S</span> | Sequences outbound travel, the stopping check, range estimation, return planning, and return travel. |\n| <strong class="student-file"><code>sensor_model.py</code> *</strong> | Estimates range from a batch; also contains earlier wheel measurements. |\n| <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Calculates motor commands from wheel-speed targets and measurements. |\n| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |\n| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |\n| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |\n| <span class="supplied-file"><code>grid_planner.py</code> S</span> | Searches the occupancy grid for a connected free-cell path. |\n| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration and navigation settings. |\n| <strong class="config-file"><code>challenge.py</code> †</strong> | Loads geometry and sets range, map, and run settings. |\n| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations. |\n| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |\n| <span class="supplied-file"><code>mission_policy.py</code> S</span> | Classifies an available range as blocked or open. |\n| <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares Monitor controls and publishes mission progress and result. |\n| <span class="supplied-file"><code>mission_steps.py</code> S</span> | Follows routes and counts estimated arrivals at their goals. |\n| <span class="supplied-file"><code>stationary_observation.py</code> S</span> | Confirms continuously low measured wheel speeds before observation. |\n| <span class="supplied-file"><code>return_route.py</code> S</span> | Updates the gate on the map, calls the planner, checks its path, and creates homebound goals. |\n| <span class="supplied-file"><code>range_readout.py</code> S</span> | Prints raw stationary range attempts. |\n| <strong class="config-file"><code>world.json</code> †</strong> | Defines gate worlds, geometry, start pose, and markers. |\n\n</div>\n\n## Parameters and functions\n\nThese are the settings and interfaces used above; see the API reference for full type and error behavior.\n\n### Parameters\n\n| Setting | Source and units | Effect |\n| --- | --- | --- |\n| `RANGE_SAMPLE_COUNT`, `MINIMUM_USABLE_RANGE_COUNT` | `challenge.py`; attempts, usable readings | Current defaults request seven attempts and require four usable readings; both are adjustable. |\n| `BLOCKED_RANGE_THRESHOLD_MM` | `challenge.py`; mm | Estimated range at or below which the named gate is classified blocked. |\n| `STATIONARY_SPEED_MM_S`, `STATIONARY_DURATION_S` | `challenge.py`; mm/s, s | Measured near-zero wheel-speed requirement before range collection. |\n| `GRID_RESOLUTION_MM`, `CLEARANCE_MM` | `challenge.py`; mm/cell, mm | Sample return map and expand obstacles for clearance. |\n| `MAXIMUM_GRID_CELLS` | `challenge.py`; cells | Planner memory/work limit checked by `return_route.py`. |\n| Cruise speed, turn rate | Monitor controls in `live_variables.py`; mm/s, rad/s | Outbound and return motion, applied by `robot_config.py` after the next sample. |\n| Approach speed, slowing distance, pose tolerances | `robot_config.py`; mm/s, mm, rad | Near-goal speed, slowing point, and accepted pose errors. |\n\n### Functions and methods\n\n| Function or method | Input | Return or effect |\n| --- | --- | --- |\n| `SensorModel.estimate_range(samples, minimum_usable)` | Range attempts in mm or `None`, usable-count setting | Median usable range in mm, or `None`. |\n| `observed_gate(estimate_mm, threshold_mm)` | Estimated range and threshold in mm | `True` blocked, `False` open, `None` unavailable. |\n| `follow_route(robot, navigation, state, goals)` | Robot, navigation, current state, ordered goals | Latest state and arrival or stop reason. |\n| `GridPlanner.plan(grid, start, goal)` | Return grid and two `GridCell` endpoints | Connected `GridPath`, or `None`. |\n| `wait_until_stationary(robot, state)` | Started robot and latest measured state | Latest state and whether both wheels stayed below the stopping-speed threshold. |\n| `plan_return(planner, pose, blocked)` | Selected planner, stopped pose, gate decision | Ordered return goals, path cell count, and error text (`None` on success). |\n',Zi=`{
   "default_world": "straight-run",
   "worlds": [
     {
@@ -6886,7 +6921,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,Yi=`{
+`,Qi=`{
   "default_world": "turn-and-return",
   "worlds": [
     {
@@ -6921,7 +6956,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,Xi=`{
+`,$i=`{
   "default_world": "waypoint-route",
   "worlds": [
     {
@@ -6970,7 +7005,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,Zi=`{
+`,ea=`{
   "default_world": "mapped-route",
   "worlds": [
     {
@@ -7092,7 +7127,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,Qi=`{
+`,ta=`{
   "default_world": "gate-blocked",
   "worlds": [
     {
@@ -7200,7 +7235,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,$i=`{
+`,na=`{
   "default_world": "near-wall",
   "worlds": [
     {
@@ -7322,7 +7357,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,ea=`{
+`,ra=`{
   "default_world": "localization-station",
   "worlds": [
     {
@@ -7430,7 +7465,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,ta=`{
+`,ia=`{
   "default_world": "all-stops-reachable",
   "worlds": [
     {
@@ -7547,7 +7582,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,na=`{
+`,aa=`{
   "default_world": "arena-circuit",
   "worlds": [
     {
@@ -7608,7 +7643,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,ra=`{
+`,oa=`{
   "default_world": "straight-run",
   "worlds": [
     {
@@ -7646,7 +7681,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,ia=`{
+`,sa=`{
   "default_world": "arena-circuit",
   "worlds": [
     {
@@ -9291,7 +9326,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,aa=`{
+`,ca=`{
   "default_world": "waypoint-route",
   "worlds": [
     {
@@ -9344,7 +9379,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,oa=`{
+`,la=`{
   "default_world": "mapped-route",
   "worlds": [
     {
@@ -9478,7 +9513,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,sa=`{
+`,ua=`{
   "default_world": "gate-blocked",
   "worlds": [
     {
@@ -9638,7 +9673,7 @@ follower settings at each sample boundary.
     }
   ]
 }
-`,ca=`# Assemble the supplied components used by this demonstration.
+`,da=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -9659,7 +9694,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,la=`# Monitor controls for manual driving; each Run starts from zero effort.
+`,fa=`# Monitor controls for manual driving; each Run starts from zero effort.
 
 from ucsb_xrp import live
 
@@ -9667,7 +9702,7 @@ from ucsb_xrp import live
 # Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number("manual_forward_mm_s", 0.0, -120.0, 120.0, 10.0, unit="mm/s", label="Forward speed")
 TURN_RATE = live.number("manual_turn_rad_s", 0.0, -1.0, 1.0, 0.1, unit="rad/s", label="Turn rate")
-`,ua=`# Drive with Monitor sliders. Each Run starts with both commands at zero.
+`,pa=`# Drive with Monitor sliders. Each Run starts with both commands at zero.
 
 from course_setup import make_robot
 from live_variables import FORWARD_SPEED, TURN_RATE
@@ -9697,7 +9732,7 @@ try:
         state = robot.step(MotionCommand(speed_mm_s, turn_rate_rad_s))
 finally:
     robot.stop()
-`,da=`# Nominal robot settings shared by virtual and physical XRP targets.
+`,ma=`# Nominal robot settings shared by virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -9711,7 +9746,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
-`,fa=`# Experiment settings. Edit world.json for the arena and starting pose.
+`,ha=`# Experiment settings. Edit world.json for the arena and starting pose.
 
 from ucsb_xrp import load_world
 
@@ -9719,7 +9754,7 @@ from ucsb_xrp import load_world
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 TURN_TOLERANCE_RAD = 0.06
 TURN_TIMEOUT_S = 8.0
-`,pa=`# Assemble the supplied components used by this demonstration.
+`,ga=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -9740,7 +9775,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,ma=`# Publish obstacle-turn range and current phase.
+`,_a=`# Publish obstacle-turn range and current phase.
 
 from ucsb_xrp import live
 
@@ -9764,7 +9799,7 @@ def publish_phase(phase):
 
 def publish_heading_error(error_rad):
     live.watch("heading_error_rad", error_rad, unit="rad")
-`,ha=`# Drive to an obstacle, turn left, then drive to the next obstacle.
+`,va=`# Drive to an obstacle, turn left, then drive to the next obstacle.
 
 from math import pi
 
@@ -9822,7 +9857,7 @@ try:  # The finally block stops the motors when this sequence exits.
     print("final_pose:", state.pose)
 finally:  # Runs after normal completion, a Python error, or cooperative Stop.
     robot.stop()
-`,ga=`# Measured robot and controller settings for the obstacle-turn demo.
+`,ya=`# Measured robot and controller settings for the obstacle-turn demo.
 
 from ucsb_xrp import RobotConfig
 
@@ -9836,7 +9871,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
-`,_a=`# Experiment settings. Edit world.json for the arena and starting pose.
+`,ba=`# Experiment settings. Edit world.json for the arena and starting pose.
 
 from ucsb_xrp import load_world
 
@@ -9849,7 +9884,7 @@ TURN_TIMEOUT_S = 8.0
 SEGMENT_TIMEOUT_S = 30.0
 MINIMUM_SEGMENT_TRAVEL_MM = 100.0
 MAXIMUM_SEGMENT_TRAVEL_MM = 180.0
-`,va=`# Assemble the supplied components used by this demonstration.
+`,xa=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -9870,7 +9905,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,ya=`# Publish the segment, phase, and estimated distance travelled.
+`,Sa=`# Publish the segment, phase, and estimated distance travelled.
 
 from ucsb_xrp import live
 
@@ -9891,7 +9926,7 @@ def publish_phase(phase):
 
 def publish_travel(travel_mm):
     live.watch("travel_mm", travel_mm, unit="mm")
-`,ba=`# Trace a reproducible sequence of straight runs and random quarter turns.
+`,Ca=`# Trace a reproducible sequence of straight runs and random quarter turns.
 
 from math import pi
 
@@ -9973,7 +10008,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
     print("final_pose:", state.pose)
 finally:  # Stop the motors after normal completion or a Python exception.
     robot.stop()
-`,xa=`# Nominal robot settings shared by virtual and physical XRP targets.
+`,wa=`# Nominal robot settings shared by virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -9987,7 +10022,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
-`,Sa=`# Experiment settings. Edit world.json for the arena and starting pose.
+`,Ta=`# Experiment settings. Edit world.json for the arena and starting pose.
 
 from ucsb_xrp import load_world
 
@@ -9999,7 +10034,7 @@ MINIMUM_TURN_ANGLE_DEG = 70.0
 MAXIMUM_TURN_ANGLE_DEG = 160.0
 TURN_TOLERANCE_RAD = 0.06
 TURN_TIMEOUT_S = 8.0  # End the run if a wheel or encoder prevents the rotation.
-`,Ca=`# Assemble the supplied components used by this demonstration.
+`,Ea=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -10020,7 +10055,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,wa=`# Publish the latest range, phase, and avoidance count.
+`,Da=`# Publish the latest range, phase, and avoidance count.
 
 from ucsb_xrp import live
 
@@ -10043,7 +10078,7 @@ def publish_phase(phase):
 
 def publish_avoidance_count(count):
     live.watch("avoidances", count)
-`,Ta=`# Drive forward, reverse from nearby obstacles, and choose a new heading.
+`,Oa=`# Drive forward, reverse from nearby obstacles, and choose a new heading.
 
 from math import pi
 
@@ -10120,7 +10155,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
         state = robot.step(command, read_range=True)
 finally:  # Runs after a return, Python error, or the IDE's cooperative Stop.
     robot.stop()
-`,Ea=`# Nominal robot settings shared by virtual and physical XRP targets.
+`,ka=`# Nominal robot settings shared by virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -10134,7 +10169,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
-`,Da=`# SnakeGame settings shared by the virtual and physical XRP.
+`,Aa=`# SnakeGame settings shared by the virtual and physical XRP.
 
 from ucsb_xrp import load_world
 
@@ -10144,7 +10179,7 @@ try:
     WORLD = load_world()
 except ImportError:
     WORLD = load_world(world_id="snake-physical")
-`,Oa=`# Assemble the supplied components used by this demonstration.
+`,ja=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -10171,7 +10206,7 @@ def make_robot(config):
 # Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     return NavigationController(config)
-`,ka=`# Monitor sliders and game readings.
+`,Ma=`# Monitor sliders and game readings.
 
 from ucsb_xrp import live
 from snake_config import CONFIG
@@ -10209,7 +10244,7 @@ def publish_scene_config(world):
     live.watch("snake_scene_sample_mm", body["sample_spacing_mm"])
     live.watch("snake_scene_initial_mm", body["initial_tail_mm"])
     live.watch("snake_scene_points", body["maximum_tail_points"])
-`,Aa=`# Drive between Cartesian food waypoints; stop on a wall or the finite tail.
+`,Na=`# Drive between Cartesian food waypoints; stop on a wall or the finite tail.
 
 from challenge import WORLD
 from course_setup import make_navigation_controller, make_robot
@@ -10245,7 +10280,7 @@ finally:
     robot.stop()
 
 print("SnakeGame:", game.phase, "score", game.score, "of", len(game.food))
-`,ja=`# Robot calibration and navigation settings for SnakeGame.
+`,Pa=`# Robot calibration and navigation settings for SnakeGame.
 
 from ucsb_xrp import NavigationConfig, RobotConfig
 from snake_config import CONFIG
@@ -10270,7 +10305,7 @@ def navigation_config_for_speed(speed_mm_s):
 
 
 NAVIGATION_CONFIG = navigation_config_for_speed(CONFIG["controls"]["speed_mm_s"]["default"])
-`,Ma=`# Read the SnakeGame settings used by Python and the arena view.
+`,Fa=`# Read the SnakeGame settings used by Python and the arena view.
 
 import json
 import sys
@@ -10287,7 +10322,7 @@ for root in (".",) + tuple(sys.path):
         continue
 else:
     raise OSError("snake_config.json was not found in this project")
-`,Na=`# Repeatable food positions for both SnakeGame arenas.
+`,Ia=`# Repeatable food positions for both SnakeGame arenas.
 
 from math import floor, sqrt
 from snake_config import CONFIG
@@ -10332,7 +10367,7 @@ def food_positions(world, count):
             y = bounds[1] + margin + (row + 0.5) * cell_height + dy
             result.append((floor(x + 0.5), floor(y + 0.5)))
     return tuple(result)
-`,Pa=`# Finite tail and food rules; no robot or browser dependencies.
+`,La=`# Finite tail and food rules; no robot or browser dependencies.
 
 from math import cos, sin, sqrt
 from ucsb_xrp import NavigationGoal
@@ -10462,7 +10497,7 @@ class SnakeGame:
                 self.phase = "complete"
             return True
         return False
-`,Fa=`# Experiment settings. Edit world.json for the arena and starting pose.
+`,Ra=`# Experiment settings. Edit world.json for the arena and starting pose.
 
 from ucsb_xrp import load_world
 
@@ -10471,7 +10506,7 @@ WORLD = load_world()  # initial_pose and geometry come from world.json.
 INITIAL_POSE = WORLD.initial_pose
 OBSTACLE_STOP_MM = 400.0  # Forward distance measured from the ultrasound sensor.
 SPIRAL_EXPANSION_MM = 8000.0  # Expand slowly enough to see several circuits inside the arena.
-`,Ia=`# Assemble the supplied components used by this demonstration.
+`,za=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -10492,7 +10527,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,La=`# Publish the distance travelled and requested yaw rate for one sample.
+`,Ba=`# Publish the distance travelled and requested yaw rate for one sample.
 
 from ucsb_xrp import live
 
@@ -10506,7 +10541,7 @@ WINDING_RATE = live.number("spiral_winding_turns_per_m", 0.7, minimum=0.3, maxim
 def publish_spiral_values(travel_mm, turn_rate_rad_s):
     live.plot("travel_mm", travel_mm, unit="mm", label="Travel")
     live.plot("turn_rate_rad_s", turn_rate_rad_s, unit="rad/s", label="Yaw rate")
-`,Ra=`# Drive an expanding spiral and stop before a nearby obstacle.
+`,Va=`# Drive an expanding spiral and stop before a nearby obstacle.
 
 from math import pi
 
@@ -10551,7 +10586,7 @@ finally:  # Stop motors whenever this motion block exits.
     robot.stop()
 print(result)
 print("final_pose:", state.pose)
-`,za=`# Nominal robot settings shared by virtual and physical XRP targets.
+`,Ha=`# Nominal robot settings shared by virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -10565,7 +10600,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
-`,Ba=`# Experiment settings. Edit world.json for the arena and starting pose.
+`,Ua=`# Experiment settings. Edit world.json for the arena and starting pose.
 
 from ucsb_xrp import live, load_world
 
@@ -10573,7 +10608,7 @@ from ucsb_xrp import live, load_world
 WORLD = load_world()  # initial_pose and geometry come from world.json.
 # ProjectWorld.waypoints() returns NavigationGoal values in marker-file order.
 ROUTE = WORLD.waypoints()
-`,Va=`# Assemble the supplied components used by this demonstration.
+`,Wa=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -10600,7 +10635,7 @@ def make_robot(config):
 # Route decisions use the independently selected navigation class.
 def make_navigation_controller(config):
     return NavigationController(config)
-`,Ha=`# Publish route progress as estimated wheel travel and phase.
+`,Ga=`# Publish route progress as estimated wheel travel and phase.
 
 from ucsb_xrp import live
 
@@ -10612,7 +10647,7 @@ def publish_travel(travel_mm):
 
 def publish_phase(phase):
     live.watch("phase", phase)
-`,Ua=`# Trace a block-letter UCSB route from ordered world waypoints.
+`,Ka=`# Trace a block-letter UCSB route from ordered world waypoints.
 
 from challenge import WORLD, ROUTE
 from course_setup import make_navigation_controller, make_robot
@@ -10650,7 +10685,7 @@ try:  # The finally block stops the robot whenever the route exits.
     print("final_pose:", state.pose)
 finally:  # Stop the motors after normal completion or a Python exception.
     robot.stop()
-`,Wa=`# Nominal robot and navigation settings for the UCSB route.
+`,qa=`# Nominal robot and navigation settings for the UCSB route.
 
 from ucsb_xrp import NavigationConfig, RobotConfig
 
@@ -10674,7 +10709,7 @@ NAVIGATION_CONFIG = NavigationConfig(
     heading_tolerance_rad=0.08,
     realign_heading_rad=0.25,
 )
-`,Ga=`# Assemble the supplied components used by this demonstration.
+`,Ja=`# Assemble the supplied components used by this demonstration.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -10695,14 +10730,14 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,Ka=`# Small, explicit open-loop effort sweep. Each pair moves together.
+`,Ya=`# Small, explicit open-loop effort sweep. Each pair moves together.
 EFFORTS = (0.16, 0.22, 0.28)
 # Each effort interval is bracketed by a zero-command settling interval.
 EFFORT_DURATION_S = 0.7
 ZERO_DURATION_S = 0.5
 # Abort if the wheel-travel envelope is exceeded across the whole sweep.
 MAXIMUM_WHEEL_TRAVEL_MM = 1500.0
-`,qa=`# Publish motor command and measured wheel-speed samples.
+`,Xa=`# Publish motor command and measured wheel-speed samples.
 
 from ucsb_xrp import live
 
@@ -10712,7 +10747,7 @@ def publish_motor_values(command, measurements):
     live.plot("effort", command, label="Motor effort")
     live.plot("left_speed_mm_s", measurements.wheel_speeds.left_mm_s, unit="mm/s", label="Left speed")
     live.plot("right_speed_mm_s", measurements.wheel_speeds.right_mm_s, unit="mm/s", label="Right speed")
-`,Ja=`# Measure motor effort versus wheel speed without wheel-speed feedback.
+`,Za=`# Measure motor effort versus wheel speed without wheel-speed feedback.
 from time import sleep_ms
 from experiment import (
     EFFORTS,
@@ -10761,7 +10796,7 @@ try:
     print("Motor characterization complete")
 finally:  # Stop the motors after normal completion or a Python exception.
     bot.stop()
-`,Ya=`# Supplied nominal calibration for the motor-characterization demo.
+`,Qa=`# Supplied nominal calibration for the motor-characterization demo.
 # Replace these defaults with measurements from your robot before physical use.
 
 from ucsb_xrp import RobotConfig
@@ -10776,7 +10811,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.65,
 )
-`,Xa=`# Check Tutorial 1 functions without starting either robot.
+`,$a=`# Check Tutorial 1 functions without starting either robot.
 
 from student_work import (
     average_speed_mm_s,
@@ -10913,7 +10948,7 @@ def run_exercise_checks():
 
 if __name__ == "__main__":
     run_exercise_checks()
-`,Za=`# Run the Tutorial 1 checks, then print examples from the completed functions.
+`,eo=`# Run the Tutorial 1 checks, then print examples from the completed functions.
 
 from exercise_checks import run_exercise_checks
 from student_work import (
@@ -10934,7 +10969,7 @@ if run_exercise_checks():
     print("Tutorial 1 complete")
 else:
     print("Restore the runnable examples in student_work.py")
-`,Qa=`# Runnable Python examples used by Tutorial 1. This tutorial does not start a robot.
+`,to=`# Runnable Python examples used by Tutorial 1. This tutorial does not start a robot.
 
 
 # Divide nonnegative distance (mm) by positive duration (s); return mm/s.
@@ -10988,7 +11023,7 @@ def wheel_speed_summary(
         "mean_right_mm_s": mean_right_mm_s,
         "mean_difference_mm_s": mean_left_mm_s - mean_right_mm_s,
     }
-`,$a=`# Assemble the supplied course components used by this tutorial.
+`,no=`# Assemble the supplied course components used by this tutorial.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -11009,7 +11044,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,eo=`# Check measured Tutorial 2 segments without starting a robot.
+`,ro=`# Check measured Tutorial 2 segments without starting a robot.
 
 from math import pi
 
@@ -11116,7 +11151,7 @@ def run_exercise_checks():
 
 if __name__ == "__main__":
     run_exercise_checks()
-`,to=`# Draw a square from measured wheel travel and estimated heading.
+`,io=`# Draw a square from measured wheel travel and estimated heading.
 
 from math import pi
 
@@ -11163,7 +11198,7 @@ finally:  # Stop motors whenever this motion block exits.
     robot.stop()
 print("Tutorial 2 drawing complete")
 print("final_pose:", state.pose)
-`,no=`# Nominal settings shared by the virtual and physical XRP targets.
+`,ao=`# Nominal settings shared by the virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -11177,7 +11212,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-`,ro=`# Measured straight and turning segments for a Virtual XRP drawing.
+`,oo=`# Measured straight and turning segments for a Virtual XRP drawing.
 
 from ucsb_xrp import MotionCommand, RobotState, wrap_angle_rad
 
@@ -11244,7 +11279,7 @@ def build_drawing(
         segments.append(DrawingSegment("side {}".format(index + 1), side_speed_mm_s, side_distance_mm))
         segments.append(TurnSegment("corner {}".format(index + 1), turn_rate_rad_s, turn_angle_rad))
     return segments
-`,io=`# Assemble the supplied course components used by this tutorial.
+`,so=`# Assemble the supplied course components used by this tutorial.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -11265,7 +11300,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,ao=`# Software checks for the Tutorial 3 RobotState calculation and sampled run.
+`,co=`# Software checks for the Tutorial 3 RobotState calculation and sampled run.
 
 from ucsb_xrp import Measurements, MotionCommand, Pose, RobotState, load_world
 
@@ -11450,7 +11485,7 @@ def run_exercise_checks():
 
 if __name__ == "__main__":
     run_exercise_checks()
-`,oo=`# Construct the Virtual XRP and call the checked Tutorial 3 program.
+`,lo=`# Construct the Virtual XRP and call the checked Tutorial 3 program.
 
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks
@@ -11471,7 +11506,7 @@ final_state = run_robot_program(make_robot(ROBOT_CONFIG), FORWARD_SPEED_MM_S, TA
 print("Tutorial 3 run complete")
 print("mean_wheel_position_mm:", mean_wheel_position_mm(final_state))
 print("final_pose:", final_state.pose)
-`,so=`# Nominal settings shared by the virtual and physical XRP targets.
+`,uo=`# Nominal settings shared by the virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -11485,7 +11520,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-`,co=`# Read RobotState and run one straight motion to a measured wheel-travel target.
+`,fo=`# Read RobotState and run one straight motion to a measured wheel-travel target.
 
 from ucsb_xrp import MotionCommand, Robot, RobotState, load_world
 
@@ -11519,7 +11554,7 @@ def run_robot_program(
         raise RuntimeError("Measured wheel travel did not reach the target")
     finally:  # Stop the motors after completion or a Python exception.
         robot.stop()
-`,lo=`# Assemble the supplied course components used by this tutorial.
+`,po=`# Assemble the supplied course components used by this tutorial.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -11540,7 +11575,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,uo=`# Behavior checks for the Tutorial 4 state, command, and telemetry functions.
+`,mo=`# Behavior checks for the Tutorial 4 state, command, and telemetry functions.
 
 import student_work
 from ucsb_xrp import Measurements, MotionCommand, Pose, RobotState
@@ -11714,7 +11749,7 @@ def run_exercise_checks():
 
 if __name__ == "__main__":
     run_exercise_checks()
-`,fo=`# Monitor controls for the approach, turn, and stopped phases.
+`,ho=`# Monitor controls for the approach, turn, and stopped phases.
 # The behavior reads .value after each robot sample.
 
 from ucsb_xrp import live
@@ -11755,7 +11790,7 @@ TURN_DIRECTION = live.choice(
     label="Turn direction",
 )
 RUN_BEHAVIOR = live.toggle("tutorial_run_behavior", True, label="Run behavior")
-`,po=`# Approach a measured wall, turn through an estimated quarter-turn, and stop.
+`,go=`# Approach a measured wall, turn through an estimated quarter-turn, and stop.
 
 from math import pi
 
@@ -11844,7 +11879,7 @@ else:
         robot.stop()
     print("Tutorial 4 behavior complete")
     print("final_pose:", state.pose)
-`,mo=`# Nominal settings shared by the virtual and physical XRP targets.
+`,_o=`# Nominal settings shared by the virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -11858,7 +11893,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-`,ho=`# Runnable measured behavior and telemetry functions for Tutorial 4.
+`,vo=`# Runnable measured behavior and telemetry functions for Tutorial 4.
 
 from live_variables import FORWARD_SPEED, RUN_BEHAVIOR, STOP_DISTANCE, TURN_DIRECTION, TURN_RATE
 from ucsb_xrp import MotionCommand, RobotState, live
@@ -11925,7 +11960,7 @@ def publish_telemetry(state: RobotState, phase: str) -> None:
     ) / 2.0
     live.plot("wheel_distance_mm", mean_distance_mm, unit="mm")
     live.plot("heading_rad", state.pose.heading_rad, unit="rad")
-`,go=`# Assemble the supplied course components used by this tutorial.
+`,yo=`# Assemble the supplied course components used by this tutorial.
 
 from ucsb_xrp import Robot, XRPBot
 from ucsb_xrp_reference import (
@@ -11946,7 +11981,7 @@ def make_robot(config):
         DifferentialDrive(config),
         Odometry(config),
     )
-`,_o=`# Check each field of the Tutorial 5 report without starting a robot.
+`,bo=`# Check each field of the Tutorial 5 report without starting a robot.
 
 from student_work import preflight_report
 from ucsb_xrp import Measurements, Pose, RobotState
@@ -12075,14 +12110,14 @@ def run_exercise_checks():
 
 if __name__ == "__main__":
     run_exercise_checks()
-`,vo=`# Explicit motion permission for the short physical preflight.
+`,xo=`# Explicit motion permission for the short physical preflight.
 
 from ucsb_xrp import live
 
 
 # Stationary checks always run; this control alone permits the motion segment.
 ENABLE_SHORT_MOTION = live.toggle("tutorial_enable_short_motion", False, label="Enable short motion")
-`,yo=`# Check stationary sensors, then request one short straight motion.
+`,So=`# Check stationary sensors, then request one short straight motion.
 
 from course_setup import make_robot
 from exercise_checks import run_exercise_checks
@@ -12168,7 +12203,7 @@ def run_preflight():
 
 
 run_preflight()
-`,bo=`# Nominal settings shared by the virtual and physical XRP targets.
+`,Co=`# Nominal settings shared by the virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
@@ -12182,7 +12217,7 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-`,xo=`# Summarize stationary RobotState samples collected during Tutorial 5.
+`,wo=`# Summarize stationary RobotState samples collected during Tutorial 5.
 
 
 # Inputs: nonempty RobotState sequence from the stationary sample run.
@@ -12218,7 +12253,7 @@ def preflight_report(states: object) -> dict:
         "nearest_range_mm": nearest_range_mm,
         "button_was_pressed": button_was_pressed,
     }
-`,So=`# Manual driving
+`,To=`# Manual driving
 
 This demonstration lets you steer the XRP with two sliders in **Monitor → Live
 controls**. Open the Project in the IDE, choose the **virtual XRP** first, and
@@ -12239,7 +12274,7 @@ supplied robot components; \`robot_config.py\` holds the robot settings. The
 same project can run on a physical XRP, but use a clear floor area, keep the
 robot in view, and have **Stop** ready. This demonstration has no automatic
 obstacle avoidance; the front range sensor cannot see behind the robot.
-`,Co=`# Obstacle turn
+`,Eo=`# Obstacle turn
 
 Run a three-part motion sequence:
 
@@ -12267,7 +12302,7 @@ A rotation that takes more than eight seconds stops with an error.
 
 The \`finally\` block calls \`robot.stop()\` when the sequence ends or a Python
 error interrupts it.
-`,wo=`# Random-snake route
+`,Do=`# Random-snake route
 
 The XRP drives a short straight segment, rotates 90 degrees left or right,
 and repeats this sequence twelve times. **Run** starts the route; the robot
@@ -12296,7 +12331,7 @@ A straight segment stops with an error if it takes more than 30 seconds; a
 rotation has eight seconds. These limits help identify a robot that is not
 moving as requested. The \`finally\` block calls \`robot.stop()\` when the route
 ends or a Python error interrupts it.
-`,To=`# Roomba-style obstacle avoidance
+`,Oo=`# Roomba-style obstacle avoidance
 
 The XRP drives toward an obstacle, reverses briefly, turns, and drives forward
 again. **Run** starts the demonstration; press **Stop** when finished.
@@ -12324,7 +12359,7 @@ watch the robot and use **Stop** if necessary. The robot has no rear range senso
 If a turn does not finish within eight seconds, the program stops and reports
 the problem. The \`finally\` block calls \`robot.stop()\` when the motion sequence
 ends or a Python error interrupts it.
-`,Eo=`# SnakeGame
+`,ko=`# SnakeGame
 
 Select **Compile**, then **Run**. The robot drives between food pellets in the
 arena. Each pellet it reaches disappears, adds one point, and lengthens the
@@ -12367,7 +12402,7 @@ detect another robot's displayed tail. The narrow displayed body is a game
 graphic and does not establish clearance for the physical XRP. The 201-food
 tail may use substantially more MicroPython memory than the virtual default;
 this larger configuration has not been tested on a physical XRP.
-`,Do=`# Expanding spiral
+`,Ao=`# Expanding spiral
 
 Run this demonstration to see how forward speed and yaw rate shape a curved
 path. The robot drives forward while its yaw rate gradually decreases, so the
@@ -12405,7 +12440,7 @@ targets.
 \`try\` contains the motion sequence. When it ends normally or a Python error
 interrupts it, \`finally\` runs \`robot.stop()\` to stop the motors. The IDE also
 provides **Stop** during a run.
-`,Oo=`# UCSB waypoint route
+`,jo=`# UCSB waypoint route
 
 The XRP traces the block letters **UCSB** by following a sequence of positions
 in the arena. **Run** starts the route; the robot stops after reaching all 28
@@ -12430,7 +12465,7 @@ slip and robot dimensions.
 
 The \`finally\` block calls \`robot.stop()\` when the route ends or a Python error
 interrupts it.
-`,ko=`# Demonstration · Motor Characterization
+`,Mo=`# Demonstration · Motor Characterization
 
 Measure how each wheel's speed changes with motor effort, without wheel-speed
 feedback. Use the results to choose separate left and right feedforward settings
@@ -12467,7 +12502,7 @@ its offset and gain as \`left_start_command\` and \`left_speed_command_gain\` in
 wheel. Verify these values in the closed-loop Curling run. Keep the plots,
 measurement conditions, and fitted values for the preliminary lab-work section
 of the pair's Challenge 1 report.
-`,Ao='# Tutorial 1: Python essentials\n\nRun four short, complete functions in `student_work.py`. This project does not\nstart either robot. It introduces the Python syntax used in the remaining\ntutorials: values, functions, decisions, loops, and collections.\n\nStart with **Run** and read the results in **Program output**. Keep these\ninstructions beside the editable `student_work.py`; most edits are in that file, with one input-change exercise in\nthe supplied `main.py` below. Make one temporary expression or branch change in `student_work.py`\nand run again. Each Run checks the four functions before printing the examples.\n\n## Reading a function\n\n```python\ndef average_speed_mm_s(distance_mm: float, duration_s: float) -> float:\n    speed_mm_s = distance_mm / duration_s\n    return speed_mm_s\n```\n\n- `def` begins a function.\n- The values inside parentheses are its inputs.\n- `return` sends one result back to the caller.\n- The annotations after `:` and `->` document expected types. MicroPython does\n  not enforce them, so your code must still handle invalid values deliberately.\n- A name ending in `_mm`, `_s`, or `_mm_s` states its physical unit.\n\nIndentation defines which statements belong to the function or to an `if` or\n`for` block. Use four spaces for each indentation level.\n\n## Example 1: calculate average speed\n\nRead `average_speed_mm_s(distance_mm, duration_s)`, trace the supplied call from\n`main.py`, then predict the result for the input below.\n\n```python\naverage_speed_mm_s(600.0, 4.0)  # returns 150.0\n```\n\nReturn distance divided by duration. Reject a negative distance or a duration\nthat is zero or negative with `raise ValueError(...)`. `ValueError` identifies an input that this function does not accept.\n\n## Example 2: choose from measured conditions\n\nRead `range_state(range_mm, stop_distance_mm)` and predict which branch each\nsupplied call below selects.\n\n```python\nrange_state(180.0, 250.0)  # returns "stop"\nrange_state(None, 250.0)   # returns "unavailable"\n```\n\nUse `if`, `elif`, and `else` to return:\n\n- `"unavailable"` when `range_mm is None`;\n- `"stop"` when range is at or below the stop distance; and\n- `"clear"` otherwise.\n\n`None` means that no usable measurement is available. Check it before making a\nnumerical comparison. Reject a stop distance that is zero or negative.\n\n## Example 3: total a route with a loop\n\nRead `route_distance_mm(segment_distances_mm)`, then predict the total if another\nroute segment were added.\n\n```python\nroute_distance_mm([120.0, 80.0, 50.0])  # returns 250.0\n```\n\nA list (`[...]`) and tuple (`(...)`) are ordered collections. Start a total at\n`0.0`, use a `for` loop to visit each distance, and add it to the total. Reject\na negative segment. An empty route has a total distance of `0.0`.\n\n## Example 4: return named results\n\nRead `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`, then predict\nwhich fields would change if one wheel-speed sample changed.\n\n```python\nsummary = wheel_speed_summary([100.0, 120.0], [90.0, 110.0])\nprint(summary["mean_difference_mm_s"])  # 10.0\n```\n\nReject empty inputs or inputs with different lengths. Otherwise return a\ndictionary with these four named results:\n\n- `"sample_count"`;\n- `"mean_left_mm_s"`;\n- `"mean_right_mm_s"`; and\n- `"mean_difference_mm_s"`, calculated as left mean minus right mean.\n\nA dictionary groups related values under descriptive keys. This pattern is\nused later for telemetry summaries.\n\n## Run and observe\n\n1. Select **Run** and read all four results in **Program output**.\n2. Open `student_work.py` beside these instructions and trace one result back\n   through its function.\n3. Make one small expression or branch change in `student_work.py` and predict\n   which check will identify it.\n4. Select **Run** again and compare the result with your prediction.\n5. Restore the supplied behavior before continuing if a check identifies a\n   mismatch.\n\nIf Python reports a syntax error, inspect the stated line and the line above\nit. Check indentation, parentheses, commas, colons, and spelling. A temporary\n`print(...)` can reveal an intermediate value; remove repeated debug prints\nafter the function works.\n\n## From MATLAB to the project files\n\n| Python form | Meaning in this course |\n| --- | --- |\n| `samples[0]` | First sample; indices start at zero. |\n| `range(4)` | Four values: 0, 1, 2, 3; the endpoint is excluded. |\n| `distance_mm ** 2` | Squared value; `^` is not exponentiation. |\n| `[1, 2] + [3]` | List concatenation, not vector addition. |\n| `value is None` | Missing reading; never substitute a physical zero silently. |\n| `if error_mm > tolerance_mm:` | Indentation defines the conditional block. |\n| `self.previous_count = count` | Store state for the next call on this object. |\n| `from robot_config import ROBOT_CONFIG` | Import a named value from a file. |\n\n`=` assigns; `==` compares. Use `and`, `or` and `not` for scalar conditions.\nTwo names assigned the same list refer to the same mutable list; use `list(old)`\nwhen an independent copy is intended. Modules replace a shared interactive\nworkspace: make inputs explicit and keep calibration in its named file. Run\ncreates fresh program objects; saved project files remain. Avoid NumPy-specific\noperations in MicroPython. First change a working function, then one small class;\nbase classes supply an interface but do not implement its missing method.\n\n## A complete edit–predict–check cycle\n\nThe four functions use the same units and missing-value rule that later robot\nprograms use. Work through this small data set before changing code:\n\n| Expression | Calculation or decision | Expected result |\n| --- | --- | --- |\n| `average_speed_mm_s(450.0, 3.0)` | 450 mm ÷ 3 s | 150 mm/s |\n| `range_state(None, 250.0)` | No usable reading | `"unavailable"` |\n| `range_state(250.0, 250.0)` | Equality meets the stop threshold | `"stop"` |\n| `route_distance_mm([80.0, 120.0, 50.0])` | Sum three segments | 250 mm |\n| `wheel_speed_summary([100.0, 120.0], [90.0, 110.0])` | Mean left 110, mean right 100 | Mean difference 10 mm/s |\n\nFor one controlled edit, change `range_state` to use `<` instead of `<=` at\nthe threshold. Predict that the equality case changes from `"stop"` to\n`"clear"`; then Run and locate the second check\'s `INCORRECT` line. Restore\n`<=` and confirm four `PASS` lines. A failed check gives evidence about one\nfunction. It does not mean the Virtual XRP moved: Tutorial 1 never starts a\nrobot.\n\nFor a second edit, change the route example in `main.py` from `[100.0,\n150.0]` to `[100.0, 150.0, 25.0]`. Predict the printed total before Run: it\nshould rise from 250 to 275 mm. This is an experiment with supplied input\ndata; restore the original list afterward. Notice that the independent\n`exercise_checks.py` still tests its own 250 mm example. This separates a\nfunction\'s rule from one particular input.\n\nIf a check fails, read the first `INCORRECT` line and reproduce its specific\ninput. Inspect intermediate values with one temporary `print(...)`, then\nremove it. If a numerical result is wrong, check units and parentheses before\nchanging the expected result. If a `None` case fails, check the missing-value\nbranch before doing arithmetic. Never replace a missing range with zero: zero\nmillimeters would falsely mean an obstacle at the sensor.\n\nContinue with **Tutorial 2: Virtual XRP drawing**. It uses these same units\nand comparisons on readings returned by a sampled robot.\n',jo='# Tutorial 2: draw from measured motion\n\nUse the **Virtual XRP** to draw four straight sides and four left turns. The\nprogram stops each side when measured mean wheel travel reaches its target and\neach corner when estimated heading changes by its target angle. This connects\nTutorial 1\'s arithmetic to a changing `RobotState`. The supplied drawing is\nabout 180 mm on each side; actual corners may round because motors respond\nand samples arrive at discrete intervals.\n\nOpen Monitor beside the IDE. Select **Run** before editing, then read the\nthree `PASS` lines in Program output and inspect the path and final pose. The\nfiles are already runnable so that each later edit has a visible baseline.\n\n## Project files and first edit\n\n| File | Role |\n| --- | --- |\n| `student_work.py` | Edit the segment data classes and `build_drawing(...)` to explore a path. |\n| `main.py` | Supplied entrypoint; sets target dimensions, runs each segment, and stops the robot. |\n| `exercise_checks.py` | Supplied checks for commands, measured completion, and segment order. |\n| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |\n| `world.json` | Supplied arena and initial pose used by the Virtual XRP. |\n\nEach `.py` file is a Python module. `main.py` imports `build_drawing` from\n`student_work.py` and calls it; it does not copy that function\'s code.\n\nAfter the baseline, change `SIDE_DISTANCE_MM` in `main.py` from 180 to 120 mm,\n**Reset** the Virtual XRP, and Run. Predict the change before looking at the\npath: each side should be about 60 mm shorter, so total commanded straight\ntravel falls by about `4 × 60 = 240 mm`. Restore 180 mm, then make the next\nchanges in `student_work.py`. This changes the value passed into `build_drawing()`; the segment methods\nremain in `student_work.py`.\n\n## 1. Read one measurement calculation\n\n`DrawingSegment("side 1", 140.0, 180.0)` stores a forward speed in mm/s and a\ntarget distance in mm. Its `command()` returns\n`MotionCommand(140.0, 0.0)`: forward motion with zero requested turn. A\n`MotionCommand` is a named data record; it is not a duration or a raw motor\nvoltage.\n\n`is_complete(start_state, current_state)` compares two readings:\n\n```python\nleft_mm = current.left_position_mm - start.left_position_mm\nright_mm = current.right_position_mm - start.right_position_mm\ntravel_mm = (left_mm + right_mm) / 2.0\n```\n\nFor starting wheel positions `(30, 34)` mm and current positions `(129, 133)`\nmm, both wheels advanced 99 mm; a 100 mm side is not yet complete. At\n`(131, 135)` mm, both advanced 101 mm and it is complete. Subtracting the\nstarting readings matters: the robot\'s wheel positions do not reset at every\nside.\n\n`__init__` runs when a segment object is created. Its `self.name`,\n`self.forward_speed_mm_s`, and `self.distance_mm` belong to that instance.\n`command()` and `is_complete()` read those same fields later. Python type\nannotations state expected types but do not enforce them by themselves;\nconstructor checks reject a missing name or nonpositive speed or distance.\n\n## 2. Read one turning calculation\n\n`TurnSegment("corner 1", 1.5, pi / 2.0)` requests an in-place left turn at 1.5 rad/s.\nIts `is_complete(...)` compares the current estimated heading with the heading\nat the start of this corner. `pi` is imported from `math`; `pi / 2.0` rad is\n90°. At 1.50 rad of heading change,\nthe corner is short of that target; at 1.60 rad, it has reached it. The code\nuses `wrap_angle_rad` so crossing the `−π`/`π` heading boundary does not make\none ordinary quarter-turn look like a full revolution.\n\nThe segment classes each store a different physical target. `DrawingSegment`\nuses wheel travel in mm; `TurnSegment` uses heading change in rad. Their shared\nmethod names let the short loop in `main.py` run either segment without asking\nwhich kind it received.\n\n## 3. Build and change an ordered path\n\n`build_drawing(side_speed_mm_s, side_distance_mm, turn_rate_rad_s,\nturn_angle_rad)` creates a list alternating side, corner, side, corner, and so\non. Read the `for index in range(4)` loop and predict the first and last\nsegment names. The first item is `side 1`; the eighth is `corner 4`.\n\nChange `build_drawing(...)` to use a shorter distance for sides 2 and 4 while\nleaving sides 1 and 3 at the requested distance. For example, half-length\nsides make a rectangle. Keep the passed-in `side_distance_mm` as the source of\nboth lengths so the function still works with another input. The checks will\nsay the result differs from the expected square sequence; **Run still executes the\ncurrent valid drawing** so you can inspect your rectangle. Restore the square\nbefore continuing.\n\n## 4. Compare prediction with the run\n\n1. Reset, Run, and note the three check results, drawn path, and `final_pose`.\n2. Make one dimension or sequence change. Predict which sides or corners\n   change, in mm or rad, before running again.\n3. Reset and Run. Compare the new path with the prediction. Use Program output\n   to locate a mismatch in a command value, measured completion rule, or\n   segment order.\n4. Restore the baseline; Run once more and confirm three `PASS` lines.\n\nThe inner loop in `main.py` calls `Robot.step(command)` repeatedly **until the\nmeasured target is reached**. It does not use a duration as the drawing\ninstruction. `MAXIMUM_SEGMENT_SAMPLES` is a fault stop if measurements or\nmotion fail to advance; it is not the target for a normal side or corner.\n`Robot.step()` already schedules samples, so do not add `sleep()` inside the\nloop. The `finally` block calls `robot.stop()` when motion finishes or Python\nraises an error. Select **Stop** in the IDE to interrupt a running experiment.\n\nContinue to **Tutorial 3: sampled robot programs** to examine the `RobotState`\nreturned by each sample and one measured straight run.\n',Mo=`# Tutorial 3: a measured robot program
+`,No='# Tutorial 1: Python essentials\n\nRun four short, complete functions in `student_work.py`. This project does not\nstart either robot. It introduces the Python syntax used in the remaining\ntutorials: values, functions, decisions, loops, and collections.\n\nStart with **Run** and read the results in **Program output**. Keep these\ninstructions beside the editable `student_work.py`; most edits are in that file, with one input-change exercise in\nthe supplied `main.py` below. Make one temporary expression or branch change in `student_work.py`\nand run again. Each Run checks the four functions before printing the examples.\n\n## Reading a function\n\n```python\ndef average_speed_mm_s(distance_mm: float, duration_s: float) -> float:\n    speed_mm_s = distance_mm / duration_s\n    return speed_mm_s\n```\n\n- `def` begins a function.\n- The values inside parentheses are its inputs.\n- `return` sends one result back to the caller.\n- The annotations after `:` and `->` document expected types. MicroPython does\n  not enforce them, so your code must still handle invalid values deliberately.\n- A name ending in `_mm`, `_s`, or `_mm_s` states its physical unit.\n\nIndentation defines which statements belong to the function or to an `if` or\n`for` block. Use four spaces for each indentation level.\n\n## Example 1: calculate average speed\n\nRead `average_speed_mm_s(distance_mm, duration_s)`, trace the supplied call from\n`main.py`, then predict the result for the input below.\n\n```python\naverage_speed_mm_s(600.0, 4.0)  # returns 150.0\n```\n\nReturn distance divided by duration. Reject a negative distance or a duration\nthat is zero or negative with `raise ValueError(...)`. `ValueError` identifies an input that this function does not accept.\n\n## Example 2: choose from measured conditions\n\nRead `range_state(range_mm, stop_distance_mm)` and predict which branch each\nsupplied call below selects.\n\n```python\nrange_state(180.0, 250.0)  # returns "stop"\nrange_state(None, 250.0)   # returns "unavailable"\n```\n\nUse `if`, `elif`, and `else` to return:\n\n- `"unavailable"` when `range_mm is None`;\n- `"stop"` when range is at or below the stop distance; and\n- `"clear"` otherwise.\n\n`None` means that no usable measurement is available. Check it before making a\nnumerical comparison. Reject a stop distance that is zero or negative.\n\n## Example 3: total a route with a loop\n\nRead `route_distance_mm(segment_distances_mm)`, then predict the total if another\nroute segment were added.\n\n```python\nroute_distance_mm([120.0, 80.0, 50.0])  # returns 250.0\n```\n\nA list (`[...]`) and tuple (`(...)`) are ordered collections. Start a total at\n`0.0`, use a `for` loop to visit each distance, and add it to the total. Reject\na negative segment. An empty route has a total distance of `0.0`.\n\n## Example 4: return named results\n\nRead `wheel_speed_summary(left_samples_mm_s, right_samples_mm_s)`, then predict\nwhich fields would change if one wheel-speed sample changed.\n\n```python\nsummary = wheel_speed_summary([100.0, 120.0], [90.0, 110.0])\nprint(summary["mean_difference_mm_s"])  # 10.0\n```\n\nReject empty inputs or inputs with different lengths. Otherwise return a\ndictionary with these four named results:\n\n- `"sample_count"`;\n- `"mean_left_mm_s"`;\n- `"mean_right_mm_s"`; and\n- `"mean_difference_mm_s"`, calculated as left mean minus right mean.\n\nA dictionary groups related values under descriptive keys. This pattern is\nused later for telemetry summaries.\n\n## Run and observe\n\n1. Select **Run** and read all four results in **Program output**.\n2. Open `student_work.py` beside these instructions and trace one result back\n   through its function.\n3. Make one small expression or branch change in `student_work.py` and predict\n   which check will identify it.\n4. Select **Run** again and compare the result with your prediction.\n5. Restore the supplied behavior before continuing if a check identifies a\n   mismatch.\n\nIf Python reports a syntax error, inspect the stated line and the line above\nit. Check indentation, parentheses, commas, colons, and spelling. A temporary\n`print(...)` can reveal an intermediate value; remove repeated debug prints\nafter the function works.\n\n## From MATLAB to the project files\n\n| Python form | Meaning in this course |\n| --- | --- |\n| `samples[0]` | First sample; indices start at zero. |\n| `range(4)` | Four values: 0, 1, 2, 3; the endpoint is excluded. |\n| `distance_mm ** 2` | Squared value; `^` is not exponentiation. |\n| `[1, 2] + [3]` | List concatenation, not vector addition. |\n| `value is None` | Missing reading; never substitute a physical zero silently. |\n| `if error_mm > tolerance_mm:` | Indentation defines the conditional block. |\n| `self.previous_count = count` | Store state for the next call on this object. |\n| `from robot_config import ROBOT_CONFIG` | Import a named value from a file. |\n\n`=` assigns; `==` compares. Use `and`, `or` and `not` for scalar conditions.\nTwo names assigned the same list refer to the same mutable list; use `list(old)`\nwhen an independent copy is intended. Modules replace a shared interactive\nworkspace: make inputs explicit and keep calibration in its named file. Run\ncreates fresh program objects; saved project files remain. Avoid NumPy-specific\noperations in MicroPython. First change a working function, then one small class;\nbase classes supply an interface but do not implement its missing method.\n\n## A complete edit–predict–check cycle\n\nThe four functions use the same units and missing-value rule that later robot\nprograms use. Work through this small data set before changing code:\n\n| Expression | Calculation or decision | Expected result |\n| --- | --- | --- |\n| `average_speed_mm_s(450.0, 3.0)` | 450 mm ÷ 3 s | 150 mm/s |\n| `range_state(None, 250.0)` | No usable reading | `"unavailable"` |\n| `range_state(250.0, 250.0)` | Equality meets the stop threshold | `"stop"` |\n| `route_distance_mm([80.0, 120.0, 50.0])` | Sum three segments | 250 mm |\n| `wheel_speed_summary([100.0, 120.0], [90.0, 110.0])` | Mean left 110, mean right 100 | Mean difference 10 mm/s |\n\nFor one controlled edit, change `range_state` to use `<` instead of `<=` at\nthe threshold. Predict that the equality case changes from `"stop"` to\n`"clear"`; then Run and locate the second check\'s `INCORRECT` line. Restore\n`<=` and confirm four `PASS` lines. A failed check gives evidence about one\nfunction. It does not mean the Virtual XRP moved: Tutorial 1 never starts a\nrobot.\n\nFor a second edit, change the route example in `main.py` from `[100.0,\n150.0]` to `[100.0, 150.0, 25.0]`. Predict the printed total before Run: it\nshould rise from 250 to 275 mm. This is an experiment with supplied input\ndata; restore the original list afterward. Notice that the independent\n`exercise_checks.py` still tests its own 250 mm example. This separates a\nfunction\'s rule from one particular input.\n\nIf a check fails, read the first `INCORRECT` line and reproduce its specific\ninput. Inspect intermediate values with one temporary `print(...)`, then\nremove it. If a numerical result is wrong, check units and parentheses before\nchanging the expected result. If a `None` case fails, check the missing-value\nbranch before doing arithmetic. Never replace a missing range with zero: zero\nmillimeters would falsely mean an obstacle at the sensor.\n\nContinue with **Tutorial 2: Virtual XRP drawing**. It uses these same units\nand comparisons on readings returned by a sampled robot.\n',Po='# Tutorial 2: draw from measured motion\n\nUse the **Virtual XRP** to draw four straight sides and four left turns. The\nprogram stops each side when measured mean wheel travel reaches its target and\neach corner when estimated heading changes by its target angle. This connects\nTutorial 1\'s arithmetic to a changing `RobotState`. The supplied drawing is\nabout 180 mm on each side; actual corners may round because motors respond\nand samples arrive at discrete intervals.\n\nOpen Monitor beside the IDE. Select **Run** before editing, then read the\nthree `PASS` lines in Program output and inspect the path and final pose. The\nfiles are already runnable so that each later edit has a visible baseline.\n\n## Project files and first edit\n\n| File | Role |\n| --- | --- |\n| `student_work.py` | Edit the segment data classes and `build_drawing(...)` to explore a path. |\n| `main.py` | Supplied entrypoint; sets target dimensions, runs each segment, and stops the robot. |\n| `exercise_checks.py` | Supplied checks for commands, measured completion, and segment order. |\n| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |\n| `world.json` | Supplied arena and initial pose used by the Virtual XRP. |\n\nEach `.py` file is a Python module. `main.py` imports `build_drawing` from\n`student_work.py` and calls it; it does not copy that function\'s code.\n\nAfter the baseline, change `SIDE_DISTANCE_MM` in `main.py` from 180 to 120 mm,\n**Reset** the Virtual XRP, and Run. Predict the change before looking at the\npath: each side should be about 60 mm shorter, so total commanded straight\ntravel falls by about `4 × 60 = 240 mm`. Restore 180 mm, then make the next\nchanges in `student_work.py`. This changes the value passed into `build_drawing()`; the segment methods\nremain in `student_work.py`.\n\n## 1. Read one measurement calculation\n\n`DrawingSegment("side 1", 140.0, 180.0)` stores a forward speed in mm/s and a\ntarget distance in mm. Its `command()` returns\n`MotionCommand(140.0, 0.0)`: forward motion with zero requested turn. A\n`MotionCommand` is a named data record; it is not a duration or a raw motor\nvoltage.\n\n`is_complete(start_state, current_state)` compares two readings:\n\n```python\nleft_mm = current.left_position_mm - start.left_position_mm\nright_mm = current.right_position_mm - start.right_position_mm\ntravel_mm = (left_mm + right_mm) / 2.0\n```\n\nFor starting wheel positions `(30, 34)` mm and current positions `(129, 133)`\nmm, both wheels advanced 99 mm; a 100 mm side is not yet complete. At\n`(131, 135)` mm, both advanced 101 mm and it is complete. Subtracting the\nstarting readings matters: the robot\'s wheel positions do not reset at every\nside.\n\n`__init__` runs when a segment object is created. Its `self.name`,\n`self.forward_speed_mm_s`, and `self.distance_mm` belong to that instance.\n`command()` and `is_complete()` read those same fields later. Python type\nannotations state expected types but do not enforce them by themselves;\nconstructor checks reject a missing name or nonpositive speed or distance.\n\n## 2. Read one turning calculation\n\n`TurnSegment("corner 1", 1.5, pi / 2.0)` requests an in-place left turn at 1.5 rad/s.\nIts `is_complete(...)` compares the current estimated heading with the heading\nat the start of this corner. `pi` is imported from `math`; `pi / 2.0` rad is\n90°. At 1.50 rad of heading change,\nthe corner is short of that target; at 1.60 rad, it has reached it. The code\nuses `wrap_angle_rad` so crossing the `−π`/`π` heading boundary does not make\none ordinary quarter-turn look like a full revolution.\n\nThe segment classes each store a different physical target. `DrawingSegment`\nuses wheel travel in mm; `TurnSegment` uses heading change in rad. Their shared\nmethod names let the short loop in `main.py` run either segment without asking\nwhich kind it received.\n\n## 3. Build and change an ordered path\n\n`build_drawing(side_speed_mm_s, side_distance_mm, turn_rate_rad_s,\nturn_angle_rad)` creates a list alternating side, corner, side, corner, and so\non. Read the `for index in range(4)` loop and predict the first and last\nsegment names. The first item is `side 1`; the eighth is `corner 4`.\n\nChange `build_drawing(...)` to use a shorter distance for sides 2 and 4 while\nleaving sides 1 and 3 at the requested distance. For example, half-length\nsides make a rectangle. Keep the passed-in `side_distance_mm` as the source of\nboth lengths so the function still works with another input. The checks will\nsay the result differs from the expected square sequence; **Run still executes the\ncurrent valid drawing** so you can inspect your rectangle. Restore the square\nbefore continuing.\n\n## 4. Compare prediction with the run\n\n1. Reset, Run, and note the three check results, drawn path, and `final_pose`.\n2. Make one dimension or sequence change. Predict which sides or corners\n   change, in mm or rad, before running again.\n3. Reset and Run. Compare the new path with the prediction. Use Program output\n   to locate a mismatch in a command value, measured completion rule, or\n   segment order.\n4. Restore the baseline; Run once more and confirm three `PASS` lines.\n\nThe inner loop in `main.py` calls `Robot.step(command)` repeatedly **until the\nmeasured target is reached**. It does not use a duration as the drawing\ninstruction. `MAXIMUM_SEGMENT_SAMPLES` is a fault stop if measurements or\nmotion fail to advance; it is not the target for a normal side or corner.\n`Robot.step()` already schedules samples, so do not add `sleep()` inside the\nloop. The `finally` block calls `robot.stop()` when motion finishes or Python\nraises an error. Select **Stop** in the IDE to interrupt a running experiment.\n\nContinue to **Tutorial 3: sampled robot programs** to examine the `RobotState`\nreturned by each sample and one measured straight run.\n',Fo=`# Tutorial 3: a measured robot program
 
 This Virtual XRP project runs one straight segment and ends it when measured
 wheel travel reaches 300 mm. Tutorial 2 used two kinds of segment; here you
@@ -12568,7 +12603,7 @@ instructions; this tutorial's worked comparison is virtual evidence.
 
 Continue to **Tutorial 4: behavior, controls, and telemetry** to make the next
 command depend on range and heading measurements.
-`,No="# Tutorial 4: behavior and live measurements\n\nRun a complete Virtual XRP behavior: approach the marked wall, turn about 90°,\nand stop. Its next command depends on a range reading, a retained phase, and\nestimated heading. You will change one live value while observing the phase\nwatch and two plots, then trace that visible change to a line of Python.\n\nOpen Monitor beside the IDE and **Run the supplied project before editing**.\nProgram output should show three `PASS` checks, then the final pose. The path\nshould approach the wall and turn. Reset before each comparison so both runs\nstart from the same pose. The supplied `main.py` owns the sampled loop and final\nmotor stop; edit `student_work.py` only when exploring a function.\n\n## Project files and the data path\n\n| File | Role |\n| --- | --- |\n| `student_work.py` | Runnable phase, command, and publication functions to read and edit. |\n| `live_variables.py` | Supplied Monitor control declarations for speed, distance, direction, and Run behavior. |\n| `main.py` | Supplied measured approach/turn sequence and motor cleanup. |\n| `exercise_checks.py` | Supplied input/output examples that run before motion. |\n| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |\n| `world.json` | Supplied arena, wall, and start pose shown in Monitor. |\n\n`Robot.step(command, read_range=True)` takes the next sample while approaching.\nThe returned `RobotState` contains `state.measurements.range_mm` and\n`state.pose.heading_rad`. The program passes those values to `next_phase`,\npasses the chosen phase to `command_for_phase`, publishes the same state to\nMonitor, and then requests the next sample. This is the complete\n**measure → decide → command → publish** cycle.\n\n## 1. Predict a phase transition\n\nThere are three phase names: `APPROACH`, `TURN`, and `DONE`. The current phase\nand new readings determine the next one.\n\n| Current phase | New evidence | Next phase |\n| --- | --- | --- |\n| `APPROACH` | Range 300 mm, stop distance 260 mm | `APPROACH` |\n| `APPROACH` | Range 260 mm, stop distance 260 mm | `TURN` |\n| `APPROACH` | Range `None` | `APPROACH` for that one decision |\n| `TURN` | Heading change 1.50 rad, below π/2 | `TURN` |\n| `TURN` | Heading change 1.60 rad, above π/2 | `DONE` |\n| `DONE` | Any later reading | `DONE` |\n\n`None` means no usable range measurement, not zero distance. The function\nchecks `range_mm is not None` before comparing distances. Six consecutive\nunavailable readings cause the supplied runner to stop with a fault, rather\nthan drive toward an unseen wall. `next_phase` itself stays a small,\ninput/output function that can be checked without starting a robot.\n\n`turn_start_heading_rad` is reset when the phase first changes to `TURN`.\nLater heading changes are measured relative to that start, not relative to\nthe original arena heading. The code uses `wrap_angle_rad` for the `−π`/`π`\nboundary. Predict which phase you would choose for a heading change of 1.50\nrad, then compare it with the table before running.\n\n## 2. Predict a motion command\n\n`command_for_phase(...)` returns a `MotionCommand` with named\n`forward_speed_mm_s` and `turn_rate_rad_s` fields.\n\n| Phase | Forward speed | Turn rate |\n| --- | --- | --- |\n| `APPROACH` | Positive live speed | 0 |\n| `TURN`, left | 0 | Positive live turn rate |\n| `TURN`, right | 0 | Negative live turn rate |\n| `DONE` | 0 | 0 |\n\nPositive turn is counterclockwise. At a selected speed of 110 mm/s and turn\nrate of 0.8 rad/s, a left-turn command is `MotionCommand(0.0, 0.8)`, not a\nrequest to drive forward while turning. The function rejects invalid phase,\nspeed, rate, or direction inputs before constructing a command. These are\nrequested robot motions; the supplied wheel controller determines bounded\nmotor effort.\n\n## 3. Change one live control and compare evidence\n\n`live_variables.py` declares speed, stopping distance, turn rate,\ndirection, and a Run behavior toggle. They appear under Monitor controls.\nRead current values through `.value`; the robot applies a changed control at\na sample boundary. Changing a slider during a run does not rewrite the saved\nproject file.\n\n1. Run the baseline with `STOP_DISTANCE = 260 mm`. In Monitor, note the\n   approach path, the range near the phase change, and the final heading.\n2. Reset. Set Stop distance to 340 mm and Run. Predict an earlier turn, farther\n   from the wall, before inspecting the path. Compare the `range_mm` watch at\n   the transition and the two paths. Keep speed and turn rate fixed.\n3. Reset. Restore 260 mm, choose `right`, and Run. Predict the sign of the\n   heading change. Compare the heading plot and final pose with the left run.\n4. Restore `left`. If you change `next_phase` or `command_for_phase` in\n   `student_work.py`, Run again and read the first differing check before\n   interpreting the path.\n\nThe Run behavior toggle can request `DONE` and zero motion at the next sampled\ndecision. The IDE **Stop** action interrupts the run separately.\n\n## 4. Connect telemetry to its source\n\n`publish_telemetry(state, phase)` sends the current `phase` and `range_mm` to\n`live.watch(...)`. A watch shows the latest value; unavailable range appears\nas text. It sends two numerical values to `live.plot(...)`:\n\n- `wheel_distance_mm`: mean left/right wheel position in mm;\n- `heading_rad`: estimated heading in rad.\n\nFor left and right positions 140 and 160 mm, the plotted mean is 150 mm. That\nnumber is a computed wheel-position value, not a separate floor measurement.\nThe plot retains samples in the recorded run; the watch shows current status.\nPublication does not choose a command. Use a `print(...)` for a rare milestone\nor exception, not once per sample.\n\nThe runner stops if approach wheel travel reaches 500 mm without a valid phase\nchange, if six consecutive range readings are unavailable, or if a turn fails\nto reach π/2 within 5 s. Those limits are fault stops; normal approach and turn\nend from range and heading measurements. `robot.stop()` in `finally` covers\nnormal completion and Python exceptions. `Robot.step()` already schedules\nsamples; do not add `sleep()` to the loop. This virtual run does not establish\nphysical stopping distance or sensor calibration.\n\nContinue to **Tutorial 5: Physical XRP deployment** after you can connect a\nvisible path, phase transition, and plotted signal to the source measurements.\n",Po=`# Tutorial 5: Physical XRP deployment
+`,Io="# Tutorial 4: behavior and live measurements\n\nRun a complete Virtual XRP behavior: approach the marked wall, turn about 90°,\nand stop. Its next command depends on a range reading, a retained phase, and\nestimated heading. You will change one live value while observing the phase\nwatch and two plots, then trace that visible change to a line of Python.\n\nOpen Monitor beside the IDE and **Run the supplied project before editing**.\nProgram output should show three `PASS` checks, then the final pose. The path\nshould approach the wall and turn. Reset before each comparison so both runs\nstart from the same pose. The supplied `main.py` owns the sampled loop and final\nmotor stop; edit `student_work.py` only when exploring a function.\n\n## Project files and the data path\n\n| File | Role |\n| --- | --- |\n| `student_work.py` | Runnable phase, command, and publication functions to read and edit. |\n| `live_variables.py` | Supplied Monitor control declarations for speed, distance, direction, and Run behavior. |\n| `main.py` | Supplied measured approach/turn sequence and motor cleanup. |\n| `exercise_checks.py` | Supplied input/output examples that run before motion. |\n| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |\n| `world.json` | Supplied arena, wall, and start pose shown in Monitor. |\n\n`Robot.step(command, read_range=True)` takes the next sample while approaching.\nThe returned `RobotState` contains `state.measurements.range_mm` and\n`state.pose.heading_rad`. The program passes those values to `next_phase`,\npasses the chosen phase to `command_for_phase`, publishes the same state to\nMonitor, and then requests the next sample. This is the complete\n**measure → decide → command → publish** cycle.\n\n## 1. Predict a phase transition\n\nThere are three phase names: `APPROACH`, `TURN`, and `DONE`. The current phase\nand new readings determine the next one.\n\n| Current phase | New evidence | Next phase |\n| --- | --- | --- |\n| `APPROACH` | Range 300 mm, stop distance 260 mm | `APPROACH` |\n| `APPROACH` | Range 260 mm, stop distance 260 mm | `TURN` |\n| `APPROACH` | Range `None` | `APPROACH` for that one decision |\n| `TURN` | Heading change 1.50 rad, below π/2 | `TURN` |\n| `TURN` | Heading change 1.60 rad, above π/2 | `DONE` |\n| `DONE` | Any later reading | `DONE` |\n\n`None` means no usable range measurement, not zero distance. The function\nchecks `range_mm is not None` before comparing distances. Six consecutive\nunavailable readings cause the supplied runner to stop with a fault, rather\nthan drive toward an unseen wall. `next_phase` itself stays a small,\ninput/output function that can be checked without starting a robot.\n\n`turn_start_heading_rad` is reset when the phase first changes to `TURN`.\nLater heading changes are measured relative to that start, not relative to\nthe original arena heading. The code uses `wrap_angle_rad` for the `−π`/`π`\nboundary. Predict which phase you would choose for a heading change of 1.50\nrad, then compare it with the table before running.\n\n## 2. Predict a motion command\n\n`command_for_phase(...)` returns a `MotionCommand` with named\n`forward_speed_mm_s` and `turn_rate_rad_s` fields.\n\n| Phase | Forward speed | Turn rate |\n| --- | --- | --- |\n| `APPROACH` | Positive live speed | 0 |\n| `TURN`, left | 0 | Positive live turn rate |\n| `TURN`, right | 0 | Negative live turn rate |\n| `DONE` | 0 | 0 |\n\nPositive turn is counterclockwise. At a selected speed of 110 mm/s and turn\nrate of 0.8 rad/s, a left-turn command is `MotionCommand(0.0, 0.8)`, not a\nrequest to drive forward while turning. The function rejects invalid phase,\nspeed, rate, or direction inputs before constructing a command. These are\nrequested robot motions; the supplied wheel controller determines bounded\nmotor effort.\n\n## 3. Change one live control and compare evidence\n\n`live_variables.py` declares speed, stopping distance, turn rate,\ndirection, and a Run behavior toggle. They appear under Monitor controls.\nRead current values through `.value`; the robot applies a changed control at\na sample boundary. Changing a slider during a run does not rewrite the saved\nproject file.\n\n1. Run the baseline with `STOP_DISTANCE = 260 mm`. In Monitor, note the\n   approach path, the range near the phase change, and the final heading.\n2. Reset. Set Stop distance to 340 mm and Run. Predict an earlier turn, farther\n   from the wall, before inspecting the path. Compare the `range_mm` watch at\n   the transition and the two paths. Keep speed and turn rate fixed.\n3. Reset. Restore 260 mm, choose `right`, and Run. Predict the sign of the\n   heading change. Compare the heading plot and final pose with the left run.\n4. Restore `left`. If you change `next_phase` or `command_for_phase` in\n   `student_work.py`, Run again and read the first differing check before\n   interpreting the path.\n\nThe Run behavior toggle can request `DONE` and zero motion at the next sampled\ndecision. The IDE **Stop** action interrupts the run separately.\n\n## 4. Connect telemetry to its source\n\n`publish_telemetry(state, phase)` sends the current `phase` and `range_mm` to\n`live.watch(...)`. A watch shows the latest value; unavailable range appears\nas text. It sends two numerical values to `live.plot(...)`:\n\n- `wheel_distance_mm`: mean left/right wheel position in mm;\n- `heading_rad`: estimated heading in rad.\n\nFor left and right positions 140 and 160 mm, the plotted mean is 150 mm. That\nnumber is a computed wheel-position value, not a separate floor measurement.\nThe plot retains samples in the recorded run; the watch shows current status.\nPublication does not choose a command. Use a `print(...)` for a rare milestone\nor exception, not once per sample.\n\nThe runner stops if approach wheel travel reaches 500 mm without a valid phase\nchange, if six consecutive range readings are unavailable, or if a turn fails\nto reach π/2 within 5 s. Those limits are fault stops; normal approach and turn\nend from range and heading measurements. `robot.stop()` in `finally` covers\nnormal completion and Python exceptions. `Robot.step()` already schedules\nsamples; do not add `sleep()` to the loop. This virtual run does not establish\nphysical stopping distance or sensor calibration.\n\nContinue to **Tutorial 5: Physical XRP deployment** after you can connect a\nvisible path, phase transition, and plotted signal to the source measurements.\n",Lo=`# Tutorial 5: Physical XRP deployment
 
 Run one project first on the Virtual XRP and then on a physical XRP. The first
 part collects stationary sensor records. The second part requests a short,
@@ -12653,7 +12688,7 @@ The measurement timestamps still record the actual elapsed interval.
 
 After both runs complete, you have used the same program structure required by
 the course challenges.
-`,Fo=`{
+`,Ro=`{
   "default_world": "open-field",
   "worlds": [
     {
@@ -12684,7 +12719,7 @@ the course challenges.
     }
   ]
 }
-`,Io=`{
+`,zo=`{
   "default_world": "two-obstacles",
   "worlds": [
     {
@@ -12732,7 +12767,7 @@ the course challenges.
     }
   ]
 }
-`,Lo=`{
+`,Bo=`{
   "default_world": "snake-course",
   "worlds": [
     {
@@ -12767,7 +12802,7 @@ the course challenges.
     }
   ]
 }
-`,Ro=`{
+`,Vo=`{
   "default_world": "roomba-room",
   "worlds": [
     {
@@ -12833,7 +12868,7 @@ the course challenges.
     }
   ]
 }
-`,zo=`{
+`,Ho=`{
   "food": {
     "per_square_meter": 13.5,
     "maximum": 216,
@@ -12875,7 +12910,7 @@ the course challenges.
     "max_drive_command": 1.0
   }
 }
-`,Bo=`{
+`,Uo=`{
   "default_world": "snake-virtual",
   "worlds": [
     {
@@ -12982,7 +13017,7 @@ the course challenges.
     }
   ]
 }
-`,Vo=`{
+`,Wo=`{
   "default_world": "open-field",
   "worlds": [
     {
@@ -13074,7 +13109,7 @@ the course challenges.
     }
   ]
 }
-`,Ho=`{
+`,Go=`{
   "default_world": "ucsb-logo",
   "worlds": [
     {
@@ -13278,7 +13313,7 @@ the course challenges.
     }
   ]
 }
-`,Uo=`{
+`,Ko=`{
   "default_world": "straight-run",
   "worlds": [
     {
@@ -13312,7 +13347,7 @@ the course challenges.
     }
   ]
 }
-`,Wo=`{
+`,qo=`{
   "default_world": "python-workbench",
   "worlds": [
     {
@@ -13330,7 +13365,7 @@ the course challenges.
     }
   ]
 }
-`,Go=`{
+`,Jo=`{
   "default_world": "course-arena-drawing",
   "worlds": [
     {
@@ -13357,7 +13392,7 @@ the course challenges.
     }
   ]
 }
-`,Ko=`{
+`,Yo=`{
   "default_world": "course-arena-straight",
   "worlds": [
     {
@@ -13384,7 +13419,7 @@ the course challenges.
     }
   ]
 }
-`,qo=`{
+`,Xo=`{
   "default_world": "course-arena-behavior",
   "worlds": [
     {
@@ -13420,7 +13455,7 @@ the course challenges.
     }
   ]
 }
-`,Jo=`{
+`,Zo=`{
   "default_world": "preflight-bench",
   "worlds": [
     {
@@ -13456,4 +13491,4 @@ the course challenges.
     }
   ]
 }
-`,Yo={...Object.assign({"../../../vendor/current/starters/challenge_1/challenge.py":Lt,"../../../vendor/current/starters/challenge_1/component_checks.py":Rt,"../../../vendor/current/starters/challenge_1/course_setup.py":zt,"../../../vendor/current/starters/challenge_1/main.py":Bt,"../../../vendor/current/starters/challenge_1/robot_config.py":Vt,"../../../vendor/current/starters/challenge_1/sensor_model.py":Ht,"../../../vendor/current/starters/challenge_1/wheel_speed_controller.py":Ut,"../../../vendor/current/starters/challenge_2/challenge.py":Wt,"../../../vendor/current/starters/challenge_2/component_checks.py":Gt,"../../../vendor/current/starters/challenge_2/course_setup.py":Kt,"../../../vendor/current/starters/challenge_2/differential_drive.py":qt,"../../../vendor/current/starters/challenge_2/main.py":Jt,"../../../vendor/current/starters/challenge_2/odometry.py":Yt,"../../../vendor/current/starters/challenge_2/robot_config.py":Xt,"../../../vendor/current/starters/challenge_2/sensor_model.py":Zt,"../../../vendor/current/starters/challenge_2/wheel_speed_controller.py":Qt,"../../../vendor/current/starters/challenge_3/challenge.py":$t,"../../../vendor/current/starters/challenge_3/component_checks.py":en,"../../../vendor/current/starters/challenge_3/course_setup.py":tn,"../../../vendor/current/starters/challenge_3/differential_drive.py":nn,"../../../vendor/current/starters/challenge_3/main.py":rn,"../../../vendor/current/starters/challenge_3/navigation_controller.py":an,"../../../vendor/current/starters/challenge_3/odometry.py":on,"../../../vendor/current/starters/challenge_3/robot_config.py":sn,"../../../vendor/current/starters/challenge_3/sensor_model.py":cn,"../../../vendor/current/starters/challenge_3/wheel_speed_controller.py":ln,"../../../vendor/current/starters/challenge_4/challenge.py":un,"../../../vendor/current/starters/challenge_4/component_checks.py":dn,"../../../vendor/current/starters/challenge_4/course_setup.py":fn,"../../../vendor/current/starters/challenge_4/differential_drive.py":pn,"../../../vendor/current/starters/challenge_4/grid_planner.py":mn,"../../../vendor/current/starters/challenge_4/main.py":hn,"../../../vendor/current/starters/challenge_4/navigation_controller.py":gn,"../../../vendor/current/starters/challenge_4/odometry.py":_n,"../../../vendor/current/starters/challenge_4/robot_config.py":vn,"../../../vendor/current/starters/challenge_4/sensor_model.py":yn,"../../../vendor/current/starters/challenge_4/wheel_speed_controller.py":bn,"../../../vendor/current/starters/challenge_5/challenge.py":xn,"../../../vendor/current/starters/challenge_5/component_checks.py":Sn,"../../../vendor/current/starters/challenge_5/course_setup.py":Cn,"../../../vendor/current/starters/challenge_5/differential_drive.py":wn,"../../../vendor/current/starters/challenge_5/grid_planner.py":Tn,"../../../vendor/current/starters/challenge_5/main.py":En,"../../../vendor/current/starters/challenge_5/navigation_controller.py":Dn,"../../../vendor/current/starters/challenge_5/odometry.py":On,"../../../vendor/current/starters/challenge_5/robot_config.py":kn,"../../../vendor/current/starters/challenge_5/sensor_model.py":An,"../../../vendor/current/starters/challenge_5/wheel_speed_controller.py":jn,"../../../vendor/current/starters/challenge_6/challenge.py":Mn,"../../../vendor/current/starters/challenge_6/component_checks.py":Nn,"../../../vendor/current/starters/challenge_6/course_setup.py":Pn,"../../../vendor/current/starters/challenge_6/differential_drive.py":Fn,"../../../vendor/current/starters/challenge_6/grid_planner.py":In,"../../../vendor/current/starters/challenge_6/live_variables.py":Ln,"../../../vendor/current/starters/challenge_6/main.py":Rn,"../../../vendor/current/starters/challenge_6/navigation_controller.py":zn,"../../../vendor/current/starters/challenge_6/odometry.py":Bn,"../../../vendor/current/starters/challenge_6/range_safety_controller.py":Vn,"../../../vendor/current/starters/challenge_6/robot_config.py":Hn,"../../../vendor/current/starters/challenge_6/sensor_model.py":Un,"../../../vendor/current/starters/challenge_6/wheel_speed_controller.py":Wn,"../../../vendor/current/starters/challenge_7/challenge.py":Gn,"../../../vendor/current/starters/challenge_7/component_checks.py":Kn,"../../../vendor/current/starters/challenge_7/course_setup.py":qn,"../../../vendor/current/starters/challenge_7/differential_drive.py":Jn,"../../../vendor/current/starters/challenge_7/grid_planner.py":Yn,"../../../vendor/current/starters/challenge_7/main.py":Xn,"../../../vendor/current/starters/challenge_7/navigation_controller.py":Zn,"../../../vendor/current/starters/challenge_7/odometry.py":Qn,"../../../vendor/current/starters/challenge_7/pose_corrector.py":$n,"../../../vendor/current/starters/challenge_7/range_safety_controller.py":er,"../../../vendor/current/starters/challenge_7/robot_config.py":tr,"../../../vendor/current/starters/challenge_7/sensor_model.py":nr,"../../../vendor/current/starters/challenge_7/wheel_speed_controller.py":rr,"../../../vendor/current/starters/challenge_8/challenge.py":ir,"../../../vendor/current/starters/challenge_8/component_checks.py":ar,"../../../vendor/current/starters/challenge_8/course_setup.py":or,"../../../vendor/current/starters/challenge_8/differential_drive.py":sr,"../../../vendor/current/starters/challenge_8/grid_planner.py":cr,"../../../vendor/current/starters/challenge_8/main.py":lr,"../../../vendor/current/starters/challenge_8/navigation_controller.py":ur,"../../../vendor/current/starters/challenge_8/odometry.py":dr,"../../../vendor/current/starters/challenge_8/pose_corrector.py":fr,"../../../vendor/current/starters/challenge_8/range_safety_controller.py":pr,"../../../vendor/current/starters/challenge_8/robot_config.py":mr,"../../../vendor/current/starters/challenge_8/sensor_model.py":hr,"../../../vendor/current/starters/challenge_8/visit_order_planner.py":gr,"../../../vendor/current/starters/challenge_8/wheel_speed_controller.py":_r,"../../../vendor/current/starters/challenge_9/challenge.py":vr,"../../../vendor/current/starters/challenge_9/component_checks.py":yr,"../../../vendor/current/starters/challenge_9/course_setup.py":br,"../../../vendor/current/starters/challenge_9/lap_progress.py":xr,"../../../vendor/current/starters/challenge_9/line_follower.py":Sr,"../../../vendor/current/starters/challenge_9/live_variables.py":Cr,"../../../vendor/current/starters/challenge_9/main.py":wr,"../../../vendor/current/starters/challenge_9/robot_config.py":Tr,"../../../vendor/current/starters/new_challenge_1_robot_curling/challenge.py":Er,"../../../vendor/current/starters/new_challenge_1_robot_curling/component_checks.py":Dr,"../../../vendor/current/starters/new_challenge_1_robot_curling/course_setup.py":Or,"../../../vendor/current/starters/new_challenge_1_robot_curling/live_variables.py":kr,"../../../vendor/current/starters/new_challenge_1_robot_curling/main.py":Ar,"../../../vendor/current/starters/new_challenge_1_robot_curling/robot_config.py":jr,"../../../vendor/current/starters/new_challenge_1_robot_curling/sensor_model.py":Mr,"../../../vendor/current/starters/new_challenge_1_robot_curling/stopping_controller.py":Nr,"../../../vendor/current/starters/new_challenge_1_robot_curling/wheel_speed_controller.py":Pr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/challenge.py":Fr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/component_checks.py":Ir,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/course_setup.py":Lr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/differential_drive.py":Rr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/lap_progress.py":zr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/line_follower.py":Br,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/live_variables.py":Vr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/main.py":Hr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/reflectance_readout.py":Ur,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/robot_config.py":Wr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/sensor_model.py":Gr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/wheel_speed_controller.py":Kr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/challenge.py":qr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/component_checks.py":Jr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/course_setup.py":Yr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/differential_drive.py":Xr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/live_variables.py":Zr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/main.py":Qr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/navigation_controller.py":$r,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/odometry.py":ei,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/robot_config.py":ti,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/route_progress.py":ni,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/sensor_model.py":ri,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/wheel_speed_controller.py":ii,"../../../vendor/current/starters/new_challenge_4_mapped_route/challenge.py":ai,"../../../vendor/current/starters/new_challenge_4_mapped_route/component_checks.py":oi,"../../../vendor/current/starters/new_challenge_4_mapped_route/course_setup.py":si,"../../../vendor/current/starters/new_challenge_4_mapped_route/differential_drive.py":ci,"../../../vendor/current/starters/new_challenge_4_mapped_route/grid_display.py":li,"../../../vendor/current/starters/new_challenge_4_mapped_route/grid_planner.py":ui,"../../../vendor/current/starters/new_challenge_4_mapped_route/live_variables.py":di,"../../../vendor/current/starters/new_challenge_4_mapped_route/main.py":fi,"../../../vendor/current/starters/new_challenge_4_mapped_route/navigation_controller.py":pi,"../../../vendor/current/starters/new_challenge_4_mapped_route/odometry.py":mi,"../../../vendor/current/starters/new_challenge_4_mapped_route/robot_config.py":hi,"../../../vendor/current/starters/new_challenge_4_mapped_route/route_validation.py":gi,"../../../vendor/current/starters/new_challenge_4_mapped_route/sensor_model.py":_i,"../../../vendor/current/starters/new_challenge_4_mapped_route/wheel_speed_controller.py":vi,"../../../vendor/current/starters/new_challenge_5_out_and_back/challenge.py":yi,"../../../vendor/current/starters/new_challenge_5_out_and_back/component_checks.py":bi,"../../../vendor/current/starters/new_challenge_5_out_and_back/course_setup.py":xi,"../../../vendor/current/starters/new_challenge_5_out_and_back/differential_drive.py":Si,"../../../vendor/current/starters/new_challenge_5_out_and_back/grid_planner.py":Ci,"../../../vendor/current/starters/new_challenge_5_out_and_back/live_variables.py":wi,"../../../vendor/current/starters/new_challenge_5_out_and_back/main.py":Ti,"../../../vendor/current/starters/new_challenge_5_out_and_back/mission_policy.py":Ei,"../../../vendor/current/starters/new_challenge_5_out_and_back/mission_steps.py":Di,"../../../vendor/current/starters/new_challenge_5_out_and_back/navigation_controller.py":Oi,"../../../vendor/current/starters/new_challenge_5_out_and_back/odometry.py":ki,"../../../vendor/current/starters/new_challenge_5_out_and_back/range_readout.py":Ai,"../../../vendor/current/starters/new_challenge_5_out_and_back/robot_config.py":ji,"../../../vendor/current/starters/new_challenge_5_out_and_back/sensor_model.py":Mi,"../../../vendor/current/starters/new_challenge_5_out_and_back/wheel_speed_controller.py":Ni}),...Object.assign({"../../../vendor/current/starters/challenge_1/README.md":Pi,"../../../vendor/current/starters/challenge_2/README.md":Fi,"../../../vendor/current/starters/challenge_3/README.md":Ii,"../../../vendor/current/starters/challenge_4/README.md":Li,"../../../vendor/current/starters/challenge_5/README.md":Ri,"../../../vendor/current/starters/challenge_6/README.md":zi,"../../../vendor/current/starters/challenge_7/README.md":Bi,"../../../vendor/current/starters/challenge_8/README.md":Vi,"../../../vendor/current/starters/challenge_9/README.md":Hi,"../../../vendor/current/starters/new_challenge_1_robot_curling/README.md":Ui,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/README.md":Wi,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/README.md":Gi,"../../../vendor/current/starters/new_challenge_4_mapped_route/README.md":Ki,"../../../vendor/current/starters/new_challenge_5_out_and_back/README.md":qi}),...Object.assign({"../../../vendor/current/starters/challenge_1/world.json":Ji,"../../../vendor/current/starters/challenge_2/world.json":Yi,"../../../vendor/current/starters/challenge_3/world.json":Xi,"../../../vendor/current/starters/challenge_4/world.json":Zi,"../../../vendor/current/starters/challenge_5/world.json":Qi,"../../../vendor/current/starters/challenge_6/world.json":$i,"../../../vendor/current/starters/challenge_7/world.json":ea,"../../../vendor/current/starters/challenge_8/world.json":ta,"../../../vendor/current/starters/challenge_9/world.json":na,"../../../vendor/current/starters/new_challenge_1_robot_curling/world.json":ra,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/world.json":ia,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/world.json":aa,"../../../vendor/current/starters/new_challenge_4_mapped_route/world.json":oa,"../../../vendor/current/starters/new_challenge_5_out_and_back/world.json":sa})},Xo={...Object.assign({"../../../vendor/current/templates/demo_manual_drive/course_setup.py":ca,"../../../vendor/current/templates/demo_manual_drive/live_variables.py":la,"../../../vendor/current/templates/demo_manual_drive/main.py":ua,"../../../vendor/current/templates/demo_manual_drive/robot_config.py":da,"../../../vendor/current/templates/demo_obstacle_turn/challenge.py":fa,"../../../vendor/current/templates/demo_obstacle_turn/course_setup.py":pa,"../../../vendor/current/templates/demo_obstacle_turn/live_variables.py":ma,"../../../vendor/current/templates/demo_obstacle_turn/main.py":ha,"../../../vendor/current/templates/demo_obstacle_turn/robot_config.py":ga,"../../../vendor/current/templates/demo_random_snake/challenge.py":_a,"../../../vendor/current/templates/demo_random_snake/course_setup.py":va,"../../../vendor/current/templates/demo_random_snake/live_variables.py":ya,"../../../vendor/current/templates/demo_random_snake/main.py":ba,"../../../vendor/current/templates/demo_random_snake/robot_config.py":xa,"../../../vendor/current/templates/demo_roomba/challenge.py":Sa,"../../../vendor/current/templates/demo_roomba/course_setup.py":Ca,"../../../vendor/current/templates/demo_roomba/live_variables.py":wa,"../../../vendor/current/templates/demo_roomba/main.py":Ta,"../../../vendor/current/templates/demo_roomba/robot_config.py":Ea,"../../../vendor/current/templates/demo_snake_game/challenge.py":Da,"../../../vendor/current/templates/demo_snake_game/course_setup.py":Oa,"../../../vendor/current/templates/demo_snake_game/live_variables.py":ka,"../../../vendor/current/templates/demo_snake_game/main.py":Aa,"../../../vendor/current/templates/demo_snake_game/robot_config.py":ja,"../../../vendor/current/templates/demo_snake_game/snake_config.py":Ma,"../../../vendor/current/templates/demo_snake_game/snake_food.py":Na,"../../../vendor/current/templates/demo_snake_game/snake_game.py":Pa,"../../../vendor/current/templates/demo_spiral/challenge.py":Fa,"../../../vendor/current/templates/demo_spiral/course_setup.py":Ia,"../../../vendor/current/templates/demo_spiral/live_variables.py":La,"../../../vendor/current/templates/demo_spiral/main.py":Ra,"../../../vendor/current/templates/demo_spiral/robot_config.py":za,"../../../vendor/current/templates/demo_ucsb_logo/challenge.py":Ba,"../../../vendor/current/templates/demo_ucsb_logo/course_setup.py":Va,"../../../vendor/current/templates/demo_ucsb_logo/live_variables.py":Ha,"../../../vendor/current/templates/demo_ucsb_logo/main.py":Ua,"../../../vendor/current/templates/demo_ucsb_logo/robot_config.py":Wa,"../../../vendor/current/templates/new_demo_motor_characterization/course_setup.py":Ga,"../../../vendor/current/templates/new_demo_motor_characterization/experiment.py":Ka,"../../../vendor/current/templates/new_demo_motor_characterization/live_variables.py":qa,"../../../vendor/current/templates/new_demo_motor_characterization/main.py":Ja,"../../../vendor/current/templates/new_demo_motor_characterization/robot_config.py":Ya,"../../../vendor/current/templates/tutorial_1_python_essentials/exercise_checks.py":Xa,"../../../vendor/current/templates/tutorial_1_python_essentials/main.py":Za,"../../../vendor/current/templates/tutorial_1_python_essentials/student_work.py":Qa,"../../../vendor/current/templates/tutorial_2_virtual_drawing/course_setup.py":$a,"../../../vendor/current/templates/tutorial_2_virtual_drawing/exercise_checks.py":eo,"../../../vendor/current/templates/tutorial_2_virtual_drawing/main.py":to,"../../../vendor/current/templates/tutorial_2_virtual_drawing/robot_config.py":no,"../../../vendor/current/templates/tutorial_2_virtual_drawing/student_work.py":ro,"../../../vendor/current/templates/tutorial_3_robot_programs/course_setup.py":io,"../../../vendor/current/templates/tutorial_3_robot_programs/exercise_checks.py":ao,"../../../vendor/current/templates/tutorial_3_robot_programs/main.py":oo,"../../../vendor/current/templates/tutorial_3_robot_programs/robot_config.py":so,"../../../vendor/current/templates/tutorial_3_robot_programs/student_work.py":co,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/course_setup.py":lo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/exercise_checks.py":uo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/live_variables.py":fo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/main.py":po,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/robot_config.py":mo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/student_work.py":ho,"../../../vendor/current/templates/tutorial_5_physical_preflight/course_setup.py":go,"../../../vendor/current/templates/tutorial_5_physical_preflight/exercise_checks.py":_o,"../../../vendor/current/templates/tutorial_5_physical_preflight/live_variables.py":vo,"../../../vendor/current/templates/tutorial_5_physical_preflight/main.py":yo,"../../../vendor/current/templates/tutorial_5_physical_preflight/robot_config.py":bo,"../../../vendor/current/templates/tutorial_5_physical_preflight/student_work.py":xo}),...Object.assign({"../../../vendor/current/templates/demo_manual_drive/README.md":So,"../../../vendor/current/templates/demo_obstacle_turn/README.md":Co,"../../../vendor/current/templates/demo_random_snake/README.md":wo,"../../../vendor/current/templates/demo_roomba/README.md":To,"../../../vendor/current/templates/demo_snake_game/README.md":Eo,"../../../vendor/current/templates/demo_spiral/README.md":Do,"../../../vendor/current/templates/demo_ucsb_logo/README.md":Oo,"../../../vendor/current/templates/new_demo_motor_characterization/README.md":ko,"../../../vendor/current/templates/tutorial_1_python_essentials/README.md":Ao,"../../../vendor/current/templates/tutorial_2_virtual_drawing/README.md":jo,"../../../vendor/current/templates/tutorial_3_robot_programs/README.md":Mo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/README.md":No,"../../../vendor/current/templates/tutorial_5_physical_preflight/README.md":Po}),...Object.assign({"../../../vendor/current/templates/demo_manual_drive/world.json":Fo,"../../../vendor/current/templates/demo_obstacle_turn/world.json":Io,"../../../vendor/current/templates/demo_random_snake/world.json":Lo,"../../../vendor/current/templates/demo_roomba/world.json":Ro,"../../../vendor/current/templates/demo_snake_game/snake_config.json":zo,"../../../vendor/current/templates/demo_snake_game/world.json":Bo,"../../../vendor/current/templates/demo_spiral/world.json":Vo,"../../../vendor/current/templates/demo_ucsb_logo/world.json":Ho,"../../../vendor/current/templates/new_demo_motor_characterization/world.json":Uo,"../../../vendor/current/templates/tutorial_1_python_essentials/world.json":Wo,"../../../vendor/current/templates/tutorial_2_virtual_drawing/world.json":Go,"../../../vendor/current/templates/tutorial_3_robot_programs/world.json":Ko,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/world.json":qo,"../../../vendor/current/templates/tutorial_5_physical_preflight/world.json":Jo})},Zo={},X=e.filter(e=>e.published);function Qo(e,t){let n=e.solution_stage;if(!n||n<1||n>5)throw Error(`${e.id} has no current challenge solution`);let r={...t};for(let[e,t]of Object.entries(Zo).sort()){let i=e.match(/\/code\/(\d+)[^/]*\/([^/]+)$/);if(!i||Number(i[1])>n)continue;let a=i[2];(a in r||n===5&&a===`range_estimation.py`)&&(r[a]=t)}return r[`course_setup.py`]=r[`course_setup.py`].replace(/^(USE_STUDENT_[A-Z_]+ = )False$/gm,`$1True`),n===4&&(r[`challenge.py`]=r[`challenge.py`].replace(`EXECUTE_ROUTE = False`,`EXECUTE_ROUTE = True`)),r}function Z(e){let t=`/${e.source}/`,n=e.source.startsWith(`starters/`)?Yo:Xo,r=Object.fromEntries(Object.entries(n).filter(([e])=>e.includes(t)).map(([e,n])=>[e.split(t)[1],n]));if(e.kind===`complete-challenge`&&Object.keys(Zo).length&&(r=Qo(e,r)),!(e.entrypoint in r)||Object.keys(r).length<2)throw Error(`${e.id} must contain a complete project`);return Object.freeze({name:e.short_label,entrypoint:e.entrypoint,files:Object.freeze(r)})}var $o=Object.freeze(X.filter(e=>e.kind===`challenge`).map(e=>Object.freeze({id:e.id,label:e.label,shortLabel:e.short_label,summary:e.summary,project:Z(e)}))),Q=[...X.map(e=>Object.freeze({id:e.id,kind:e.kind,group:e.group??`archived`,label:e.label,shortLabel:e.short_label,summary:e.summary,components:Object.freeze((e.components??[]).map(e=>Object.freeze({name:e.name,file:e.file,selectionFlag:e.selection_flag}))),project:Z(e)}))];function es(e){Zo=e??{};for(let e of X.filter(e=>e.kind===`complete-challenge`)){let t=Q.findIndex(t=>t.id===e.id),n=Q[t];Q[t]=Object.freeze({...n,project:Z(e)})}}$o[0].project;var ts=`demo_spiral`;function $(e){let t=Q.find(t=>t.id===e);if(!t)throw Error(`Unknown course project template '${e}'`);return t}function ns(e,t){if(!/^[A-Z][A-Z0-9_]*$/.test(t))throw Error(`Invalid component selection flag '${t}'`);let n=RegExp(`^(${t}\\s*=\\s*)False(\\s*)$`,`m`);if(!e.match(n))throw Error(`The next challenge does not declare ${t}`);return e.replace(n,`$1True$2`)}function rs(e,t){if(!/^[A-Z][A-Z0-9_]*$/.test(t))throw Error(`Invalid component selection flag '${t}'`);let n=RegExp(`^${t}\\s*=\\s*(True|False)\\s*$`,`m`),r=e.match(n);return r?r[1]===`True`:null}var is=new Set([`README.md`,`main.py`,`challenge.py`,`world.json`,`component_checks.py`]),as=new Set(X.flatMap(e=>e.components??[]).map(e=>e.file));function os(e,t,n){let r=RegExp(`^${t}\\s*=\\s*${n}\\(`,`m`).exec(e);if(!r)return null;let i=e.indexOf(`(`,r.index),a=0;for(let t=i;t<e.length;t+=1)if(e[t]===`(`&&(a+=1),e[t]===`)`&&(--a,a===0))return e.slice(r.index,t+1);throw Error(`${t} has an unterminated ${n}(...) value`)}function ss(e,t){let n=os(e,`ROBOT_CONFIG`,`RobotConfig`),r=os(t,`ROBOT_CONFIG`,`RobotConfig`);return n===null||r===null?t:t.replace(r,n)}function cs(e,t,n){let r=$(e),i=$(t);if(r.components.length===0||i.components.length===0)throw Error(`Project transitions require declared student components in both projects`);if(e===t)throw Error(`Choose a different challenge project`);let a={...i.project.files},o=new Set,s=new Set,c=new Set,l=new Set,u=new Set,d=a[`course_setup.py`],f=n.files[`course_setup.py`];if(d===void 0)throw Error(`${i.label} does not contain course_setup.py`);if(f===void 0)throw Error(`The current challenge does not contain course_setup.py`);let p=new Set(i.components.map(e=>e.file));for(let[e,t]of Object.entries(n.files))if(!(e===`course_setup.py`||is.has(e))){if(as.has(e)&&!p.has(e)){u.add(e);continue}if(e===`robot_config.py`&&a[e]!==void 0){a[e]=ss(t,a[e]),s.add(e);continue}a[e]=t,o.add(e)}for(let e of i.components){let t=n.files[e.file];t!==void 0&&(a[e.file]=t,o.add(e.file)),rs(f,e.selectionFlag)&&(d=ns(d,e.selectionFlag))}a[`course_setup.py`]=d;for(let e of Object.keys(a))o.has(e)||s.has(e)||(e===`course_setup.py`||e in n.files?c.add(e):l.add(e));return{project:{name:i.project.name,entrypoint:i.project.entrypoint,files:a},preserve:Object.freeze([...o].sort()),merge:Object.freeze([...s].sort()),replace:Object.freeze([...c].sort()),add:Object.freeze([...l].sort()),omit:Object.freeze([...u].sort())}}var ls=$(ts).project;export{te as A,fe as C,ue as D,ie as E,ee as O,de as S,ne as T,L as _,cs as a,N as b,oa as c,ra as d,It as f,F as g,kt as h,$ as i,a as j,m as k,aa as l,Pt as m,ls as n,es as o,Ft as p,ts as r,sa as s,Q as t,ia as u,Dt as v,pe as w,E as x,P as y};
+`,Qo={...Object.assign({"../../../vendor/current/starters/challenge_1/challenge.py":Lt,"../../../vendor/current/starters/challenge_1/component_checks.py":Rt,"../../../vendor/current/starters/challenge_1/course_setup.py":zt,"../../../vendor/current/starters/challenge_1/main.py":Bt,"../../../vendor/current/starters/challenge_1/robot_config.py":Vt,"../../../vendor/current/starters/challenge_1/sensor_model.py":Ht,"../../../vendor/current/starters/challenge_1/wheel_speed_controller.py":Ut,"../../../vendor/current/starters/challenge_2/challenge.py":Wt,"../../../vendor/current/starters/challenge_2/component_checks.py":Gt,"../../../vendor/current/starters/challenge_2/course_setup.py":Kt,"../../../vendor/current/starters/challenge_2/differential_drive.py":qt,"../../../vendor/current/starters/challenge_2/main.py":Jt,"../../../vendor/current/starters/challenge_2/odometry.py":Yt,"../../../vendor/current/starters/challenge_2/robot_config.py":Xt,"../../../vendor/current/starters/challenge_2/sensor_model.py":Zt,"../../../vendor/current/starters/challenge_2/wheel_speed_controller.py":Qt,"../../../vendor/current/starters/challenge_3/challenge.py":$t,"../../../vendor/current/starters/challenge_3/component_checks.py":en,"../../../vendor/current/starters/challenge_3/course_setup.py":tn,"../../../vendor/current/starters/challenge_3/differential_drive.py":nn,"../../../vendor/current/starters/challenge_3/main.py":rn,"../../../vendor/current/starters/challenge_3/navigation_controller.py":an,"../../../vendor/current/starters/challenge_3/odometry.py":on,"../../../vendor/current/starters/challenge_3/robot_config.py":sn,"../../../vendor/current/starters/challenge_3/sensor_model.py":cn,"../../../vendor/current/starters/challenge_3/wheel_speed_controller.py":ln,"../../../vendor/current/starters/challenge_4/challenge.py":un,"../../../vendor/current/starters/challenge_4/component_checks.py":dn,"../../../vendor/current/starters/challenge_4/course_setup.py":fn,"../../../vendor/current/starters/challenge_4/differential_drive.py":pn,"../../../vendor/current/starters/challenge_4/grid_planner.py":mn,"../../../vendor/current/starters/challenge_4/main.py":hn,"../../../vendor/current/starters/challenge_4/navigation_controller.py":gn,"../../../vendor/current/starters/challenge_4/odometry.py":_n,"../../../vendor/current/starters/challenge_4/robot_config.py":vn,"../../../vendor/current/starters/challenge_4/sensor_model.py":yn,"../../../vendor/current/starters/challenge_4/wheel_speed_controller.py":bn,"../../../vendor/current/starters/challenge_5/challenge.py":xn,"../../../vendor/current/starters/challenge_5/component_checks.py":Sn,"../../../vendor/current/starters/challenge_5/course_setup.py":Cn,"../../../vendor/current/starters/challenge_5/differential_drive.py":wn,"../../../vendor/current/starters/challenge_5/grid_planner.py":Tn,"../../../vendor/current/starters/challenge_5/main.py":En,"../../../vendor/current/starters/challenge_5/navigation_controller.py":Dn,"../../../vendor/current/starters/challenge_5/odometry.py":On,"../../../vendor/current/starters/challenge_5/robot_config.py":kn,"../../../vendor/current/starters/challenge_5/sensor_model.py":An,"../../../vendor/current/starters/challenge_5/wheel_speed_controller.py":jn,"../../../vendor/current/starters/challenge_6/challenge.py":Mn,"../../../vendor/current/starters/challenge_6/component_checks.py":Nn,"../../../vendor/current/starters/challenge_6/course_setup.py":Pn,"../../../vendor/current/starters/challenge_6/differential_drive.py":Fn,"../../../vendor/current/starters/challenge_6/grid_planner.py":In,"../../../vendor/current/starters/challenge_6/live_variables.py":Ln,"../../../vendor/current/starters/challenge_6/main.py":Rn,"../../../vendor/current/starters/challenge_6/navigation_controller.py":zn,"../../../vendor/current/starters/challenge_6/odometry.py":Bn,"../../../vendor/current/starters/challenge_6/range_safety_controller.py":Vn,"../../../vendor/current/starters/challenge_6/robot_config.py":Hn,"../../../vendor/current/starters/challenge_6/sensor_model.py":Un,"../../../vendor/current/starters/challenge_6/wheel_speed_controller.py":Wn,"../../../vendor/current/starters/challenge_7/challenge.py":Gn,"../../../vendor/current/starters/challenge_7/component_checks.py":Kn,"../../../vendor/current/starters/challenge_7/course_setup.py":qn,"../../../vendor/current/starters/challenge_7/differential_drive.py":Jn,"../../../vendor/current/starters/challenge_7/grid_planner.py":Yn,"../../../vendor/current/starters/challenge_7/main.py":Xn,"../../../vendor/current/starters/challenge_7/navigation_controller.py":Zn,"../../../vendor/current/starters/challenge_7/odometry.py":Qn,"../../../vendor/current/starters/challenge_7/pose_corrector.py":$n,"../../../vendor/current/starters/challenge_7/range_safety_controller.py":er,"../../../vendor/current/starters/challenge_7/robot_config.py":tr,"../../../vendor/current/starters/challenge_7/sensor_model.py":nr,"../../../vendor/current/starters/challenge_7/wheel_speed_controller.py":rr,"../../../vendor/current/starters/challenge_8/challenge.py":ir,"../../../vendor/current/starters/challenge_8/component_checks.py":ar,"../../../vendor/current/starters/challenge_8/course_setup.py":or,"../../../vendor/current/starters/challenge_8/differential_drive.py":sr,"../../../vendor/current/starters/challenge_8/grid_planner.py":cr,"../../../vendor/current/starters/challenge_8/main.py":lr,"../../../vendor/current/starters/challenge_8/navigation_controller.py":ur,"../../../vendor/current/starters/challenge_8/odometry.py":dr,"../../../vendor/current/starters/challenge_8/pose_corrector.py":fr,"../../../vendor/current/starters/challenge_8/range_safety_controller.py":pr,"../../../vendor/current/starters/challenge_8/robot_config.py":mr,"../../../vendor/current/starters/challenge_8/sensor_model.py":hr,"../../../vendor/current/starters/challenge_8/visit_order_planner.py":gr,"../../../vendor/current/starters/challenge_8/wheel_speed_controller.py":_r,"../../../vendor/current/starters/challenge_9/challenge.py":vr,"../../../vendor/current/starters/challenge_9/component_checks.py":yr,"../../../vendor/current/starters/challenge_9/course_setup.py":br,"../../../vendor/current/starters/challenge_9/lap_progress.py":xr,"../../../vendor/current/starters/challenge_9/line_follower.py":Sr,"../../../vendor/current/starters/challenge_9/live_variables.py":Cr,"../../../vendor/current/starters/challenge_9/main.py":wr,"../../../vendor/current/starters/challenge_9/robot_config.py":Tr,"../../../vendor/current/starters/new_challenge_1_robot_curling/challenge.py":Er,"../../../vendor/current/starters/new_challenge_1_robot_curling/component_checks.py":Dr,"../../../vendor/current/starters/new_challenge_1_robot_curling/course_setup.py":Or,"../../../vendor/current/starters/new_challenge_1_robot_curling/live_variables.py":kr,"../../../vendor/current/starters/new_challenge_1_robot_curling/main.py":Ar,"../../../vendor/current/starters/new_challenge_1_robot_curling/robot_config.py":jr,"../../../vendor/current/starters/new_challenge_1_robot_curling/sensor_model.py":Mr,"../../../vendor/current/starters/new_challenge_1_robot_curling/stopping_controller.py":Nr,"../../../vendor/current/starters/new_challenge_1_robot_curling/wheel_speed_controller.py":Pr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/challenge.py":Fr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/component_checks.py":Ir,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/course_setup.py":Lr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/differential_drive.py":Rr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/lap_progress.py":zr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/line_follower.py":Br,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/live_variables.py":Vr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/main.py":Hr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/reflectance_readout.py":Ur,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/robot_config.py":Wr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/sensor_model.py":Gr,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/wheel_speed_controller.py":Kr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/challenge.py":qr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/component_checks.py":Jr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/course_setup.py":Yr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/differential_drive.py":Xr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/live_variables.py":Zr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/main.py":Qr,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/navigation_controller.py":$r,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/odometry.py":ei,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/robot_config.py":ti,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/route_progress.py":ni,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/sensor_model.py":ri,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/wheel_speed_controller.py":ii,"../../../vendor/current/starters/new_challenge_4_mapped_route/challenge.py":ai,"../../../vendor/current/starters/new_challenge_4_mapped_route/component_checks.py":oi,"../../../vendor/current/starters/new_challenge_4_mapped_route/course_setup.py":si,"../../../vendor/current/starters/new_challenge_4_mapped_route/differential_drive.py":ci,"../../../vendor/current/starters/new_challenge_4_mapped_route/grid_display.py":li,"../../../vendor/current/starters/new_challenge_4_mapped_route/grid_planner.py":ui,"../../../vendor/current/starters/new_challenge_4_mapped_route/live_variables.py":di,"../../../vendor/current/starters/new_challenge_4_mapped_route/main.py":fi,"../../../vendor/current/starters/new_challenge_4_mapped_route/navigation_controller.py":pi,"../../../vendor/current/starters/new_challenge_4_mapped_route/odometry.py":mi,"../../../vendor/current/starters/new_challenge_4_mapped_route/robot_config.py":hi,"../../../vendor/current/starters/new_challenge_4_mapped_route/route_runner.py":gi,"../../../vendor/current/starters/new_challenge_4_mapped_route/route_validation.py":_i,"../../../vendor/current/starters/new_challenge_4_mapped_route/sensor_model.py":vi,"../../../vendor/current/starters/new_challenge_4_mapped_route/wheel_speed_controller.py":yi,"../../../vendor/current/starters/new_challenge_5_out_and_back/challenge.py":bi,"../../../vendor/current/starters/new_challenge_5_out_and_back/component_checks.py":xi,"../../../vendor/current/starters/new_challenge_5_out_and_back/course_setup.py":Si,"../../../vendor/current/starters/new_challenge_5_out_and_back/differential_drive.py":Ci,"../../../vendor/current/starters/new_challenge_5_out_and_back/grid_planner.py":wi,"../../../vendor/current/starters/new_challenge_5_out_and_back/live_variables.py":Ti,"../../../vendor/current/starters/new_challenge_5_out_and_back/main.py":Ei,"../../../vendor/current/starters/new_challenge_5_out_and_back/mission_policy.py":Di,"../../../vendor/current/starters/new_challenge_5_out_and_back/mission_steps.py":Oi,"../../../vendor/current/starters/new_challenge_5_out_and_back/navigation_controller.py":ki,"../../../vendor/current/starters/new_challenge_5_out_and_back/odometry.py":Ai,"../../../vendor/current/starters/new_challenge_5_out_and_back/range_readout.py":ji,"../../../vendor/current/starters/new_challenge_5_out_and_back/return_route.py":Mi,"../../../vendor/current/starters/new_challenge_5_out_and_back/robot_config.py":Ni,"../../../vendor/current/starters/new_challenge_5_out_and_back/sensor_model.py":Pi,"../../../vendor/current/starters/new_challenge_5_out_and_back/stationary_observation.py":Fi,"../../../vendor/current/starters/new_challenge_5_out_and_back/wheel_speed_controller.py":Ii}),...Object.assign({"../../../vendor/current/starters/challenge_1/README.md":Li,"../../../vendor/current/starters/challenge_2/README.md":Ri,"../../../vendor/current/starters/challenge_3/README.md":zi,"../../../vendor/current/starters/challenge_4/README.md":Bi,"../../../vendor/current/starters/challenge_5/README.md":Vi,"../../../vendor/current/starters/challenge_6/README.md":Hi,"../../../vendor/current/starters/challenge_7/README.md":Ui,"../../../vendor/current/starters/challenge_8/README.md":Wi,"../../../vendor/current/starters/challenge_9/README.md":Gi,"../../../vendor/current/starters/new_challenge_1_robot_curling/README.md":Ki,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/README.md":qi,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/README.md":Ji,"../../../vendor/current/starters/new_challenge_4_mapped_route/README.md":Yi,"../../../vendor/current/starters/new_challenge_5_out_and_back/README.md":Xi}),...Object.assign({"../../../vendor/current/starters/challenge_1/world.json":Zi,"../../../vendor/current/starters/challenge_2/world.json":Qi,"../../../vendor/current/starters/challenge_3/world.json":$i,"../../../vendor/current/starters/challenge_4/world.json":ea,"../../../vendor/current/starters/challenge_5/world.json":ta,"../../../vendor/current/starters/challenge_6/world.json":na,"../../../vendor/current/starters/challenge_7/world.json":ra,"../../../vendor/current/starters/challenge_8/world.json":ia,"../../../vendor/current/starters/challenge_9/world.json":aa,"../../../vendor/current/starters/new_challenge_1_robot_curling/world.json":oa,"../../../vendor/current/starters/new_challenge_2_arena_line_circuit/world.json":sa,"../../../vendor/current/starters/new_challenge_3_waypoint_courier/world.json":ca,"../../../vendor/current/starters/new_challenge_4_mapped_route/world.json":la,"../../../vendor/current/starters/new_challenge_5_out_and_back/world.json":ua})},$o={...Object.assign({"../../../vendor/current/templates/demo_manual_drive/course_setup.py":da,"../../../vendor/current/templates/demo_manual_drive/live_variables.py":fa,"../../../vendor/current/templates/demo_manual_drive/main.py":pa,"../../../vendor/current/templates/demo_manual_drive/robot_config.py":ma,"../../../vendor/current/templates/demo_obstacle_turn/challenge.py":ha,"../../../vendor/current/templates/demo_obstacle_turn/course_setup.py":ga,"../../../vendor/current/templates/demo_obstacle_turn/live_variables.py":_a,"../../../vendor/current/templates/demo_obstacle_turn/main.py":va,"../../../vendor/current/templates/demo_obstacle_turn/robot_config.py":ya,"../../../vendor/current/templates/demo_random_snake/challenge.py":ba,"../../../vendor/current/templates/demo_random_snake/course_setup.py":xa,"../../../vendor/current/templates/demo_random_snake/live_variables.py":Sa,"../../../vendor/current/templates/demo_random_snake/main.py":Ca,"../../../vendor/current/templates/demo_random_snake/robot_config.py":wa,"../../../vendor/current/templates/demo_roomba/challenge.py":Ta,"../../../vendor/current/templates/demo_roomba/course_setup.py":Ea,"../../../vendor/current/templates/demo_roomba/live_variables.py":Da,"../../../vendor/current/templates/demo_roomba/main.py":Oa,"../../../vendor/current/templates/demo_roomba/robot_config.py":ka,"../../../vendor/current/templates/demo_snake_game/challenge.py":Aa,"../../../vendor/current/templates/demo_snake_game/course_setup.py":ja,"../../../vendor/current/templates/demo_snake_game/live_variables.py":Ma,"../../../vendor/current/templates/demo_snake_game/main.py":Na,"../../../vendor/current/templates/demo_snake_game/robot_config.py":Pa,"../../../vendor/current/templates/demo_snake_game/snake_config.py":Fa,"../../../vendor/current/templates/demo_snake_game/snake_food.py":Ia,"../../../vendor/current/templates/demo_snake_game/snake_game.py":La,"../../../vendor/current/templates/demo_spiral/challenge.py":Ra,"../../../vendor/current/templates/demo_spiral/course_setup.py":za,"../../../vendor/current/templates/demo_spiral/live_variables.py":Ba,"../../../vendor/current/templates/demo_spiral/main.py":Va,"../../../vendor/current/templates/demo_spiral/robot_config.py":Ha,"../../../vendor/current/templates/demo_ucsb_logo/challenge.py":Ua,"../../../vendor/current/templates/demo_ucsb_logo/course_setup.py":Wa,"../../../vendor/current/templates/demo_ucsb_logo/live_variables.py":Ga,"../../../vendor/current/templates/demo_ucsb_logo/main.py":Ka,"../../../vendor/current/templates/demo_ucsb_logo/robot_config.py":qa,"../../../vendor/current/templates/new_demo_motor_characterization/course_setup.py":Ja,"../../../vendor/current/templates/new_demo_motor_characterization/experiment.py":Ya,"../../../vendor/current/templates/new_demo_motor_characterization/live_variables.py":Xa,"../../../vendor/current/templates/new_demo_motor_characterization/main.py":Za,"../../../vendor/current/templates/new_demo_motor_characterization/robot_config.py":Qa,"../../../vendor/current/templates/tutorial_1_python_essentials/exercise_checks.py":$a,"../../../vendor/current/templates/tutorial_1_python_essentials/main.py":eo,"../../../vendor/current/templates/tutorial_1_python_essentials/student_work.py":to,"../../../vendor/current/templates/tutorial_2_virtual_drawing/course_setup.py":no,"../../../vendor/current/templates/tutorial_2_virtual_drawing/exercise_checks.py":ro,"../../../vendor/current/templates/tutorial_2_virtual_drawing/main.py":io,"../../../vendor/current/templates/tutorial_2_virtual_drawing/robot_config.py":ao,"../../../vendor/current/templates/tutorial_2_virtual_drawing/student_work.py":oo,"../../../vendor/current/templates/tutorial_3_robot_programs/course_setup.py":so,"../../../vendor/current/templates/tutorial_3_robot_programs/exercise_checks.py":co,"../../../vendor/current/templates/tutorial_3_robot_programs/main.py":lo,"../../../vendor/current/templates/tutorial_3_robot_programs/robot_config.py":uo,"../../../vendor/current/templates/tutorial_3_robot_programs/student_work.py":fo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/course_setup.py":po,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/exercise_checks.py":mo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/live_variables.py":ho,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/main.py":go,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/robot_config.py":_o,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/student_work.py":vo,"../../../vendor/current/templates/tutorial_5_physical_preflight/course_setup.py":yo,"../../../vendor/current/templates/tutorial_5_physical_preflight/exercise_checks.py":bo,"../../../vendor/current/templates/tutorial_5_physical_preflight/live_variables.py":xo,"../../../vendor/current/templates/tutorial_5_physical_preflight/main.py":So,"../../../vendor/current/templates/tutorial_5_physical_preflight/robot_config.py":Co,"../../../vendor/current/templates/tutorial_5_physical_preflight/student_work.py":wo}),...Object.assign({"../../../vendor/current/templates/demo_manual_drive/README.md":To,"../../../vendor/current/templates/demo_obstacle_turn/README.md":Eo,"../../../vendor/current/templates/demo_random_snake/README.md":Do,"../../../vendor/current/templates/demo_roomba/README.md":Oo,"../../../vendor/current/templates/demo_snake_game/README.md":ko,"../../../vendor/current/templates/demo_spiral/README.md":Ao,"../../../vendor/current/templates/demo_ucsb_logo/README.md":jo,"../../../vendor/current/templates/new_demo_motor_characterization/README.md":Mo,"../../../vendor/current/templates/tutorial_1_python_essentials/README.md":No,"../../../vendor/current/templates/tutorial_2_virtual_drawing/README.md":Po,"../../../vendor/current/templates/tutorial_3_robot_programs/README.md":Fo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/README.md":Io,"../../../vendor/current/templates/tutorial_5_physical_preflight/README.md":Lo}),...Object.assign({"../../../vendor/current/templates/demo_manual_drive/world.json":Ro,"../../../vendor/current/templates/demo_obstacle_turn/world.json":zo,"../../../vendor/current/templates/demo_random_snake/world.json":Bo,"../../../vendor/current/templates/demo_roomba/world.json":Vo,"../../../vendor/current/templates/demo_snake_game/snake_config.json":Ho,"../../../vendor/current/templates/demo_snake_game/world.json":Uo,"../../../vendor/current/templates/demo_spiral/world.json":Wo,"../../../vendor/current/templates/demo_ucsb_logo/world.json":Go,"../../../vendor/current/templates/new_demo_motor_characterization/world.json":Ko,"../../../vendor/current/templates/tutorial_1_python_essentials/world.json":qo,"../../../vendor/current/templates/tutorial_2_virtual_drawing/world.json":Jo,"../../../vendor/current/templates/tutorial_3_robot_programs/world.json":Yo,"../../../vendor/current/templates/tutorial_4_behavior_telemetry/world.json":Xo,"../../../vendor/current/templates/tutorial_5_physical_preflight/world.json":Zo})},es={},X=e.filter(e=>e.published);function ts(e,t){let n=e.solution_stage;if(!n||n<1||n>5)throw Error(`${e.id} has no current challenge solution`);let r={...t};for(let[e,t]of Object.entries(es).sort()){let i=e.match(/\/code\/(\d+)[^/]*\/([^/]+)$/);if(!i||Number(i[1])>n)continue;let a=i[2];(a in r||n===5&&a===`range_estimation.py`)&&(r[a]=t)}return r[`course_setup.py`]=r[`course_setup.py`].replace(/^(USE_STUDENT_[A-Z_]+ = )False$/gm,`$1True`),n===4&&(r[`challenge.py`]=r[`challenge.py`].replace(`EXECUTE_ROUTE = False`,`EXECUTE_ROUTE = True`)),r}function Z(e){let t=`/${e.source}/`,n=e.source.startsWith(`starters/`)?Qo:$o,r=Object.fromEntries(Object.entries(n).filter(([e])=>e.includes(t)).map(([e,n])=>[e.split(t)[1],n]));if(e.kind===`complete-challenge`&&Object.keys(es).length&&(r=ts(e,r)),!(e.entrypoint in r)||Object.keys(r).length<2)throw Error(`${e.id} must contain a complete project`);return Object.freeze({name:e.short_label,entrypoint:e.entrypoint,files:Object.freeze(r)})}var ns=Object.freeze(X.filter(e=>e.kind===`challenge`).map(e=>Object.freeze({id:e.id,label:e.label,shortLabel:e.short_label,summary:e.summary,project:Z(e)}))),Q=[...X.map(e=>Object.freeze({id:e.id,kind:e.kind,group:e.group??`archived`,label:e.label,shortLabel:e.short_label,summary:e.summary,components:Object.freeze((e.components??[]).map(e=>Object.freeze({name:e.name,file:e.file,selectionFlag:e.selection_flag}))),project:Z(e)}))];function rs(e){es=e??{};for(let e of X.filter(e=>e.kind===`complete-challenge`)){let t=Q.findIndex(t=>t.id===e.id),n=Q[t];Q[t]=Object.freeze({...n,project:Z(e)})}}ns[0].project;var is=`demo_spiral`;function $(e){let t=Q.find(t=>t.id===e);if(!t)throw Error(`Unknown course project template '${e}'`);return t}function as(e,t){if(!/^[A-Z][A-Z0-9_]*$/.test(t))throw Error(`Invalid component selection flag '${t}'`);let n=RegExp(`^(${t}\\s*=\\s*)False(\\s*)$`,`m`);if(!e.match(n))throw Error(`The next challenge does not declare ${t}`);return e.replace(n,`$1True$2`)}function os(e,t){if(!/^[A-Z][A-Z0-9_]*$/.test(t))throw Error(`Invalid component selection flag '${t}'`);let n=RegExp(`^${t}\\s*=\\s*(True|False)\\s*$`,`m`),r=e.match(n);return r?r[1]===`True`:null}var ss=new Set([`README.md`,`main.py`,`challenge.py`,`world.json`,`component_checks.py`]),cs=new Set(X.flatMap(e=>e.components??[]).map(e=>e.file));function ls(e,t,n){let r=RegExp(`^${t}\\s*=\\s*${n}\\(`,`m`).exec(e);if(!r)return null;let i=e.indexOf(`(`,r.index),a=0;for(let t=i;t<e.length;t+=1)if(e[t]===`(`&&(a+=1),e[t]===`)`&&(--a,a===0))return e.slice(r.index,t+1);throw Error(`${t} has an unterminated ${n}(...) value`)}function us(e,t){let n=ls(e,`ROBOT_CONFIG`,`RobotConfig`),r=ls(t,`ROBOT_CONFIG`,`RobotConfig`);return n===null||r===null?t:t.replace(r,n)}function ds(e,t,n){let r=$(e),i=$(t);if(r.components.length===0||i.components.length===0)throw Error(`Project transitions require declared student components in both projects`);if(e===t)throw Error(`Choose a different challenge project`);let a={...i.project.files},o=new Set,s=new Set,c=new Set,l=new Set,u=new Set,d=a[`course_setup.py`],f=n.files[`course_setup.py`];if(d===void 0)throw Error(`${i.label} does not contain course_setup.py`);if(f===void 0)throw Error(`The current challenge does not contain course_setup.py`);let p=new Set(i.components.map(e=>e.file));for(let[e,t]of Object.entries(n.files))if(!(e===`course_setup.py`||ss.has(e))){if(cs.has(e)&&!p.has(e)){u.add(e);continue}if(e===`robot_config.py`&&a[e]!==void 0){a[e]=us(t,a[e]),s.add(e);continue}a[e]=t,o.add(e)}for(let e of i.components){let t=n.files[e.file];t!==void 0&&(a[e.file]=t,o.add(e.file)),os(f,e.selectionFlag)&&(d=as(d,e.selectionFlag))}a[`course_setup.py`]=d;for(let e of Object.keys(a))o.has(e)||s.has(e)||(e===`course_setup.py`||e in n.files?c.add(e):l.add(e));return{project:{name:i.project.name,entrypoint:i.project.entrypoint,files:a},preserve:Object.freeze([...o].sort()),merge:Object.freeze([...s].sort()),replace:Object.freeze([...c].sort()),add:Object.freeze([...l].sort()),omit:Object.freeze([...u].sort())}}var fs=$(is).project;export{te as A,fe as C,ue as D,ie as E,ee as O,de as S,ne as T,L as _,ds as a,N as b,la as c,oa as d,It as f,F as g,kt as h,$ as i,a as j,m as k,ca as l,Pt as m,fs as n,rs as o,Ft as p,is as r,ua as s,Q as t,sa as u,Dt as v,pe as w,E as x,P as y};

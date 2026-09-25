@@ -5,9 +5,9 @@ from challenge import GRID_RESOLUTION_MM, CLEARANCE_MM, MAXIMUM_GRID_CELLS
 from challenge import EXECUTE_ROUTE
 from course_setup import make_grid_planner, make_navigation_controller, make_robot
 from grid_display import print_grid
-from live_variables import publish_navigation_steps
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_controls
-from route_validation import goal_is_reached, path_error
+from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from route_runner import run_route
+from route_validation import path_error
 from ucsb_xrp import OccupancyGrid
 
 
@@ -39,35 +39,6 @@ else:
             # Use cell centers along the route but the exact destination marker.
             goals = list(path.to_goals(grid))
             goals[-1] = DESTINATION
-
-            # Construct the robot from this project's configured components.
             robot = make_robot(ROBOT_CONFIG)
             navigation = make_navigation_controller(NAVIGATION_CONFIG)
-            step_count = 0
-            try:
-                # Start establishes the initial pose and encoder/time measurement origins.
-                state = robot.start(INITIAL_POSE)
-                navigation.start(goals)
-                # Recompute the motion request from each new odometry pose.
-                while not navigation.is_complete():
-                    publish_navigation_steps(step_count)
-                    apply_navigation_controls(navigation)
-                    state = robot.step(navigation.update(state.pose))
-                    step_count += 1
-
-                # Verify destination tolerance separately from controller status.
-                result = (
-                    "complete"
-                    if goal_is_reached(state.pose, DESTINATION, navigation.config)
-                    else "destination_not_reached"
-                )
-                print(
-                    "Challenge 4: result={} path_cells={} navigation_steps={} "
-                    "final_pose={}".format(
-                        result, len(path.cells), step_count, state.pose
-                    )
-                )
-                if result != "complete":
-                    raise RuntimeError("Navigation finished before the destination was reached")
-            finally:  # Stop the motors whenever route execution exits.
-                robot.stop()
+            run_route(robot, navigation, INITIAL_POSE, goals, DESTINATION, len(path.cells))

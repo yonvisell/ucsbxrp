@@ -35,3 +35,9 @@ def publish_goals_reached(count):
 def publish_return_path_cells(count):
     # Show the number of GridCell entries in the planned return path.
     live.watch("return_path_cells", count)
+
+
+# Input: mission result text; show it in live telemetry and Program output.
+def report_result(result):
+    publish_result(result)
+    print("Out-and-Back: result=" + result)

@@ -23,7 +23,7 @@ Plan a connected route around known obstacles, then have the Virtual XRP follow 
 ## 3. Run and assess the route
 
 1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_config.py` applies changes after the next robot sample; approach speed remains 80% of selected cruise speed. Slider endpoints are configured control limits. Record values used; `robot_config.py` also holds slowing distance and pose tolerances.
-2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals for the selected `NavigationController`. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.
+2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals; `route_runner.py` follows them with the selected `NavigationController` and checks arrival. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.
 3. **Measure a physical route if performed.** A physical trial is optional. First compare floor geometry and robot dimensions with `world.json`. Record closest obstacle gap and measurement method, contact, and final axle-midpoint pose. Distinguish measurements from estimated pose and virtual trajectory.
 
 ## Your report
@@ -43,7 +43,8 @@ Submit one report per pair with both names, selected components, worlds, grid se
 
 | File | What it does |
 | --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Runs search, prints the grid and path, and optionally drives the route. |
+| <span class="supplied-file"><code>main.py</code> S</span> | Builds the grid, checks and prints the path, then optionally starts route execution. |
+| <span class="supplied-file"><code>route_runner.py</code> S</span> | Follows validated navigation goals, reports arrival, and stops the robot on exit. |
 | <span class="supplied-file"><code>route_validation.py</code> S</span> | Checks path traversability and final estimated-pose arrival. |
 | <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected free-cell path. |
 | <span class="supplied-file"><code>sensor_model.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
@@ -85,3 +86,4 @@ These are the settings and interfaces used above; see the API reference for full
 | `GridPath.to_goals(grid)` | Grid used for planning | World-coordinate navigation goals at turns and destination. |
 | `path_error(grid, start, goal, path)` | Grid, endpoints, proposed path | `None` for valid path or reason it cannot be followed. |
 | `goal_is_reached(pose, goal, config)` | Estimated final pose, destination, navigation settings | Boolean arrival within position and heading tolerances. |
+| `run_route(robot, navigation, initial_pose, goals, destination, path_cell_count)` | Selected robot/controller, starting pose, checked route goals, destination, cell count | Executes route, prints result and final pose, stops robot on exit. |
